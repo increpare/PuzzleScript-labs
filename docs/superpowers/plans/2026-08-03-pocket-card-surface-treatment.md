@@ -23,6 +23,20 @@
 - **No `cd`.** Use `python -C`-style absolute paths or `make` targets; every `cd` costs the user a permission prompt. Run scripts as `hardware/pocket_card/case/.venv/bin/python hardware/pocket_card/case/<script>.py` from the repo root.
 - Commit after every task.
 
+### 2026-08-04 execution amendment
+
+Tasks 1–6 have landed through commit `4ab6498f`. The implementation groups
+adjacent sprite pixels into the intended staggered `4 × 2` bricks and chamfers
+connected bricks per solid. Do not restore the older Task 6 sample's one-pixel
+strip construction.
+
+Front integration proved that an exact outside-only skin is not a boolean bond:
+ordinary union produced 136 solids and fuzzy union still produced 48. The
+approved design amendment adds a 0.05 mm surface-normal root overlap, trims all
+hard openings before union, and requires each exported shell to be one solid.
+Resume at Task 6A, then redo Task 7. Where older Task 6/7 sample code conflicts
+with Tasks 6A/7 below, the amended tasks are authoritative.
+
 ## File Structure
 
 | File | Responsibility |
@@ -963,14 +977,171 @@ git commit -m "texture: assemble chamfered proud relief per zone"
 
 ---
 
-### Task 7: Wire the front shell
+### Task 6A: Construction-only root overlap
+
+The exact `proud_skin()` remains outside-only for measurement. Shell callers
+request a second skin whose brick roots extend 0.05 mm inside material the
+nominal shell already owns, giving OCC real shared volume without changing the
+visible exterior.
+
+**Files:**
+- Modify: `hardware/pocket_card/case/params.py`
+- Modify: `hardware/pocket_card/case/texture.py`
+- Test: `hardware/pocket_card/case/test_texture.py`
+
+**Interfaces:**
+- Produces: `P.TEX_ROOT_OVERLAP = 0.05` mm.
+- Produces: `texture.relief_for_zone(zone, z0, z1, root_overlap=0.0)`.
+- Keeps: `texture.proud_skin()` exact and outside-only.
+
+- [ ] **Step 1: Write the failing parameter and skin tests**
+
+Add to `test_relief_budget()`:
+
+```python
+    check("root overlap is the decided 0.05 mm construction bond",
+          abs(P.TEX_ROOT_OVERLAP - 0.05) < 1e-9)
+```
+
+Add above `main()`:
+
+```python
+def test_root_overlap_skin():
+    print("texture root overlap")
+    import side_arc
+    import texture
+
+    nominal = cq.Workplane(side_arc._envelope(0.0))
+    deeper = cq.Workplane(side_arc._envelope(P.TEX_ROOT_OVERLAP + 0.01))
+    pure = texture.proud_skin()
+    bonded = texture._relief_skin(P.TEX_RELIEF, P.TEX_ROOT_OVERLAP)
+
+    overlap = bonded.intersect(nominal).val().Volume()
+    deep_overlap = bonded.intersect(deeper).val().Volume()
+    visible = bonded.cut(nominal).val().Volume()
+    check("bond skin has real shared volume inside nominal",
+          overlap > 1.0, f"{overlap:.3f} mm^3")
+    check("bond root does not pass its 0.05 mm allowance",
+          deep_overlap < 0.5, f"{deep_overlap:.3f} mm^3")
+    check("root overlap leaves the visible proud skin unchanged",
+          abs(visible - pure.val().Volume()) < 1.0,
+          f"{visible:.3f} vs {pure.val().Volume():.3f}")
+    check("bond and pure skins have the same exterior bbox",
+          abs(bonded.val().BoundingBox().xlen -
+              pure.val().BoundingBox().xlen) < 0.01)
+
+    check("negative root overlap is rejected with ValueError",
+          _raises_value_error(
+              lambda: texture.relief_for_zone(
+                  "front", -P.TEX_RELIEF, 2 * P.TEX_RELIEF,
+                  root_overlap=-0.01)))
+```
+
+Call `test_root_overlap_skin()` immediately after `test_proud_skin()` in
+`main()`.
+
+- [ ] **Step 2: Run RED**
+
+```bash
+hardware/pocket_card/case/.venv/bin/python hardware/pocket_card/case/test_texture.py
+```
+
+Expected: missing `P.TEX_ROOT_OVERLAP`, `_relief_skin`, and `root_overlap`
+support. Stop any OCC run at ten minutes.
+
+- [ ] **Step 3: Add the parameter**
+
+In the texture block in `params.py`, after `TEX_RELIEF`:
+
+```python
+TEX_ROOT_OVERLAP = 0.05  # DECIDED construction-only boolean bond; invisible
+```
+
+- [ ] **Step 4: Add the offset-band helper without changing `proud_skin()`**
+
+In `texture.py`, replace the body-level envelope construction inside
+`proud_skin()` with:
+
+```python
+def _relief_skin(relief, root_overlap=0.0):
+    """Envelope band from `root_overlap` inside nominal to `relief` outside.
+
+    `root_overlap=0` is the exact proud skin. A positive value is construction
+    overlap that disappears inside an integrated shell union.
+    """
+    r = float(relief)
+    root = float(root_overlap)
+    if not math.isfinite(r) or r <= 0:
+        raise ValueError(f"relief must be finite and positive, got {r}")
+    if not math.isfinite(root) or root < 0:
+        raise ValueError(
+            f"root_overlap must be finite and non-negative, got {root}")
+    if root >= min(P.WALL, P.FACE_T):
+        raise ValueError(
+            f"root_overlap {root} must stay below shell thickness")
+    grown = cq.Workplane(side_arc._envelope(-r))
+    inner = cq.Workplane(side_arc._envelope(root))
+    return grown.cut(inner)
+
+
+def proud_skin(relief=None):
+    """The exact constant-thickness shell OUTSIDE the nominal envelope."""
+    r = float(P.TEX_RELIEF if relief is None else relief)
+    return _relief_skin(r, 0.0)
+```
+
+Preserve the existing detailed `proud_skin` documentation around this code.
+
+- [ ] **Step 5: Thread the optional root through `relief_for_zone`**
+
+Change its signature and skin intersection only:
+
+```python
+def relief_for_zone(zone: str, z0: float, z1: float,
+                    root_overlap: float = 0.0) -> cq.Workplane:
+    # existing zone and bound validation remains
+    root = float(root_overlap)
+    if not math.isfinite(root) or root < 0:
+        raise ValueError(
+            f"root_overlap must be finite and non-negative, got {root}")
+    if root >= min(P.WALL, P.FACE_T):
+        raise ValueError(
+            f"root_overlap {root} must stay below shell thickness")
+    # existing prism selection remains
+    relief = (prisms.intersect(_relief_skin(P.TEX_RELIEF, root))
+              .cut(button_islands())
+              .cut(bottom_clear_slab()))
+    return _chamfer_proud_tops(relief, zone)
+```
+
+Do not translate bricks along −z and do not use fuzzy union here; the envelope
+offset supplies the surface-normal bond on the front, walls and rolls.
+
+- [ ] **Step 6: Run GREEN and commit**
+
+```bash
+/usr/bin/time -p hardware/pocket_card/case/.venv/bin/python \
+  hardware/pocket_card/case/test_texture.py
+git add hardware/pocket_card/case/params.py \
+        hardware/pocket_card/case/texture.py \
+        hardware/pocket_card/case/test_texture.py
+git commit -m "texture: add invisible root overlap for shell unions"
+```
+
+Expected: all texture checks pass in under ten minutes; pure-skin deviation
+measurements remain unchanged.
+
+---
+
+### Task 7: Wire and fuse the front shell
 
 **Files:**
 - Modify: `hardware/pocket_card/case/shell_front.py` (`build()`, near the end)
 
 **Interfaces:**
-- Consumes: `texture.relief_for_zone` from Task 6.
-- Produces: `shell_front.build()` returns a shell with front-face relief. Its bounding box grows by `TEX_RELIEF` in +z only.
+- Consumes: `texture.relief_for_zone(..., root_overlap=...)` from Task 6A.
+- Produces: `shell_front.build()` returns exactly one valid shell solid with
+  front-face relief, clear openings and unchanged nominal interior geometry.
 
 - [ ] **Step 1: Add the import**
 
@@ -980,7 +1151,46 @@ In `hardware/pocket_card/case/shell_front.py`, after `import side_arc`:
 import texture
 ```
 
-- [ ] **Step 2: Union the relief in `build()`**
+- [ ] **Step 2: Add the front hard-opening keepout**
+
+Add above `to_model_space()`:
+
+```python
+def _front_relief_keepout():
+    """Openings where front relief is forbidden, including aperture chamfer."""
+    pad = P.APERTURE_CHAMFER + 0.05
+    screen = (cq.Workplane("XY")
+              .box(P.APERTURE_W + 2 * pad, P.APERTURE_H + 2 * pad,
+                   P.FACE_T + 2, centered=(False, False, False))
+              .translate((P.APERTURE_X - pad, P.APERTURE_Y - pad,
+                          -P.FACE_T - 1))
+              .edges("|Z").fillet(0.8 + pad))
+    return screen.union(grille_slots()).union(edge_openings())
+```
+
+The extra 0.05 mm is a keepout margin, not the root-overlap dimension; it keeps
+the chamfer boundary from landing on a coincident relief edge.
+
+- [ ] **Step 3: Verify the current integration is RED**
+
+Run this real-geometry assertion before changing `build()` further:
+
+```bash
+hardware/pocket_card/case/.venv/bin/python -c '
+import sys
+sys.path.insert(0, "hardware/pocket_card/case")
+import shell_front
+s = shell_front.build()
+solids = s.solids().vals()
+print("solids", len(solids), "valid", s.val().isValid())
+assert len(solids) == 1 and s.val().isValid()
+'
+```
+
+Expected in the current worktree: FAIL with `solids 48`; fuzzy union is not a
+physical bond.
+
+- [ ] **Step 4: Union trimmed, bonded relief in `build()`**
 
 In `build()`, replace:
 
@@ -997,32 +1207,87 @@ with:
     # must happen BEFORE the relief goes on, because the relief deliberately
     # lives outside that envelope.
     shell = side_arc.clip_to_envelope(shell)
-    shell = shell.union(
-        texture.relief_for_zone("front", -P.TEX_RELIEF, 2 * P.TEX_RELIEF))
+    relief = texture.relief_for_zone(
+        "front", -P.TEX_RELIEF, 2 * P.TEX_RELIEF,
+        root_overlap=P.TEX_ROOT_OVERLAP)
+    relief = relief.cut(_front_relief_keepout())
+    shell = shell.union(relief)
     return to_model_space(shell)
 ```
 
-- [ ] **Step 3: Build and inspect the bounding box**
+Remove any `glue=True` or fuzzy `tol=` arguments left by the rejected probe.
+The 0.05 mm root overlap must make ordinary union succeed.
+
+- [ ] **Step 5: Run the one-solid and opening regressions**
+
+```bash
+hardware/pocket_card/case/.venv/bin/python -c '
+import sys
+sys.path.insert(0, "hardware/pocket_card/case")
+import shell_front
+s = shell_front.build()
+solids = s.solids().vals()
+assert len(solids) == 1, len(solids)
+assert s.val().isValid()
+for name, cutter in (
+    ("screen", shell_front.screen_aperture()),
+    ("grille", shell_front.grille_slots()),
+    ("edge", shell_front.edge_openings()),
+):
+    model_cutter = shell_front.to_model_space(cutter)
+    hit = s.intersect(model_cutter).val()
+    volume = 0.0 if hit is None else hit.Volume()
+    print(name, volume)
+    assert volume < 0.01, (name, volume)
+bb = s.val().BoundingBox()
+assert abs(bb.zmax - 0.40) < 0.01, bb.zmax
+assert abs(bb.zmin + 7.30) < 0.01, bb.zmin
+assert bb.xmin < 0 and bb.xmax > 90
+assert bb.ymin < 0 and bb.ymax > 93
+print("one valid solid", bb.xlen, bb.ylen, bb.zlen)
+'
+```
+
+Expected: one valid solid; all three opening volumes below 0.01 mm³; zmax
+0.40 mm. Sparse brick occupancy need not reach the continuous grown-envelope
+size of 90.8 × 93.8 mm.
+
+- [ ] **Step 6: Export the persistent visual proof**
+
+```bash
+mkdir -p hardware/pocket_card/case/out/preview
+hardware/pocket_card/case/.venv/bin/python -c '
+import sys
+sys.path.insert(0, "hardware/pocket_card/case")
+import cadquery as cq
+import shell_front
+s = shell_front.build()
+path = ("hardware/pocket_card/case/out/preview/"
+        "shell_front_textured_root_overlap.stl")
+cq.exporters.export(s, path)
+print(path, len(s.solids().vals()), "solid")
+'
+```
+
+Expected: writes the named preview as exactly one solid. Keep it untracked so
+the user can inspect it without replacing the tracked order outputs.
+
+- [ ] **Step 7: Verify the normal export and existing checks**
 
 ```bash
 hardware/pocket_card/case/.venv/bin/python hardware/pocket_card/case/shell_front.py
-```
-
-Expected: `shell_front  90.80 x 93.80 x 7.70` — the plan grows by `2 * TEX_RELIEF` because relief wraps the perimeter, and z grows by `TEX_RELIEF` because the front face is textured and the bottom is not.
-
-- [ ] **Step 4: Verify the caps still fit**
-
-```bash
 hardware/pocket_card/case/.venv/bin/python hardware/pocket_card/case/checks.py
 ```
 
-Expected: `check_cap_fits_collar` still passes. If the envelope assertions fail with the grown bbox, that is Task 9's job — note which ones failed and move on.
+Expected: `front shell is one solid` and cap/collar checks pass. Task 9 may
+still need to amend nominal-envelope surface probes, but no opening or topology
+failure may be deferred.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add hardware/pocket_card/case/shell_front.py
-git commit -m "shell_front: union proud brick relief on the front face"
+git commit -m "shell_front: bond texture around clear front openings"
 ```
 
 ---
@@ -1033,8 +1298,10 @@ git commit -m "shell_front: union proud brick relief on the front face"
 - Modify: `hardware/pocket_card/case/shell_back.py` (`build_back()`)
 
 **Interfaces:**
-- Consumes: `texture.relief_for_zone` from Task 6.
-- Produces: `shell_back.build_back()` returns a shell with wall/back-roll relief, phase-locked to the front's.
+- Consumes: `texture.relief_for_zone(..., root_overlap=...)` from Task 6A.
+- Produces: `shell_back.build_back()` returns exactly one valid shell solid with
+  wall/back-roll relief, a clear USB-C opening, and phase registration with the
+  front.
 
 - [ ] **Step 1: Add the import**
 
@@ -1062,9 +1329,17 @@ with:
     s = side_arc.clip_to_envelope(s)
     # LID_Z0 is the outer back surface, LID_Z1 the split. bottom_clear_slab
     # does the actual fade-out, so this band may safely run the full depth.
-    s = s.union(texture.relief_for_zone("wall", LID_Z0, LID_Z1))
+    relief = texture.relief_for_zone(
+        "wall", LID_Z0, LID_Z1,
+        root_overlap=P.TEX_ROOT_OVERLAP)
+    relief = relief.cut(usb_opening())
+    s = s.union(relief)
     return to_model_space(s)
 ```
+
+Cut the USB opening from relief *after* relief generation because the nominal
+tray cut happened before the relief union. Ordinary union must succeed from the
+physical root overlap; do not add fuzzy tolerance.
 
 - [ ] **Step 3: Confirm the band constants**
 
@@ -1076,7 +1351,27 @@ grep -n "^LID_Z0\|^LID_Z1\|^SHELL_DEPTH" hardware/pocket_card/case/shell_back.py
 
 Expected: three lines. Use those names — do not import `shell_front` for the split depth.
 
-- [ ] **Step 4: Build**
+- [ ] **Step 4: Run one-solid and USB-clear integration assertions**
+
+```bash
+hardware/pocket_card/case/.venv/bin/python -c '
+import sys
+sys.path.insert(0, "hardware/pocket_card/case")
+import shell_back
+s = shell_back.build_back()
+assert len(s.solids().vals()) == 1, len(s.solids().vals())
+assert s.val().isValid()
+usb = shell_back.to_model_space(shell_back.usb_opening())
+hit = s.intersect(usb).val()
+volume = 0.0 if hit is None else hit.Volume()
+print("one valid solid; USB overlap", volume)
+assert volume < 0.01, volume
+'
+```
+
+Expected: one valid solid and USB overlap below 0.01 mm³.
+
+- [ ] **Step 5: Build**
 
 ```bash
 hardware/pocket_card/case/.venv/bin/python hardware/pocket_card/case/shell_back.py
@@ -1084,7 +1379,7 @@ hardware/pocket_card/case/.venv/bin/python hardware/pocket_card/case/shell_back.
 
 Expected: builds without error, plan dimensions grown by `2 * TEX_RELIEF`, z unchanged at the bottom.
 
-- [ ] **Step 5: Eyeball the registration across the split**
+- [ ] **Step 6: Eyeball the registration across the split**
 
 ```bash
 hardware/pocket_card/case/.venv/bin/python -c "
@@ -1102,11 +1397,11 @@ print('on a course boundary:', any(abs(e - z) < 1e-6 for e in near))
 
 Expected: `on a course boundary: True`. If False, adjust `TEX_ORIGIN[1]` in `params.py` so the split lands on a course edge, then re-run.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add hardware/pocket_card/case/shell_back.py hardware/pocket_card/case/params.py
-git commit -m "shell_back: union proud brick relief on walls and back roll"
+git commit -m "shell_back: bond wall texture around the USB opening"
 ```
 
 ---
