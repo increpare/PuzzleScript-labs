@@ -47,6 +47,7 @@ def test_pitches():
 def test_relief_budget():
     print("relief budget")
     check("relief is 0.40 mm", abs(P.TEX_RELIEF - 0.40) < 1e-9)
+    check("root overlap is 0.05 mm", P.TEX_ROOT_OVERLAP == 0.05)
     check("relief does not thin the wall — it is additive",
           P.WALL == 1.5 and P.FACE_T == 1.5)
     check("coarse pixel clears the resin floor",
@@ -260,6 +261,71 @@ def test_proud_skin():
     gb = grown.BoundingBox()
     check("skin bbox matches the grown envelope",
           abs(sb.xlen - gb.xlen) < 0.05 and abs(sb.ylen - gb.ylen) < 0.05)
+
+
+def test_root_overlap_skin():
+    print("root overlap skin")
+    import side_arc
+    import texture
+
+    nominal = cq.Workplane(side_arc._envelope(0.0))
+    pure = texture.proud_skin()
+    bonded = texture._relief_skin(
+        P.TEX_RELIEF, P.TEX_ROOT_OVERLAP, zone="front")
+
+    pad = 1.0
+    front_band = (cq.Workplane("XY")
+                  .box(P.BODY_W + 2 * pad, P.BODY_H + 2 * pad,
+                       P.TEX_RELIEF + P.TEX_ROOT_OVERLAP + 2 * pad,
+                       centered=False)
+                  .translate((-pad, -pad, -P.TEX_ROOT_OVERLAP)))
+
+    overlap = bonded.intersect(nominal).val().Volume()
+    check("front bond skin has real shared volume inside nominal",
+          overlap > 1.0, f"{overlap:.3f} mm^3")
+
+    check("front bond root stops at the z-normal 0.05 mm allowance",
+          abs(bonded.val().BoundingBox().zmin + P.TEX_ROOT_OVERLAP) < 0.01,
+          f"zmin {bonded.val().BoundingBox().zmin:.3f}")
+
+    visible = bonded.cut(nominal).val().Volume()
+    pure_front = pure.intersect(front_band).val().Volume()
+    check("root overlap leaves the visible proud skin unchanged",
+          abs(visible - pure_front) < 1.0,
+          f"{visible:.3f} vs {pure_front:.3f} mm^3")
+
+    wall = texture._relief_skin(
+        P.TEX_RELIEF, P.TEX_ROOT_OVERLAP, zone="wall")
+    check("wall bond skin has real shared volume inside nominal",
+          wall.intersect(nominal).val().Volume() > 1.0)
+
+    # Root validity must be established before prism/OCC construction, just
+    # like z-bound validity.  This keeps bad construction-only inputs from
+    # reaching a heavyweight boolean with nonsensical dimensions.
+    original = texture._front_prisms
+
+    def construction_reached(*_args):
+        raise RuntimeError("invalid root overlap reached OCC construction")
+
+    def raises_exact_value_error(fn):
+        try:
+            fn()
+        except Exception as error:
+            return type(error) is ValueError
+        return False
+
+    texture._front_prisms = construction_reached
+    try:
+        for value, name in ((-0.01, "negative"),
+                            (float("nan"), "NaN"),
+                            (float("inf"), "+inf"),
+                            (min(P.WALL, P.FACE_T), "shell thickness")):
+            check(f"{name} root overlap is rejected before construction",
+                  raises_exact_value_error(
+                      lambda value=value: texture.relief_for_zone(
+                          "front", -1.0, 1.0, value)))
+    finally:
+        texture._front_prisms = original
 
 
 def _raycast(shape, origin, direction, tol=1e-6):
@@ -972,6 +1038,7 @@ def main():
     test_brick_runs_coalesce_connected_pixels()
     test_brick_face()
     test_proud_skin()
+    test_root_overlap_skin()
     test_proud_skin_thickness_probe()
     test_edge_chamfer_band_thickness()
     test_proud_skin_deviation_map()

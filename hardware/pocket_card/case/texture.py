@@ -88,6 +88,43 @@ def brick_face(pitch, x0, y0, x1, y1):
     return wp
 
 
+def _validated_root_overlap(root_overlap):
+    """Construction-only root depth, constrained to existing shell material."""
+    root = float(root_overlap)
+    if not math.isfinite(root) or root < 0:
+        raise ValueError(f"root overlap must be finite and non-negative, got {root}")
+    if root >= min(P.WALL, P.FACE_T):
+        raise ValueError(f"root overlap must be below shell thickness, got {root}")
+    return root
+
+
+def _relief_skin(relief, root_overlap=0.0, zone=None):
+    """Zone-aware band from inside nominal to `relief` outside.
+
+    `root_overlap=0` is the exact proud skin. A positive value is construction
+    overlap that disappears inside an integrated shell union.
+    """
+    r = float(relief)
+    if not math.isfinite(r) or r <= 0:
+        raise ValueError(f"relief must be finite and positive, got {r}")
+    root = _validated_root_overlap(root_overlap)
+    grown = cq.Workplane(side_arc._envelope(-r))
+    nominal = cq.Workplane(side_arc._envelope(0.0))
+    if root == 0.0:
+        return grown.cut(nominal)
+    if zone == "front":
+        pad = 1.0
+        band = (cq.Workplane("XY")
+                .box(P.BODY_W + 2 * pad, P.BODY_H + 2 * pad,
+                     r + root + 2 * pad, centered=False)
+                .translate((-pad, -pad, -root)))
+        return grown.intersect(band)
+    if zone == "wall":
+        inner = cq.Workplane(side_arc._envelope(root))
+        return grown.cut(inner)
+    raise ValueError(f"positive root overlap requires a known zone, got {zone!r}")
+
+
 def proud_skin(relief=None):
     """The constant-thickness shell just OUTSIDE the nominal envelope.
 
@@ -104,12 +141,8 @@ def proud_skin(relief=None):
     with the front pinned to z = 0 regardless of inset, this skin was zero
     thickness across the entire flat front face.
     """
-    r = float(P.TEX_RELIEF if relief is None else relief)
-    if r <= 0:
-        raise ValueError(f"relief must be positive, got {r}")
-    grown = cq.Workplane(side_arc._envelope(-r))
-    nominal = cq.Workplane(side_arc._envelope(0.0))
-    return grown.cut(nominal)
+    r = P.TEX_RELIEF if relief is None else relief
+    return _relief_skin(r, 0.0, zone=None)
 
 
 # The eight control stations, mirroring shell_front.build()'s own list. Third
@@ -337,7 +370,8 @@ def _chamfer_proud_tops(relief, zone="front"):
     return cq.Workplane(cq.Compound.makeCompound(chamfered))
 
 
-def relief_for_zone(zone: str, z0: float, z1: float) -> cq.Workplane:
+def relief_for_zone(zone: str, z0: float, z1: float,
+                    root_overlap=0.0) -> cq.Workplane:
     """Textured part of the proud skin for one named surface zone.
 
     Brick prisms establish the pattern; the skin intersection converts them
@@ -353,9 +387,10 @@ def relief_for_zone(zone: str, z0: float, z1: float) -> cq.Workplane:
     z0, z1 = sorted((z0, z1))
     if z1 - z0 <= 1e-9:
         raise ValueError("texture z band must have positive height")
+    root = _validated_root_overlap(root_overlap)
 
     prisms = _front_prisms(z0, z1) if zone == "front" else _wall_prisms(z0, z1)
-    relief = (prisms.intersect(proud_skin())
+    relief = (prisms.intersect(_relief_skin(P.TEX_RELIEF, root, zone=zone))
               .cut(button_islands())
               .cut(bottom_clear_slab()))
     return _chamfer_proud_tops(relief, zone)

@@ -709,6 +709,7 @@ TEX_TILE = (  # DECIDED  5×5 running-bond brick pattern
 TEX_PIXEL_FINE   = 1.0     # DECIDED  front face -- 5 mm tile, graphic read
 TEX_PIXEL_COARSE = 0.5     # DECIDED  walls / back roll -- 2.5 mm tile, grip
 TEX_RELIEF       = 0.40    # ASSUMED  proud height; coupon.py settles this
+TEX_ROOT_OVERLAP = 0.05    # DECIDED  construction-only, invisible shell-union bond
 TEX_TOP_CHAMFER  = 0.2     # DECIDED  matches the logo bevel; kills sharp tops
 TEX_KEEPOUT      = 1.0     # ASSUMED  radial, from each button station collar
 TEX_BOTTOM_CLEAR = 1.9     # MEASURED fade-out band before the flat bottom
