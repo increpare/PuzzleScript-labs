@@ -1067,9 +1067,10 @@ essential: helper-level skin equality is insufficient because chamfering a
 rooted compound can change its topology and therefore change the visible
 pattern.
 
-Add a wall-prism reach regression using a larger valid root (for example
-0.60 mm) so a hard-coded 0.05 mm prism depth cannot pass. The prism band must
-reach far enough inward to intersect the corresponding inset wall envelope.
+The design supports construction roots only from zero through the decided
+`P.TEX_ROOT_OVERLAP` (0.05 mm). Add `0.06`, NaN, infinity, and shell thickness
+to the early-rejection regression so unsupported values never reach prism or
+OCC construction.
 
 - [ ] **Step 2: Run RED**
 
@@ -1107,9 +1108,9 @@ def _relief_skin(relief, root_overlap=0.0, zone=None):
     if not math.isfinite(root) or root < 0:
         raise ValueError(
             f"root_overlap must be finite and non-negative, got {root}")
-    if root >= min(P.WALL, P.FACE_T):
+    if root > P.TEX_ROOT_OVERLAP:
         raise ValueError(
-            f"root_overlap {root} must stay below shell thickness")
+            f"root_overlap {root} exceeds the decided construction bond")
     grown = cq.Workplane(side_arc._envelope(-r))
     nominal = cq.Workplane(side_arc._envelope(0.0))
     if root == 0.0:
@@ -1139,8 +1140,8 @@ Preserve the existing detailed `proud_skin` documentation around this code.
 
 Change `_wall_prisms` to accept the validated `root_overlap`. Its tangential
 box depth must be derived from `P.TEX_RELIEF + root_overlap` plus the existing
-small boolean pad; do not hard-code the decided 0.05 mm root in this generic
-helper.
+small boolean pad; do not duplicate the decided value as an unexplained magic
+number in this helper.
 
 Assemble visible relief and its construction root separately. Chamfer the
 exact zero-root visible bricks first. Then create a shallow bond band with
@@ -1158,9 +1159,9 @@ def relief_for_zone(zone: str, z0: float, z1: float,
     if not math.isfinite(root) or root < 0:
         raise ValueError(
             f"root_overlap must be finite and non-negative, got {root}")
-    if root >= min(P.WALL, P.FACE_T):
+    if root > P.TEX_ROOT_OVERLAP:
         raise ValueError(
-            f"root_overlap {root} must stay below shell thickness")
+            f"root_overlap {root} exceeds the decided construction bond")
     prisms = (_front_prisms(z0, z1) if zone == "front"
               else _wall_prisms(z0, z1, root_overlap=root))
     visible = (prisms.intersect(proud_skin())
