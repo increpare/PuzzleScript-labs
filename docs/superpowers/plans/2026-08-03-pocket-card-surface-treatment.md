@@ -1144,10 +1144,11 @@ helper.
 
 Assemble visible relief and its construction root separately. Chamfer the
 exact zero-root visible bricks first. Then create a shallow bond band with
-outside reach equal to `root_overlap`, cut it by the same keepouts, and union
-it into the already-chamfered result. The bond band overlaps both the shell
-and the unchamfered lower portion of every visible brick, so it joins them
-without allowing root-induced topology changes to alter the top chamfer:
+outside reach equal to `root_overlap` and cut it by the same keepouts. Return
+the visible and bond solids as one additive compound. The bond band overlaps
+both the shell and the unchamfered lower portion of every visible brick, so the
+shell caller's final union joins them without allowing root-induced topology
+changes to alter the top chamfer:
 
 ```python
 def relief_for_zone(zone: str, z0: float, z1: float,
@@ -1172,8 +1173,15 @@ def relief_for_zone(zone: str, z0: float, z1: float,
     bond = (prisms.intersect(_relief_skin(root, root, zone=zone))
             .cut(button_islands())
             .cut(bottom_clear_slab()))
-    return visible.union(bond)
+    return visible.add(bond)
 ```
+
+Do not pre-fuse the complete relief compound. OCC global fusion of these many
+overlapping roots has been measured to create 35.695 mm³ of false visible
+material during a later cut, despite each bond being wholly contained by the
+raw brick near its base. The additive compound has zero mutual visible
+difference and 219.498 mm³ of real front-shell overlap. Task 7's one-solid
+integration assertion is the required proof that the shell consumes it.
 
 Do not translate individual bricks and do not use fuzzy union here. The front
 band supplies a true z-normal root through the flat face; the cavity-envelope
