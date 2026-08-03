@@ -169,6 +169,9 @@ def _stepped_plan(inset: float) -> cq.Shape:
 def _envelope(inset: float = 0.0) -> cq.Shape:
     """Rolled envelope, offset inward by ``inset`` (0.0 = the outer skin).
 
+    ``inset`` may be negative, which offsets the envelope OUTWARD instead —
+    see the guard comments below and ``_plan_solid``'s docstring.
+
     Cached: the back shell alone asks for this a dozen times per build.
 
     The north rib is a step in the PLAN solid, rolled afterwards with everything
