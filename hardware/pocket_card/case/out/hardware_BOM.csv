@@ -1,0 +1,3 @@
+Comment,Designator,Qty,Length_mm,Notes,Sites_xy
+M2x10 pan self-tap,SCREW_NORTH,2,10.0,M2 pan-head self-tap into Ø1.7 pilot,"(6,6.5);(84,6.5)"
+M2x8 pan self-tap,SCREW_SOUTH,4,8.0,M2 pan-head self-tap into Ø1.7 pilot,"(6,48.5);(84,48.5);(64.5,56);(66,84)"

@@ -587,6 +587,20 @@ BACK_ROLL_S    = 3.5                   # ASSUMED  cell-limited (check enforces)
 MIN_MEMBRANE = 0.8     # ASSUMED  min solid behind any counterbore seat (mm)
 LAND_WALL    = 1.2     # ASSUMED  radial land material beyond the head pocket
 
+# Assembly screws: M2 pan-head self-tappers into the Ø1.7 front-shell pilots
+# (joints.SHAFT_CLEAR_D = 2.6, HEAD_D = 5.0). The north rib deepened the two
+# north module seats by ~2.25, so one length no longer covers all six sites —
+# span seat→post is 6.13 north vs 3.88 south / 4.50 on the PCB mounts.
+# See out/hardware_BOM.csv.
+SCREW_NORTH = dict(  # module mounts at y = MOD_Y + MOUNT_INSET (= 6.5)
+    mpn="M2x10 pan self-tap", qty=2, length=10.0,
+    sites=((6.0, 6.5), (84.0, 6.5)),
+)
+SCREW_SOUTH = dict(  # south module + both controller PCB mounts
+    mpn="M2x8 pan self-tap", qty=4, length=8.0,
+    sites=((6.0, 48.5), (84.0, 48.5), (64.5, 56.0), (66.0, 84.0)),
+)
+
 # Switch height is a direct thickness lever: every millimetre of TACT_H is a
 # millimetre of device. SKQGABE010 at 1.5 mm is the chosen low-profile part.
 

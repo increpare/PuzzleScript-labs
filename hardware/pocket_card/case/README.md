@@ -77,8 +77,18 @@ model space (also written by `place_preview.py`).
 python3 export_smt.py
 ```
 
-Writes `out/pcb/BOM.csv` + `out/pcb/CPL.csv`. Upload those with
+Writes `out/pcb/BOM.csv` + `out/pcb/CPL.csv`, and the case-assembly fastener
+list `out/hardware_BOM.csv`. Upload the SMT pair with
 `out/pcb/pocket_card_controller_gerbers.zip`.
+
+Case screws (self-tap into the Ø1.7 pilots; the north rib needs a longer pair):
+
+| Qty | Part | Sites |
+|---|---|---|
+| 2 | M2×10 pan self-tap | north module mounts `(6, 6.5)`, `(84, 6.5)` |
+| 4 | M2×8 pan self-tap | south module + both PCB mounts |
+
+Constants: `params.SCREW_NORTH` / `SCREW_SOUTH`.
 
 Connector populate (land stays KiCad JST GH; parts are GH-compatible XUNPU
 wafers — genuine JST often OOS):

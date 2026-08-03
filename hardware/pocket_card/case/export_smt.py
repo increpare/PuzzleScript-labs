@@ -112,10 +112,40 @@ def write_bom() -> str:
     return out
 
 
+def write_hardware_bom() -> str:
+    """Case assembly fasteners — not SMT, not for JLCPCB.
+
+    The north rib deepened two module screw seats, so M2×10 is needed there
+    and M2×8 elsewhere. Sourced from params.SCREW_*.
+    """
+    out = os.path.join(HERE, "out", "hardware_BOM.csv")
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    rows = []
+    for key, spec in (("SCREW_NORTH", P.SCREW_NORTH),
+                      ("SCREW_SOUTH", P.SCREW_SOUTH)):
+        sites = ";".join("(%g,%g)" % xy for xy in spec["sites"])
+        rows.append([
+            spec["mpn"],
+            key,
+            spec["qty"],
+            "%.1f" % spec["length"],
+            "M2 pan-head self-tap into Ø1.7 pilot",
+            sites,
+        ])
+    with open(out, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["Comment", "Designator", "Qty", "Length_mm",
+                    "Notes", "Sites_xy"])
+        w.writerows(rows)
+    return out
+
+
 def main():
+    os.makedirs(OUT, exist_ok=True)
+    hw = write_hardware_bom()
+    print("wrote", hw)
     if not os.path.isfile(BRD):
         sys.exit("missing board: %s" % BRD)
-    os.makedirs(OUT, exist_ok=True)
     pos = export_kicad_pos()
     bom = write_bom()
     cpl = write_cpl(pos)
