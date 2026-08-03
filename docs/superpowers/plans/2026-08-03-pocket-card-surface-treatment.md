@@ -982,7 +982,14 @@ git commit -m "texture: assemble chamfered proud relief per zone"
 The exact `proud_skin()` remains outside-only for measurement. Shell callers
 request a second skin whose brick roots extend 0.05 mm inside material the
 nominal shell already owns, giving OCC real shared volume without changing the
-visible exterior.
+visible exterior. The bond is zone-aware: the front uses a z-normal slab below
+the flat face, while the wall/back zone uses the inset cavity envelope.
+
+Do not use `_envelope(root_overlap)` as a global front-depth oracle. Positive
+`side_arc._envelope()` values describe the enclosure cavity: they keep the
+front at z=0 and omit the nominal exterior's front chamfer. Consequently that
+shape legitimately intersects some visible proud skin around the chamfer and
+cannot represent a parallel inward offset there.
 
 **Files:**
 - Modify: `hardware/pocket_card/case/params.py`
@@ -1012,23 +1019,33 @@ def test_root_overlap_skin():
     import texture
 
     nominal = cq.Workplane(side_arc._envelope(0.0))
-    deeper = cq.Workplane(side_arc._envelope(P.TEX_ROOT_OVERLAP + 0.01))
     pure = texture.proud_skin()
-    bonded = texture._relief_skin(P.TEX_RELIEF, P.TEX_ROOT_OVERLAP)
+    bonded = texture._relief_skin(
+        P.TEX_RELIEF, P.TEX_ROOT_OVERLAP, zone="front")
+
+    pad = 1.0
+    front_band = (cq.Workplane("XY")
+                  .box(P.BODY_W + 2 * pad, P.BODY_H + 2 * pad,
+                       P.TEX_RELIEF + P.TEX_ROOT_OVERLAP + 2 * pad,
+                       centered=False)
+                  .translate((-pad, -pad, -P.TEX_ROOT_OVERLAP)))
 
     overlap = bonded.intersect(nominal).val().Volume()
-    deep_overlap = bonded.intersect(deeper).val().Volume()
     visible = bonded.cut(nominal).val().Volume()
+    pure_front = pure.intersect(front_band).val().Volume()
     check("bond skin has real shared volume inside nominal",
           overlap > 1.0, f"{overlap:.3f} mm^3")
-    check("bond root does not pass its 0.05 mm allowance",
-          deep_overlap < 0.5, f"{deep_overlap:.3f} mm^3")
+    check("front bond root stops at the z-normal 0.05 mm allowance",
+          abs(bonded.val().BoundingBox().zmin + P.TEX_ROOT_OVERLAP) < 0.01,
+          f"zmin {bonded.val().BoundingBox().zmin:.3f}")
     check("root overlap leaves the visible proud skin unchanged",
-          abs(visible - pure.val().Volume()) < 1.0,
-          f"{visible:.3f} vs {pure.val().Volume():.3f}")
-    check("bond and pure skins have the same exterior bbox",
-          abs(bonded.val().BoundingBox().xlen -
-              pure.val().BoundingBox().xlen) < 0.01)
+          abs(visible - pure_front) < 1.0,
+          f"{visible:.3f} vs {pure_front:.3f}")
+
+    wall = texture._relief_skin(
+        P.TEX_RELIEF, P.TEX_ROOT_OVERLAP, zone="wall")
+    check("wall bond skin has real shared volume inside nominal",
+          wall.intersect(nominal).val().Volume() > 1.0)
 
     check("negative root overlap is rejected with ValueError",
           _raises_value_error(
@@ -1063,8 +1080,8 @@ In `texture.py`, replace the body-level envelope construction inside
 `proud_skin()` with:
 
 ```python
-def _relief_skin(relief, root_overlap=0.0):
-    """Envelope band from `root_overlap` inside nominal to `relief` outside.
+def _relief_skin(relief, root_overlap=0.0, zone=None):
+    """Zone-aware band from inside nominal to `relief` outside.
 
     `root_overlap=0` is the exact proud skin. A positive value is construction
     overlap that disappears inside an integrated shell union.
@@ -1080,14 +1097,26 @@ def _relief_skin(relief, root_overlap=0.0):
         raise ValueError(
             f"root_overlap {root} must stay below shell thickness")
     grown = cq.Workplane(side_arc._envelope(-r))
-    inner = cq.Workplane(side_arc._envelope(root))
-    return grown.cut(inner)
+    nominal = cq.Workplane(side_arc._envelope(0.0))
+    if root == 0.0:
+        return grown.cut(nominal)
+    if zone == "front":
+        pad = 1.0
+        band = (cq.Workplane("XY")
+                .box(P.BODY_W + 2 * pad, P.BODY_H + 2 * pad,
+                     r + root + 2 * pad, centered=False)
+                .translate((-pad, -pad, -root)))
+        return grown.intersect(band)
+    if zone == "wall":
+        inner = cq.Workplane(side_arc._envelope(root))
+        return grown.cut(inner)
+    raise ValueError(f"positive root overlap requires a known zone, got {zone!r}")
 
 
 def proud_skin(relief=None):
     """The exact constant-thickness shell OUTSIDE the nominal envelope."""
     r = float(P.TEX_RELIEF if relief is None else relief)
-    return _relief_skin(r, 0.0)
+    return _relief_skin(r, 0.0, zone=None)
 ```
 
 Preserve the existing detailed `proud_skin` documentation around this code.
@@ -1108,14 +1137,16 @@ def relief_for_zone(zone: str, z0: float, z1: float,
         raise ValueError(
             f"root_overlap {root} must stay below shell thickness")
     # existing prism selection remains
-    relief = (prisms.intersect(_relief_skin(P.TEX_RELIEF, root))
+    relief = (prisms.intersect(_relief_skin(P.TEX_RELIEF, root, zone=zone))
               .cut(button_islands())
               .cut(bottom_clear_slab()))
     return _chamfer_proud_tops(relief, zone)
 ```
 
-Do not translate bricks along −z and do not use fuzzy union here; the envelope
-offset supplies the surface-normal bond on the front, walls and rolls.
+Do not translate individual bricks and do not use fuzzy union here. The front
+band supplies a true z-normal root through the flat face; the cavity-envelope
+band supplies the wall/back root. Keep `proud_skin()` on the exact outside-only
+path so existing relief measurements remain unchanged.
 
 - [ ] **Step 6: Run GREEN and commit**
 
