@@ -903,6 +903,7 @@ def _raises_value_error(fn):
 
 def test_relief_for_zone():
     print("relief solid")
+    import side_arc
     import texture
 
     front = texture.relief_for_zone("front", -P.TEX_RELIEF, P.TEX_RELIEF * 2)
@@ -938,6 +939,41 @@ def test_relief_for_zone():
     check("wall relief stays inside its normalized z band",
           wb.zmin >= -2.0 - 1e-3 and wb.zmax <= -1.0 + 1e-3,
           f"z={wb.zmin:.4f}..{wb.zmax:.4f}")
+
+    # Rooted relief is a construction aid, never a surface-treatment change.
+    # Compare final (keep-out-cut and chamfered) geometry in BOTH directions:
+    # a one-way volume check would miss either added nubs or lost brick tops.
+    nominal = cq.Workplane(side_arc._envelope(0.0))
+    root = P.TEX_ROOT_OVERLAP
+    front_rooted = texture.relief_for_zone(
+        "front", -P.TEX_RELIEF, P.TEX_RELIEF * 2, root)
+    front_visible = front_rooted.cut(nominal)
+    front_added = front_visible.cut(front).val().Volume()
+    front_lost = front.cut(front_visible).val().Volume()
+    check("front root keeps final visible relief unchanged (no additions)",
+          front_added < 0.5, f"{front_added:.3f} mm^3")
+    check("front root keeps final visible relief unchanged (no losses)",
+          front_lost < 0.5, f"{front_lost:.3f} mm^3")
+    check("front rooted relief overlaps the nominal shell",
+          front_rooted.intersect(nominal).val().Volume() > 1.0)
+
+    wall_rooted = texture.relief_for_zone("wall", -2.0, -1.0, root)
+    wall_visible = wall_rooted.cut(nominal)
+    wall_added = wall_visible.cut(wall).val().Volume()
+    wall_lost = wall.cut(wall_visible).val().Volume()
+    check("wall root keeps final visible relief unchanged (no additions)",
+          wall_added < 0.5, f"{wall_added:.3f} mm^3")
+    check("wall root keeps final visible relief unchanged (no losses)",
+          wall_lost < 0.5, f"{wall_lost:.3f} mm^3")
+    check("wall rooted relief overlaps the nominal shell",
+          wall_rooted.intersect(nominal).val().Volume() > 1.0)
+
+    large_root = 0.60
+    deep_wall_prisms = texture._wall_prisms(-2.0, -1.0,
+                                             root_overlap=large_root)
+    deep_cavity = cq.Workplane(side_arc._envelope(large_root))
+    check("wall prisms reach a larger valid root into the cavity envelope",
+          deep_wall_prisms.intersect(deep_cavity).val().Volume() > 1.0)
 
     check("unknown zone is rejected",
           _raises_value_error(lambda: texture.relief_for_zone("nope", -1.0, 1.0)))

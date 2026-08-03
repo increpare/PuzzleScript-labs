@@ -286,13 +286,13 @@ def _front_prisms(z0, z1):
     return cq.Workplane(cq.Compound.makeCompound(solids))
 
 
-def _wall_prisms(z0, z1):
+def _wall_prisms(z0, z1, root_overlap=0.0):
     """Coarse-pitch brick prisms placed tangent to the nominal plan wire."""
     plan = cq.Workplane(side_arc._plan_solid(0.0))
     wire = plan.faces(">Z").val().outerWire()
     perimeter = wire.Length()
     runs = _brick_runs(P.TEX_PIXEL_COARSE, 0.0, z0, perimeter, z1)
-    depth = 2 * (P.TEX_RELIEF + 0.05)
+    depth = 2 * (P.TEX_RELIEF + float(root_overlap) + 0.05)
     solids = []
     for s0, rz0, s1, rz1 in runs:
         # CadQuery's length mode is normalized (0..1), despite the name.
@@ -389,11 +389,23 @@ def relief_for_zone(zone: str, z0: float, z1: float,
         raise ValueError("texture z band must have positive height")
     root = _validated_root_overlap(root_overlap)
 
-    prisms = _front_prisms(z0, z1) if zone == "front" else _wall_prisms(z0, z1)
-    relief = (prisms.intersect(_relief_skin(P.TEX_RELIEF, root, zone=zone))
-              .cut(button_islands())
-              .cut(bottom_clear_slab()))
-    return _chamfer_proud_tops(relief, zone)
+    prisms = (_front_prisms(z0, z1) if zone == "front"
+              else _wall_prisms(z0, z1, root_overlap=root))
+    visible = (prisms.intersect(proud_skin())
+               .cut(button_islands())
+               .cut(bottom_clear_slab()))
+    visible = _chamfer_proud_tops(visible, zone)
+    if root == 0.0:
+        return visible
+
+    bond = (prisms.intersect(_relief_skin(root, root, zone=zone))
+            .cut(button_islands())
+            .cut(bottom_clear_slab()))
+    # Keep the bonded roots as a compound beside the already-chamfered
+    # visible bricks.  Global OCC fusion changes the visible topology around
+    # touching root strips; the shell's later union consumes these overlapping
+    # roots while this assembly preserves the finished surface exactly.
+    return visible.add(bond)
 
 
 if __name__ == "__main__":
