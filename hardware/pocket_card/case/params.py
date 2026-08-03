@@ -687,6 +687,33 @@ COUPON_MARGIN = 6.0
 # COLLAR_CLEAR cannot be derived, only found.
 COUPON_CLEARANCES = (0.10, 0.15, 0.20, 0.25, 0.30)   # FDM-appropriate steps
 
+# ---------------------------------------------------------------- texture -----
+# Enclosure surface relief. See
+# docs/superpowers/specs/2026-08-03-pocket-card-surface-treatment-design.md
+#
+# Relief is PROUD -- added outside the nominal envelope, never cut into it.
+# Cutting 0.40 would take WALL and FACE_T from 1.50 to 1.10, and the 0.70
+# LAP_FRONT_T skirt to 0.30. Adding leaves all three untouched, which is what
+# lets the pattern cross the split line at all.
+#
+# One tile, two pitches. '#' is brick (proud), '.' is mortar (at nominal).
+# Running bond: each course offset half a brick from the one above.
+TEX_TILE = (  # DECIDED  5×5 running-bond brick pattern
+    "####.",
+    "####.",
+    ".....",
+    ".####",
+    ".####",
+)
+
+TEX_PIXEL_FINE   = 1.0     # DECIDED  front face -- 5 mm tile, graphic read
+TEX_PIXEL_COARSE = 0.5     # DECIDED  walls / back roll -- 2.5 mm tile, grip
+TEX_RELIEF       = 0.40    # ASSUMED  proud height; coupon.py settles this
+TEX_TOP_CHAMFER  = 0.2     # DECIDED  matches the logo bevel; kills sharp tops
+TEX_KEEPOUT      = 1.0     # ASSUMED  radial, from each button station collar
+TEX_BOTTOM_CLEAR = 1.9     # MEASURED fade-out band before the flat bottom
+TEX_ORIGIN       = (0.0, 0.0)   # DECIDED  shared phase, both shells
+
 
 if __name__ == "__main__":
     print(f"face                {FACE_T:6.2f}")

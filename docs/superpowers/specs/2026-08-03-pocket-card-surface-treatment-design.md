@@ -131,6 +131,34 @@ a curve is what brickwork does. Revisit only if a print looks wrong; the
 fallback is splitting the extrusion (radial in plan for the perimeter zone,
 −z for the flat face, meeting near 45°).
 
+#### Accepted deviation from constant thickness — the rib blend
+
+Decided 2026-08-03, during implementation, after measurement.
+
+`side_arc._rib_region` offsets its profile by a diagonal translation
+`(Δy, Δz) = (+r, −r)` rather than along the surface normal. `_envelope`'s own
+docstring already records this for the inward case ("slightly over-offset
+through the blend… up to 1.95 of wall there instead of 1.50"). Under negative
+inset the same shift makes the proud skin **thicker** than `TEX_RELIEF`:
+
+| Surface | Peak thickness | Over |
+|---|---|---|
+| Back | 0.510 mm | +29% |
+| Side walls | 0.477 mm | +22% |
+
+Confined to `y ∈ [RIB_Y, RIB_Y2] ≈ [11.0, 23.3]`, across nearly the full 90 mm
+width. A 3057-point sweep found 169 points outside ±0.02 mm and **every one of
+them inside that band** — the skin is exact everywhere else.
+
+**Accepted, not fixed.** The deviation is additive, so it costs nothing in wall
+thickness; ~0.11 mm of extra relief is below what reads by eye; and
+normal-offsetting `_rib_region` would change shared enclosure geometry both
+shells depend on, for a sub-0.1 mm gain. `test_proud_skin_deviation_map`
+regression-locks the current behaviour with its excluded band named explicitly,
+so a change that widens or worsens it fails the suite.
+
+Revisit only if a print shows it.
+
 ### Registration across the split
 
 Both shells generate their pattern from one shared origin in `params.py`, and
