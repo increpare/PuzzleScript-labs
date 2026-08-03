@@ -260,7 +260,41 @@ def _wall_prisms(z0, z1):
     return cq.Workplane(cq.Compound.makeCompound(solids))
 
 
-def _chamfer_proud_tops(relief):
+def _chamfer_candidate_is_safe(candidate, source):
+    """Whether OCC's claimed chamfer only removed source material."""
+    original = source.BoundingBox()
+    result = candidate.BoundingBox()
+    tol = 1e-6
+    return (candidate.isValid()
+            and candidate.Volume() <= source.Volume() + tol
+            and result.xmin >= original.xmin - tol
+            and result.ymin >= original.ymin - tol
+            and result.zmin >= original.zmin - tol
+            and result.xmax <= original.xmax + tol
+            and result.ymax <= original.ymax + tol
+            and result.zmax <= original.zmax + tol)
+
+
+def _wall_outward_faces(solid):
+    """Outward-facing wall candidates, strongest radial face first."""
+    cx, cy = P.BODY_W / 2, P.BODY_H / 2
+    candidates = []
+    for face in solid.Faces():
+        point = face.Center()
+        normal = face.normalAt(point)
+        radial_x, radial_y = point.x - cx, point.y - cy
+        radial_len = math.hypot(radial_x, radial_y)
+        normal_len = math.hypot(normal.x, normal.y)
+        if radial_len <= 1e-9 or normal_len <= 0.5:
+            continue
+        score = (normal.x * radial_x + normal.y * radial_y) / radial_len
+        if score > 1e-6:
+            candidates.append((score, face))
+    return [face for _score, face in sorted(candidates, reverse=True,
+                                             key=lambda item: item[0])]
+
+
+def _chamfer_proud_tops(relief, zone="front"):
     """Chamfer every disconnected brick independently where OCC permits it.
 
     A skin-clipped brick can expose a degenerate top edge.  Its chamfer is
@@ -269,26 +303,20 @@ def _chamfer_proud_tops(relief):
     """
     chamfered = []
     for solid in relief.solids().vals():
-        try:
-            candidate = (cq.Workplane(solid).faces(">Z").edges()
-                         .chamfer(P.TEX_TOP_CHAMFER).val())
-            # OCC occasionally reports success on a skin-clipped top face
-            # while extending it far beyond its source solid. A chamfer can
-            # only remove material, never enlarge the original bounding box.
-            source = solid.BoundingBox()
-            result = candidate.BoundingBox()
-            tol = 1e-6
-            if (not candidate.isValid()
-                    or candidate.Volume() > solid.Volume() + tol
-                    or result.xmin < source.xmin - tol
-                    or result.ymin < source.ymin - tol
-                    or result.zmin < source.zmin - tol
-                    or result.xmax > source.xmax + tol
-                    or result.ymax > source.ymax + tol
-                    or result.zmax > source.zmax + tol):
-                raise ValueError("OCC chamfer enlarged a source solid")
-            chamfered.append(candidate)
-        except Exception:
+        if zone == "front":
+            faces = cq.Workplane(solid).faces(">Z").vals()
+        else:
+            faces = _wall_outward_faces(solid)
+        for face in faces:
+            try:
+                candidate = (cq.Workplane(solid).newObject([face]).edges()
+                             .chamfer(P.TEX_TOP_CHAMFER).val())
+                if _chamfer_candidate_is_safe(candidate, solid):
+                    chamfered.append(candidate)
+                    break
+            except Exception:
+                pass
+        else:
             chamfered.append(solid)
     return cq.Workplane(cq.Compound.makeCompound(chamfered))
 
@@ -303,7 +331,10 @@ def relief_for_zone(zone: str, z0: float, z1: float) -> cq.Workplane:
     """
     if zone not in _ZONES:
         raise ValueError(f"unknown texture zone {zone!r}")
-    z0, z1 = sorted((float(z0), float(z1)))
+    z0, z1 = float(z0), float(z1)
+    if not math.isfinite(z0) or not math.isfinite(z1):
+        raise ValueError("texture z bounds must be finite")
+    z0, z1 = sorted((z0, z1))
     if z1 - z0 <= 1e-9:
         raise ValueError("texture z band must have positive height")
 
@@ -311,7 +342,7 @@ def relief_for_zone(zone: str, z0: float, z1: float) -> cq.Workplane:
     relief = (prisms.intersect(proud_skin())
               .cut(button_islands())
               .cut(bottom_clear_slab()))
-    return _chamfer_proud_tops(relief)
+    return _chamfer_proud_tops(relief, zone)
 
 
 if __name__ == "__main__":

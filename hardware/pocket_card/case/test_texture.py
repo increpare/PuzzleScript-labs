@@ -802,11 +802,13 @@ def test_bottom_clear():
               f"z={z}")
 
 
-def _raises(fn):
+def _raises_value_error(fn):
     try:
         fn()
-    except Exception:
+    except ValueError:
         return True
+    except Exception:
+        return False
     return False
 
 
@@ -849,7 +851,34 @@ def test_relief_for_zone():
           f"z={wb.zmin:.4f}..{wb.zmax:.4f}")
 
     check("unknown zone is rejected",
-          _raises(lambda: texture.relief_for_zone("nope", -1.0, 1.0)))
+          _raises_value_error(lambda: texture.relief_for_zone("nope", -1.0, 1.0)))
+
+
+def test_relief_bounds_validation():
+    print("relief bounds validation")
+    import texture
+
+    # A finite check belongs before prism/OCC construction. Replacing the
+    # front builder makes that ordering observable without asking OCC to
+    # process NaN or infinity.
+    original = texture._front_prisms
+
+    def construction_reached(*_args):
+        raise RuntimeError("non-finite bounds reached OCC construction")
+
+    texture._front_prisms = construction_reached
+    try:
+        for value, name in ((float("nan"), "NaN"),
+                            (float("inf"), "+inf"),
+                            (-float("inf"), "-inf")):
+            check(f"{name} bound is rejected before construction",
+                  _raises_value_error(
+                      lambda value=value: texture.relief_for_zone("front", value, 1.0)))
+    finally:
+        texture._front_prisms = original
+
+    check("zero-height band is rejected",
+          _raises_value_error(lambda: texture.relief_for_zone("front", 1.0, 1.0)))
 
 
 def test_large_relief_chamfer_attempt():
@@ -863,10 +892,51 @@ def test_large_relief_chamfer_attempt():
               for i in range(129)]
     relief = cq.Workplane(cq.Compound.makeCompound(solids))
     chamfered = texture._chamfer_proud_tops(relief)
-    check("large disconnected relief gets a top chamfer",
-          chamfered.val().Volume() < relief.val().Volume() - 0.1,
+    before = relief.solids().vals()
+    after = chamfered.solids().vals()
+    check("every large disconnected relief brick gets a top chamfer",
+          len(before) == len(after)
+          and all(b.Volume() > a.Volume() + 1e-6 for b, a in zip(before, after)),
           f"{chamfered.val().Volume():.4f} vs {relief.val().Volume():.4f}")
     check("large chamfered relief remains valid", chamfered.val().isValid())
+
+
+def _wall_relief_source(texture, z0=-2.0, z1=-1.0):
+    return (texture._wall_prisms(z0, z1).intersect(texture.proud_skin())
+            .cut(texture.button_islands()).cut(texture.bottom_clear_slab()))
+
+
+def _inside_bounds(shape, source, tol=1e-6):
+    a, b = shape.BoundingBox(), source.BoundingBox()
+    return (a.xmin >= b.xmin - tol and a.ymin >= b.ymin - tol
+            and a.zmin >= b.zmin - tol and a.xmax <= b.xmax + tol
+            and a.ymax <= b.ymax + tol and a.zmax <= b.zmax + tol)
+
+
+def test_wall_relief_chamfer():
+    print("wall relief chamfer")
+    import texture
+
+    source = _wall_relief_source(texture)
+    wall = texture.relief_for_zone("wall", -2.0, -1.0)
+    before, after = source.solids().vals(), wall.solids().vals()
+    pairs = list(zip(before, after))
+
+    check("wall relief chamfer removes material",
+          wall.val().Volume() < source.val().Volume() - 0.1,
+          f"{wall.val().Volume():.4f} vs {source.val().Volume():.4f}")
+    check("wall chamfered solids are valid and inside source bounds",
+          len(before) == len(after) and all(a.isValid() and _inside_bounds(a, b)
+                                              for b, a in pairs))
+
+    def reduced(predicate):
+        return any(predicate(b.Center()) and a.Volume() < b.Volume() - 1e-6
+                   for b, a in pairs)
+
+    check("wall chamfer reaches a straight west-wall brick",
+          reduced(lambda c: c.x < 0.1 and 15.0 < c.y < 75.0))
+    check("wall chamfer reaches a rounded north-west corner brick",
+          reduced(lambda c: c.x < 8.0 and c.y < 8.0))
 
 
 def main():
@@ -884,7 +954,9 @@ def main():
     test_stations_and_islands()
     test_bottom_clear()
     test_relief_for_zone()
+    test_relief_bounds_validation()
     test_large_relief_chamfer_attempt()
+    test_wall_relief_chamfer()
     print()
     if FAILURES:
         sys.exit(f"{len(FAILURES)} check(s) failed: {', '.join(FAILURES)}")
