@@ -2,15 +2,14 @@
 
 ## Goal
 
-Prototype a tactile shape language for the eight existing Pocket Card face
-buttons without changing their openings, positions, retention, switch stack or
-travel.
+Prototype a tactile shape language for the four auxiliary Pocket Card face
+buttons without changing any opening, position, retention, switch stack or
+travel. The four direction buttons retain their established production shape.
 
 ## Crown language
 
-- The four direction caps are asymmetric pebbles. Each rises toward the outer
-  edge and falls toward the centre of the cluster, so the four separate buttons
-  read under the thumb as one shallow directional bowl.
+- Up, Down, Left and Right use the original neutral round, dished caps generated
+  by `coupon.cap`; there is no experimental D-pad crown geometry.
 - Undo has the deepest concave dish and remains the most inviting round cap.
 - Action is a smooth, low convex lens, deliberately opposite to Undo without
   becoming a slippery high dome.
@@ -43,8 +42,9 @@ References:
 
 The existing head diameter, radial clearance, keyed flange, flange thickness,
 boss, switch gap and collar geometry are invariant. `coupon.py` remains the
-neutral fit-calibration source and is not changed. The sculpted generator owns
-only role-specific crown geometry above the outer face.
+neutral fit-calibration source and the complete geometry source for all four
+direction caps. The sculpted generator owns only the Undo, Action, Reset and
+Menu crown geometry above the outer face.
 
 The prototype exports individual printable caps at the origin, a sprued set
 whose connections touch hidden flange material, and a placed multi-body STEP
@@ -55,8 +55,9 @@ and are not committed.
 
 ## Verification
 
-Automated checks prove that all roles preserve the mechanical envelope below
-the face, remain single solids, have the intended relative crown heights and
-asymmetry, and fit the existing collars. The full case checks continue to pass.
-A rendered oblique preview is inspected for obvious collisions, inverted
-direction slopes, sharp crown discontinuities and unreadable role differences.
+Automated checks prove that every direction cap is geometrically identical to
+the neutral production cap, that all roles preserve the mechanical envelope
+below the face, and that every cap remains one valid solid fitting the existing
+collars. The auxiliary caps retain their intended relative crown heights. A
+rendered oblique preview is inspected for collisions, sharp crown
+discontinuities and unreadable role differences.

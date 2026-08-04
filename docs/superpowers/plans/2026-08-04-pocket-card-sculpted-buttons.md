@@ -130,3 +130,11 @@ material, and save `out/sculpted_buttons/pocket_card_complete_sculpted.blend`.
 Reopen the result headlessly and assert the complete mesh-object inventory,
 including display, PCB, Battery, speaker, edge tips and eight cap meshes whose
 data names end in `_sculpted_mesh`.
+
+### Revision: retain the production D-pad caps
+
+Following hands-on review, the experimental asymmetric direction crowns are
+retired. Up, Down, Left and Right now delegate directly to the original neutral
+cap generator. The role-specific Undo, Action, Reset and Menu crowns remain.
+The regression contract compares both boolean differences between each
+direction cap and the production cap and requires both volumes to be zero.

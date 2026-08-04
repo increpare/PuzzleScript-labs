@@ -179,10 +179,11 @@ file; STLs are one body per file so nothing gets fused.
 
 `out/order/assembly.step` (also `out/order/preview/assembly.step`)
 
-### Sculpted button prototype
+### Auxiliary-button shape prototype
 
-The role-specific crown prototype keeps the production flange, anti-rotation
-flats, boss, clearances and shell openings unchanged:
+The prototype keeps the original round, dished direction caps unchanged while
+giving Undo, Action, Reset and Menu role-specific crowns. It preserves every
+production flange, anti-rotation flat, boss, clearance and shell opening:
 
 ```
 .venv/bin/python sculpted_buttons.py
@@ -210,13 +211,13 @@ To replace the neutral buttons in the complete coloured Blender assembly:
 ```
 
 The resulting `.blend` retains the case, PCB, display panel, battery, speaker,
-power/mute tips, collections and material assignments; only the eight face-cap
-meshes are replaced.
+power/mute tips, collections and material assignments. Its four direction-cap
+meshes are exact exports of the original production geometry; only Undo,
+Action, Reset and Menu have modified crowns.
 
-The directions are asymmetric lofts which rise away from the cluster centre;
 Undo is deeply dished, Action is a shallow convex lens, Reset is low and
 cratered, and the Menu pill has three transverse grooves. The neutral clearance
-coupon remains the source of truth for fit.
+coupon remains the source of truth for fit and for direction-cap geometry.
 
 Power/mute slides are C&K **PCM12SMTR** (`SW_SPDT_PCM12`) with the official
 KiCad packages3D STEP — low profile (~1.5 mm body), no project stand-in needed.

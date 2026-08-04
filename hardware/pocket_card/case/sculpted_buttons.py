@@ -1,10 +1,10 @@
-"""Role-specific Pocket Card button crowns on the existing guided-cap base.
+"""Pocket Card auxiliary-button crowns on the existing guided-cap base.
 
 This is deliberately separate from ``coupon.py``.  The coupon remains a neutral
-fit gauge; this module changes only the material above the outer face (z >= 0)
-and preserves its flange, anti-rotation flats and switch boss.
+fit gauge and remains the complete source for the four direction caps.  This
+module changes only the auxiliary crowns above the outer face (z >= 0) and
+preserves their flange, anti-rotation flats and switch boss.
 """
-import math
 import os
 from dataclasses import dataclass
 
@@ -17,12 +17,6 @@ import shell_front
 
 DIRECTION_ROLES = ("up", "down", "left", "right")
 ROLES = (*DIRECTION_ROLES, "undo", "action", "reset", "menu")
-OUTWARD = {
-    "up": (0.0, -1.0),
-    "down": (0.0, 1.0),
-    "left": (-1.0, 0.0),
-    "right": (1.0, 0.0),
-}
 
 
 @dataclass(frozen=True)
@@ -43,10 +37,7 @@ STATIONS = (
     Station("menu", P.MENU_X, P.MENU_Y),
 )
 
-# Crown dimensions above the existing outer face, in millimetres.
-DIRECTION_SHOULDER_H = 0.90
-DIRECTION_APEX_H = 1.40
-DIRECTION_APEX_SHIFT = 0.78
+# Auxiliary crown dimensions above the existing outer face, in millimetres.
 UNDO_RIM_H = 1.20
 UNDO_DISH_DEPTH = 0.58
 ACTION_EDGE_H = 0.78
@@ -56,10 +47,6 @@ RESET_DISH_DEPTH = 0.25
 MENU_TOP_H = 0.62
 MENU_GROOVE_DEPTH = 0.18
 TOP_EDGE_FILLET = {
-    "up": 0.18,
-    "down": 0.18,
-    "left": 0.18,
-    "right": 0.18,
     "undo": 0.18,
     "reset": 0.12,
     "menu": 0.08,
@@ -108,31 +95,6 @@ def _pill_mechanical_base(clear_cap):
         .extrude(-P.CAP_FLANGE_T)
     )
     return head.union(flange), head_l, head_w
-
-
-def _direction_crown(head_d, outward):
-    """Smooth offset loft whose high point leans toward ``outward``."""
-    dx, dy = outward
-    length = math.hypot(dx, dy)
-    if length == 0:
-        raise ValueError("direction crown requires a non-zero outward vector")
-    dx, dy = dx / length, dy / length
-    r = head_d / 2
-
-    return (
-        cq.Workplane("XY")
-        .circle(r)
-        .workplane(offset=DIRECTION_SHOULDER_H)
-        .center(dx * 0.46, dy * 0.46)
-        .circle(r * 0.62)
-        .workplane(offset=DIRECTION_APEX_H - DIRECTION_SHOULDER_H)
-        .center(
-            dx * (DIRECTION_APEX_SHIFT - 0.46),
-            dy * (DIRECTION_APEX_SHIFT - 0.46),
-        )
-        .circle(r * 0.27)
-        .loft(combine=True, ruled=False)
-    )
 
 
 def _dished_crown(head_d, rim_h, depth):
@@ -185,10 +147,13 @@ def _menu_crown(head_l, head_w, grooves):
     return crown
 
 
-def cap(role, clear_cap=P.FIT_CLEAR, outward=None, menu_grooves=True):
+def cap(role, clear_cap=P.FIT_CLEAR, menu_grooves=True):
     """Build one printable cap at the origin for a semantic button ``role``."""
     if role not in ROLES:
         raise ValueError(f"unknown button role {role!r}; expected one of {ROLES}")
+
+    if role in DIRECTION_ROLES:
+        return coupon.cap(P.DIR_CAP_D, clear_cap)
 
     if role == "menu":
         base, head_l, head_w = _pill_mechanical_base(clear_cap)
@@ -198,9 +163,7 @@ def cap(role, clear_cap=P.FIT_CLEAR, outward=None, menu_grooves=True):
 
     hole_d = P.AB_CAP_D if role in ("undo", "action") else P.DIR_CAP_D
     base, head_d = _round_mechanical_base(hole_d, clear_cap)
-    if role in DIRECTION_ROLES:
-        crown = _direction_crown(head_d, outward or OUTWARD[role])
-    elif role == "undo":
+    if role == "undo":
         crown = _dished_crown(head_d, UNDO_RIM_H, UNDO_DISH_DEPTH)
     elif role == "action":
         crown = _action_crown(head_d)
@@ -303,7 +266,7 @@ def export_prototype(out_dir=OUT):
 
 def main():
     written = export_prototype()
-    print(f"sculpted buttons: {len(ROLES)} roles, clearance {P.FIT_CLEAR:.2f} mm")
+    print(f"button prototype: {len(ROLES)} roles, clearance {P.FIT_CLEAR:.2f} mm")
     print(f"wrote {len(written)} files to {OUT}")
     for role in ROLES:
         bb = cap(role).val().BoundingBox()

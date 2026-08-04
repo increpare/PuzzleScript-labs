@@ -41,15 +41,8 @@ class SculptedButtonGeometryTest(unittest.TestCase):
                 ).intersect(clip).val().Volume()
                 self.assertAlmostEqual(sculpted, neutral, places=4)
 
-    def test_station_manifest_covers_roles_and_directions_point_outward(self):
+    def test_station_manifest_covers_every_role(self):
         self.assertEqual(tuple(st.role for st in sb.STATIONS), sb.ROLES)
-        for station in sb.STATIONS:
-            if station.role not in sb.DIRECTION_ROLES:
-                continue
-            dx = station.x - P.DIR_CX
-            dy = station.y - P.DIR_CY
-            ox, oy = sb.OUTWARD[station.role]
-            self.assertGreater(dx * ox + dy * oy, 0.0)
 
     def test_every_role_is_one_valid_solid_with_the_shared_mechanical_depth(self):
         for role in sb.ROLES:
@@ -64,16 +57,17 @@ class SculptedButtonGeometryTest(unittest.TestCase):
                     shape.val().BoundingBox().zmin, expected_zmin, places=5
                 )
 
-    def test_direction_crowns_lean_toward_the_declared_outer_edge(self):
-        sample_z = sb.DIRECTION_SHOULDER_H + 0.08
+    def test_direction_caps_keep_the_original_neutral_geometry(self):
+        neutral = coupon.cap(P.DIR_CAP_D, P.FIT_CLEAR)
         for role in sb.DIRECTION_ROLES:
             with self.subTest(role=role):
-                dx, dy = sb.OUTWARD[role]
-                shape = sb.cap(role).val()
-                outward = cq.Vector(dx * 1.9, dy * 1.9, sample_z)
-                inward = cq.Vector(-dx * 1.9, -dy * 1.9, sample_z)
-                self.assertTrue(shape.isInside(outward, 1e-5))
-                self.assertFalse(shape.isInside(inward, 1e-5))
+                direction = sb.cap(role)
+                self.assertAlmostEqual(
+                    direction.cut(neutral).val().Volume(), 0.0, places=5
+                )
+                self.assertAlmostEqual(
+                    neutral.cut(direction).val().Volume(), 0.0, places=5
+                )
 
     def test_undo_is_a_deep_dish(self):
         shape = sb.cap("undo").val()
