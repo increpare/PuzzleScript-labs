@@ -1152,11 +1152,17 @@ shell caller's final union joins them without allowing root-induced topology
 changes to alter the top chamfer:
 
 The front zone needs two construction bands. Its z-normal band roots the flat
-face. Its fine-pitch prisms also clip the narrow rolled plan edge down to about
-z=-0.4; add a second perimeter band made with the wall/inset-envelope path so
-those edge-wrap fragments receive a surface-normal root too. Without that
-perimeter band the real front-shell integration reproducibly leaves 47 tiny
-detached edge solids despite 116.873 mm³ of aggregate shell overlap.
+face. Its fine-pitch prisms also clip the narrow front perimeter chamfer down
+to about z=-0.4, so add a second band from an inset envelope that preserves
+that chamfer. The ordinary positive `_envelope(root)` deliberately omits the
+front chamfer and leaves a z=-0.679..0 gap; using the wall band here was tested
+and left the deep overlap at exactly 0.000 mm³.
+
+For the 45-degree front bevel, `_plan_solid(root)` has already moved the side
+wall inward by `root` while leaving the front at z=0. To move the bevel plane
+inward by the same surface-normal distance, its leg must be
+`EDGE_CHAMFER + root * (sqrt(2) - 1)`. Build this temporary chamfered inner
+envelope without changing `side_arc._envelope()` itself:
 
 ```python
 def relief_for_zone(zone: str, z0: float, z1: float,
@@ -1185,8 +1191,12 @@ def relief_for_zone(zone: str, z0: float, z1: float,
 
     bond = rooted_part(_relief_skin(root, root, zone=zone))
     if zone == "front":
-        perimeter_bond = rooted_part(
-            _relief_skin(root, root, zone="wall"))
+        inner = cq.Workplane(side_arc._envelope(root))
+        leg = P.EDGE_CHAMFER + root * (math.sqrt(2) - 1)
+        inner = inner.faces(">Z").edges().chamfer(leg)
+        perimeter_skin = cq.Workplane(
+            side_arc._envelope(-root)).cut(inner)
+        perimeter_bond = rooted_part(perimeter_skin)
         bond = bond.add(perimeter_bond)
     return visible.add(bond)
 ```
