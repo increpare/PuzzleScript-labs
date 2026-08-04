@@ -3,8 +3,18 @@
 var fs = require("fs");
 var path = require("path");
 
+function deepFreeze(value) {
+    if (!value || typeof value !== "object" || Object.isFrozen(value)) {
+        return value;
+    }
+    Object.keys(value).forEach(function (key) {
+        deepFreeze(value[key]);
+    });
+    return Object.freeze(value);
+}
+
 var connectivityPath = path.join(__dirname, "connectivity.json");
-var model = JSON.parse(fs.readFileSync(connectivityPath, "utf8"));
+var model = deepFreeze(JSON.parse(fs.readFileSync(connectivityPath, "utf8")));
 
 var REQUIRED_REFS = [
     "U1",
@@ -14,14 +24,42 @@ var REQUIRED_REFS = [
     "H1", "H2"
 ];
 
-var LEGAL_PINS = {
-    MCP23017: Array.from({ length: 28 }, function (_, index) { return String(index + 1); }),
-    TACT: ["1", "2"],
-    SLIDE: ["1", "2", "3"],
-    JST4: ["1", "2", "3", "4", "MP"],
-    JST2: ["1", "2", "MP"],
-    MOUNT: []
+var CANONICAL_META = {
+    project: "Pocket Card Controller",
+    revision: "as-routed-2026-08-05",
+    date: "2026-08-05",
+    sourceBoard: "../case/out/pcb/pocket_card_controller.kicad_pcb"
 };
+var CANONICAL_META_FIELDS = new Set(Object.keys(CANONICAL_META));
+
+var CANONICAL_COMPONENTS = new Map([
+    ["U1", ["MCP23017-E/SO", "Package_SO:SOIC-28W_7.5x17.9mm_P1.27mm", "f2abe43b-79ce-4f91-a34f-27e849a4046d", "MCP23017"]],
+    ["SW_UP", ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "0e4c7620-48d6-4920-a112-21a3249bfba7", "TACT"]],
+    ["SW_DOWN", ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "5abed186-9cb3-4286-abbb-e9d8339a14ad", "TACT"]],
+    ["SW_LEFT", ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "62cee17b-aa96-44b5-a818-d88c4d4bf07a", "TACT"]],
+    ["SW_RIGHT", ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "a1ddb411-d507-48b9-af26-f860c81613ad", "TACT"]],
+    ["SW_UNDO", ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "54709c66-66ed-4fc3-bb15-0ec33ecd272f", "TACT"]],
+    ["SW_ACTION", ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "2d954156-91bb-4370-a6cb-35be5c7ff576", "TACT"]],
+    ["SW_RESET", ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "366484ad-06ff-4a23-ab3f-f69d88ea88ca", "TACT"]],
+    ["SW_MENU", ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "82a0ed80-77a0-40cf-a208-39cca4201c6b", "TACT"]],
+    ["SW_PWR", ["PCM12SMTR", "Button_Switch_SMD:SW_SPDT_PCM12", "6ef5c169-59a4-41dd-a19c-3daf87f107fd", "SLIDE"]],
+    ["SW_MUTE", ["PCM12SMTR", "Button_Switch_SMD:SW_SPDT_PCM12", "3e016402-85c6-43ed-a254-0f878d988740", "SLIDE"]],
+    ["J_I2C", ["WAFER-GH1.25-4PWB", "Connector_JST:JST_GH_SM04B-GHS-TB_1x04-1MP_P1.25mm_Horizontal", "8448c040-e282-4175-89bf-5bdbe34ce139", "JST4"]],
+    ["J_EXP", ["WAFER-GH1.25-4PWB", "Connector_JST:JST_GH_SM04B-GHS-TB_1x04-1MP_P1.25mm_Horizontal", "46493532-cedd-425e-a83b-150b6baf58c7", "JST4"]],
+    ["J_BAT_IN", ["WAFER-GH1.25-2PWB", "Connector_JST:JST_GH_SM02B-GHS-TB_1x02-1MP_P1.25mm_Horizontal", "9b63372c-f11f-42f2-b30e-7cc0cd058c1f", "JST2"]],
+    ["J_BAT_OUT", ["WAFER-GH1.25-2PWB", "Connector_JST:JST_GH_SM02B-GHS-TB_1x02-1MP_P1.25mm_Horizontal", "57d0226d-8795-4ef7-a0c1-66e4f791f8c0", "JST2"]],
+    ["H1", ["MountingHole_2.7mm_M2.5", "MountingHole:MountingHole_2.7mm_M2.5", "3dd44c71-4aac-49f5-81ec-108b40379bb0", "MOUNT"]],
+    ["H2", ["MountingHole_2.7mm_M2.5", "MountingHole:MountingHole_2.7mm_M2.5", "023c2f5f-b5bd-4271-830c-e37e2934b255", "MOUNT"]]
+]);
+
+var LEGAL_PINS = new Map([
+    ["MCP23017", Array.from({ length: 28 }, function (_, index) { return String(index + 1); })],
+    ["TACT", ["1", "2"]],
+    ["SLIDE", ["1", "2", "3"]],
+    ["JST4", ["1", "2", "3", "4", "MP"]],
+    ["JST2", ["1", "2", "MP"]],
+    ["MOUNT", []]
+]);
 
 var FIXED_PIN_NETS = {
     "U1.1": "SIG_UP", "U1.9": "+3V3", "U1.10": "GND", "U1.12": "SCL",
@@ -50,6 +88,7 @@ var FIXED_NO_CONNECTS = {
     J_EXP: ["2", "3", "4"],
     SW_PWR: ["3"]
 };
+var FIXED_NO_CONNECT_REFS = new Set(Object.keys(FIXED_NO_CONNECTS));
 
 var CANONICAL_BOARD_ONLY_PAD_RULE = {
     ref: "SW_MUTE",
@@ -59,7 +98,7 @@ var CANONICAL_BOARD_ONLY_PAD_RULE = {
 };
 
 function componentMap(candidate) {
-    var byRef = {};
+    var byRef = Object.create(null);
     var components = candidate && Array.isArray(candidate.components) ? candidate.components : [];
     components.forEach(function (component) {
         if (component && typeof component.ref === "string") {
@@ -74,7 +113,7 @@ function pinKey(ref, pin) {
 }
 
 function pinNetMap(candidate) {
-    var byPin = {};
+    var byPin = Object.create(null);
     var connections = candidate && Array.isArray(candidate.connections) ? candidate.connections : [];
     connections.forEach(function (connection) {
         var nodes = connection && Array.isArray(connection.nodes) ? connection.nodes : [];
@@ -93,13 +132,28 @@ function validateConnectivity(candidate) {
         return ["connectivity model must be an object"];
     }
 
+    Object.keys(CANONICAL_META).forEach(function (field) {
+        var actual = candidate.meta && candidate.meta[field];
+        if (actual !== CANONICAL_META[field]) {
+            errors.push("meta." + field + " expected " + CANONICAL_META[field] +
+                ", got " + (actual === undefined ? "missing" : actual));
+        }
+    });
+    if (candidate.meta && typeof candidate.meta === "object") {
+        Object.keys(candidate.meta).forEach(function (field) {
+            if (!CANONICAL_META_FIELDS.has(field)) {
+                errors.push("unexpected meta field " + field);
+            }
+        });
+    }
+
     var components = Array.isArray(candidate.components) ? candidate.components : [];
     if (!Array.isArray(candidate.components)) {
         errors.push("components must be an array");
     }
 
-    var byRef = {};
-    var uuidOwner = {};
+    var byRef = new Map();
+    var uuidOwner = new Map();
     components.forEach(function (component, index) {
         if (!component || typeof component !== "object") {
             errors.push("component at index " + index + " must be an object");
@@ -112,47 +166,59 @@ function validateConnectivity(candidate) {
             }
         });
         if (typeof component.ref === "string") {
-            if (Object.prototype.hasOwnProperty.call(byRef, component.ref)) {
+            if (byRef.has(component.ref)) {
                 errors.push("duplicate component ref " + component.ref);
             } else {
-                byRef[component.ref] = component;
+                byRef.set(component.ref, component);
             }
         }
         if (typeof component.uuid === "string" && component.uuid.length > 0) {
-            if (Object.prototype.hasOwnProperty.call(uuidOwner, component.uuid)) {
+            if (uuidOwner.has(component.uuid)) {
                 errors.push("duplicate component UUID " + component.uuid +
-                    " used by " + uuidOwner[component.uuid] + " and " + component.ref);
+                    " used by " + uuidOwner.get(component.uuid) + " and " + component.ref);
             } else {
-                uuidOwner[component.uuid] = component.ref;
+                uuidOwner.set(component.uuid, component.ref);
             }
         }
         if (typeof component.symbol === "string" &&
-            !Object.prototype.hasOwnProperty.call(LEGAL_PINS, component.symbol)) {
+            !LEGAL_PINS.has(component.symbol)) {
             errors.push("component " + component.ref + " has unknown symbol " + component.symbol);
         }
     });
 
-    var requiredSet = {};
+    var requiredSet = new Set();
     REQUIRED_REFS.forEach(function (ref) {
-        requiredSet[ref] = true;
-        if (!Object.prototype.hasOwnProperty.call(byRef, ref)) {
+        requiredSet.add(ref);
+        if (!byRef.has(ref)) {
             errors.push("missing required component " + ref);
         }
     });
-    Object.keys(byRef).forEach(function (ref) {
-        if (!requiredSet[ref]) {
+    byRef.forEach(function (_, ref) {
+        if (!requiredSet.has(ref)) {
             errors.push("unexpected component " + ref);
         }
     });
+    CANONICAL_COMPONENTS.forEach(function (identity, ref) {
+        var component = byRef.get(ref);
+        if (!component) {
+            return;
+        }
+        ["value", "footprint", "uuid", "symbol"].forEach(function (field, index) {
+            if (component[field] !== identity[index]) {
+                errors.push("component " + ref + " " + field + " expected " + identity[index] +
+                    ", got " + component[field]);
+            }
+        });
+    });
 
     function validateKnownPin(ref, pin, context) {
-        if (!Object.prototype.hasOwnProperty.call(byRef, ref)) {
+        if (!byRef.has(ref)) {
             errors.push(context + " references unknown component " + ref);
             return;
         }
-        var component = byRef[ref];
-        var inventory = LEGAL_PINS[component.symbol];
-        if (!inventory || inventory.indexOf(String(pin)) === -1) {
+        var component = byRef.get(ref);
+        var inventory = LEGAL_PINS.get(component.symbol);
+        if (!inventory || inventory.indexOf(pin) === -1) {
             errors.push(context + " uses unknown pin " + pinKey(ref, pin) +
                 " for symbol " + component.symbol);
         }
@@ -162,7 +228,8 @@ function validateConnectivity(candidate) {
     if (!Array.isArray(candidate.connections)) {
         errors.push("connections must be an array");
     }
-    var pinNets = {};
+    var pinNets = new Map();
+    var seenNetNames = new Set();
     connections.forEach(function (connection, connectionIndex) {
         if (!connection || typeof connection !== "object") {
             errors.push("connection at index " + connectionIndex + " must be an object");
@@ -171,6 +238,10 @@ function validateConnectivity(candidate) {
         var net = typeof connection.net === "string" ? connection.net : "<missing>";
         if (net === "<missing>" || net.length === 0) {
             errors.push("connection at index " + connectionIndex + " requires a non-empty net");
+        } else if (seenNetNames.has(net)) {
+            errors.push("duplicate connection net " + net);
+        } else {
+            seenNetNames.add(net);
         }
         var nodes = Array.isArray(connection.nodes) ? connection.nodes : [];
         if (!Array.isArray(connection.nodes)) {
@@ -184,18 +255,26 @@ function validateConnectivity(candidate) {
                 errors.push("net " + net + " node " + nodeIndex + " must be [ref, pin]");
                 return;
             }
+            if (typeof node[0] !== "string") {
+                errors.push("net " + net + " node " + nodeIndex + " ref must be a string");
+                return;
+            }
+            if (typeof node[1] !== "string") {
+                errors.push("net " + net + " node " + nodeIndex + " pin must be a string");
+                return;
+            }
             var ref = node[0];
-            var pin = String(node[1]);
+            var pin = node[1];
             validateKnownPin(ref, pin, "net " + net);
             var key = pinKey(ref, pin);
-            if (Object.prototype.hasOwnProperty.call(pinNets, key)) {
-                if (pinNets[key] === net) {
+            if (pinNets.has(key)) {
+                if (pinNets.get(key) === net) {
                     errors.push("duplicate connection pin " + key + " on net " + net);
                 } else {
-                    errors.push("pin " + key + " is on multiple nets (" + pinNets[key] + " and " + net + ")");
+                    errors.push("pin " + key + " is on multiple nets (" + pinNets.get(key) + " and " + net + ")");
                 }
             } else {
-                pinNets[key] = net;
+                pinNets.set(key, net);
             }
         });
     });
@@ -205,29 +284,34 @@ function validateConnectivity(candidate) {
         errors.push("noConnects must be an object keyed by component ref");
         noConnects = {};
     }
-    var noConnectSet = {};
+    var noConnectSet = new Set();
     Object.keys(noConnects).forEach(function (ref) {
         var pins = noConnects[ref];
-        var knownRef = Object.prototype.hasOwnProperty.call(byRef, ref);
+        var knownRef = byRef.has(ref);
         if (!knownRef) {
             errors.push("noConnects references unknown component " + ref);
+        } else if (!FIXED_NO_CONNECT_REFS.has(ref)) {
+            errors.push("unexpected noConnects key " + ref);
         }
         if (!Array.isArray(pins)) {
             errors.push("noConnects." + ref + " must be an array");
             return;
         }
-        if (!knownRef) {
+        if (!knownRef || !FIXED_NO_CONNECT_REFS.has(ref)) {
             return;
         }
-        pins.forEach(function (pin) {
-            pin = String(pin);
+        pins.forEach(function (pin, pinIndex) {
+            if (typeof pin !== "string") {
+                errors.push("noConnects." + ref + " pin " + pinIndex + " must be a string");
+                return;
+            }
             validateKnownPin(ref, pin, "noConnects");
             var key = pinKey(ref, pin);
-            if (noConnectSet[key]) {
+            if (noConnectSet.has(key)) {
                 errors.push("duplicate no-connect " + key);
             }
-            noConnectSet[key] = true;
-            if (Object.prototype.hasOwnProperty.call(pinNets, key)) {
+            noConnectSet.add(key);
+            if (pinNets.has(key)) {
                 errors.push("pin " + key + " is connected and also marked no-connect");
             }
         });
@@ -235,24 +319,24 @@ function validateConnectivity(candidate) {
 
     Object.keys(FIXED_PIN_NETS).forEach(function (key) {
         var expectedNet = FIXED_PIN_NETS[key];
-        if (pinNets[key] !== expectedNet) {
+        if (pinNets.get(key) !== expectedNet) {
             errors.push("pin " + key + " expected net " + expectedNet +
-                ", got " + (pinNets[key] === undefined ? "unconnected" : pinNets[key]));
+                ", got " + (pinNets.get(key) === undefined ? "unconnected" : pinNets.get(key)));
         }
     });
 
-    var expectedNoConnectSet = {};
+    var expectedNoConnectSet = new Set();
     Object.keys(FIXED_NO_CONNECTS).forEach(function (ref) {
         FIXED_NO_CONNECTS[ref].forEach(function (pin) {
             var key = pinKey(ref, pin);
-            expectedNoConnectSet[key] = true;
-            if (!noConnectSet[key]) {
+            expectedNoConnectSet.add(key);
+            if (!noConnectSet.has(key)) {
                 errors.push("pin " + key + " must be no-connect");
             }
         });
     });
-    Object.keys(noConnectSet).forEach(function (key) {
-        if (!expectedNoConnectSet[key]) {
+    noConnectSet.forEach(function (key) {
+        if (!expectedNoConnectSet.has(key)) {
             errors.push("pin " + key + " is not an allowed no-connect");
         }
     });
@@ -278,7 +362,7 @@ function validateConnectivity(candidate) {
             }
         });
         if (Object.prototype.hasOwnProperty.call(rule, "ref") &&
-            !Object.prototype.hasOwnProperty.call(byRef, rule.ref)) {
+            !byRef.has(rule.ref)) {
             errors.push("boardOnlyPadRules[" + index + "] references unknown component " + rule.ref);
         }
         if (Object.keys(CANONICAL_BOARD_ONLY_PAD_RULE).some(function (field) {

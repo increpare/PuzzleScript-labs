@@ -93,6 +93,36 @@ test("canonical connectivity validates without errors", function () {
     assert.deepStrictEqual(V.validateConnectivity(V.model), []);
 });
 
+test("the exported canonical model is recursively frozen", function () {
+    [
+        V.model,
+        V.model.meta,
+        V.model.components,
+        V.model.components[0],
+        V.model.connections,
+        V.model.connections[0],
+        V.model.connections[0].nodes,
+        V.model.connections[0].nodes[0],
+        V.model.noConnects,
+        V.model.noConnects.U1,
+        V.model.boardOnlyPadRules,
+        V.model.boardOnlyPadRules[0]
+    ].forEach(function (value) {
+        assert.ok(Object.isFrozen(value), "expected nested canonical model value to be frozen");
+    });
+});
+
+test("nested canonical model mutations throw without changing shared state", function () {
+    assert.throws(function () { V.model.meta.project = "mutated"; }, TypeError);
+    assert.throws(function () { V.model.components[0].value = "mutated"; }, TypeError);
+    assert.throws(function () { V.model.connections[0].nodes[0][1] = "99"; }, TypeError);
+    assert.throws(function () { V.model.noConnects.U1.push("1"); }, TypeError);
+    assert.throws(function () { V.model.boardOnlyPadRules.push({}); }, TypeError);
+    assert.strictEqual(V.model.meta.project, "Pocket Card Controller");
+    assert.strictEqual(V.model.components[0].value, "MCP23017-E/SO");
+    assert.strictEqual(V.model.connections[0].nodes[0][1], "9");
+});
+
 test("metadata identifies the as-routed controller board", function () {
     assert.deepStrictEqual(V.model.meta, {
         project: "Pocket Card Controller",
@@ -100,6 +130,20 @@ test("metadata identifies the as-routed controller board", function () {
         date: "2026-08-05",
         sourceBoard: "../case/out/pcb/pocket_card_controller.kicad_pcb"
     });
+});
+
+test("every canonical metadata field is enforced", function () {
+    ["project", "revision", "date", "sourceBoard"].forEach(function (field) {
+        var bad = clone(V.model);
+        bad.meta[field] = "mutated";
+        assertRejected(bad, new RegExp("meta\\." + field + ".*expected", "i"));
+    });
+});
+
+test("unexpected metadata fields are rejected", function () {
+    var bad = clone(V.model);
+    bad.meta.unexpected = "value";
+    assertRejected(bad, /unexpected meta field unexpected/i);
 });
 
 test("all 17 components preserve their routed-board identity", function () {
@@ -113,6 +157,18 @@ test("all 17 components preserve their routed-board identity", function () {
             EXPECTED_COMPONENTS[ref],
             ref
         );
+    });
+});
+
+test("every component's canonical identity fields are enforced", function () {
+    var fieldIndexes = { value: 0, footprint: 1, uuid: 2, symbol: 3 };
+    Object.keys(EXPECTED_COMPONENTS).forEach(function (ref) {
+        Object.keys(fieldIndexes).forEach(function (field) {
+            var bad = clone(V.model);
+            var component = bad.components.filter(function (item) { return item.ref === ref; })[0];
+            component[field] = "mutated";
+            assertRejected(bad, new RegExp("component " + ref + ".*" + field + ".*expected", "i"));
+        });
     });
 });
 
@@ -137,7 +193,7 @@ test("MCP23017 support pins and no-connects are exact", function () {
 });
 
 test("connectors, switches, power path, and mechanical pads match the board", function () {
-    assert.deepStrictEqual(V.pinNetMap(V.model), EXPECTED_PIN_NETS);
+    assert.deepStrictEqual(Object.assign({}, V.pinNetMap(V.model)), EXPECTED_PIN_NETS);
     assert.deepStrictEqual(V.model.boardOnlyPadRules, [{
         ref: "SW_MUTE",
         pad: "",
@@ -160,10 +216,57 @@ test("duplicate component UUIDs are rejected", function () {
     assertRejected(bad, /duplicate component UUID/i);
 });
 
+test("a __proto__ component ref cannot bypass unexpected-ref validation", function () {
+    var bad = clone(V.model);
+    bad.components.push({
+        ref: "__proto__",
+        value: "MountingHole_2.7mm_M2.5",
+        footprint: "MountingHole:MountingHole_2.7mm_M2.5",
+        uuid: "00000000-0000-4000-8000-000000000099",
+        symbol: "MOUNT"
+    });
+    assertRejected(bad, /unexpected component __proto__/i);
+});
+
+test("a __proto__ UUID cannot bypass duplicate-UUID validation", function () {
+    var bad = clone(V.model);
+    bad.components[0].uuid = "__proto__";
+    bad.components[1].uuid = "__proto__";
+    assertRejected(bad, /duplicate component UUID __proto__/i);
+});
+
+test("public component and pin maps have no object prototype", function () {
+    var bad = clone(V.model);
+    bad.components.push({
+        ref: "__proto__",
+        value: "MountingHole_2.7mm_M2.5",
+        footprint: "MountingHole:MountingHole_2.7mm_M2.5",
+        uuid: "00000000-0000-4000-8000-000000000099",
+        symbol: "MOUNT"
+    });
+    var components = V.componentMap(bad);
+    var pins = V.pinNetMap(V.model);
+    assert.strictEqual(Object.getPrototypeOf(components), null);
+    assert.strictEqual(components.__proto__.ref, "__proto__");
+    assert.strictEqual(Object.getPrototypeOf(pins), null);
+});
+
 test("connections to unknown references are rejected", function () {
     var bad = clone(V.model);
     connection(bad, "SIG_UP").nodes[1][0] = "SW_MISSING";
     assertRejected(bad, /unknown component SW_MISSING/i);
+});
+
+test("connection references must be strings", function () {
+    var bad = clone(V.model);
+    connection(bad, "+3V3").nodes[0][0] = 1;
+    assertRejected(bad, /net \+3V3 node 0 ref must be a string/i);
+});
+
+test("connection pins must be strings", function () {
+    var bad = clone(V.model);
+    connection(bad, "+3V3").nodes[0][1] = 9;
+    assertRejected(bad, /net \+3V3 node 0 pin must be a string/i);
 });
 
 test("unknown pins are rejected for every symbol inventory", function () {
@@ -201,10 +304,22 @@ test("duplicate no-connect entries are rejected", function () {
     assertRejected(bad, /duplicate no-connect U1\.2/i);
 });
 
+test("no-connect pins must be strings", function () {
+    var bad = clone(V.model);
+    bad.noConnects.U1[0] = 2;
+    assertRejected(bad, /noConnects\.U1 pin 0 must be a string/i);
+});
+
 test("unknown no-connect component keys are rejected even without pins", function () {
     var bad = clone(V.model);
     bad.noConnects.SW_GHOST = [];
     assertRejected(bad, /noConnects.*unknown component SW_GHOST/i);
+});
+
+test("unexpected known no-connect component keys are rejected", function () {
+    var bad = clone(V.model);
+    bad.noConnects.SW_UP = [];
+    assertRejected(bad, /unexpected noConnects key SW_UP/i);
 });
 
 test("unknown no-connect components produce one actionable diagnostic", function () {
@@ -219,6 +334,14 @@ test("nets with fewer than two nodes are rejected", function () {
     var bad = clone(V.model);
     connection(bad, "SCL").nodes.pop();
     assertRejected(bad, /net SCL.*fewer than two nodes/i);
+});
+
+test("duplicate connection net records are rejected even when their nodes are split", function () {
+    var bad = clone(V.model);
+    var gnd = connection(bad, "GND");
+    var splitNodes = gnd.nodes.splice(10);
+    bad.connections.push({ net: "GND", nodes: splitNodes });
+    assertRejected(bad, /duplicate connection net GND/i);
 });
 
 test("every required reference is enforced and extras are rejected", function () {
