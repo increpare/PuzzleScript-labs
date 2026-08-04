@@ -201,6 +201,20 @@ test("duplicate no-connect entries are rejected", function () {
     assertRejected(bad, /duplicate no-connect U1\.2/i);
 });
 
+test("unknown no-connect component keys are rejected even without pins", function () {
+    var bad = clone(V.model);
+    bad.noConnects.SW_GHOST = [];
+    assertRejected(bad, /noConnects.*unknown component SW_GHOST/i);
+});
+
+test("unknown no-connect components produce one actionable diagnostic", function () {
+    var bad = clone(V.model);
+    bad.noConnects.SW_GHOST = ["1", "2"];
+    assert.deepStrictEqual(V.validateConnectivity(bad), [
+        "noConnects references unknown component SW_GHOST"
+    ]);
+});
+
 test("nets with fewer than two nodes are rejected", function () {
     var bad = clone(V.model);
     connection(bad, "SCL").nodes.pop();

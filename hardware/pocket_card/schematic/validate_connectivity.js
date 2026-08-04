@@ -208,8 +208,15 @@ function validateConnectivity(candidate) {
     var noConnectSet = {};
     Object.keys(noConnects).forEach(function (ref) {
         var pins = noConnects[ref];
+        var knownRef = Object.prototype.hasOwnProperty.call(byRef, ref);
+        if (!knownRef) {
+            errors.push("noConnects references unknown component " + ref);
+        }
         if (!Array.isArray(pins)) {
             errors.push("noConnects." + ref + " must be an array");
+            return;
+        }
+        if (!knownRef) {
             return;
         }
         pins.forEach(function (pin) {
