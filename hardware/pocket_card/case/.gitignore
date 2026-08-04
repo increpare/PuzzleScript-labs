@@ -1,4 +1,5 @@
 tools/*.jar
 .venv
 out/pcb/~*
+out/sculpted_buttons/
 __pycache__/

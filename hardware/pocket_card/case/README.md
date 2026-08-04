@@ -179,6 +179,46 @@ file; STLs are one body per file so nothing gets fused.
 
 `out/order/assembly.step` (also `out/order/preview/assembly.step`)
 
+### Auxiliary-button shape prototype
+
+The prototype keeps the original round, dished direction caps unchanged while
+giving Undo, Action, Reset and Menu role-specific crowns. It preserves every
+production flange, anti-rotation flat, boss, clearance and shell opening:
+
+```
+.venv/bin/python sculpted_buttons.py
+```
+
+Writes `out/sculpted_buttons/`:
+
+- `cap_{up,down,left,right,undo,action,reset,menu}.stl` / `.step` — individual
+  printable caps at the origin
+- `placed/cap_*.stl` / `.step` — the same caps in complete-assembly model space
+- `sculpted_cap_set.stl` / `.step` — all eight caps joined by removable sprues
+  at the hidden flange
+- `caps_placed.step` — selectable cap bodies already in shell model space
+- `front_preview.step` / `.stl` — front shell and seated caps for visual review
+
+To replace the neutral buttons in the complete coloured Blender assembly:
+
+```
+/Applications/Blender.app/Contents/MacOS/Blender \
+  --background out/order/pocket_card_complete.blend \
+  --python-exit-code 1 --python sculpted_buttons_blender.py -- \
+  --input out/order/pocket_card_complete.blend \
+  --buttons-dir out/sculpted_buttons/placed \
+  --output out/sculpted_buttons/pocket_card_complete_sculpted.blend
+```
+
+The resulting `.blend` retains the case, PCB, display panel, battery, speaker,
+power/mute tips, collections and material assignments. Its four direction-cap
+meshes are exact exports of the original production geometry; only Undo,
+Action, Reset and Menu have modified crowns.
+
+Undo is deeply dished, Action is a shallow convex lens, Reset is low and
+cratered, and the Menu pill has three transverse grooves. The neutral clearance
+coupon remains the source of truth for fit and for direction-cap geometry.
+
 Power/mute slides are C&K **PCM12SMTR** (`SW_SPDT_PCM12`) with the official
 KiCad packages3D STEP — low profile (~1.5 mm body), no project stand-in needed.
 ([PCM series datasheet](https://datasheet.octopart.com/PCM12SMTR-ITT-datasheet-7274995.pdf))
