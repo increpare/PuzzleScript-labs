@@ -376,6 +376,18 @@ def grille_slots():
     return cuts
 
 
+def _front_relief_keepout():
+    """Front openings plus the aperture's outer chamfer band."""
+    pad = P.APERTURE_CHAMFER + 0.05
+    screen = (cq.Workplane("XY")
+              .box(P.APERTURE_W + 2 * pad, P.APERTURE_H + 2 * pad,
+                   P.FACE_T + 2, centered=(False, False, False))
+              .translate((P.APERTURE_X - pad, P.APERTURE_Y - pad,
+                          -P.FACE_T - 1))
+              .edges("|Z").fillet(0.8 + pad))
+    return screen.union(grille_slots()).union(edge_openings())
+
+
 def to_model_space(shape):
     """Layout space (y down from the top) -> model space (y up).
 
@@ -421,8 +433,11 @@ def build():
     # must happen BEFORE the relief goes on, because relief deliberately lives
     # outside that envelope.
     shell = side_arc.clip_to_envelope(shell)
-    shell = shell.union(
-        texture.relief_for_zone("front", -P.TEX_RELIEF, 2 * P.TEX_RELIEF))
+    relief = texture.relief_for_zone(
+        "front", -P.TEX_RELIEF, 2 * P.TEX_RELIEF,
+        root_overlap=P.TEX_ROOT_OVERLAP)
+    relief = relief.cut(_front_relief_keepout())
+    shell = shell.union(relief)
     return to_model_space(shell)
 
 
