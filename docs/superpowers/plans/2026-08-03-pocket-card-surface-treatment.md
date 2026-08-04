@@ -1151,6 +1151,13 @@ both the shell and the unchamfered lower portion of every visible brick, so the
 shell caller's final union joins them without allowing root-induced topology
 changes to alter the top chamfer:
 
+The front zone needs two construction bands. Its z-normal band roots the flat
+face. Its fine-pitch prisms also clip the narrow rolled plan edge down to about
+z=-0.4; add a second perimeter band made with the wall/inset-envelope path so
+those edge-wrap fragments receive a surface-normal root too. Without that
+perimeter band the real front-shell integration reproducibly leaves 47 tiny
+detached edge solids despite 116.873 mm³ of aggregate shell overlap.
+
 ```python
 def relief_for_zone(zone: str, z0: float, z1: float,
                     root_overlap: float = 0.0) -> cq.Workplane:
@@ -1171,9 +1178,16 @@ def relief_for_zone(zone: str, z0: float, z1: float,
     if root == 0.0:
         return visible
 
-    bond = (prisms.intersect(_relief_skin(root, root, zone=zone))
-            .cut(button_islands())
-            .cut(bottom_clear_slab()))
+    def rooted_part(skin):
+        return (prisms.intersect(skin)
+                .cut(button_islands())
+                .cut(bottom_clear_slab()))
+
+    bond = rooted_part(_relief_skin(root, root, zone=zone))
+    if zone == "front":
+        perimeter_bond = rooted_part(
+            _relief_skin(root, root, zone="wall"))
+        bond = bond.add(perimeter_bond)
     return visible.add(bond)
 ```
 
