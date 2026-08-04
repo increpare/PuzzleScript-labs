@@ -958,6 +958,21 @@ def test_relief_for_zone():
     check("front rooted relief overlaps the nominal shell",
           front_rooted.intersect(nominal).val().Volume() > 1.0)
 
+    # Fine front prisms also clip the rolled plan edge below the flat face.
+    # Their roots must follow that perimeter below the z-normal bond's -root
+    # floor, or the final shell union leaves those edge fragments detached.
+    pad = 1.0
+    deep_z0 = -P.TEX_RELIEF
+    deep_z1 = -root - 0.01
+    deep_edge_band = (cq.Workplane("XY")
+                      .box(P.BODY_W + 2 * pad, P.BODY_H + 2 * pad,
+                           deep_z1 - deep_z0, centered=False)
+                      .translate((-pad, -pad, deep_z0)))
+    deep_front_overlap = (front_rooted.intersect(nominal)
+                          .intersect(deep_edge_band).val().Volume())
+    check("front root reaches rolled-edge fragments below the flat bond",
+          deep_front_overlap > 1.0, f"{deep_front_overlap:.3f} mm^3")
+
     wall_rooted = texture.relief_for_zone("wall", -2.0, -1.0, root)
     wall_visible = wall_rooted.cut(nominal)
     wall_added = wall_visible.cut(wall).val().Volume()

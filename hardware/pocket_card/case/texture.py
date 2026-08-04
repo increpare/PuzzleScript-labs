@@ -403,9 +403,20 @@ def relief_for_zone(zone: str, z0: float, z1: float,
     if root == 0.0:
         return visible
 
-    bond = (prisms.intersect(_relief_skin(root, root, zone=zone))
-            .cut(button_islands())
-            .cut(bottom_clear_slab()))
+    def rooted_part(skin):
+        return (prisms.intersect(skin)
+                .cut(button_islands())
+                .cut(bottom_clear_slab()))
+
+    bond = rooted_part(_relief_skin(root, root, zone=zone))
+    if zone == "front":
+        inner = cq.Workplane(side_arc._envelope(root))
+        leg = P.EDGE_CHAMFER + root * (math.sqrt(2) - 1)
+        inner = inner.faces(">Z").edges().chamfer(leg)
+        perimeter_skin = cq.Workplane(
+            side_arc._envelope(-root)).cut(inner)
+        perimeter_bond = rooted_part(perimeter_skin)
+        bond = bond.add(perimeter_bond)
     # Keep the bonded roots as a compound beside the already-chamfered
     # visible bricks.  Global OCC fusion changes the visible topology around
     # touching root strips; the shell's later union consumes these overlapping
