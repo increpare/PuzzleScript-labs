@@ -1158,6 +1158,15 @@ that chamfer. The ordinary positive `_envelope(root)` deliberately omits the
 front chamfer and leaves a z=-0.679..0 gap; using the wall band here was tested
 and left the deep overlap at exactly 0.000 mm³.
 
+Clip `_front_prisms` to the nominal XY footprint rather than padding its
+window by `TEX_RELIEF`. The padded field was proven to generate exactly 47
+outward-only fragments with bboxes ending at x=0, x=BODY_W, or y=0. Those
+prisms intersect the grown envelope but have no footprint at the nominal
+surface, so no construction root can connect them. Boundary-crossing bricks
+remain clipped and phase-locked; only wholly external shards are removed.
+Add a lightweight assertion that `_front_prisms(...).BoundingBox()` stays
+within x=0..BODY_W and y=0..BODY_H.
+
 For the 45-degree front bevel, `_plan_solid(root)` has already moved the side
 wall inward by `root` while leaving the front at z=0. To move the bevel plane
 inward by the same surface-normal distance, its leg must be

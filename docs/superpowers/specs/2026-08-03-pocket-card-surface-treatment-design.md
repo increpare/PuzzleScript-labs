@@ -134,6 +134,14 @@ a curve is what brickwork does. Revisit only if a print looks wrong; the
 fallback is splitting the extrusion (radial in plan for the perimeter zone,
 −z for the flat face, meeting near 45°).
 
+The fine front-prism field is clipped to the nominal device footprint
+`[0, BODY_W] × [0, BODY_H]`, even though the proud skin itself extends outside
+that box. A prism wholly outside the nominal footprint can intersect only the
+grown skin and create a tiny floating shard with no path back to the shell; 47
+such fragments were measured during integration. They are projection
+artifacts, not printable bricks. Bricks crossing the footprint boundary remain
+clipped in place, so tile phase and the intended edge wrap are preserved.
+
 #### Construction-only root overlap
 
 Decided 2026-08-04, during front-shell integration.
