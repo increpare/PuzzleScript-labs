@@ -70,7 +70,9 @@ location. Override either with `BLENDER=/absolute/path/to/blender`.
 
 - `Case`: purple embossed front and white embossed back
 - `Buttons`: eight yellow face caps plus yellow power/mute tips
-- `Electronics`: green positioned PCB
+- `Electronics`: green positioned PCB plus the native `Battery` and `speaker`
+  objects copied from `case_updated.blend` with their authored transforms,
+  materials, and modifiers
 - `Display`: the positioned `es3c28p_3d` model with its original materials;
   referenced display images are packed into the completed `.blend`
 

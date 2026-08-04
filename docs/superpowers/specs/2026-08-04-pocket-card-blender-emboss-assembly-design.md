@@ -13,7 +13,8 @@ After the CadQuery order-pack shells are generated, headless Blender will:
 2. preserve and evaluate the template objects' modifier stacks;
 3. export final embossed front and back STLs; and
 4. build a clean, coloured, selectable Blender assembly containing the case,
-   buttons, side-switch tips, PCB, and the positioned display model.
+   buttons, side-switch tips, PCB, battery, speaker, and the positioned display
+   model.
 
 The process must never save over or modify `case_updated.blend`.
 
@@ -32,6 +33,7 @@ The process must never save over or modify `case_updated.blend`.
 | Back case colour | White |
 | Button colour | Yellow, including eight face caps and two side-switch tips |
 | PCB colour | Green |
+| Template electronics | Append `Battery` and `speaker` from `case_updated.blend`, preserving their transforms, mesh data, materials, and modifiers |
 | Display | Append from `es3c28p_3d.blend`, preserving its transform and materials |
 
 ## Source Assets and Verified Current State
@@ -53,6 +55,8 @@ The template currently contains:
 
 - `shell_front`, a mesh object with six enabled Boolean Difference modifiers;
 - `shell_back`, a mesh object with no modifiers; and
+- `Battery` and `speaker`, positioned native mesh objects whose transforms,
+  materials, and modifiers must be retained in the final assembly; and
 - identity transforms on both shell objects.
 
 The template shell meshes and generated order-pack STLs currently have matching
@@ -185,7 +189,7 @@ The script creates four collections:
 |---|---|---|
 | `Case` | `shell_front_embossed`, `shell_back_embossed` | matte purple front, matte white back |
 | `Buttons` | eight `cap_*` objects plus `tip_power` and `tip_mute` | matte yellow |
-| `Electronics` | `pcb` | matte green |
+| `Electronics` | `pcb`, appended `Battery`, appended `speaker` | matte green PCB; preserve battery and speaker source materials |
 | `Display` | appended `es3c28p_3d` | preserve all source materials |
 
 The basic case materials use one Principled BSDF each, medium roughness, and
@@ -194,13 +198,19 @@ colour are both set, so the distinction remains visible in material preview and
 object-colour workbench views. Exact colour calibration is out of scope.
 
 Every STL is imported separately and renamed deterministically. No components
-are joined, so all 14 expected mesh objects remain independently selectable:
+are joined, so all 16 expected mesh objects remain independently selectable:
 
 - two shells;
 - eight face caps;
 - two side-switch tips;
-- one PCB; and
+- one PCB;
+- one battery;
+- one speaker; and
 - one display.
+
+`Battery` and `speaker` are appended from `case_updated.blend` after the clean
+scene reset and linked only into `Electronics`. Their exact names, transforms,
+mesh data, material slots, and modifier stacks are retained.
 
 The display is appended with `bpy.data.libraries.load(..., link=False)` and
 linked into the `Display` collection. Its saved location, rotation, scale,
@@ -248,12 +258,14 @@ a temporary directory. It verifies:
    and both staged STLs are structurally valid and re-importable;
 3. the template file's hash and modification time do not change;
 4. the saved assembly reopens in a second headless Blender process;
-5. the reopened assembly has the four exact collection names and 14 exact mesh
+5. the reopened assembly has the four exact collection names and 16 exact mesh
    object names;
-6. shell, button, tip, and PCB objects have the intended materials;
+6. shell, button, tip, and PCB objects have the intended materials, while the
+   battery and speaker match the template's transforms, materials, and
+   modifiers and belong only to `Electronics`;
 7. the display transform and material-slot assignments match its source file,
    and its source-resolution material images are packed into the assembly;
-8. no cutter or template-only object is present; and
+8. no cutter or unapproved template-only object is present; and
 9. a forced missing-input failure leaves pre-existing sentinel outputs byte-for-
    byte unchanged.
 
@@ -269,7 +281,8 @@ The work is complete when:
   and `pocket_card_complete.blend`;
 - a direct `make pocket_card_case_embossed` rerun is available;
 - opening the assembly shows an aligned purple front, white back, ten yellow
-  controls, green PCB, and the original-material display;
+  controls, green PCB, positioned source-material battery and speaker, and the
+  original-material display;
 - every component is independently selectable in its named collection;
 - all modifiers are baked into the exported shell meshes;
 - `case_updated.blend` remains byte-for-byte unchanged; and

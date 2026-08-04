@@ -36,6 +36,7 @@ BUTTON_STEMS = (
     "cap_undo", "cap_action", "cap_reset", "cap_menu",
     "tip_power", "tip_mute",
 )
+TEMPLATE_COMPONENTS = ("Battery", "speaker")
 MATERIAL_SPECS = {
     "Case Purple": (0.435, 0.235, 0.765, 1.0),
     "Case White": (0.90, 0.90, 0.87, 1.0),
@@ -368,6 +369,29 @@ def append_display(path, collection):
     return display
 
 
+def append_template_components(path, collection):
+    with bpy.data.libraries.load(str(path), link=False) as (source, target):
+        missing = [name for name in TEMPLATE_COMPONENTS if name not in source.objects]
+        if missing:
+            raise FinishError(
+                f"template components missing from {path}: {', '.join(missing)}"
+            )
+        target.objects = list(TEMPLATE_COMPONENTS)
+
+    components = {}
+    for name, obj in zip(TEMPLATE_COMPONENTS, target.objects):
+        if obj is None or obj.type != "MESH":
+            raise FinishError(f"template component {name!r} is missing or not a mesh")
+        if obj.name != name:
+            raise FinishError(
+                f"template component name changed: expected {name!r}, got {obj.name!r}"
+            )
+        collection.objects.link(obj)
+        validate_object(obj, f"template component {name}", require_manifold=False)
+        components[name] = obj
+    return components
+
+
 def import_assembly_part(
     path, name, collection, material, require_manifold=True
 ):
@@ -419,11 +443,12 @@ def build_assembly(paths, staged_front, staged_back, staged_blend):
         paths.preview / "pcb.stl", "pcb", collections["Electronics"],
         materials["PCB Green"],
     )
+    append_template_components(paths.template, collections["Electronics"])
     append_display(paths.display, collections["Display"])
 
     expected = {
         "shell_front_embossed", "shell_back_embossed", "pcb", "es3c28p_3d",
-        *BUTTON_STEMS,
+        *BUTTON_STEMS, *TEMPLATE_COMPONENTS,
     }
     actual = {obj.name for obj in bpy.data.objects if obj.type == "MESH"}
     if actual != expected:

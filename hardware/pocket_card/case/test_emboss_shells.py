@@ -17,6 +17,7 @@ DISPLAY = ROOT / "hardware/card/case/es3c28p_3d.blend"
 SCRIPT = CASE / "emboss_shells.py"
 
 EXPECTED_COLLECTIONS = {"Case", "Buttons", "Electronics", "Display"}
+EXPECTED_TEMPLATE_COMPONENTS = {"Battery", "speaker"}
 EXPECTED_BUTTONS = {
     "cap_up", "cap_down", "cap_left", "cap_right",
     "cap_undo", "cap_action", "cap_reset", "cap_menu",
@@ -24,7 +25,7 @@ EXPECTED_BUTTONS = {
 }
 EXPECTED_OBJECTS = EXPECTED_BUTTONS | {
     "shell_front_embossed", "shell_back_embossed", "pcb", "es3c28p_3d",
-}
+} | EXPECTED_TEMPLATE_COMPONENTS
 
 
 def blender_bin():
@@ -107,6 +108,18 @@ inventory = {
                  for slot in o.material_slots]
         for o in bpy.data.objects if o.type == "MESH"
     },
+    "transforms": {
+        o.name: transform(o)
+        for o in bpy.data.objects if o.type == "MESH"
+    },
+    "modifiers": {
+        o.name: [modifier.name for modifier in o.modifiers]
+        for o in bpy.data.objects if o.type == "MESH"
+    },
+    "memberships": {
+        o.name: sorted(collection.name for collection in o.users_collection)
+        for o in bpy.data.objects if o.type == "MESH"
+    },
     "display_transform": transform(display),
     "display_material_count": len(display.material_slots) if display else 0,
     "display_images": display_images,
@@ -136,6 +149,7 @@ class BlenderFinishIntegrationTest(unittest.TestCase):
     def test_real_pipeline_builds_closed_shells_and_complete_assembly(self):
         before = (sha256(TEMPLATE), TEMPLATE.stat().st_mtime_ns)
         source_display = inspect_blend(DISPLAY)
+        source_template = inspect_blend(TEMPLATE)
 
         with tempfile.TemporaryDirectory() as tmp:
             output = Path(tmp)
@@ -163,6 +177,20 @@ class BlenderFinishIntegrationTest(unittest.TestCase):
             for name in EXPECTED_BUTTONS:
                 self.assertEqual(inventory["materials"][name], ["Button Yellow"])
             self.assertEqual(inventory["materials"]["pcb"], ["PCB Green"])
+            for name in EXPECTED_TEMPLATE_COMPONENTS:
+                self.assertEqual(
+                    inventory["transforms"][name],
+                    source_template["transforms"][name],
+                )
+                self.assertEqual(
+                    inventory["materials"][name],
+                    source_template["materials"][name],
+                )
+                self.assertEqual(
+                    inventory["modifiers"][name],
+                    source_template["modifiers"][name],
+                )
+                self.assertEqual(inventory["memberships"][name], ["Electronics"])
             self.assertEqual(inventory["display_material_count"], 4)
             self.assertEqual(
                 inventory["display_transform"],

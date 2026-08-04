@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Automatically convert the generated Pocket Card shell STLs into modifier-applied embossed STLs and a clean coloured Blender assembly containing the case, controls, PCB, and positioned display.
+**Goal:** Automatically convert the generated Pocket Card shell STLs into modifier-applied embossed STLs and a clean coloured Blender assembly containing the case, controls, PCB, positioned battery and speaker, and positioned display.
 
 **Architecture:** A Python script executed inside headless Blender opens the existing finishing template, swaps only the two shell mesh datablocks, evaluates and stages modifier-applied STLs, then resets to an empty scene and builds a coloured assembly. All three outputs are validated before a rollback-capable same-filesystem publication step; Make invokes the workflow after both existing shell-generating targets.
 
@@ -321,9 +321,16 @@ Do not alter the appended object's transform, mesh, slots, or material data.
 Require every referenced image to load at its source resolution and pack it
 into the completed `.blend`.
 
+- [ ] **Step 4a: Append the template battery and speaker as native Blender data**
+
+Append `Battery` and `speaker` from `case_updated.blend` after the factory reset,
+link both only into `Electronics`, and preserve each object's exact name,
+transform, mesh, material slots, and modifier stack. Extend the integration
+inventory to compare those properties directly with the source template.
+
 - [ ] **Step 5: Validate and stage the complete `.blend`**
 
-Assert the exact 14-object set, exact four collection set, single collection
+Assert the exact 16-object set, exact four collection set, single collection
 membership for every imported STL object, requested material assignment,
 source-equal display transform/slots, and packed source-resolution display
 images. Set metric scene units, then save only to
@@ -338,8 +345,8 @@ python3 -m unittest hardware.pocket_card.case.test_emboss_shells -v
 ```
 
 Expected: the success-path test passes and the second Blender process reports
-four collections, 14 mesh objects, requested material names, and four display
-material slots.
+four collections, 16 mesh objects, requested material names, source-equal
+battery/speaker properties, and four display material slots.
 
 - [ ] **Step 7: Commit assembly generation**
 
@@ -448,7 +455,7 @@ make pocket_card_case_shells
 ```
 
 Expected: CadQuery finishes first, Blender reports two closed shell exports and
-a 14-object assembly, and the command exits 0.
+a 16-object assembly, and the command exits 0.
 
 - [ ] **Step 3: Verify artifacts and template immutability**
 
@@ -465,7 +472,8 @@ Open `out/order/pocket_card_complete.blend` and confirm:
 - all caps and tips align with their openings;
 - the PCB aligns inside the case;
 - colours are purple/white/yellow/green as specified; and
-- Outliner contains only the four named collections and 14 mesh components.
+- Outliner contains only the four named collections and 16 mesh components,
+  including the template-positioned `Battery` and `speaker` in `Electronics`.
 
 - [ ] **Step 5: Commit documentation and intentional generated outputs**
 
