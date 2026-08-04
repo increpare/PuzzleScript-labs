@@ -214,6 +214,19 @@ def test_brick_runs_coalesce_connected_pixels():
           runs == expected, f"{runs} vs {expected}")
 
 
+def test_front_prism_bounds():
+    print("front prism bounds")
+    import texture
+
+    prisms = texture._front_prisms(-P.TEX_RELIEF, 2 * P.TEX_RELIEF)
+    bounds = prisms.val().BoundingBox()
+    check("front prisms stay inside the nominal XY footprint",
+          bounds.xmin >= -1e-9 and bounds.xmax <= P.BODY_W + 1e-9
+          and bounds.ymin >= -1e-9 and bounds.ymax <= P.BODY_H + 1e-9,
+          f"x={bounds.xmin:.3f}..{bounds.xmax:.3f}, "
+          f"y={bounds.ymin:.3f}..{bounds.ymax:.3f}")
+
+
 def test_brick_face():
     print("brick face")
     import texture
@@ -1081,6 +1094,7 @@ def main():
     test_outward_envelope()
     test_brick_rects()
     test_brick_runs_coalesce_connected_pixels()
+    test_front_prism_bounds()
     test_brick_face()
     test_proud_skin()
     test_root_overlap_skin()

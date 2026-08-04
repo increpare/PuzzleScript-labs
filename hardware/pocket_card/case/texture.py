@@ -280,10 +280,8 @@ def _brick_runs(pitch, x0, y0, x1, y1):
 
 
 def _front_prisms(z0, z1):
-    """Fine-pitch brick prisms through a padded plan window."""
-    pad = P.TEX_RELIEF
-    runs = _brick_runs(P.TEX_PIXEL_FINE,
-                       -pad, -pad, P.BODY_W + pad, P.BODY_H + pad)
+    """Fine-pitch brick prisms clipped to the nominal plan footprint."""
+    runs = _brick_runs(P.TEX_PIXEL_FINE, 0.0, 0.0, P.BODY_W, P.BODY_H)
     solids = [cq.Solid.makeBox(x1 - x0, y1 - y0, z1 - z0,
                                cq.Vector(x0, y0, z0))
               for x0, y0, x1, y1 in runs]
