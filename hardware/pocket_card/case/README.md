@@ -179,6 +179,29 @@ file; STLs are one body per file so nothing gets fused.
 
 `out/order/assembly.step` (also `out/order/preview/assembly.step`)
 
+### Sculpted button prototype
+
+The role-specific crown prototype keeps the production flange, anti-rotation
+flats, boss, clearances and shell openings unchanged:
+
+```
+.venv/bin/python sculpted_buttons.py
+```
+
+Writes `out/sculpted_buttons/`:
+
+- `cap_{up,down,left,right,undo,action,reset,menu}.stl` / `.step` — individual
+  printable caps at the origin
+- `sculpted_cap_set.stl` / `.step` — all eight caps joined by removable sprues
+  at the hidden flange
+- `caps_placed.step` — selectable cap bodies already in shell model space
+- `front_preview.step` / `.stl` — front shell and seated caps for visual review
+
+The directions are asymmetric lofts which rise away from the cluster centre;
+Undo is deeply dished, Action is a shallow convex lens, Reset is low and
+cratered, and the Menu pill has three transverse grooves. The neutral clearance
+coupon remains the source of truth for fit.
+
 Power/mute slides are C&K **PCM12SMTR** (`SW_SPDT_PCM12`) with the official
 KiCad packages3D STEP — low profile (~1.5 mm body), no project stand-in needed.
 ([PCM series datasheet](https://datasheet.octopart.com/PCM12SMTR-ITT-datasheet-7274995.pdf))
