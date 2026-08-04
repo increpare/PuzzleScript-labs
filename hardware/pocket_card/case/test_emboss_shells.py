@@ -86,6 +86,19 @@ def transform(obj):
     }
 
 display = bpy.data.objects.get("es3c28p_3d")
+display_images = {}
+if display:
+    for slot in display.material_slots:
+        material = slot.material
+        if not material or not material.node_tree:
+            continue
+        for node in material.node_tree.nodes:
+            image = getattr(node, "image", None)
+            if image:
+                display_images[image.name] = {
+                    "packed": image.packed_file is not None,
+                    "size": list(image.size),
+                }
 inventory = {
     "collections": sorted(c.name for c in bpy.data.collections),
     "objects": sorted(o.name for o in bpy.data.objects if o.type == "MESH"),
@@ -96,6 +109,7 @@ inventory = {
     },
     "display_transform": transform(display),
     "display_material_count": len(display.material_slots) if display else 0,
+    "display_images": display_images,
 }
 print("ASSEMBLY_INVENTORY=" + json.dumps(inventory, sort_keys=True))
 '''
@@ -154,6 +168,19 @@ class BlenderFinishIntegrationTest(unittest.TestCase):
                 inventory["display_transform"],
                 source_display["display_transform"],
             )
+            self.assertTrue(source_display["display_images"])
+            self.assertEqual(
+                set(inventory["display_images"]),
+                set(source_display["display_images"]),
+            )
+            for name, source_image in source_display["display_images"].items():
+                self.assertGreater(source_image["size"][0], 0)
+                self.assertGreater(source_image["size"][1], 0)
+                self.assertEqual(
+                    inventory["display_images"][name]["size"],
+                    source_image["size"],
+                )
+                self.assertTrue(inventory["display_images"][name]["packed"])
 
         self.assertEqual((sha256(TEMPLATE), TEMPLATE.stat().st_mtime_ns), before)
 

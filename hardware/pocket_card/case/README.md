@@ -42,6 +42,38 @@ Or from this directory:
 
 Outputs land in `out/`.
 
+### Blender finishing
+
+Both `make pocket_card_case` and `make pocket_card_case_shells` automatically
+run the Blender finishing pass after generating the order-pack meshes. It writes:
+
+- `out/order/shell_front_embossed.stl`
+- `out/order/shell_back_embossed.stl`
+- `out/order/pocket_card_complete.blend`
+
+The finishing pass opens `hardware/card/case/case_updated.blend`, replaces only
+the in-memory mesh data on its `shell_front` and `shell_back` objects, and
+exports them with every modifier evaluated. It never saves the finishing
+template. All three outputs are staged and validated before replacement, so a
+failed run leaves the previous files intact.
+
+To rerun only this finishing step:
+
+```
+make pocket_card_case_embossed
+```
+
+The Makefile finds `blender` on `PATH`, then checks the standard macOS app
+location. Override either with `BLENDER=/absolute/path/to/blender`.
+
+`pocket_card_complete.blend` keeps all parts selectable in four collections:
+
+- `Case`: purple embossed front and white embossed back
+- `Buttons`: eight yellow face caps plus yellow power/mute tips
+- `Electronics`: green positioned PCB
+- `Display`: the positioned `es3c28p_3d` model with its original materials;
+  referenced display images are packed into the completed `.blend`
+
 ## What to print first
 
 **`out/coupon_plate.stl` + `out/coupon_caps.stl`.**

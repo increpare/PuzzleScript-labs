@@ -336,6 +336,32 @@ def append_display(path, collection):
         raise FinishError(
             f"display must retain four material slots, got {len(display.material_slots)}"
         )
+    display_images = {
+        node.image
+        for slot in display.material_slots
+        if slot.material and slot.material.node_tree
+        for node in slot.material.node_tree.nodes
+        if getattr(node, "image", None) is not None
+    }
+    if not display_images:
+        raise FinishError("display materials do not reference an image")
+    for image in display_images:
+        if not image.has_data:
+            image_path = Path(image.filepath_raw or image.filepath)
+            if str(image_path).startswith("//"):
+                image_path = path.parent / str(image_path)[2:]
+            elif not image_path.is_absolute():
+                image_path = path.parent / image_path
+            image_path = image_path.resolve()
+            require_file(image_path, f"display image {image.name}")
+            image.filepath = str(image_path)
+            image.reload()
+        if any(dimension <= 0 for dimension in image.size):
+            raise FinishError(f"display image {image.name!r} is not loaded")
+        if image.packed_file is None:
+            image.pack()
+        if image.packed_file is None or not image.has_data:
+            raise FinishError(f"display image {image.name!r} could not be packed")
     # The display is a visual assembly mesh with separate open component
     # surfaces, not a printable watertight solid.
     validate_object(display, "display", require_manifold=False)

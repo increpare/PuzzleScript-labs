@@ -148,13 +148,26 @@ It does not initially touch either final embossed filename.
 
 ### 4. Validate Staged Shells
 
-Before an output is publishable, the evaluated and re-imported staged mesh must:
+Before an output is publishable, the evaluated mesh must:
 
 - contain vertices and polygons;
 - have finite coordinates and non-zero volume bounds;
-- have zero non-manifold edges;
+- have zero non-manifold edges; and
+- retain the expected X/Y shell bounds within 0.05 mm.
+
+The staged STL must then:
+
+- contain vertices and polygons;
+- have finite coordinates and non-zero volume bounds;
 - retain the expected X/Y shell bounds within 0.05 mm; and
 - re-import as exactly one mesh object at identity transform.
+
+The closure check is deliberately made on Blender's evaluated Boolean result.
+Blender's STL importer removes degenerate and duplicate boundary triangles from
+the MANIFOLD Boolean export, which can make its reconstructed topology appear
+open even though the evaluated source mesh is closed. Re-import therefore
+checks the serialized STL's structure, scale, and bounds without substituting
+the importer's cleanup behavior for the source-mesh closure test.
 
 The validation is deliberately structural. It catches missing Boolean operands,
 empty Boolean results, accidental multi-object export, scaling mistakes, and
@@ -191,7 +204,10 @@ are joined, so all 14 expected mesh objects remain independently selectable:
 
 The display is appended with `bpy.data.libraries.load(..., link=False)` and
 linked into the `Display` collection. Its saved location, rotation, scale,
-mesh material indices, and four material datablocks are retained.
+mesh material indices, and four material datablocks are retained. Images used
+by those materials are resolved relative to the display source library and
+packed into the completed `.blend`, keeping the assembly self-contained after
+it is saved in the order output directory.
 
 The assembly scene uses metric units and the same coordinate values as the STL
 pipeline. The completed file is staged as a temporary `.blend` and is not
@@ -228,14 +244,15 @@ Implementation includes a Blender integration test command that writes only to
 a temporary directory. It verifies:
 
 1. the real template accepts the current generated shell STLs;
-2. both staged embossed meshes are non-empty, closed, correctly bounded, and
-   re-importable;
+2. both evaluated embossed meshes are non-empty, closed, and correctly bounded,
+   and both staged STLs are structurally valid and re-importable;
 3. the template file's hash and modification time do not change;
 4. the saved assembly reopens in a second headless Blender process;
 5. the reopened assembly has the four exact collection names and 14 exact mesh
    object names;
 6. shell, button, tip, and PCB objects have the intended materials;
-7. the display transform and material-slot assignments match its source file;
+7. the display transform and material-slot assignments match its source file,
+   and its source-resolution material images are packed into the assembly;
 8. no cutter or template-only object is present; and
 9. a forced missing-input failure leaves pre-existing sentinel outputs byte-for-
    byte unchanged.

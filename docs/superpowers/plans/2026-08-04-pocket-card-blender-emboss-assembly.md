@@ -223,10 +223,15 @@ bpy.ops.wm.stl_export(
 )
 ```
 
-Validate the evaluated Blender mesh and a re-import of the staged STL with
-`bmesh`: at least one vertex and polygon, finite coordinates, all dimensions
-positive, expected X/Y extrema within 0.05 mm, and
-`sum(not edge.is_manifold for edge in bm.edges) == 0`.
+Validate the evaluated Blender mesh with `bmesh`: at least one vertex and
+polygon, finite coordinates, all dimensions positive, expected X/Y extrema
+within 0.05 mm, and
+`sum(not edge.is_manifold for edge in bm.edges) == 0`. Re-import the staged STL
+and validate one identity-transformed mesh with vertices and polygons, finite
+coordinates, positive dimensions, and matching X/Y bounds. Do not require the
+re-imported topology itself to be manifold: Blender's STL importer removes
+degenerate and duplicate boundary triangles emitted by the MANIFOLD Boolean
+export, while the authoritative evaluated mesh remains closed.
 
 - [ ] **Step 5: Run the integration test and confirm it advances to the assembly failure**
 
@@ -307,16 +312,21 @@ def append_display(path, collection):
     collection.objects.link(obj)
     if len(obj.material_slots) != 4:
         raise FinishError("display must retain four material slots")
+    # Resolve image-node paths against the source library, then pack the images
+    # so the completed assembly remains self-contained at its new save path.
     return obj
 ```
 
 Do not alter the appended object's transform, mesh, slots, or material data.
+Require every referenced image to load at its source resolution and pack it
+into the completed `.blend`.
 
 - [ ] **Step 5: Validate and stage the complete `.blend`**
 
 Assert the exact 14-object set, exact four collection set, single collection
-membership for every imported STL object, requested material assignment, and
-source-equal display transform/slots. Set metric scene units, then save only to
+membership for every imported STL object, requested material assignment,
+source-equal display transform/slots, and packed source-resolution display
+images. Set metric scene units, then save only to
 `staging/pocket_card_complete.blend` with `bpy.ops.wm.save_as_mainfile()`.
 
 - [ ] **Step 6: Run the integration test**
