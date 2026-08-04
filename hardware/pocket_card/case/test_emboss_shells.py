@@ -174,5 +174,24 @@ class BlenderFinishIntegrationTest(unittest.TestCase):
                 self.assertEqual((output / name).read_bytes(), contents)
 
 
+class MakeIntegrationTest(unittest.TestCase):
+    def test_case_targets_schedule_blender_after_shell_generation(self):
+        for target in ("pocket_card_case_shells", "pocket_card_case"):
+            with self.subTest(target=target):
+                result = subprocess.run(
+                    ["make", "-n", target],
+                    cwd=ROOT,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    check=False,
+                )
+                self.assertEqual(result.returncode, 0, result.stdout)
+                self.assertIn("emboss_shells.py", result.stdout)
+                shell_index = result.stdout.index("build_variants.py")
+                blender_index = result.stdout.index("emboss_shells.py")
+                self.assertLess(shell_index, blender_index)
+
+
 if __name__ == "__main__":
     unittest.main()

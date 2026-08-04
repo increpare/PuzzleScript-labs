@@ -946,8 +946,16 @@ locality_survey_tests:
 	$(NODE) src/tests/locality_survey_node.js
 
 POCKET_CARD_CASE_DIR := hardware/pocket_card/case
+POCKET_CARD_BLEND_TEMPLATE := hardware/card/case/case_updated.blend
+POCKET_CARD_BLEND_SCRIPT := $(POCKET_CARD_CASE_DIR)/emboss_shells.py
+BLENDER ?= $(shell command -v blender 2>/dev/null)
+ifeq ($(strip $(BLENDER)),)
+ifneq ($(wildcard /Applications/Blender.app/Contents/MacOS/Blender),)
+BLENDER := /Applications/Blender.app/Contents/MacOS/Blender
+endif
+endif
 
-.PHONY: pocket_card_case pocket_card_case_shells
+.PHONY: pocket_card_case pocket_card_case_shells pocket_card_case_embossed
 
 # Full mechanical rebuild: controller PCB (outline, route, zones, kicad-cli
 # STL/STEP with footprint 3D models, placed into shell space) then front/back
@@ -955,11 +963,20 @@ POCKET_CARD_CASE_DIR := hardware/pocket_card/case
 pocket_card_case:
 	cd $(POCKET_CARD_CASE_DIR) && ./build_pcb.sh
 	cd $(POCKET_CARD_CASE_DIR) && .venv/bin/python build_variants.py
+	$(MAKE) pocket_card_case_embossed
 
 # Shells + order pack only (skips freerouting / kicad-cli). Uses the PCB mesh
 # already in out/pcb/ when place_preview runs.
 pocket_card_case_shells:
 	cd $(POCKET_CARD_CASE_DIR) && .venv/bin/python build_variants.py
+	$(MAKE) pocket_card_case_embossed
+
+# Apply the artist-authored Blender modifier stack to the generated shells,
+# then build a clean, coloured assembly. The Python script never saves the
+# finishing template and publishes all three outputs transactionally.
+pocket_card_case_embossed:
+	@test -n "$(BLENDER)" || (echo "Blender not found; set BLENDER=/path/to/blender" >&2; exit 1)
+	$(BLENDER) --background $(POCKET_CARD_BLEND_TEMPLATE) --python-exit-code 1 --python $(POCKET_CARD_BLEND_SCRIPT)
 
 pocket_card_contract_tests: build
 	$(NODE) hardware/pocket_card/test_pin_contract.js
