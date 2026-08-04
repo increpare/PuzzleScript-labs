@@ -192,10 +192,26 @@ Writes `out/sculpted_buttons/`:
 
 - `cap_{up,down,left,right,undo,action,reset,menu}.stl` / `.step` — individual
   printable caps at the origin
+- `placed/cap_*.stl` / `.step` — the same caps in complete-assembly model space
 - `sculpted_cap_set.stl` / `.step` — all eight caps joined by removable sprues
   at the hidden flange
 - `caps_placed.step` — selectable cap bodies already in shell model space
 - `front_preview.step` / `.stl` — front shell and seated caps for visual review
+
+To replace the neutral buttons in the complete coloured Blender assembly:
+
+```
+/Applications/Blender.app/Contents/MacOS/Blender \
+  --background out/order/pocket_card_complete.blend \
+  --python-exit-code 1 --python sculpted_buttons_blender.py -- \
+  --input out/order/pocket_card_complete.blend \
+  --buttons-dir out/sculpted_buttons/placed \
+  --output out/sculpted_buttons/pocket_card_complete_sculpted.blend
+```
+
+The resulting `.blend` retains the case, PCB, display panel, battery, speaker,
+power/mute tips, collections and material assignments; only the eight face-cap
+meshes are replaced.
 
 The directions are asymmetric lofts which rise away from the cluster centre;
 Undo is deeply dished, Action is a shallow convex lens, Reset is low and

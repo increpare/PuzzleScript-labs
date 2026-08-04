@@ -262,6 +262,8 @@ def printable_set(clear_cap=P.FIT_CLEAR):
 def export_prototype(out_dir=OUT):
     """Export printable parts and assembled comparison previews."""
     os.makedirs(out_dir, exist_ok=True)
+    placed_dir = os.path.join(out_dir, "placed")
+    os.makedirs(placed_dir, exist_ok=True)
     placed = []
     written = []
 
@@ -273,6 +275,10 @@ def export_prototype(out_dir=OUT):
             written.append(path)
         seated = placed_cap(station)
         placed.append(_shape(seated))
+        for ext in ("stl", "step"):
+            path = os.path.join(placed_dir, f"cap_{station.role}.{ext}")
+            cq.exporters.export(seated, path)
+            written.append(path)
 
     caps_compound = cq.Compound.makeCompound(placed)
     for name in ("caps_placed.step", "caps_placed.stl"):

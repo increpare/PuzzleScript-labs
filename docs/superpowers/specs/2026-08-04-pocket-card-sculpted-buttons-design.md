@@ -48,8 +48,10 @@ only role-specific crown geometry above the outer face.
 
 The prototype exports individual printable caps at the origin, a sprued set
 whose connections touch hidden flange material, and a placed multi-body STEP
-plus front-shell preview. Generated artefacts live under `case/out/` and are
-not committed.
+plus front-shell preview. It also replaces the eight neutral caps in the
+existing complete coloured Blender assembly while preserving all other case,
+display and electronics objects. Generated artefacts live under `case/out/`
+and are not committed.
 
 ## Verification
 

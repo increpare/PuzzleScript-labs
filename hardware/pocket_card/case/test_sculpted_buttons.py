@@ -1,14 +1,29 @@
 """Geometry contract for the role-specific Pocket Card button crowns."""
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import cadquery as cq
 
 import coupon
 import params as P
 import sculpted_buttons as sb
+import sculpted_buttons_blender as sbb
 
 
 class SculptedButtonGeometryTest(unittest.TestCase):
+    def test_blender_replacement_manifest_matches_every_role(self):
+        self.assertEqual(sbb.BUTTON_NAMES, tuple(f"cap_{role}" for role in sb.ROLES))
+
+    def test_export_writes_individual_model_space_parts_for_blender(self):
+        with TemporaryDirectory() as tmp:
+            written = {Path(path) for path in sb.export_prototype(tmp)}
+            for role in sb.ROLES:
+                for extension in ("stl", "step"):
+                    expected = Path(tmp, "placed", f"cap_{role}.{extension}")
+                    self.assertIn(expected, written)
+                    self.assertGreater(expected.stat().st_size, 0)
+
     def test_every_role_matches_the_neutral_cap_below_the_outer_face(self):
         clip = (
             cq.Workplane("XY").workplane(offset=-10.0)

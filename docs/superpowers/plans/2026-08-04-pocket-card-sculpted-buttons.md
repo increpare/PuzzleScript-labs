@@ -106,3 +106,27 @@ convex, Reset protected, Menu grooved, and no cap intersects the face.
 
 Run `git diff --check`, `git status --short`, and confirm the unrelated
 `hardware/pocket_card/case/out/pcb/temp.stl` remains untouched and untracked.
+
+### Task 4: Assemble the sculpted Blender model
+
+**Files:**
+- Create: `hardware/pocket_card/case/sculpted_buttons_blender.py`
+- Modify: `hardware/pocket_card/case/sculpted_buttons.py`
+- Modify: `hardware/pocket_card/case/test_sculpted_buttons.py`
+
+- [x] **Step 1: Export each cap in complete-assembly model space**
+
+Write individual STL/STEP pairs under `out/sculpted_buttons/placed/` and test
+that the full eight-role manifest is present and non-empty.
+
+- [x] **Step 2: Replace only the complete assembly's face-cap meshes**
+
+Open `out/order/pocket_card_complete.blend`, import the placed meshes with
+identity transforms, preserve the `Buttons` collection and `Button Yellow`
+material, and save `out/sculpted_buttons/pocket_card_complete_sculpted.blend`.
+
+- [x] **Step 3: Verify the saved Blender inventory**
+
+Reopen the result headlessly and assert the complete mesh-object inventory,
+including display, PCB, Battery, speaker, edge tips and eight cap meshes whose
+data names end in `_sculpted_mesh`.
