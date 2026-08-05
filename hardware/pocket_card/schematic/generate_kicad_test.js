@@ -221,6 +221,77 @@ function coordinatesEqual(left, right) {
         Math.abs(left[1] - right[1]) < 1e-9;
 }
 
+function embeddedPinTypes(source, libraryId) {
+    var root = parseSExpression(source);
+    var librarySection = directChild(root, "lib_symbols");
+    assert.ok(librarySection, "schematic must contain embedded library symbols");
+    var librarySymbol = directChildren(librarySection, "symbol").find(function (symbolNode) {
+        return atomValue(symbolNode, 1) === libraryId;
+    });
+    assert.ok(librarySymbol, "missing embedded library symbol " + libraryId);
+    var types = {};
+
+    function collectPins(symbolNode) {
+        directChildren(symbolNode, "pin").forEach(function (pinNode) {
+            var number = atomValue(directChild(pinNode, "number"), 1);
+            var type = atomValue(pinNode, 1);
+            assert.ok(number !== undefined, libraryId + " pin must have a number");
+            assert.strictEqual(types[number], undefined,
+                libraryId + " pin " + number + " must be defined once");
+            types[number] = type;
+        });
+        directChildren(symbolNode, "symbol").forEach(collectPins);
+    }
+
+    collectPins(librarySymbol);
+    return types;
+}
+
+function ercViolations(report) {
+    var violations = [];
+
+    function visit(value, key) {
+        if (key === "violations" && Array.isArray(value)) {
+            value.forEach(function (violation) {
+                violations.push(violation);
+            });
+            return;
+        }
+        if (Array.isArray(value)) {
+            value.forEach(function (item) { visit(item); });
+        } else if (value && typeof value === "object") {
+            Object.keys(value).forEach(function (childKey) {
+                visit(value[childKey], childKey);
+            });
+        }
+    }
+
+    visit(report);
+    return violations;
+}
+
+function netlistEndpoints(source) {
+    var root = parseSExpression(source);
+    assert.strictEqual(expressionName(root), "export", "netlist root must be export");
+    var nets = directChild(root, "nets");
+    assert.ok(nets, "netlist must contain a direct nets section");
+    var endpoints = {};
+    directChildren(nets, "net").forEach(function (netNode) {
+        var rawName = atomValue(directChild(netNode, "name"), 1);
+        assert.ok(rawName, "each netlist net must have a name");
+        var name = rawName.charAt(0) === "/" ? rawName.slice(1) : rawName;
+        assert.strictEqual(endpoints[name], undefined,
+            "netlist must contain canonical net " + name + " once");
+        endpoints[name] = directChildren(netNode, "node").map(function (node) {
+            var ref = atomValue(directChild(node, "ref"), 1);
+            var pin = atomValue(directChild(node, "pin"), 1);
+            assert.ok(ref && pin, "netlist nodes must contain exact ref and pin atoms");
+            return ref + "." + pin;
+        }).sort();
+    });
+    return endpoints;
+}
+
 function contractErrors(source) {
     var errors = [];
     var root;
@@ -467,7 +538,8 @@ var symbolNames = {
     SLIDE: "PocketCard:SlideSPDT",
     JST4: "PocketCard:JST4",
     JST2: "PocketCard:JST2",
-    MOUNT: "PocketCard:Mount"
+    MOUNT: "PocketCard:Mount",
+    PWR_FLAG: "PocketCard:PWR_FLAG"
 };
 var positions = {
     J_I2C: [35, 35], J_EXP: [35, 75], U1: [105, 70],
@@ -476,6 +548,10 @@ var positions = {
     SW_MUTE: [235, 115], J_BAT_IN: [35, 130], SW_PWR: [105, 130],
     J_BAT_OUT: [185, 130], H1: [255, 130], H2: [270, 130]
 };
+var powerFlags = [
+    { ref: "#FLG01", net: "+3V3", position: [60, 27.5] },
+    { ref: "#FLG02", net: "GND", position: [90, 27.5] }
+];
 
 Object.keys(symbolNames).forEach(function (modelName) {
     var offset = schematic.indexOf('(symbol "' + symbolNames[modelName] + '"');
@@ -488,8 +564,47 @@ Object.keys(symbolNames).forEach(function (modelName) {
         symbolNames[modelName] + " must include KiCad's mandatory Datasheet property"
     );
 });
-assert.strictEqual(occurrences(schematic, /\(symbol \(lib_id /g), model.components.length,
-    "schematic must place exactly the modeled 17 components");
+
+var expectedMcpPinTypes = {};
+["1", "2", "3", "4", "5", "6", "7", "8", "12", "15", "16", "17", "18",
+    "21", "22", "23", "24", "25", "26", "27", "28"].forEach(function (pin) {
+    expectedMcpPinTypes[pin] = "input";
+});
+["9", "10"].forEach(function (pin) { expectedMcpPinTypes[pin] = "power_in"; });
+["11", "14"].forEach(function (pin) { expectedMcpPinTypes[pin] = "no_connect"; });
+["13", "19", "20"].forEach(function (pin) {
+    expectedMcpPinTypes[pin] = "open_collector";
+});
+assert.deepStrictEqual(
+    embeddedPinTypes(schematic, symbolNames.MCP23017),
+    expectedMcpPinTypes,
+    "MCP23017 embedded pin electrical types must match the reviewed semantic contract"
+);
+["TACT", "SLIDE", "JST4", "JST2"].forEach(function (modelName) {
+    var passivePinTypes = embeddedPinTypes(schematic, symbolNames[modelName]);
+    Object.keys(passivePinTypes).forEach(function (pin) {
+        assert.strictEqual(
+            passivePinTypes[pin],
+            "passive",
+            symbolNames[modelName] + " pin " + pin + " must remain passive"
+        );
+    });
+});
+assert.deepStrictEqual(embeddedPinTypes(schematic, symbolNames.PWR_FLAG), { "1": "power_out" },
+    "the nonphysical PWR_FLAG annotation must have one power-output pin");
+var powerFlagLibraryOffset = schematic.indexOf('(symbol "' + symbolNames.PWR_FLAG + '"');
+var powerFlagLibraryBlock = enclosingExpression(schematic, powerFlagLibraryOffset);
+assert.ok(/\(pin_names \(offset [^)]+\) hide\)/.test(powerFlagLibraryBlock),
+    "PWR_FLAG pin names must be hidden to keep the annotation glyph legible");
+assert.ok(/\(pin_numbers hide\)/.test(powerFlagLibraryBlock),
+    "PWR_FLAG pin numbers must be hidden to keep the annotation glyph legible");
+assert.ok(!/\(erc_exclusions\b/.test(schematic),
+    "generated schematic must not add global ERC exclusions");
+assert.ok(!/\(exclude_from_erc\s+(?:yes|true)\)/.test(schematic),
+    "generated schematic must not exclude symbols or pins from ERC");
+assert.strictEqual(occurrences(schematic, /\(symbol \(lib_id /g),
+    model.components.length + powerFlags.length,
+    "schematic must place the modeled 17 components plus two nonphysical power flags");
 
 model.components.forEach(function (component) {
     var block = expressionWithUuid(schematic, "(symbol (lib_id ", component.uuid);
@@ -508,19 +623,55 @@ model.components.forEach(function (component) {
         component.ref + " instance path must use the deterministic root-sheet UUID");
 });
 
+powerFlags.forEach(function (flag) {
+    var uuid = generator.stableUuid("symbol:" + flag.ref);
+    var block = expressionWithUuid(schematic, "(symbol (lib_id ", uuid);
+    assert.ok(block.indexOf('(lib_id "' + symbolNames.PWR_FLAG + '")') !== -1,
+        flag.ref + " must use the embedded PWR_FLAG annotation symbol");
+    assert.ok(block.indexOf('(property "Reference" "' + flag.ref + '"') !== -1,
+        flag.ref + " reference must be deterministic");
+    assert.ok(block.indexOf('(property "Value" "PWR_FLAG"') !== -1,
+        flag.ref + " value must identify the ERC annotation");
+    assert.ok(block.indexOf('(property "Footprint" ""') !== -1,
+        flag.ref + " must not have a physical footprint");
+    assert.ok(block.indexOf('(exclude_from_sim yes) (in_bom no) (on_board no)') !== -1,
+        flag.ref + " must be excluded from simulation, BOM, and board transfer");
+    assert.ok(block.indexOf("(at " + flag.position[0] + " " + flag.position[1] + " 0)") !== -1,
+        flag.ref + " placement must be exact");
+    var endpoint = flag.ref + ".1";
+    var wire = expressionWithUuid(
+        schematic,
+        "(wire\n",
+        generator.stableUuid("wire:" + endpoint + ":" + flag.net)
+    );
+    var label = expressionWithUuid(
+        schematic,
+        '(label "' + flag.net + '"',
+        generator.stableUuid("label:" + endpoint + ":" + flag.net)
+    );
+    assert.deepStrictEqual(coordinatePair(wire)[1], atCoordinate(label),
+        flag.ref + " must declare its external rail through a local label");
+});
+
 var connectedEndpointCount = model.connections.reduce(function (count, connection) {
     return count + connection.nodes.length;
 }, 0);
-assert.strictEqual(occurrences(schematic, /\(wire\n/g), connectedEndpointCount,
-    "every electrically connected pin must have one wire stub");
-assert.strictEqual(occurrences(schematic, /\(label "/g), connectedEndpointCount,
-    "every electrically connected pin must have one local label");
+assert.strictEqual(connectedEndpointCount, 52,
+    "the exhaustive physical endpoint contract must remain at 52 pins");
+assert.strictEqual(occurrences(schematic, /\(wire\n/g),
+    connectedEndpointCount + powerFlags.length,
+    "every physical endpoint and power flag must have one wire stub");
+assert.strictEqual(occurrences(schematic, /\(label "/g),
+    connectedEndpointCount + powerFlags.length,
+    "every physical endpoint and power flag must have one local label");
 
 model.connections.forEach(function (connection) {
     assert.strictEqual(
         occurrences(schematic, new RegExp("\\(label \\\"" + escaped(connection.net) + "\\\"", "g")),
-        connection.nodes.length,
-        "net " + connection.net + " must have one local label at every endpoint"
+        connection.nodes.length + powerFlags.filter(function (flag) {
+            return flag.net === connection.net;
+        }).length,
+        "net " + connection.net + " must have one local label at every physical or flag endpoint"
     );
     connection.nodes.forEach(function (node) {
         var endpointKey = node[0] + "." + node[1];
@@ -593,6 +744,10 @@ assert.strictEqual(occurrences(schematic, /\(text "NC /g), 0,
 });
 
 var temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "pocket-card-kicad-test-"));
+var ercErrorCount;
+var ercByteCount;
+var netlistByteCount;
+var pdfByteCount;
 try {
     var upgradeCopy = path.join(temporaryDirectory, "pocket_card_controller.kicad_sch");
     fs.copyFileSync(outputPath, upgradeCopy);
@@ -603,6 +758,10 @@ try {
     assert.ok(fs.statSync(upgradeCopy).size > 0,
         "KiCad upgrade must leave a nonempty schematic");
     var upgraded = fs.readFileSync(upgradeCopy, "utf8");
+    assert.ok(!/\(erc_exclusions\b/.test(upgraded),
+        "KiCad-upgraded schematic must not contain global ERC exclusions");
+    assert.ok(!/\(exclude_from_erc\s+(?:yes|true)\)/.test(upgraded),
+        "KiCad-upgraded schematic must not exclude symbols or pins from ERC");
     Object.keys(model.noConnects).forEach(function (ref) {
         var component = model.components.find(function (candidate) {
             return candidate.ref === ref;
@@ -612,6 +771,66 @@ try {
             hiddenProperty(symbolBlock, "NC Audit " + pin, "NC " + ref + "." + pin);
         });
     });
+
+    var ercPath = path.join(temporaryDirectory, "erc.json");
+    childProcess.execFileSync("kicad-cli", [
+        "sch", "erc", "--format", "json", "--severity-error",
+        "--exit-code-violations", "--output", ercPath, upgradeCopy
+    ], { cwd: temporaryDirectory, stdio: "pipe" });
+    ercByteCount = fs.statSync(ercPath).size;
+    assert.ok(ercByteCount > 0, "KiCad ERC must write a nonempty JSON report");
+    var ercReport = JSON.parse(fs.readFileSync(ercPath, "utf8"));
+    assert.ok(ercReport && typeof ercReport === "object" && !Array.isArray(ercReport),
+        "KiCad ERC report must be a JSON object");
+    ercErrorCount = ercViolations(ercReport).length;
+    assert.strictEqual(ercErrorCount, 0,
+        "KiCad error-only ERC report must contain zero violations");
+
+    var netlistPath = path.join(temporaryDirectory, "controller.net");
+    childProcess.execFileSync("kicad-cli", [
+        "sch", "export", "netlist", "--output", netlistPath, upgradeCopy
+    ], { cwd: temporaryDirectory, stdio: "pipe" });
+    netlistByteCount = fs.statSync(netlistPath).size;
+    assert.ok(netlistByteCount > 0, "KiCad must export a nonempty netlist");
+    var actualNetlistEndpoints = netlistEndpoints(fs.readFileSync(netlistPath, "utf8"));
+    var expectedNetlistEndpoints = {};
+    model.connections.forEach(function (connection) {
+        expectedNetlistEndpoints[connection.net] = connection.nodes.map(function (node) {
+            return node[0] + "." + node[1];
+        }).sort();
+    });
+    var actualCanonicalEndpoints = {};
+    Object.keys(expectedNetlistEndpoints).forEach(function (net) {
+        actualCanonicalEndpoints[net] = actualNetlistEndpoints[net];
+    });
+    assert.deepStrictEqual(actualCanonicalEndpoints, expectedNetlistEndpoints,
+        "KiCad netlist must preserve every canonical net and its exact physical endpoints");
+    var canonicalNets = new Set(Object.keys(expectedNetlistEndpoints));
+    var unconnectedEndpoints = [];
+    Object.keys(actualNetlistEndpoints).filter(function (net) {
+        return !canonicalNets.has(net);
+    }).forEach(function (net) {
+        assert.ok(/^unconnected-\(/.test(net),
+            "unexpected noncanonical net in KiCad netlist: " + net);
+        assert.strictEqual(actualNetlistEndpoints[net].length, 1,
+            net + " must describe exactly one declared no-connect pin");
+        unconnectedEndpoints.push(actualNetlistEndpoints[net][0]);
+    });
+    var expectedUnconnectedEndpoints = [];
+    Object.keys(model.noConnects).forEach(function (ref) {
+        model.noConnects[ref].forEach(function (pin) {
+            expectedUnconnectedEndpoints.push(ref + "." + pin);
+        });
+    });
+    assert.deepStrictEqual(unconnectedEndpoints.sort(), expectedUnconnectedEndpoints.sort(),
+        "KiCad netlist must preserve all and only the 14 declared no-connect endpoints");
+
+    var pdfPath = path.join(temporaryDirectory, "controller.pdf");
+    childProcess.execFileSync("kicad-cli", [
+        "sch", "export", "pdf", "--output", pdfPath, upgradeCopy
+    ], { cwd: temporaryDirectory, stdio: "pipe" });
+    pdfByteCount = fs.statSync(pdfPath).size;
+    assert.ok(pdfByteCount > 1000, "KiCad must export a substantive schematic PDF");
 
     childProcess.execFileSync("kicad-cli", [
         "sch", "export", "svg", "--output", temporaryDirectory, upgradeCopy
@@ -624,4 +843,8 @@ try {
     fs.rmSync(temporaryDirectory, { recursive: true, force: true });
 }
 
+console.log("generate_kicad_test: KiCad CLI verified " + ercErrorCount +
+    " ERC errors in " + ercByteCount + " report bytes, " +
+    model.connections.length + " canonical nets, " +
+    netlistByteCount + " netlist bytes, and " + pdfByteCount + " PDF bytes");
 console.log("generate_kicad_test: all tests passed");

@@ -16,7 +16,8 @@ var SYMBOL_NAMES = {
     SLIDE: "PocketCard:SlideSPDT",
     JST4: "PocketCard:JST4",
     JST2: "PocketCard:JST2",
-    MOUNT: "PocketCard:Mount"
+    MOUNT: "PocketCard:Mount",
+    PWR_FLAG: "PocketCard:PWR_FLAG"
 };
 
 var POSITIONS = {
@@ -36,18 +37,53 @@ var POSITIONS = {
     SW_PWR: [105, 130],
     J_BAT_OUT: [185, 130],
     H1: [255, 130],
-    H2: [270, 130]
+    H2: [270, 130],
+    "#FLG01": [60, 27.5],
+    "#FLG02": [90, 27.5]
 };
 
-function pin(number, name, x, y, angle, outwardX, outwardY) {
+var POWER_FLAGS = [
+    {
+        ref: "#FLG01",
+        value: "PWR_FLAG",
+        footprint: "",
+        uuid: stableUuid("symbol:#FLG01"),
+        symbol: "PWR_FLAG",
+        net: "+3V3"
+    },
+    {
+        ref: "#FLG02",
+        value: "PWR_FLAG",
+        footprint: "",
+        uuid: stableUuid("symbol:#FLG02"),
+        symbol: "PWR_FLAG",
+        net: "GND"
+    }
+];
+
+function pin(number, name, x, y, angle, outwardX, outwardY, electricalType) {
     return {
         number: String(number),
         name: name || String(number),
         x: x,
         y: y,
         angle: angle,
-        outward: [outwardX, outwardY]
+        outward: [outwardX, outwardY],
+        electricalType: electricalType || "passive"
     };
+}
+
+function mcpPinType(number) {
+    if (number === 9 || number === 10) {
+        return "power_in";
+    }
+    if (number === 11 || number === 14) {
+        return "no_connect";
+    }
+    if (number === 13 || number === 19 || number === 20) {
+        return "open_collector";
+    }
+    return "input";
 }
 
 function mcpPins() {
@@ -61,11 +97,11 @@ function mcpPins() {
     var number;
     for (number = 1; number <= 14; number += 1) {
         pins.push(pin(number, names[number - 1], -12.7,
-            -16.51 + (number - 1) * 2.54, 0, -1, 0));
+            -16.51 + (number - 1) * 2.54, 0, -1, 0, mcpPinType(number)));
     }
     for (number = 15; number <= 28; number += 1) {
         pins.push(pin(number, names[number - 1], 12.7,
-            16.51 - (number - 15) * 2.54, 180, 1, 0));
+            16.51 - (number - 15) * 2.54, 180, 1, 0, mcpPinType(number)));
     }
     return pins;
 }
@@ -192,6 +228,26 @@ var SYMBOLS = {
         excludeFromSim: true,
         inBom: false,
         hideValue: true
+    },
+    PWR_FLAG: {
+        libraryName: SYMBOL_NAMES.PWR_FLAG,
+        baseName: "PWR_FLAG",
+        reference: "#FLG",
+        value: "PWR_FLAG",
+        pins: [
+            pin("1", "pwr", 0, 2.54, 270, 0, 1, "power_out")
+        ],
+        graphics: [
+            "(polyline (pts (xy -1.27 0) (xy 0 1.27) (xy 1.27 0) (xy -1.27 0)) " +
+                "(stroke (width 0.254) (type default)) (fill (type none)))"
+        ],
+        propertyY: [-3.81, 3.81],
+        excludeFromSim: true,
+        inBom: false,
+        onBoard: false,
+        hideReference: true,
+        hidePinNames: true,
+        hidePinNumbers: true
     }
 };
 
@@ -217,13 +273,15 @@ function quote(value) {
 
 function flags(definition) {
     return "(exclude_from_sim " + (definition.excludeFromSim ? "yes" : "no") + ") " +
-        "(in_bom " + (definition.inBom === false ? "no" : "yes") + ") (on_board yes)";
+        "(in_bom " + (definition.inBom === false ? "no" : "yes") + ") " +
+        "(on_board " + (definition.onBoard === false ? "no" : "yes") + ")";
 }
 
 function renderLibrarySymbol(definition) {
     var lines = [];
     lines.push("  (symbol " + quote(definition.libraryName) +
-        " (pin_names (offset 0.508)) " + flags(definition));
+        " (pin_names (offset 0.508)" + (definition.hidePinNames ? " hide" : "") + ")" +
+        (definition.hidePinNumbers ? " (pin_numbers hide)" : "") + " " + flags(definition));
     lines.push("    (property \"Reference\" " + quote(definition.reference) +
         " (at " + numberText(definition.referenceX || 0) + " " +
         numberText(definition.propertyY[0]) +
@@ -243,8 +301,9 @@ function renderLibrarySymbol(definition) {
     if (definition.pins.length > 0) {
         lines.push("    (symbol " + quote(definition.baseName + "_1_1"));
         definition.pins.forEach(function (definitionPin) {
-            lines.push("      (pin passive line (at " + numberText(definitionPin.x) + " " +
-                numberText(definitionPin.y) + " " + definitionPin.angle + ") (length 2.54)");
+            lines.push("      (pin " + definitionPin.electricalType + " line (at " +
+                numberText(definitionPin.x) + " " + numberText(definitionPin.y) + " " +
+                definitionPin.angle + ") (length 2.54)");
             lines.push("        (name " + quote(definitionPin.name) +
                 " (effects (font (size 1.27 1.27))))");
             lines.push("        (number " + quote(definitionPin.number) +
@@ -269,7 +328,8 @@ function renderPlacedSymbol(component, noConnectPins) {
     lines.push("    (property \"Reference\" " + quote(component.ref) +
         " (at " + numberText(position[0] + (definition.referenceX || 0)) + " " +
         numberText(position[1] + definition.propertyY[0]) + " 0)");
-    lines.push("      (effects (font (size 1.27 1.27))))");
+    lines.push("      (effects (font (size 1.27 1.27))" +
+        (definition.hideReference ? " hide" : "") + "))");
     lines.push("    (property \"Value\" " + quote(component.value) +
         " (at " + x + " " + numberText(position[1] + definition.propertyY[1]) + " 0)");
     lines.push("      (effects (font (size 1.27 1.27))" +
@@ -333,6 +393,23 @@ function connectedEndpoints(model) {
         });
     });
     return records;
+}
+
+function powerFlagEndpoints() {
+    return POWER_FLAGS.map(function (component) {
+        var endpoint = pinEndpoint(component, "1");
+        return {
+            ref: component.ref,
+            pin: "1",
+            net: component.net,
+            start: [endpoint.x, endpoint.y],
+            end: [
+                endpoint.x + endpoint.outward[0] * 5.08,
+                endpoint.y + endpoint.outward[1] * 5.08
+            ],
+            outward: endpoint.outward
+        };
+    });
 }
 
 function renderWire(record) {
@@ -415,8 +492,15 @@ function generateSchematic(model) {
     model.components.forEach(function (component) {
         lines.push(renderPlacedSymbol(component, model.noConnects[component.ref] || []));
     });
+    POWER_FLAGS.forEach(function (component) {
+        lines.push(renderPlacedSymbol(component, []));
+    });
     lines.push("");
     connectedEndpoints(model).forEach(function (record) {
+        lines.push(renderWire(record));
+        lines.push(renderLabel(record));
+    });
+    powerFlagEndpoints().forEach(function (record) {
         lines.push(renderWire(record));
         lines.push(renderLabel(record));
     });
