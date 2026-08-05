@@ -53,11 +53,34 @@ existing complete coloured Blender assembly while preserving all other case,
 display and electronics objects. Generated artefacts live under `case/out/`
 and are not committed.
 
+## Default build integration
+
+The approved auxiliary crowns are part of the normal Pocket Card assembly,
+not a separate model that users must remember to build. After the existing
+shell-finishing pass, `make pocket_card_case` and
+`make pocket_card_case_shells` run the existing sculpted-cap exporter and
+Blender replacement pass. The replacement is saved to the standard
+`out/order/pocket_card_complete.blend`, so that file contains the convex
+Action cap, dished Undo cap, protected Reset cap and grooved Menu cap.
+
+The four direction caps in that assembly remain byte-for-geometry equivalents
+of `coupon.cap`. The neutral clearance-ladder cap sets under `out/order/` also
+remain unchanged: they are manufacturing fit gauges, whereas the generated
+files under `out/sculpted_buttons/` are the printable role-specific caps.
+
+This integration uses only the sculpted-button sources already on `master`.
+It does not import the separate petal D-pad experiment or change any shell
+opening, collar, switch centre, retention feature or travel limit.
+
 ## Verification
 
 Automated checks prove that every direction cap is geometrically identical to
 the neutral production cap, that all roles preserve the mechanical envelope
 below the face, and that every cap remains one valid solid fitting the existing
 collars. The auxiliary caps retain their intended relative crown heights. A
-rendered oblique preview is inspected for collisions, sharp crown
+Make dry-run regression proves that sculpted generation and replacement occur
+after shell generation and Blender finishing. The completed standard assembly
+is reopened headlessly to verify that the Action cap uses the sculpted mesh
+while its object name, material, collection and identity transform remain
+unchanged. A rendered oblique preview is inspected for collisions, sharp crown
 discontinuities and unreadable role differences.
