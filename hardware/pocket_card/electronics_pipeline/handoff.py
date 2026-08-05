@@ -79,6 +79,9 @@ _ALLOWED_NON_PROJECT_PREFIXES = (
     f"{_ARCHIVE_ROOT}/reference/",
 )
 _CHECK_EXIT_CODES = {PASS: 0, INVALID: 1, MECHANICAL_REVIEW_REQUIRED: 2}
+_ACCEPTABLE_CHECK_STATUSES = frozenset({PASS, MECHANICAL_REVIEW_REQUIRED})
+_PROTECTED_ACCEPT_BRANCHES = frozenset({"main", "master"})
+_ELECTRONICS_REPO_PREFIX = "hardware/pocket_card/electronics"
 _DIGEST_PATTERN = re.compile(r"[0-9a-f]{64}")
 _COMMIT_PATTERN = re.compile(r"[0-9a-f]{40,64}")
 _JOURNAL_GENERATION_PATTERN = re.compile(r"[0-9a-f]{32}")
@@ -131,6 +134,17 @@ class HandoffCheckResult:
     semantic_diff: dict[str, object]
     report_json: Path
     report_markdown: Path
+
+
+@dataclass(frozen=True)
+class HandoffAcceptResult:
+    changed: tuple[str, ...]
+    retained: tuple[str, ...]
+    returned_digest: str
+    status: str
+
+    def __iter__(self):
+        return iter(self.changed)
 
 
 @dataclass(frozen=True)
@@ -2828,6 +2842,281 @@ def check_returned_zip(
     )
 
 
+def _editable_repo_pathspecs() -> tuple[str, ...]:
+    specs = [
+        f"{_ELECTRONICS_REPO_PREFIX}/{name}" for name in EDITABLE_PROJECT_FILES
+    ]
+    specs.extend(
+        f"{_ELECTRONICS_REPO_PREFIX}/{directory_name}/"
+        for directory_name in EDITABLE_PROJECT_DIRS
+    )
+    return tuple(specs)
+
+
+def _git_run(repo_root: Path, *arguments: str) -> str:
+    try:
+        result = subprocess.run(
+            ("git", *arguments),
+            cwd=repo_root,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        raise HandoffInvalid("cannot read Git repository state") from error
+    if result.returncode != 0:
+        raise HandoffInvalid("cannot read Git repository state")
+    return result.stdout.strip()
+
+
+def _git_current_branch(repo_root: Path) -> str:
+    branch = _git_run(repo_root, "branch", "--show-current")
+    if not branch:
+        raise HandoffInvalid("handoff acceptance requires a named Git branch")
+    return branch
+
+
+def _require_accept_branch(branch_name: str) -> None:
+    normalized = branch_name.strip()
+    if normalized in _PROTECTED_ACCEPT_BRANCHES:
+        raise HandoffInvalid(
+            f"handoff acceptance is not allowed on protected branch {normalized!r}"
+        )
+
+
+def _git_has_editable_changes(repo_root: Path) -> bool:
+    output = _git_run(
+        repo_root,
+        "status",
+        "--porcelain",
+        "--",
+        *_editable_repo_pathspecs(),
+    )
+    return bool(output)
+
+
+def _load_check_report(stage_dir: Path) -> dict[str, object]:
+    report_path = stage_dir / "report.json"
+    if not report_path.is_file():
+        raise HandoffInvalid("staged handoff report is missing")
+    try:
+        payload = json.loads(report_path.read_bytes())
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise HandoffInvalid("staged handoff report is invalid JSON") from error
+    if not isinstance(payload, Mapping):
+        raise HandoffInvalid("staged handoff report must be a JSON object")
+    return dict(payload)
+
+
+def _report_digest(report: Mapping[str, object], field: str) -> str:
+    value = report.get(field)
+    if not isinstance(value, str) or _DIGEST_PATTERN.fullmatch(value) is None:
+        raise HandoffInvalid(f"staged handoff report has an invalid {field}")
+    return value
+
+
+def _report_status(report: Mapping[str, object]) -> str:
+    value = report.get("status")
+    if not isinstance(value, str) or not value:
+        raise HandoffInvalid("staged handoff report is missing status")
+    return value
+
+
+def _report_source_hashes(report: Mapping[str, object]) -> dict[str, str]:
+    raw = report.get("sourceFileHashes")
+    if not isinstance(raw, Mapping):
+        raise HandoffInvalid("staged handoff report is missing sourceFileHashes")
+    hashes: dict[str, str] = {}
+    for relative, digest in raw.items():
+        if not isinstance(relative, str) or not relative:
+            raise HandoffInvalid("staged handoff report has an invalid source path")
+        if not isinstance(digest, str) or _DIGEST_PATTERN.fullmatch(digest) is None:
+            raise HandoffInvalid(
+                f"staged handoff report has an invalid source hash for {relative}"
+            )
+        hashes[relative] = digest
+    return hashes
+
+
+def _require_staged_source_hashes(project: Path, expected: Mapping[str, str]) -> None:
+    for relative, digest in sorted(expected.items()):
+        path = project / relative
+        if not path.is_file():
+            raise HandoffInvalid(
+                f"staged returned project is missing checked source file: {relative}"
+            )
+        _, actual = _regular_fingerprint(path, "staged returned project source")
+        if actual != digest:
+            raise HandoffInvalid(
+                f"staged returned project source changed since check: {relative}"
+            )
+
+
+def _promotion_plan(
+    staged_project: Path,
+    canonical_project: Path,
+) -> tuple[list[str], list[str]]:
+    staged_sources = {
+        path.relative_to(staged_project).as_posix(): path
+        for path in editable_project_files(staged_project)
+    }
+    canonical_sources = {
+        path.relative_to(canonical_project).as_posix(): path
+        for path in editable_project_files(canonical_project)
+    }
+    retained = sorted(
+        relative for relative in canonical_sources if relative not in staged_sources
+    )
+    changed: list[str] = []
+    for relative, staged_path in sorted(staged_sources.items()):
+        canonical_path = canonical_project / relative
+        _, staged_hash = _regular_fingerprint(staged_path, "staged returned project source")
+        if canonical_path.is_file():
+            _, canonical_hash = _regular_fingerprint(
+                canonical_path, "canonical project source"
+            )
+            if staged_hash == canonical_hash:
+                continue
+        changed.append(relative)
+    return changed, retained
+
+
+def _replace_promoted_file(source: Path, destination: Path) -> None:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temporary = destination.with_name(
+        f".handoff-accept-{uuid.uuid4().hex}.tmp"
+    )
+    if temporary.exists():
+        raise HandoffInvalid("handoff acceptance temporary file already exists")
+    try:
+        _snapshot_regular(source, temporary, f"accepted project source {source.name}")
+        os.replace(temporary, destination)
+        parent_descriptor = os.open(destination.parent, os.O_RDONLY)
+        try:
+            os.fsync(parent_descriptor)
+        finally:
+            os.close(parent_descriptor)
+    finally:
+        if temporary.exists():
+            try:
+                temporary.unlink()
+            except OSError:
+                pass
+
+
+def accept_stage(
+    stage_dir: str | Path,
+    repo_root: str | Path,
+    *,
+    branch_name: str | None = None,
+) -> HandoffAcceptResult:
+    """Promote a previously checked staged handoff into the canonical project."""
+
+    stage = _resolved_directory(stage_dir, "staged handoff directory")
+    repository = _resolved_directory(repo_root, "repository root")
+    canonical_project = _resolved_directory(ELECTRONICS_DIR, "canonical project")
+    staged_project = stage / "project"
+    if not staged_project.is_dir():
+        raise HandoffInvalid("staged returned project is missing")
+
+    branch = branch_name if branch_name is not None else _git_current_branch(repository)
+    _require_accept_branch(branch)
+
+    report = _load_check_report(stage)
+    status = _report_status(report)
+    if status not in _ACCEPTABLE_CHECK_STATUSES:
+        raise HandoffInvalid(
+            f"staged handoff status {status!r} is not acceptable for promotion"
+        )
+
+    base_digest = _report_digest(report, "baseProjectDigest")
+    returned_digest = _report_digest(report, "returnedProjectDigest")
+    current_digest = _handoff_project_digest(canonical_project)
+    if current_digest != base_digest:
+        raise HandoffInvalid(
+            "canonical project digest changed since the staged handoff was checked"
+        )
+
+    staged_digest = _handoff_project_digest(staged_project)
+    if staged_digest != returned_digest:
+        raise HandoffInvalid(
+            "staged returned project digest does not match the checked report"
+        )
+
+    if _git_has_editable_changes(repository):
+        raise HandoffInvalid(
+            "canonical editable project paths have uncommitted Git changes"
+        )
+
+    expected_hashes = _report_source_hashes(report)
+    _require_staged_source_hashes(staged_project, expected_hashes)
+    _editable_sources(staged_project)
+
+    changed, retained = _promotion_plan(staged_project, canonical_project)
+    pending: list[tuple[Path, Path]] = []
+    for relative in changed:
+        source = staged_project / relative
+        destination = canonical_project / relative
+        pending.append((source, destination))
+
+    for source, destination in pending:
+        _, staged_hash = _regular_fingerprint(source, "staged returned project source")
+        expected = expected_hashes.get(source.relative_to(staged_project).as_posix())
+        if expected is not None and staged_hash != expected:
+            raise HandoffInvalid(
+                f"staged returned project source changed before promotion: {source.name}"
+            )
+
+    for source, destination in pending:
+        _replace_promoted_file(source, destination)
+
+    final_digest = _handoff_project_digest(canonical_project)
+    if final_digest != returned_digest:
+        raise HandoffInvalid(
+            "canonical project digest does not match the accepted returned digest"
+        )
+
+    if status == MECHANICAL_REVIEW_REQUIRED:
+        print(
+            "NOTE: case and release targets remain blocked until mechanical review "
+            "is reconciled."
+        )
+
+    return HandoffAcceptResult(
+        changed=tuple(changed),
+        retained=tuple(retained),
+        returned_digest=returned_digest,
+        status=status,
+    )
+
+
+def _print_accept_summary(
+    result_paths: Sequence[str],
+    *,
+    retained: Sequence[str],
+    returned_digest: str,
+    status: str,
+) -> None:
+    if result_paths:
+        print("Accepted canonical project changes:")
+        for relative in sorted(result_paths):
+            print(f"  changed: {relative}")
+    else:
+        print("Accepted canonical project with no editable source changes.")
+    if retained:
+        print("Retained canonical project files absent from the returned handoff:")
+        for relative in sorted(retained):
+            print(f"  retained: {relative}")
+    print(f"Canonical project digest: {returned_digest}")
+    print(f"Checked status: {status}")
+    print("")
+    print("Next:")
+    print("  git diff -- hardware/pocket_card/electronics/")
+    print("  git add hardware/pocket_card/electronics/")
+    print("  git commit -m \"Promote checked Pocket Card engineer handoff\"")
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -2840,6 +3129,10 @@ def _parser() -> argparse.ArgumentParser:
         "check", help="stage and review a returned engineer ZIP"
     )
     check_parser.add_argument("--zip", type=Path, required=True)
+    accept_parser = subparsers.add_parser(
+        "accept", help="promote a previously checked staged handoff"
+    )
+    accept_parser.add_argument("--staged", type=Path, required=True)
     return parser
 
 
@@ -2860,6 +3153,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             print(str(result.stage_dir.resolve(strict=True)))
             return _CHECK_EXIT_CODES[result.status]
+        if args.command == "accept":
+            repository = _repository_root(ELECTRONICS_DIR)
+            result = accept_stage(args.staged, repository)
+            _print_accept_summary(
+                result.changed,
+                retained=result.retained,
+                returned_digest=result.returned_digest,
+                status=result.status,
+            )
+            return 0
         raise HandoffError(f"unsupported command {args.command!r}")
     except HandoffInvalid as error:
         diagnostic = _bounded_stream(_sanitize_diagnostic(error))[:8192]
