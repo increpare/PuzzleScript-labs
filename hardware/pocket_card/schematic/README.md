@@ -91,7 +91,8 @@ are not the KiCad association: the top-level PCB `path` is authoritative.
 7. Run schematic ERC and PCB DRC before manufacture, and resolve or consciously
    disposition every result alongside the electrical audit.
 
-`make pocket_card_kicad` only regenerates the schematic. The case
-`build_pcb.sh` is different: it intentionally and destructively regenerates the
-routed board output as well. Commit, stash, or copy reviewed PCB work before
-running that script.
+`make pocket_card_kicad` regenerates the schematic and project-local
+`fp-lib-table`; it does not regenerate the PCB. The case `build_pcb.sh` is
+different: it intentionally and destructively regenerates the routed board
+output as well. Commit, stash, or copy reviewed PCB work before running that
+script.
