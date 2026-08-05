@@ -9,6 +9,7 @@ import inspect
 import json
 import os
 import re
+import shutil
 import stat
 import subprocess
 import tempfile
@@ -25,9 +26,16 @@ from .exports import (
     _load_toolchain,
     require_current_exports,
 )
-from .inventory import _version_tuple, editable_project_files, inventory_json
+from .inventory import (
+    _version_tuple,
+    editable_project_files,
+    inventory_json,
+    project_digest,
+    semantic_diff,
+)
 from .paths import (
     EDITABLE_PROJECT_DIRS,
+    EDITABLE_PROJECT_FILES,
     ELECTRONICS_DIR,
     HANDOFF_BUILD_DIR,
     PCB_OUTPUT_DIR,
@@ -36,6 +44,7 @@ from .paths import (
 )
 from .validation import (
     MECHANICAL_REVIEW_REQUIRED,
+    INVALID,
     PASS,
     ValidationError,
     _bounded_stream,
@@ -52,6 +61,19 @@ except ImportError:  # pragma: no cover - fail-safe behavior is exercised by inj
 _ARCHIVE_ROOT = "pocket-card-controller"
 _HANDOFF_SCHEMA_VERSION = 1
 _HANDOFF_TOOL_VERSION = "1"
+_CHECK_REPORT_SCHEMA_VERSION = 1
+_PROJECT_ARCHIVE_PREFIX = f"{_ARCHIVE_ROOT}/project/"
+_HANDOFF_METADATA_NAME = f"{_ARCHIVE_ROOT}/handoff.json"
+_ALLOWED_NON_PROJECT_MEMBERS = frozenset(
+    {
+        _HANDOFF_METADATA_NAME,
+        f"{_ARCHIVE_ROOT}/HANDOFF.md",
+    }
+)
+_ALLOWED_NON_PROJECT_PREFIXES = (
+    f"{_ARCHIVE_ROOT}/reference/",
+)
+_CHECK_EXIT_CODES = {PASS: 0, INVALID: 1, MECHANICAL_REVIEW_REQUIRED: 2}
 _DIGEST_PATTERN = re.compile(r"[0-9a-f]{64}")
 _COMMIT_PATTERN = re.compile(r"[0-9a-f]{40,64}")
 _JOURNAL_GENERATION_PATTERN = re.compile(r"[0-9a-f]{32}")
@@ -89,6 +111,21 @@ _GitMetadataProvider = Callable[[Path], tuple[str, int]]
 
 class HandoffError(RuntimeError):
     """An expected outgoing-handoff safety or input failure."""
+
+
+class HandoffInvalid(HandoffError):
+    """A returned archive is malformed or unsafe to stage."""
+
+
+@dataclass(frozen=True)
+class HandoffCheckResult:
+    status: str
+    stage_dir: Path
+    base_digest: str
+    returned_digest: str
+    semantic_diff: dict[str, object]
+    report_json: Path
+    report_markdown: Path
 
 
 @dataclass(frozen=True)
@@ -2175,6 +2212,542 @@ def export_handoff(
         )
 
 
+def _normalize_returned_member_name(name: str) -> PurePosixPath:
+    if "\\" in name or "\0" in name:
+        raise HandoffInvalid(f"unsafe archive member name: {name!r}")
+    normalized = PurePosixPath(name)
+    posix = normalized.as_posix()
+    if (
+        not name
+        or normalized.is_absolute()
+        or posix != name.rstrip("/")
+        or any(part in ("", ".", "..") for part in normalized.parts)
+    ):
+        raise HandoffInvalid(f"unsafe archive member name: {name!r}")
+    return normalized
+
+
+def _zip_entry_is_symlink(info: zipfile.ZipInfo) -> bool:
+    return stat.S_ISLNK((info.external_attr >> 16) & 0xFFFF)
+
+
+def _validate_returned_project_relative(relative: PurePosixPath) -> None:
+    if not relative.parts:
+        raise HandoffInvalid("project archive member must have a relative path")
+    top = relative.parts[0]
+    if top in EDITABLE_PROJECT_FILES:
+        if len(relative.parts) != 1:
+            raise HandoffInvalid(f"unexpected project path: {relative.as_posix()}")
+        return
+    if top in EDITABLE_PROJECT_DIRS:
+        if len(relative.parts) < 2:
+            return
+        suffix = relative.suffix.lower()
+        if suffix not in _LOCAL_EDITABLE_SUFFIXES[top]:
+            raise HandoffInvalid(f"unexpected project asset: {relative.as_posix()}")
+        return
+    raise HandoffInvalid(f"unexpected canonical project filename: {relative.as_posix()}")
+
+
+def _inspect_returned_archive(archive_path: Path) -> tuple[list[zipfile.ZipInfo], dict[str, bytes]]:
+    if not archive_path.is_file():
+        raise HandoffInvalid(f"returned handoff archive is missing: {archive_path}")
+    try:
+        archive = zipfile.ZipFile(archive_path)
+    except zipfile.BadZipFile as error:
+        raise HandoffInvalid(f"returned handoff archive is not a ZIP file: {archive_path}") from error
+    with archive:
+        members = archive.infolist()
+        if len(members) > _MAX_ARCHIVE_MEMBERS:
+            raise HandoffInvalid(
+                f"returned handoff archive exceeds {_MAX_ARCHIVE_MEMBERS} members"
+            )
+        total_bytes = 0
+        names: set[str] = set()
+        roots: set[str] = set()
+        project_members: dict[str, bytes] = {}
+        has_project_dir = False
+        has_handoff_metadata = False
+        required_project_names = set(_REQUIRED_PROJECT_SOURCES)
+
+        for info in members:
+            _normalize_returned_member_name(info.filename)
+            if _zip_entry_is_symlink(info):
+                raise HandoffInvalid(
+                    f"returned handoff archive member is a symlink: {info.filename}"
+                )
+            if info.filename in names:
+                raise HandoffInvalid(
+                    f"duplicate returned handoff archive member: {info.filename}"
+                )
+            names.add(info.filename)
+            if info.file_size < 0 or info.file_size > _MAX_ARCHIVE_BYTES:
+                raise HandoffInvalid(
+                    f"returned handoff archive member has an invalid size: {info.filename}"
+                )
+            if info.file_size > _MAX_ARCHIVE_BYTES - total_bytes:
+                raise HandoffInvalid(
+                    f"returned handoff archive exceeds {_MAX_ARCHIVE_BYTES} uncompressed bytes"
+                )
+            total_bytes += info.file_size
+            parts = PurePosixPath(info.filename).parts
+            if not parts:
+                continue
+            roots.add(parts[0])
+            if parts[0] != _ARCHIVE_ROOT:
+                raise HandoffInvalid(
+                    f"returned handoff archive has an unexpected root: {parts[0]!r}"
+                )
+            if info.filename in _ALLOWED_NON_PROJECT_MEMBERS:
+                if info.filename == _HANDOFF_METADATA_NAME:
+                    has_handoff_metadata = True
+                continue
+            if any(
+                info.filename.startswith(prefix)
+                for prefix in _ALLOWED_NON_PROJECT_PREFIXES
+            ):
+                continue
+            if info.filename == f"{_ARCHIVE_ROOT}/project" or info.filename.startswith(
+                _PROJECT_ARCHIVE_PREFIX
+            ):
+                has_project_dir = True
+                if info.filename == f"{_ARCHIVE_ROOT}/project":
+                    continue
+                relative = PurePosixPath(info.filename[len(_PROJECT_ARCHIVE_PREFIX) :])
+                _validate_returned_project_relative(relative)
+                if info.file_size > 0 and not info.is_dir():
+                    project_members[relative.as_posix()] = archive.read(info)
+                continue
+            raise HandoffInvalid(
+                f"returned handoff archive has an unexpected member: {info.filename}"
+            )
+
+        if len(roots) != 1:
+            raise HandoffInvalid(
+                "returned handoff archive must contain exactly one top-level directory"
+            )
+        if not has_project_dir:
+            raise HandoffInvalid("returned handoff archive is missing project/")
+        if not has_handoff_metadata:
+            raise HandoffInvalid("returned handoff archive is missing handoff.json")
+        missing = sorted(
+            name for name in required_project_names if name not in project_members
+        )
+        if missing:
+            raise HandoffInvalid(
+                "returned handoff archive is missing required project sources: "
+                + ", ".join(missing)
+            )
+        return members, project_members
+
+
+def _digest_project_members(members: Mapping[str, bytes]) -> str:
+    digest = hashlib.sha256()
+    for relative in sorted(members):
+        digest.update(relative.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(members[relative])
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
+def _load_returned_handoff_metadata(archive_path: Path) -> dict[str, object]:
+    try:
+        with zipfile.ZipFile(archive_path) as archive:
+            raw = archive.read(_HANDOFF_METADATA_NAME)
+    except (KeyError, OSError, zipfile.BadZipFile) as error:
+        raise HandoffInvalid("returned handoff archive is missing handoff.json") from error
+    if len(raw) < 1 or len(raw) > _MAX_METADATA_BYTES:
+        raise HandoffInvalid("returned handoff metadata is missing or too large")
+    try:
+        loaded = json.loads(
+            raw.decode("utf-8"),
+            object_pairs_hook=_duplicate_rejecting_object,
+            parse_constant=_reject_json_constant,
+        )
+    except (UnicodeError, json.JSONDecodeError) as error:
+        raise HandoffInvalid("returned handoff metadata is not valid JSON") from error
+    if not isinstance(loaded, Mapping):
+        raise HandoffInvalid("returned handoff metadata must be a JSON object")
+    return dict(loaded)
+
+
+def _returned_base_digest(metadata: Mapping[str, object]) -> str:
+    digest = metadata.get("baseProjectDigest")
+    if not isinstance(digest, str) or _DIGEST_PATTERN.fullmatch(digest) is None:
+        raise HandoffInvalid("returned handoff metadata has an invalid baseProjectDigest")
+    return digest
+
+
+def _inventory_as_json(inventory: object) -> dict[str, object]:
+    if inventory is None:
+        return {
+            "schematic": {"components": {}, "nets": {}},
+            "board": {"footprints": {}, "edge_cuts": [], "thickness_mm": 0.0},
+        }
+    if isinstance(inventory, Mapping):
+        return {str(key): _inventory_value(inventory[key]) for key in inventory}
+    return inventory_json(inventory)  # type: ignore[arg-type]
+
+
+def _mapping_diff(before: dict[str, object], after: dict[str, object]) -> dict[str, object]:
+    before_keys = set(before)
+    after_keys = set(after)
+    changed = {
+        key: {"before": before[key], "after": after[key]}
+        for key in sorted(before_keys & after_keys)
+        if before[key] != after[key]
+    }
+    return {
+        "added": sorted(after_keys - before_keys),
+        "removed": sorted(before_keys - after_keys),
+        "changed": changed,
+    }
+
+
+def _semantic_diff_from_values(before: object, after: object) -> dict[str, object]:
+    before_json = _inventory_as_json(before)
+    after_json = _inventory_as_json(after)
+    before_schematic = before_json["schematic"]
+    after_schematic = after_json["schematic"]
+    before_board = before_json["board"]
+    after_board = after_json["board"]
+    if not isinstance(before_schematic, dict) or not isinstance(after_schematic, dict):
+        raise HandoffError("semantic inventory schematic section is invalid")
+    if not isinstance(before_board, dict) or not isinstance(after_board, dict):
+        raise HandoffError("semantic inventory board section is invalid")
+    before_footprints = before_board.get("footprints", {})
+    after_footprints = after_board.get("footprints", {})
+    if not isinstance(before_footprints, dict) or not isinstance(after_footprints, dict):
+        raise HandoffError("semantic inventory footprints section is invalid")
+    placement_keys = ("x_mm", "y_mm", "rotation_deg", "layer", "locked", "courtyard_bbox_mm")
+    before_placements = {
+        ref: {key: footprint[key] for key in placement_keys if key in footprint}
+        for ref, footprint in before_footprints.items()
+        if isinstance(footprint, Mapping)
+    }
+    after_placements = {
+        ref: {key: footprint[key] for key in placement_keys if key in footprint}
+        for ref, footprint in after_footprints.items()
+        if isinstance(footprint, Mapping)
+    }
+    before_footprint_semantics = {
+        ref: {key: value for key, value in footprint.items() if key not in placement_keys}
+        for ref, footprint in before_footprints.items()
+        if isinstance(footprint, Mapping)
+    }
+    after_footprint_semantics = {
+        ref: {key: value for key, value in footprint.items() if key not in placement_keys}
+        for ref, footprint in after_footprints.items()
+        if isinstance(footprint, Mapping)
+    }
+    before_components = before_schematic.get("components", {})
+    after_components = after_schematic.get("components", {})
+    before_nets = before_schematic.get("nets", {})
+    after_nets = after_schematic.get("nets", {})
+    if not isinstance(before_components, dict) or not isinstance(after_components, dict):
+        raise HandoffError("semantic inventory components section is invalid")
+    if not isinstance(before_nets, dict) or not isinstance(after_nets, dict):
+        raise HandoffError("semantic inventory nets section is invalid")
+    before_outline = {
+        "thickness_mm": before_board.get("thickness_mm"),
+        "edge_cuts": before_board.get("edge_cuts"),
+    }
+    after_outline = {
+        "thickness_mm": after_board.get("thickness_mm"),
+        "edge_cuts": after_board.get("edge_cuts"),
+    }
+    return {
+        "components": _mapping_diff(before_components, after_components),
+        "nets": _mapping_diff(before_nets, after_nets),
+        "footprints": _mapping_diff(before_footprint_semantics, after_footprint_semantics),
+        "placements": _mapping_diff(before_placements, after_placements),
+        "outline": {
+            "changed": before_outline != after_outline,
+            "before": before_outline,
+            "after": after_outline,
+        },
+    }
+
+
+def _report_scope_counts(reports: Mapping[str, object]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for scope in ("ERC", "DRC", "parity"):
+        payload = reports.get(scope)
+        if not isinstance(payload, Mapping):
+            counts[scope] = 0
+            continue
+        violations = payload.get("violations")
+        if isinstance(violations, Sequence):
+            counts[scope] = len(violations)
+        else:
+            counts[scope] = 0
+    return counts
+
+
+def _render_check_report_markdown(
+    *,
+    status: str,
+    base_digest: str,
+    returned_digest: str,
+    returned_base_digest: str,
+    validation_messages: Sequence[str],
+    semantic_diff_report: Mapping[str, object],
+    validation_reports: Mapping[str, object],
+) -> str:
+    lines = [
+        "# Pocket Card returned handoff report",
+        "",
+        f"- Status: `{status}`",
+        f"- Current canonical digest: `{base_digest}`",
+        f"- Returned baseline digest: `{returned_base_digest}`",
+        f"- Returned project digest: `{returned_digest}`",
+        "",
+    ]
+    if validation_messages:
+        lines.append("## Validation messages")
+        lines.append("")
+        for message in validation_messages:
+            lines.append(f"- {message}")
+        lines.append("")
+
+    counts = _report_scope_counts(validation_reports)
+    lines.extend(
+        [
+            "## ERC/DRC counts",
+            "",
+            f"- ERC violations: {counts.get('ERC', 0)}",
+            f"- DRC violations: {counts.get('DRC', 0)}",
+            f"- Parity violations: {counts.get('parity', 0)}",
+            "",
+        ]
+    )
+
+    mechanical = validation_reports.get("mechanical")
+    lines.append("## Mechanical findings")
+    lines.append("")
+    if isinstance(mechanical, Sequence) and mechanical:
+        for finding in mechanical:
+            lines.append(f"- {finding}")
+    else:
+        lines.append("- none")
+    lines.append("")
+
+    for section, title in (
+        ("components", "Components"),
+        ("nets", "Nets and pins"),
+        ("footprints", "Footprints"),
+        ("placements", "Placements"),
+    ):
+        payload = semantic_diff_report.get(section)
+        if not isinstance(payload, Mapping):
+            continue
+        lines.append(f"## {title}")
+        lines.append("")
+        for label in ("added", "removed"):
+            values = payload.get(label)
+            if isinstance(values, Sequence) and values:
+                lines.append(f"- {label}: {', '.join(str(item) for item in values)}")
+        changed = payload.get("changed")
+        if isinstance(changed, Mapping) and changed:
+            lines.append("- changed:")
+            for key in sorted(changed):
+                lines.append(f"  - `{key}`")
+        if lines[-1] != "":
+            lines.append("")
+
+    outline = semantic_diff_report.get("outline")
+    lines.append("## Board outline")
+    lines.append("")
+    if isinstance(outline, Mapping) and outline.get("changed") is True:
+        lines.append("- changed")
+    else:
+        lines.append("- unchanged")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _write_check_reports(
+    stage_dir: Path,
+    *,
+    status: str,
+    base_digest: str,
+    returned_digest: str,
+    returned_base_digest: str,
+    validation_messages: Sequence[str],
+    semantic_diff_report: Mapping[str, object],
+    source_hashes: Mapping[str, str],
+    validation_reports: Mapping[str, object],
+) -> tuple[Path, Path]:
+    stage_dir.mkdir(parents=True, exist_ok=True)
+    report_json = stage_dir / "report.json"
+    report_markdown = stage_dir / "report.md"
+    payload = {
+        "schemaVersion": _CHECK_REPORT_SCHEMA_VERSION,
+        "status": status,
+        "baseProjectDigest": base_digest,
+        "currentProjectDigest": base_digest,
+        "returnedBaseProjectDigest": returned_base_digest,
+        "returnedProjectDigest": returned_digest,
+        "validationMessages": list(validation_messages),
+        "sourceFileHashes": dict(source_hashes),
+        "semanticDiff": _inventory_value(dict(semantic_diff_report)),
+        "validationReports": _inventory_value(dict(validation_reports)),
+    }
+    report_json.write_bytes(_json_bytes(payload))
+    report_markdown.write_text(
+        _render_check_report_markdown(
+            status=status,
+            base_digest=base_digest,
+            returned_digest=returned_digest,
+            returned_base_digest=returned_base_digest,
+            validation_messages=validation_messages,
+            semantic_diff_report=semantic_diff_report,
+            validation_reports=validation_reports,
+        ),
+        encoding="utf-8",
+    )
+    return report_json, report_markdown
+
+
+def _extract_returned_project(
+    archive_path: Path,
+    project_members: Mapping[str, bytes],
+    destination: Path,
+) -> None:
+    if destination.exists():
+        shutil.rmtree(destination)
+    destination.mkdir(parents=True)
+    with zipfile.ZipFile(archive_path) as archive:
+        for info in archive.infolist():
+            if not info.filename.startswith(_PROJECT_ARCHIVE_PREFIX):
+                continue
+            relative = PurePosixPath(info.filename[len(_PROJECT_ARCHIVE_PREFIX) :])
+            if info.is_dir() or info.file_size < 1:
+                continue
+            _validate_returned_project_relative(relative)
+            target = destination / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if target.exists():
+                raise HandoffInvalid(
+                    f"returned project extraction path already exists: {relative.as_posix()}"
+                )
+            with archive.open(info, "r") as source, target.open("wb") as sink:
+                shutil.copyfileobj(source, sink, length=_COPY_CHUNK_SIZE)
+
+
+def _install_canonical_validation_policy(project: Path) -> None:
+    for name in _POLICY_DIGEST_NAMES:
+        shutil.copy2(ELECTRONICS_DIR / name, project / name)
+
+
+def _source_file_hashes(project: Path) -> dict[str, str]:
+    hashes: dict[str, str] = {}
+    for path in _editable_sources(project):
+        relative = path.relative_to(project).as_posix()
+        _, digest = _regular_fingerprint(path, "returned project source")
+        hashes[relative] = digest
+    return hashes
+
+
+def check_returned_zip(
+    archive_path: str | Path,
+    repo_root: str | Path,
+    *,
+    runner: Callable[..., object] = subprocess.run,
+    validator: _Validator | None = None,
+) -> HandoffCheckResult:
+    """Safely stage and semantically review one returned engineer handoff ZIP."""
+
+    if validator is None:
+        validator = validate_project
+
+    archive = Path(archive_path).expanduser()
+    _resolved_directory(repo_root, "repository root")
+    _, project_members = _inspect_returned_archive(archive)
+    metadata = _load_returned_handoff_metadata(archive)
+    returned_base_digest = _returned_base_digest(metadata)
+    returned_digest = _digest_project_members(project_members)
+    current_digest = project_digest(ELECTRONICS_DIR)
+    stage_dir = (HANDOFF_BUILD_DIR / "staged" / returned_digest).resolve()
+    validation_messages: list[str] = []
+    semantic_diff_report: dict[str, object] = {}
+    validation_reports: dict[str, object] = {}
+    source_hashes: dict[str, str] = {}
+    status = PASS
+
+    if returned_base_digest != current_digest:
+        validation_messages.append(
+            "returned handoff baseline "
+            f"{returned_base_digest} does not match current project digest "
+            f"{current_digest}; do not auto-merge"
+        )
+        status = INVALID
+        report_json, report_markdown = _write_check_reports(
+            stage_dir,
+            status=status,
+            base_digest=current_digest,
+            returned_digest=returned_digest,
+            returned_base_digest=returned_base_digest,
+            validation_messages=validation_messages,
+            semantic_diff_report=semantic_diff_report,
+            source_hashes=source_hashes,
+            validation_reports=validation_reports,
+        )
+        return HandoffCheckResult(
+            status=status,
+            stage_dir=stage_dir,
+            base_digest=current_digest,
+            returned_digest=returned_digest,
+            semantic_diff=semantic_diff_report,
+            report_json=report_json,
+            report_markdown=report_markdown,
+        )
+
+    project_dir = stage_dir / "project"
+    _extract_returned_project(archive, project_members, project_dir)
+    _install_canonical_validation_policy(project_dir)
+    source_hashes = _source_file_hashes(project_dir)
+
+    baseline_validation = _call_validator(validator, ELECTRONICS_DIR, runner)
+    returned_validation = _call_validator(validator, project_dir, runner)
+    validation_reports = dict(getattr(returned_validation, "reports", {}) or {})
+    validation_messages.extend(
+        str(item) for item in getattr(returned_validation, "messages", ())
+    )
+    semantic_diff_report = _semantic_diff_from_values(
+        getattr(baseline_validation, "inventory", None),
+        getattr(returned_validation, "inventory", None),
+    )
+    status = str(getattr(returned_validation, "status", INVALID))
+    if status not in _CHECK_EXIT_CODES:
+        status = INVALID
+
+    if status == INVALID:
+        shutil.rmtree(project_dir, ignore_errors=True)
+
+    report_json, report_markdown = _write_check_reports(
+        stage_dir,
+        status=status,
+        base_digest=current_digest,
+        returned_digest=returned_digest,
+        returned_base_digest=returned_base_digest,
+        validation_messages=validation_messages,
+        semantic_diff_report=semantic_diff_report,
+        source_hashes=source_hashes,
+        validation_reports=validation_reports,
+    )
+    return HandoffCheckResult(
+        status=status,
+        stage_dir=stage_dir,
+        base_digest=current_digest,
+        returned_digest=returned_digest,
+        semantic_diff=semantic_diff_report,
+        report_json=report_json,
+        report_markdown=report_markdown,
+    )
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -2183,24 +2756,39 @@ def _parser() -> argparse.ArgumentParser:
     export_parser.add_argument(
         "--output-dir", type=Path, default=HANDOFF_BUILD_DIR / "outgoing"
     )
+    check_parser = subparsers.add_parser(
+        "check", help="stage and review a returned engineer ZIP"
+    )
+    check_parser.add_argument("--zip", type=Path, required=True)
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
-        if args.command != "export":
-            raise HandoffError(f"unsupported command {args.command!r}")
-        archive = export_handoff(
-            include_blend=args.include_blend,
-            output_dir=args.output_dir,
-        )
+        if args.command == "export":
+            archive = export_handoff(
+                include_blend=args.include_blend,
+                output_dir=args.output_dir,
+            )
+            print(str(archive.resolve(strict=True)))
+            return 0
+        if args.command == "check":
+            result = check_returned_zip(
+                args.zip,
+                _repository_root(ELECTRONICS_DIR),
+            )
+            print(str(result.stage_dir.resolve(strict=True)))
+            return _CHECK_EXIT_CODES[result.status]
+        raise HandoffError(f"unsupported command {args.command!r}")
+    except HandoffInvalid as error:
+        diagnostic = _bounded_stream(_sanitize_diagnostic(error))[:8192]
+        print(f"ERROR: {diagnostic}")
+        return 1
     except (HandoffError, OSError, RuntimeError, UnicodeError, ValueError, ValidationError) as error:
         diagnostic = _bounded_stream(_sanitize_diagnostic(error))[:8192]
         print(f"ERROR: {diagnostic}")
         return 1
-    print(str(archive.resolve(strict=True)))
-    return 0
 
 
 if __name__ == "__main__":
