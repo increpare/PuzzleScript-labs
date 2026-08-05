@@ -973,6 +973,8 @@ _LOCAL_EDITABLE_SUFFIXES = {
     "3dmodels": frozenset({".step", ".stp", ".wrl"}),
 }
 
+_PORTABLE_PROJECT_NAME_PATTERN = re.compile(r"[A-Za-z0-9_-]+")
+
 
 def _validated_project_root(project_dir: Path) -> Path:
     if project_dir.is_symlink():
@@ -989,16 +991,11 @@ def _validated_project_root(project_dir: Path) -> Path:
 def _validated_project_name(value: object) -> str:
     if (
         not isinstance(value, str)
-        or not value
-        or value != value.strip()
-        or value in {".", ".."}
-        or "." in value
-        or "/" in value
-        or "\\" in value
-        or Path(value).is_absolute()
+        or _PORTABLE_PROJECT_NAME_PATTERN.fullmatch(value) is None
     ):
         raise RuntimeError(
-            f"invalid toolchain project name {value!r}; expected a nonempty plain filename stem"
+            f"invalid toolchain project name {value!r}; "
+            "expected a portable ASCII filename stem matching [A-Za-z0-9_-]+"
         )
     return value
 
@@ -1033,7 +1030,7 @@ def _iter_local_editable_files(directory: Path, root: Path, suffixes: frozenset[
             raise ValueError(f"editable project path is a symlink: {candidate}")
         resolved = _ensure_path_within_root(candidate, root)
         if resolved.is_dir():
-            if resolved.name.endswith("-backups"):
+            if resolved.name == ".history" or resolved.name.endswith("-backups"):
                 continue
             yield from _iter_local_editable_files(resolved, root, suffixes)
         elif resolved.is_file() and resolved.suffix.lower() in suffixes:
@@ -1047,8 +1044,8 @@ def editable_project_files(
 
     Symlinks are rejected rather than omitted or dereferenced, and every returned
     path is resolved beneath the resolved project root.  KiCad's exact
-    ``*-backups`` directory convention is excluded without filtering legitimate
-    library names containing the word "backup".
+    ``*-backups`` and ``.history`` directory conventions are excluded without
+    filtering legitimate library names containing the word "backup".
     """
 
     project_name = _validated_project_name(project_name)

@@ -14,6 +14,7 @@ from hardware.pocket_card.electronics_pipeline.inventory import (
     ProjectInventory,
     SchematicInventory,
     compare_schematic_to_board,
+    editable_project_files,
     inventory_json,
     inventory_project,
     parse_board,
@@ -312,6 +313,36 @@ class ProjectInventoryTest(unittest.TestCase):
             (root / "toolchain.json").write_bytes(b"changed policy")
             self.assertEqual(project_digest(root), expected.hexdigest())
 
+    def test_editable_project_files_exclude_exact_editor_history_directories(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            symbols = root / "symbols"
+            symbols.mkdir()
+            (symbols / "local.kicad_sym").write_bytes(b"symbol")
+            history = symbols / ".history"
+            history.mkdir()
+            old_symbol = history / "old.kicad_sym"
+            old_symbol.write_bytes(b"old editor history")
+            similarly_named = symbols / ".history-copy"
+            similarly_named.mkdir()
+            (similarly_named / "kept.kicad_sym").write_bytes(b"editable symbol")
+
+            relative_paths = {
+                path.relative_to(root.resolve()).as_posix()
+                for path in editable_project_files(root)
+            }
+            self.assertEqual(
+                relative_paths,
+                {
+                    "symbols/.history-copy/kept.kicad_sym",
+                    "symbols/local.kicad_sym",
+                },
+            )
+
+            digest_before = project_digest(root)
+            old_symbol.write_bytes(b"changed editor history")
+            self.assertEqual(project_digest(root), digest_before)
+
     def test_editable_primary_file_symlinks_are_rejected_with_their_path(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
@@ -357,6 +388,13 @@ class ProjectInventoryTest(unittest.TestCase):
             r"nested\name",
             "/absolute",
             r"C:\absolute",
+            "C:outside",
+            "two words",
+            "nul\0name",
+            "tab\tname",
+            "line\nbreak",
+            "control\x1fcharacter",
+            "punctuation!",
         )
         for invalid_name in invalid_names:
             with self.subTest(project=invalid_name), tempfile.TemporaryDirectory() as temporary_directory:
@@ -375,6 +413,20 @@ class ProjectInventoryTest(unittest.TestCase):
                     "invalid toolchain project name",
                 ):
                     inventory_project(root)
+
+    def test_toolchain_project_name_accepts_portable_ascii_stems(self):
+        for valid_name in (
+            "PocketCard",
+            "pocket_card-controller",
+            "A1",
+            "_private",
+            "dash-",
+        ):
+            with self.subTest(project=valid_name):
+                self.assertEqual(
+                    inventory_module._validated_project_name(valid_name),
+                    valid_name,
+                )
 
     def test_inventory_json_is_deterministic_json_ready_and_detached(self):
         project = ProjectInventory(
