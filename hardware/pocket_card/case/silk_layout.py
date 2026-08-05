@@ -384,10 +384,10 @@ def build_back(corpus=None, grid=None, start: int = 0) -> Side:
     brand_block(logo, 8.0, 3.2, 0.88, grid, "PuzzlePocket", "PuzzleScript", 2.8, 1.55)
 
     labels = Layer()
-    io_block(labels, *conn_anchor(P.CONN_I2C), ["3V3", "GND", "SCL", "SDA"], "J_I2C")
-    io_block(labels, *conn_anchor(P.CONN_EXP), ["INT", "NC", "NC", "NC"], "J_EXP")
-    io_block(labels, *conn_anchor(P.CONN_BAT_IN), ["BAT+", "GND"], "J_BAT_IN")
-    io_block(labels, *conn_anchor(P.CONN_BAT_OUT), ["BAT_SW", "GND"], "J_BAT_OUT",
+    io_block(labels, *conn_anchor(P.CONN_I2C), ["3V3", "GND", "SCL", "SDA"], "J_I2C1")
+    io_block(labels, *conn_anchor(P.CONN_EXP), ["INT", "NC", "NC", "NC"], "J_EXP1")
+    io_block(labels, *conn_anchor(P.CONN_BAT_IN), ["BAT+", "GND"], "J_BAT_IN1")
+    io_block(labels, *conn_anchor(P.CONN_BAT_OUT), ["BAT_SW", "GND"], "J_BAT_OUT1",
              below=True)
 
     return Side(layers=[rules, logo, labels], rule_count=len(rules.texts))

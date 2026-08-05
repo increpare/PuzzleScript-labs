@@ -2,6 +2,7 @@
 import copy
 import json
 import os
+import re
 
 
 _MODEL_PATH = os.path.join(
@@ -56,6 +57,10 @@ def _load_model(path):
             if field not in item:
                 _invalid(path, field_path, "is required")
             _required_nonempty_string(item[field], path, field_path)
+        if not re.search(r"[0-9]$", item["ref"]):
+            _invalid(path, base + ".ref",
+                     "uses %s, which is not fully annotated; references must end in a digit"
+                     % item["ref"])
         if item["ref"] in refs:
             _invalid(path, base + ".ref",
                      "has duplicate component ref %s" % item["ref"])

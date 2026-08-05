@@ -119,13 +119,13 @@ def fake_footprints():
         pad_names.setdefault(rule["ref"], []).append(rule["pad"])
 
     # Physical libraries deliberately contain duplicated logical pad names.
-    pad_names["SW_UP"].extend(["1", "2"])
-    pad_names["J_I2C"].append("MP")
-    pad_names["SW_MUTE"].append("")
+    pad_names["SW_UP1"].extend(["1", "2"])
+    pad_names["J_I2C1"].append("MP")
+    pad_names["SW_MUTE1"].append("")
     # These canonical no-connect/unmodeled pads must be left untouched.
     pad_names["U1"].append("2")
-    pad_names["J_EXP"].append("2")
-    pad_names["SW_PWR"].append("3")
+    pad_names["J_EXP1"].append("2")
+    pad_names["SW_PWR1"].append("3")
 
     return {
         item["ref"]: FakeFootprint(item["ref"], pad_names.get(item["ref"], []))
@@ -137,6 +137,20 @@ class ConnectivityAdapterTests(unittest.TestCase):
     def setUp(self):
         self.assertIsNotNone(C, "pcb_connectivity module is required")
 
+    def test_all_component_references_are_fully_annotated(self):
+        refs = [item["ref"] for item in C.model()["components"]]
+        self.assertEqual(refs, [
+            "U1", "SW_UP1", "SW_DOWN1", "SW_LEFT1", "SW_RIGHT1",
+            "SW_UNDO1", "SW_ACTION1", "SW_RESET1", "SW_MENU1",
+            "SW_PWR1", "SW_MUTE1", "J_I2C1", "J_EXP1",
+            "J_BAT_IN1", "J_BAT_OUT1", "H1", "H2",
+        ])
+
+    def test_loader_rejects_unannotated_component_reference(self):
+        candidate = C.model()
+        candidate["components"][0]["ref"] = "SW_UP"
+        self.assert_model_invalid(candidate, r"SW_UP.*not fully annotated")
+
     def test_expander_signal_assignments_are_canonical(self):
         pads = C.pad_net_map()
         self.assertEqual(pads[("U1", "1")], "SIG_UP")
@@ -146,23 +160,23 @@ class ConnectivityAdapterTests(unittest.TestCase):
     def test_switch_common_connector_power_and_mute_assignments(self):
         pads = C.pad_net_map()
         expected_switches = {
-            "SW_UP": "SIG_UP", "SW_DOWN": "SIG_DOWN",
-            "SW_LEFT": "SIG_LEFT", "SW_RIGHT": "SIG_RIGHT",
-            "SW_UNDO": "SIG_UNDO", "SW_ACTION": "SIG_ACTION",
-            "SW_RESET": "SIG_RESET", "SW_MENU": "SIG_MENU",
+            "SW_UP1": "SIG_UP", "SW_DOWN1": "SIG_DOWN",
+            "SW_LEFT1": "SIG_LEFT", "SW_RIGHT1": "SIG_RIGHT",
+            "SW_UNDO1": "SIG_UNDO", "SW_ACTION1": "SIG_ACTION",
+            "SW_RESET1": "SIG_RESET", "SW_MENU1": "SIG_MENU",
         }
         for ref, signal in expected_switches.items():
             self.assertEqual(pads[(ref, "1")], signal, ref)
             self.assertEqual(pads[(ref, "2")], "GND", ref)
-        self.assertEqual(pads[("J_I2C", "MP")], "GND")
-        self.assertEqual(pads[("J_EXP", "MP")], "GND")
-        self.assertEqual(pads[("J_BAT_IN", "MP")], "GND")
-        self.assertEqual(pads[("J_BAT_OUT", "MP")], "GND")
-        self.assertEqual(pads[("SW_PWR", "1")], "BAT_SW")
-        self.assertEqual(pads[("SW_PWR", "2")], "BAT_P")
-        self.assertEqual(pads[("SW_MUTE", "1")], "SIG_MUTE")
-        self.assertEqual(pads[("SW_MUTE", "2")], "GND")
-        self.assertEqual(pads[("SW_MUTE", "3")], "GND")
+        self.assertEqual(pads[("J_I2C1", "MP")], "GND")
+        self.assertEqual(pads[("J_EXP1", "MP")], "GND")
+        self.assertEqual(pads[("J_BAT_IN1", "MP")], "GND")
+        self.assertEqual(pads[("J_BAT_OUT1", "MP")], "GND")
+        self.assertEqual(pads[("SW_PWR1", "1")], "BAT_SW")
+        self.assertEqual(pads[("SW_PWR1", "2")], "BAT_P")
+        self.assertEqual(pads[("SW_MUTE1", "1")], "SIG_MUTE")
+        self.assertEqual(pads[("SW_MUTE1", "2")], "GND")
+        self.assertEqual(pads[("SW_MUTE1", "3")], "GND")
 
     def test_component_uuid_matches_model(self):
         expected = next(item["uuid"] for item in C.model()["components"]
@@ -176,12 +190,12 @@ class ConnectivityAdapterTests(unittest.TestCase):
             C.assignments_for("MISSING")
 
     def test_assignments_and_board_only_rules_are_filtered_from_model(self):
-        self.assertEqual(C.assignments_for("SW_PWR"), {
+        self.assertEqual(C.assignments_for("SW_PWR1"), {
             "1": "BAT_SW", "2": "BAT_P",
         })
         self.assertEqual(C.assignments_for("H1"), {})
         self.assertEqual(C.board_only_rules(), [{
-            "ref": "SW_MUTE", "pad": "", "net": "GND",
+            "ref": "SW_MUTE1", "pad": "", "net": "GND",
             "reason": "existing mechanical-pad grounding",
         }])
 
@@ -327,7 +341,7 @@ class ConnectivityAdapterTests(unittest.TestCase):
         candidate = C.model()
         candidate["boardOnlyPadRules"].append(
             copy.deepcopy(candidate["boardOnlyPadRules"][0]))
-        self.assert_model_invalid(candidate, "duplicate board-only.*SW_MUTE.*empty")
+        self.assert_model_invalid(candidate, "duplicate board-only.*SW_MUTE1.*empty")
 
     def test_structurally_valid_board_only_rules_remain_data_driven(self):
         candidates = [C.model(), C.model()]
@@ -350,7 +364,7 @@ class ConnectivityAdapterTests(unittest.TestCase):
     def test_adapter_has_no_hand_coded_board_only_electrical_mapping(self):
         with open(C.__file__, encoding="utf-8") as handle:
             source = handle.read()
-        self.assertNotIn('"SW_MUTE"', source)
+        self.assertNotIn('"SW_MUTE1"', source)
         self.assertNotIn('"GND"', source)
 
 
@@ -458,8 +472,8 @@ class OptionalPcbnewUuidTests(unittest.TestCase):
 
         fake_pcbnew = types.SimpleNamespace(KIID=lambda text: ("KIID", text))
         footprint = Footprint()
-        pcb.set_footprint_uuid(footprint, "SW_UP", fake_pcbnew)
-        self.assertEqual(footprint.value, ("KIID", C.component_uuid("SW_UP")))
+        pcb.set_footprint_uuid(footprint, "SW_UP1", fake_pcbnew)
+        self.assertEqual(footprint.value, ("KIID", C.component_uuid("SW_UP1")))
 
     def test_schematic_path_api_receives_the_symbol_kiid_path(self):
         class Footprint:
@@ -513,12 +527,12 @@ class ApplyConnectivityTests(unittest.TestCase):
             self.assertTrue(all(pad.assigned_net is nets[net_name] for pad in matches),
                             "%s.%s" % (ref, pad_name))
 
-        self.assertEqual(len([pad for pad in footprints["SW_UP"].pads
+        self.assertEqual(len([pad for pad in footprints["SW_UP1"].pads
                               if pad.name == "1"]), 2)
-        self.assertEqual(len([pad for pad in footprints["J_I2C"].pads
+        self.assertEqual(len([pad for pad in footprints["J_I2C1"].pads
                               if pad.name == "MP"]), 2)
         self.assertTrue(all(pad.assigned_net is nets["GND"]
-                            for pad in footprints["SW_MUTE"].pads
+                            for pad in footprints["SW_MUTE1"].pads
                             if pad.name == ""))
 
     def test_u1_uses_exact_fixed_canonical_mapping(self):
@@ -536,7 +550,7 @@ class ApplyConnectivityTests(unittest.TestCase):
         footprints = fake_footprints()
         sentinel = FakeNet(None, "EXISTING_UNMODELED_NET")
         untouched = []
-        for ref, pad_name in (("U1", "2"), ("J_EXP", "2"), ("SW_PWR", "3")):
+        for ref, pad_name in (("U1", "2"), ("J_EXP1", "2"), ("SW_PWR1", "3")):
             pad = next(pad for pad in footprints[ref].pads if pad.name == pad_name)
             pad.assigned_net = sentinel
             untouched.append((ref, pad_name, pad))
@@ -546,8 +560,8 @@ class ApplyConnectivityTests(unittest.TestCase):
 
     def test_missing_footprint_error_names_the_reference(self):
         footprints = fake_footprints()
-        del footprints["SW_UP"]
-        with self.assertRaisesRegex(KeyError, "missing footprint.*SW_UP"):
+        del footprints["SW_UP1"]
+        with self.assertRaisesRegex(KeyError, "missing footprint.*SW_UP1"):
             self.apply(footprints)
 
     def test_missing_connected_pad_error_names_reference_and_pad(self):
@@ -559,20 +573,20 @@ class ApplyConnectivityTests(unittest.TestCase):
 
     def test_missing_board_only_pad_error_names_reference_and_empty_pad(self):
         footprints = fake_footprints()
-        footprints["SW_MUTE"].pads = [pad for pad in footprints["SW_MUTE"].pads
+        footprints["SW_MUTE1"].pads = [pad for pad in footprints["SW_MUTE1"].pads
                                        if pad.name != ""]
-        with self.assertRaisesRegex(KeyError, "SW_MUTE.*empty.*pad"):
+        with self.assertRaisesRegex(KeyError, "SW_MUTE1.*empty.*pad"):
             self.apply(footprints)
 
     def test_preflight_error_leaves_every_net_and_pad_unchanged(self):
         footprints = fake_footprints()
-        footprints["SW_MUTE"].pads = [pad for pad in footprints["SW_MUTE"].pads
+        footprints["SW_MUTE1"].pads = [pad for pad in footprints["SW_MUTE1"].pads
                                        if pad.name != ""]
         board = FakeBoard()
         before = [(pad, pad.assigned_net) for footprint in footprints.values()
                   for pad in footprint.pads]
         with mock.patch.dict(sys.modules, {"pcbnew": self.fake_pcbnew}):
-            with self.assertRaisesRegex(KeyError, "SW_MUTE.*empty.*pad"):
+            with self.assertRaisesRegex(KeyError, "SW_MUTE1.*empty.*pad"):
                 pcb_route.apply_connectivity(board, footprints)
         self.assertEqual(board.nets, {})
         for pad, assigned_net in before:
@@ -596,10 +610,10 @@ class FootprintIndexTests(unittest.TestCase):
     def test_unique_references_are_indexed_without_loss(self):
         self.assertTrue(hasattr(pcb_route, "footprints_by_reference"),
                         "router needs a duplicate-safe footprint index helper")
-        footprints = [FakeFootprint("U1", []), FakeFootprint("SW_UP", [])]
+        footprints = [FakeFootprint("U1", []), FakeFootprint("SW_UP1", [])]
         indexed = pcb_route.footprints_by_reference(
             FakeBoard(footprints).GetFootprints())
-        self.assertEqual(indexed, {"U1": footprints[0], "SW_UP": footprints[1]})
+        self.assertEqual(indexed, {"U1": footprints[0], "SW_UP1": footprints[1]})
 
     def test_duplicate_reference_is_rejected_actionably(self):
         self.assertTrue(hasattr(pcb_route, "footprints_by_reference"),

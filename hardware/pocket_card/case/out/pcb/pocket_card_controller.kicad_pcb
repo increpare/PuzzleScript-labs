@@ -90,7 +90,7 @@
 		(at 19.7 59.8)
 		(descr "ALPS 5.2mm Square Low-profile Type (Surface Mount) SKQG Series, With stem, http://www.alps.com/prod/info/E/HTML/Tact/SurfaceMount/SKQG/SKQGAFE010.html")
 		(tags "SPST Button Switch")
-		(property "Reference" "SW_UP"
+		(property "Reference" "SW_UP1"
 			(at 0 -3.6 0)
 			(layer "F.SilkS")
 			(hide yes)
@@ -596,7 +596,7 @@
 		(at 39.6 85.4)
 		(descr "ALPS 5.2mm Square Low-profile Type (Surface Mount) SKQG Series, With stem, http://www.alps.com/prod/info/E/HTML/Tact/SurfaceMount/SKQG/SKQGAFE010.html")
 		(tags "SPST Button Switch")
-		(property "Reference" "SW_MENU"
+		(property "Reference" "SW_MENU1"
 			(at 0 -3.6 0)
 			(layer "F.SilkS")
 			(hide yes)
@@ -1101,7 +1101,7 @@
 		(path "/3e016402-85c6-43ed-a254-0f878d988740")
 		(at 58 87.65)
 		(descr "Ultraminiature Surface Mount Slide Switch, right-angle, https://www.ckswitches.com/media/1424/pcm.pdf")
-		(property "Reference" "SW_MUTE"
+		(property "Reference" "SW_MUTE1"
 			(at 0 -3.2 0)
 			(layer "F.SilkS")
 			(hide yes)
@@ -1529,7 +1529,7 @@
 		(at 10.7 68.8)
 		(descr "ALPS 5.2mm Square Low-profile Type (Surface Mount) SKQG Series, With stem, http://www.alps.com/prod/info/E/HTML/Tact/SurfaceMount/SKQG/SKQGAFE010.html")
 		(tags "SPST Button Switch")
-		(property "Reference" "SW_LEFT"
+		(property "Reference" "SW_LEFT1"
 			(at 0 -3.6 0)
 			(layer "F.SilkS")
 			(hide yes)
@@ -2035,7 +2035,7 @@
 		(at 60.4 65.8)
 		(descr "ALPS 5.2mm Square Low-profile Type (Surface Mount) SKQG Series, With stem, http://www.alps.com/prod/info/E/HTML/Tact/SurfaceMount/SKQG/SKQGAFE010.html")
 		(tags "SPST Button Switch")
-		(property "Reference" "SW_UNDO"
+		(property "Reference" "SW_UNDO1"
 			(at 0 -3.6 0)
 			(layer "F.SilkS")
 			(hide yes)
@@ -2541,7 +2541,7 @@
 		(at 77.1 61.1)
 		(descr "ALPS 5.2mm Square Low-profile Type (Surface Mount) SKQG Series, With stem, http://www.alps.com/prod/info/E/HTML/Tact/SurfaceMount/SKQG/SKQGAFE010.html")
 		(tags "SPST Button Switch")
-		(property "Reference" "SW_ACTION"
+		(property "Reference" "SW_ACTION1"
 			(at 0 -3.6 0)
 			(layer "F.SilkS")
 			(hide yes)
@@ -3047,7 +3047,7 @@
 		(at 28.7 68.8)
 		(descr "ALPS 5.2mm Square Low-profile Type (Surface Mount) SKQG Series, With stem, http://www.alps.com/prod/info/E/HTML/Tact/SurfaceMount/SKQG/SKQGAFE010.html")
 		(tags "SPST Button Switch")
-		(property "Reference" "SW_RIGHT"
+		(property "Reference" "SW_RIGHT1"
 			(at 0 -3.6 0)
 			(layer "F.SilkS")
 			(hide yes)
@@ -3553,7 +3553,7 @@
 		(at 56.5 80)
 		(descr "ALPS 5.2mm Square Low-profile Type (Surface Mount) SKQG Series, With stem, http://www.alps.com/prod/info/E/HTML/Tact/SurfaceMount/SKQG/SKQGAFE010.html")
 		(tags "SPST Button Switch")
-		(property "Reference" "SW_RESET"
+		(property "Reference" "SW_RESET1"
 			(at 0 -3.6 0)
 			(layer "F.SilkS")
 			(hide yes)
@@ -4058,7 +4058,7 @@
 		(path "/6ef5c169-59a4-41dd-a19c-3daf87f107fd")
 		(at 20 87.65)
 		(descr "Ultraminiature Surface Mount Slide Switch, right-angle, https://www.ckswitches.com/media/1424/pcm.pdf")
-		(property "Reference" "SW_PWR"
+		(property "Reference" "SW_PWR1"
 			(at 0 -3.2 0)
 			(layer "F.SilkS")
 			(hide yes)
@@ -4988,7 +4988,7 @@
 		(at 19.7 77.8)
 		(descr "ALPS 5.2mm Square Low-profile Type (Surface Mount) SKQG Series, With stem, http://www.alps.com/prod/info/E/HTML/Tact/SurfaceMount/SKQG/SKQGAFE010.html")
 		(tags "SPST Button Switch")
-		(property "Reference" "SW_DOWN"
+		(property "Reference" "SW_DOWN1"
 			(at 0 -3.6 0)
 			(layer "F.SilkS")
 			(hide yes)
@@ -5712,7 +5712,7 @@
 		(at 63 76)
 		(descr "JST GH series connector, SM02B-GHS-TB (http://www.jst-mfg.com/product/pdf/eng/eGH.pdf)")
 		(tags "connector JST GH horizontal")
-		(property "Reference" "J_BAT_IN"
+		(property "Reference" "J_BAT_IN1"
 			(at 0 -3.9 0)
 			(layer "B.SilkS")
 			(hide yes)
@@ -6115,7 +6115,7 @@
 		(at 63 63)
 		(descr "JST GH series connector, SM04B-GHS-TB (http://www.jst-mfg.com/product/pdf/eng/eGH.pdf)")
 		(tags "connector JST GH horizontal")
-		(property "Reference" "J_I2C"
+		(property "Reference" "J_I2C1"
 			(at 0 -3.9 0)
 			(layer "B.SilkS")
 			(hide yes)
@@ -6534,7 +6534,7 @@
 		(at 72.3 58.5)
 		(descr "JST GH series connector, SM02B-GHS-TB (http://www.jst-mfg.com/product/pdf/eng/eGH.pdf)")
 		(tags "connector JST GH horizontal")
-		(property "Reference" "J_BAT_OUT"
+		(property "Reference" "J_BAT_OUT1"
 			(at 0 -3.9 0)
 			(layer "B.SilkS")
 			(hide yes)
@@ -6937,7 +6937,7 @@
 		(at 78 65.6)
 		(descr "JST GH series connector, SM04B-GHS-TB (http://www.jst-mfg.com/product/pdf/eng/eGH.pdf)")
 		(tags "connector JST GH horizontal")
-		(property "Reference" "J_EXP"
+		(property "Reference" "J_EXP1"
 			(at 0 -3.9 0)
 			(layer "B.SilkS")
 			(hide yes)

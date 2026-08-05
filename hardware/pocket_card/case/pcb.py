@@ -51,10 +51,10 @@ PCB_MOUNTS = P.PCB_MOUNTS
 
 # Module interconnects: anchors on B.Cu (P.CONN_*).
 CONNECTORS = [
-    ("J_I2C", 4, *P.CONN_I2C, "3V3/GND/SCL/SDA -- to module I2C"),
-    ("J_EXP", 4, *P.CONN_EXP, "IO2 interrupt -- to module expansion"),
-    ("J_BAT_IN", 2, *P.CONN_BAT_IN, "from cell"),
-    ("J_BAT_OUT", 2, *P.CONN_BAT_OUT, "to module BAT"),
+    ("J_I2C1", 4, *P.CONN_I2C, "3V3/GND/SCL/SDA -- to module I2C"),
+    ("J_EXP1", 4, *P.CONN_EXP, "IO2 interrupt -- to module expansion"),
+    ("J_BAT_IN1", 2, *P.CONN_BAT_IN, "from cell"),
+    ("J_BAT_OUT1", 2, *P.CONN_BAT_OUT, "to module BAT"),
 ]
 
 _LAYER_PAIRS = (
@@ -480,14 +480,14 @@ def build_sexpr():
     placed = []
 
     switches = [
-        ("SW_UP", P.DIR_CX, P.DIR_CY - P.DIR_RADIUS),
-        ("SW_DOWN", P.DIR_CX, P.DIR_CY + P.DIR_RADIUS),
-        ("SW_LEFT", P.DIR_CX - P.DIR_RADIUS, P.DIR_CY),
-        ("SW_RIGHT", P.DIR_CX + P.DIR_RADIUS, P.DIR_CY),
-        ("SW_UNDO", P.UNDO_X, P.UNDO_Y),
-        ("SW_ACTION", P.ACT_X, P.ACT_Y),
-        ("SW_RESET", P.RESET_X, P.RESET_Y),
-        ("SW_MENU", P.MENU_X, P.MENU_Y),
+        ("SW_UP1", P.DIR_CX, P.DIR_CY - P.DIR_RADIUS),
+        ("SW_DOWN1", P.DIR_CX, P.DIR_CY + P.DIR_RADIUS),
+        ("SW_LEFT1", P.DIR_CX - P.DIR_RADIUS, P.DIR_CY),
+        ("SW_RIGHT1", P.DIR_CX + P.DIR_RADIUS, P.DIR_CY),
+        ("SW_UNDO1", P.UNDO_X, P.UNDO_Y),
+        ("SW_ACTION1", P.ACT_X, P.ACT_Y),
+        ("SW_RESET1", P.RESET_X, P.RESET_Y),
+        ("SW_MENU1", P.MENU_X, P.MENU_Y),
     ]
     for ref, x, y in switches:
         parts.append(footprint_sexpr(TACT[0], TACT[1], x, y, ref))
@@ -496,11 +496,11 @@ def build_sexpr():
     parts.append(footprint_sexpr(EXPANDER[0], EXPANDER[1], 45.0, 72.0, "U1"))
     placed.append(("U1", EXPANDER[1], 45.0, 72.0, "F.Cu"))
     parts.append(footprint_sexpr(
-        SLIDE[0], SLIDE[1], P.POWER_SW_X, P.POWER_SW_Y, "SW_PWR"))
-    placed.append(("SW_PWR", SLIDE[1], P.POWER_SW_X, P.POWER_SW_Y, "F.Cu"))
+        SLIDE[0], SLIDE[1], P.POWER_SW_X, P.POWER_SW_Y, "SW_PWR1"))
+    placed.append(("SW_PWR1", SLIDE[1], P.POWER_SW_X, P.POWER_SW_Y, "F.Cu"))
     parts.append(footprint_sexpr(
-        SLIDE[0], SLIDE[1], P.MUTE_SW_X, P.MUTE_SW_Y, "SW_MUTE"))
-    placed.append(("SW_MUTE", SLIDE[1], P.MUTE_SW_X, P.MUTE_SW_Y, "F.Cu"))
+        SLIDE[0], SLIDE[1], P.MUTE_SW_X, P.MUTE_SW_Y, "SW_MUTE1"))
+    placed.append(("SW_MUTE1", SLIDE[1], P.MUTE_SW_X, P.MUTE_SW_Y, "F.Cu"))
 
     for ref, ways, x, y, _note in CONNECTORS:
         lib, name = (JST4 if ways == 4 else JST2)
@@ -570,20 +570,20 @@ def build_pcbnew():
         board.Add(seg)
 
     switches = [
-        ("SW_UP", P.DIR_CX, P.DIR_CY - P.DIR_RADIUS),
-        ("SW_DOWN", P.DIR_CX, P.DIR_CY + P.DIR_RADIUS),
-        ("SW_LEFT", P.DIR_CX - P.DIR_RADIUS, P.DIR_CY),
-        ("SW_RIGHT", P.DIR_CX + P.DIR_RADIUS, P.DIR_CY),
-        ("SW_UNDO", P.UNDO_X, P.UNDO_Y),
-        ("SW_ACTION", P.ACT_X, P.ACT_Y),
-        ("SW_RESET", P.RESET_X, P.RESET_Y),
-        ("SW_MENU", P.MENU_X, P.MENU_Y),
+        ("SW_UP1", P.DIR_CX, P.DIR_CY - P.DIR_RADIUS),
+        ("SW_DOWN1", P.DIR_CX, P.DIR_CY + P.DIR_RADIUS),
+        ("SW_LEFT1", P.DIR_CX - P.DIR_RADIUS, P.DIR_CY),
+        ("SW_RIGHT1", P.DIR_CX + P.DIR_RADIUS, P.DIR_CY),
+        ("SW_UNDO1", P.UNDO_X, P.UNDO_Y),
+        ("SW_ACTION1", P.ACT_X, P.ACT_Y),
+        ("SW_RESET1", P.RESET_X, P.RESET_Y),
+        ("SW_MENU1", P.MENU_X, P.MENU_Y),
     ]
     for ref, x, y in switches:
         place(board, TACT[0], TACT[1], x, y, ref)
     place(board, EXPANDER[0], EXPANDER[1], 45.0, 72.0, "U1")
-    place(board, SLIDE[0], SLIDE[1], P.POWER_SW_X, P.POWER_SW_Y, "SW_PWR")
-    place(board, SLIDE[0], SLIDE[1], P.MUTE_SW_X, P.MUTE_SW_Y, "SW_MUTE")
+    place(board, SLIDE[0], SLIDE[1], P.POWER_SW_X, P.POWER_SW_Y, "SW_PWR1")
+    place(board, SLIDE[0], SLIDE[1], P.MUTE_SW_X, P.MUTE_SW_Y, "SW_MUTE1")
     for ref, ways, x, y, _note in CONNECTORS:
         lib, name = (JST4 if ways == 4 else JST2)
         place(board, lib, name, x, y, ref, P.CONN_ROT, back=True)
