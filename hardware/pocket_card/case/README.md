@@ -146,10 +146,11 @@ Controller PCB thickness is **1.6 mm** (`PCB_T`) — JLCPCB standard. Order the
 board at 1.6 mm to match the shell.
 
 Module interconnect GH headers live on the **board back** (B.Cu) in the
-right-rear wiring pocket — regenerate with `python3 pcb.py` then
-`./build_pcb.sh`. That script also writes `out/pcb/pocket_card_controller.stl`
-(and `.step`) with board body + footprint 3D models via `kicad-cli` — no
-manual STEP→STL conversion. `exported.stl` is KiCad’s native frame;
+right-rear wiring pocket. For an intentional destructive regeneration, use only
+the guarded `./build_pcb.sh` workflow described above; do not invoke `pcb.py`
+separately. That script also writes `out/pcb/pocket_card_controller.stl` (and
+`.step`) with board body + footprint 3D models via `kicad-cli` — no manual
+STEP→STL conversion. `exported.stl` is KiCad’s native frame;
 **`exported_placed.stl`** is the same mesh already transformed into shell
 model space (also written by `place_preview.py`).
 

@@ -45,6 +45,13 @@ node hardware/pocket_card/schematic/connectivity_test.js
 node hardware/pocket_card/schematic/generate_kicad_test.js
 ```
 
+Direct KiCad netlist annotation may emit a known nonfatal warning because the
+preserved legacy descriptive references, such as `SW_UP` and `J_I2C`, do not end
+in numbers. These references are deliberately retained for exact schematic/PCB
+reference reconciliation. Do not auto-annotate them unless coordinating a PCB
+reference migration. Strict ERC, exact netlist checks, and board-parity tests
+remain required gates.
+
 `board_parity_test.js` reads the board in this checkout by default. In an
 isolated worktree whose copy is intentionally stale, test against the
 authoritative live routed board instead:
