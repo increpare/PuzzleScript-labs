@@ -27,6 +27,7 @@ import uuid
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import params as P
+import pcb_connectivity as C
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "out", "pcb")
@@ -71,6 +72,28 @@ def _uid():
     return str(uuid.uuid4())
 
 
+def set_footprint_uuid(footprint, ref, pcbnew_module):
+    """Apply the schematic component UUID through pcbnew's supported API."""
+    setter = getattr(footprint, "SetUuid", None)
+    if not callable(setter):
+        setter = getattr(footprint, "SetUUID", None)
+    if not callable(setter):
+        raise RuntimeError(
+            "cannot set canonical UUID for %s: pcbnew footprint exposes "
+            "neither SetUuid nor SetUUID" % ref)
+
+    kiid = getattr(pcbnew_module, "KIID", None)
+    if not callable(kiid):
+        raise RuntimeError(
+            "cannot set canonical UUID for %s: pcbnew.KIID is unavailable" % ref)
+    try:
+        setter(kiid(C.component_uuid(ref)))
+    except Exception as error:
+        raise RuntimeError(
+            "cannot set canonical UUID for %s via pcbnew: %s" % (ref, error)
+        ) from error
+
+
 def _mod_path(lib, name):
     return os.path.join(FP_ROOT, lib + ".pretty", name + ".kicad_mod")
 
@@ -108,7 +131,8 @@ def footprint_sexpr(lib, name, x, y, ref, rot=0, back=False):
     path = _mod_path(lib, name)
     if not os.path.exists(path):
         raise RuntimeError("missing footprint: %s" % path)
-    raw = open(path, encoding="utf-8").read().strip()
+    with open(path, encoding="utf-8") as handle:
+        raw = handle.read().strip()
     if not raw.startswith("(footprint "):
         raise RuntimeError("bad mod: %s" % path)
 
@@ -145,7 +169,7 @@ def footprint_sexpr(lib, name, x, y, ref, rot=0, back=False):
     out = [
         '\t(footprint "%s"' % name,
         '\t\t(layer "%s")' % layer,
-        '\t\t(uuid "%s")' % _uid(),
+        '\t\t(uuid "%s")' % C.component_uuid(ref),
         '\t\t%s' % at,
     ]
     for ln in body:
@@ -430,6 +454,7 @@ def build_pcbnew():
         if back:
             fp.Flip(fp.GetPosition(), False)
         fp.SetReference(ref)
+        set_footprint_uuid(fp, ref, pcbnew)
         board.Add(fp)
         return fp
 
