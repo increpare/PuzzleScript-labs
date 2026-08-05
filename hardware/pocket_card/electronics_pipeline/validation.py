@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import fcntl
 import hashlib
 import json
 import os
@@ -19,6 +18,11 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
+
+try:
+    import fcntl as _fcntl
+except ImportError:  # Windows has no POSIX advisory-locking module.
+    _fcntl = None
 
 from .inventory import (
     KICAD_EXPORT_TIMEOUT_SECONDS,
@@ -933,7 +937,9 @@ def _find_kicad_cli(runner: _Runner, project_dir: Path) -> str:
         except ValidationError as error:
             checked.append(str(error))
             continue
-        version_text = str(getattr(result, "stdout", "") or getattr(result, "stderr", "")).strip()
+        version_text = _bounded_stream(
+            getattr(result, "stdout", "") or getattr(result, "stderr", "")
+        )
         try:
             version = _version_tuple(version_text)
         except RuntimeError:
@@ -943,9 +949,10 @@ def _find_kicad_cli(runner: _Runner, project_dir: Path) -> str:
             checked.append(f"{candidate} ({version_text})")
             continue
         return candidate
+    checked_text = _bounded_stream(", ".join(checked)) if checked else "no candidates"
     raise ValidationError(
         f"cannot locate KiCad {_EXPECTED_MAJOR} >= {_EXPECTED_MINIMUM} kicad-cli; "
-        f"checked: {', '.join(checked) if checked else 'no candidates'}"
+        f"checked: {checked_text}"
     )
 
 
@@ -1232,17 +1239,23 @@ def _read_transaction_journal(path: Path, output_dir: Path) -> dict[str, object]
         or raw.get("output") != output_dir.name
         or raw.get("stage") != f".{output_dir.name}.stage-{transaction}"
         or raw.get("backup") != f".{output_dir.name}.backup-{transaction}"
-        or raw.get("state") not in {"prepared", "backed_up", "published"}
+        or raw.get("state") not in {"allocated", "prepared", "backed_up", "published"}
         or type(raw.get("hadOutput")) is not bool
     ):
         raise OSError("transaction journal has invalid transaction metadata")
-    stage_identity = _journal_identity(raw.get("stageIdentity"), "stage identity")
+    state = str(raw["state"])
+    stage_identity = _journal_identity(
+        raw.get("stageIdentity"), "stage identity", optional=state == "allocated"
+    )
     backup_identity = _journal_identity(
         raw.get("backupIdentity"), "backup identity", optional=True
     )
     stage_manifest = _journal_manifest(raw.get("stageManifest"), "stage manifest")
     backup_manifest = _journal_manifest(raw.get("backupManifest"), "backup manifest")
-    if set(stage_manifest) != _REPORT_FILENAMES:
+    if state == "allocated":
+        if stage_identity is not None or stage_manifest:
+            raise OSError("allocated transaction journal claims a completed stage")
+    elif stage_identity is None or set(stage_manifest) != _REPORT_FILENAMES:
         raise OSError("transaction journal stage manifest is incomplete")
     if bool(raw["hadOutput"]) != (backup_identity is not None):
         raise OSError("transaction journal backup ownership is inconsistent")
@@ -1265,6 +1278,24 @@ def _remove_owned_directory(
         return
     if _directory_identity(path, context) != expected_identity:
         raise OSError(f"{context} ownership mismatch")
+    remove_tree(path)
+
+
+def _remove_transaction_stage(
+    path: Path,
+    expected_identity: tuple[int, int] | None,
+    state: str,
+    context: str,
+    remove_tree: Callable[[str | Path], object],
+) -> None:
+    if expected_identity is not None:
+        _remove_owned_directory(path, expected_identity, context, remove_tree)
+        return
+    if not path.exists() and not path.is_symlink():
+        return
+    if state != "allocated":
+        raise OSError(f"{context} ownership mismatch")
+    _directory_identity(path, context)
     remove_tree(path)
 
 
@@ -1292,6 +1323,11 @@ def _transaction_artifacts(output_dir: Path) -> tuple[Path, ...]:
 
 @contextmanager
 def _publication_lock(output_dir: Path):
+    locking = _fcntl
+    if locking is None:
+        raise OSError(
+            "transactional report publication requires POSIX fcntl locking"
+        )
     lock_path = output_dir.parent / f".{output_dir.name}.lock"
     flags = os.O_RDWR | os.O_CREAT
     flags |= getattr(os, "O_CLOEXEC", 0)
@@ -1305,13 +1341,13 @@ def _publication_lock(output_dir: Path):
         if not stat.S_ISREG(information.st_mode) or information.st_nlink != 1:
             raise OSError("validation report writer lock must be a regular file")
         try:
-            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            locking.flock(descriptor, locking.LOCK_EX | locking.LOCK_NB)
         except BlockingIOError as error:
             raise OSError("validation report writer is busy") from error
         yield
     finally:
         try:
-            fcntl.flock(descriptor, fcntl.LOCK_UN)
+            locking.flock(descriptor, locking.LOCK_UN)
         finally:
             os.close(descriptor)
 
@@ -1332,13 +1368,14 @@ def _recover_publication(
     backup = output_dir.parent / str(journal["backup"])
     stage_identity = journal["stageIdentity"]
     backup_identity = journal["backupIdentity"]
-    assert isinstance(stage_identity, tuple)
+    state = str(journal["state"])
+    assert stage_identity is None or isinstance(stage_identity, tuple)
     assert backup_identity is None or isinstance(backup_identity, tuple)
 
     if output_dir.exists() or output_dir.is_symlink():
         _directory_identity(output_dir, "authoritative report output")
-        _remove_owned_directory(
-            stage, stage_identity, "stale report stage", remove_tree
+        _remove_transaction_stage(
+            stage, stage_identity, state, "stale report stage", remove_tree
         )
         if backup_identity is not None:
             _remove_owned_directory(
@@ -1350,18 +1387,23 @@ def _recover_publication(
         return
 
     if backup_identity is not None:
-        if not backup.exists() or backup.is_symlink():
-            raise OSError("report recovery has no complete owned backup")
-        if _directory_identity(backup, "report recovery backup") != backup_identity:
+        if backup.is_symlink():
             raise OSError("report recovery backup ownership mismatch")
-        if _directory_manifest(backup, "report recovery backup") != journal["backupManifest"]:
-            raise OSError("report recovery backup is incomplete")
-        rename(backup, output_dir)
-        _fsync_directory(output_dir.parent)
+        if not backup.exists() and state != "allocated":
+            raise OSError("report recovery has no complete owned backup")
+        if backup.exists():
+            if _directory_identity(backup, "report recovery backup") != backup_identity:
+                raise OSError("report recovery backup ownership mismatch")
+            if _directory_manifest(backup, "report recovery backup") != journal["backupManifest"]:
+                raise OSError("report recovery backup is incomplete")
+            rename(backup, output_dir)
+            _fsync_directory(output_dir.parent)
     elif backup.exists() or backup.is_symlink():
         raise OSError("report recovery found an unowned backup")
 
-    _remove_owned_directory(stage, stage_identity, "stale report stage", remove_tree)
+    _remove_transaction_stage(
+        stage, stage_identity, state, "stale report stage", remove_tree
+    )
     _remove_journal(journal_path)
 
 
@@ -1377,29 +1419,38 @@ def _rollback_precommit(
 ) -> bool:
     stage_identity = journal["stageIdentity"]
     backup_identity = journal["backupIdentity"]
-    assert isinstance(stage_identity, tuple)
+    state = str(journal["state"])
+    assert stage_identity is None or isinstance(stage_identity, tuple)
     assert backup_identity is None or isinstance(backup_identity, tuple)
     if output_dir.exists() or output_dir.is_symlink():
         output_identity = _directory_identity(output_dir, "report output")
-        if output_identity == stage_identity:
+        if stage_identity is not None and output_identity == stage_identity:
             return True
         if backup_identity is not None and output_identity == backup_identity and not backup.exists():
-            _remove_owned_directory(
-                stage, stage_identity, "failed report stage", remove_tree
+            _remove_transaction_stage(
+                stage,
+                stage_identity,
+                state,
+                "failed report stage",
+                remove_tree,
             )
             _remove_journal(journal_path)
             return False
         raise OSError("report output ownership mismatch prevents rollback")
-    if backup_identity is not None:
-        if not backup.exists() or backup.is_symlink():
-            raise OSError("report backup ownership mismatch prevents rollback")
+    if backup.is_symlink():
+        raise OSError("report backup ownership mismatch prevents rollback")
+    if backup_identity is not None and backup.exists():
         if _directory_identity(backup, "report backup") != backup_identity:
             raise OSError("report backup ownership mismatch prevents rollback")
         if _directory_manifest(backup, "report backup") != journal["backupManifest"]:
             raise OSError("report backup is incomplete; rollback refused")
         rename(backup, output_dir)
         _fsync_directory(output_dir.parent)
-    _remove_owned_directory(stage, stage_identity, "failed report stage", remove_tree)
+    elif backup_identity is not None and state != "allocated":
+        raise OSError("report backup ownership mismatch prevents rollback")
+    _remove_transaction_stage(
+        stage, stage_identity, state, "failed report stage", remove_tree
+    )
     _remove_journal(journal_path)
     return False
 
@@ -1410,6 +1461,7 @@ def _publish_reports(
     result: ValidationResult,
     *,
     rename: Callable[[str | Path, str | Path], object] = os.replace,
+    after_stage: Callable[[], object] = _noop,
     after_backup: Callable[[], object] = _noop,
     after_publish: Callable[[], object] = _noop,
     after_recovery: Callable[[], object] = _noop,
@@ -1433,9 +1485,34 @@ def _publish_reports(
         transaction = uuid.uuid4().hex
         stage = output_dir.parent / f".{output_dir.name}.stage-{transaction}"
         backup = output_dir.parent / f".{output_dir.name}.backup-{transaction}"
-        stage.mkdir(mode=0o700)
-        journal: dict[str, object] | None = None
+        had_output = output_dir.exists()
+        backup_identity = (
+            _directory_identity(output_dir, "existing report output")
+            if had_output
+            else None
+        )
+        backup_manifest = (
+            _directory_manifest(output_dir, "existing report output")
+            if had_output
+            else {}
+        )
+        journal: dict[str, object] = {
+            "schemaVersion": 1,
+            "transaction": transaction,
+            "output": output_dir.name,
+            "stage": stage.name,
+            "backup": backup.name,
+            "state": "allocated",
+            "hadOutput": had_output,
+            "stageIdentity": None,
+            "stageManifest": {},
+            "backupIdentity": backup_identity,
+            "backupManifest": backup_manifest,
+        }
+        _write_transaction_journal(journal_path, journal)
         try:
+            stage.mkdir(mode=0o700)
+            after_stage()
             _write_json(stage / "erc.json", reports["ERC"])
             _write_json(
                 stage / "drc.json",
@@ -1458,30 +1535,9 @@ def _publish_reports(
             stage_manifest = _directory_manifest(stage, "report stage")
             if set(stage_manifest) != _REPORT_FILENAMES:
                 raise OSError("report stage is incomplete")
-            had_output = output_dir.exists()
-            backup_identity = (
-                _directory_identity(output_dir, "existing report output")
-                if had_output
-                else None
-            )
-            backup_manifest = (
-                _directory_manifest(output_dir, "existing report output")
-                if had_output
-                else {}
-            )
-            journal = {
-                "schemaVersion": 1,
-                "transaction": transaction,
-                "output": output_dir.name,
-                "stage": stage.name,
-                "backup": backup.name,
-                "state": "prepared",
-                "hadOutput": had_output,
-                "stageIdentity": stage_identity,
-                "stageManifest": stage_manifest,
-                "backupIdentity": backup_identity,
-                "backupManifest": backup_manifest,
-            }
+            journal["state"] = "prepared"
+            journal["stageIdentity"] = stage_identity
+            journal["stageManifest"] = stage_manifest
             _write_transaction_journal(journal_path, journal)
             if had_output:
                 rename(output_dir, backup)
@@ -1492,10 +1548,6 @@ def _publish_reports(
                 after_backup()
             rename(stage, output_dir)
         except Exception as publish_error:
-            if journal is None:
-                if stage.exists() and not stage.is_symlink():
-                    remove_tree(stage)
-                raise
             try:
                 committed = _rollback_precommit(
                     output_dir,
@@ -1518,7 +1570,6 @@ def _publish_reports(
 
         try:
             _fsync_directory(output_dir.parent)
-            assert journal is not None
             journal["state"] = "published"
             _write_transaction_journal(journal_path, journal)
             after_publish()

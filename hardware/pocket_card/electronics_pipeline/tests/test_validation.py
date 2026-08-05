@@ -3,6 +3,7 @@ import hashlib
 import json
 import os
 import subprocess
+import sys
 import tempfile
 import threading
 import unittest
@@ -429,6 +430,22 @@ class PublicationTest(unittest.TestCase):
             _publish_reports(self.output, self.reports, self.result)
         self.assertFalse(self.output.exists())
 
+    def test_missing_fcntl_backend_only_disables_report_publication(self):
+        with mock.patch.object(validation_module, "_fcntl", None, create=True):
+            with expected_policy_for():
+                classified = classify_reports(
+                    self.reports,
+                    {"schemaVersion": 1, "groups": []},
+                )
+            self.assertEqual(classified.status, PASS)
+            with self.assertRaisesRegex(
+                OSError,
+                "transactional report publication requires POSIX fcntl locking",
+            ):
+                _publish_reports(self.output, self.reports, self.result)
+        self.assertFalse(self.output.exists())
+        self.assertEqual(self.temporary_siblings(), ())
+
     def test_failure_after_old_directory_rename_restores_exact_original(self):
         original = self.populate_original()
 
@@ -553,6 +570,45 @@ class PublicationTest(unittest.TestCase):
             after_recovery=observe_recovery,
         )
         self.assertEqual(recovered, [original])
+        self.assert_exact_published_set()
+        self.assertEqual(self.temporary_siblings(), ())
+
+    def test_real_process_crash_before_first_report_write_recovers_from_allocated_journal(self):
+        original = self.populate_original()
+        script = """
+import os
+import sys
+from pathlib import Path
+from hardware.pocket_card.electronics_pipeline.validation import PASS, ValidationResult, _publish_reports
+
+output = Path(sys.argv[1])
+reports = {
+    "ERC": {"violations": []},
+    "DRC": {"violations": []},
+    "parity": {"violations": []},
+    "unconnected": {"items": []},
+}
+result = ValidationResult(PASS, ("child",), reports, None)
+_publish_reports(output, reports, result, after_stage=lambda: os._exit(73))
+"""
+        crashed = subprocess.run(
+            [sys.executable, "-c", script, str(self.output)],
+            cwd=Path(__file__).resolve().parents[4],
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=10,
+        )
+        self.assertEqual(crashed.returncode, 73, crashed.stderr)
+        self.assertEqual(self.snapshot(), original)
+        journal = self.parent / ".reports.transaction.json"
+        self.assertEqual(
+            json.loads(journal.read_text(encoding="utf-8"))["state"],
+            "allocated",
+        )
+        self.assertNotEqual(self.temporary_siblings(), ())
+
+        _publish_reports(self.output, self.reports, self.result)
         self.assert_exact_published_set()
         self.assertEqual(self.temporary_siblings(), ())
 
@@ -874,6 +930,32 @@ class ValidateProjectTest(unittest.TestCase):
         self.assertEqual(result.status, INVALID)
         self.assertLess(len(rendered), 20_000)
         self.assertIn("[truncated ", rendered)
+
+    def test_successful_malformed_version_output_and_candidate_aggregate_are_bounded(self):
+        candidates = []
+        candidate_root = Path(self.temporary.name) / "candidate-tools"
+        candidate_root.mkdir()
+        for index in range(12):
+            candidate = candidate_root / f"kicad-cli-{index:02d}"
+            candidate.write_text("placeholder", encoding="utf-8")
+            candidate.chmod(0o700)
+            candidates.append(str(candidate))
+        runner = RecordingRunner(self.project, version="v" * (1024 * 1024))
+        with mock.patch.object(
+            validation_module,
+            "_kicad_cli_candidates",
+            return_value=tuple(candidates),
+        ):
+            first = self.run_validation(runner)
+            second = self.run_validation(
+                RecordingRunner(self.project, version="v" * (1024 * 1024))
+            )
+        self.assertEqual(first.status, INVALID)
+        self.assertEqual(first.messages, second.messages)
+        rendered = first.render_text()
+        self.assertLess(len(rendered), 20_000)
+        self.assertIn("[truncated ", rendered)
+        self.assertNotIn(str(candidate_root), rendered)
 
     def test_temp_paths_are_sanitized_and_missing_report_label_is_stable(self):
         def path_diagnostic(command):
