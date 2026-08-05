@@ -6,7 +6,7 @@ The generated schematic is an exact reconstruction of the routed Pocket Card con
 
 The deterministic generator and its tests verify the schematic on temporary copies with KiCad 10. The checks upgrade the copy, run error-severity ERC with violation exit codes, export and parse the netlist, and export both PDF and SVG. The netlist check covers all 16 canonical nets and their exact 52 physical component endpoints, as well as all 14 declared no-connect pins. The two PWR_FLAG annotations on +3V3 and GND declare that those rails are supplied externally through the connectors; they are excluded from simulation, the BOM, and board transfer.
 
-A zero-error ERC result establishes that the file is syntactically consistent with its declared electrical pin types. It does not resolve or approve the electrical audit findings below. The exported PDF is also checked for legibility and presentation, but visual clarity is not an electrical qualification.
+A zero-error ERC result establishes that the file is syntactically consistent with its declared electrical pin types. It does not resolve or approve the electrical audit findings below. The automated test requires a valid, nonempty PDF export. For final presentation QA, the PDF is rendered to PNG and manually inspected for overlap, clipping, label placement, no-connect marker clarity, and glyph rendering. This manual visual review is not an electrical qualification.
 
 ## Findings
 

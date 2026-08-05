@@ -91,7 +91,7 @@ function mcpPins() {
     var names = [
         "GPB0", "GPB1", "GPB2", "GPB3", "GPB4", "GPB5", "GPB6", "GPB7",
         "VDD", "VSS", "NC", "SCL", "SDA", "NC",
-        "A0", "A1", "A2", "RESET", "INTA", "INTB",
+        "A0", "A1", "A2", "RESET", "INTB", "INTA",
         "GPA0", "GPA1", "GPA2", "GPA3", "GPA4", "GPA5", "GPA6", "GPA7"
     ];
     var number;

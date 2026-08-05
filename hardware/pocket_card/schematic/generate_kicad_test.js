@@ -247,6 +247,33 @@ function embeddedPinTypes(source, libraryId) {
     return types;
 }
 
+function embeddedPinNames(source, libraryId) {
+    var root = parseSExpression(source);
+    var librarySection = directChild(root, "lib_symbols");
+    assert.ok(librarySection, "schematic must contain embedded library symbols");
+    var librarySymbol = directChildren(librarySection, "symbol").find(function (symbolNode) {
+        return atomValue(symbolNode, 1) === libraryId;
+    });
+    assert.ok(librarySymbol, "missing embedded library symbol " + libraryId);
+    var names = {};
+
+    function collectPins(symbolNode) {
+        directChildren(symbolNode, "pin").forEach(function (pinNode) {
+            var number = atomValue(directChild(pinNode, "number"), 1);
+            var name = atomValue(directChild(pinNode, "name"), 1);
+            assert.ok(number !== undefined, libraryId + " pin must have a number");
+            assert.ok(name !== undefined, libraryId + " pin " + number + " must have a name");
+            assert.strictEqual(names[number], undefined,
+                libraryId + " pin " + number + " must be defined once");
+            names[number] = name;
+        });
+        directChildren(symbolNode, "symbol").forEach(collectPins);
+    }
+
+    collectPins(librarySymbol);
+    return names;
+}
+
 function ercViolations(report) {
     var violations = [];
 
@@ -290,6 +317,28 @@ function netlistEndpoints(source) {
         }).sort();
     });
     return endpoints;
+}
+
+function netlistPinFunctions(source) {
+    var root = parseSExpression(source);
+    assert.strictEqual(expressionName(root), "export", "netlist root must be export");
+    var nets = directChild(root, "nets");
+    assert.ok(nets, "netlist must contain a direct nets section");
+    var pinFunctions = {};
+    directChildren(nets, "net").forEach(function (netNode) {
+        directChildren(netNode, "node").forEach(function (node) {
+            var ref = atomValue(directChild(node, "ref"), 1);
+            var pin = atomValue(directChild(node, "pin"), 1);
+            var pinFunction = atomValue(directChild(node, "pinfunction"), 1);
+            assert.ok(ref && pin && pinFunction,
+                "netlist nodes must contain ref, pin, and pinfunction atoms");
+            var endpoint = ref + "." + pin;
+            assert.strictEqual(pinFunctions[endpoint], undefined,
+                "netlist endpoint " + endpoint + " must occur once");
+            pinFunctions[endpoint] = pinFunction;
+        });
+    });
+    return pinFunctions;
 }
 
 function contractErrors(source) {
@@ -580,6 +629,19 @@ assert.deepStrictEqual(
     expectedMcpPinTypes,
     "MCP23017 embedded pin electrical types must match the reviewed semantic contract"
 );
+assert.deepStrictEqual(
+    embeddedPinNames(schematic, symbolNames.MCP23017),
+    {
+        "1": "GPB0", "2": "GPB1", "3": "GPB2", "4": "GPB3",
+        "5": "GPB4", "6": "GPB5", "7": "GPB6", "8": "GPB7",
+        "9": "VDD", "10": "VSS", "11": "NC", "12": "SCL", "13": "SDA",
+        "14": "NC", "15": "A0", "16": "A1", "17": "A2", "18": "RESET",
+        "19": "INTB", "20": "INTA",
+        "21": "GPA0", "22": "GPA1", "23": "GPA2", "24": "GPA3",
+        "25": "GPA4", "26": "GPA5", "27": "GPA6", "28": "GPA7"
+    },
+    "MCP23017 embedded pin names must match the 28-pin SOIC package table"
+);
 ["TACT", "SLIDE", "JST4", "JST2"].forEach(function (modelName) {
     var passivePinTypes = embeddedPinTypes(schematic, symbolNames[modelName]);
     Object.keys(passivePinTypes).forEach(function (pin) {
@@ -792,7 +854,13 @@ try {
     ], { cwd: temporaryDirectory, stdio: "pipe" });
     netlistByteCount = fs.statSync(netlistPath).size;
     assert.ok(netlistByteCount > 0, "KiCad must export a nonempty netlist");
-    var actualNetlistEndpoints = netlistEndpoints(fs.readFileSync(netlistPath, "utf8"));
+    var netlistSource = fs.readFileSync(netlistPath, "utf8");
+    var actualNetlistEndpoints = netlistEndpoints(netlistSource);
+    var actualPinFunctions = netlistPinFunctions(netlistSource);
+    assert.strictEqual(actualPinFunctions["U1.19"], "INTB_19",
+        "KiCad netlist must identify unconnected U1.19 as MCP23017 INTB");
+    assert.strictEqual(actualPinFunctions["U1.20"], "INTA_20",
+        "KiCad netlist must identify connected U1.20 as MCP23017 INTA");
     var expectedNetlistEndpoints = {};
     model.connections.forEach(function (connection) {
         expectedNetlistEndpoints[connection.net] = connection.nodes.map(function (node) {
