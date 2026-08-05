@@ -30,11 +30,7 @@ _ALLOWED_KICAD_PATH_VARIABLE_TOKENS = frozenset(
         "${KICAD10_3DMODEL_DIR}",
     }
 )
-_VARIABLE_REFERENCE_PATTERN = re.compile(
-    r"(?P<braced>\$\{[^{}\r\n\"']*\})"
-    r"|(?P<percent>%[^%\r\n\"']*%)"
-    r"|(?P<unbraced>\$[A-Za-z_][A-Za-z0-9_]*)"
-)
+_UNBRACED_VARIABLE_PATTERN = re.compile(r"\$[A-Za-z_][A-Za-z0-9_]*")
 # KiCad expands this built-in only as footprint fabrication text; it is not a
 # library-path variable and is allowed solely in this exact field form.
 _KICAD_REFERENCE_FIELD_PATTERN = re.compile(
@@ -53,6 +49,63 @@ _FORBIDDEN_MACHINE_PATH_PATTERNS = (
 )
 
 
+def _scan_variable_references(text):
+    """Yield complete, line-bounded substitution tokens and path-like fragments."""
+    index = 0
+    while index < len(text):
+        if text.startswith("${", index):
+            start = index
+            cursor = index + 2
+            depth = 1
+            while cursor < len(text) and text[cursor] not in "\r\n":
+                if text.startswith("${", cursor):
+                    depth += 1
+                    cursor += 2
+                    continue
+                if text[cursor] == "}":
+                    depth -= 1
+                    cursor += 1
+                    if depth == 0:
+                        yield start, cursor, text[start:cursor]
+                        index = cursor
+                        break
+                    continue
+                cursor += 1
+            else:
+                candidate = text[start:cursor]
+                if "/" in candidate or "\\" in candidate:
+                    yield start, cursor, candidate
+                    index = cursor
+                else:
+                    index += 2
+            continue
+
+        if text[index] == "%":
+            start = index
+            cursor = index + 1
+            while cursor < len(text) and text[cursor] not in "%\r\n":
+                cursor += 1
+            if cursor < len(text) and text[cursor] == "%":
+                cursor += 1
+                yield start, cursor, text[start:cursor]
+                index = cursor
+            else:
+                candidate = text[start:cursor]
+                if "/" in candidate or "\\" in candidate:
+                    yield start, cursor, candidate
+                    index = cursor
+                else:
+                    index += 1
+            continue
+
+        match = _UNBRACED_VARIABLE_PATTERN.match(text, index)
+        if match is not None:
+            yield match.start(), match.end(), match.group(0)
+            index = match.end()
+            continue
+        index += 1
+
+
 def find_forbidden_machine_paths(text):
     allowed_reference_spans = {
         (match.start("reference"), match.end("reference"))
@@ -60,13 +113,12 @@ def find_forbidden_machine_paths(text):
     }
     matches = set()
 
-    for match in _VARIABLE_REFERENCE_PATTERN.finditer(text):
-        token = match.group(0)
+    for start, end, token in _scan_variable_references(text):
         if token in _ALLOWED_KICAD_PATH_VARIABLE_TOKENS:
             continue
-        if token == "${REFERENCE}" and match.span() in allowed_reference_spans:
+        if token == "${REFERENCE}" and (start, end) in allowed_reference_spans:
             continue
-        matches.add((match.start(), match.end(), token))
+        matches.add((start, end, token))
 
     for pattern in _FORBIDDEN_MACHINE_PATH_PATTERNS:
         matches.update(
