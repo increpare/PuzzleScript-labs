@@ -36,6 +36,12 @@ Shells / order pack only (reuse the existing PCB mesh):
 make pocket_card_case_shells
 ```
 
+Both targets finish `out/order/pocket_card_complete.blend` with the approved
+sculpted Undo, Action, Reset and Menu caps. The four direction caps remain the
+original round production geometry. The neutral clearance coupon and neutral
+printable cap sets are unchanged; the sculpted printable exports live
+separately under `out/sculpted_buttons/`.
+
 Or from this directory:
 
 ```
@@ -93,22 +99,34 @@ merely to update the schematic; it destructively regenerates routing. Use
 ### Blender finishing
 
 Both `make pocket_card_case` and `make pocket_card_case_shells` automatically
-run the Blender finishing pass after generating the order-pack meshes. It writes:
+run the Blender shell-finishing and sculpted-cap passes after generating the
+order-pack meshes. They write:
 
 - `out/order/shell_front_embossed.stl`
 - `out/order/shell_back_embossed.stl`
 - `out/order/pocket_card_complete.blend`
 
-The finishing pass opens `hardware/card/case/case_updated.blend`, replaces only
-the in-memory mesh data on its `shell_front` and `shell_back` objects, and
+The shell-finishing pass opens `hardware/card/case/case_updated.blend`, replaces
+only the in-memory mesh data on its `shell_front` and `shell_back` objects, and
 exports them with every modifier evaluated. It never saves the finishing
-template. All three outputs are staged and validated before replacement, so a
-failed run leaves the previous files intact.
+template. All three base outputs are staged and validated before replacement,
+so a failed run leaves the previous files intact. The final pass then replaces
+the eight cap meshes in the standard completed blend: Undo is deeply dished,
+Action is a shallow convex lens, Reset is low and cratered, and Menu has three
+transverse grooves. Direction caps are replaced with exact exports of their
+original round production geometry.
 
-To rerun only this finishing step:
+To rerun both finishing passes from the existing order-pack meshes:
 
 ```
 make pocket_card_case_embossed
+```
+
+If the base `out/order/pocket_card_complete.blend` already exists, rerun only
+the cap exporter and Blender replacement pass with:
+
+```
+make pocket_card_case_sculpted
 ```
 
 The Makefile finds `blender` on `PATH`, then checks the standard macOS app
@@ -228,11 +246,11 @@ file; STLs are one body per file so nothing gets fused.
 
 `out/order/assembly.step` (also `out/order/preview/assembly.step`)
 
-### Auxiliary-button shape prototype
+### Auxiliary-button shape exports and comparison assembly
 
-The prototype keeps the original round, dished direction caps unchanged while
-giving Undo, Action, Reset and Menu role-specific crowns. It preserves every
-production flange, anti-rotation flat, boss, clearance and shell opening:
+The standard Make targets above already install the sculpted caps in
+`out/order/pocket_card_complete.blend`. To generate their individual printable
+files and preview exports directly, run:
 
 ```
 .venv/bin/python sculpted_buttons.py
@@ -248,7 +266,8 @@ Writes `out/sculpted_buttons/`:
 - `caps_placed.step` — selectable cap bodies already in shell model space
 - `front_preview.step` / `.stl` — front shell and seated caps for visual review
 
-To replace the neutral buttons in the complete coloured Blender assembly:
+For a separate comparison copy instead of updating the standard completed
+blend in place, run the replacement script manually with a different output:
 
 ```
 /Applications/Blender.app/Contents/MacOS/Blender \
@@ -259,10 +278,10 @@ To replace the neutral buttons in the complete coloured Blender assembly:
   --output out/sculpted_buttons/pocket_card_complete_sculpted.blend
 ```
 
-The resulting `.blend` retains the case, PCB, display panel, battery, speaker,
-power/mute tips, collections and material assignments. Its four direction-cap
-meshes are exact exports of the original production geometry; only Undo,
-Action, Reset and Menu have modified crowns.
+This separate comparison `.blend` retains the case, PCB, display panel,
+battery, speaker, power/mute tips, collections and material assignments. Its
+four direction-cap meshes are exact exports of the original production
+geometry; only Undo, Action, Reset and Menu have modified crowns.
 
 Undo is deeply dished, Action is a shallow convex lens, Reset is low and
 cratered, and the Menu pill has three transverse grooves. The neutral clearance
