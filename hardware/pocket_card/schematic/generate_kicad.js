@@ -468,6 +468,13 @@ function footprintLibraryNames(model) {
     }))).sort();
 }
 
+function renderFootprintLibrary(library) {
+    var uri = "${KICAD10_FOOTPRINT_DIR}/" + library + ".pretty";
+    return "  (lib (name " + quote(library) + ") (type " + quote("KiCad") + ") " +
+        "(uri " + quote(uri) + ") (options " + quote("") + ") " +
+        "(descr " + quote("Pocket Card required KiCad standard library") + "))";
+}
+
 function generateFootprintLibraryTable(model) {
     var errors = connectivity.validateConnectivity(model);
     if (errors.length > 0) {
@@ -475,9 +482,7 @@ function generateFootprintLibraryTable(model) {
     }
     var lines = ["(fp_lib_table", "  (version 7)"];
     footprintLibraryNames(model).forEach(function (library) {
-        lines.push('  (lib (name "' + library + '") (type "KiCad") ' +
-            '(uri "${KICAD10_FOOTPRINT_DIR}/' + library + '.pretty") ' +
-            '(options "") (descr "Pocket Card required KiCad standard library"))');
+        lines.push(renderFootprintLibrary(library));
     });
     lines.push(")");
     return lines.join("\n") + "\n";
@@ -538,10 +543,37 @@ function writeProjectFiles(outputPath) {
     var destination = outputPath || OUTPUT_PATH;
     var directory = path.dirname(destination);
     var tableDestination = path.join(directory, "fp-lib-table");
+    var schematic = generateSchematic(connectivity.model);
+    var footprintLibraryTable = generateFootprintLibraryTable(connectivity.model);
+    var temporarySuffix = process.pid + "-" + crypto.randomBytes(8).toString("hex") + ".tmp";
+    var schematicTemporary = path.join(
+        directory,
+        ".pocket-card-schematic-" + temporarySuffix
+    );
+    var tableTemporary = path.join(
+        directory,
+        ".pocket-card-footprints-" + temporarySuffix
+    );
     fs.mkdirSync(directory, { recursive: true });
-    fs.writeFileSync(destination, generateSchematic(connectivity.model), "utf8");
-    fs.writeFileSync(tableDestination,
-        generateFootprintLibraryTable(connectivity.model), "utf8");
+    try {
+        fs.writeFileSync(schematicTemporary, schematic, { encoding: "utf8", flag: "wx" });
+        fs.writeFileSync(tableTemporary, footprintLibraryTable, {
+            encoding: "utf8",
+            flag: "wx"
+        });
+        fs.renameSync(schematicTemporary, destination);
+        fs.renameSync(tableTemporary, tableDestination);
+    } finally {
+        [schematicTemporary, tableTemporary].forEach(function (temporaryPath) {
+            try {
+                fs.unlinkSync(temporaryPath);
+            } catch (error) {
+                if (error.code !== "ENOENT") {
+                    throw error;
+                }
+            }
+        });
+    }
     return { schematic: destination, footprintLibraryTable: tableDestination };
 }
 
@@ -553,6 +585,7 @@ module.exports = {
     stableUuid: stableUuid,
     generateSchematic: generateSchematic,
     generateFootprintLibraryTable: generateFootprintLibraryTable,
+    renderFootprintLibrary: renderFootprintLibrary,
     connectedEndpoints: connectedEndpoints,
     noConnectRecords: noConnectRecords,
     writeProjectFiles: writeProjectFiles

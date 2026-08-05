@@ -225,30 +225,72 @@ function assertFootprintLibraryTable(source) {
     });
 }
 
-function findInstalledFootprintRoot() {
+function executableOnPath(executableName, environment, platform) {
+    var delimiter = platform === "win32" ? ";" : ":";
+    var extensions = platform === "win32" ?
+        (environment.PATHEXT || ".COM;.EXE;.BAT;.CMD").split(";") : [""];
+    var directories = (environment.PATH || "").split(delimiter).filter(Boolean);
+    var directoryIndex;
+    var extensionIndex;
+    for (directoryIndex = 0; directoryIndex < directories.length; directoryIndex += 1) {
+        for (extensionIndex = 0; extensionIndex < extensions.length; extensionIndex += 1) {
+            var candidate = path.join(
+                directories[directoryIndex],
+                executableName + extensions[extensionIndex]
+            );
+            try {
+                if (fs.statSync(candidate).isFile()) {
+                    fs.accessSync(candidate, fs.constants.X_OK);
+                    return candidate;
+                }
+            } catch (error) {
+                if (error.code !== "ENOENT" && error.code !== "ENOTDIR" &&
+                    error.code !== "EACCES") {
+                    throw error;
+                }
+            }
+        }
+    }
+    return undefined;
+}
+
+function findInstalledFootprintRoot(environment, platform) {
+    var activeEnvironment = environment || process.env;
+    var activePlatform = platform || process.platform;
     var candidates = [];
-    if (process.env.KICAD10_FOOTPRINT_DIR) {
-        candidates.push(process.env.KICAD10_FOOTPRINT_DIR);
+    if (activeEnvironment.KICAD10_FOOTPRINT_DIR) {
+        candidates.push(activeEnvironment.KICAD10_FOOTPRINT_DIR);
     }
     candidates.push("/usr/share/kicad/footprints");
     candidates.push("/usr/local/share/kicad/footprints");
 
-    var executable = childProcess.execFileSync("which", ["kicad-cli"], {
-        encoding: "utf8"
-    }).trim();
-    var realExecutable = fs.realpathSync(executable);
-    candidates.push(path.join(
-        path.dirname(path.dirname(realExecutable)),
-        "SharedSupport",
-        "footprints"
-    ));
-
     var root = candidates.find(function (candidate) {
         return fs.existsSync(candidate) && fs.statSync(candidate).isDirectory();
     });
-    assert.ok(root,
-        "cannot locate installed KiCad footprints; checked: " + candidates.join(", "));
-    return root;
+    if (root) {
+        return root;
+    }
+
+    var executable = executableOnPath("kicad-cli", activeEnvironment, activePlatform);
+    if (activePlatform === "darwin" && executable) {
+        var realExecutable = fs.realpathSync(executable);
+        candidates.push(path.join(
+            path.dirname(path.dirname(realExecutable)),
+            "SharedSupport",
+            "footprints"
+        ));
+        root = candidates.find(function (candidate) {
+            return fs.existsSync(candidate) && fs.statSync(candidate).isDirectory();
+        });
+        if (root) {
+            return root;
+        }
+    }
+
+    throw new Error("cannot locate installed KiCad footprints; checked: " +
+        candidates.join(", ") + "; " + (executable ?
+        "kicad-cli resolved to " + executable :
+        "kicad-cli was not found on PATH"));
 }
 
 function assertInstalledFootprints(root) {
@@ -368,6 +410,36 @@ function ercViolations(report) {
 
     visit(report);
     return violations;
+}
+
+function assertNoFootprintLibraryDiagnostics(output, argumentsList) {
+    var failureWord = /(?:warning|warnung|error|fehler|failed|fehlgeschlagen|unable|cannot|konnte|invalid|ungültig|not found|nicht gefunden)/i;
+    var diagnostic = output.split(/\r?\n/).find(function (line) {
+        return failureWord.test(line) &&
+            /(?:fp-lib-table|KICAD10_FOOTPRINT_DIR|footprint)/i.test(line);
+    });
+    if (diagnostic) {
+        throw new Error("KiCad footprint library diagnostic from kicad-cli " +
+            argumentsList.join(" ") + ": " + diagnostic);
+    }
+}
+
+function runKicadCli(argumentsList, cwd) {
+    var result = childProcess.spawnSync("kicad-cli", argumentsList, {
+        cwd: cwd,
+        encoding: "utf8",
+        env: Object.assign({}, process.env, { LANG: "C", LC_ALL: "C" }),
+        stdio: ["ignore", "pipe", "pipe"]
+    });
+    if (result.error) {
+        throw result.error;
+    }
+    var output = (result.stdout || "") + (result.stderr || "");
+    assertNoFootprintLibraryDiagnostics(output, argumentsList);
+    assert.strictEqual(result.status, 0,
+        "kicad-cli " + argumentsList.join(" ") + " failed with status " + result.status +
+        "\n" + output);
+    return output;
 }
 
 function netlistEndpoints(source) {
@@ -598,6 +670,15 @@ var firstPureGeneration = generator.generateSchematic(model);
 var secondPureGeneration = generator.generateSchematic(model);
 assert.strictEqual(secondPureGeneration, firstPureGeneration,
     "pure schematic generation must be byte-identical");
+var escapedLibraryName = 'Quoted "Library" \\ path';
+var escapedLibraryEntry = parseSExpression(
+    generator.renderFootprintLibrary(escapedLibraryName)
+);
+assert.strictEqual(atomValue(directChild(escapedLibraryEntry, "name"), 1),
+    escapedLibraryName, "footprint library names must be quoted as KiCad atoms");
+assert.strictEqual(atomValue(directChild(escapedLibraryEntry, "uri"), 1),
+    "${KICAD10_FOOTPRINT_DIR}/" + escapedLibraryName + ".pretty",
+    "full footprint library URIs must be quoted as KiCad atoms");
 var footprintContractErrors = [];
 var firstPureFootprintTable;
 try {
@@ -614,6 +695,17 @@ try {
     "footprint table generation must reject an invalid connectivity model");
 } catch (error) {
     footprintContractErrors.push("pure footprint table: " + error.message);
+}
+var lazyRootDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "pocket-card-footprints-"));
+try {
+    assert.strictEqual(findInstalledFootprintRoot({
+        KICAD10_FOOTPRINT_DIR: lazyRootDirectory,
+        PATH: "",
+        PATHEXT: ""
+    }, "darwin"), lazyRootDirectory,
+    "a valid environment root must not require kicad-cli executable discovery");
+} finally {
+    fs.rmSync(lazyRootDirectory, { recursive: true, force: true });
 }
 var installedFootprintRoot = findInstalledFootprintRoot();
 assertInstalledFootprints(installedFootprintRoot);
@@ -668,6 +760,60 @@ assert.ok(fs.readFileSync(footprintLibraryTablePath).equals(Buffer.from(firstPur
     "tracked fp-lib-table must agree with pure generation");
 assert.ok(secondFileFootprintTable.equals(Buffer.from(firstPureFootprintTable)),
     "CLI and pure footprint table generation must agree");
+
+var writeFailureDirectory = fs.mkdtempSync(path.join(
+    os.tmpdir(),
+    "pocket-card-write-failure-"
+));
+var originalWriteFileSync = fs.writeFileSync;
+try {
+    var protectedSchematicPath = path.join(
+        writeFailureDirectory,
+        "pocket_card_controller.kicad_sch"
+    );
+    var protectedTablePath = path.join(writeFailureDirectory, "fp-lib-table");
+    var protectedSchematic = Buffer.from("existing schematic must survive\n");
+    var protectedTable = Buffer.from("existing footprint table must survive\n");
+    originalWriteFileSync(protectedSchematicPath, protectedSchematic);
+    originalWriteFileSync(protectedTablePath, protectedTable);
+
+    var stagedWriteCount = 0;
+    var injectedWriteError;
+    fs.writeFileSync = function (destination) {
+        if (path.dirname(destination) === writeFailureDirectory &&
+            destination !== protectedSchematicPath && destination !== protectedTablePath) {
+            stagedWriteCount += 1;
+            if (stagedWriteCount === 2) {
+                throw new Error("injected second temporary write failure");
+            }
+        }
+        return originalWriteFileSync.apply(fs, arguments);
+    };
+    try {
+        generator.writeProjectFiles(protectedSchematicPath);
+    } catch (error) {
+        injectedWriteError = error;
+    } finally {
+        fs.writeFileSync = originalWriteFileSync;
+    }
+
+    assert.strictEqual(stagedWriteCount, 2,
+        "project generation must stage both artifacts in temporary files");
+    assert.ok(injectedWriteError &&
+        /injected second temporary write failure/.test(injectedWriteError.message),
+    "project generation must propagate a temporary write failure");
+    assert.ok(fs.readFileSync(protectedSchematicPath).equals(protectedSchematic),
+        "a temporary write failure must not truncate the existing schematic");
+    assert.ok(fs.readFileSync(protectedTablePath).equals(protectedTable),
+        "a temporary write failure must not truncate the existing footprint table");
+    assert.deepStrictEqual(fs.readdirSync(writeFailureDirectory).sort(), [
+        "fp-lib-table",
+        "pocket_card_controller.kicad_sch"
+    ], "a temporary write failure must not leave staging files behind");
+} finally {
+    fs.writeFileSync = originalWriteFileSync;
+    fs.rmSync(writeFailureDirectory, { recursive: true, force: true });
+}
 
 var schematic = secondFileGeneration.toString("utf8");
 [
@@ -919,18 +1065,38 @@ assert.strictEqual(occurrences(schematic, /\(text "NC /g), 0,
         ref + " must stay on-board while excluded from simulation and BOM");
 });
 
+assert.throws(function () {
+    assertNoFootprintLibraryDiagnostics(
+        "Warning: failed to load fp-lib-table entry Connector_JST",
+        ["sch", "upgrade"]
+    );
+}, /footprint library diagnostic/,
+"KiCad footprint table load warnings must fail integration");
+assert.throws(function () {
+    assertNoFootprintLibraryDiagnostics(
+        "Fehler: fp-lib-table konnte nicht geladen werden",
+        ["sch", "upgrade"]
+    );
+}, /footprint library diagnostic/,
+"localized KiCad footprint table errors must fail integration");
+
 var temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "pocket-card-kicad-test-"));
 var ercErrorCount;
 var ercByteCount;
 var netlistByteCount;
 var pdfByteCount;
+var kicadCommandOutputByteCount = 0;
 try {
     var upgradeCopy = path.join(temporaryDirectory, "pocket_card_controller.kicad_sch");
+    var integrationTablePath = path.join(temporaryDirectory, "fp-lib-table");
     fs.copyFileSync(outputPath, upgradeCopy);
-    childProcess.execFileSync("kicad-cli", ["sch", "upgrade", "--force", upgradeCopy], {
-        cwd: temporaryDirectory,
-        stdio: "pipe"
-    });
+    fs.copyFileSync(footprintLibraryTablePath, integrationTablePath);
+    assert.ok(fs.existsSync(integrationTablePath),
+        "KiCad integration must run with the generated project-local fp-lib-table");
+    kicadCommandOutputByteCount += Buffer.byteLength(runKicadCli(
+        ["sch", "upgrade", "--force", upgradeCopy],
+        temporaryDirectory
+    ));
     assert.ok(fs.statSync(upgradeCopy).size > 0,
         "KiCad upgrade must leave a nonempty schematic");
     var upgraded = fs.readFileSync(upgradeCopy, "utf8");
@@ -949,10 +1115,10 @@ try {
     });
 
     var ercPath = path.join(temporaryDirectory, "erc.json");
-    childProcess.execFileSync("kicad-cli", [
+    kicadCommandOutputByteCount += Buffer.byteLength(runKicadCli([
         "sch", "erc", "--format", "json", "--severity-error",
         "--exit-code-violations", "--output", ercPath, upgradeCopy
-    ], { cwd: temporaryDirectory, stdio: "pipe" });
+    ], temporaryDirectory));
     ercByteCount = fs.statSync(ercPath).size;
     assert.ok(ercByteCount > 0, "KiCad ERC must write a nonempty JSON report");
     var ercReport = JSON.parse(fs.readFileSync(ercPath, "utf8"));
@@ -963,9 +1129,9 @@ try {
         "KiCad error-only ERC report must contain zero violations");
 
     var netlistPath = path.join(temporaryDirectory, "controller.net");
-    childProcess.execFileSync("kicad-cli", [
+    kicadCommandOutputByteCount += Buffer.byteLength(runKicadCli([
         "sch", "export", "netlist", "--output", netlistPath, upgradeCopy
-    ], { cwd: temporaryDirectory, stdio: "pipe" });
+    ], temporaryDirectory));
     netlistByteCount = fs.statSync(netlistPath).size;
     assert.ok(netlistByteCount > 0, "KiCad must export a nonempty netlist");
     var netlistSource = fs.readFileSync(netlistPath, "utf8");
@@ -1008,15 +1174,15 @@ try {
         "KiCad netlist must preserve all and only the 14 declared no-connect endpoints");
 
     var pdfPath = path.join(temporaryDirectory, "controller.pdf");
-    childProcess.execFileSync("kicad-cli", [
+    kicadCommandOutputByteCount += Buffer.byteLength(runKicadCli([
         "sch", "export", "pdf", "--output", pdfPath, upgradeCopy
-    ], { cwd: temporaryDirectory, stdio: "pipe" });
+    ], temporaryDirectory));
     pdfByteCount = fs.statSync(pdfPath).size;
     assert.ok(pdfByteCount > 1000, "KiCad must export a substantive schematic PDF");
 
-    childProcess.execFileSync("kicad-cli", [
+    kicadCommandOutputByteCount += Buffer.byteLength(runKicadCli([
         "sch", "export", "svg", "--output", temporaryDirectory, upgradeCopy
-    ], { cwd: temporaryDirectory, stdio: "pipe" });
+    ], temporaryDirectory));
     var svgPath = path.join(temporaryDirectory, "pocket_card_controller.svg");
     assert.ok(fs.statSync(svgPath).size > 0, "KiCad must export a nonempty SVG");
     assert.ok(!/<desc>NC [^<]+<\/desc>/.test(fs.readFileSync(svgPath, "utf8")),
@@ -1030,5 +1196,6 @@ console.log("generate_kicad_test: KiCad CLI verified " + ercErrorCount +
     model.connections.length + " canonical nets, " +
     netlistByteCount + " netlist bytes, and " + pdfByteCount + " PDF bytes");
 console.log("generate_kicad_test: resolved " + model.components.length +
-    " footprint assignments under " + installedFootprintRoot);
+    " footprint assignments under " + installedFootprintRoot +
+    "; checked " + kicadCommandOutputByteCount + " KiCad diagnostic bytes");
 console.log("generate_kicad_test: all tests passed");
