@@ -19,8 +19,13 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
-from .exports import _load_manifest, require_current_exports
-from .inventory import editable_project_files, inventory_json
+from .exports import (
+    _EXPORT_RECIPE_INPUTS,
+    _load_manifest,
+    _load_toolchain,
+    require_current_exports,
+)
+from .inventory import _version_tuple, editable_project_files, inventory_json
 from .paths import (
     EDITABLE_PROJECT_DIRS,
     ELECTRONICS_DIR,
@@ -447,6 +452,16 @@ def _canonical_policy_digest(project: Path) -> str:
     )
 
 
+def _canonical_export_recipe_digest() -> str:
+    digest = hashlib.sha256()
+    for label, path in sorted(_EXPORT_RECIPE_INPUTS, key=lambda item: item[0]):
+        digest.update(label.encode("utf-8"))
+        digest.update(b"\0")
+        _stream_file_into_digest(path, digest, "PCB export recipe input")
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
 def _repository_root(project: Path) -> Path:
     for candidate in (project, *project.parents):
         if (candidate / ".git").exists():
@@ -736,6 +751,62 @@ def _require_owned_temp(directory: int, name: str, token: tuple[int, int]) -> No
         raise HandoffError("temporary handoff file changed before publication")
 
 
+def _named_regular_fingerprint(
+    directory: int,
+    name: str,
+    token: tuple[int, int],
+    context: str,
+    *,
+    max_size: int = _MAX_ARCHIVE_BYTES,
+    allow_empty: bool = False,
+) -> tuple[int, str]:
+    """Hash one exact directory entry without following or buffering it."""
+
+    try:
+        descriptor = os.open(
+            name,
+            os.O_RDONLY | _NOFOLLOW | _NONBLOCK,
+            dir_fd=directory,
+        )
+    except OSError as error:
+        raise HandoffError(f"{context} ownership or content changed") from error
+    digest = hashlib.sha256()
+    size = 0
+    try:
+        before = os.fstat(descriptor)
+        if (
+            not stat.S_ISREG(before.st_mode)
+            or before.st_nlink != 1
+            or (before.st_dev, before.st_ino) != token
+            or (before.st_size < 1 and not allow_empty)
+            or before.st_size > max_size
+        ):
+            raise HandoffError(f"{context} ownership or content changed")
+        while True:
+            chunk = os.read(descriptor, _COPY_CHUNK_SIZE)
+            if not chunk:
+                break
+            digest.update(chunk)
+            size += len(chunk)
+        after = os.fstat(descriptor)
+        if (
+            before.st_dev,
+            before.st_ino,
+            before.st_size,
+            before.st_mtime_ns,
+        ) != (
+            after.st_dev,
+            after.st_ino,
+            after.st_size,
+            after.st_mtime_ns,
+        ) or size != before.st_size:
+            raise HandoffError(f"{context} ownership or content changed")
+    finally:
+        os.close(descriptor)
+    _require_named_token(directory, name, token, context)
+    return size, digest.hexdigest()
+
+
 def _named_token(directory: int, name: str, context: str) -> tuple[int, int]:
     try:
         information = os.stat(name, dir_fd=directory, follow_symlinks=False)
@@ -794,23 +865,55 @@ def _journal_name(filename: str) -> str:
     return f".{filename}.handoff-journal.json"
 
 
+def _publication_journal_bytes(
+    temp_name: str,
+    temp_token: tuple[int, int],
+    temp_content: tuple[int, str] | None,
+    directory_token: tuple[int, int],
+    prior_destination: tuple[tuple[int, int], tuple[int, str]] | None,
+) -> bytes:
+    if prior_destination is None:
+        prior_state = "absent"
+        prior_token = (0, 0)
+        prior_content = (0, "0" * 64)
+    else:
+        prior_state = "regular"
+        prior_token, prior_content = prior_destination
+    return _json_bytes(
+        {
+            "schemaVersion": 2,
+            "tempName": temp_name,
+            "tempDevice": temp_token[0],
+            "tempInode": temp_token[1],
+            "tempComplete": temp_content is not None,
+            "tempSize": 0 if temp_content is None else temp_content[0],
+            "tempSha256": "0" * 64 if temp_content is None else temp_content[1],
+            "outputDevice": directory_token[0],
+            "outputInode": directory_token[1],
+            "priorDestinationState": prior_state,
+            "priorDestinationDevice": prior_token[0],
+            "priorDestinationInode": prior_token[1],
+            "priorDestinationSize": prior_content[0],
+            "priorDestinationSha256": prior_content[1],
+        }
+    )
+
+
 def _write_publication_journal(
     directory: int,
     filename: str,
     temp_name: str,
     temp_token: tuple[int, int],
     directory_token: tuple[int, int],
+    prior_destination: tuple[tuple[int, int], tuple[int, str]] | None,
 ) -> tuple[int, int]:
     name = _journal_name(filename)
-    content = _json_bytes(
-        {
-            "schemaVersion": 1,
-            "tempName": temp_name,
-            "tempDevice": temp_token[0],
-            "tempInode": temp_token[1],
-            "outputDevice": directory_token[0],
-            "outputInode": directory_token[1],
-        }
+    content = _publication_journal_bytes(
+        temp_name,
+        temp_token,
+        None,
+        directory_token,
+        prior_destination,
     )
     try:
         descriptor = os.open(
@@ -832,6 +935,49 @@ def _write_publication_journal(
     return token
 
 
+def _complete_publication_journal(
+    directory: int,
+    filename: str,
+    journal_token: tuple[int, int],
+    temp_name: str,
+    temp_token: tuple[int, int],
+    temp_content: tuple[int, str],
+    directory_token: tuple[int, int],
+    prior_destination: tuple[tuple[int, int], tuple[int, str]] | None,
+) -> None:
+    name = _journal_name(filename)
+    try:
+        descriptor = os.open(
+            name,
+            os.O_WRONLY | _NOFOLLOW | _NONBLOCK,
+            dir_fd=directory,
+        )
+    except OSError as error:
+        raise HandoffError("handoff publication journal ownership changed") from error
+    try:
+        information = os.fstat(descriptor)
+        if (
+            not stat.S_ISREG(information.st_mode)
+            or information.st_nlink != 1
+            or (information.st_dev, information.st_ino) != journal_token
+        ):
+            raise HandoffError("handoff publication journal ownership changed")
+        content = _publication_journal_bytes(
+            temp_name,
+            temp_token,
+            temp_content,
+            directory_token,
+            prior_destination,
+        )
+        os.ftruncate(descriptor, 0)
+        _write_all(descriptor, content)
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+    _require_named_token(directory, name, journal_token, "handoff publication journal")
+    os.fsync(directory)
+
+
 def _read_publication_journal(
     directory: int, filename: str, directory_token: tuple[int, int]
 ) -> tuple[dict[str, object], tuple[int, int]] | None:
@@ -848,6 +994,7 @@ def _read_publication_journal(
         information = os.fstat(descriptor)
         if (
             not stat.S_ISREG(information.st_mode)
+            or information.st_nlink != 1
             or information.st_size < 1
             or information.st_size > _MAX_METADATA_BYTES
         ):
@@ -860,6 +1007,21 @@ def _read_publication_journal(
                 raise HandoffError("handoff publication journal is truncated")
             chunks.append(chunk)
             remaining -= len(chunk)
+        after = os.fstat(descriptor)
+        if (
+            information.st_dev,
+            information.st_ino,
+            information.st_size,
+            information.st_mtime_ns,
+        ) != (
+            after.st_dev,
+            after.st_ino,
+            after.st_size,
+            after.st_mtime_ns,
+        ):
+            raise HandoffError(
+                "handoff publication journal changed while being read"
+            )
         token = information.st_dev, information.st_ino
     finally:
         os.close(descriptor)
@@ -874,25 +1036,73 @@ def _read_publication_journal(
         "tempName",
         "tempDevice",
         "tempInode",
+        "tempComplete",
+        "tempSize",
+        "tempSha256",
         "outputDevice",
         "outputInode",
+        "priorDestinationState",
+        "priorDestinationDevice",
+        "priorDestinationInode",
+        "priorDestinationSize",
+        "priorDestinationSha256",
     }
     if not isinstance(raw, Mapping) or set(raw) != expected_keys:
         raise HandoffError("handoff publication journal has an invalid schema")
     temp_name = raw.get("tempName")
-    integer_values = tuple(
+    ownership_values = tuple(
         raw.get(key)
         for key in ("tempDevice", "tempInode", "outputDevice", "outputInode")
     )
+    temp_complete = raw.get("tempComplete")
+    temp_size = raw.get("tempSize")
+    temp_sha256 = raw.get("tempSha256")
+    prior_state = raw.get("priorDestinationState")
+    prior_device = raw.get("priorDestinationDevice")
+    prior_inode = raw.get("priorDestinationInode")
+    prior_size = raw.get("priorDestinationSize")
+    prior_sha256 = raw.get("priorDestinationSha256")
     pattern = re.compile(
         re.escape(f".{filename}.") + r"[0-9a-f]{32}\.tmp"
     )
     if (
-        raw.get("schemaVersion") != 1
+        type(raw.get("schemaVersion")) is not int
+        or raw.get("schemaVersion") != 2
         or not isinstance(temp_name, str)
         or pattern.fullmatch(temp_name) is None
-        or any(type(value) is not int or value < 1 for value in integer_values)
-        or tuple(integer_values[2:]) != directory_token
+        or any(type(value) is not int or value < 1 for value in ownership_values)
+        or tuple(ownership_values[2:]) != directory_token
+        or type(temp_complete) is not bool
+        or type(temp_size) is not int
+        or not isinstance(temp_sha256, str)
+        or _DIGEST_PATTERN.fullmatch(temp_sha256) is None
+        or (
+            temp_complete
+            and (temp_size < 1 or temp_sha256 == "0" * 64)
+        )
+        or (
+            not temp_complete
+            and (temp_size != 0 or temp_sha256 != "0" * 64)
+        )
+        or prior_state not in ("absent", "regular")
+        or type(prior_device) is not int
+        or type(prior_inode) is not int
+        or type(prior_size) is not int
+        or not isinstance(prior_sha256, str)
+        or _DIGEST_PATTERN.fullmatch(prior_sha256) is None
+        or (
+            prior_state == "absent"
+            and (
+                prior_device != 0
+                or prior_inode != 0
+                or prior_size != 0
+                or prior_sha256 != "0" * 64
+            )
+        )
+        or (
+            prior_state == "regular"
+            and (prior_device < 1 or prior_inode < 1 or prior_size < 0)
+        )
     ):
         raise HandoffError("handoff publication journal has invalid ownership data")
     return dict(raw), token
@@ -918,6 +1128,61 @@ def _optional_entry_token(directory: int, name: str) -> tuple[int, int] | None:
     return information.st_dev, information.st_ino
 
 
+def _destination_state(
+    directory: int, filename: str
+) -> tuple[tuple[int, int], tuple[int, str]] | None:
+    token = _optional_entry_token(directory, filename)
+    if token is None:
+        return None
+    content = _named_regular_fingerprint(
+        directory,
+        filename,
+        token,
+        "handoff destination",
+        allow_empty=True,
+    )
+    return token, content
+
+
+def _journal_prior_destination(
+    journal: Mapping[str, object],
+) -> tuple[tuple[int, int], tuple[int, str]] | None:
+    if journal["priorDestinationState"] == "absent":
+        return None
+    return (
+        (
+            int(journal["priorDestinationDevice"]),
+            int(journal["priorDestinationInode"]),
+        ),
+        (
+            int(journal["priorDestinationSize"]),
+            str(journal["priorDestinationSha256"]),
+        ),
+    )
+
+
+def _destination_matches(
+    directory: int,
+    filename: str,
+    expected: tuple[tuple[int, int], tuple[int, str]] | None,
+) -> bool:
+    try:
+        return _destination_state(directory, filename) == expected
+    except HandoffError:
+        return False
+
+
+def _require_destination_state(
+    directory: int,
+    filename: str,
+    expected: tuple[tuple[int, int], tuple[int, str]] | None,
+) -> None:
+    if not _destination_matches(directory, filename, expected):
+        raise HandoffError(
+            "handoff destination changed; possible substitution"
+        )
+
+
 def _recover_publication(
     directory: int,
     filename: str,
@@ -931,14 +1196,45 @@ def _recover_publication(
     expected = int(journal["tempDevice"]), int(journal["tempInode"])
     temp_token = _optional_entry_token(directory, temp_name)
     destination_token = _optional_entry_token(directory, filename)
+    prior_destination = _journal_prior_destination(journal)
     if temp_token is not None and temp_token != expected:
         raise HandoffError(
             "handoff temporary snapshot ownership mismatch; possible substitution"
         )
     if destination_token == expected and temp_token == expected:
         raise HandoffError("handoff publication ownership is ambiguous")
+    completed = bool(journal["tempComplete"])
+    expected_content = int(journal["tempSize"]), str(journal["tempSha256"])
     if temp_token == expected:
+        _require_destination_state(
+            directory,
+            filename,
+            prior_destination,
+        )
+        if completed and _named_regular_fingerprint(
+            directory,
+            temp_name,
+            expected,
+            "handoff temporary snapshot",
+        ) != expected_content:
+            raise HandoffError(
+                "handoff temporary snapshot content mismatch; possible substitution"
+            )
         os.unlink(temp_name, dir_fd=directory)
+    elif destination_token == expected:
+        if not completed or _named_regular_fingerprint(
+            directory,
+            filename,
+            expected,
+            "published handoff archive",
+        ) != expected_content:
+            raise HandoffError(
+                "published handoff archive content mismatch; possible substitution"
+            )
+    elif not _destination_matches(directory, filename, prior_destination):
+        raise HandoffError(
+            "handoff recovery found an unknown destination; retaining transaction evidence"
+        )
     _remove_publication_journal(directory, filename, journal_token)
     os.fsync(directory)
 
@@ -948,6 +1244,7 @@ def _cleanup_precommit(
     filename: str,
     temp_name: str | None,
     temp_token: tuple[int, int] | None,
+    temp_content: tuple[int, str] | None,
     journal_token: tuple[int, int] | None,
 ) -> None:
     if temp_name is not None and temp_token is not None:
@@ -956,6 +1253,18 @@ def _cleanup_precommit(
         except HandoffError:
             return
         if observed == temp_token:
+            if temp_content is not None:
+                try:
+                    observed_content = _named_regular_fingerprint(
+                        directory,
+                        temp_name,
+                        temp_token,
+                        "temporary handoff file",
+                    )
+                except HandoffError:
+                    return
+                if observed_content != temp_content:
+                    return
             os.unlink(temp_name, dir_fd=directory)
         elif observed is not None:
             return
@@ -985,16 +1294,18 @@ def _publish_archive(
         raise HandoffError("cannot safely open handoff output directory") from error
     information = os.fstat(directory)
     directory_token = information.st_dev, information.st_ino
+    committed = False
     try:
         with _handoff_publication_lock(directory, filename) as (lock_name, lock_token):
             _require_output_identity(output, directory_token)
             _recover_publication(directory, filename, directory_token)
             _destination_is_safe_at(directory, filename)
+            prior_destination = _destination_state(directory, filename)
             temp_name: str | None = None
             temp_token: tuple[int, int] | None = None
+            temp_content: tuple[int, str] | None = None
             journal_token: tuple[int, int] | None = None
             temporary_descriptor: int | None = None
-            committed = False
             try:
                 for _ in range(10):
                     candidate = f".{filename}.{uuid.uuid4().hex}.tmp"
@@ -1019,6 +1330,7 @@ def _publish_archive(
                     temp_name,
                     temp_token,
                     directory_token,
+                    prior_destination,
                 )
                 try:
                     assert temporary_descriptor is not None
@@ -1034,6 +1346,22 @@ def _publish_archive(
                     temporary.flush()
                     os.fsync(temporary.fileno())
                     os.fchmod(temporary.fileno(), 0o644)
+                temp_content = _named_regular_fingerprint(
+                    directory,
+                    temp_name,
+                    temp_token,
+                    "temporary handoff file",
+                )
+                _complete_publication_journal(
+                    directory,
+                    filename,
+                    journal_token,
+                    temp_name,
+                    temp_token,
+                    temp_content,
+                    directory_token,
+                    prior_destination,
+                )
 
                 if before_publish is not None:
                     before_publish()
@@ -1049,7 +1377,20 @@ def _publish_archive(
                     "handoff publication journal",
                 )
                 _require_owned_temp(directory, temp_name, temp_token)
-                _destination_is_safe_at(directory, filename)
+                if _named_regular_fingerprint(
+                    directory,
+                    temp_name,
+                    temp_token,
+                    "temporary handoff file",
+                ) != temp_content:
+                    raise HandoffError(
+                        "temporary handoff file content mismatch; possible substitution"
+                    )
+                _require_destination_state(
+                    directory,
+                    filename,
+                    prior_destination,
+                )
                 os.replace(
                     temp_name,
                     filename,
@@ -1060,17 +1401,26 @@ def _publish_archive(
                 committed = True
                 try:
                     directory_fsync(directory)
-                except OSError as error:
+                except Exception as error:
                     raise HandoffError(
                         "handoff publication committed; durability unknown"
                     ) from error
-                _remove_publication_journal(directory, filename, journal_token)
+                try:
+                    _remove_publication_journal(
+                        directory,
+                        filename,
+                        journal_token,
+                    )
+                except Exception as error:
+                    raise HandoffError(
+                        "handoff publication committed; cleanup pending"
+                    ) from error
                 journal_token = None
                 try:
-                    os.fsync(directory)
-                except OSError as error:
+                    directory_fsync(directory)
+                except Exception as error:
                     raise HandoffError(
-                        "handoff publication committed; durability unknown"
+                        "handoff publication committed; cleanup durability unknown"
                     ) from error
             except Exception:
                 if temporary_descriptor is not None:
@@ -1081,12 +1431,30 @@ def _publish_archive(
                         filename,
                         temp_name,
                         temp_token,
+                        temp_content,
                         journal_token,
                     )
                 raise
+    except Exception as error:
+        if committed:
+            if isinstance(error, HandoffError) and str(error).startswith(
+                "handoff publication committed;"
+            ):
+                raise
+            raise HandoffError(
+                "handoff publication committed; post-commit finalization failed"
+            ) from error
+        raise
     finally:
-        os.close(directory)
-    return destination.resolve(strict=True)
+        try:
+            os.close(directory)
+        except Exception as error:
+            if committed:
+                raise HandoffError(
+                    "handoff publication committed; post-commit finalization failed"
+                ) from error
+            raise
+    return destination
 
 
 def export_handoff(
@@ -1109,6 +1477,7 @@ def export_handoff(
     project = _resolved_directory(project_dir, "canonical project")
     exports = _resolved_directory(export_dir, "verified PCB export tree")
     source_digest_before, _ = _canonical_project_digest(project)
+    export_recipe_digest_before = _canonical_export_recipe_digest()
     validation_result = _call_validator(validator, project, runner)
     status = getattr(validation_result, "status", None)
     if status != PASS:
@@ -1219,9 +1588,11 @@ def export_handoff(
                 "archived project snapshot digest does not match canonical baseline"
             )
 
+        policy_snapshot_root = snapshot_root / "policy"
+        policy_snapshot_root.mkdir()
         policy_snapshots: dict[str, tuple[Path, int, str]] = {}
         for name in _POLICY_DIGEST_NAMES:
-            destination = snapshot_root / f"policy-{name}"
+            destination = policy_snapshot_root / name
             size, digest = _snapshot_regular(
                 project / name,
                 destination,
@@ -1235,6 +1606,19 @@ def export_handoff(
         if policy_digest != manifest["policyDigest"]:
             raise HandoffError(
                 "archived validation policy snapshot does not match export manifest"
+            )
+        if manifest["exportRecipeDigest"] != export_recipe_digest_before:
+            raise HandoffError("verified export manifest recipe digest is stale")
+        _, expected_kicad_major, minimum_kicad_version = _load_toolchain(
+            policy_snapshot_root
+        )
+        manifest_kicad_version = _version_tuple(str(manifest["kicadVersion"]))
+        if (
+            manifest_kicad_version[0] != expected_kicad_major
+            or manifest_kicad_version < _version_tuple(minimum_kicad_version)
+        ):
+            raise HandoffError(
+                "verified export manifest KiCad version is stale for the toolchain policy"
             )
         for name in _POLICY_NAMES:
             path, size, digest = policy_snapshots[name]
@@ -1321,6 +1705,8 @@ def export_handoff(
             raise HandoffError(
                 "canonical validation policy changed while assembling handoff"
             )
+        if _canonical_export_recipe_digest() != export_recipe_digest_before:
+            raise HandoffError("PCB export recipe changed while assembling handoff")
         if include_blend and blend_source is not None and blend_entry is not None:
             current_blend = snapshot_root / "blend-current"
             size, digest = _snapshot_regular(
@@ -1349,6 +1735,8 @@ def export_handoff(
                 raise HandoffError(
                     "canonical validation policy changed before handoff publication"
                 )
+            if _canonical_export_recipe_digest() != export_recipe_digest_before:
+                raise HandoffError("PCB export recipe changed before handoff publication")
             if include_blend and blend_source is not None and blend_entry is not None:
                 current_blend = snapshot_root / "blend-final"
                 size, digest = _snapshot_regular(

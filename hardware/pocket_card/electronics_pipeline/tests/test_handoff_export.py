@@ -1,5 +1,6 @@
 import json
 import hashlib
+import os
 import stat
 import subprocess
 import tempfile
@@ -13,6 +14,7 @@ from unittest import mock
 
 import hardware.pocket_card.electronics_pipeline.handoff as handoff_module
 from hardware.pocket_card.electronics_pipeline.exports import (
+    _export_recipe_digest,
     _policy_digest,
     export_outputs,
 )
@@ -81,7 +83,7 @@ class HandoffExportTest(unittest.TestCase):
                     "projectName": PROJECT_NAME,
                     "projectDigest": project_digest(self.project),
                     "policyDigest": _policy_digest(self.project),
-                    "exportRecipeDigest": "c" * 64,
+                    "exportRecipeDigest": _export_recipe_digest(),
                     "kicadVersion": "10.0.4",
                     "artifacts": artifact_metadata,
                 },
@@ -606,6 +608,36 @@ class HandoffExportTest(unittest.TestCase):
         self.assertIsNotNone(substituted)
         self.assertTrue(substituted.is_symlink())
 
+    def test_completed_temp_same_inode_rewrite_is_refused_and_retained(self):
+        archive = self.export()
+        old = archive.read_bytes()
+        observed_inode = None
+
+        def rewrite_temp_in_place():
+            nonlocal observed_inode
+            temporary = next(
+                self.output.glob(".pocket-card-controller.zip.*.tmp")
+            )
+            observed_inode = temporary.stat().st_ino
+            with temporary.open("r+b", buffering=0) as stream:
+                original = stream.read(1)
+                stream.seek(0)
+                stream.write(bytes([original[0] ^ 0xFF]))
+                os.fsync(stream.fileno())
+            self.assertEqual(temporary.stat().st_ino, observed_inode)
+
+        with self.assertRaisesRegex(RuntimeError, "content|hash|ownership|substitut"):
+            self.export(before_publish=rewrite_temp_in_place)
+        self.assertEqual(archive.read_bytes(), old)
+        retained = list(
+            self.output.glob(".pocket-card-controller.zip.*.tmp")
+        )
+        self.assertEqual(len(retained), 1)
+        self.assertEqual(retained[0].stat().st_ino, observed_inode)
+        self.assertTrue(
+            (self.output / ".pocket-card-controller.zip.handoff-journal.json").is_file()
+        )
+
     def test_stream_open_failure_closes_descriptor_and_cleans_owned_temp(self):
         archive = self.export()
         old = archive.read_bytes()
@@ -691,6 +723,71 @@ class HandoffExportTest(unittest.TestCase):
             pdf.write_bytes(original_pdf)
             manifest_path.write_bytes(original_manifest)
         self.assertFalse((self.output / "pocket-card-controller.zip").exists())
+
+    def test_manifest_aba_cannot_hide_stale_policy_recipe_or_kicad_version(self):
+        manifest_path = self.exports / "source_manifest.json"
+        current = manifest_path.read_bytes()
+
+        for field, stale_value in (
+            ("policyDigest", "0" * 64),
+            ("exportRecipeDigest", "0" * 64),
+            ("kicadVersion", "9.0.0"),
+            ("kicadVersion", "10.0.3"),
+        ):
+            with self.subTest(field=field, value=stale_value):
+                stale = json.loads(current)
+                stale[field] = stale_value
+                stale_bytes = (json.dumps(stale, sort_keys=True) + "\n").encode()
+                manifest_path.write_bytes(stale_bytes)
+
+                checker_observations = []
+
+                def checker(project, exports):
+                    manifest_path.write_bytes(current)
+                    try:
+                        checker_observations.append(
+                            manifest_path.read_bytes() == current
+                        )
+                    finally:
+                        manifest_path.write_bytes(stale_bytes)
+
+                case_output = self.root / f"aba-{field}-{stale_value[:8]}"
+                try:
+                    with self.assertRaisesRegex(
+                        RuntimeError, "manifest|recipe|KiCad|toolchain|stale"
+                    ):
+                        self.export(
+                            output=case_output,
+                            current_exports_checker=checker,
+                        )
+                finally:
+                    manifest_path.write_bytes(current)
+                self.assertFalse(
+                    (case_output / "pocket-card-controller.zip").exists()
+                )
+                self.assertTrue(checker_observations)
+                self.assertTrue(all(checker_observations))
+
+    def test_exact_snapshotted_toolchain_schema_is_enforced(self):
+        toolchain = self.project / "toolchain.json"
+        toolchain.write_bytes(
+            b'{"schemaVersion":1,"project":"another_project",'
+            b'"kicad":{"major":10,"minimum":"10.0.4"}}\n'
+        )
+        manifest_path = self.exports / "source_manifest.json"
+        manifest = json.loads(manifest_path.read_bytes())
+        manifest["projectDigest"] = project_digest(self.project)
+        manifest["policyDigest"] = _policy_digest(self.project)
+        manifest_path.write_text(
+            json.dumps(manifest, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+
+        with self.assertRaisesRegex(ValueError, "toolchain|Pocket Card|metadata"):
+            self.export()
+        self.assertFalse(
+            (self.output / "pocket-card-controller.zip").exists()
+        )
 
     def test_optional_blender_fifo_is_rejected_without_blocking(self):
         fifo = self.root / "visual.blend"
@@ -847,6 +944,144 @@ raise SystemExit(3)
         self.assertTrue(recovered.is_file())
         self.assertFalse(journal.exists())
 
+    def test_post_replace_journal_removal_failure_reports_committed_cleanup(self):
+        archive = self.export()
+        old = archive.read_bytes()
+
+        with mock.patch.object(
+            handoff_module,
+            "_remove_publication_journal",
+            side_effect=OSError("journal removal failed"),
+        ):
+            with self.assertRaisesRegex(
+                RuntimeError, "publication committed; cleanup pending"
+            ):
+                self.export(source_date_epoch=1785888002)
+
+        self.assertNotEqual(archive.read_bytes(), old)
+        self.assertTrue(
+            (self.output / ".pocket-card-controller.zip.handoff-journal.json").is_file()
+        )
+
+    def test_post_replace_journal_substitution_reports_committed_cleanup(self):
+        archive = self.export()
+        old = archive.read_bytes()
+        journal = self.output / ".pocket-card-controller.zip.handoff-journal.json"
+        remove_journal = handoff_module._remove_publication_journal
+
+        def substitute_then_remove(directory, filename, token):
+            journal.unlink()
+            journal.write_bytes(b"substituted journal evidence\n")
+            remove_journal(directory, filename, token)
+
+        with mock.patch.object(
+            handoff_module,
+            "_remove_publication_journal",
+            side_effect=substitute_then_remove,
+        ):
+            with self.assertRaisesRegex(
+                RuntimeError, "publication committed; cleanup pending"
+            ):
+                self.export(source_date_epoch=1785888002)
+
+        self.assertNotEqual(archive.read_bytes(), old)
+        self.assertEqual(journal.read_bytes(), b"substituted journal evidence\n")
+
+    def test_post_replace_cleanup_fsync_failure_reports_committed_state(self):
+        archive = self.export()
+        old = archive.read_bytes()
+        calls = 0
+
+        def fail_second_directory_fsync(descriptor):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                raise OSError("cleanup fsync failed")
+            os.fsync(descriptor)
+
+        with self.assertRaisesRegex(
+            RuntimeError, "publication committed; cleanup durability unknown"
+        ):
+            self.export(
+                source_date_epoch=1785888002,
+                directory_fsync=fail_second_directory_fsync,
+            )
+        self.assertEqual(calls, 2)
+        self.assertNotEqual(archive.read_bytes(), old)
+        self.assertFalse(
+            (self.output / ".pocket-card-controller.zip.handoff-journal.json").exists()
+        )
+
+    def test_post_replace_lock_release_failure_reports_committed_state(self):
+        archive = self.export()
+        old = archive.read_bytes()
+        real_flock = handoff_module._fcntl.flock
+
+        def fail_unlock(descriptor, operation):
+            if operation == handoff_module._fcntl.LOCK_UN:
+                raise OSError("unlock failed")
+            return real_flock(descriptor, operation)
+
+        with mock.patch.object(
+            handoff_module._fcntl,
+            "flock",
+            side_effect=fail_unlock,
+        ):
+            with self.assertRaisesRegex(
+                RuntimeError,
+                "publication committed; post-commit finalization failed",
+            ):
+                self.export(source_date_epoch=1785888002)
+        self.assertNotEqual(archive.read_bytes(), old)
+
+    def test_recovery_refuses_unknown_destination_after_committed_failure(self):
+        archive = self.export()
+
+        def fail_directory_fsync(descriptor):
+            raise OSError("directory fsync failed")
+
+        with self.assertRaisesRegex(
+            RuntimeError, "publication committed; durability unknown"
+        ):
+            self.export(
+                source_date_epoch=1785888002,
+                directory_fsync=fail_directory_fsync,
+            )
+        journal = self.output / ".pocket-card-controller.zip.handoff-journal.json"
+        self.assertTrue(journal.is_file())
+
+        archive.unlink()
+        archive.write_bytes(b"unknown substituted destination\n")
+        substituted_inode = archive.stat().st_ino
+
+        with self.assertRaisesRegex(
+            RuntimeError, "destination|archive|ownership|substitut|recovery"
+        ):
+            self.export(source_date_epoch=1785888004)
+        self.assertEqual(archive.read_bytes(), b"unknown substituted destination\n")
+        self.assertEqual(archive.stat().st_ino, substituted_inode)
+        self.assertTrue(journal.is_file())
+
+    def test_recovery_accepts_absent_prior_destination(self):
+        class SimulatedCrash(BaseException):
+            pass
+
+        with self.assertRaises(SimulatedCrash):
+            self.export(
+                before_publish=lambda: (_ for _ in ()).throw(SimulatedCrash())
+            )
+        self.assertFalse(
+            (self.output / "pocket-card-controller.zip").exists()
+        )
+        recovered = self.export(source_date_epoch=1785888004)
+        self.assertTrue(recovered.is_file())
+        self.assertEqual(
+            list(self.output.glob(".pocket-card-controller.zip.*.tmp")), []
+        )
+        self.assertFalse(
+            (self.output / ".pocket-card-controller.zip.handoff-journal.json").exists()
+        )
+
     def test_abrupt_crash_complete_temp_is_recovered_before_next_export(self):
         archive = self.export()
         old = archive.read_bytes()
@@ -902,6 +1137,32 @@ raise SystemExit(3)
             self.export()
         self.assertEqual(victim.read_bytes(), b"victim\n")
         self.assertTrue(journal.is_symlink())
+
+    def test_recovery_refuses_completed_temp_rewritten_through_same_inode(self):
+        class SimulatedCrash(BaseException):
+            pass
+
+        with self.assertRaises(SimulatedCrash):
+            self.export(
+                before_publish=lambda: (_ for _ in ()).throw(SimulatedCrash())
+            )
+        temporary = next(
+            self.output.glob(".pocket-card-controller.zip.*.tmp")
+        )
+        inode = temporary.stat().st_ino
+        with temporary.open("r+b", buffering=0) as stream:
+            original = stream.read(1)
+            stream.seek(0)
+            stream.write(bytes([original[0] ^ 0xFF]))
+            os.fsync(stream.fileno())
+        self.assertEqual(temporary.stat().st_ino, inode)
+
+        with self.assertRaisesRegex(RuntimeError, "content|hash|substitut"):
+            self.export(source_date_epoch=1785888004)
+        self.assertEqual(temporary.stat().st_ino, inode)
+        self.assertTrue(
+            (self.output / ".pocket-card-controller.zip.handoff-journal.json").is_file()
+        )
 
     def test_concurrent_publishers_are_serialized_by_variant_lock(self):
         active = 0
