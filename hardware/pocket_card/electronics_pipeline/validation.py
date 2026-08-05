@@ -1469,6 +1469,10 @@ def _publish_reports(
 ) -> None:
     """Serialize and atomically publish one crash-recoverable report set."""
 
+    if _fcntl is None:
+        raise OSError(
+            "transactional report publication requires POSIX fcntl locking"
+        )
     output_dir.parent.mkdir(parents=True, exist_ok=True)
     journal_path = output_dir.parent / f".{output_dir.name}.transaction.json"
     with _publication_lock(output_dir):

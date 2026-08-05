@@ -431,6 +431,9 @@ class PublicationTest(unittest.TestCase):
         self.assertFalse(self.output.exists())
 
     def test_missing_fcntl_backend_only_disables_report_publication(self):
+        missing_tree = self.parent / "missing" / "nested"
+        output = missing_tree / "reports"
+        self.assertFalse(missing_tree.parent.exists())
         with mock.patch.object(validation_module, "_fcntl", None, create=True):
             with expected_policy_for():
                 classified = classify_reports(
@@ -442,9 +445,8 @@ class PublicationTest(unittest.TestCase):
                 OSError,
                 "transactional report publication requires POSIX fcntl locking",
             ):
-                _publish_reports(self.output, self.reports, self.result)
-        self.assertFalse(self.output.exists())
-        self.assertEqual(self.temporary_siblings(), ())
+                _publish_reports(output, self.reports, self.result)
+        self.assertFalse(missing_tree.parent.exists())
 
     def test_failure_after_old_directory_rename_restores_exact_original(self):
         original = self.populate_original()
