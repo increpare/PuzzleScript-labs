@@ -1649,16 +1649,29 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--project-dir", type=Path, default=ELECTRONICS_DIR)
     parser.add_argument("--output-dir", type=Path, default=PCB_OUTPUT_DIR)
+    parser.add_argument(
+        "--check-current",
+        action="store_true",
+        help="read-only check that existing PCB exports match current inputs",
+    )
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
-        result = export_outputs(args.project_dir, args.output_dir)
+        if args.check_current:
+            require_current_exports(args.project_dir, args.output_dir)
+            result = None
+        else:
+            result = export_outputs(args.project_dir, args.output_dir)
     except (OSError, RuntimeError, UnicodeError, ValueError, ValidationError) as error:
         print(f"ERROR: {_bounded_stream(_sanitize_diagnostic(error))}")
         return 1
+    if args.check_current:
+        print(f"PASS\n- PCB exports are current: {args.output_dir}")
+        return 0
+    assert result is not None
     print(f"PASS\n- exported {result.output_dir}")
     return 0
 

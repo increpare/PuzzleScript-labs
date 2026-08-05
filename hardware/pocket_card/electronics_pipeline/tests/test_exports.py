@@ -488,6 +488,142 @@ class ExportOutputsTest(unittest.TestCase):
             self.assertTrue(all(not name.startswith("/") and ".." not in Path(name).parts for name in archive.namelist()))
 
 
+class ExportCliTest(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name)
+        self.project = self.root / "electronics"
+        self.project.mkdir()
+        (self.project / "toolchain.json").write_text(
+            json.dumps(
+                {
+                    "schemaVersion": 1,
+                    "project": PROJECT_NAME,
+                    "kicad": {"major": 10, "minimum": "10.0.4"},
+                }
+            ),
+            encoding="utf-8",
+        )
+        (self.project / "mechanical_contract.json").write_text(
+            "{}\n", encoding="utf-8"
+        )
+        (self.project / "validation_waivers.json").write_text(
+            '{"schemaVersion":1,"groups":[]}\n', encoding="utf-8"
+        )
+        (self.project / "fp-lib-table").write_text(
+            "(fp_lib_table (version 7))\n", encoding="utf-8"
+        )
+        (self.project / f"{PROJECT_NAME}.kicad_pro").write_text(
+            "{}\n", encoding="utf-8"
+        )
+        (self.project / f"{PROJECT_NAME}.kicad_sch").write_text(
+            "(kicad_sch)\n", encoding="utf-8"
+        )
+        (self.project / f"{PROJECT_NAME}.kicad_pcb").write_text(
+            "(kicad_pcb (general (thickness 1.6)))\n", encoding="utf-8"
+        )
+        self.output = self.root / "pcb"
+
+    def run_export(self):
+        return export_outputs(
+            self.project,
+            self.output,
+            runner=FakeRunner(self.project),
+            validator=FakeValidator(),
+        )
+
+    def test_check_current_succeeds_read_only_without_export_or_validation(self):
+        self.run_export()
+        project_before = _tree_snapshot(self.project)
+        output_before = _tree_snapshot(self.output)
+        with mock.patch.object(exports_module, "export_outputs") as export, mock.patch.object(
+            exports_module, "validate_project"
+        ) as validate, mock.patch.object(
+            exports_module.subprocess, "run"
+        ) as runner, mock.patch(
+            "builtins.print"
+        ) as printed:
+            status = exports_module.main(
+                [
+                    "--check-current",
+                    "--project-dir",
+                    str(self.project),
+                    "--output-dir",
+                    str(self.output),
+                ]
+            )
+        self.assertEqual(status, 0)
+        export.assert_not_called()
+        validate.assert_not_called()
+        runner.assert_not_called()
+        printed.assert_called_once_with(
+            f"PASS\n- PCB exports are current: {self.output}"
+        )
+        self.assertEqual(_tree_snapshot(self.project), project_before)
+        self.assertEqual(_tree_snapshot(self.output), output_before)
+
+    def test_check_current_stale_fails_actionably_without_export_or_writes(self):
+        self.run_export()
+        board = self.project / f"{PROJECT_NAME}.kicad_pcb"
+        board.write_text(board.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+        project_before = _tree_snapshot(self.project)
+        output_before = _tree_snapshot(self.output)
+        with mock.patch.object(exports_module, "export_outputs") as export, mock.patch.object(
+            exports_module, "validate_project"
+        ) as validate, mock.patch.object(
+            exports_module.subprocess, "run"
+        ) as runner, mock.patch(
+            "builtins.print"
+        ) as printed:
+            status = exports_module.main(
+                [
+                    "--check-current",
+                    "--project-dir",
+                    str(self.project),
+                    "--output-dir",
+                    str(self.output),
+                ]
+            )
+        self.assertEqual(status, 1)
+        export.assert_not_called()
+        validate.assert_not_called()
+        runner.assert_not_called()
+        printed.assert_called_once_with(f"ERROR: {REQUIRED_CURRENT_ERROR}")
+        self.assertEqual(_tree_snapshot(self.project), project_before)
+        self.assertEqual(_tree_snapshot(self.output), output_before)
+
+    def test_default_cli_behavior_still_exports(self):
+        result = ExportResult(
+            project_digest="1" * 64,
+            output_dir=self.output,
+            step_path=self.output / f"{PROJECT_NAME}.step",
+            stl_path=self.output / f"{PROJECT_NAME}.stl",
+            schematic_pdf_path=self.output / f"{PROJECT_NAME}.pdf",
+            gerber_zip_path=self.output / f"{PROJECT_NAME}_gerbers.zip",
+            manifest_path=self.output / "source_manifest.json",
+        )
+        with mock.patch.object(
+            exports_module, "export_outputs", return_value=result
+        ) as export, mock.patch.object(
+            exports_module, "require_current_exports"
+        ) as check_current, mock.patch(
+            "builtins.print"
+        ) as printed:
+            status = exports_module.main(
+                [
+                    "--project-dir",
+                    str(self.project),
+                    "--output-dir",
+                    str(self.output),
+                ]
+            )
+        self.assertEqual(status, 0)
+        export.assert_called_once_with(self.project, self.output)
+        check_current.assert_not_called()
+        printed.assert_called_once_with(f"PASS\n- exported {self.output}")
+
+
 class ExportPublicationTest(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
