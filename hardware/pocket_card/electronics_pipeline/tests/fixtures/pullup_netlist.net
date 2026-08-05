@@ -1,0 +1,20 @@
+(export
+  (version "E")
+  (components
+    (comp
+      (ref "R99")
+      (value "10k")
+      (footprint "Resistor_SMD:R_0402_1005Metric")
+      (fields
+        (field (name "Footprint") "Resistor_SMD:R_0402_1005Metric")
+        (field (name "Tolerance") "1%"))
+      (tstamps "11111111-2222-4333-8444-555555555555")))
+  (nets
+    (net
+      (code "1")
+      (name "/+3V3")
+      (node (ref "R99") (pin "1")))
+    (net
+      (code "2")
+      (name "/SIG_ACTION")
+      (node (ref "R99") (pin "2")))))
