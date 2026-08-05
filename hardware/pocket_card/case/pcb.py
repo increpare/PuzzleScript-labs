@@ -94,6 +94,28 @@ def set_footprint_uuid(footprint, ref, pcbnew_module):
         ) from error
 
 
+def set_footprint_path(footprint, ref, pcbnew_module):
+    """Link a board footprint to its schematic symbol through KiCad's path."""
+    setter = getattr(footprint, "SetPath", None)
+    if not callable(setter):
+        raise RuntimeError(
+            "cannot link %s to its schematic symbol: pcbnew footprint "
+            "does not expose SetPath" % ref)
+
+    kiid_path = getattr(pcbnew_module, "KIID_PATH", None)
+    if not callable(kiid_path):
+        raise RuntimeError(
+            "cannot link %s to its schematic symbol: pcbnew.KIID_PATH "
+            "is unavailable" % ref)
+    try:
+        setter(kiid_path("/" + C.component_uuid(ref)))
+    except Exception as error:
+        raise RuntimeError(
+            "cannot link %s to its schematic symbol via pcbnew: %s" %
+            (ref, error)
+        ) from error
+
+
 def _mod_path(lib, name):
     return os.path.join(FP_ROOT, lib + ".pretty", name + ".kicad_mod")
 
@@ -236,6 +258,7 @@ def footprint_sexpr(lib, name, x, y, ref, rot=0, back=False):
         '\t(footprint "%s"' % name,
         '\t\t(layer "%s")' % layer,
         '\t\t(uuid "%s")' % C.component_uuid(ref),
+        '\t\t(path "/%s")' % C.component_uuid(ref),
         '\t\t%s' % at,
     ]
     for ln in body:
@@ -521,6 +544,7 @@ def build_pcbnew():
             fp.Flip(fp.GetPosition(), False)
         fp.SetReference(ref)
         set_footprint_uuid(fp, ref, pcbnew)
+        set_footprint_path(fp, ref, pcbnew)
         board.Add(fp)
         return fp
 

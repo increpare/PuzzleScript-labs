@@ -9,8 +9,9 @@ for a production decision.
 ## Sources, generated output, and tests
 
 - `connectivity.json` is the canonical electrical contract: component identity,
-  footprints and UUIDs, pin-to-net connections, no-connects, and the one allowed
-  board-only mechanical-pad rule. Make electrical changes here.
+  footprints and schematic symbol UUIDs, pin-to-net connections, no-connects,
+  and the one allowed board-only mechanical-pad rule. Make electrical changes
+  here.
 - `validate_connectivity.js` enforces that contract. Running it directly checks
   the frozen canonical model and reports its component and net counts.
 - `generate_kicad.js` deterministically writes
@@ -60,23 +61,26 @@ authoritative live routed board instead:
 POCKET_CARD_BOARD=/absolute/path/to/hardware/pocket_card/case/out/pcb/pocket_card_controller.kicad_pcb make pocket_card_schematic_tests
 ```
 
-When board parity passes, generated model symbols and the existing routed-board
-footprints share UUIDs. KiCad should therefore retain their links directly;
-reference-based reconciliation in the GUI is a first-legacy-link fallback and
-sanity check, not a routine regeneration step.
+When board parity passes, every routed-board footprint carries a KiCad `path`
+to its generated schematic symbol UUID. This `path`, rather than the
+footprint's own UUID, is the association used by **Update PCB from Schematic**
+and **Update Schematic from PCB**. Reference-based reconciliation is only a
+recovery fallback for an older board that predates these checked-in paths.
 
 ## Electrical-change and KiCad workflow
 
 1. Edit `connectivity.json` for electrical changes.
 2. Run `make pocket_card_kicad`.
 3. Open `hardware/pocket_card/case/out/pcb/pocket_card_controller.kicad_pro`.
-4. For the first legacy reconciliation only, choose **Update PCB from
-   Schematic**, enable reference-based relinking, disable footprint replacement,
-   and disable deletion of unmatched footprints.
+4. Choose **Update PCB from Schematic** with reference-based relinking off,
+   footprint replacement off, and deletion of unmatched footprints off.
 5. Verify the preview contains no added, deleted, or moved footprints. Apply the
    update and save the project. If it shows any such change, cancel and resolve
    the model/board mismatch first.
-6. On every later update, leave reference-based relinking **off**.
+6. If an older board reports footprints with no assigned symbols, cancel the
+   update and run the board-parity test. Reference-based relinking may be used
+   once to recover such a legacy board, but the repaired board must then be
+   saved with all 17 schematic paths and pass parity.
 7. Run schematic ERC and PCB DRC before manufacture, and resolve or consciously
    disposition every result alongside the electrical audit.
 

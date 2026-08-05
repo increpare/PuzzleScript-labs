@@ -15,7 +15,9 @@ assert.strictEqual(Object.keys(footprints).length, 17,
 assert.deepStrictEqual(V.compareBoard(V.model, footprints), []);
 Object.keys(components).forEach(function (ref) {
     assert.strictEqual(footprints[ref].uuid, components[ref].uuid,
-        ref + " schematic UUID must exactly link to its PCB footprint UUID");
+        ref + " top-level PCB footprint UUID must match the canonical model");
+    assert.strictEqual(footprints[ref].path, "/" + components[ref].uuid,
+        ref + " PCB footprint must carry its schematic symbol path");
 });
 
 console.log("board parity OK (17 linked footprints)");

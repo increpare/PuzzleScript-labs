@@ -399,14 +399,19 @@ class HeadlessFootprintUuidTests(unittest.TestCase):
         self.assertEqual(len(placed), 17)
 
         actual = {}
+        schematic_paths = {}
         for footprint in footprints:
             refs = [item[2] for item in footprint[2:]
                     if isinstance(item, list) and item[:2] == ["property", "Reference"]]
             direct_uuids = [item[1] for item in footprint[2:]
                             if isinstance(item, list) and item[0] == "uuid"]
+            direct_paths = [item[1] for item in footprint[2:]
+                            if isinstance(item, list) and item[0] == "path"]
             self.assertEqual(len(refs), 1)
             self.assertEqual(len(direct_uuids), 1, refs[0])
+            self.assertEqual(len(direct_paths), 1, refs[0])
             actual[refs[0]] = direct_uuids[0]
+            schematic_paths[refs[0]] = direct_paths[0]
 
             nested_uuids = []
             stack = [item for item in footprint[2:]
@@ -424,6 +429,8 @@ class HeadlessFootprintUuidTests(unittest.TestCase):
         expected = {item["ref"]: item["uuid"]
                     for item in C.model()["components"]}
         self.assertEqual(actual, expected)
+        self.assertEqual(schematic_paths,
+                         {ref: "/" + value for ref, value in expected.items()})
 
 
 class OptionalPcbnewUuidTests(unittest.TestCase):
@@ -453,6 +460,24 @@ class OptionalPcbnewUuidTests(unittest.TestCase):
         footprint = Footprint()
         pcb.set_footprint_uuid(footprint, "SW_UP", fake_pcbnew)
         self.assertEqual(footprint.value, ("KIID", C.component_uuid("SW_UP")))
+
+    def test_schematic_path_api_receives_the_symbol_kiid_path(self):
+        class Footprint:
+            value = None
+
+            def SetPath(self, value):
+                self.value = value
+
+        fake_pcbnew = types.SimpleNamespace(
+            KIID_PATH=lambda text: ("KIID_PATH", text))
+        footprint = Footprint()
+        self.assertTrue(hasattr(pcb, "set_footprint_path"),
+                        "pcbnew generator must assign schematic link paths")
+        pcb.set_footprint_path(footprint, "U1", fake_pcbnew)
+        self.assertEqual(
+            footprint.value,
+            ("KIID_PATH", "/" + C.component_uuid("U1")),
+        )
 
     def test_missing_uuid_setter_fails_before_a_board_can_be_returned(self):
         fake_pcbnew = types.SimpleNamespace(KIID=lambda text: ("KIID", text))

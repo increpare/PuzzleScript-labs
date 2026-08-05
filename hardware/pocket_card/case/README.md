@@ -55,6 +55,8 @@ geometry. `../schematic/connectivity.json` is the canonical electrical source,
 and the deterministic generator writes
 `out/pcb/pocket_card_controller.kicad_sch`. Board parity checks the JSON's net
 mapping and component UUIDs against the existing routed PCB.
+It also requires every footprint's KiCad schematic `path`, so Update PCB from
+Schematic does not treat routed footprints as board-only objects.
 
 Run these from the repository root:
 

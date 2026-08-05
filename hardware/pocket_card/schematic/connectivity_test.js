@@ -427,6 +427,7 @@ var BOARD_PARSER_FIXTURE = [
     '    (property "Reference" "SW_UP"',
     '      (uuid "nested-property-uuid"))',
     '    (uuid "sw-up-top-level-uuid")',
+    '    (path "/uuid-sw-up")',
     '    (pad "1" smd rect (net 10 "SIG_UP") (uuid "pad-one-a"))',
     '    (pad "1" smd rect (net 10 "SIG_UP") (uuid "pad-one-b"))',
     '    (pad "2" smd rect (net 1 "GND"))',
@@ -465,10 +466,12 @@ function comparisonFootprints() {
     return {
         U1: {
             uuid: "uuid-u1",
+            path: "/uuid-u1",
             pads: [{ number: "1", net: "SIG_UP" }, { number: "2", net: null }]
         },
         SW_UP: {
             uuid: "uuid-sw-up",
+            path: "/uuid-sw-up",
             pads: [
                 { number: "1", net: "SIG_UP" }, { number: "1", net: "SIG_UP" },
                 { number: "2", net: null }, { number: "2", net: null }
@@ -476,10 +479,12 @@ function comparisonFootprints() {
         },
         SW_MUTE: {
             uuid: "uuid-sw-mute",
+            path: "/uuid-sw-mute",
             pads: [{ number: "", net: "GND" }, { number: "", net: "GND" }]
         },
         J_I2C: {
             uuid: "uuid-j-i2c",
+            path: "/uuid-j-i2c",
             pads: [
                 { number: "1", net: null },
                 { number: "MP", net: "GND" }, { number: "MP", net: "GND" }
@@ -507,6 +512,7 @@ test("balanced board blocks ignore parentheses and escapes inside quoted strings
 test("board parser keeps the top-level UUID and both duplicate SKQG pad instances", function () {
     var footprints = V.parseBoardFootprints(BOARD_PARSER_FIXTURE);
     assert.strictEqual(footprints.SW_UP.uuid, "sw-up-top-level-uuid");
+    assert.strictEqual(footprints.SW_UP.path, "/uuid-sw-up");
     assert.deepStrictEqual(footprints.SW_UP.pads.filter(function (pad) {
         return pad.number === "1";
     }), [
@@ -708,6 +714,18 @@ test("board comparison reports exact UUID mismatches", function () {
         /J_I2C UUID expected uuid-j-i2c, found wrong-uuid/);
 });
 
+test("board comparison reports missing and incorrect schematic link paths", function () {
+    var footprints = comparisonFootprints();
+    footprints.J_I2C.path = null;
+    assertBoardError(comparisonModel(), footprints,
+        /J_I2C schematic path expected \/uuid-j-i2c, found missing/);
+
+    footprints = comparisonFootprints();
+    footprints.J_I2C.path = "/wrong-symbol";
+    assertBoardError(comparisonModel(), footprints,
+        /J_I2C schematic path expected \/uuid-j-i2c, found \/wrong-symbol/);
+});
+
 test("board comparison rejects nets on no-connect and otherwise absent pads", function () {
     var footprints = comparisonFootprints();
     footprints.U1.pads[1].net = "SIG_UNEXPECTED";
@@ -725,8 +743,8 @@ test("mounting-hole footprints allow only unnumbered unconnected mechanical pads
         boardOnlyPadRules: []
     };
     var footprints = {
-        H1: { uuid: "uuid-h1", pads: [{ number: "", net: null }] },
-        H2: { uuid: "uuid-h2", pads: [{ number: "", net: null }] }
+        H1: { uuid: "uuid-h1", path: "/uuid-h1", pads: [{ number: "", net: null }] },
+        H2: { uuid: "uuid-h2", path: "/uuid-h2", pads: [{ number: "", net: null }] }
     };
     assert.deepStrictEqual(V.compareBoard(model, footprints), []);
 
@@ -744,7 +762,7 @@ test("mounting-hole pads reject nets even when a board-only rule declares them",
         ]
     };
     var footprints = {
-        H1: { uuid: "uuid-h1", pads: [{ number: "", net: "CHASSIS" }] }
+        H1: { uuid: "uuid-h1", path: "/uuid-h1", pads: [{ number: "", net: "CHASSIS" }] }
     };
     assertBoardError(model, footprints,
         /H1 pad <empty> expected unconnected, found CHASSIS/);

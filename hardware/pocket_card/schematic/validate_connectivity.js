@@ -583,6 +583,7 @@ function directChildBlocks(block) {
 function parseFootprintBlock(block, boardIndex) {
     var children = directChildBlocks(block);
     var uuid = null;
+    var schematicPath = null;
     var ref = null;
     var pads = [];
 
@@ -591,6 +592,9 @@ function parseFootprintBlock(block, boardIndex) {
         if (child.name === "uuid" && uuid === null) {
             atoms = expressionAtoms(child.text, 2);
             uuid = atoms.length > 1 ? atoms[1] : null;
+        } else if (child.name === "path" && schematicPath === null) {
+            atoms = expressionAtoms(child.text, 2);
+            schematicPath = atoms.length > 1 ? atoms[1] : null;
         } else if (child.name === "property" && ref === null) {
             atoms = expressionAtoms(child.text, 3);
             if (atoms[1] === "Reference") {
@@ -621,7 +625,7 @@ function parseFootprintBlock(block, boardIndex) {
     if (uuid === null || uuid.length === 0) {
         throw new Error("board footprint " + ref + " is missing a top-level UUID");
     }
-    return { ref: ref, uuid: uuid, pads: pads };
+    return { ref: ref, uuid: uuid, path: schematicPath, pads: pads };
 }
 
 function parseBoardFootprints(boardText) {
@@ -656,6 +660,7 @@ function parseBoardFootprints(boardText) {
         }
         footprints[footprint.ref] = {
             uuid: footprint.uuid,
+            path: footprint.path,
             pads: footprint.pads
         };
     });
@@ -738,6 +743,12 @@ function compareBoard(candidate, footprints) {
         if (footprint.uuid !== component.uuid) {
             errors.push(ref + " UUID expected " + component.uuid + ", found " +
                 (footprint.uuid === undefined || footprint.uuid === null ? "missing" : footprint.uuid));
+        }
+        var expectedPath = "/" + component.uuid;
+        if (footprint.path !== expectedPath) {
+            errors.push(ref + " schematic path expected " + expectedPath + ", found " +
+                (footprint.path === undefined || footprint.path === null || footprint.path === "" ?
+                    "missing" : footprint.path));
         }
         var pads = Array.isArray(footprint.pads) ? footprint.pads : [];
         var connectedPads = connectedByRef.get(ref) || new Map();
