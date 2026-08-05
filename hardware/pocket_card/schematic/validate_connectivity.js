@@ -18,9 +18,9 @@ var model = deepFreeze(JSON.parse(fs.readFileSync(connectivityPath, "utf8")));
 
 var REQUIRED_REFS = [
     "U1",
-    "SW_UP", "SW_DOWN", "SW_LEFT", "SW_RIGHT", "SW_UNDO", "SW_ACTION", "SW_RESET", "SW_MENU",
-    "SW_PWR", "SW_MUTE",
-    "J_I2C", "J_EXP", "J_BAT_IN", "J_BAT_OUT",
+    "SW_UP1", "SW_DOWN1", "SW_LEFT1", "SW_RIGHT1", "SW_UNDO1", "SW_ACTION1", "SW_RESET1", "SW_MENU1",
+    "SW_PWR1", "SW_MUTE1",
+    "J_I2C1", "J_EXP1", "J_BAT_IN1", "J_BAT_OUT1",
     "H1", "H2"
 ];
 
@@ -34,20 +34,20 @@ var CANONICAL_META_FIELDS = new Set(Object.keys(CANONICAL_META));
 
 var CANONICAL_COMPONENTS = new Map([
     ["U1", ["MCP23017-E/SO", "Package_SO:SOIC-28W_7.5x17.9mm_P1.27mm", "f2abe43b-79ce-4f91-a34f-27e849a4046d", "MCP23017"]],
-    ["SW_UP", ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "0e4c7620-48d6-4920-a112-21a3249bfba7", "TACT"]],
-    ["SW_DOWN", ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "5abed186-9cb3-4286-abbb-e9d8339a14ad", "TACT"]],
-    ["SW_LEFT", ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "62cee17b-aa96-44b5-a818-d88c4d4bf07a", "TACT"]],
-    ["SW_RIGHT", ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "a1ddb411-d507-48b9-af26-f860c81613ad", "TACT"]],
-    ["SW_UNDO", ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "54709c66-66ed-4fc3-bb15-0ec33ecd272f", "TACT"]],
-    ["SW_ACTION", ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "2d954156-91bb-4370-a6cb-35be5c7ff576", "TACT"]],
-    ["SW_RESET", ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "366484ad-06ff-4a23-ab3f-f69d88ea88ca", "TACT"]],
-    ["SW_MENU", ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "82a0ed80-77a0-40cf-a208-39cca4201c6b", "TACT"]],
-    ["SW_PWR", ["PCM12SMTR", "Button_Switch_SMD:SW_SPDT_PCM12", "6ef5c169-59a4-41dd-a19c-3daf87f107fd", "SLIDE"]],
-    ["SW_MUTE", ["PCM12SMTR", "Button_Switch_SMD:SW_SPDT_PCM12", "3e016402-85c6-43ed-a254-0f878d988740", "SLIDE"]],
-    ["J_I2C", ["WAFER-GH1.25-4PWB", "Connector_JST:JST_GH_SM04B-GHS-TB_1x04-1MP_P1.25mm_Horizontal", "8448c040-e282-4175-89bf-5bdbe34ce139", "JST4"]],
-    ["J_EXP", ["WAFER-GH1.25-4PWB", "Connector_JST:JST_GH_SM04B-GHS-TB_1x04-1MP_P1.25mm_Horizontal", "46493532-cedd-425e-a83b-150b6baf58c7", "JST4"]],
-    ["J_BAT_IN", ["WAFER-GH1.25-2PWB", "Connector_JST:JST_GH_SM02B-GHS-TB_1x02-1MP_P1.25mm_Horizontal", "9b63372c-f11f-42f2-b30e-7cc0cd058c1f", "JST2"]],
-    ["J_BAT_OUT", ["WAFER-GH1.25-2PWB", "Connector_JST:JST_GH_SM02B-GHS-TB_1x02-1MP_P1.25mm_Horizontal", "57d0226d-8795-4ef7-a0c1-66e4f791f8c0", "JST2"]],
+    ["SW_UP1", ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "0e4c7620-48d6-4920-a112-21a3249bfba7", "TACT"]],
+    ["SW_DOWN1", ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "5abed186-9cb3-4286-abbb-e9d8339a14ad", "TACT"]],
+    ["SW_LEFT1", ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "62cee17b-aa96-44b5-a818-d88c4d4bf07a", "TACT"]],
+    ["SW_RIGHT1", ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "a1ddb411-d507-48b9-af26-f860c81613ad", "TACT"]],
+    ["SW_UNDO1", ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "54709c66-66ed-4fc3-bb15-0ec33ecd272f", "TACT"]],
+    ["SW_ACTION1", ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "2d954156-91bb-4370-a6cb-35be5c7ff576", "TACT"]],
+    ["SW_RESET1", ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "366484ad-06ff-4a23-ab3f-f69d88ea88ca", "TACT"]],
+    ["SW_MENU1", ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "82a0ed80-77a0-40cf-a208-39cca4201c6b", "TACT"]],
+    ["SW_PWR1", ["PCM12SMTR", "Button_Switch_SMD:SW_SPDT_PCM12", "6ef5c169-59a4-41dd-a19c-3daf87f107fd", "SLIDE"]],
+    ["SW_MUTE1", ["PCM12SMTR", "Button_Switch_SMD:SW_SPDT_PCM12", "3e016402-85c6-43ed-a254-0f878d988740", "SLIDE"]],
+    ["J_I2C1", ["WAFER-GH1.25-4PWB", "Connector_JST:JST_GH_SM04B-GHS-TB_1x04-1MP_P1.25mm_Horizontal", "8448c040-e282-4175-89bf-5bdbe34ce139", "JST4"]],
+    ["J_EXP1", ["WAFER-GH1.25-4PWB", "Connector_JST:JST_GH_SM04B-GHS-TB_1x04-1MP_P1.25mm_Horizontal", "46493532-cedd-425e-a83b-150b6baf58c7", "JST4"]],
+    ["J_BAT_IN1", ["WAFER-GH1.25-2PWB", "Connector_JST:JST_GH_SM02B-GHS-TB_1x02-1MP_P1.25mm_Horizontal", "9b63372c-f11f-42f2-b30e-7cc0cd058c1f", "JST2"]],
+    ["J_BAT_OUT1", ["WAFER-GH1.25-2PWB", "Connector_JST:JST_GH_SM02B-GHS-TB_1x02-1MP_P1.25mm_Horizontal", "57d0226d-8795-4ef7-a0c1-66e4f791f8c0", "JST2"]],
     ["H1", ["MountingHole_2.7mm_M2.5", "MountingHole:MountingHole_2.7mm_M2.5", "3dd44c71-4aac-49f5-81ec-108b40379bb0", "MOUNT"]],
     ["H2", ["MountingHole_2.7mm_M2.5", "MountingHole:MountingHole_2.7mm_M2.5", "023c2f5f-b5bd-4271-830c-e37e2934b255", "MOUNT"]]
 ]);
@@ -67,31 +67,31 @@ var FIXED_PIN_NETS = {
     "U1.18": "+3V3", "U1.20": "INT", "U1.21": "SIG_DOWN", "U1.22": "SIG_RESET",
     "U1.23": "SIG_MENU", "U1.24": "SIG_LEFT", "U1.25": "SIG_RIGHT",
     "U1.26": "SIG_UNDO", "U1.27": "SIG_MUTE", "U1.28": "SIG_ACTION",
-    "J_I2C.1": "+3V3", "J_I2C.2": "GND", "J_I2C.3": "SCL", "J_I2C.4": "SDA",
-    "J_I2C.MP": "GND", "J_EXP.1": "INT", "J_EXP.MP": "GND",
-    "J_BAT_IN.1": "BAT_P", "J_BAT_IN.2": "GND", "J_BAT_IN.MP": "GND",
-    "J_BAT_OUT.1": "BAT_SW", "J_BAT_OUT.2": "GND", "J_BAT_OUT.MP": "GND",
-    "SW_UP.1": "SIG_UP", "SW_UP.2": "GND",
-    "SW_DOWN.1": "SIG_DOWN", "SW_DOWN.2": "GND",
-    "SW_LEFT.1": "SIG_LEFT", "SW_LEFT.2": "GND",
-    "SW_RIGHT.1": "SIG_RIGHT", "SW_RIGHT.2": "GND",
-    "SW_UNDO.1": "SIG_UNDO", "SW_UNDO.2": "GND",
-    "SW_ACTION.1": "SIG_ACTION", "SW_ACTION.2": "GND",
-    "SW_RESET.1": "SIG_RESET", "SW_RESET.2": "GND",
-    "SW_MENU.1": "SIG_MENU", "SW_MENU.2": "GND",
-    "SW_MUTE.1": "SIG_MUTE", "SW_MUTE.2": "GND", "SW_MUTE.3": "GND",
-    "SW_PWR.1": "BAT_SW", "SW_PWR.2": "BAT_P"
+    "J_I2C1.1": "+3V3", "J_I2C1.2": "GND", "J_I2C1.3": "SCL", "J_I2C1.4": "SDA",
+    "J_I2C1.MP": "GND", "J_EXP1.1": "INT", "J_EXP1.MP": "GND",
+    "J_BAT_IN1.1": "BAT_P", "J_BAT_IN1.2": "GND", "J_BAT_IN1.MP": "GND",
+    "J_BAT_OUT1.1": "BAT_SW", "J_BAT_OUT1.2": "GND", "J_BAT_OUT1.MP": "GND",
+    "SW_UP1.1": "SIG_UP", "SW_UP1.2": "GND",
+    "SW_DOWN1.1": "SIG_DOWN", "SW_DOWN1.2": "GND",
+    "SW_LEFT1.1": "SIG_LEFT", "SW_LEFT1.2": "GND",
+    "SW_RIGHT1.1": "SIG_RIGHT", "SW_RIGHT1.2": "GND",
+    "SW_UNDO1.1": "SIG_UNDO", "SW_UNDO1.2": "GND",
+    "SW_ACTION1.1": "SIG_ACTION", "SW_ACTION1.2": "GND",
+    "SW_RESET1.1": "SIG_RESET", "SW_RESET1.2": "GND",
+    "SW_MENU1.1": "SIG_MENU", "SW_MENU1.2": "GND",
+    "SW_MUTE1.1": "SIG_MUTE", "SW_MUTE1.2": "GND", "SW_MUTE1.3": "GND",
+    "SW_PWR1.1": "BAT_SW", "SW_PWR1.2": "BAT_P"
 };
 
 var FIXED_NO_CONNECTS = {
     U1: ["2", "3", "4", "5", "6", "7", "8", "11", "14", "19"],
-    J_EXP: ["2", "3", "4"],
-    SW_PWR: ["3"]
+    J_EXP1: ["2", "3", "4"],
+    SW_PWR1: ["3"]
 };
 var FIXED_NO_CONNECT_REFS = new Set(Object.keys(FIXED_NO_CONNECTS));
 
 var CANONICAL_BOARD_ONLY_PAD_RULE = {
-    ref: "SW_MUTE",
+    ref: "SW_MUTE1",
     pad: "",
     net: "GND",
     reason: "existing mechanical-pad grounding"
@@ -165,6 +165,10 @@ function validateConnectivity(candidate) {
                 errors.push("component at index " + index + " requires non-empty " + field);
             }
         });
+        if (typeof component.ref === "string" && !/[0-9]$/.test(component.ref)) {
+            errors.push("component reference " + component.ref +
+                " is not fully annotated; ordinary references must end in a digit");
+        }
         if (typeof component.ref === "string") {
             if (byRef.has(component.ref)) {
                 errors.push("duplicate component ref " + component.ref);
@@ -368,7 +372,7 @@ function validateConnectivity(candidate) {
         if (Object.keys(CANONICAL_BOARD_ONLY_PAD_RULE).some(function (field) {
             return rule[field] !== CANONICAL_BOARD_ONLY_PAD_RULE[field];
         })) {
-            errors.push("boardOnlyPadRules[" + index + "] must match the canonical SW_MUTE empty-pad GND rule");
+            errors.push("boardOnlyPadRules[" + index + "] must match the canonical SW_MUTE1 empty-pad GND rule");
         }
     });
 

@@ -14,98 +14,98 @@
       "symbol": "MCP23017"
     },
     {
-      "ref": "SW_UP",
+      "ref": "SW_UP1",
       "value": "SKQGABE010",
       "footprint": "Button_Switch_SMD:SW_SPST_SKQG_WithStem",
       "uuid": "0e4c7620-48d6-4920-a112-21a3249bfba7",
       "symbol": "TACT"
     },
     {
-      "ref": "SW_DOWN",
+      "ref": "SW_DOWN1",
       "value": "SKQGABE010",
       "footprint": "Button_Switch_SMD:SW_SPST_SKQG_WithStem",
       "uuid": "5abed186-9cb3-4286-abbb-e9d8339a14ad",
       "symbol": "TACT"
     },
     {
-      "ref": "SW_LEFT",
+      "ref": "SW_LEFT1",
       "value": "SKQGABE010",
       "footprint": "Button_Switch_SMD:SW_SPST_SKQG_WithStem",
       "uuid": "62cee17b-aa96-44b5-a818-d88c4d4bf07a",
       "symbol": "TACT"
     },
     {
-      "ref": "SW_RIGHT",
+      "ref": "SW_RIGHT1",
       "value": "SKQGABE010",
       "footprint": "Button_Switch_SMD:SW_SPST_SKQG_WithStem",
       "uuid": "a1ddb411-d507-48b9-af26-f860c81613ad",
       "symbol": "TACT"
     },
     {
-      "ref": "SW_UNDO",
+      "ref": "SW_UNDO1",
       "value": "SKQGABE010",
       "footprint": "Button_Switch_SMD:SW_SPST_SKQG_WithStem",
       "uuid": "54709c66-66ed-4fc3-bb15-0ec33ecd272f",
       "symbol": "TACT"
     },
     {
-      "ref": "SW_ACTION",
+      "ref": "SW_ACTION1",
       "value": "SKQGABE010",
       "footprint": "Button_Switch_SMD:SW_SPST_SKQG_WithStem",
       "uuid": "2d954156-91bb-4370-a6cb-35be5c7ff576",
       "symbol": "TACT"
     },
     {
-      "ref": "SW_RESET",
+      "ref": "SW_RESET1",
       "value": "SKQGABE010",
       "footprint": "Button_Switch_SMD:SW_SPST_SKQG_WithStem",
       "uuid": "366484ad-06ff-4a23-ab3f-f69d88ea88ca",
       "symbol": "TACT"
     },
     {
-      "ref": "SW_MENU",
+      "ref": "SW_MENU1",
       "value": "SKQGABE010",
       "footprint": "Button_Switch_SMD:SW_SPST_SKQG_WithStem",
       "uuid": "82a0ed80-77a0-40cf-a208-39cca4201c6b",
       "symbol": "TACT"
     },
     {
-      "ref": "SW_PWR",
+      "ref": "SW_PWR1",
       "value": "PCM12SMTR",
       "footprint": "Button_Switch_SMD:SW_SPDT_PCM12",
       "uuid": "6ef5c169-59a4-41dd-a19c-3daf87f107fd",
       "symbol": "SLIDE"
     },
     {
-      "ref": "SW_MUTE",
+      "ref": "SW_MUTE1",
       "value": "PCM12SMTR",
       "footprint": "Button_Switch_SMD:SW_SPDT_PCM12",
       "uuid": "3e016402-85c6-43ed-a254-0f878d988740",
       "symbol": "SLIDE"
     },
     {
-      "ref": "J_I2C",
+      "ref": "J_I2C1",
       "value": "WAFER-GH1.25-4PWB",
       "footprint": "Connector_JST:JST_GH_SM04B-GHS-TB_1x04-1MP_P1.25mm_Horizontal",
       "uuid": "8448c040-e282-4175-89bf-5bdbe34ce139",
       "symbol": "JST4"
     },
     {
-      "ref": "J_EXP",
+      "ref": "J_EXP1",
       "value": "WAFER-GH1.25-4PWB",
       "footprint": "Connector_JST:JST_GH_SM04B-GHS-TB_1x04-1MP_P1.25mm_Horizontal",
       "uuid": "46493532-cedd-425e-a83b-150b6baf58c7",
       "symbol": "JST4"
     },
     {
-      "ref": "J_BAT_IN",
+      "ref": "J_BAT_IN1",
       "value": "WAFER-GH1.25-2PWB",
       "footprint": "Connector_JST:JST_GH_SM02B-GHS-TB_1x02-1MP_P1.25mm_Horizontal",
       "uuid": "9b63372c-f11f-42f2-b30e-7cc0cd058c1f",
       "symbol": "JST2"
     },
     {
-      "ref": "J_BAT_OUT",
+      "ref": "J_BAT_OUT1",
       "value": "WAFER-GH1.25-2PWB",
       "footprint": "Connector_JST:JST_GH_SM02B-GHS-TB_1x02-1MP_P1.25mm_Horizontal",
       "uuid": "57d0226d-8795-4ef7-a0c1-66e4f791f8c0",
@@ -129,43 +129,43 @@
   "connections": [
     {
       "net": "+3V3",
-      "nodes": [["U1", "9"], ["U1", "18"], ["J_I2C", "1"]]
+      "nodes": [["U1", "9"], ["U1", "18"], ["J_I2C1", "1"]]
     },
     {
       "net": "GND",
       "nodes": [
         ["U1", "10"], ["U1", "15"], ["U1", "16"], ["U1", "17"],
-        ["J_I2C", "2"], ["J_I2C", "MP"], ["J_EXP", "MP"],
-        ["J_BAT_IN", "2"], ["J_BAT_IN", "MP"],
-        ["J_BAT_OUT", "2"], ["J_BAT_OUT", "MP"],
-        ["SW_UP", "2"], ["SW_DOWN", "2"], ["SW_LEFT", "2"], ["SW_RIGHT", "2"],
-        ["SW_UNDO", "2"], ["SW_ACTION", "2"], ["SW_RESET", "2"], ["SW_MENU", "2"],
-        ["SW_MUTE", "2"], ["SW_MUTE", "3"]
+        ["J_I2C1", "2"], ["J_I2C1", "MP"], ["J_EXP1", "MP"],
+        ["J_BAT_IN1", "2"], ["J_BAT_IN1", "MP"],
+        ["J_BAT_OUT1", "2"], ["J_BAT_OUT1", "MP"],
+        ["SW_UP1", "2"], ["SW_DOWN1", "2"], ["SW_LEFT1", "2"], ["SW_RIGHT1", "2"],
+        ["SW_UNDO1", "2"], ["SW_ACTION1", "2"], ["SW_RESET1", "2"], ["SW_MENU1", "2"],
+        ["SW_MUTE1", "2"], ["SW_MUTE1", "3"]
       ]
     },
-    { "net": "SCL", "nodes": [["U1", "12"], ["J_I2C", "3"]] },
-    { "net": "SDA", "nodes": [["U1", "13"], ["J_I2C", "4"]] },
-    { "net": "INT", "nodes": [["U1", "20"], ["J_EXP", "1"]] },
-    { "net": "SIG_UP", "nodes": [["U1", "1"], ["SW_UP", "1"]] },
-    { "net": "SIG_DOWN", "nodes": [["U1", "21"], ["SW_DOWN", "1"]] },
-    { "net": "SIG_RESET", "nodes": [["U1", "22"], ["SW_RESET", "1"]] },
-    { "net": "SIG_MENU", "nodes": [["U1", "23"], ["SW_MENU", "1"]] },
-    { "net": "SIG_LEFT", "nodes": [["U1", "24"], ["SW_LEFT", "1"]] },
-    { "net": "SIG_RIGHT", "nodes": [["U1", "25"], ["SW_RIGHT", "1"]] },
-    { "net": "SIG_UNDO", "nodes": [["U1", "26"], ["SW_UNDO", "1"]] },
-    { "net": "SIG_MUTE", "nodes": [["U1", "27"], ["SW_MUTE", "1"]] },
-    { "net": "SIG_ACTION", "nodes": [["U1", "28"], ["SW_ACTION", "1"]] },
-    { "net": "BAT_P", "nodes": [["J_BAT_IN", "1"], ["SW_PWR", "2"]] },
-    { "net": "BAT_SW", "nodes": [["SW_PWR", "1"], ["J_BAT_OUT", "1"]] }
+    { "net": "SCL", "nodes": [["U1", "12"], ["J_I2C1", "3"]] },
+    { "net": "SDA", "nodes": [["U1", "13"], ["J_I2C1", "4"]] },
+    { "net": "INT", "nodes": [["U1", "20"], ["J_EXP1", "1"]] },
+    { "net": "SIG_UP", "nodes": [["U1", "1"], ["SW_UP1", "1"]] },
+    { "net": "SIG_DOWN", "nodes": [["U1", "21"], ["SW_DOWN1", "1"]] },
+    { "net": "SIG_RESET", "nodes": [["U1", "22"], ["SW_RESET1", "1"]] },
+    { "net": "SIG_MENU", "nodes": [["U1", "23"], ["SW_MENU1", "1"]] },
+    { "net": "SIG_LEFT", "nodes": [["U1", "24"], ["SW_LEFT1", "1"]] },
+    { "net": "SIG_RIGHT", "nodes": [["U1", "25"], ["SW_RIGHT1", "1"]] },
+    { "net": "SIG_UNDO", "nodes": [["U1", "26"], ["SW_UNDO1", "1"]] },
+    { "net": "SIG_MUTE", "nodes": [["U1", "27"], ["SW_MUTE1", "1"]] },
+    { "net": "SIG_ACTION", "nodes": [["U1", "28"], ["SW_ACTION1", "1"]] },
+    { "net": "BAT_P", "nodes": [["J_BAT_IN1", "1"], ["SW_PWR1", "2"]] },
+    { "net": "BAT_SW", "nodes": [["SW_PWR1", "1"], ["J_BAT_OUT1", "1"]] }
   ],
   "noConnects": {
     "U1": ["2", "3", "4", "5", "6", "7", "8", "11", "14", "19"],
-    "J_EXP": ["2", "3", "4"],
-    "SW_PWR": ["3"]
+    "J_EXP1": ["2", "3", "4"],
+    "SW_PWR1": ["3"]
   },
   "boardOnlyPadRules": [
     {
-      "ref": "SW_MUTE",
+      "ref": "SW_MUTE1",
       "pad": "",
       "net": "GND",
       "reason": "existing mechanical-pad grounding"

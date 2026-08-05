@@ -43,20 +43,20 @@ function assertRejected(model, pattern) {
 
 var EXPECTED_COMPONENTS = {
     U1: ["MCP23017-E/SO", "Package_SO:SOIC-28W_7.5x17.9mm_P1.27mm", "f2abe43b-79ce-4f91-a34f-27e849a4046d", "MCP23017"],
-    SW_UP: ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "0e4c7620-48d6-4920-a112-21a3249bfba7", "TACT"],
-    SW_DOWN: ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "5abed186-9cb3-4286-abbb-e9d8339a14ad", "TACT"],
-    SW_LEFT: ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "62cee17b-aa96-44b5-a818-d88c4d4bf07a", "TACT"],
-    SW_RIGHT: ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "a1ddb411-d507-48b9-af26-f860c81613ad", "TACT"],
-    SW_UNDO: ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "54709c66-66ed-4fc3-bb15-0ec33ecd272f", "TACT"],
-    SW_ACTION: ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "2d954156-91bb-4370-a6cb-35be5c7ff576", "TACT"],
-    SW_RESET: ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "366484ad-06ff-4a23-ab3f-f69d88ea88ca", "TACT"],
-    SW_MENU: ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "82a0ed80-77a0-40cf-a208-39cca4201c6b", "TACT"],
-    SW_PWR: ["PCM12SMTR", "Button_Switch_SMD:SW_SPDT_PCM12", "6ef5c169-59a4-41dd-a19c-3daf87f107fd", "SLIDE"],
-    SW_MUTE: ["PCM12SMTR", "Button_Switch_SMD:SW_SPDT_PCM12", "3e016402-85c6-43ed-a254-0f878d988740", "SLIDE"],
-    J_I2C: ["WAFER-GH1.25-4PWB", "Connector_JST:JST_GH_SM04B-GHS-TB_1x04-1MP_P1.25mm_Horizontal", "8448c040-e282-4175-89bf-5bdbe34ce139", "JST4"],
-    J_EXP: ["WAFER-GH1.25-4PWB", "Connector_JST:JST_GH_SM04B-GHS-TB_1x04-1MP_P1.25mm_Horizontal", "46493532-cedd-425e-a83b-150b6baf58c7", "JST4"],
-    J_BAT_IN: ["WAFER-GH1.25-2PWB", "Connector_JST:JST_GH_SM02B-GHS-TB_1x02-1MP_P1.25mm_Horizontal", "9b63372c-f11f-42f2-b30e-7cc0cd058c1f", "JST2"],
-    J_BAT_OUT: ["WAFER-GH1.25-2PWB", "Connector_JST:JST_GH_SM02B-GHS-TB_1x02-1MP_P1.25mm_Horizontal", "57d0226d-8795-4ef7-a0c1-66e4f791f8c0", "JST2"],
+    SW_UP1: ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "0e4c7620-48d6-4920-a112-21a3249bfba7", "TACT"],
+    SW_DOWN1: ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "5abed186-9cb3-4286-abbb-e9d8339a14ad", "TACT"],
+    SW_LEFT1: ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "62cee17b-aa96-44b5-a818-d88c4d4bf07a", "TACT"],
+    SW_RIGHT1: ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "a1ddb411-d507-48b9-af26-f860c81613ad", "TACT"],
+    SW_UNDO1: ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "54709c66-66ed-4fc3-bb15-0ec33ecd272f", "TACT"],
+    SW_ACTION1: ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "2d954156-91bb-4370-a6cb-35be5c7ff576", "TACT"],
+    SW_RESET1: ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "366484ad-06ff-4a23-ab3f-f69d88ea88ca", "TACT"],
+    SW_MENU1: ["SKQGABE010", "Button_Switch_SMD:SW_SPST_SKQG_WithStem", "82a0ed80-77a0-40cf-a208-39cca4201c6b", "TACT"],
+    SW_PWR1: ["PCM12SMTR", "Button_Switch_SMD:SW_SPDT_PCM12", "6ef5c169-59a4-41dd-a19c-3daf87f107fd", "SLIDE"],
+    SW_MUTE1: ["PCM12SMTR", "Button_Switch_SMD:SW_SPDT_PCM12", "3e016402-85c6-43ed-a254-0f878d988740", "SLIDE"],
+    J_I2C1: ["WAFER-GH1.25-4PWB", "Connector_JST:JST_GH_SM04B-GHS-TB_1x04-1MP_P1.25mm_Horizontal", "8448c040-e282-4175-89bf-5bdbe34ce139", "JST4"],
+    J_EXP1: ["WAFER-GH1.25-4PWB", "Connector_JST:JST_GH_SM04B-GHS-TB_1x04-1MP_P1.25mm_Horizontal", "46493532-cedd-425e-a83b-150b6baf58c7", "JST4"],
+    J_BAT_IN1: ["WAFER-GH1.25-2PWB", "Connector_JST:JST_GH_SM02B-GHS-TB_1x02-1MP_P1.25mm_Horizontal", "9b63372c-f11f-42f2-b30e-7cc0cd058c1f", "JST2"],
+    J_BAT_OUT1: ["WAFER-GH1.25-2PWB", "Connector_JST:JST_GH_SM02B-GHS-TB_1x02-1MP_P1.25mm_Horizontal", "57d0226d-8795-4ef7-a0c1-66e4f791f8c0", "JST2"],
     H1: ["MountingHole_2.7mm_M2.5", "MountingHole:MountingHole_2.7mm_M2.5", "3dd44c71-4aac-49f5-81ec-108b40379bb0", "MOUNT"],
     H2: ["MountingHole_2.7mm_M2.5", "MountingHole:MountingHole_2.7mm_M2.5", "023c2f5f-b5bd-4271-830c-e37e2934b255", "MOUNT"]
 };
@@ -67,27 +67,40 @@ var EXPECTED_PIN_NETS = {
     "U1.18": "+3V3", "U1.20": "INT", "U1.21": "SIG_DOWN", "U1.22": "SIG_RESET",
     "U1.23": "SIG_MENU", "U1.24": "SIG_LEFT", "U1.25": "SIG_RIGHT",
     "U1.26": "SIG_UNDO", "U1.27": "SIG_MUTE", "U1.28": "SIG_ACTION",
-    "J_I2C.1": "+3V3", "J_I2C.2": "GND", "J_I2C.3": "SCL", "J_I2C.4": "SDA",
-    "J_I2C.MP": "GND", "J_EXP.1": "INT", "J_EXP.MP": "GND",
-    "J_BAT_IN.1": "BAT_P", "J_BAT_IN.2": "GND", "J_BAT_IN.MP": "GND",
-    "J_BAT_OUT.1": "BAT_SW", "J_BAT_OUT.2": "GND", "J_BAT_OUT.MP": "GND",
-    "SW_UP.1": "SIG_UP", "SW_UP.2": "GND",
-    "SW_DOWN.1": "SIG_DOWN", "SW_DOWN.2": "GND",
-    "SW_LEFT.1": "SIG_LEFT", "SW_LEFT.2": "GND",
-    "SW_RIGHT.1": "SIG_RIGHT", "SW_RIGHT.2": "GND",
-    "SW_UNDO.1": "SIG_UNDO", "SW_UNDO.2": "GND",
-    "SW_ACTION.1": "SIG_ACTION", "SW_ACTION.2": "GND",
-    "SW_RESET.1": "SIG_RESET", "SW_RESET.2": "GND",
-    "SW_MENU.1": "SIG_MENU", "SW_MENU.2": "GND",
-    "SW_MUTE.1": "SIG_MUTE", "SW_MUTE.2": "GND", "SW_MUTE.3": "GND",
-    "SW_PWR.1": "BAT_SW", "SW_PWR.2": "BAT_P"
+    "J_I2C1.1": "+3V3", "J_I2C1.2": "GND", "J_I2C1.3": "SCL", "J_I2C1.4": "SDA",
+    "J_I2C1.MP": "GND", "J_EXP1.1": "INT", "J_EXP1.MP": "GND",
+    "J_BAT_IN1.1": "BAT_P", "J_BAT_IN1.2": "GND", "J_BAT_IN1.MP": "GND",
+    "J_BAT_OUT1.1": "BAT_SW", "J_BAT_OUT1.2": "GND", "J_BAT_OUT1.MP": "GND",
+    "SW_UP1.1": "SIG_UP", "SW_UP1.2": "GND",
+    "SW_DOWN1.1": "SIG_DOWN", "SW_DOWN1.2": "GND",
+    "SW_LEFT1.1": "SIG_LEFT", "SW_LEFT1.2": "GND",
+    "SW_RIGHT1.1": "SIG_RIGHT", "SW_RIGHT1.2": "GND",
+    "SW_UNDO1.1": "SIG_UNDO", "SW_UNDO1.2": "GND",
+    "SW_ACTION1.1": "SIG_ACTION", "SW_ACTION1.2": "GND",
+    "SW_RESET1.1": "SIG_RESET", "SW_RESET1.2": "GND",
+    "SW_MENU1.1": "SIG_MENU", "SW_MENU1.2": "GND",
+    "SW_MUTE1.1": "SIG_MUTE", "SW_MUTE1.2": "GND", "SW_MUTE1.3": "GND",
+    "SW_PWR1.1": "BAT_SW", "SW_PWR1.2": "BAT_P"
 };
 
 var EXPECTED_NO_CONNECTS = {
     U1: ["2", "3", "4", "5", "6", "7", "8", "11", "14", "19"],
-    J_EXP: ["2", "3", "4"],
-    SW_PWR: ["3"]
+    J_EXP1: ["2", "3", "4"],
+    SW_PWR1: ["3"]
 };
+
+test("all 17 canonical references are fully annotated and stable", function () {
+    assert.deepStrictEqual(V.model.components.map(function (component) {
+        return component.ref;
+    }), [
+        "U1",
+        "SW_UP1", "SW_DOWN1", "SW_LEFT1", "SW_RIGHT1",
+        "SW_UNDO1", "SW_ACTION1", "SW_RESET1", "SW_MENU1",
+        "SW_PWR1", "SW_MUTE1",
+        "J_I2C1", "J_EXP1", "J_BAT_IN1", "J_BAT_OUT1",
+        "H1", "H2"
+    ]);
+});
 
 test("canonical connectivity validates without errors", function () {
     assert.deepStrictEqual(V.validateConnectivity(V.model), []);
@@ -195,7 +208,7 @@ test("MCP23017 support pins and no-connects are exact", function () {
 test("connectors, switches, power path, and mechanical pads match the board", function () {
     assert.deepStrictEqual(Object.assign({}, V.pinNetMap(V.model)), EXPECTED_PIN_NETS);
     assert.deepStrictEqual(V.model.boardOnlyPadRules, [{
-        ref: "SW_MUTE",
+        ref: "SW_MUTE1",
         pad: "",
         net: "GND",
         reason: "existing mechanical-pad grounding"
@@ -208,6 +221,12 @@ test("duplicate component references are rejected", function () {
     duplicate.uuid = "00000000-0000-4000-8000-000000000001";
     bad.components.push(duplicate);
     assertRejected(bad, /duplicate component ref U1/i);
+});
+
+test("ordinary component references must end in a digit", function () {
+    var candidate = clone(V.model);
+    candidate.components[0].ref = "SW_UP";
+    assertRejected(candidate, /component reference SW_UP is not fully annotated/);
 });
 
 test("duplicate component UUIDs are rejected", function () {
@@ -271,8 +290,8 @@ test("connection pins must be strings", function () {
 
 test("unknown pins are rejected for every symbol inventory", function () {
     [
-        ["U1", "29"], ["SW_UP", "3"], ["SW_PWR", "4"],
-        ["J_I2C", "5"], ["J_BAT_IN", "3"], ["H1", "1"]
+        ["U1", "29"], ["SW_UP1", "3"], ["SW_PWR1", "4"],
+        ["J_I2C1", "5"], ["J_BAT_IN1", "3"], ["H1", "1"]
     ].forEach(function (item) {
         var bad = clone(V.model);
         connection(bad, "GND").nodes.push(item);
@@ -318,8 +337,8 @@ test("unknown no-connect component keys are rejected even without pins", functio
 
 test("unexpected known no-connect component keys are rejected", function () {
     var bad = clone(V.model);
-    bad.noConnects.SW_UP = [];
-    assertRejected(bad, /unexpected noConnects key SW_UP/i);
+    bad.noConnects.SW_UP1 = [];
+    assertRejected(bad, /unexpected noConnects key SW_UP1/i);
 });
 
 test("unknown no-connect components produce one actionable diagnostic", function () {
@@ -424,7 +443,7 @@ test("the canonical board-only pad rule is required exactly once", function () {
 var BOARD_PARSER_FIXTURE = [
     '(kicad_pcb',
     '  (footprint "SKQG with (stem)"',
-    '    (property "Reference" "SW_UP"',
+    '    (property "Reference" "SW_UP1"',
     '      (uuid "nested-property-uuid"))',
     '    (uuid "sw-up-top-level-uuid")',
     '    (path "/uuid-sw-up")',
@@ -437,7 +456,7 @@ var BOARD_PARSER_FIXTURE = [
     '      (polygon (pts (xy 0 0) (xy 1 1)))))',
     '  (footprint "JST_GH"',
     '    (uuid "j-i2c-top-level-uuid")',
-    '    (property "Reference" "J_I2C" (uuid "nested-reference-uuid"))',
+    '    (property "Reference" "J_I2C1" (uuid "nested-reference-uuid"))',
     '    (pad "1" smd roundrect (net 11 "+3V3"))',
     '    (pad "MP" smd roundrect (net 1 "GND"))',
     '    (pad "MP" smd roundrect (net 1 "GND"))))'
@@ -447,17 +466,17 @@ function comparisonModel() {
     return {
         components: [
             { ref: "U1", uuid: "uuid-u1" },
-            { ref: "SW_UP", uuid: "uuid-sw-up" },
-            { ref: "SW_MUTE", uuid: "uuid-sw-mute" },
-            { ref: "J_I2C", uuid: "uuid-j-i2c" }
+            { ref: "SW_UP1", uuid: "uuid-sw-up" },
+            { ref: "SW_MUTE1", uuid: "uuid-sw-mute" },
+            { ref: "J_I2C1", uuid: "uuid-j-i2c" }
         ],
         connections: [
-            { net: "SIG_UP", nodes: [["U1", "1"], ["SW_UP", "1"]] },
-            { net: "GND", nodes: [["J_I2C", "MP"]] }
+            { net: "SIG_UP", nodes: [["U1", "1"], ["SW_UP1", "1"]] },
+            { net: "GND", nodes: [["J_I2C1", "MP"]] }
         ],
         noConnects: { U1: ["2"] },
         boardOnlyPadRules: [
-            { ref: "SW_MUTE", pad: "", net: "GND", reason: "mechanical grounding" }
+            { ref: "SW_MUTE1", pad: "", net: "GND", reason: "mechanical grounding" }
         ]
     };
 }
@@ -469,7 +488,7 @@ function comparisonFootprints() {
             path: "/uuid-u1",
             pads: [{ number: "1", net: "SIG_UP" }, { number: "2", net: null }]
         },
-        SW_UP: {
+        SW_UP1: {
             uuid: "uuid-sw-up",
             path: "/uuid-sw-up",
             pads: [
@@ -477,12 +496,12 @@ function comparisonFootprints() {
                 { number: "2", net: null }, { number: "2", net: null }
             ]
         },
-        SW_MUTE: {
+        SW_MUTE1: {
             uuid: "uuid-sw-mute",
             path: "/uuid-sw-mute",
             pads: [{ number: "", net: "GND" }, { number: "", net: "GND" }]
         },
-        J_I2C: {
+        J_I2C1: {
             uuid: "uuid-j-i2c",
             path: "/uuid-j-i2c",
             pads: [
@@ -511,9 +530,9 @@ test("balanced board blocks ignore parentheses and escapes inside quoted strings
 
 test("board parser keeps the top-level UUID and both duplicate SKQG pad instances", function () {
     var footprints = V.parseBoardFootprints(BOARD_PARSER_FIXTURE);
-    assert.strictEqual(footprints.SW_UP.uuid, "sw-up-top-level-uuid");
-    assert.strictEqual(footprints.SW_UP.path, "/uuid-sw-up");
-    assert.deepStrictEqual(footprints.SW_UP.pads.filter(function (pad) {
+    assert.strictEqual(footprints.SW_UP1.uuid, "sw-up-top-level-uuid");
+    assert.strictEqual(footprints.SW_UP1.path, "/uuid-sw-up");
+    assert.deepStrictEqual(footprints.SW_UP1.pads.filter(function (pad) {
         return pad.number === "1";
     }), [
         { number: "1", net: "SIG_UP" },
@@ -523,8 +542,8 @@ test("board parser keeps the top-level UUID and both duplicate SKQG pad instance
 
 test("board parser preserves both JST mounting-pad instances", function () {
     var footprints = V.parseBoardFootprints(BOARD_PARSER_FIXTURE);
-    assert.strictEqual(footprints.J_I2C.uuid, "j-i2c-top-level-uuid");
-    assert.deepStrictEqual(footprints.J_I2C.pads.filter(function (pad) {
+    assert.strictEqual(footprints.J_I2C1.uuid, "j-i2c-top-level-uuid");
+    assert.deepStrictEqual(footprints.J_I2C1.pads.filter(function (pad) {
         return pad.number === "MP";
     }), [
         { number: "MP", net: "GND" },
@@ -592,9 +611,9 @@ test("quoted KiCad atoms decode simple, hexadecimal, and octal escapes", functio
     var board = String.raw`(kicad_pcb
   (footprint "Escapes"
     (uuid "dir\\name\"quoted\a\b\f\n\r\t\v")
-    (property "Reference" "SW_\x55P")
+    (property "Reference" "SW_\x55P1")
     (pad "\61" smd rect (net "SIG_\125P"))))`;
-    var footprint = V.parseBoardFootprints(board).SW_UP;
+    var footprint = V.parseBoardFootprints(board).SW_UP1;
     assert.ok(footprint, "hexadecimal escape must decode in the reference");
     assert.strictEqual(footprint.uuid,
         "dir\\name\"quoted\x07\x08\x0c\n\r\t\x0b");
@@ -693,47 +712,47 @@ test("every duplicate physical pad for a no-connect endpoint must be unnetted", 
 
 test("extra unmodeled board pads remain allowed when they are unnetted", function () {
     var footprints = comparisonFootprints();
-    footprints.SW_UP.pads.push({ number: "99", net: null });
+    footprints.SW_UP1.pads.push({ number: "99", net: null });
     assert.deepStrictEqual(V.compareBoard(comparisonModel(), footprints), []);
 });
 
 test("board comparison reports connected-net mismatches on any duplicate pad", function () {
     var footprints = comparisonFootprints();
-    footprints.SW_UP.pads[1].net = "GND";
-    footprints.J_I2C.pads[2].net = null;
+    footprints.SW_UP1.pads[1].net = "GND";
+    footprints.J_I2C1.pads[2].net = null;
     assertBoardError(comparisonModel(), footprints,
-        /SW_UP pad 1 expected SIG_UP, found GND/);
+        /SW_UP1 pad 1 expected SIG_UP, found GND/);
     assertBoardError(comparisonModel(), footprints,
-        /J_I2C pad MP expected GND, found unconnected/);
+        /J_I2C1 pad MP expected GND, found unconnected/);
 });
 
 test("board comparison reports exact UUID mismatches", function () {
     var footprints = comparisonFootprints();
-    footprints.J_I2C.uuid = "wrong-uuid";
+    footprints.J_I2C1.uuid = "wrong-uuid";
     assertBoardError(comparisonModel(), footprints,
-        /J_I2C UUID expected uuid-j-i2c, found wrong-uuid/);
+        /J_I2C1 UUID expected uuid-j-i2c, found wrong-uuid/);
 });
 
 test("board comparison reports missing and incorrect schematic link paths", function () {
     var footprints = comparisonFootprints();
-    footprints.J_I2C.path = null;
+    footprints.J_I2C1.path = null;
     assertBoardError(comparisonModel(), footprints,
-        /J_I2C schematic path expected \/uuid-j-i2c, found missing/);
+        /J_I2C1 schematic path expected \/uuid-j-i2c, found missing/);
 
     footprints = comparisonFootprints();
-    footprints.J_I2C.path = "/wrong-symbol";
+    footprints.J_I2C1.path = "/wrong-symbol";
     assertBoardError(comparisonModel(), footprints,
-        /J_I2C schematic path expected \/uuid-j-i2c, found \/wrong-symbol/);
+        /J_I2C1 schematic path expected \/uuid-j-i2c, found \/wrong-symbol/);
 });
 
 test("board comparison rejects nets on no-connect and otherwise absent pads", function () {
     var footprints = comparisonFootprints();
     footprints.U1.pads[1].net = "SIG_UNEXPECTED";
-    footprints.SW_UP.pads.push({ number: "99", net: "GND" });
+    footprints.SW_UP1.pads.push({ number: "99", net: "GND" });
     assertBoardError(comparisonModel(), footprints,
         /U1 pad 2 expected unconnected, found SIG_UNEXPECTED/);
     assertBoardError(comparisonModel(), footprints,
-        /SW_UP pad 99 expected unconnected, found GND/);
+        /SW_UP1 pad 99 expected unconnected, found GND/);
 });
 
 test("mounting-hole footprints allow only unnumbered unconnected mechanical pads", function () {
@@ -770,26 +789,26 @@ test("mounting-hole pads reject nets even when a board-only rule declares them",
 
 test("board-only pad rules require every matching pad to have the specified net", function () {
     var footprints = comparisonFootprints();
-    footprints.SW_MUTE.pads[1].net = null;
+    footprints.SW_MUTE1.pads[1].net = null;
     assertBoardError(comparisonModel(), footprints,
-        /SW_MUTE pad <empty> expected GND, found unconnected/);
+        /SW_MUTE1 pad <empty> expected GND, found unconnected/);
 
     footprints = comparisonFootprints();
-    footprints.SW_MUTE.pads = [];
+    footprints.SW_MUTE1.pads = [];
     assertBoardError(comparisonModel(), footprints,
-        /SW_MUTE pad <empty> expected GND, found missing/);
+        /SW_MUTE1 pad <empty> expected GND, found missing/);
 });
 
 test("board comparison reports missing connected pads and missing or extra references", function () {
     var footprints = comparisonFootprints();
-    footprints.SW_UP.pads = footprints.SW_UP.pads.filter(function (pad) {
+    footprints.SW_UP1.pads = footprints.SW_UP1.pads.filter(function (pad) {
         return pad.number !== "1";
     });
-    delete footprints.J_I2C;
+    delete footprints.J_I2C1;
     footprints.GHOST = { uuid: "ghost", pads: [] };
     assertBoardError(comparisonModel(), footprints,
-        /SW_UP pad 1 expected SIG_UP, found missing/);
-    assertBoardError(comparisonModel(), footprints, /missing board footprint J_I2C/);
+        /SW_UP1 pad 1 expected SIG_UP, found missing/);
+    assertBoardError(comparisonModel(), footprints, /missing board footprint J_I2C1/);
     assertBoardError(comparisonModel(), footprints, /unexpected board footprint GHOST/);
 });
 

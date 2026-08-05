@@ -591,11 +591,11 @@ var symbolNames = {
     PWR_FLAG: "PocketCard:PWR_FLAG"
 };
 var positions = {
-    J_I2C: [35, 35], J_EXP: [35, 75], U1: [105, 70],
-    SW_UP: [185, 30], SW_DOWN: [185, 50], SW_LEFT: [185, 70], SW_RIGHT: [185, 90],
-    SW_UNDO: [235, 30], SW_ACTION: [235, 50], SW_RESET: [235, 70], SW_MENU: [235, 90],
-    SW_MUTE: [235, 115], J_BAT_IN: [35, 130], SW_PWR: [105, 130],
-    J_BAT_OUT: [185, 130], H1: [255, 130], H2: [270, 130]
+    J_I2C1: [35, 35], J_EXP1: [35, 75], U1: [105, 70],
+    SW_UP1: [185, 30], SW_DOWN1: [185, 50], SW_LEFT1: [185, 70], SW_RIGHT1: [185, 90],
+    SW_UNDO1: [235, 30], SW_ACTION1: [235, 50], SW_RESET1: [235, 70], SW_MENU1: [235, 90],
+    SW_MUTE1: [235, 115], J_BAT_IN1: [35, 130], SW_PWR1: [105, 130],
+    J_BAT_OUT1: [185, 130], H1: [255, 130], H2: [270, 130]
 };
 var powerFlags = [
     { ref: "#FLG01", net: "+3V3", position: [60, 27.5] },
@@ -760,9 +760,9 @@ model.connections.forEach(function (connection) {
 
 [
     ["U1.1", "SIG_UP", [92.3, 86.51]],
-    ["J_I2C.1", "+3V3", [42.62, 38.81]],
-    ["J_BAT_IN.1", "BAT_P", [42.62, 131.27]],
-    ["SW_MUTE.1", "SIG_MUTE", [227.38, 117.54]]
+    ["J_I2C1.1", "+3V3", [42.62, 38.81]],
+    ["J_BAT_IN1.1", "BAT_P", [42.62, 131.27]],
+    ["SW_MUTE1.1", "SIG_MUTE", [227.38, 117.54]]
 ].forEach(function (expectation) {
     var wire = expressionWithUuid(
         schematic,
