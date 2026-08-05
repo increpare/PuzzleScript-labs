@@ -270,6 +270,14 @@ class ConnectivityAdapterTests(unittest.TestCase):
         candidate["connections"][0]["nodes"][0][0] = "MISSING"
         self.assert_model_invalid(candidate, "unknown component ref.*MISSING")
 
+    def test_every_connection_has_at_least_two_nodes(self):
+        for nodes in ([], [["U1", "9"]]):
+            with self.subTest(nodes=nodes):
+                candidate = C.model()
+                candidate["connections"][0]["nodes"] = nodes
+                self.assert_model_invalid(
+                    candidate, r"connections\[0\]\.nodes.*at least two")
+
     def test_duplicate_endpoints_are_rejected_on_same_or_conflicting_nets(self):
         candidate = C.model()
         candidate["connections"][0]["nodes"].append(["U1", "9"])
@@ -320,6 +328,37 @@ class ConnectivityAdapterTests(unittest.TestCase):
         candidate["boardOnlyPadRules"].append(
             copy.deepcopy(candidate["boardOnlyPadRules"][0]))
         self.assert_model_invalid(candidate, "duplicate board-only.*SW_MUTE.*empty")
+
+    def test_board_only_rule_is_exactly_the_canonical_one_item_invariant(self):
+        candidate = C.model()
+        del candidate["boardOnlyPadRules"]
+        self.assert_model_invalid(candidate, "boardOnlyPadRules.*required")
+
+        candidates = []
+
+        candidate = C.model()
+        candidate["boardOnlyPadRules"] = []
+        candidates.append(candidate)
+
+        candidate = C.model()
+        candidate["boardOnlyPadRules"].append({
+            "ref": "H1", "pad": "MECH", "net": "GND",
+            "reason": "unexpected extra rule",
+        })
+        candidates.append(candidate)
+
+        candidate = C.model()
+        candidate["boardOnlyPadRules"][0]["reason"] = "semantic replacement"
+        candidates.append(candidate)
+
+        candidate = C.model()
+        candidate["boardOnlyPadRules"][0]["unexpected"] = "extra field"
+        candidates.append(candidate)
+
+        for index, malformed in enumerate(candidates):
+            with self.subTest(case=index):
+                self.assert_model_invalid(
+                    malformed, "boardOnlyPadRules.*exactly.*canonical")
 
 
 class HeadlessFootprintUuidTests(unittest.TestCase):

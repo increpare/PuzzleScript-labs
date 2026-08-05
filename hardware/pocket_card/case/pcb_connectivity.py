@@ -8,6 +8,12 @@ _MODEL_PATH = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
     "..", "schematic", "connectivity.json",
 )
+_EXPECTED_BOARD_ONLY_RULE = {
+    "ref": "SW_MUTE",
+    "pad": "",
+    "net": "GND",
+    "reason": "existing mechanical-pad grounding",
+}
 
 
 def _invalid(path, field, problem):
@@ -77,6 +83,8 @@ def _load_model(path):
         _required_nonempty_string(connection["net"], path, base + ".net")
         if not isinstance(connection["nodes"], list):
             _invalid(path, base + ".nodes", "must be a list")
+        if len(connection["nodes"]) < 2:
+            _invalid(path, base + ".nodes", "must contain at least two nodes")
         if connection["net"] in nets:
             _invalid(path, base + ".net",
                      "has duplicate connection net %s" % connection["net"])
@@ -155,6 +163,14 @@ def _load_model(path):
             _invalid(path, base,
                      "has duplicate board-only rule target %s" % target_name)
         board_only_targets.add(target)
+
+    if candidate["boardOnlyPadRules"] != [_EXPECTED_BOARD_ONLY_RULE]:
+        _invalid(
+            path,
+            "boardOnlyPadRules",
+            "must exactly match the canonical one-item rule: SW_MUTE empty-name "
+            "pad on GND for existing mechanical-pad grounding",
+        )
 
     return candidate
 
