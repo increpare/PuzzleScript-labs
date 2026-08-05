@@ -28,6 +28,7 @@ from .inventory import (
     parse_netlist,
     project_digest,
 )
+from .kicad_sexpr import SexprError, direct_children, expression_atoms, next_token, one_root
 from .mechanics import (
     check_contract_against_case_params,
     check_mechanics,
@@ -46,18 +47,62 @@ MECHANICAL_REVIEW_REQUIRED = "MECHANICAL REVIEW REQUIRED"
 _EXIT_CODES = {PASS: 0, INVALID: 1, MECHANICAL_REVIEW_REQUIRED: 2}
 _POLICY_SCOPES = ("ERC", "DRC", "parity")
 _FINGERPRINT_SCOPES = {"ERC": "erc", "DRC": "drc", "parity": "parity"}
-_APPROVED_WARNING_GROUPS = frozenset(
+_EXPECTED_WARNING_POLICY = MappingProxyType(
     {
-        ("ERC", "endpoint_off_grid"),
-        ("ERC", "lib_symbol_issues"),
-        ("DRC", "via_dangling"),
-        ("DRC", "silk_edge_clearance"),
-        ("DRC", "silk_overlap"),
-        ("DRC", "silk_over_copper"),
-        ("DRC", "nonmirrored_text_on_back_layer"),
-        ("parity", "footprint_symbol_mismatch"),
-        ("parity", "net_conflict"),
-        ("parity", "footprint_symbol_field_mismatch"),
+        ("ERC", "endpoint_off_grid"): (
+            71,
+            "9cb699ba1827fa447483e85c111b392f22e217ca02e4866e408ed0872bb57384",
+        ),
+        ("ERC", "lib_symbol_issues"): (
+            19,
+            "078197b8ae3f4753b71a8329cec228bc7b895e147329d8cbde9b347336490eb9",
+        ),
+        ("DRC", "via_dangling"): (
+            2,
+            "27b20d9750762cbf26cbf4343b6f0bc3542faea666c8c26b8b3f107ddc67ff95",
+        ),
+        ("DRC", "silk_edge_clearance"): (
+            163,
+            "2ab9120f0ff908b419033b6765ce4be49f0634795c1d20c4b61a36592c196d39",
+        ),
+        ("DRC", "silk_overlap"): (
+            199,
+            "bb8c204cb57e95e9230625dde888cc15f56afeaffbd4a15894e77b240c431e9d",
+        ),
+        ("DRC", "silk_over_copper"): (
+            21,
+            "1ef1749815a28e02b61e4e3650689beae9ee9101c66bec3acd61d6f30521de32",
+        ),
+        ("DRC", "nonmirrored_text_on_back_layer"): (
+            4,
+            "d54988b0fd8a967b1c1526fbae6d064316605bca07fe8ccfbc072ef2938421b3",
+        ),
+        ("parity", "footprint_symbol_mismatch"): (
+            32,
+            "9c0f14314f30187bc131e9a9d693cb40e81b98f2d19ff38b9164f49a08187e23",
+        ),
+        ("parity", "net_conflict"): (
+            90,
+            "f0cd0a9a2d6da3052181b7f0e848d6be7a3a1a02d775cf27413a65effdfdc527",
+        ),
+        ("parity", "footprint_symbol_field_mismatch"): (
+            3,
+            "2f617d41d767197016f3ea21e1afe06954dab08d4ff677feec0ca23a9d2483b6",
+        ),
+    }
+)
+_EXPECTED_WARNING_RATIONALES = MappingProxyType(
+    {
+        ("ERC", "endpoint_off_grid"): "Historical generated symbol/grid layout.",
+        ("ERC", "lib_symbol_issues"): "Historical generated symbol/grid layout.",
+        ("DRC", "via_dangling"): "Dangling vias remain visible for engineer disposition.",
+        ("DRC", "silk_edge_clearance"): "Intentionally dense decorative silk.",
+        ("DRC", "silk_overlap"): "Intentionally dense decorative silk.",
+        ("DRC", "silk_over_copper"): "Intentionally dense decorative silk.",
+        ("DRC", "nonmirrored_text_on_back_layer"): "Intentionally dense decorative silk.",
+        ("parity", "footprint_symbol_mismatch"): "Historical library-prefix, board-value, and leading-slash mismatch; normalized UUID/pad/net comparison passes.",
+        ("parity", "net_conflict"): "Historical library-prefix, board-value, and leading-slash mismatch; normalized UUID/pad/net comparison passes.",
+        ("parity", "footprint_symbol_field_mismatch"): "Historical library-prefix, board-value, and leading-slash mismatch; normalized UUID/pad/net comparison passes.",
     }
 )
 _WAIVER_ROOT_KEYS = frozenset({"schemaVersion", "groups"})
@@ -158,7 +203,12 @@ def load_waivers(path: str | Path) -> Mapping[str, object]:
         raise ValueError("waiver policy must be an object")
     if value.get("schemaVersion") != 1 or type(value.get("schemaVersion")) is not int:
         raise ValueError("waiver policy schemaVersion must be integer 1")
-    return value
+    _, errors = _validated_waiver_groups(value)
+    if errors:
+        raise ValueError("invalid validation waiver policy: " + "; ".join(errors))
+    frozen = _freeze(value)
+    assert isinstance(frozen, Mapping)
+    return frozen
 
 
 def _violation_parts(violation: Mapping[str, object]) -> tuple[str, str, str, tuple[str, ...]]:
@@ -170,7 +220,7 @@ def _violation_parts(violation: Mapping[str, object]) -> tuple[str, str, str, tu
         raise ValueError(f"violation has unknown scope {scope!r}")
     if severity not in ("error", "warning"):
         raise ValueError(f"{scope} violation has unsupported severity {severity!r}")
-    if not isinstance(kind, str) or not kind:
+    if not isinstance(kind, str) or not kind.strip() or kind != kind.strip():
         raise ValueError(f"{scope} violation type must be a nonempty string")
     if not isinstance(items, (tuple, list)) or not items:
         raise ValueError(f"{scope}/{kind} violation items must be a nonempty array")
@@ -179,7 +229,7 @@ def _violation_parts(violation: Mapping[str, object]) -> tuple[str, str, str, tu
         if not isinstance(item, Mapping):
             raise ValueError(f"{scope}/{kind} item {index} must be an object")
         uuid = item.get("uuid")
-        if not isinstance(uuid, str) or not uuid:
+        if not isinstance(uuid, str) or not uuid.strip() or uuid != uuid.strip():
             raise ValueError(f"{scope}/{kind} item {index} UUID must be nonempty")
         uuids.append(uuid)
     return str(scope), str(severity), kind, tuple(sorted(uuids))
@@ -258,12 +308,43 @@ def _validated_waiver_groups(
             group_valid = False
         if group_valid:
             key = str(scope), str(kind)
-            if key not in _APPROVED_WARNING_GROUPS:
+            if key not in _EXPECTED_WARNING_POLICY:
                 errors.append(f"unknown waiver group {key[0]}/{key[1]}")
             elif key in groups:
                 errors.append(f"duplicate waiver group {key[0]}/{key[1]}")
             else:
                 groups[key] = raw
+                expected_count, expected_digest = _EXPECTED_WARNING_POLICY[key]
+                if count != expected_count:
+                    errors.append(
+                        f"waiver group {key[0]}/{key[1]} count must be exact approved value "
+                        f"{expected_count}, found {count}"
+                    )
+                if digest != expected_digest:
+                    errors.append(
+                        f"waiver group {key[0]}/{key[1]} digest must be exact approved value "
+                        f"{expected_digest}, found {digest}"
+                    )
+                expected_rationale = _EXPECTED_WARNING_RATIONALES[key]
+                if rationale != expected_rationale:
+                    errors.append(
+                        f"waiver group {key[0]}/{key[1]} rationale must be exact approved category text"
+                    )
+    actual_keys = frozenset(groups)
+    expected_keys = frozenset(_EXPECTED_WARNING_POLICY)
+    missing_groups = sorted(expected_keys - actual_keys)
+    extra_groups = sorted(actual_keys - expected_keys)
+    if missing_groups or extra_groups:
+        details: list[str] = []
+        if missing_groups:
+            details.append(
+                "missing " + ", ".join(f"{scope}/{kind}" for scope, kind in missing_groups)
+            )
+        if extra_groups:
+            details.append(
+                "unexpected " + ", ".join(f"{scope}/{kind}" for scope, kind in extra_groups)
+            )
+        errors.append("waiver policy group set mismatch: " + "; ".join(details))
     return groups, tuple(sorted(set(errors)))
 
 
@@ -432,7 +513,12 @@ def _required_sources(project_dir: Path, project: str) -> tuple[Path, ...]:
         path = by_relative.get(name)
         if path is None or path.parent != project_dir:
             raise ValidationError(f"native KiCad project source is missing: {project_dir / name}")
-    for policy_name in ("toolchain.json", "mechanical_contract.json", "validation_waivers.json"):
+    for policy_name in (
+        "toolchain.json",
+        "mechanical_contract.json",
+        "validation_waivers.json",
+        "fp-lib-table",
+    ):
         policy_path = project_dir / policy_name
         if policy_path.is_symlink() or not policy_path.is_file():
             raise ValidationError(f"required validation source is missing or a symlink: {policy_path}")
@@ -448,6 +534,192 @@ def _required_sources(project_dir: Path, project: str) -> tuple[Path, ...]:
                 f"machine path(s): {', '.join(forbidden)}"
             )
     return editable
+
+
+def _parse_fp_lib_table(path: Path) -> Mapping[str, str]:
+    try:
+        source = path.read_text(encoding="utf-8")
+        root = one_root(source, "fp_lib_table")
+        children = direct_children(root.text)
+    except (OSError, UnicodeError, SexprError) as error:
+        raise ValidationError(f"malformed fp-lib-table root: {error}") from error
+    if _direct_atoms_after_name(root.text):
+        raise ValidationError("fp-lib-table root has unexpected direct atom values")
+    version_blocks = [child for child in children if child.name == "version"]
+    unknown = sorted({child.name for child in children if child.name not in {"version", "lib"}})
+    if unknown:
+        raise ValidationError(f"fp-lib-table has unknown direct entries: {', '.join(unknown)}")
+    if len(version_blocks) != 1 or expression_atoms(version_blocks[0].text, 3) != ("version", "7"):
+        raise ValidationError("fp-lib-table requires exactly one (version 7) entry")
+    libraries: dict[str, str] = {}
+    allowed_fields = {"name", "type", "uri", "options", "descr"}
+    for index, block in enumerate(child for child in children if child.name == "lib"):
+        fields: dict[str, str] = {}
+        try:
+            properties = direct_children(block.text)
+        except SexprError as error:
+            raise ValidationError(f"fp-lib-table lib {index} is malformed: {error}") from error
+        if _direct_atoms_after_name(block.text):
+            raise ValidationError(f"fp-lib-table lib {index} has unexpected direct atom values")
+        for property_block in properties:
+            key = property_block.name
+            atoms = expression_atoms(property_block.text, 3)
+            if key not in allowed_fields:
+                raise ValidationError(f"fp-lib-table lib {index} has unknown field {key!r}")
+            if key in fields:
+                raise ValidationError(f"fp-lib-table lib {index} has duplicate field {key!r}")
+            if (
+                len(atoms) != 2
+                or atoms[0] != key
+                or direct_children(property_block.text)
+            ):
+                raise ValidationError(f"fp-lib-table lib {index} field {key!r} must have one value")
+            fields[key] = atoms[1]
+        for key in ("name", "type", "uri"):
+            value = fields.get(key)
+            if not isinstance(value, str) or not value.strip() or value != value.strip():
+                raise ValidationError(f"fp-lib-table lib {index} has empty or padded {key}")
+        nickname = fields["name"]
+        if nickname in libraries:
+            raise ValidationError(f"fp-lib-table has duplicate nickname {nickname!r}")
+        uri = fields["uri"]
+        if not uri.startswith(("${KIPRJMOD}/", "${KICAD10_FOOTPRINT_DIR}/")):
+            raise ValidationError(
+                f"fp-lib-table nickname {nickname!r} URI is not a portable project or KiCad 10 path"
+            )
+        libraries[nickname] = uri
+    return MappingProxyType(dict(sorted(libraries.items())))
+
+
+def _direct_atoms_after_name(expression: str) -> tuple[str, ...]:
+    children = direct_children(expression)
+    child_ends = {child.start: child.end for child in children}
+    opening = next_token(expression, 0)
+    if opening is None:
+        return ()
+    name = next_token(expression, opening.end)
+    if name is None:
+        return ()
+    index = name.end
+    atoms: list[str] = []
+    while True:
+        token = next_token(expression, index)
+        if token is None or token.kind == "close":
+            break
+        if token.kind == "open":
+            child_end = child_ends.get(token.start)
+            if child_end is None:
+                raise SexprError(f"unexpected nested expression at index {token.start}")
+            index = child_end
+            continue
+        atoms.append(token.value or "")
+        index = token.end
+    return tuple(atoms)
+
+
+_LOCAL_FILE_SUFFIXES = frozenset(
+    {".kicad_mod", ".kicad_sym", ".lib", ".dcm", ".step", ".stp", ".wrl"}
+)
+
+
+def _resolve_kiprjmod_reference(project_dir: Path, reference: str, context: str) -> Path:
+    prefix = "${KIPRJMOD}/"
+    if not reference.startswith(prefix):
+        raise ValidationError(f"{context} has malformed ${{KIPRJMOD}} reference {reference!r}")
+    relative_text = reference[len(prefix) :]
+    parts = tuple(relative_text.replace("\\", "/").split("/"))
+    if not relative_text or any(part in ("", ".", "..") for part in parts):
+        raise ValidationError(f"{context} has path traversal or empty component in {reference!r}")
+    candidate = project_dir.joinpath(*parts)
+    cursor = project_dir
+    for part in parts:
+        cursor = cursor / part
+        if cursor.is_symlink():
+            raise ValidationError(f"{context} resolves through symlink {cursor}")
+    try:
+        resolved = candidate.resolve(strict=True)
+    except OSError as error:
+        expected_kind = "directory" if candidate.suffix.lower() == ".pretty" else "file"
+        raise ValidationError(
+            f"{context} references missing local {expected_kind} {relative_text!r}"
+        ) from error
+    try:
+        resolved.relative_to(project_dir)
+    except ValueError as error:
+        raise ValidationError(f"{context} reference escapes copied project: {reference!r}") from error
+    suffix = resolved.suffix.lower()
+    if suffix == ".pretty":
+        if not resolved.is_dir():
+            raise ValidationError(f"{context} expected local footprint directory: {relative_text!r}")
+    elif suffix in _LOCAL_FILE_SUFFIXES:
+        if not resolved.is_file():
+            raise ValidationError(f"{context} expected local asset file: {relative_text!r}")
+    else:
+        raise ValidationError(f"{context} has unsupported local asset type: {relative_text!r}")
+    return resolved
+
+
+def _kiprjmod_references(source: str) -> tuple[str, ...]:
+    references: set[str] = set()
+    index = 0
+    while True:
+        token = next_token(source, index)
+        if token is None:
+            break
+        index = token.end
+        if token.kind != "atom" or token.value is None or "${KIPRJMOD}" not in token.value:
+            continue
+        if not token.value.startswith("${KIPRJMOD}"):
+            raise ValidationError(
+                f"${{KIPRJMOD}} must begin its path atom, found {token.value!r}"
+            )
+        references.add(token.value)
+    return tuple(sorted(references))
+
+
+def _validate_local_assets(project_dir: Path, project: str) -> Mapping[str, str]:
+    project_dir = project_dir.resolve(strict=True)
+    libraries = _parse_fp_lib_table(project_dir / "fp-lib-table")
+    for nickname, uri in libraries.items():
+        if uri.startswith("${KIPRJMOD}"):
+            resolved = _resolve_kiprjmod_reference(
+                project_dir, uri, f"fp-lib-table nickname {nickname!r}"
+            )
+            if resolved.suffix.lower() != ".pretty" or not resolved.is_dir():
+                raise ValidationError(
+                    f"fp-lib-table nickname {nickname!r} must reference a .pretty directory"
+                )
+    for source_path in editable_project_files(project_dir, project_name=project):
+        try:
+            source = source_path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            continue
+        for reference in _kiprjmod_references(source):
+            _resolve_kiprjmod_reference(
+                project_dir,
+                reference,
+                f"editable source {source_path.relative_to(project_dir)}",
+            )
+    return libraries
+
+
+def _footprint_nickname_errors(
+    inventory: ProjectInventory | object, libraries: Mapping[str, str]
+) -> tuple[str, ...]:
+    schematic = getattr(inventory, "schematic", inventory)
+    components = getattr(schematic, "components", {})
+    errors: list[str] = []
+    for ref, component in sorted(components.items()):
+        footprint = component.footprint
+        if ":" not in footprint:
+            errors.append(f"{ref} footprint {footprint!r} has no library nickname")
+            continue
+        nickname = footprint.split(":", 1)[0]
+        if not nickname or nickname not in libraries:
+            errors.append(
+                f"{ref} footprint {footprint!r} uses missing project-local library nickname {nickname!r}"
+            )
+    return tuple(errors)
 
 
 def _runner_environment() -> dict[str, str]:
@@ -550,7 +822,7 @@ def _normalize_violation(raw: object, scope: str, context: str) -> dict[str, obj
     kind = raw.get("type")
     if severity not in ("error", "warning"):
         raise ValidationError(f"{context}.severity is unsupported: {severity!r}")
-    if not isinstance(kind, str) or not kind:
+    if not isinstance(kind, str) or not kind.strip() or kind != kind.strip():
         raise ValidationError(f"{context}.type must be a nonempty string")
     raw_items = _list(raw.get("items"), f"{context}.items", nonempty=True)
     items: list[dict[str, str]] = []
@@ -558,7 +830,7 @@ def _normalize_violation(raw: object, scope: str, context: str) -> dict[str, obj
         if not isinstance(raw_item, Mapping):
             raise ValidationError(f"{context}.items[{index}] must be an object")
         uuid = raw_item.get("uuid")
-        if not isinstance(uuid, str) or not uuid:
+        if not isinstance(uuid, str) or not uuid.strip() or uuid != uuid.strip():
             raise ValidationError(f"{context}.items[{index}].uuid must be nonempty")
         items.append({"uuid": uuid})
     items.sort(key=lambda item: item["uuid"])
@@ -576,8 +848,15 @@ def _validate_report_header(raw: Mapping[str, object], report_name: str) -> None
     expected_schema = f"https://schemas.kicad.org/{report_name}.v1.json"
     if raw.get("$schema") != expected_schema:
         raise ValidationError(f"{report_name.upper()} report has unexpected or missing $schema")
-    if not isinstance(raw.get("coordinate_units"), str):
-        raise ValidationError(f"{report_name.upper()} report is missing coordinate_units")
+    coordinate_units = raw.get("coordinate_units")
+    if (
+        not isinstance(coordinate_units, str)
+        or not coordinate_units.strip()
+        or coordinate_units != coordinate_units.strip()
+    ):
+        raise ValidationError(
+            f"{report_name.upper()} report coordinate_units must be a nonempty string"
+        )
     version_text = raw.get("kicad_version")
     if not isinstance(version_text, str):
         raise ValidationError(f"{report_name.upper()} report is missing kicad_version")
@@ -597,8 +876,16 @@ def _parse_erc_report(path: Path) -> dict[str, object]:
     for sheet_index, sheet in enumerate(sheets):
         if not isinstance(sheet, Mapping):
             raise ValidationError(f"ERC report.sheets[{sheet_index}] must be an object")
-        if not isinstance(sheet.get("path"), str) or not isinstance(sheet.get("uuid_path"), str):
-            raise ValidationError(f"ERC report.sheets[{sheet_index}] is missing path/uuid_path")
+        for field in ("path", "uuid_path"):
+            value = sheet.get(field)
+            if (
+                not isinstance(value, str)
+                or not value.strip()
+                or value != value.strip()
+            ):
+                raise ValidationError(
+                    f"ERC report.sheets[{sheet_index}].{field} must be a nonempty string"
+                )
         for index, item in enumerate(
             _required_list(sheet, "violations", f"ERC report.sheets[{sheet_index}]")
         ):
@@ -613,7 +900,7 @@ def _normalize_unconnected(raw: object, context: str) -> dict[str, str]:
     if not isinstance(raw, Mapping):
         raise ValidationError(f"{context} must be an object")
     uuid = raw.get("uuid")
-    if not isinstance(uuid, str) or not uuid:
+    if not isinstance(uuid, str) or not uuid.strip() or uuid != uuid.strip():
         raise ValidationError(f"{context}.uuid must be nonempty")
     return {"uuid": uuid}
 
@@ -655,24 +942,62 @@ def _validate_output_dir(output_dir: str | Path | None, project_dir: Path) -> Pa
     if raw.is_symlink():
         raise ValidationError(f"output directory is a symlink: {raw}")
     resolved = raw.resolve(strict=False)
-    if resolved == project_dir or project_dir in resolved.parents:
+    if (
+        resolved == project_dir
+        or project_dir in resolved.parents
+        or resolved in project_dir.parents
+    ):
         raise ValidationError(
-            f"output directory must not be inside canonical project source: {resolved}"
+            f"output directory must not be the canonical project, its ancestor, or inside it: {resolved}"
         )
     return resolved
 
 
 def _write_json(path: Path, value: object) -> None:
-    path.write_text(
-        json.dumps(_json_ready(value), indent=2, sort_keys=True, ensure_ascii=True) + "\n",
-        encoding="utf-8",
-    )
+    content = json.dumps(
+        _json_ready(value), indent=2, sort_keys=True, ensure_ascii=True
+    ) + "\n"
+    with path.open("x", encoding="utf-8", newline="\n") as stream:
+        stream.write(content)
+        stream.flush()
+        os.fsync(stream.fileno())
 
 
-def _publish_reports(output_dir: Path, reports: Mapping[str, object], result: ValidationResult) -> None:
+def _fsync_directory(path: Path) -> None:
+    descriptor = os.open(path, os.O_RDONLY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def _noop() -> None:
+    return None
+
+
+def _publish_reports(
+    output_dir: Path,
+    reports: Mapping[str, object],
+    result: ValidationResult,
+    *,
+    rename: Callable[[str | Path, str | Path], object] = os.replace,
+    after_backup: Callable[[], object] = _noop,
+    after_publish: Callable[[], object] = _noop,
+) -> None:
+    """Publish the complete report directory with rollback of an existing set."""
+
     output_dir.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix=".pocket-card-validation-", dir=output_dir.parent) as raw_stage:
-        stage = Path(raw_stage)
+    if output_dir.is_symlink() or (output_dir.exists() and not output_dir.is_dir()):
+        raise OSError(f"validation output must be a non-symlink directory: {output_dir}")
+    stage = Path(
+        tempfile.mkdtemp(
+            prefix=f".{output_dir.name}.stage-", dir=output_dir.parent
+        )
+    )
+    backup: Path | None = None
+    old_moved = False
+    published = False
+    try:
         _write_json(stage / "erc.json", reports["ERC"])
         _write_json(
             stage / "drc.json",
@@ -690,9 +1015,46 @@ def _publish_reports(output_dir: Path, reports: Mapping[str, object], result: Va
                 "reports": result.reports,
             },
         )
-        output_dir.mkdir(parents=True, exist_ok=True)
-        for name in ("erc.json", "drc.json", "validation.json"):
-            os.replace(stage / name, output_dir / name)
+        _fsync_directory(stage)
+        if output_dir.exists():
+            backup = Path(
+                tempfile.mkdtemp(
+                    prefix=f".{output_dir.name}.backup-", dir=output_dir.parent
+                )
+            )
+            backup.rmdir()
+            rename(output_dir, backup)
+            old_moved = True
+            _fsync_directory(output_dir.parent)
+            after_backup()
+        rename(stage, output_dir)
+        published = True
+        _fsync_directory(output_dir.parent)
+        after_publish()
+        if old_moved and backup is not None:
+            shutil.rmtree(backup)
+            old_moved = False
+            _fsync_directory(output_dir.parent)
+    except BaseException as publish_error:
+        try:
+            if published:
+                rename(output_dir, stage)
+                published = False
+                _fsync_directory(output_dir.parent)
+            if old_moved and backup is not None:
+                rename(backup, output_dir)
+                old_moved = False
+                _fsync_directory(output_dir.parent)
+        except BaseException as rollback_error:
+            raise OSError(
+                f"report publication failed ({publish_error}); rollback failed ({rollback_error})"
+            ) from rollback_error
+        raise
+    finally:
+        if stage.exists() and stage != output_dir:
+            shutil.rmtree(stage)
+        if backup is not None and backup.exists() and not old_moved:
+            shutil.rmtree(backup)
 
 
 def _copy_project_sources(sources: Iterable[Path], project_dir: Path, destination: Path) -> None:
@@ -743,6 +1105,7 @@ def validate_project(
             project_file = temporary / f"{project}.kicad_pro"
             if not project_file.is_file() or schematic.parent != project_file.parent or board.parent != project_file.parent:
                 raise ValidationError("temporary KiCad copy is incomplete or not co-located")
+            footprint_libraries = _validate_local_assets(temporary, project)
             erc_path = temporary / "erc.json"
             drc_path = temporary / "drc.json"
             netlist_path = temporary / f"{project}.net"
@@ -807,6 +1170,11 @@ def validate_project(
                 "unconnected": unconnected,
             }
             schematic_inventory = parse_netlist(netlist_path.read_text(encoding="utf-8"))
+            nickname_errors = _footprint_nickname_errors(
+                schematic_inventory, footprint_libraries
+            )
+            if nickname_errors:
+                raise ValidationError("; ".join(nickname_errors))
             board_inventory = parse_board(board.read_text(encoding="utf-8"))
             inventory = ProjectInventory(schematic_inventory, board_inventory)
             inventory_errors = compare_schematic_to_board(
