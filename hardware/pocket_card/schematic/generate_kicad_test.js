@@ -59,7 +59,8 @@ function expressionWithUuid(source, prefix, uuid) {
             throw new Error("missing expression " + prefix + " with UUID " + uuid);
         }
         var expression = enclosingExpression(source, offset);
-        if (expression.indexOf('(uuid "' + uuid + '")') !== -1) {
+        var parsed = parseSExpression(expression);
+        if (atomValue(directChild(parsed, "uuid"), 1) === uuid) {
             return expression;
         }
         cursor = offset + prefix.length;
@@ -97,6 +98,292 @@ function closeEnough(actual, expected, message) {
         message + ": expected " + expected + ", got " + actual);
 }
 
+function parseSExpression(source) {
+    var cursor = 0;
+
+    function skipWhitespace() {
+        while (cursor < source.length && /\s/.test(source.charAt(cursor))) {
+            cursor += 1;
+        }
+    }
+
+    function parseAtom() {
+        var start = cursor;
+        if (source.charAt(cursor) === '"') {
+            cursor += 1;
+            var value = "";
+            while (cursor < source.length) {
+                var character = source.charAt(cursor);
+                cursor += 1;
+                if (character === '"') {
+                    return { type: "atom", value: value, start: start, end: cursor };
+                }
+                if (character === "\\") {
+                    assert.ok(cursor < source.length, "quoted atom cannot end with an escape");
+                    value += source.charAt(cursor);
+                    cursor += 1;
+                } else {
+                    value += character;
+                }
+            }
+            throw new Error("unterminated quoted atom at byte " + start);
+        }
+
+        while (cursor < source.length && !/[\s()]/.test(source.charAt(cursor))) {
+            cursor += 1;
+        }
+        assert.ok(cursor > start, "expected atom at byte " + start);
+        return {
+            type: "atom",
+            value: source.slice(start, cursor),
+            start: start,
+            end: cursor
+        };
+    }
+
+    function parseList() {
+        var start = cursor;
+        assert.strictEqual(source.charAt(cursor), "(", "list must start with (");
+        cursor += 1;
+        var items = [];
+        while (true) {
+            skipWhitespace();
+            if (cursor >= source.length) {
+                throw new Error("unterminated list at byte " + start);
+            }
+            if (source.charAt(cursor) === ")") {
+                cursor += 1;
+                return { type: "list", items: items, start: start, end: cursor };
+            }
+            items.push(source.charAt(cursor) === "(" ? parseList() : parseAtom());
+        }
+    }
+
+    skipWhitespace();
+    var root = parseList();
+    skipWhitespace();
+    assert.strictEqual(cursor, source.length, "schematic must contain one root s-expression");
+    return root;
+}
+
+function atomValue(node, index) {
+    var item = node && node.items[index];
+    return item && item.type === "atom" ? item.value : undefined;
+}
+
+function expressionName(node) {
+    return node && node.type === "list" ? atomValue(node, 0) : undefined;
+}
+
+function directChildren(node, name) {
+    if (!node || node.type !== "list") {
+        return [];
+    }
+    return node.items.filter(function (item) {
+        return expressionName(item) === name;
+    });
+}
+
+function directChild(node, name) {
+    var children = directChildren(node, name);
+    return children.length === 1 ? children[0] : undefined;
+}
+
+function numericTuple(node, name, size) {
+    var child = directChild(node, name);
+    if (!child || child.items.length < size + 1) {
+        return undefined;
+    }
+    var values = child.items.slice(1, size + 1).map(function (item) {
+        return Number(item.value);
+    });
+    return values.every(Number.isFinite) ? values : undefined;
+}
+
+function directProperty(node, propertyName) {
+    return directChildren(node, "property").find(function (property) {
+        return atomValue(property, 1) === propertyName;
+    });
+}
+
+function coordinateText(coordinate) {
+    return "[" + coordinate[0] + ", " + coordinate[1] + "]";
+}
+
+function coordinatesEqual(left, right) {
+    return left && right && Math.abs(left[0] - right[0]) < 1e-9 &&
+        Math.abs(left[1] - right[1]) < 1e-9;
+}
+
+function contractErrors(source) {
+    var errors = [];
+    var root;
+    try {
+        root = parseSExpression(source);
+    } catch (error) {
+        return ["schematic parse failed: " + error.message];
+    }
+
+    var librarySection = directChild(root, "lib_symbols");
+    if (!librarySection) {
+        return ["missing direct lib_symbols section"];
+    }
+
+    var libraryById = new Map();
+    directChildren(librarySection, "symbol").forEach(function (librarySymbol) {
+        var libraryId = atomValue(librarySymbol, 1);
+        var pins = new Map();
+
+        function collectPins(symbolNode) {
+            directChildren(symbolNode, "pin").forEach(function (pinNode) {
+                var numberNode = directChild(pinNode, "number");
+                var pinNumber = atomValue(numberNode, 1);
+                var localAt = numericTuple(pinNode, "at", 3);
+                if (pinNumber !== undefined && localAt) {
+                    pins.set(pinNumber, localAt);
+                }
+            });
+            directChildren(symbolNode, "symbol").forEach(collectPins);
+        }
+
+        collectPins(librarySymbol);
+        libraryById.set(libraryId, pins);
+    });
+
+    var placedByRef = new Map();
+    directChildren(root, "symbol").filter(function (symbolNode) {
+        return directChild(symbolNode, "lib_id") !== undefined;
+    }).forEach(function (symbolNode) {
+        var referenceProperty = directProperty(symbolNode, "Reference");
+        var reference = atomValue(referenceProperty, 2);
+        if (reference !== undefined) {
+            if (placedByRef.has(reference)) {
+                errors.push("duplicate placed symbol reference " + reference);
+            } else {
+                placedByRef.set(reference, symbolNode);
+            }
+        }
+    });
+
+    model.components.forEach(function (component) {
+        var symbolNode = placedByRef.get(component.ref);
+        if (!symbolNode) {
+            errors.push(component.ref + " placed symbol missing");
+            return;
+        }
+        var directUuid = directChild(symbolNode, "uuid");
+        var actualUuid = atomValue(directUuid, 1);
+        if (actualUuid !== component.uuid) {
+            errors.push(component.ref + " top-level UUID expected " + component.uuid +
+                ", got " + (actualUuid === undefined ? "missing" : actualUuid));
+        }
+    });
+
+    function pinEndpoint(ref, pinNumber) {
+        var symbolNode = placedByRef.get(ref);
+        if (!symbolNode) {
+            errors.push(ref + "." + pinNumber + " cannot resolve missing placed symbol");
+            return undefined;
+        }
+        var libIdNode = directChild(symbolNode, "lib_id");
+        var libraryId = atomValue(libIdNode, 1);
+        var pins = libraryById.get(libraryId);
+        var localAt = pins && pins.get(String(pinNumber));
+        var placedAt = numericTuple(symbolNode, "at", 3);
+        if (!localAt || !placedAt) {
+            errors.push(ref + "." + pinNumber + " cannot resolve embedded pin geometry");
+            return undefined;
+        }
+        if (placedAt[2] !== 0) {
+            errors.push(ref + " expected zero rotation for independent endpoint transform");
+            return undefined;
+        }
+        return [placedAt[0] + localAt[0], placedAt[1] - localAt[1]];
+    }
+
+    var objectsByTypeAndUuid = new Map();
+    ["wire", "label", "no_connect"].forEach(function (objectType) {
+        directChildren(root, objectType).forEach(function (objectNode) {
+            var uuidNode = directChild(objectNode, "uuid");
+            var uuid = atomValue(uuidNode, 1);
+            if (uuid !== undefined) {
+                objectsByTypeAndUuid.set(objectType + ":" + uuid, objectNode);
+            }
+        });
+    });
+
+    model.connections.forEach(function (connection) {
+        connection.nodes.forEach(function (node) {
+            var ref = node[0];
+            var pinNumber = String(node[1]);
+            var endpointKey = ref + "." + pinNumber;
+            var expected = pinEndpoint(ref, pinNumber);
+            var wireUuid = generator.stableUuid("wire:" + endpointKey + ":" + connection.net);
+            var wireNode = objectsByTypeAndUuid.get("wire:" + wireUuid);
+            var pointsNode = wireNode && directChild(wireNode, "pts");
+            var firstPoint = pointsNode && directChildren(pointsNode, "xy")[0];
+            var actual = firstPoint && [Number(atomValue(firstPoint, 1)), Number(atomValue(firstPoint, 2))];
+            if (!coordinatesEqual(actual, expected)) {
+                errors.push(endpointKey + " wire start expected " + coordinateText(expected || []) +
+                    ", got " + coordinateText(actual || []));
+            }
+        });
+    });
+
+    Object.keys(model.noConnects).forEach(function (ref) {
+        model.noConnects[ref].forEach(function (pinNumber) {
+            var endpointKey = ref + "." + pinNumber;
+            var expected = pinEndpoint(ref, pinNumber);
+            var markerUuid = generator.stableUuid("no-connect:" + endpointKey);
+            var markerNode = objectsByTypeAndUuid.get("no_connect:" + markerUuid);
+            var actual = markerNode && numericTuple(markerNode, "at", 2);
+            if (!coordinatesEqual(actual, expected)) {
+                errors.push(endpointKey + " no-connect coordinate expected " +
+                    coordinateText(expected || []) + ", got " + coordinateText(actual || []));
+            }
+        });
+    });
+
+    return errors;
+}
+
+function replaceExpression(source, original, replacement) {
+    var offset = source.indexOf(original);
+    assert.notStrictEqual(offset, -1, "fixture mutation target must exist");
+    return source.slice(0, offset) + replacement + source.slice(offset + original.length);
+}
+
+function corruptPlacedUuid(source, component) {
+    var block = expressionWithUuid(source, "(symbol (lib_id ", component.uuid);
+    var directUuid = '    (uuid "' + component.uuid + '")';
+    var corruptedBlock = block.replace(
+        directUuid,
+        '    (uuid "' + generator.stableUuid("corrupt-symbol:" + component.ref) + '")\n' +
+        '    (nested_uuid_decoy (uuid "' + component.uuid + '"))'
+    );
+    assert.notStrictEqual(corruptedBlock, block, "direct symbol UUID mutation must apply");
+    return replaceExpression(source, block, corruptedBlock);
+}
+
+function moveWireStart(source, ref, pin, net) {
+    var uuid = generator.stableUuid("wire:" + ref + "." + pin + ":" + net);
+    var block = expressionWithUuid(source, "(wire\n", uuid);
+    var points = coordinatePair(block);
+    var originalStart = "(xy " + points[0][0] + " " + points[0][1] + ")";
+    var movedStart = "(xy " + (points[0][0] + 1) + " " + points[0][1] + ")";
+    return replaceExpression(source, block, block.replace(originalStart, movedStart));
+}
+
+function moveNoConnect(source, ref, pin) {
+    var endpoint = ref + "." + pin;
+    var uuid = generator.stableUuid("no-connect:" + endpoint);
+    var block = expressionWithUuid(source, "(no_connect ", uuid);
+    var match = block.match(/\(at (-?\d+(?:\.\d+)?) (-?\d+(?:\.\d+)?)\)/);
+    assert.ok(match, "no-connect fixture must have a coordinate");
+    var moved = block.replace(match[0], "(at " + (Number(match[1]) + 1) + " " + match[2] + ")");
+    return replaceExpression(source, block, moved);
+}
+
 assert.strictEqual(
     generator.stableUuid("sheet"),
     "2e13cb0c-6647-4fc9-a0db-5ca9b27d688a",
@@ -123,6 +410,31 @@ assert.strictEqual(secondFileGeneration.toString("utf8"), firstPureGeneration,
     "CLI and pure generation must agree");
 
 var schematic = secondFileGeneration.toString("utf8");
+[
+    {
+        name: "nested component UUID decoy",
+        schematic: corruptPlacedUuid(schematic, model.components[0]),
+        expected: "U1 top-level UUID"
+    },
+    {
+        name: "moved wire start",
+        schematic: moveWireStart(schematic, "U1", "9", "+3V3"),
+        expected: "U1.9 wire start"
+    },
+    {
+        name: "moved no-connect marker",
+        schematic: moveNoConnect(schematic, "U1", "2"),
+        expected: "U1.2 no-connect coordinate"
+    }
+].forEach(function (fixture) {
+    var errors = contractErrors(fixture.schematic);
+    assert.ok(errors.some(function (error) {
+        return error.indexOf(fixture.expected) !== -1;
+    }), fixture.name + " must be rejected, got: " + JSON.stringify(errors));
+});
+assert.deepStrictEqual(contractErrors(schematic), [],
+    "generated schematic must satisfy exhaustive direct-UUID and pin-endpoint contracts");
+
 var symbolNames = {
     MCP23017: "PocketCard:MCP23017",
     TACT: "PocketCard:Tact",
