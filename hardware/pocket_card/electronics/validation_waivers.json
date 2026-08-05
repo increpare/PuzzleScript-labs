@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "groups": [
+    {
+      "scope": "ERC",
+      "type": "endpoint_off_grid",
+      "count": 71,
+      "fingerprintDigest": "9cb699ba1827fa447483e85c111b392f22e217ca02e4866e408ed0872bb57384",
+      "rationale": "Historical generated symbol/grid layout."
+    },
+    {
+      "scope": "ERC",
+      "type": "lib_symbol_issues",
+      "count": 19,
+      "fingerprintDigest": "078197b8ae3f4753b71a8329cec228bc7b895e147329d8cbde9b347336490eb9",
+      "rationale": "Historical generated symbol/grid layout."
+    },
+    {
+      "scope": "DRC",
+      "type": "via_dangling",
+      "count": 2,
+      "fingerprintDigest": "27b20d9750762cbf26cbf4343b6f0bc3542faea666c8c26b8b3f107ddc67ff95",
+      "rationale": "Dangling vias remain visible for engineer disposition."
+    },
+    {
+      "scope": "DRC",
+      "type": "silk_edge_clearance",
+      "count": 163,
+      "fingerprintDigest": "2ab9120f0ff908b419033b6765ce4be49f0634795c1d20c4b61a36592c196d39",
+      "rationale": "Intentionally dense decorative silk."
+    },
+    {
+      "scope": "DRC",
+      "type": "silk_overlap",
+      "count": 199,
+      "fingerprintDigest": "bb8c204cb57e95e9230625dde888cc15f56afeaffbd4a15894e77b240c431e9d",
+      "rationale": "Intentionally dense decorative silk."
+    },
+    {
+      "scope": "DRC",
+      "type": "silk_over_copper",
+      "count": 21,
+      "fingerprintDigest": "1ef1749815a28e02b61e4e3650689beae9ee9101c66bec3acd61d6f30521de32",
+      "rationale": "Intentionally dense decorative silk."
+    },
+    {
+      "scope": "DRC",
+      "type": "nonmirrored_text_on_back_layer",
+      "count": 4,
+      "fingerprintDigest": "d54988b0fd8a967b1c1526fbae6d064316605bca07fe8ccfbc072ef2938421b3",
+      "rationale": "Intentionally dense decorative silk."
+    },
+    {
+      "scope": "parity",
+      "type": "footprint_symbol_mismatch",
+      "count": 32,
+      "fingerprintDigest": "9c0f14314f30187bc131e9a9d693cb40e81b98f2d19ff38b9164f49a08187e23",
+      "rationale": "Historical library-prefix, board-value, and leading-slash mismatch; normalized UUID/pad/net comparison passes."
+    },
+    {
+      "scope": "parity",
+      "type": "net_conflict",
+      "count": 90,
+      "fingerprintDigest": "f0cd0a9a2d6da3052181b7f0e848d6be7a3a1a02d775cf27413a65effdfdc527",
+      "rationale": "Historical library-prefix, board-value, and leading-slash mismatch; normalized UUID/pad/net comparison passes."
+    },
+    {
+      "scope": "parity",
+      "type": "footprint_symbol_field_mismatch",
+      "count": 3,
+      "fingerprintDigest": "2f617d41d767197016f3ea21e1afe06954dab08d4ff677feec0ca23a9d2483b6",
+      "rationale": "Historical library-prefix, board-value, and leading-slash mismatch; normalized UUID/pad/net comparison passes."
+    }
+  ]
+}

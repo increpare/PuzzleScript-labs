@@ -279746,11 +279746,19 @@
 	)
 	(segment
 		(start 63.625 74.15)
+		(end 67.5 68)
+		(width 0.2)
+		(layer "B.Cu")
+		(net "GND")
+		(uuid "2c3c35a9-2e18-43dc-a6c3-35eff62b28fa")
+	)
+	(segment
+		(start 67.5 68)
 		(end 70.825 66.95)
 		(width 0.2)
 		(layer "B.Cu")
 		(net "GND")
-		(uuid "3bb44a83-ff96-4855-abff-4ba62d083478")
+		(uuid "4b0a6a18-6675-4662-9c3b-13c98f73e4d1")
 	)
 	(segment
 		(start 76.6949 61.7699)
