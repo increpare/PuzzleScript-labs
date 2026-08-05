@@ -375,57 +375,44 @@ function validateConnectivity(candidate) {
     return errors;
 }
 
-function balancedBlock(text, start) {
-    if (typeof text !== "string") {
-        throw new TypeError("balancedBlock text must be a string");
-    }
-    if (!Number.isInteger(start) || start < 0 || start >= text.length || text[start] !== "(") {
-        throw new Error("expected S-expression opening parenthesis at index " + start);
-    }
-
-    var depth = 0;
-    var quoted = false;
-    var escaped = false;
-    for (var index = start; index < text.length; index++) {
-        var character = text[index];
-        if (quoted) {
-            if (escaped) {
-                escaped = false;
-            } else if (character === "\\") {
-                escaped = true;
-            } else if (character === '"') {
-                quoted = false;
-            }
-            continue;
-        }
-        if (character === '"') {
-            quoted = true;
-        } else if (character === "(") {
-            depth++;
-        } else if (character === ")") {
-            depth--;
-            if (depth === 0) {
-                return text.slice(start, index + 1);
-            }
-        }
-    }
-    throw new Error("unterminated S-expression starting at index " + start);
+function isHexDigit(character) {
+    return /^[0-9a-f]$/i.test(character);
 }
 
-function readAtom(text, start) {
+function nextKiCadToken(text, start) {
     var index = start;
-    while (index < text.length && /\s/.test(text[index])) {
-        index++;
+    while (index < text.length) {
+        while (index < text.length && /\s/.test(text[index])) {
+            index++;
+        }
+        if (text[index] !== "#") {
+            break;
+        }
+        while (index < text.length && text[index] !== "\r" && text[index] !== "\n") {
+            index++;
+        }
     }
-    if (index >= text.length || text[index] === "(" || text[index] === ")") {
+    if (index >= text.length) {
         return null;
+    }
+
+    if (text[index] === "(") {
+        return { type: "open", start: index, end: index + 1 };
+    }
+    if (text[index] === ")") {
+        return { type: "close", start: index, end: index + 1 };
     }
     if (text[index] !== '"') {
         var atomStart = index;
-        while (index < text.length && !/[\s()]/.test(text[index])) {
+        while (index < text.length && !/[\s()#]/.test(text[index])) {
             index++;
         }
-        return { value: text.slice(atomStart, index), end: index };
+        return {
+            type: "atom",
+            value: text.slice(atomStart, index),
+            start: atomStart,
+            end: index
+        };
     }
 
     var quoteStart = index;
@@ -434,14 +421,67 @@ function readAtom(text, start) {
     while (index < text.length) {
         var character = text[index];
         if (character === "\\") {
+            var escapeStart = index;
             index++;
             if (index >= text.length) {
                 break;
             }
-            value += text[index];
-            index++;
+            var escaped = text[index];
+            if (escaped === '"' || escaped === "\\") {
+                value += escaped;
+                index++;
+            } else if (escaped === "a") {
+                value += "\x07";
+                index++;
+            } else if (escaped === "b") {
+                value += "\x08";
+                index++;
+            } else if (escaped === "f") {
+                value += "\x0c";
+                index++;
+            } else if (escaped === "n") {
+                value += "\n";
+                index++;
+            } else if (escaped === "r") {
+                value += "\r";
+                index++;
+            } else if (escaped === "t") {
+                value += "\t";
+                index++;
+            } else if (escaped === "v") {
+                value += "\x0b";
+                index++;
+            } else if (escaped === "x") {
+                index++;
+                var hexStart = index;
+                while (index < text.length && index - hexStart < 2 && isHexDigit(text[index])) {
+                    index++;
+                }
+                if (index === hexStart) {
+                    value += "x";
+                } else {
+                    value += String.fromCharCode(parseInt(text.slice(hexStart, index), 16));
+                }
+            } else {
+                var octalStart = index;
+                while (index < text.length && index - octalStart < 3 && /[0-7]/.test(text[index])) {
+                    index++;
+                }
+                if (index === octalStart) {
+                    value += "\\";
+                    index = escapeStart + 1;
+                } else {
+                    value += String.fromCharCode(parseInt(text.slice(octalStart, index), 8));
+                }
+            }
         } else if (character === '"') {
-            return { value: value, end: index + 1 };
+            return {
+                type: "atom",
+                value: value,
+                quoted: true,
+                start: quoteStart,
+                end: index + 1
+            };
         } else {
             value += character;
             index++;
@@ -450,51 +490,75 @@ function readAtom(text, start) {
     throw new Error("unterminated quoted string starting at index " + quoteStart);
 }
 
+function balancedBlock(text, start) {
+    if (typeof text !== "string") {
+        throw new TypeError("balancedBlock text must be a string");
+    }
+    var token = nextKiCadToken(text, start);
+    if (!Number.isInteger(start) || !token || token.start !== start || token.type !== "open") {
+        throw new Error("expected S-expression opening parenthesis at index " + start);
+    }
+
+    var depth = 1;
+    var index = token.end;
+    while ((token = nextKiCadToken(text, index)) !== null) {
+        index = token.end;
+        if (token.type === "open") {
+            depth++;
+        } else if (token.type === "close") {
+            depth--;
+            if (depth === 0) {
+                return text.slice(start, token.end);
+            }
+        }
+    }
+    throw new Error("unterminated S-expression starting at index " + start);
+}
+
 function expressionAtoms(expression, limit) {
     var atoms = [];
-    var index = 1;
+    var token = nextKiCadToken(expression, 0);
+    if (!token || token.start !== 0 || token.type !== "open") {
+        return atoms;
+    }
+    var index = token.end;
     while (atoms.length < limit) {
-        var atom = readAtom(expression, index);
-        if (!atom) {
+        token = nextKiCadToken(expression, index);
+        if (!token || token.type !== "atom") {
             break;
         }
-        atoms.push(atom.value);
-        index = atom.end;
+        atoms.push(token.value);
+        index = token.end;
     }
     return atoms;
 }
 
 function directChildBlocks(block) {
     var children = [];
-    var depth = 0;
-    var quoted = false;
-    var escaped = false;
-    for (var index = 0; index < block.length; index++) {
-        var character = block[index];
-        if (quoted) {
-            if (escaped) {
-                escaped = false;
-            } else if (character === "\\") {
-                escaped = true;
-            } else if (character === '"') {
-                quoted = false;
-            }
-            continue;
-        }
-        if (character === '"') {
-            quoted = true;
-        } else if (character === "(") {
+    var token = nextKiCadToken(block, 0);
+    if (!token || token.start !== 0 || token.type !== "open") {
+        return children;
+    }
+    var depth = 1;
+    var index = token.end;
+    while ((token = nextKiCadToken(block, index)) !== null) {
+        if (token.type === "open") {
             if (depth === 1) {
-                var child = balancedBlock(block, index);
+                var child = balancedBlock(block, token.start);
                 var atoms = expressionAtoms(child, 1);
-                children.push({ name: atoms[0], text: child });
-                index += child.length - 1;
+                children.push({ name: atoms[0], text: child, start: token.start });
+                index = token.start + child.length;
+                continue;
             } else {
                 depth++;
             }
-        } else if (character === ")") {
+        } else if (token.type === "close") {
             depth--;
+            if (depth === 0) {
+                break;
+            }
         }
+        index = token.end;
     }
     return children;
 }
@@ -548,44 +612,36 @@ function parseBoardFootprints(boardText) {
         throw new TypeError("board text must be a string");
     }
 
-    var footprints = Object.create(null);
-    var depth = 0;
-    var quoted = false;
-    var escaped = false;
-    for (var index = 0; index < boardText.length; index++) {
-        var character = boardText[index];
-        if (quoted) {
-            if (escaped) {
-                escaped = false;
-            } else if (character === "\\") {
-                escaped = true;
-            } else if (character === '"') {
-                quoted = false;
-            }
-            continue;
-        }
-        if (character === '"') {
-            quoted = true;
-        } else if (character === "(") {
-            var head = readAtom(boardText, index + 1);
-            if (head && head.value === "footprint" && (depth === 0 || depth === 1)) {
-                var block = balancedBlock(boardText, index);
-                var footprint = parseFootprintBlock(block, index);
-                if (Object.prototype.hasOwnProperty.call(footprints, footprint.ref)) {
-                    throw new Error("duplicate board footprint reference " + footprint.ref);
-                }
-                footprints[footprint.ref] = {
-                    uuid: footprint.uuid,
-                    pads: footprint.pads
-                };
-                index += block.length - 1;
-            } else {
-                depth++;
-            }
-        } else if (character === ")") {
-            depth--;
-        }
+    var rootToken = nextKiCadToken(boardText, 0);
+    if (!rootToken || rootToken.type !== "open") {
+        throw new Error("expected exactly one kicad_pcb root at index " +
+            (rootToken ? rootToken.start : 0));
     }
+    var rootBlock = balancedBlock(boardText, rootToken.start);
+    var rootAtoms = expressionAtoms(rootBlock, 1);
+    if (rootAtoms[0] !== "kicad_pcb") {
+        throw new Error("expected exactly one kicad_pcb root, found " +
+            (rootAtoms[0] || "unnamed expression") + " at index " + rootToken.start);
+    }
+    var trailing = nextKiCadToken(boardText, rootToken.start + rootBlock.length);
+    if (trailing) {
+        throw new Error("unexpected trailing content after kicad_pcb root at index " + trailing.start);
+    }
+
+    var footprints = Object.create(null);
+    directChildBlocks(rootBlock).forEach(function (child) {
+        if (child.name !== "footprint") {
+            return;
+        }
+        var footprint = parseFootprintBlock(child.text, rootToken.start + child.start);
+        if (Object.prototype.hasOwnProperty.call(footprints, footprint.ref)) {
+            throw new Error("duplicate board footprint reference " + footprint.ref);
+        }
+        footprints[footprint.ref] = {
+            uuid: footprint.uuid,
+            pads: footprint.pads
+        };
+    });
     return footprints;
 }
 
@@ -647,6 +703,14 @@ function compareBoard(candidate, footprints) {
         boardOnlyByRef.get(rule.ref).set(String(rule.pad), rule.net);
     });
 
+    var unconnectedByRef = new Map();
+    var noConnects = candidate && candidate.noConnects &&
+        typeof candidate.noConnects === "object" ? candidate.noConnects : {};
+    Object.keys(noConnects).forEach(function (ref) {
+        var pins = Array.isArray(noConnects[ref]) ? noConnects[ref] : [];
+        unconnectedByRef.set(ref, new Set(pins.map(String)));
+    });
+
     components.forEach(function (component) {
         if (!component || typeof component.ref !== "string" ||
             !Object.prototype.hasOwnProperty.call(board, component.ref)) {
@@ -661,6 +725,7 @@ function compareBoard(candidate, footprints) {
         var pads = Array.isArray(footprint.pads) ? footprint.pads : [];
         var connectedPads = connectedByRef.get(ref) || new Map();
         var boardOnlyPads = boardOnlyByRef.get(ref) || new Map();
+        var unconnectedPads = unconnectedByRef.get(ref) || new Set();
 
         function enforceExpectedPads(expectedPads) {
             expectedPads.forEach(function (expectedNet, number) {
@@ -683,6 +748,22 @@ function compareBoard(candidate, footprints) {
 
         enforceExpectedPads(connectedPads);
         enforceExpectedPads(boardOnlyPads);
+        unconnectedPads.forEach(function (number) {
+            var matching = pads.filter(function (pad) {
+                return pad && String(pad.number) === number;
+            });
+            if (matching.length === 0) {
+                errors.push(ref + " pad " + boardPadLabel(number) +
+                    " expected unconnected, found missing");
+                return;
+            }
+            matching.forEach(function (pad) {
+                if (pad.net !== null && pad.net !== undefined) {
+                    errors.push(ref + " pad " + boardPadLabel(number) +
+                        " expected unconnected, found " + boardNetLabel(pad.net));
+                }
+            });
+        });
         pads.forEach(function (pad) {
             if (!pad) {
                 return;
@@ -693,7 +774,8 @@ function compareBoard(candidate, footprints) {
                 errors.push(ref + " pad " + boardPadLabel(number) +
                     " is not an allowed unnumbered mechanical pad");
             }
-            if ((mountingHole || (!connectedPads.has(number) && !boardOnlyPads.has(number))) &&
+            if ((mountingHole || (!connectedPads.has(number) && !boardOnlyPads.has(number) &&
+                !unconnectedPads.has(number))) &&
                 pad.net !== null && pad.net !== undefined) {
                 errors.push(ref + " pad " + boardPadLabel(number) +
                     " expected unconnected, found " + boardNetLabel(pad.net));

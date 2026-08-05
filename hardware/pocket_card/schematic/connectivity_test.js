@@ -539,8 +539,121 @@ test("board parser reads the one-argument net form emitted by the KiCad 10 board
     ]);
 });
 
+test("board parser ignores fully commented footprints with CRLF line endings", function () {
+    var board = [
+        '# leading comment\r',
+        '(kicad_pcb',
+        '  # (footprint "Ghost" (uuid "ghost") (property "Reference" "GHOST"))\r',
+        '  (footprint "Real"',
+        '    (uuid "uuid-real")',
+        '    (property "Reference" "U1")',
+        '    (pad "1" smd rect (net "SIG_UP"))))',
+        '# trailing comment\r'
+    ].join("\n");
+    var footprints = V.parseBoardFootprints(board);
+    assert.deepStrictEqual(Object.keys(footprints), ["U1"]);
+});
+
+test("comment syntax cannot alter balanced blocks or hide a real footprint", function () {
+    var board = [
+        '(kicad_pcb',
+        '  # unmatched ( plus an unfinished "quote and a backslash \\',
+        '  (footprint "Real"',
+        '    # premature ) and nested ( tokens are comment data',
+        '    (uuid "uuid-real")',
+        '    (property "Reference" "U1"))',
+        ')'
+    ].join("\n");
+    var rootStart = board.indexOf("(kicad_pcb");
+    assert.strictEqual(V.balancedBlock(board, rootStart), board.slice(rootStart));
+    assert.strictEqual(V.parseBoardFootprints(board).U1.uuid, "uuid-real");
+});
+
+test("hash characters inside quoted strings remain semantic data", function () {
+    var board = [
+        '(kicad_pcb',
+        '  (footprint "Hash # (not a comment)"',
+        '    (uuid "uuid#value")',
+        '    (property "Reference" "HASH#REF")',
+        '    (pad "1" smd rect (net "SIG#(UP)"))))'
+    ].join("\n");
+    var footprint = V.parseBoardFootprints(board)["HASH#REF"];
+    assert.strictEqual(footprint.uuid, "uuid#value");
+    assert.deepStrictEqual(footprint.pads, [{ number: "1", net: "SIG#(UP)" }]);
+});
+
+test("quoted KiCad atoms decode simple, hexadecimal, and octal escapes", function () {
+    var board = String.raw`(kicad_pcb
+  (footprint "Escapes"
+    (uuid "dir\\name\"quoted\a\b\f\n\r\t\v")
+    (property "Reference" "SW_\x55P")
+    (pad "\61" smd rect (net "SIG_\125P"))))`;
+    var footprint = V.parseBoardFootprints(board).SW_UP;
+    assert.ok(footprint, "hexadecimal escape must decode in the reference");
+    assert.strictEqual(footprint.uuid,
+        "dir\\name\"quoted\x07\x08\x0c\n\r\t\x0b");
+    assert.deepStrictEqual(footprint.pads, [{ number: "1", net: "SIG_UP" }]);
+});
+
+test("board parser requires one kicad_pcb root instead of a bare footprint", function () {
+    assert.throws(function () {
+        V.parseBoardFootprints('(footprint "Bare" (uuid "bare") ' +
+            '(property "Reference" "U1"))');
+    }, /expected exactly one kicad_pcb root/i);
+    assert.throws(function () {
+        V.parseBoardFootprints("  # only a comment\n");
+    }, /expected exactly one kicad_pcb root/i);
+});
+
+test("board parser rejects unterminated roots and unfinished top-level quotes", function () {
+    assert.throws(function () {
+        V.parseBoardFootprints('(kicad_pcb (footprint "Real" (uuid "uuid-real") ' +
+            '(property "Reference" "U1"))');
+    }, /unterminated.*S-expression.*index/i);
+    assert.throws(function () {
+        V.parseBoardFootprints('(kicad_pcb) "unfinished');
+    }, /unterminated quoted string.*index/i);
+});
+
+test("board parser rejects trailing tokens and a second board root", function () {
+    assert.throws(function () {
+        V.parseBoardFootprints('(kicad_pcb) trailing-token');
+    }, /unexpected trailing content.*index/i);
+    assert.throws(function () {
+        V.parseBoardFootprints('(kicad_pcb) (kicad_pcb)');
+    }, /unexpected trailing content.*index/i);
+});
+
+test("comments and whitespace may surround the single board root", function () {
+    assert.deepStrictEqual(Object.keys(V.parseBoardFootprints(
+        ' # before ( ignored\r\n\t(kicad_pcb)\n# after ) ignored\n'
+    )), []);
+});
+
 test("board comparison accepts every matching duplicate physical pad", function () {
     assert.deepStrictEqual(V.compareBoard(comparisonModel(), comparisonFootprints()), []);
+});
+
+test("every declared no-connect endpoint requires a matching board pad", function () {
+    var footprints = comparisonFootprints();
+    footprints.U1.pads = footprints.U1.pads.filter(function (pad) {
+        return pad.number !== "2";
+    });
+    assertBoardError(comparisonModel(), footprints,
+        /U1 pad 2 expected unconnected, found missing/);
+});
+
+test("every duplicate physical pad for a no-connect endpoint must be unnetted", function () {
+    var footprints = comparisonFootprints();
+    footprints.U1.pads.push({ number: "2", net: "GND" });
+    assertBoardError(comparisonModel(), footprints,
+        /U1 pad 2 expected unconnected, found GND/);
+});
+
+test("extra unmodeled board pads remain allowed when they are unnetted", function () {
+    var footprints = comparisonFootprints();
+    footprints.SW_UP.pads.push({ number: "99", net: null });
+    assert.deepStrictEqual(V.compareBoard(comparisonModel(), footprints), []);
 });
 
 test("board comparison reports connected-net mismatches on any duplicate pad", function () {
