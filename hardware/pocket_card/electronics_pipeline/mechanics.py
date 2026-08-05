@@ -31,11 +31,21 @@ class OutlinePrimitive:
     kind: str
     points: tuple[Point, ...]
 
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "points",
+            tuple(tuple(point) for point in self.points),
+        )
+
 
 @dataclass(frozen=True)
 class OutlineContract:
     coordinate_tolerance_mm: float
     primitives: tuple[OutlinePrimitive, ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "primitives", tuple(self.primitives))
 
 
 @dataclass(frozen=True)
@@ -57,6 +67,12 @@ class AllowedOverlap:
     rationale: str
     courtyard_bbox_mm: Bbox
     intersection_bbox_mm: Bbox
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "courtyard_bbox_mm", tuple(self.courtyard_bbox_mm))
+        object.__setattr__(
+            self, "intersection_bbox_mm", tuple(self.intersection_bbox_mm)
+        )
 
 
 @dataclass(frozen=True)
@@ -92,6 +108,10 @@ class MechanicalContract:
     outline: OutlineContract
     features: tuple[FeatureContract, ...]
     keepouts: tuple[KeepoutContract, ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "features", tuple(self.features))
+        object.__setattr__(self, "keepouts", tuple(self.keepouts))
 
     @property
     def features_by_ref(self) -> Mapping[str, FeatureContract]:
@@ -153,6 +173,100 @@ _EXPECTED_DERIVATION = {
     "xMax": "BATT_X + CELL_W + BATT_CLEAR",
     "yMax": "BATT_Y + CELL_H + BATT_CLEAR",
 }
+_APPROVED_FEATURE_POLICY = {
+    "H1": (
+        0.05,
+        0.1,
+        "Rear enclosure mounting pin and shoulder interface.",
+    ),
+    "H2": (
+        0.05,
+        0.1,
+        "Rear enclosure mounting pin and shoulder interface.",
+    ),
+    "SW_UP1": (
+        0.05,
+        0.1,
+        "Up button must remain concentric with its enclosure guide.",
+    ),
+    "SW_DOWN1": (
+        0.05,
+        0.1,
+        "Down button must remain concentric with its enclosure guide.",
+    ),
+    "SW_LEFT1": (
+        0.05,
+        0.1,
+        "Left button must remain concentric with its enclosure guide.",
+    ),
+    "SW_RIGHT1": (
+        0.05,
+        0.1,
+        "Right button must remain concentric with its enclosure guide.",
+    ),
+    "SW_UNDO1": (
+        0.05,
+        0.1,
+        "Undo button must remain concentric with its enclosure guide.",
+    ),
+    "SW_ACTION1": (
+        0.05,
+        0.1,
+        "Action button must remain concentric with its enclosure guide.",
+    ),
+    "SW_RESET1": (
+        0.05,
+        0.1,
+        "Reset button must remain concentric with its enclosure guide.",
+    ),
+    "SW_MENU1": (
+        0.05,
+        0.1,
+        "Menu button must remain aligned with its pill-shaped enclosure guide.",
+    ),
+    "SW_PWR1": (
+        0.05,
+        0.1,
+        "Power switch actuator must remain aligned with the enclosure slide tip.",
+    ),
+    "SW_MUTE1": (
+        0.05,
+        0.1,
+        "Mute switch actuator must remain aligned with the enclosure slide tip.",
+    ),
+    "J_I2C1": (
+        0.05,
+        0.1,
+        "I2C connector must remain in the rear wiring pocket.",
+    ),
+    "J_EXP1": (
+        0.05,
+        0.1,
+        "Expansion connector must remain in the rear wiring pocket and clear the PCB notch.",
+    ),
+    "J_BAT_IN1": (
+        0.05,
+        0.1,
+        "Battery input connector must remain beside the cell pocket.",
+    ),
+    "J_BAT_OUT1": (
+        0.05,
+        0.1,
+        "Module battery output connector must remain in the north rear wiring band.",
+    ),
+}
+_APPROVED_ALLOWED_OVERLAPS = {
+    "J_BAT_IN1": (
+        "Reviewed baseline: the connector courtyard enters the cell fence envelope by 0.08 mm while the established mechanical stack remains acceptable.",
+        (59.52, 72.8, 66.48, 79.2),
+        (59.52, 72.8, 59.6, 79.2),
+    ),
+    "J_I2C1": (
+        "Reviewed baseline: the connector courtyard enters the cell fence envelope by 1.33 mm; any increase requires renewed mechanical review.",
+        (58.27, 59.8, 67.73, 66.2),
+        (58.27, 59.8, 59.6, 66.2),
+    ),
+}
 
 
 def _object_without_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
@@ -195,7 +309,10 @@ def _array(value: object, context: str, *, nonempty: bool = False) -> list[objec
 def _number(value: object, context: str, *, nonnegative: bool = False) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ContractError(f"{context} must be a number")
-    result = float(value)
+    try:
+        result = float(value)
+    except (OverflowError, ValueError) as error:
+        raise ContractError(f"{context} must be finite") from error
     if not math.isfinite(result):
         raise ContractError(f"{context} must be finite")
     if nonnegative and result < 0:
@@ -206,7 +323,9 @@ def _number(value: object, context: str, *, nonnegative: bool = False) -> float:
 def _string(value: object, context: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ContractError(f"{context} must be a nonempty string")
-    return value.strip()
+    if value != value.strip():
+        raise ContractError(f"{context} must not contain surrounding whitespace")
+    return value
 
 
 def _boolean(value: object, context: str) -> bool:
@@ -265,7 +384,7 @@ def _parse_outline(value: object) -> OutlineContract:
     ):
         context = f"outline.primitives[{index}]"
         primitive = _mapping(value, context, _PRIMITIVE_KEYS)
-        kind = primitive["kind"]
+        kind = _string(primitive["kind"], f"{context}.kind")
         if kind not in {"line", "arc"}:
             raise ContractError(f"{context}.kind must be line or arc")
         expected_points = 2 if kind == "line" else 3
@@ -289,7 +408,7 @@ def _parse_outline(value: object) -> OutlineContract:
 def _parse_feature(value: object, index: int) -> FeatureContract:
     context = f"features[{index}]"
     raw = _mapping(value, context, _FEATURE_KEYS)
-    side = raw["side"]
+    side = _string(raw["side"], f"{context}.side")
     if side not in {"F.Cu", "B.Cu"}:
         raise ContractError(f"{context}.side must be F.Cu or B.Cu")
     return FeatureContract(
@@ -318,10 +437,10 @@ def _parse_keepout(
 ) -> KeepoutContract:
     context = f"keepouts[{index}]"
     raw = _mapping(value, context, _KEEPOUT_KEYS)
-    kind = raw["kind"]
+    kind = _string(raw["kind"], f"{context}.kind")
     if kind != "rectangle":
         raise ContractError(f"{context}.kind must be rectangle")
-    side = raw["side"]
+    side = _string(raw["side"], f"{context}.side")
     if side not in {"F.Cu", "B.Cu"}:
         raise ContractError(f"{context}.side must be F.Cu or B.Cu")
     x_min = _number(raw["xMinMm"], f"{context}.xMinMm")
@@ -601,7 +720,7 @@ def check_mechanics(
 def check_contract_against_case_params(
     contract: MechanicalContract,
 ) -> tuple[str, ...]:
-    """Compare the contract with the enclosure's actual parameter module."""
+    """Enforce the exact approved contract policy against enclosure parameters."""
 
     from hardware.pocket_card.case import params as case_params
 
@@ -625,24 +744,62 @@ def check_contract_against_case_params(
         "J_BAT_OUT1": (*case_params.CONN_BAT_OUT, case_params.CONN_ROT, case_params.CONN_SIDE),
     }
     features_by_ref = contract.features_by_ref
+    if contract.schema_version != 1:
+        findings.add("contract schema version must be 1")
+    expected_refs = frozenset(_APPROVED_FEATURE_POLICY)
+    actual_refs = frozenset(feature.ref for feature in contract.features)
+    if actual_refs != expected_refs or len(contract.features) != len(expected_refs):
+        missing = ", ".join(sorted(expected_refs - actual_refs)) or "none"
+        extra = ", ".join(sorted(actual_refs - expected_refs)) or "none"
+        findings.add(
+            "contract feature ref set must be exactly the approved 16 refs: "
+            f"missing {missing}; extra {extra}; count {len(contract.features)}"
+        )
     for ref, (x_mm, y_mm, rotation_deg, side) in expected.items():
         feature = features_by_ref.get(ref)
         if feature is None:
             findings.add(f"{ref} is missing from contract case params map")
             continue
-        if math.hypot(feature.x_mm - x_mm, feature.y_mm - y_mm) > feature.xy_tolerance_mm:
+        xy_tolerance_mm, rotation_tolerance_deg, rationale = (
+            _APPROVED_FEATURE_POLICY[ref]
+        )
+        if math.hypot(feature.x_mm - x_mm, feature.y_mm - y_mm) > 1e-9:
             findings.add(
                 f"{ref} contract location does not match case params: expected ({x_mm:g}, {y_mm:g})"
             )
-        if _angular_distance(feature.rotation_deg, rotation_deg) > feature.rotation_tolerance_deg:
+        if _angular_distance(feature.rotation_deg, rotation_deg) > 1e-9:
             findings.add(f"{ref} contract rotation does not match case params")
         if feature.side != side:
             findings.add(f"{ref} contract side does not match case params")
+        if feature.xy_tolerance_mm != xy_tolerance_mm:
+            findings.add(
+                f"{ref} contract xy tolerance must be {xy_tolerance_mm:g} mm"
+            )
+        if feature.rotation_tolerance_deg != rotation_tolerance_deg:
+            findings.add(
+                f"{ref} contract rotation tolerance must be {rotation_tolerance_deg:g} deg"
+            )
+        if not feature.locked_required:
+            findings.add(f"{ref} contract must require locking")
+        if feature.rationale != rationale:
+            findings.add(f"{ref} contract rationale does not match approved policy")
 
-    if abs(contract.board.thickness_mm - case_params.PCB_T) > contract.board.thickness_tolerance_mm:
+    if abs(contract.board.thickness_mm - case_params.PCB_T) > 1e-9:
         findings.add("contract board thickness does not match case params PCB_T")
+    if contract.board.thickness_tolerance_mm != 0.01:
+        findings.add("contract board thickness tolerance must be 0.01 mm")
+    if contract.outline.coordinate_tolerance_mm != 0.01:
+        findings.add("contract outline coordinate tolerance must be 0.01 mm")
 
-    battery = next((keepout for keepout in contract.keepouts if keepout.name == "battery"), None)
+    if len(contract.keepouts) != 1:
+        findings.add(
+            "contract must contain exactly one battery keep-out, "
+            f"found {len(contract.keepouts)} keep-outs"
+        )
+    batteries = tuple(
+        keepout for keepout in contract.keepouts if keepout.name == "battery"
+    )
+    battery = batteries[0] if len(batteries) == 1 else None
     if battery is None:
         findings.add("battery keep-out is missing from contract")
     else:
@@ -655,7 +812,7 @@ def check_contract_against_case_params(
         if _bbox_changed(
             battery.bbox_mm,
             expected_bbox,
-            contract.outline.coordinate_tolerance_mm,
+            1e-9,
         ):
             findings.add(
                 "battery keep-out does not match BATT_X/BATT_Y/CELL_W/CELL_H/BATT_CLEAR case params"
@@ -666,13 +823,32 @@ def check_contract_against_case_params(
             findings.add("battery keep-out must be a B.Cu rectangle")
         if battery.boundary_touch_is_intrusion:
             findings.add("battery keep-out boundary policy must allow exact boundary touch")
-        for ref, allowed in battery.allowed_overlaps.items():
+        expected_overlap_refs = frozenset(_APPROVED_ALLOWED_OVERLAPS)
+        actual_overlap_refs = frozenset(battery.allowed_overlaps)
+        if actual_overlap_refs != expected_overlap_refs:
+            missing = ", ".join(sorted(expected_overlap_refs - actual_overlap_refs)) or "none"
+            extra = ", ".join(sorted(actual_overlap_refs - expected_overlap_refs)) or "none"
+            findings.add(
+                "battery allowed overlap ref set must be exactly J_BAT_IN1 and J_I2C1: "
+                f"missing {missing}; extra {extra}"
+            )
+        for ref in sorted(expected_overlap_refs & actual_overlap_refs):
+            allowed = battery.allowed_overlaps[ref]
             feature = features_by_ref.get(ref)
             if (
-                feature is None
+                allowed.ref != ref
+                or feature is None
                 or feature.side != battery.side
                 or not feature.locked_required
-                or not allowed.rationale.strip()
             ):
                 findings.add(f"{ref} battery allowed overlap contract is invalid")
+            rationale, courtyard, intersection = _APPROVED_ALLOWED_OVERLAPS[ref]
+            if (
+                allowed.rationale != rationale
+                or allowed.courtyard_bbox_mm != courtyard
+                or allowed.intersection_bbox_mm != intersection
+            ):
+                findings.add(
+                    f"{ref} battery allowed overlap envelope or rationale does not match approved policy"
+                )
     return tuple(sorted(findings))

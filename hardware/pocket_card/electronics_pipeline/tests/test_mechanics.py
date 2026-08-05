@@ -1,20 +1,31 @@
 import dataclasses
 import hashlib
 import json
+import os
+import stat
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
+import hardware.pocket_card.electronics_pipeline.lock_mechanical_items as lock_module
 from hardware.pocket_card.electronics_pipeline.inventory import parse_board
 from hardware.pocket_card.electronics_pipeline.lock_mechanical_items import (
     LockMigrationRefused,
     lock_mechanical_items,
 )
 from hardware.pocket_card.electronics_pipeline.mechanics import (
+    AllowedOverlap,
+    BoardContract,
     ContractError,
+    FeatureContract,
+    KeepoutContract,
+    MechanicalContract,
     MechanicalReviewRequired,
+    OutlineContract,
+    OutlinePrimitive,
     check_contract_against_case_params,
     check_mechanics,
     load_contract,
@@ -185,6 +196,146 @@ class MechanicalContractTest(unittest.TestCase):
         findings = check_contract_against_case_params(changed)
         self.assertTrue(any("SW_RIGHT1" in item and "case params" in item for item in findings), findings)
 
+    def test_case_policy_requires_all_features_to_require_locking(self):
+        features = tuple(
+            dataclasses.replace(feature, locked_required=False)
+            if feature.ref == "H1"
+            else feature
+            for feature in self.contract.features
+        )
+        contract = dataclasses.replace(self.contract, features=features)
+        board = _replace_footprint(self.board, "H1", locked=False)
+        mechanical = check_mechanics(contract, board)
+        case_policy = check_contract_against_case_params(contract)
+        self.assertFalse(mechanical == () and case_policy == ())
+        self.assertTrue(any("H1" in item and "lock" in item for item in case_policy), case_policy)
+
+    def test_case_policy_rejects_extra_feature(self):
+        extra = dataclasses.replace(
+            self.contract.features[0], ref="EXTRA1", rationale="Unapproved feature."
+        )
+        contract = dataclasses.replace(
+            self.contract, features=(*self.contract.features, extra)
+        )
+        findings = check_contract_against_case_params(contract)
+        self.assertTrue(any("feature ref set" in item and "EXTRA1" in item for item in findings), findings)
+
+    def test_case_policy_requires_exact_feature_metadata(self):
+        original = self.contract.features_by_ref["H1"]
+        cases = {
+            "rotation": {"rotation_deg": 1.0},
+            "side": {"side": "B.Cu"},
+            "xy tolerance": {"xy_tolerance_mm": 1.0},
+            "rotation tolerance": {"rotation_tolerance_deg": 1.0},
+            "rationale": {"rationale": "A different rationale."},
+        }
+        for expected_text, changes in cases.items():
+            with self.subTest(expected_text=expected_text):
+                changed_feature = dataclasses.replace(original, **changes)
+                features = tuple(
+                    changed_feature if feature.ref == "H1" else feature
+                    for feature in self.contract.features
+                )
+                findings = check_contract_against_case_params(
+                    dataclasses.replace(self.contract, features=features)
+                )
+                self.assertTrue(
+                    any("H1" in item and expected_text in item for item in findings),
+                    findings,
+                )
+
+    def test_case_policy_requires_exact_battery_overlap_ref_set(self):
+        battery = self.contract.keepouts[0]
+        missing = dict(battery.allowed_overlaps)
+        del missing["J_I2C1"]
+        third = dataclasses.replace(
+            battery.allowed_overlaps["J_I2C1"], ref="J_EXP1"
+        )
+        cases = {
+            "missing": missing,
+            "extra": {**battery.allowed_overlaps, "J_EXP1": third},
+        }
+        for label, overlaps in cases.items():
+            with self.subTest(label=label):
+                changed_keepout = dataclasses.replace(
+                    battery, allowed_overlaps=overlaps
+                )
+                contract = dataclasses.replace(
+                    self.contract, keepouts=(changed_keepout,)
+                )
+                findings = check_contract_against_case_params(contract)
+                self.assertTrue(
+                    any("allowed overlap ref set" in item for item in findings),
+                    findings,
+                )
+
+    def test_case_policy_requires_exact_allowed_overlap_envelopes(self):
+        battery = self.contract.keepouts[0]
+        baseline = battery.allowed_overlaps["J_I2C1"]
+        cases = {
+            "courtyard": {
+                "courtyard_bbox_mm": (
+                    baseline.courtyard_bbox_mm[0] + 0.001,
+                    *baseline.courtyard_bbox_mm[1:],
+                )
+            },
+            "intersection": {
+                "intersection_bbox_mm": (
+                    baseline.intersection_bbox_mm[0] + 0.001,
+                    *baseline.intersection_bbox_mm[1:],
+                )
+            },
+            "rationale": {"rationale": "Different review."},
+        }
+        for label, changes in cases.items():
+            with self.subTest(label=label):
+                overlap = dataclasses.replace(baseline, **changes)
+                keepout = dataclasses.replace(
+                    battery,
+                    allowed_overlaps={**battery.allowed_overlaps, "J_I2C1": overlap},
+                )
+                findings = check_contract_against_case_params(
+                    dataclasses.replace(self.contract, keepouts=(keepout,))
+                )
+                self.assertTrue(
+                    any("J_I2C1" in item and "envelope or rationale" in item for item in findings),
+                    findings,
+                )
+
+    def test_case_policy_requires_exactly_one_battery_keepout(self):
+        auxiliary = dataclasses.replace(self.contract.keepouts[0], name="auxiliary")
+        cases = {
+            "missing": (),
+            "extra": (*self.contract.keepouts, auxiliary),
+        }
+        for label, keepouts in cases.items():
+            with self.subTest(label=label):
+                contract = dataclasses.replace(self.contract, keepouts=keepouts)
+                findings = check_contract_against_case_params(contract)
+                self.assertTrue(
+                    any("exactly one battery keep-out" in item for item in findings),
+                    findings,
+                )
+
+    def test_case_policy_requires_exact_battery_schema_and_formula(self):
+        battery = self.contract.keepouts[0]
+        cases = {
+            "rectangle": {"kind": "circle"},
+            "B.Cu": {"side": "F.Cu"},
+            "case params": {"x_min_mm": battery.x_min_mm + 0.001},
+            "formula": {"derivation": {**battery.derivation, "xMin": "other"}},
+            "boundary": {"boundary_touch_is_intrusion": True},
+        }
+        for expected_text, changes in cases.items():
+            with self.subTest(expected_text=expected_text):
+                changed = dataclasses.replace(battery, **changes)
+                contract = dataclasses.replace(self.contract, keepouts=(changed,))
+                findings = check_contract_against_case_params(contract)
+                self.assertTrue(
+                    any(expected_text in item for item in findings),
+                    findings,
+                )
+
     def test_mechanical_review_required_is_immutable_and_renders_one_per_line(self):
         error = MechanicalReviewRequired(("H1 moved", "Edge.Cuts changed"))
         self.assertEqual(error.findings, ("H1 moved", "Edge.Cuts changed"))
@@ -235,6 +386,32 @@ class ContractSchemaTest(unittest.TestCase):
             )
         )
 
+    def test_rejects_huge_numeric_values_as_contract_errors(self):
+        payload = json.loads(json.dumps(self.payload))
+        payload["features"][0]["xMm"] = 10**400
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "contract.json"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaisesRegex(ContractError, "finite"):
+                load_contract(path)
+
+    def test_rejects_padded_feature_and_overlap_identifiers(self):
+        feature_payload = json.loads(json.dumps(self.payload))
+        i2c = next(
+            feature
+            for feature in feature_payload["features"]
+            if feature["ref"] == "J_I2C1"
+        )
+        i2c["ref"] = " J_I2C1 "
+        with self.assertRaisesRegex(ContractError, "surrounding whitespace"):
+            self._load_payload(feature_payload)
+
+        overlap_payload = json.loads(json.dumps(self.payload))
+        overlaps = overlap_payload["keepouts"][0]["allowedOverlaps"]
+        overlaps[" J_I2C1 "] = overlaps.pop("J_I2C1")
+        with self.assertRaisesRegex(ContractError, "surrounding whitespace"):
+            self._load_payload(overlap_payload)
+
     def test_rejects_invalid_feature_fields(self):
         mutations = (
             lambda p: p["features"][0].__setitem__("ref", ""),
@@ -281,6 +458,65 @@ class ContractSchemaTest(unittest.TestCase):
         )
 
 
+class ContractConstructorImmutabilityTest(unittest.TestCase):
+    def test_direct_constructors_defensively_freeze_nested_inputs(self):
+        points = [[1.0, 2.0], [3.0, 4.0]]
+        primitive = OutlinePrimitive("line", points)
+        primitives = [primitive]
+        outline = OutlineContract(0.01, primitives)
+
+        courtyard = [5.0, 6.0, 9.0, 10.0]
+        intersection = [5.0, 6.0, 7.0, 8.0]
+        overlap = AllowedOverlap(
+            "J_I2C1", "Reviewed overlap.", courtyard, intersection
+        )
+        derivation = {"source": "case params"}
+        overlaps = {"J_I2C1": overlap}
+        keepout = KeepoutContract(
+            "battery",
+            "rectangle",
+            "B.Cu",
+            0.0,
+            0.0,
+            7.0,
+            8.0,
+            False,
+            derivation,
+            overlaps,
+        )
+        feature = FeatureContract(
+            "J_I2C1", 1.0, 2.0, 0.0, "B.Cu", 0.05, 0.1, True, "Fixed."
+        )
+        features = [feature]
+        keepouts = [keepout]
+        contract = MechanicalContract(
+            1, BoardContract(1.6, 0.01), outline, features, keepouts
+        )
+
+        points[0][0] = 99.0
+        points.append([11.0, 12.0])
+        primitives.clear()
+        courtyard[0] = 99.0
+        intersection.append(99.0)
+        derivation["source"] = "mutated"
+        overlaps.clear()
+        features.clear()
+        keepouts.clear()
+
+        self.assertEqual(primitive.points, ((1.0, 2.0), (3.0, 4.0)))
+        self.assertEqual(outline.primitives, (primitive,))
+        self.assertEqual(overlap.courtyard_bbox_mm, (5.0, 6.0, 9.0, 10.0))
+        self.assertEqual(overlap.intersection_bbox_mm, (5.0, 6.0, 7.0, 8.0))
+        self.assertEqual(dict(keepout.derivation), {"source": "case params"})
+        self.assertEqual(tuple(keepout.allowed_overlaps), ("J_I2C1",))
+        self.assertEqual(contract.features, (feature,))
+        self.assertEqual(contract.keepouts, (keepout,))
+        with self.assertRaises(TypeError):
+            primitive.points[0][0] = 0.0
+        with self.assertRaises(TypeError):
+            keepout.allowed_overlaps["J_I2C1"] = overlap
+
+
 class LockMechanicalItemsTest(unittest.TestCase):
     def _temporary_board(self, text=None):
         temporary = tempfile.TemporaryDirectory()
@@ -299,8 +535,17 @@ class LockMechanicalItemsTest(unittest.TestCase):
     def test_migration_is_exact_and_idempotent(self):
         path = self._temporary_board()
         original_text = path.read_text(encoding="utf-8")
-        first = lock_mechanical_items(path, MECHANICAL_CONTRACT)
+        fsync_kinds = []
+        real_fsync = os.fsync
+
+        def tracking_fsync(file_descriptor):
+            fsync_kinds.append(stat.S_ISDIR(os.fstat(file_descriptor).st_mode))
+            return real_fsync(file_descriptor)
+
+        with mock.patch.object(lock_module.os, "fsync", side_effect=tracking_fsync):
+            first = lock_mechanical_items(path, MECHANICAL_CONTRACT)
         self.assertEqual(first, "locked 16 footprints and 10 Edge.Cuts items")
+        self.assertIn(True, fsync_kinds, "migration must fsync its parent directory")
         locked_text = path.read_text(encoding="utf-8")
         self.assertEqual(locked_text.count("\n\t\t(locked yes)"), 26)
         self.assertEqual(locked_text.replace("\n\t\t(locked yes)", ""), original_text)
@@ -339,6 +584,74 @@ class LockMechanicalItemsTest(unittest.TestCase):
         with self.assertRaisesRegex(LockMigrationRefused, "newline convention"):
             lock_mechanical_items(path, MECHANICAL_CONTRACT)
         self.assertEqual(path.read_bytes(), before)
+
+    def test_migration_rejects_board_symlink_without_following_or_writing(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        directory = Path(temporary.name)
+        target = directory / "target.kicad_pcb"
+        target.write_bytes(_unlocked_canonical_text().encode("utf-8"))
+        link = directory / BOARD.name
+        link.symlink_to(target.name)
+        before = target.read_bytes()
+        with self.assertRaisesRegex(LockMigrationRefused, "symlink"):
+            lock_mechanical_items(link, MECHANICAL_CONTRACT)
+        self.assertTrue(link.is_symlink())
+        self.assertEqual(target.read_bytes(), before)
+
+    def test_migration_refuses_pre_replace_identity_swap_and_cleans_temp(self):
+        path = self._temporary_board()
+        replacement = path.with_name("replacement.kicad_pcb")
+        replacement_payload = b"external replacement"
+        replacement.write_bytes(replacement_payload)
+
+        def swap_destination(destination):
+            os.replace(replacement, destination)
+
+        caught = None
+        try:
+            lock_mechanical_items(
+                path,
+                MECHANICAL_CONTRACT,
+                _before_replace=swap_destination,
+            )
+        except Exception as error:
+            caught = error
+        self.assertIsInstance(caught, LockMigrationRefused)
+        self.assertIn("changed since it was read", str(caught))
+        self.assertEqual(path.read_bytes(), replacement_payload)
+        self.assertEqual(tuple(path.parent.glob(f".{path.name}.*.tmp")), ())
+
+    def test_directory_fsync_failure_reports_replaced_but_not_durable(self):
+        path = self._temporary_board()
+        real_fsync = os.fsync
+
+        def fail_directory_fsync(file_descriptor):
+            if stat.S_ISDIR(os.fstat(file_descriptor).st_mode):
+                raise OSError("injected directory fsync failure")
+            return real_fsync(file_descriptor)
+
+        caught = None
+        with mock.patch.object(
+            lock_module.os, "fsync", side_effect=fail_directory_fsync
+        ):
+            try:
+                lock_mechanical_items(path, MECHANICAL_CONTRACT)
+            except Exception as error:
+                caught = error
+        self.assertIsInstance(caught, RuntimeError)
+        self.assertIn("replaced", str(caught))
+        self.assertIn("durability", str(caught))
+        migrated = parse_board(path.read_text(encoding="utf-8"))
+        self.assertTrue(all(migrated.footprints[ref].locked for ref in CONTRACTED_REFS))
+
+    def test_unicode_diagnostic_reports_character_index_not_byte_offset(self):
+        source = '🧩é(item (layer "F.Cu") (layer "B.Cu"))'
+        with self.assertRaises(LockMigrationRefused) as raised:
+            lock_module._child_atoms(source, 2, len(source), "layer", 3)
+        message = str(raised.exception)
+        self.assertIn("character index 2", message)
+        self.assertNotIn("byte", message)
 
     def test_migration_refuses_non_lock_mechanical_drift_without_writing(self):
         text = _unlocked_canonical_text().replace("\n\t\t(at 64.5 56)", "\n\t\t(at 64.6 56)", 1)

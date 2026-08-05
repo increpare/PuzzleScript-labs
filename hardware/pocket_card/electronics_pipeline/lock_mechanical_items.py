@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import errno
 import os
+import stat
 import sys
 import tempfile
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -31,6 +34,10 @@ class LockMigrationRefused(MechanicalReviewRequired):
     """Raised before writing when lock migration is not mechanically safe."""
 
 
+class LockMigrationDurabilityError(RuntimeError):
+    """Raised after replacement when directory durability cannot be confirmed."""
+
+
 @dataclass(frozen=True)
 class _Block:
     kind: str
@@ -39,6 +46,13 @@ class _Block:
     end: int
     layer_end: int
     lock_state: bool
+
+
+@dataclass(frozen=True)
+class _FileIdentity:
+    device: int
+    inode: int
+    mode: int
 
 
 def _direct_children(
@@ -58,7 +72,9 @@ def _child_atoms(
 ) -> tuple[tuple[str, ...], int, int] | None:
     matches = _direct_children(source, start, end, name)
     if len(matches) > 1:
-        raise LockMigrationRefused((f"duplicate {name} in top-level item at byte {start}",))
+        raise LockMigrationRefused(
+            (f"duplicate {name} in top-level item at character index {start}",)
+        )
     if not matches:
         return None
     _, child_start, child_end = matches[0]
@@ -70,7 +86,9 @@ def _required_child_value(
 ) -> tuple[str, int]:
     result = _child_atoms(source, start, end, name, 3)
     if result is None or len(result[0]) != 2 or not result[0][1]:
-        raise LockMigrationRefused((f"{label} has invalid {name} at byte {start}",))
+        raise LockMigrationRefused(
+            (f"{label} has invalid {name} at character index {start}",)
+        )
     return result[0][1], result[2]
 
 
@@ -81,7 +99,9 @@ def _footprint_ref(source: str, start: int, end: int) -> str:
         if len(atoms) >= 3 and atoms[1] == "Reference":
             refs.append(atoms[2])
     if len(refs) != 1 or not refs[0]:
-        raise LockMigrationRefused((f"footprint has invalid Reference at byte {start}",))
+        raise LockMigrationRefused(
+            (f"footprint has invalid Reference at character index {start}",)
+        )
     return refs[0]
 
 
@@ -163,19 +183,22 @@ def _mechanical_blocks(
         if kind not in {"gr_line", "gr_arc"}:
             continue
         layer, layer_end = _required_child_value(
-            source, start, end, "layer", f"{kind} at byte {start}"
+            source, start, end, "layer", f"{kind} at character index {start}"
         )
         if layer != "Edge.Cuts":
             continue
         edge_blocks.append(
             _Block(
                 kind=kind,
-                label=f"Edge.Cuts {kind} at byte {start}",
+                label=f"Edge.Cuts {kind} at character index {start}",
                 start=start,
                 end=end,
                 layer_end=layer_end,
                 lock_state=_lock_state(
-                    source, start, end, f"Edge.Cuts {kind} at byte {start}"
+                    source,
+                    start,
+                    end,
+                    f"Edge.Cuts {kind} at character index {start}",
                 ),
             )
         )
@@ -202,7 +225,9 @@ def _indent_at(source: str, offset: int) -> str:
     indent_length = len(line) - len(line.lstrip(" \t"))
     prefix = line[:indent_length]
     if not line[indent_length:].startswith("(layer"):
-        raise LockMigrationRefused((f"cannot determine indentation at byte {offset}",))
+        raise LockMigrationRefused(
+            (f"cannot determine indentation at character index {offset}",)
+        )
     return prefix
 
 
@@ -232,8 +257,78 @@ def _with_locks(
     return source
 
 
-def _atomic_write(path: Path, payload: bytes) -> None:
-    mode = path.stat().st_mode
+def _read_regular_file(path: Path) -> tuple[bytes, _FileIdentity]:
+    before = os.lstat(path)
+    if stat.S_ISLNK(before.st_mode):
+        raise LockMigrationRefused((f"board path {path} is a symlink",))
+    if not stat.S_ISREG(before.st_mode):
+        raise LockMigrationRefused((f"board path {path} is not a regular file",))
+
+    flags = os.O_RDONLY
+    for flag_name in ("O_CLOEXEC", "O_NOFOLLOW", "O_BINARY"):
+        flags |= getattr(os, flag_name, 0)
+    descriptor: int | None = None
+    try:
+        try:
+            descriptor = os.open(path, flags)
+        except OSError as error:
+            if error.errno == errno.ELOOP:
+                raise LockMigrationRefused((f"board path {path} is a symlink",)) from error
+            raise
+        opened = os.fstat(descriptor)
+        if not stat.S_ISREG(opened.st_mode):
+            raise LockMigrationRefused((f"board path {path} is not a regular file",))
+        if (opened.st_dev, opened.st_ino) != (before.st_dev, before.st_ino):
+            raise LockMigrationRefused((f"board path {path} changed while opening",))
+        identity = _FileIdentity(
+            device=opened.st_dev,
+            inode=opened.st_ino,
+            mode=stat.S_IMODE(opened.st_mode),
+        )
+        with os.fdopen(descriptor, "rb") as board_file:
+            descriptor = None
+            return board_file.read(), identity
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+
+
+def _revalidate_destination(path: Path, identity: _FileIdentity) -> None:
+    try:
+        current = os.lstat(path)
+    except OSError as error:
+        raise LockMigrationRefused(
+            (f"board path {path} changed since it was read: {error}",)
+        ) from error
+    if stat.S_ISLNK(current.st_mode):
+        raise LockMigrationRefused(
+            (f"board path {path} changed since it was read and is now a symlink",)
+        )
+    if not stat.S_ISREG(current.st_mode):
+        raise LockMigrationRefused(
+            (f"board path {path} changed since it was read and is not a regular file",)
+        )
+    if (current.st_dev, current.st_ino) != (identity.device, identity.inode):
+        raise LockMigrationRefused((f"board path {path} changed since it was read",))
+
+
+def _fsync_parent_directory(path: Path) -> None:
+    flags = os.O_RDONLY
+    for flag_name in ("O_CLOEXEC", "O_DIRECTORY"):
+        flags |= getattr(os, flag_name, 0)
+    descriptor = os.open(path.parent, flags)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def _atomic_write(
+    path: Path,
+    payload: bytes,
+    identity: _FileIdentity,
+    before_replace: Callable[[Path], None] | None,
+) -> None:
     temporary_name: str | None = None
     try:
         with tempfile.NamedTemporaryFile(
@@ -247,9 +342,19 @@ def _atomic_write(path: Path, payload: bytes) -> None:
             temporary.write(payload)
             temporary.flush()
             os.fsync(temporary.fileno())
-            os.fchmod(temporary.fileno(), mode)
+            os.fchmod(temporary.fileno(), identity.mode)
+        if before_replace is not None:
+            before_replace(path)
+        _revalidate_destination(path, identity)
         os.replace(temporary_name, path)
         temporary_name = None
+        try:
+            _fsync_parent_directory(path)
+        except OSError as error:
+            raise LockMigrationDurabilityError(
+                f"board file {path} was replaced but durability is unconfirmed "
+                f"because parent-directory fsync failed: {error}"
+            ) from error
     finally:
         if temporary_name is not None:
             try:
@@ -261,12 +366,15 @@ def _atomic_write(path: Path, payload: bytes) -> None:
 def lock_mechanical_items(
     board_path: str | Path = BOARD,
     contract_path: str | Path = MECHANICAL_CONTRACT,
+    *,
+    _before_replace: Callable[[Path], None] | None = None,
 ) -> str:
     """Lock contracted footprints and Edge.Cuts, refusing all other drift."""
 
     path = Path(board_path)
     contract = load_contract(contract_path)
-    source = path.read_bytes().decode("utf-8")
+    payload, identity = _read_regular_file(path)
+    source = payload.decode("utf-8")
     newline = _newline_convention(source)
     board = parse_board(source)
     non_lock_findings = tuple(
@@ -293,7 +401,12 @@ def lock_mechanical_items(
     migrated_footprints, migrated_edges = _mechanical_blocks(migrated, contract)
     if any(not block.lock_state for block in (*migrated_footprints, *migrated_edges)):
         raise LockMigrationRefused(("migration did not lock every mechanical item",))
-    _atomic_write(path, migrated.encode("utf-8"))
+    _atomic_write(
+        path,
+        migrated.encode("utf-8"),
+        identity,
+        _before_replace,
+    )
     return (
         f"locked {len(unlocked_footprints)} footprints and "
         f"{len(unlocked_edges)} Edge.Cuts items"
@@ -313,7 +426,14 @@ def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
         result = lock_mechanical_items(args.board, args.contract)
-    except (ContractError, LockMigrationRefused, OSError, UnicodeError, SexprError) as error:
+    except (
+        ContractError,
+        LockMigrationRefused,
+        LockMigrationDurabilityError,
+        OSError,
+        UnicodeError,
+        SexprError,
+    ) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
     print(result)
