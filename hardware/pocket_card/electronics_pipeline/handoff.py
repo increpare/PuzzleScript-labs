@@ -54,6 +54,7 @@ _HANDOFF_SCHEMA_VERSION = 1
 _HANDOFF_TOOL_VERSION = "1"
 _DIGEST_PATTERN = re.compile(r"[0-9a-f]{64}")
 _COMMIT_PATTERN = re.compile(r"[0-9a-f]{40,64}")
+_JOURNAL_GENERATION_PATTERN = re.compile(r"[0-9a-f]{32}")
 _POLICY_NAMES = ("mechanical_contract.json", "validation_waivers.json")
 _POLICY_DIGEST_NAMES = ("toolchain.json", *_POLICY_NAMES)
 _EXPORT_REFERENCES = {
@@ -626,6 +627,10 @@ def _check_archive_bounds(entries: Sequence[_ArchiveEntry]) -> int:
     names: set[str] = set()
     for entry in entries:
         _archive_info(entry.name, (1980, 1, 1, 0, 0, 0))
+        if len(entry.name.encode("utf-8")) > 65_535:
+            raise HandoffError(
+                f"handoff archive member name exceeds the ZIP limit: {entry.name!r}"
+            )
         if entry.name in names:
             raise HandoffError(f"duplicate handoff archive member: {entry.name}")
         names.add(entry.name)
@@ -643,6 +648,64 @@ def _check_archive_bounds(entries: Sequence[_ArchiveEntry]) -> int:
             )
         total += entry.size
     return total
+
+
+def _raw_deflate_size_bound(size: int) -> int:
+    if type(size) is not int or size < 0:
+        raise HandoffError("raw DEFLATE input size must be a nonnegative integer")
+    # Deliberately looser than zlib's compressBound: this allows 1/8 + 1/64
+    # growth plus stream framing, comfortably covering incompressible raw DEFLATE.
+    return size + (size + 7) // 8 + (size + 63) // 64 + 11
+
+
+_ZIP_LOCAL_FIXED_BYTES = 30
+_ZIP_CENTRAL_FIXED_BYTES = 46
+_ZIP64_LOCAL_EXTRA_MAX_BYTES = 20
+_ZIP64_CENTRAL_EXTRA_MAX_BYTES = 32
+_ZIP_DATA_DESCRIPTOR_MAX_BYTES = 24
+_ZIP_END_RECORD_MAX_BYTES = 22 + 56 + 20
+
+
+def _physical_archive_size_bound(entries: Sequence[_ArchiveEntry]) -> int:
+    _check_archive_bounds(entries)
+    total = _ZIP_END_RECORD_MAX_BYTES
+    for entry in entries:
+        name_size = len(entry.name.encode("utf-8"))
+        total += _raw_deflate_size_bound(entry.size)
+        total += _ZIP_LOCAL_FIXED_BYTES + name_size + _ZIP64_LOCAL_EXTRA_MAX_BYTES
+        total += _ZIP_CENTRAL_FIXED_BYTES + name_size + _ZIP64_CENTRAL_EXTRA_MAX_BYTES
+        total += _ZIP_DATA_DESCRIPTOR_MAX_BYTES
+    return total
+
+
+_MAX_PHYSICAL_ARCHIVE_BYTES = (
+    _raw_deflate_size_bound(_MAX_ARCHIVE_BYTES)
+    + 16 * _MAX_ARCHIVE_MEMBERS
+    + _MAX_ARCHIVE_MEMBERS
+    * (
+        _ZIP_LOCAL_FIXED_BYTES
+        + _ZIP64_LOCAL_EXTRA_MAX_BYTES
+        + _ZIP_CENTRAL_FIXED_BYTES
+        + _ZIP64_CENTRAL_EXTRA_MAX_BYTES
+        + _ZIP_DATA_DESCRIPTOR_MAX_BYTES
+        + 2 * 65_535
+    )
+    + _ZIP_END_RECORD_MAX_BYTES
+)
+
+
+def _require_physical_archive_size(size: int, maximum: int) -> None:
+    if (
+        type(size) is not int
+        or type(maximum) is not int
+        or size < 1
+        or maximum < 1
+        or maximum > _MAX_PHYSICAL_ARCHIVE_BYTES
+        or size > maximum
+    ):
+        raise HandoffError(
+            f"physical ZIP size exceeds its deterministic bound of {maximum} bytes"
+        )
 
 
 def _write_archive(
@@ -865,10 +928,16 @@ def _journal_name(filename: str) -> str:
     return f".{filename}.handoff-journal.json"
 
 
+def _journal_sidecar_name(filename: str, generation: str) -> str:
+    return f".{filename}.handoff-journal-sidecar-{generation}.tmp"
+
+
 def _publication_journal_bytes(
+    journal_generation: str,
     temp_name: str,
     temp_token: tuple[int, int],
     temp_content: tuple[int, str] | None,
+    temp_max_size: int,
     directory_token: tuple[int, int],
     prior_destination: tuple[tuple[int, int], tuple[int, str]] | None,
 ) -> bytes:
@@ -881,13 +950,15 @@ def _publication_journal_bytes(
         prior_token, prior_content = prior_destination
     return _json_bytes(
         {
-            "schemaVersion": 2,
+            "schemaVersion": 3,
+            "journalGeneration": journal_generation,
             "tempName": temp_name,
             "tempDevice": temp_token[0],
             "tempInode": temp_token[1],
             "tempComplete": temp_content is not None,
             "tempSize": 0 if temp_content is None else temp_content[0],
             "tempSha256": "0" * 64 if temp_content is None else temp_content[1],
+            "tempMaxSize": temp_max_size,
             "outputDevice": directory_token[0],
             "outputInode": directory_token[1],
             "priorDestinationState": prior_state,
@@ -899,6 +970,113 @@ def _publication_journal_bytes(
     )
 
 
+def _publish_publication_journal_version(
+    directory: int,
+    filename: str,
+    generation: str,
+    content: bytes,
+    expected_visible_token: tuple[int, int] | None,
+) -> tuple[int, int]:
+    name = _journal_name(filename)
+    sidecar_name = _journal_sidecar_name(filename, generation)
+    sidecar_token: tuple[int, int] | None = None
+    expected_content = (len(content), hashlib.sha256(content).hexdigest())
+    replaced = False
+    try:
+        descriptor = os.open(
+            sidecar_name,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | _NOFOLLOW | _NONBLOCK,
+            0o600,
+            dir_fd=directory,
+        )
+    except OSError as error:
+        raise HandoffError(
+            "handoff publication journal sidecar is missing or unsafe"
+        ) from error
+    try:
+        try:
+            information = os.fstat(descriptor)
+            if not stat.S_ISREG(information.st_mode) or information.st_nlink != 1:
+                raise HandoffError("handoff publication journal sidecar is unsafe")
+            sidecar_token = information.st_dev, information.st_ino
+            _write_all(descriptor, content)
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+        if _named_regular_fingerprint(
+            directory,
+            sidecar_name,
+            sidecar_token,
+            "handoff publication journal sidecar",
+            max_size=_MAX_METADATA_BYTES,
+        ) != expected_content:
+            raise HandoffError(
+                "handoff publication journal sidecar content changed"
+            )
+        if expected_visible_token is None:
+            if _optional_entry_token(directory, name) is not None:
+                raise HandoffError(
+                    "handoff publication journal ownership changed"
+                )
+        else:
+            _require_named_token(
+                directory,
+                name,
+                expected_visible_token,
+                "handoff publication journal",
+            )
+        _require_named_token(
+            directory,
+            sidecar_name,
+            sidecar_token,
+            "handoff publication journal sidecar",
+        )
+        os.replace(
+            sidecar_name,
+            name,
+            src_dir_fd=directory,
+            dst_dir_fd=directory,
+        )
+        replaced = True
+        os.fsync(directory)
+        _require_named_token(
+            directory,
+            name,
+            sidecar_token,
+            "handoff publication journal",
+        )
+        if _named_regular_fingerprint(
+            directory,
+            name,
+            sidecar_token,
+            "handoff publication journal",
+            max_size=_MAX_METADATA_BYTES,
+        ) != expected_content:
+            raise HandoffError("handoff publication journal content changed")
+        return sidecar_token
+    except Exception:
+        if not replaced and sidecar_token is not None:
+            try:
+                observed = _optional_entry_token(directory, sidecar_name)
+            except HandoffError:
+                observed = None
+            if observed == sidecar_token:
+                try:
+                    observed_content = _named_regular_fingerprint(
+                        directory,
+                        sidecar_name,
+                        sidecar_token,
+                        "handoff publication journal sidecar",
+                        max_size=_MAX_METADATA_BYTES,
+                    )
+                    if observed_content == expected_content:
+                        os.unlink(sidecar_name, dir_fd=directory)
+                        os.fsync(directory)
+                except (HandoffError, OSError):
+                    pass
+        raise
+
+
 def _write_publication_journal(
     directory: int,
     filename: str,
@@ -906,33 +1084,25 @@ def _write_publication_journal(
     temp_token: tuple[int, int],
     directory_token: tuple[int, int],
     prior_destination: tuple[tuple[int, int], tuple[int, str]] | None,
+    temp_max_size: int = _MAX_ARCHIVE_BYTES,
 ) -> tuple[int, int]:
-    name = _journal_name(filename)
+    generation = uuid.uuid4().hex
     content = _publication_journal_bytes(
+        generation,
         temp_name,
         temp_token,
         None,
+        temp_max_size,
         directory_token,
         prior_destination,
     )
-    try:
-        descriptor = os.open(
-            name,
-            os.O_WRONLY | os.O_CREAT | os.O_EXCL | _NOFOLLOW | _NONBLOCK,
-            0o600,
-            dir_fd=directory,
-        )
-    except OSError as error:
-        raise HandoffError("handoff publication journal is missing or unsafe") from error
-    try:
-        information = os.fstat(descriptor)
-        token = information.st_dev, information.st_ino
-        _write_all(descriptor, content)
-        os.fsync(descriptor)
-    finally:
-        os.close(descriptor)
-    os.fsync(directory)
-    return token
+    return _publish_publication_journal_version(
+        directory,
+        filename,
+        generation,
+        content,
+        None,
+    )
 
 
 def _complete_publication_journal(
@@ -944,44 +1114,38 @@ def _complete_publication_journal(
     temp_content: tuple[int, str],
     directory_token: tuple[int, int],
     prior_destination: tuple[tuple[int, int], tuple[int, str]] | None,
-) -> None:
-    name = _journal_name(filename)
-    try:
-        descriptor = os.open(
-            name,
-            os.O_WRONLY | _NOFOLLOW | _NONBLOCK,
-            dir_fd=directory,
-        )
-    except OSError as error:
-        raise HandoffError("handoff publication journal ownership changed") from error
-    try:
-        information = os.fstat(descriptor)
-        if (
-            not stat.S_ISREG(information.st_mode)
-            or information.st_nlink != 1
-            or (information.st_dev, information.st_ino) != journal_token
-        ):
-            raise HandoffError("handoff publication journal ownership changed")
-        content = _publication_journal_bytes(
-            temp_name,
-            temp_token,
-            temp_content,
-            directory_token,
-            prior_destination,
-        )
-        os.ftruncate(descriptor, 0)
-        _write_all(descriptor, content)
-        os.fsync(descriptor)
-    finally:
-        os.close(descriptor)
-    _require_named_token(directory, name, journal_token, "handoff publication journal")
-    os.fsync(directory)
+    temp_max_size: int = _MAX_ARCHIVE_BYTES,
+) -> tuple[int, int]:
+    loaded = _read_publication_journal(directory, filename, directory_token)
+    if loaded is None or loaded[1] != journal_token:
+        raise HandoffError("handoff publication journal ownership changed")
+    generation = uuid.uuid4().hex
+    content = _publication_journal_bytes(
+        generation,
+        temp_name,
+        temp_token,
+        temp_content,
+        temp_max_size,
+        directory_token,
+        prior_destination,
+    )
+    return _publish_publication_journal_version(
+        directory,
+        filename,
+        generation,
+        content,
+        journal_token,
+    )
 
 
-def _read_publication_journal(
-    directory: int, filename: str, directory_token: tuple[int, int]
+def _read_named_publication_journal(
+    directory: int,
+    name: str,
+    filename: str,
+    directory_token: tuple[int, int],
+    *,
+    require_sidecar_name: bool = False,
 ) -> tuple[dict[str, object], tuple[int, int]] | None:
-    name = _journal_name(filename)
     try:
         descriptor = os.open(
             name, os.O_RDONLY | _NOFOLLOW | _NONBLOCK, dir_fd=directory
@@ -1033,12 +1197,14 @@ def _read_publication_journal(
     )
     expected_keys = {
         "schemaVersion",
+        "journalGeneration",
         "tempName",
         "tempDevice",
         "tempInode",
         "tempComplete",
         "tempSize",
         "tempSha256",
+        "tempMaxSize",
         "outputDevice",
         "outputInode",
         "priorDestinationState",
@@ -1050,6 +1216,7 @@ def _read_publication_journal(
     if not isinstance(raw, Mapping) or set(raw) != expected_keys:
         raise HandoffError("handoff publication journal has an invalid schema")
     temp_name = raw.get("tempName")
+    journal_generation = raw.get("journalGeneration")
     ownership_values = tuple(
         raw.get(key)
         for key in ("tempDevice", "tempInode", "outputDevice", "outputInode")
@@ -1057,6 +1224,7 @@ def _read_publication_journal(
     temp_complete = raw.get("tempComplete")
     temp_size = raw.get("tempSize")
     temp_sha256 = raw.get("tempSha256")
+    temp_max_size = raw.get("tempMaxSize")
     prior_state = raw.get("priorDestinationState")
     prior_device = raw.get("priorDestinationDevice")
     prior_inode = raw.get("priorDestinationInode")
@@ -1067,7 +1235,9 @@ def _read_publication_journal(
     )
     if (
         type(raw.get("schemaVersion")) is not int
-        or raw.get("schemaVersion") != 2
+        or raw.get("schemaVersion") != 3
+        or not isinstance(journal_generation, str)
+        or _JOURNAL_GENERATION_PATTERN.fullmatch(journal_generation) is None
         or not isinstance(temp_name, str)
         or pattern.fullmatch(temp_name) is None
         or any(type(value) is not int or value < 1 for value in ownership_values)
@@ -1076,6 +1246,10 @@ def _read_publication_journal(
         or type(temp_size) is not int
         or not isinstance(temp_sha256, str)
         or _DIGEST_PATTERN.fullmatch(temp_sha256) is None
+        or type(temp_max_size) is not int
+        or temp_max_size < 1
+        or temp_max_size > _MAX_PHYSICAL_ARCHIVE_BYTES
+        or (temp_complete and temp_size > temp_max_size)
         or (
             temp_complete
             and (temp_size < 1 or temp_sha256 == "0" * 64)
@@ -1105,14 +1279,47 @@ def _read_publication_journal(
         )
     ):
         raise HandoffError("handoff publication journal has invalid ownership data")
+    if require_sidecar_name and name != _journal_sidecar_name(
+        filename,
+        str(journal_generation),
+    ):
+        raise HandoffError(
+            "handoff publication journal sidecar has invalid ownership data"
+        )
+    if b"".join(chunks) != _json_bytes(dict(raw)):
+        raise HandoffError(
+            "handoff publication journal is not canonical JSON"
+        )
     return dict(raw), token
 
 
+def _read_publication_journal(
+    directory: int, filename: str, directory_token: tuple[int, int]
+) -> tuple[dict[str, object], tuple[int, int]] | None:
+    return _read_named_publication_journal(
+        directory,
+        _journal_name(filename),
+        filename,
+        directory_token,
+    )
+
+
 def _remove_publication_journal(
-    directory: int, filename: str, token: tuple[int, int]
+    directory: int,
+    filename: str,
+    token: tuple[int, int],
+    expected_content: tuple[int, str],
 ) -> None:
     name = _journal_name(filename)
     _require_named_token(directory, name, token, "handoff publication journal")
+    if _named_regular_fingerprint(
+        directory,
+        name,
+        token,
+        "handoff publication journal",
+        max_size=_MAX_METADATA_BYTES,
+    ) != expected_content:
+        raise HandoffError("handoff publication journal content changed")
     os.unlink(name, dir_fd=directory)
 
 
@@ -1139,6 +1346,7 @@ def _destination_state(
         filename,
         token,
         "handoff destination",
+        max_size=_MAX_PHYSICAL_ARCHIVE_BYTES,
         allow_empty=True,
     )
     return token, content
@@ -1183,12 +1391,161 @@ def _require_destination_state(
         )
 
 
+def _journal_transaction_identity(journal: Mapping[str, object]) -> tuple[object, ...]:
+    return tuple(
+        journal[key]
+        for key in (
+            "tempName",
+            "tempDevice",
+            "tempInode",
+            "tempMaxSize",
+            "outputDevice",
+            "outputInode",
+            "priorDestinationState",
+            "priorDestinationDevice",
+            "priorDestinationInode",
+            "priorDestinationSize",
+            "priorDestinationSha256",
+        )
+    )
+
+
+def _valid_journal_sidecars(
+    directory: int,
+    filename: str,
+    directory_token: tuple[int, int],
+) -> tuple[tuple[str, dict[str, object], tuple[int, int]], ...]:
+    prefix = f".{filename}.handoff-journal-sidecar-"
+    suffix = ".tmp"
+    candidates: list[tuple[str, dict[str, object], tuple[int, int]]] = []
+    for name in sorted(os.listdir(directory)):
+        if not name.startswith(prefix) or not name.endswith(suffix):
+            continue
+        generation = name[len(prefix) : -len(suffix)]
+        if _JOURNAL_GENERATION_PATTERN.fullmatch(generation) is None:
+            continue
+        try:
+            loaded = _read_named_publication_journal(
+                directory,
+                name,
+                filename,
+                directory_token,
+                require_sidecar_name=True,
+            )
+        except (HandoffError, UnicodeError, ValueError, json.JSONDecodeError):
+            # Malformed or substituted sidecars are unowned evidence. They are ignored,
+            # never adopted or deleted, and cannot corrupt the visible journal.
+            continue
+        if loaded is not None:
+            journal, token = loaded
+            candidates.append((name, journal, token))
+    return tuple(candidates)
+
+
+def _load_recovery_journal(
+    directory: int,
+    filename: str,
+    directory_token: tuple[int, int],
+) -> tuple[dict[str, object], tuple[int, int]] | None:
+    visible = _read_publication_journal(directory, filename, directory_token)
+    sidecars = _valid_journal_sidecars(directory, filename, directory_token)
+    if visible is not None:
+        journal, _ = visible
+        transaction = _journal_transaction_identity(journal)
+        matching = [
+            candidate
+            for candidate in sidecars
+            if _journal_transaction_identity(candidate[1]) == transaction
+        ]
+        if len(matching) != len(sidecars):
+            raise HandoffError(
+                "handoff recovery found an unrelated valid journal sidecar"
+            )
+        for name, expected_journal, token in matching:
+            loaded = _read_named_publication_journal(
+                directory,
+                name,
+                filename,
+                directory_token,
+                require_sidecar_name=True,
+            )
+            if (
+                loaded is None
+                or loaded[0] != expected_journal
+                or loaded[1] != token
+            ):
+                raise HandoffError(
+                    "handoff publication journal sidecar ownership changed"
+                )
+            expected_content = _json_bytes(expected_journal)
+            if _named_regular_fingerprint(
+                directory,
+                name,
+                token,
+                "handoff publication journal sidecar",
+                max_size=_MAX_METADATA_BYTES,
+            ) != (
+                len(expected_content),
+                hashlib.sha256(expected_content).hexdigest(),
+            ):
+                raise HandoffError(
+                    "handoff publication journal sidecar content changed"
+                )
+            os.unlink(name, dir_fd=directory)
+        if matching:
+            os.fsync(directory)
+        return visible
+    if not sidecars:
+        return None
+    if len(sidecars) != 1:
+        raise HandoffError("handoff recovery has ambiguous valid journal sidecars")
+    sidecar_name, expected_journal, sidecar_token = sidecars[0]
+    if _optional_entry_token(directory, _journal_name(filename)) is not None:
+        raise HandoffError("handoff publication journal ownership changed")
+    loaded = _read_named_publication_journal(
+        directory,
+        sidecar_name,
+        filename,
+        directory_token,
+        require_sidecar_name=True,
+    )
+    if (
+        loaded is None
+        or loaded[0] != expected_journal
+        or loaded[1] != sidecar_token
+    ):
+        raise HandoffError("handoff publication journal sidecar ownership changed")
+    expected_content = _json_bytes(expected_journal)
+    if _named_regular_fingerprint(
+        directory,
+        sidecar_name,
+        sidecar_token,
+        "handoff publication journal sidecar",
+        max_size=_MAX_METADATA_BYTES,
+    ) != (
+        len(expected_content),
+        hashlib.sha256(expected_content).hexdigest(),
+    ):
+        raise HandoffError("handoff publication journal sidecar content changed")
+    os.replace(
+        sidecar_name,
+        _journal_name(filename),
+        src_dir_fd=directory,
+        dst_dir_fd=directory,
+    )
+    os.fsync(directory)
+    adopted = _read_publication_journal(directory, filename, directory_token)
+    if adopted is None or adopted[1] != sidecar_token:
+        raise HandoffError("handoff publication journal adoption failed")
+    return adopted
+
+
 def _recover_publication(
     directory: int,
     filename: str,
     directory_token: tuple[int, int],
 ) -> None:
-    loaded = _read_publication_journal(directory, filename, directory_token)
+    loaded = _load_recovery_journal(directory, filename, directory_token)
     if loaded is None:
         return
     journal, journal_token = loaded
@@ -1205,6 +1562,7 @@ def _recover_publication(
         raise HandoffError("handoff publication ownership is ambiguous")
     completed = bool(journal["tempComplete"])
     expected_content = int(journal["tempSize"]), str(journal["tempSha256"])
+    temp_max_size = int(journal["tempMaxSize"])
     if temp_token == expected:
         _require_destination_state(
             directory,
@@ -1216,6 +1574,7 @@ def _recover_publication(
             temp_name,
             expected,
             "handoff temporary snapshot",
+            max_size=temp_max_size,
         ) != expected_content:
             raise HandoffError(
                 "handoff temporary snapshot content mismatch; possible substitution"
@@ -1227,6 +1586,7 @@ def _recover_publication(
             filename,
             expected,
             "published handoff archive",
+            max_size=temp_max_size,
         ) != expected_content:
             raise HandoffError(
                 "published handoff archive content mismatch; possible substitution"
@@ -1235,7 +1595,13 @@ def _recover_publication(
         raise HandoffError(
             "handoff recovery found an unknown destination; retaining transaction evidence"
         )
-    _remove_publication_journal(directory, filename, journal_token)
+    journal_content = _json_bytes(journal)
+    _remove_publication_journal(
+        directory,
+        filename,
+        journal_token,
+        (len(journal_content), hashlib.sha256(journal_content).hexdigest()),
+    )
     os.fsync(directory)
 
 
@@ -1245,7 +1611,9 @@ def _cleanup_precommit(
     temp_name: str | None,
     temp_token: tuple[int, int] | None,
     temp_content: tuple[int, str] | None,
+    temp_max_size: int,
     journal_token: tuple[int, int] | None,
+    journal_content: tuple[int, str] | None,
 ) -> None:
     if temp_name is not None and temp_token is not None:
         try:
@@ -1260,6 +1628,7 @@ def _cleanup_precommit(
                         temp_name,
                         temp_token,
                         "temporary handoff file",
+                        max_size=temp_max_size,
                     )
                 except HandoffError:
                     return
@@ -1268,9 +1637,14 @@ def _cleanup_precommit(
             os.unlink(temp_name, dir_fd=directory)
         elif observed is not None:
             return
-    if journal_token is not None:
+    if journal_token is not None and journal_content is not None:
         try:
-            _remove_publication_journal(directory, filename, journal_token)
+            _remove_publication_journal(
+                directory,
+                filename,
+                journal_token,
+                journal_content,
+            )
             os.fsync(directory)
         except HandoffError:
             return
@@ -1286,6 +1660,7 @@ def _publish_archive(
     prepublish_check: Callable[[], object],
     directory_fsync: Callable[[int], object],
 ) -> Path:
+    physical_archive_bound = _physical_archive_size_bound(entries)
     destination = output / filename
     flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | _NOFOLLOW
     try:
@@ -1305,6 +1680,7 @@ def _publish_archive(
             temp_token: tuple[int, int] | None = None
             temp_content: tuple[int, str] | None = None
             journal_token: tuple[int, int] | None = None
+            journal_content: tuple[int, str] | None = None
             temporary_descriptor: int | None = None
             try:
                 for _ in range(10):
@@ -1331,6 +1707,14 @@ def _publish_archive(
                     temp_token,
                     directory_token,
                     prior_destination,
+                    physical_archive_bound,
+                )
+                journal_content = _named_regular_fingerprint(
+                    directory,
+                    _journal_name(filename),
+                    journal_token,
+                    "handoff publication journal",
+                    max_size=_MAX_METADATA_BYTES,
                 )
                 try:
                     assert temporary_descriptor is not None
@@ -1351,8 +1735,13 @@ def _publish_archive(
                     temp_name,
                     temp_token,
                     "temporary handoff file",
+                    max_size=physical_archive_bound,
                 )
-                _complete_publication_journal(
+                _require_physical_archive_size(
+                    temp_content[0],
+                    physical_archive_bound,
+                )
+                journal_token = _complete_publication_journal(
                     directory,
                     filename,
                     journal_token,
@@ -1361,6 +1750,14 @@ def _publish_archive(
                     temp_content,
                     directory_token,
                     prior_destination,
+                    physical_archive_bound,
+                )
+                journal_content = _named_regular_fingerprint(
+                    directory,
+                    _journal_name(filename),
+                    journal_token,
+                    "handoff publication journal",
+                    max_size=_MAX_METADATA_BYTES,
                 )
 
                 if before_publish is not None:
@@ -1376,12 +1773,23 @@ def _publish_archive(
                     journal_token,
                     "handoff publication journal",
                 )
+                if _named_regular_fingerprint(
+                    directory,
+                    _journal_name(filename),
+                    journal_token,
+                    "handoff publication journal",
+                    max_size=_MAX_METADATA_BYTES,
+                ) != journal_content:
+                    raise HandoffError(
+                        "handoff publication journal content changed"
+                    )
                 _require_owned_temp(directory, temp_name, temp_token)
                 if _named_regular_fingerprint(
                     directory,
                     temp_name,
                     temp_token,
                     "temporary handoff file",
+                    max_size=physical_archive_bound,
                 ) != temp_content:
                     raise HandoffError(
                         "temporary handoff file content mismatch; possible substitution"
@@ -1410,6 +1818,7 @@ def _publish_archive(
                         directory,
                         filename,
                         journal_token,
+                        journal_content,
                     )
                 except Exception as error:
                     raise HandoffError(
@@ -1432,7 +1841,9 @@ def _publish_archive(
                         temp_name,
                         temp_token,
                         temp_content,
+                        physical_archive_bound,
                         journal_token,
+                        journal_content,
                     )
                 raise
     except Exception as error:

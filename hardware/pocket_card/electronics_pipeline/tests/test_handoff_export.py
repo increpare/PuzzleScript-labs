@@ -638,6 +638,362 @@ class HandoffExportTest(unittest.TestCase):
             (self.output / ".pocket-card-controller.zip.handoff-journal.json").is_file()
         )
 
+    def test_completed_journal_same_inode_rewrite_is_refused_and_retained(self):
+        archive = self.export()
+        old = archive.read_bytes()
+        journal = self.output / ".pocket-card-controller.zip.handoff-journal.json"
+        observed_inode = None
+
+        def rewrite_journal_in_place():
+            nonlocal observed_inode
+            observed_inode = journal.stat().st_ino
+            with journal.open("r+b", buffering=0) as stream:
+                original = stream.read(1)
+                stream.seek(0)
+                stream.write(bytes([original[0] ^ 0xFF]))
+                os.fsync(stream.fileno())
+            self.assertEqual(journal.stat().st_ino, observed_inode)
+
+        with self.assertRaisesRegex(RuntimeError, "journal|cleanup pending"):
+            self.export(before_publish=rewrite_journal_in_place)
+        self.assertEqual(archive.read_bytes(), old)
+        self.assertTrue(journal.is_file())
+        self.assertEqual(journal.stat().st_ino, observed_inode)
+
+    def _allocate_low_level_handoff_temp(self):
+        self.output.mkdir(exist_ok=True)
+        directory = os.open(self.output, os.O_RDONLY)
+        self.addCleanup(os.close, directory)
+        filename = "pocket-card-controller.zip"
+        temp_name = (
+            ".pocket-card-controller.zip."
+            "0123456789abcdef0123456789abcdef.tmp"
+        )
+        descriptor = os.open(
+            temp_name,
+            os.O_RDWR | os.O_CREAT | os.O_EXCL,
+            0o600,
+            dir_fd=directory,
+        )
+        information = os.fstat(descriptor)
+        os.close(descriptor)
+        directory_information = os.fstat(directory)
+        return (
+            directory,
+            filename,
+            temp_name,
+            (information.st_dev, information.st_ino),
+            (directory_information.st_dev, directory_information.st_ino),
+        )
+
+    def test_partial_initial_journal_write_never_replaces_visible_journal(self):
+        directory, filename, temp_name, temp_token, directory_token = (
+            self._allocate_low_level_handoff_temp()
+        )
+
+        class SimulatedCrash(BaseException):
+            pass
+
+        def partial_write(descriptor, content):
+            os.write(descriptor, content[:17])
+            raise SimulatedCrash()
+
+        with mock.patch.object(
+            handoff_module,
+            "_write_all",
+            side_effect=partial_write,
+        ):
+            with self.assertRaises(SimulatedCrash):
+                handoff_module._write_publication_journal(
+                    directory,
+                    filename,
+                    temp_name,
+                    temp_token,
+                    directory_token,
+                    None,
+                )
+
+        journal = self.output / ".pocket-card-controller.zip.handoff-journal.json"
+        self.assertFalse(journal.exists())
+        partial_sidecars = list(
+            self.output.glob("*.handoff-journal-sidecar-*.tmp")
+        )
+        self.assertEqual(len(partial_sidecars), 1)
+        self.assertEqual(partial_sidecars[0].stat().st_size, 17)
+        recovered = self.export(source_date_epoch=1785888004)
+        self.assertTrue(recovered.is_file())
+        self.assertEqual(partial_sidecars[0].stat().st_size, 17)
+
+    def test_partial_completed_journal_write_preserves_allocated_journal(self):
+        directory, filename, temp_name, temp_token, directory_token = (
+            self._allocate_low_level_handoff_temp()
+        )
+        journal_token = handoff_module._write_publication_journal(
+            directory,
+            filename,
+            temp_name,
+            temp_token,
+            directory_token,
+            None,
+        )
+        journal = self.output / ".pocket-card-controller.zip.handoff-journal.json"
+        allocated = journal.read_bytes()
+
+        class SimulatedCrash(BaseException):
+            pass
+
+        def partial_write(descriptor, content):
+            os.write(descriptor, content[:23])
+            raise SimulatedCrash()
+
+        with mock.patch.object(
+            handoff_module,
+            "_write_all",
+            side_effect=partial_write,
+        ):
+            with self.assertRaises(SimulatedCrash):
+                handoff_module._complete_publication_journal(
+                    directory,
+                    filename,
+                    journal_token,
+                    temp_name,
+                    temp_token,
+                    (123, "a" * 64),
+                    directory_token,
+                    None,
+                )
+
+        self.assertEqual(journal.read_bytes(), allocated)
+        partial_sidecars = list(
+            self.output.glob("*.handoff-journal-sidecar-*.tmp")
+        )
+        self.assertEqual(len(partial_sidecars), 1)
+        self.assertEqual(partial_sidecars[0].stat().st_size, 23)
+        recovered = self.export(source_date_epoch=1785888004)
+        self.assertTrue(recovered.is_file())
+        self.assertEqual(partial_sidecars[0].stat().st_size, 23)
+
+    def test_valid_initial_journal_sidecar_is_recognized_after_crash(self):
+        directory, filename, temp_name, temp_token, directory_token = (
+            self._allocate_low_level_handoff_temp()
+        )
+
+        class SimulatedCrash(BaseException):
+            pass
+
+        with mock.patch.object(
+            handoff_module.os,
+            "replace",
+            side_effect=SimulatedCrash(),
+        ):
+            with self.assertRaises(SimulatedCrash):
+                handoff_module._write_publication_journal(
+                    directory,
+                    filename,
+                    temp_name,
+                    temp_token,
+                    directory_token,
+                    None,
+                )
+
+        self.assertFalse(
+            (self.output / ".pocket-card-controller.zip.handoff-journal.json").exists()
+        )
+        self.assertEqual(
+            len(list(self.output.glob("*.handoff-journal-sidecar-*.tmp"))),
+            1,
+        )
+        recovered = self.export(source_date_epoch=1785888004)
+        self.assertTrue(recovered.is_file())
+        self.assertEqual(
+            list(self.output.glob("*.handoff-journal-sidecar-*.tmp")), []
+        )
+
+    def test_valid_completed_sidecar_is_cleaned_using_prior_visible_journal(self):
+        directory, filename, temp_name, temp_token, directory_token = (
+            self._allocate_low_level_handoff_temp()
+        )
+        journal_token = handoff_module._write_publication_journal(
+            directory,
+            filename,
+            temp_name,
+            temp_token,
+            directory_token,
+            None,
+        )
+        journal = self.output / ".pocket-card-controller.zip.handoff-journal.json"
+        allocated = journal.read_bytes()
+
+        class SimulatedCrash(BaseException):
+            pass
+
+        with mock.patch.object(
+            handoff_module.os,
+            "replace",
+            side_effect=SimulatedCrash(),
+        ):
+            with self.assertRaises(SimulatedCrash):
+                handoff_module._complete_publication_journal(
+                    directory,
+                    filename,
+                    journal_token,
+                    temp_name,
+                    temp_token,
+                    (123, "a" * 64),
+                    directory_token,
+                    None,
+                )
+
+        self.assertEqual(journal.read_bytes(), allocated)
+        self.assertEqual(
+            len(list(self.output.glob("*.handoff-journal-sidecar-*.tmp"))),
+            1,
+        )
+        recovered = self.export(source_date_epoch=1785888004)
+        self.assertTrue(recovered.is_file())
+        self.assertEqual(
+            list(self.output.glob("*.handoff-journal-sidecar-*.tmp")), []
+        )
+
+    def test_valid_visible_journal_is_recovered_after_replace_before_dir_fsync(self):
+        directory, filename, temp_name, temp_token, directory_token = (
+            self._allocate_low_level_handoff_temp()
+        )
+
+        class SimulatedCrash(BaseException):
+            pass
+
+        real_fsync = handoff_module.os.fsync
+
+        def crash_on_directory_fsync(descriptor):
+            if descriptor == directory:
+                raise SimulatedCrash()
+            real_fsync(descriptor)
+
+        with mock.patch.object(
+            handoff_module.os,
+            "fsync",
+            side_effect=crash_on_directory_fsync,
+        ):
+            with self.assertRaises(SimulatedCrash):
+                handoff_module._write_publication_journal(
+                    directory,
+                    filename,
+                    temp_name,
+                    temp_token,
+                    directory_token,
+                    None,
+                )
+
+        self.assertTrue(
+            (self.output / ".pocket-card-controller.zip.handoff-journal.json").is_file()
+        )
+        self.assertEqual(
+            list(self.output.glob("*.handoff-journal-sidecar-*.tmp")), []
+        )
+        recovered = self.export(source_date_epoch=1785888004)
+        self.assertTrue(recovered.is_file())
+
+    def test_substituted_journal_sidecar_is_retained_and_never_published(self):
+        directory, filename, temp_name, temp_token, directory_token = (
+            self._allocate_low_level_handoff_temp()
+        )
+        write_all = handoff_module._write_all
+        substituted = None
+
+        def substitute_after_write(descriptor, content):
+            nonlocal substituted
+            write_all(descriptor, content)
+            candidates = list(
+                self.output.glob("*.handoff-journal-sidecar-*.tmp")
+            )
+            self.assertEqual(len(candidates), 1)
+            substituted = candidates[0]
+            substituted.unlink()
+            substituted.write_bytes(b"unowned substituted sidecar\n")
+
+        with mock.patch.object(
+            handoff_module,
+            "_write_all",
+            side_effect=substitute_after_write,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "sidecar|ownership|substitut"):
+                handoff_module._write_publication_journal(
+                    directory,
+                    filename,
+                    temp_name,
+                    temp_token,
+                    directory_token,
+                    None,
+                )
+
+        self.assertIsNotNone(substituted)
+        self.assertEqual(
+            substituted.read_bytes(), b"unowned substituted sidecar\n"
+        )
+        self.assertFalse(
+            (self.output / ".pocket-card-controller.zip.handoff-journal.json").exists()
+        )
+
+    def test_same_inode_rewritten_journal_sidecar_is_retained(self):
+        directory, filename, temp_name, temp_token, directory_token = (
+            self._allocate_low_level_handoff_temp()
+        )
+        write_all = handoff_module._write_all
+        rewritten = None
+        inode = None
+
+        def rewrite_after_write(descriptor, content):
+            nonlocal rewritten, inode
+            write_all(descriptor, content)
+            candidates = list(
+                self.output.glob("*.handoff-journal-sidecar-*.tmp")
+            )
+            self.assertEqual(len(candidates), 1)
+            rewritten = candidates[0]
+            inode = rewritten.stat().st_ino
+            with rewritten.open("r+b", buffering=0) as stream:
+                original = stream.read(1)
+                stream.seek(0)
+                stream.write(bytes([original[0] ^ 0xFF]))
+                os.fsync(stream.fileno())
+
+        with mock.patch.object(
+            handoff_module,
+            "_write_all",
+            side_effect=rewrite_after_write,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "sidecar|content|ownership"):
+                handoff_module._write_publication_journal(
+                    directory,
+                    filename,
+                    temp_name,
+                    temp_token,
+                    directory_token,
+                    None,
+                )
+
+        self.assertIsNotNone(rewritten)
+        self.assertTrue(rewritten.is_file())
+        self.assertEqual(rewritten.stat().st_ino, inode)
+        self.assertFalse(
+            (self.output / ".pocket-card-controller.zip.handoff-journal.json").exists()
+        )
+
+    def test_unowned_malformed_visible_journal_is_retained(self):
+        self.output.mkdir()
+        journal = self.output / ".pocket-card-controller.zip.handoff-journal.json"
+        journal.write_bytes(b"unowned malformed visible journal\n")
+
+        with self.assertRaisesRegex(
+            (RuntimeError, ValueError, json.JSONDecodeError),
+            "journal|JSON|Expecting",
+        ):
+            self.export()
+        self.assertEqual(
+            journal.read_bytes(), b"unowned malformed visible journal\n"
+        )
+
     def test_stream_open_failure_closes_descriptor_and_cleans_owned_temp(self):
         archive = self.export()
         old = archive.read_bytes()
@@ -860,6 +1216,39 @@ raise SystemExit(3)
         with self.assertRaisesRegex(RuntimeError, "digest"):
             handoff_module._check_archive_bounds([entry])
 
+    def test_physical_zip_bound_includes_deflate_and_header_overhead(self):
+        name = "pocket-card-controller/project/exactly-two-gib.bin"
+        entry = handoff_module._ArchiveEntry(
+            name,
+            self.root / "not-allocated",
+            2 * 1024 * 1024 * 1024,
+            "0" * 64,
+        )
+        self.assertEqual(
+            handoff_module._check_archive_bounds([entry]),
+            2 * 1024 * 1024 * 1024,
+        )
+
+        deflate_bound = handoff_module._raw_deflate_size_bound(entry.size)
+        physical_bound = handoff_module._physical_archive_size_bound([entry])
+        name_size = len(name.encode("utf-8"))
+        minimum_zip_overhead = 30 + name_size + 46 + name_size + 22
+        self.assertGreater(deflate_bound, entry.size)
+        self.assertGreater(physical_bound, entry.size)
+        self.assertGreaterEqual(
+            physical_bound,
+            deflate_bound + minimum_zip_overhead,
+        )
+        handoff_module._require_physical_archive_size(
+            physical_bound,
+            physical_bound,
+        )
+        with self.assertRaisesRegex(RuntimeError, "physical ZIP|physical.*size"):
+            handoff_module._require_physical_archive_size(
+                physical_bound + 1,
+                physical_bound,
+            )
+
     def test_sparse_oversized_blender_is_rejected_before_copying_payload(self):
         blend = self.root / "oversized.blend"
         with blend.open("wb") as stream:
@@ -969,10 +1358,10 @@ raise SystemExit(3)
         journal = self.output / ".pocket-card-controller.zip.handoff-journal.json"
         remove_journal = handoff_module._remove_publication_journal
 
-        def substitute_then_remove(directory, filename, token):
+        def substitute_then_remove(directory, filename, token, expected_content):
             journal.unlink()
             journal.write_bytes(b"substituted journal evidence\n")
-            remove_journal(directory, filename, token)
+            remove_journal(directory, filename, token, expected_content)
 
         with mock.patch.object(
             handoff_module,
