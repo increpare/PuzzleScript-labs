@@ -375,12 +375,332 @@ function validateConnectivity(candidate) {
     return errors;
 }
 
-function parseBoardFootprints() {
-    throw new Error("parseBoardFootprints is deferred to Task 3");
+function balancedBlock(text, start) {
+    if (typeof text !== "string") {
+        throw new TypeError("balancedBlock text must be a string");
+    }
+    if (!Number.isInteger(start) || start < 0 || start >= text.length || text[start] !== "(") {
+        throw new Error("expected S-expression opening parenthesis at index " + start);
+    }
+
+    var depth = 0;
+    var quoted = false;
+    var escaped = false;
+    for (var index = start; index < text.length; index++) {
+        var character = text[index];
+        if (quoted) {
+            if (escaped) {
+                escaped = false;
+            } else if (character === "\\") {
+                escaped = true;
+            } else if (character === '"') {
+                quoted = false;
+            }
+            continue;
+        }
+        if (character === '"') {
+            quoted = true;
+        } else if (character === "(") {
+            depth++;
+        } else if (character === ")") {
+            depth--;
+            if (depth === 0) {
+                return text.slice(start, index + 1);
+            }
+        }
+    }
+    throw new Error("unterminated S-expression starting at index " + start);
 }
 
-function compareBoard() {
-    throw new Error("compareBoard is deferred to Task 3");
+function readAtom(text, start) {
+    var index = start;
+    while (index < text.length && /\s/.test(text[index])) {
+        index++;
+    }
+    if (index >= text.length || text[index] === "(" || text[index] === ")") {
+        return null;
+    }
+    if (text[index] !== '"') {
+        var atomStart = index;
+        while (index < text.length && !/[\s()]/.test(text[index])) {
+            index++;
+        }
+        return { value: text.slice(atomStart, index), end: index };
+    }
+
+    var quoteStart = index;
+    var value = "";
+    index++;
+    while (index < text.length) {
+        var character = text[index];
+        if (character === "\\") {
+            index++;
+            if (index >= text.length) {
+                break;
+            }
+            value += text[index];
+            index++;
+        } else if (character === '"') {
+            return { value: value, end: index + 1 };
+        } else {
+            value += character;
+            index++;
+        }
+    }
+    throw new Error("unterminated quoted string starting at index " + quoteStart);
+}
+
+function expressionAtoms(expression, limit) {
+    var atoms = [];
+    var index = 1;
+    while (atoms.length < limit) {
+        var atom = readAtom(expression, index);
+        if (!atom) {
+            break;
+        }
+        atoms.push(atom.value);
+        index = atom.end;
+    }
+    return atoms;
+}
+
+function directChildBlocks(block) {
+    var children = [];
+    var depth = 0;
+    var quoted = false;
+    var escaped = false;
+    for (var index = 0; index < block.length; index++) {
+        var character = block[index];
+        if (quoted) {
+            if (escaped) {
+                escaped = false;
+            } else if (character === "\\") {
+                escaped = true;
+            } else if (character === '"') {
+                quoted = false;
+            }
+            continue;
+        }
+        if (character === '"') {
+            quoted = true;
+        } else if (character === "(") {
+            if (depth === 1) {
+                var child = balancedBlock(block, index);
+                var atoms = expressionAtoms(child, 1);
+                children.push({ name: atoms[0], text: child });
+                index += child.length - 1;
+            } else {
+                depth++;
+            }
+        } else if (character === ")") {
+            depth--;
+        }
+    }
+    return children;
+}
+
+function parseFootprintBlock(block, boardIndex) {
+    var children = directChildBlocks(block);
+    var uuid = null;
+    var ref = null;
+    var pads = [];
+
+    children.forEach(function (child) {
+        var atoms;
+        if (child.name === "uuid" && uuid === null) {
+            atoms = expressionAtoms(child.text, 2);
+            uuid = atoms.length > 1 ? atoms[1] : null;
+        } else if (child.name === "property" && ref === null) {
+            atoms = expressionAtoms(child.text, 3);
+            if (atoms[1] === "Reference") {
+                ref = atoms.length > 2 ? atoms[2] : null;
+            }
+        } else if (child.name === "pad") {
+            atoms = expressionAtoms(child.text, 2);
+            var number = atoms.length > 1 ? atoms[1] : null;
+            var net = null;
+            directChildBlocks(child.text).some(function (padChild) {
+                if (padChild.name !== "net") {
+                    return false;
+                }
+                var netAtoms = expressionAtoms(padChild.text, 3);
+                net = netAtoms.length > 1 ? netAtoms[netAtoms.length - 1] : null;
+                return true;
+            });
+            if (number === null) {
+                throw new Error("board footprint at index " + boardIndex + " has a pad without a number");
+            }
+            pads.push({ number: number, net: net });
+        }
+    });
+
+    if (ref === null || ref.length === 0) {
+        throw new Error("board footprint at index " + boardIndex + " is missing a top-level Reference property");
+    }
+    if (uuid === null || uuid.length === 0) {
+        throw new Error("board footprint " + ref + " is missing a top-level UUID");
+    }
+    return { ref: ref, uuid: uuid, pads: pads };
+}
+
+function parseBoardFootprints(boardText) {
+    if (typeof boardText !== "string") {
+        throw new TypeError("board text must be a string");
+    }
+
+    var footprints = Object.create(null);
+    var depth = 0;
+    var quoted = false;
+    var escaped = false;
+    for (var index = 0; index < boardText.length; index++) {
+        var character = boardText[index];
+        if (quoted) {
+            if (escaped) {
+                escaped = false;
+            } else if (character === "\\") {
+                escaped = true;
+            } else if (character === '"') {
+                quoted = false;
+            }
+            continue;
+        }
+        if (character === '"') {
+            quoted = true;
+        } else if (character === "(") {
+            var head = readAtom(boardText, index + 1);
+            if (head && head.value === "footprint" && (depth === 0 || depth === 1)) {
+                var block = balancedBlock(boardText, index);
+                var footprint = parseFootprintBlock(block, index);
+                if (Object.prototype.hasOwnProperty.call(footprints, footprint.ref)) {
+                    throw new Error("duplicate board footprint reference " + footprint.ref);
+                }
+                footprints[footprint.ref] = {
+                    uuid: footprint.uuid,
+                    pads: footprint.pads
+                };
+                index += block.length - 1;
+            } else {
+                depth++;
+            }
+        } else if (character === ")") {
+            depth--;
+        }
+    }
+    return footprints;
+}
+
+function boardPadLabel(number) {
+    return number === "" ? "<empty>" : String(number);
+}
+
+function boardNetLabel(net) {
+    return net === null || net === undefined ? "unconnected" : String(net);
+}
+
+function compareBoard(candidate, footprints) {
+    var errors = [];
+    var components = candidate && Array.isArray(candidate.components) ? candidate.components : [];
+    var board = footprints && typeof footprints === "object" ? footprints : Object.create(null);
+    var componentRefs = new Set();
+
+    components.forEach(function (component) {
+        if (component && typeof component.ref === "string") {
+            componentRefs.add(component.ref);
+            if (!Object.prototype.hasOwnProperty.call(board, component.ref)) {
+                errors.push("missing board footprint " + component.ref);
+            }
+        }
+    });
+    Object.keys(board).forEach(function (ref) {
+        if (!componentRefs.has(ref)) {
+            errors.push("unexpected board footprint " + ref);
+        }
+    });
+
+    var connectedByRef = new Map();
+    var connections = candidate && Array.isArray(candidate.connections) ? candidate.connections : [];
+    connections.forEach(function (connection) {
+        var nodes = connection && Array.isArray(connection.nodes) ? connection.nodes : [];
+        nodes.forEach(function (node) {
+            if (!Array.isArray(node) || node.length < 2) {
+                return;
+            }
+            var ref = node[0];
+            var number = String(node[1]);
+            if (!connectedByRef.has(ref)) {
+                connectedByRef.set(ref, new Map());
+            }
+            connectedByRef.get(ref).set(number, connection.net);
+        });
+    });
+
+    var boardOnlyByRef = new Map();
+    var boardOnlyPadRules = candidate && Array.isArray(candidate.boardOnlyPadRules) ?
+        candidate.boardOnlyPadRules : [];
+    boardOnlyPadRules.forEach(function (rule) {
+        if (!rule || typeof rule.ref !== "string") {
+            return;
+        }
+        if (!boardOnlyByRef.has(rule.ref)) {
+            boardOnlyByRef.set(rule.ref, new Map());
+        }
+        boardOnlyByRef.get(rule.ref).set(String(rule.pad), rule.net);
+    });
+
+    components.forEach(function (component) {
+        if (!component || typeof component.ref !== "string" ||
+            !Object.prototype.hasOwnProperty.call(board, component.ref)) {
+            return;
+        }
+        var ref = component.ref;
+        var footprint = board[ref];
+        if (footprint.uuid !== component.uuid) {
+            errors.push(ref + " UUID expected " + component.uuid + ", found " +
+                (footprint.uuid === undefined || footprint.uuid === null ? "missing" : footprint.uuid));
+        }
+        var pads = Array.isArray(footprint.pads) ? footprint.pads : [];
+        var connectedPads = connectedByRef.get(ref) || new Map();
+        var boardOnlyPads = boardOnlyByRef.get(ref) || new Map();
+
+        function enforceExpectedPads(expectedPads) {
+            expectedPads.forEach(function (expectedNet, number) {
+                var matching = pads.filter(function (pad) {
+                    return pad && String(pad.number) === number;
+                });
+                if (matching.length === 0) {
+                    errors.push(ref + " pad " + boardPadLabel(number) + " expected " +
+                        expectedNet + ", found missing");
+                    return;
+                }
+                matching.forEach(function (pad) {
+                    if (pad.net !== expectedNet) {
+                        errors.push(ref + " pad " + boardPadLabel(number) + " expected " +
+                            expectedNet + ", found " + boardNetLabel(pad.net));
+                    }
+                });
+            });
+        }
+
+        enforceExpectedPads(connectedPads);
+        enforceExpectedPads(boardOnlyPads);
+        pads.forEach(function (pad) {
+            if (!pad) {
+                return;
+            }
+            var number = String(pad.number);
+            if ((ref === "H1" || ref === "H2") && number !== "") {
+                errors.push(ref + " pad " + boardPadLabel(number) +
+                    " is not an allowed unnumbered mechanical pad");
+            }
+            if (!connectedPads.has(number) && !boardOnlyPads.has(number) &&
+                pad.net !== null && pad.net !== undefined) {
+                errors.push(ref + " pad " + boardPadLabel(number) +
+                    " expected unconnected, found " + boardNetLabel(pad.net));
+            }
+        });
+    });
+
+    return errors;
 }
 
 module.exports = {
@@ -388,6 +708,7 @@ module.exports = {
     componentMap: componentMap,
     pinNetMap: pinNetMap,
     validateConnectivity: validateConnectivity,
+    balancedBlock: balancedBlock,
     parseBoardFootprints: parseBoardFootprints,
     compareBoard: compareBoard
 };

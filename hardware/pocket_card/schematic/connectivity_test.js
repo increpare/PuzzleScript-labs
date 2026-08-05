@@ -421,9 +421,205 @@ test("the canonical board-only pad rule is required exactly once", function () {
     assertRejected(duplicated, /exactly one canonical board-only pad rule/i);
 });
 
-test("board parsing and comparison are explicitly deferred to Task 3", function () {
-    assert.throws(function () { V.parseBoardFootprints(""); }, /Task 3/i);
-    assert.throws(function () { V.compareBoard(V.model, {}); }, /Task 3/i);
+var BOARD_PARSER_FIXTURE = [
+    '(kicad_pcb',
+    '  (footprint "SKQG with (stem)"',
+    '    (property "Reference" "SW_UP"',
+    '      (uuid "nested-property-uuid"))',
+    '    (uuid "sw-up-top-level-uuid")',
+    '    (pad "1" smd rect (net 10 "SIG_UP") (uuid "pad-one-a"))',
+    '    (pad "1" smd rect (net 10 "SIG_UP") (uuid "pad-one-b"))',
+    '    (pad "2" smd rect (net 1 "GND"))',
+    '    (pad "2" smd rect (net 1 "GND"))',
+    '    (zone (net 0 "")',
+    '      (property "note" "parentheses ) ( and an escaped \\"quote\\"")',
+    '      (polygon (pts (xy 0 0) (xy 1 1)))))',
+    '  (footprint "JST_GH"',
+    '    (uuid "j-i2c-top-level-uuid")',
+    '    (property "Reference" "J_I2C" (uuid "nested-reference-uuid"))',
+    '    (pad "1" smd roundrect (net 11 "+3V3"))',
+    '    (pad "MP" smd roundrect (net 1 "GND"))',
+    '    (pad "MP" smd roundrect (net 1 "GND"))))'
+].join("\n");
+
+function comparisonModel() {
+    return {
+        components: [
+            { ref: "U1", uuid: "uuid-u1" },
+            { ref: "SW_UP", uuid: "uuid-sw-up" },
+            { ref: "SW_MUTE", uuid: "uuid-sw-mute" },
+            { ref: "J_I2C", uuid: "uuid-j-i2c" }
+        ],
+        connections: [
+            { net: "SIG_UP", nodes: [["U1", "1"], ["SW_UP", "1"]] },
+            { net: "GND", nodes: [["J_I2C", "MP"]] }
+        ],
+        noConnects: { U1: ["2"] },
+        boardOnlyPadRules: [
+            { ref: "SW_MUTE", pad: "", net: "GND", reason: "mechanical grounding" }
+        ]
+    };
+}
+
+function comparisonFootprints() {
+    return {
+        U1: {
+            uuid: "uuid-u1",
+            pads: [{ number: "1", net: "SIG_UP" }, { number: "2", net: null }]
+        },
+        SW_UP: {
+            uuid: "uuid-sw-up",
+            pads: [
+                { number: "1", net: "SIG_UP" }, { number: "1", net: "SIG_UP" },
+                { number: "2", net: null }, { number: "2", net: null }
+            ]
+        },
+        SW_MUTE: {
+            uuid: "uuid-sw-mute",
+            pads: [{ number: "", net: "GND" }, { number: "", net: "GND" }]
+        },
+        J_I2C: {
+            uuid: "uuid-j-i2c",
+            pads: [
+                { number: "1", net: null },
+                { number: "MP", net: "GND" }, { number: "MP", net: "GND" }
+            ]
+        }
+    };
+}
+
+function assertBoardError(model, footprints, pattern) {
+    var errors = V.compareBoard(model, footprints);
+    assert.ok(errors.some(function (error) { return pattern.test(error); }), errors.join("; "));
+}
+
+test("balanced board blocks ignore parentheses and escapes inside quoted strings", function () {
+    var firstFootprint = BOARD_PARSER_FIXTURE.indexOf('(footprint "SKQG');
+    var block = V.balancedBlock(BOARD_PARSER_FIXTURE, firstFootprint);
+    assert.ok(block.indexOf('(property "note" "parentheses ) ( and an escaped \\"quote\\"")') >= 0);
+    assert.strictEqual(block.slice(-1), ")");
+    assert.strictEqual(block.indexOf('(footprint "JST_GH"'), -1);
+    assert.throws(function () {
+        V.balancedBlock('(footprint "unterminated"', 0);
+    }, /unterminated.*index 0/i);
+});
+
+test("board parser keeps the top-level UUID and both duplicate SKQG pad instances", function () {
+    var footprints = V.parseBoardFootprints(BOARD_PARSER_FIXTURE);
+    assert.strictEqual(footprints.SW_UP.uuid, "sw-up-top-level-uuid");
+    assert.deepStrictEqual(footprints.SW_UP.pads.filter(function (pad) {
+        return pad.number === "1";
+    }), [
+        { number: "1", net: "SIG_UP" },
+        { number: "1", net: "SIG_UP" }
+    ]);
+});
+
+test("board parser preserves both JST mounting-pad instances", function () {
+    var footprints = V.parseBoardFootprints(BOARD_PARSER_FIXTURE);
+    assert.strictEqual(footprints.J_I2C.uuid, "j-i2c-top-level-uuid");
+    assert.deepStrictEqual(footprints.J_I2C.pads.filter(function (pad) {
+        return pad.number === "MP";
+    }), [
+        { number: "MP", net: "GND" },
+        { number: "MP", net: "GND" }
+    ]);
+});
+
+test("board parser reads the one-argument net form emitted by the KiCad 10 board", function () {
+    var board = [
+        '(kicad_pcb',
+        '  (footprint "KiCad10"',
+        '    (uuid "uuid-kicad-10")',
+        '    (property "Reference" "U1")',
+        '    (pad "1" smd rect (net "SIG_UP"))))'
+    ].join("\n");
+    assert.deepStrictEqual(V.parseBoardFootprints(board).U1.pads, [
+        { number: "1", net: "SIG_UP" }
+    ]);
+});
+
+test("board comparison accepts every matching duplicate physical pad", function () {
+    assert.deepStrictEqual(V.compareBoard(comparisonModel(), comparisonFootprints()), []);
+});
+
+test("board comparison reports connected-net mismatches on any duplicate pad", function () {
+    var footprints = comparisonFootprints();
+    footprints.SW_UP.pads[1].net = "GND";
+    footprints.J_I2C.pads[2].net = null;
+    assertBoardError(comparisonModel(), footprints,
+        /SW_UP pad 1 expected SIG_UP, found GND/);
+    assertBoardError(comparisonModel(), footprints,
+        /J_I2C pad MP expected GND, found unconnected/);
+});
+
+test("board comparison reports exact UUID mismatches", function () {
+    var footprints = comparisonFootprints();
+    footprints.J_I2C.uuid = "wrong-uuid";
+    assertBoardError(comparisonModel(), footprints,
+        /J_I2C UUID expected uuid-j-i2c, found wrong-uuid/);
+});
+
+test("board comparison rejects nets on no-connect and otherwise absent pads", function () {
+    var footprints = comparisonFootprints();
+    footprints.U1.pads[1].net = "SIG_UNEXPECTED";
+    footprints.SW_UP.pads.push({ number: "99", net: "GND" });
+    assertBoardError(comparisonModel(), footprints,
+        /U1 pad 2 expected unconnected, found SIG_UNEXPECTED/);
+    assertBoardError(comparisonModel(), footprints,
+        /SW_UP pad 99 expected unconnected, found GND/);
+});
+
+test("mounting-hole footprints allow only unnumbered unconnected mechanical pads", function () {
+    var model = {
+        components: [{ ref: "H1", uuid: "uuid-h1" }, { ref: "H2", uuid: "uuid-h2" }],
+        connections: [],
+        boardOnlyPadRules: []
+    };
+    var footprints = {
+        H1: { uuid: "uuid-h1", pads: [{ number: "", net: null }] },
+        H2: { uuid: "uuid-h2", pads: [{ number: "", net: null }] }
+    };
+    assert.deepStrictEqual(V.compareBoard(model, footprints), []);
+
+    footprints.H1.pads[0].number = "1";
+    assertBoardError(model, footprints,
+        /H1 pad 1 is not an allowed unnumbered mechanical pad/);
+});
+
+test("board-only pad rules require every matching pad to have the specified net", function () {
+    var footprints = comparisonFootprints();
+    footprints.SW_MUTE.pads[1].net = null;
+    assertBoardError(comparisonModel(), footprints,
+        /SW_MUTE pad <empty> expected GND, found unconnected/);
+
+    footprints = comparisonFootprints();
+    footprints.SW_MUTE.pads = [];
+    assertBoardError(comparisonModel(), footprints,
+        /SW_MUTE pad <empty> expected GND, found missing/);
+});
+
+test("board comparison reports missing connected pads and missing or extra references", function () {
+    var footprints = comparisonFootprints();
+    footprints.SW_UP.pads = footprints.SW_UP.pads.filter(function (pad) {
+        return pad.number !== "1";
+    });
+    delete footprints.J_I2C;
+    footprints.GHOST = { uuid: "ghost", pads: [] };
+    assertBoardError(comparisonModel(), footprints,
+        /SW_UP pad 1 expected SIG_UP, found missing/);
+    assertBoardError(comparisonModel(), footprints, /missing board footprint J_I2C/);
+    assertBoardError(comparisonModel(), footprints, /unexpected board footprint GHOST/);
+});
+
+test("board comparison does not mutate its model or parsed footprints", function () {
+    var model = comparisonModel();
+    var footprints = comparisonFootprints();
+    var modelBefore = clone(model);
+    var footprintsBefore = clone(footprints);
+    assert.deepStrictEqual(V.compareBoard(model, footprints), []);
+    assert.deepStrictEqual(model, modelBefore);
+    assert.deepStrictEqual(footprints, footprintsBefore);
 });
 
 console.log(passed + " tests passed");
