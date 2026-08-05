@@ -98,6 +98,12 @@ function closeEnough(actual, expected, message) {
         message + ": expected " + expected + ", got " + actual);
 }
 
+function assertArtifactCurrent(actual, expected) {
+    if (!actual.equals(expected)) {
+        throw new Error("tracked schematic drift: run generate_kicad.js and commit the result");
+    }
+}
+
 function parseSExpression(source) {
     var cursor = 0;
 
@@ -399,11 +405,31 @@ var firstPureGeneration = generator.generateSchematic(model);
 var secondPureGeneration = generator.generateSchematic(model);
 assert.strictEqual(secondPureGeneration, firstPureGeneration,
     "pure schematic generation must be byte-identical");
+assert.throws(function () {
+    assertArtifactCurrent(Buffer.from("deliberately stale schematic\n"),
+        Buffer.from(firstPureGeneration));
+}, /tracked schematic drift/, "a stale tracked-artifact fixture must fail before regeneration");
+var trackedGeneration = fs.readFileSync(outputPath);
+assertArtifactCurrent(trackedGeneration, Buffer.from(firstPureGeneration));
+var trackedModifiedTime = fs.statSync(outputPath).mtimeMs;
 
-childProcess.execFileSync(process.execPath, [generatorPath], { stdio: "pipe" });
-var firstFileGeneration = fs.readFileSync(outputPath);
-childProcess.execFileSync(process.execPath, [generatorPath], { stdio: "pipe" });
-var secondFileGeneration = fs.readFileSync(outputPath);
+var generationDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "pocket-card-generate-test-"));
+var firstFileGeneration;
+var secondFileGeneration;
+try {
+    var generatedOutputPath = path.join(generationDirectory, "pocket_card_controller.kicad_sch");
+    childProcess.execFileSync(process.execPath, [generatorPath, generatedOutputPath], { stdio: "pipe" });
+    assert.ok(fs.existsSync(generatedOutputPath),
+        "generator CLI must write to the requested temporary output path");
+    firstFileGeneration = fs.readFileSync(generatedOutputPath);
+    childProcess.execFileSync(process.execPath, [generatorPath, generatedOutputPath], { stdio: "pipe" });
+    secondFileGeneration = fs.readFileSync(generatedOutputPath);
+} finally {
+    fs.rmSync(generationDirectory, { recursive: true, force: true });
+}
+assertArtifactCurrent(fs.readFileSync(outputPath), trackedGeneration);
+assert.strictEqual(fs.statSync(outputPath).mtimeMs, trackedModifiedTime,
+    "generator CLI tests must not touch the tracked schematic");
 assert.ok(firstFileGeneration.equals(secondFileGeneration),
     "running generation twice must produce byte-identical output");
 assert.strictEqual(secondFileGeneration.toString("utf8"), firstPureGeneration,

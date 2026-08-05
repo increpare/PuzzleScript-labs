@@ -438,7 +438,7 @@ function writeSchematic(outputPath) {
 }
 
 if (require.main === module) {
-    writeSchematic();
+    writeSchematic(process.argv[2]);
 }
 
 module.exports = {
