@@ -241,7 +241,7 @@ BATT_CLEAR     = 0.6               # ASSUMED  fence clearance around the cell
 
 # Controller PCB. Outline derived from the enclosure, not the other way round.
 # Widened left from x=8 to x=2.5 so the board reaches the bottom-left case
-# boss and can be supported there. It also fixes SW_LEFT, whose pads reached
+# boss and can be supported there. It also fixes SW_LEFT1, whose pads reached
 # x=7.2 and overhung the old edge.
 PCB_X, PCB_Y   = 2.5, 53.0
 PCB_W, PCB_H   = 80.5, 37.0
@@ -256,8 +256,8 @@ PCB_W, PCB_H   = 80.5, 37.0
 # pin tip). A rear flare on the front shell made the board impossible to seat.
 # Left mount (4.5,56) dropped: side-arc back land cannot host a shoulder/head
 # left of the cell. Right-strip mounts get rear screws via EXTRA_BOSSES.
-# H1 nudged west so J_BAT_OUT's courtyard clears its Ø7.7 land; H2 moved
-# south so the land clears J_BAT_IN's courtyard (the old (66,81) land
+# H1 nudged west so J_BAT_OUT1's courtyard clears its Ø7.7 land; H2 moved
+# south so the land clears J_BAT_IN1's courtyard (the old (66,81) land
 # overlapped it corner-on behind the board).
 PCB_MOUNTS = ((64.5, 56.0), (66.0, 84.0))
 PCB_MOUNT_D    = 2.6   # clearance hole in the board

@@ -107,8 +107,8 @@ def battery_fence():
         .box(w + 2 * FENCE_T + 2, FENCE_T + 1, CELL_FENCE_H + 1,
              centered=(False, False, False))
         .translate((x - FENCE_T - 1, y - FENCE_T - 0.5, FLOOR_Z - 0.5)))
-    # Gap on the RIGHT wall: cell → J_BAT_IN on the controller (B.Cu right-rear
-    # pocket). J_BAT_OUT then runs to the module BAT — the lead does not go
+    # Gap on the RIGHT wall: cell → J_BAT_IN1 on the controller (B.Cu right-rear
+    # pocket). J_BAT_OUT1 then runs to the module BAT — the lead does not go
     # left/direct to the module.
     gap_y = P.CONN_BAT_IN[1]   # dress toward the header
     gap = (cq.Workplane("XY")

@@ -54,9 +54,16 @@ The controller's input/GPIO/net mapping is no longer selected from footprint
 geometry. `../schematic/connectivity.json` is the canonical electrical source,
 and the deterministic generator writes
 `out/pcb/pocket_card_controller.kicad_sch`. Board parity checks the JSON's net
-mapping and component UUIDs against the existing routed PCB.
-It also requires every footprint's KiCad schematic `path`, so Update PCB from
-Schematic does not treat routed footprints as board-only objects.
+mapping and stable component UUIDs against the existing routed PCB as a model
+parity invariant. Matching component and footprint UUIDs alone are not the
+KiCad association: the top-level PCB `path` is the authoritative link to the
+schematic symbol, and parity requires it on every footprint.
+
+The generated references are already fully annotated (`SW_UP1`, `SW_PWR1`,
+`J_I2C1`, and `J_BAT_OUT1`); do not run **Annotate Schematic**. The generator
+also writes `out/pcb/fp-lib-table` with the four required KiCad 10 standard
+libraries (`Button_Switch_SMD`, `Connector_JST`, `MountingHole`, and
+`Package_SO`), so the project does not depend on the user's global table.
 
 Run these from the repository root:
 
@@ -72,9 +79,14 @@ when the worktree copy is intentionally stale:
 POCKET_CARD_BOARD=/absolute/path/to/hardware/pocket_card/case/out/pcb/pocket_card_controller.kicad_pcb make pocket_card_schematic_tests
 ```
 
-See [`../schematic/README.md`](../schematic/README.md) for the KiCad linking,
-ERC, and DRC workflow. Do not use `build_pcb.sh` merely to update the schematic;
-it destructively regenerates routing. Use `make pocket_card_kicad` instead.
+After generation, reopen the project so KiCad reloads the project-local table
+and external file changes. Run **Update PCB from Schematic** with
+reference-based relinking disabled, footprint replacement disabled, and
+deletion of unmatched footprints disabled; the top-level PCB `path` values
+remain authoritative. See [`../schematic/README.md`](../schematic/README.md)
+for the full KiCad linking, ERC, and DRC workflow. Do not use `build_pcb.sh`
+merely to update the schematic; it destructively regenerates routing. Use
+`make pocket_card_kicad` instead.
 
 ### Blender finishing
 
@@ -180,8 +192,8 @@ wafers — genuine JST often OOS):
 
 | Ref | MPN | LCSC |
 |---|---|---|
-| `J_I2C`, `J_EXP` | `WAFER-GH1.25-4PWB` | C3029379 |
-| `J_BAT_IN`, `J_BAT_OUT` | `WAFER-GH1.25-2PWB` | C3029377 |
+| `J_I2C1`, `J_EXP1` | `WAFER-GH1.25-4PWB` | C3029379 |
+| `J_BAT_IN1`, `J_BAT_OUT1` | `WAFER-GH1.25-2PWB` | C3029377 |
 
 Constants: `params.CONN_4P_*` / `CONN_2P_*`. Spec:
 `docs/superpowers/specs/2026-07-31-pocket-card-skqg-rear-connectors-design.md`.

@@ -1,7 +1,7 @@
 # Pocket Card Controller Schematic Design
 
 **Date:** 2026-08-05
-**Status:** Approved design; implementation not started
+**Status:** Implemented; updated for the fully annotated references
 
 ## Goal
 
@@ -14,17 +14,20 @@ The first schematic is an exact electrical reconstruction of the current
 board. It must expose existing omissions without silently correcting them or
 changing component placement, routing, zones, or enclosure-derived geometry.
 
-## Current state
+## Baseline before implementation
 
-`hardware/pocket_card/case/pcb.py` creates the board outline and footprints
-from the enclosure parameters. `case/pcb_route.py` then assigns nets directly
-to footprint pads and invokes freerouting. The KiCad project has no
-`pocket_card_controller.kicad_sch`, so the board file is currently the only
-complete record of the implemented circuit.
+Before this design was implemented, `hardware/pocket_card/case/pcb.py` created
+the board outline and footprints from the enclosure parameters.
+`case/pcb_route.py` then assigned nets directly to footprint pads and invoked
+freerouting. The KiCad project had no `pocket_card_controller.kicad_sch`, so
+the board file was the only complete record of the implemented circuit.
 
-KiCad normally associates a schematic symbol and PCB footprint by UUID. KiCad
-10 can also re-link an existing board to a newly created schematic by matching
-reference designators once, after which the UUID association is authoritative:
+KiCad records the schematic-symbol association in the top-level PCB footprint
+`path`. Matching stable component and footprint UUIDs are useful model-parity
+invariants, but matching UUIDs alone are not the actual KiCad association.
+KiCad 10 can recover an older unlinked board by matching reference designators,
+but this project now carries authoritative `path` values and does not use that
+fallback in the normal workflow:
 
 <https://docs.kicad.org/master/en/pcbnew/pcbnew.html#forward-and-back-annotation>
 
@@ -70,22 +73,25 @@ schematic does not become a source for mechanical coordinates.
 
 ## Retroactive symbol-footprint association
 
-The model initially captures the top-level UUID of every current PCB
-footprint. The generated schematic symbol for a component uses that same UUID.
-The existing board is therefore linked without replacing footprints, moving
-parts, or rerouting copper.
+The model captures the stable UUID of every current PCB footprint. The
+generated schematic symbol for a component uses that same UUID, and each
+footprint's top-level PCB `path` points to that schematic symbol. The `path` is
+the authoritative KiCad link; UUID equality is an additional parity invariant.
+The existing board is linked without replacing footprints, moving parts, or
+rerouting copper.
 
 The implementation verifies the association in two ways:
 
 1. a test requires every schematic component UUID to equal the UUID of the PCB
-   footprint with the same reference; and
-2. the documented KiCad reconciliation procedure uses **Update PCB from
-   Schematic**, with reference-based re-linking enabled only if KiCad reports
-   an unmatched legacy footprint. Footprint replacement and deletion of
-   unmatched footprints remain disabled during that reconciliation.
+   footprint with the same reference and requires every footprint `path` to
+   name that schematic symbol; and
+2. after reopening the project, the documented KiCad procedure uses **Update
+   PCB from Schematic** with reference-based relinking, footprint replacement,
+   and deletion of unmatched footprints all disabled.
 
-Subsequent updates use normal UUID-based forward annotation. The generator
-must never mint a new component UUID merely because it was rerun.
+Subsequent updates use the checked-in `path` association for forward
+annotation. The generator must never mint a new component UUID merely because
+it was rerun.
 
 ## Exact reconstructed circuit
 
@@ -94,25 +100,25 @@ additions:
 
 | Net | Nodes |
 |---|---|
-| `+3V3` | U1 pins 9 and 18; J_I2C pin 1 |
+| `+3V3` | U1 pins 9 and 18; J_I2C1 pin 1 |
 | `GND` | U1 pins 10 and 15-17; all button common pins; connector grounds; connector mounting pads; address straps; mute ground contacts |
-| `SCL` | U1 pin 12; J_I2C pin 3 |
-| `SDA` | U1 pin 13; J_I2C pin 4 |
-| `INT` | U1 pin 20; J_EXP pin 1 |
-| `SIG_UP` | U1 pin 1; SW_UP pin 1 |
-| `SIG_DOWN` | U1 pin 21; SW_DOWN pin 1 |
-| `SIG_RESET` | U1 pin 22; SW_RESET pin 1 |
-| `SIG_MENU` | U1 pin 23; SW_MENU pin 1 |
-| `SIG_LEFT` | U1 pin 24; SW_LEFT pin 1 |
-| `SIG_RIGHT` | U1 pin 25; SW_RIGHT pin 1 |
-| `SIG_UNDO` | U1 pin 26; SW_UNDO pin 1 |
-| `SIG_MUTE` | U1 pin 27; SW_MUTE pin 1 |
-| `SIG_ACTION` | U1 pin 28; SW_ACTION pin 1 |
-| `BAT_P` | J_BAT_IN pin 1; SW_PWR pin 2 |
-| `BAT_SW` | SW_PWR pin 1; J_BAT_OUT pin 1 |
+| `SCL` | U1 pin 12; J_I2C1 pin 3 |
+| `SDA` | U1 pin 13; J_I2C1 pin 4 |
+| `INT` | U1 pin 20; J_EXP1 pin 1 |
+| `SIG_UP` | U1 pin 1; SW_UP1 pin 1 |
+| `SIG_DOWN` | U1 pin 21; SW_DOWN1 pin 1 |
+| `SIG_RESET` | U1 pin 22; SW_RESET1 pin 1 |
+| `SIG_MENU` | U1 pin 23; SW_MENU1 pin 1 |
+| `SIG_LEFT` | U1 pin 24; SW_LEFT1 pin 1 |
+| `SIG_RIGHT` | U1 pin 25; SW_RIGHT1 pin 1 |
+| `SIG_UNDO` | U1 pin 26; SW_UNDO1 pin 1 |
+| `SIG_MUTE` | U1 pin 27; SW_MUTE1 pin 1 |
+| `SIG_ACTION` | U1 pin 28; SW_ACTION1 pin 1 |
+| `BAT_P` | J_BAT_IN1 pin 1; SW_PWR1 pin 2 |
+| `BAT_SW` | SW_PWR1 pin 1; J_BAT_OUT1 pin 1 |
 
-J_I2C pin 2, J_BAT_IN pin 2, and J_BAT_OUT pin 2 are grounded. J_EXP pins
-2-4, SW_PWR pin 3, MCP23017 pins 2-8, 11, 14, and 19 are explicitly marked
+J_I2C1 pin 2, J_BAT_IN1 pin 2, and J_BAT_OUT1 pin 2 are grounded. J_EXP1 pins
+2-4, SW_PWR1 pin 3, MCP23017 pins 2-8, 11, 14, and 19 are explicitly marked
 unconnected. U1 is an MCP23017-E/SO at address `0x20`: A0-A2 are grounded,
 RESET is tied to `+3V3`, and INTA carries `INT`.
 
@@ -133,6 +139,12 @@ BOM and simulation, so every referenced board footprint has a stable
 association.
 
 ## Schematic presentation
+
+The generated references are already fully annotated (`SW_UP1`, `SW_PWR1`,
+`J_I2C1`, and `J_BAT_OUT1`); do not run **Annotate Schematic**. Generation also
+writes a project-local `fp-lib-table` for the four required KiCad 10 standard
+libraries (`Button_Switch_SMD`, `Connector_JST`, `MountingHole`, and
+`Package_SO`), avoiding any dependency on the user's global table.
 
 Use one A4 landscape sheet because the circuit is small. The sheet has four
 left-to-right functional regions:
@@ -165,7 +177,9 @@ The normal workflow becomes:
 2. run validation and schematic generation;
 3. run the existing PCB generation/routing pipeline when a board rebuild is
    intended;
-4. use KiCad forward annotation for reviewed schematic changes; and
+4. reopen the project and use **Update PCB from Schematic** with
+   reference-based relinking, footprint replacement, and deletion of unmatched
+   footprints disabled; and
 5. run ERC, connectivity parity checks, and PCB DRC.
 
 ## Validation and failure behavior
@@ -193,7 +207,8 @@ Implementation is complete only when all of the following pass:
 - deterministic schematic-generation test;
 - a parser-level comparison of schematic model nets against current PCB pad
   nets, including duplicated pad numbers and board-only pad rules;
-- symbol UUID to footprint UUID association test;
+- symbol-to-footprint UUID parity and authoritative PCB `path` association
+  tests;
 - `kicad-cli sch erc` on the generated schematic, with only reviewed and
   documented exclusions;
 - `kicad-cli sch export netlist`, compared against the canonical model;
