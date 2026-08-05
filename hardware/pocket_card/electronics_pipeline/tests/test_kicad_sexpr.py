@@ -73,6 +73,14 @@ class KiCadSexprTest(unittest.TestCase):
         self.assertEqual([(child.name, child.text) for child in children], [("a", "(a 1)"), ("b", "(b (nested 2))")])
         self.assertEqual(expression[children[0].start : children[0].end], children[0].text)
 
+    def test_direct_children_reject_unnamed_or_comment_only_child_blocks(self):
+        for expression in ("(root ())", "(root (# only trivia\r\n ))"):
+            with self.subTest(expression=expression), self.assertRaisesRegex(
+                SexprError,
+                r"child expression requires a nonempty atom name.*index 6",
+            ):
+                direct_children(expression)
+
     def test_stray_close_and_invalid_offsets_are_useful_errors(self):
         with self.assertRaisesRegex(SexprError, "offset"):
             next_token("(root)", -1)

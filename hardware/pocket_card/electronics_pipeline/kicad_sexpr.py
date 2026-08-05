@@ -217,7 +217,12 @@ def iter_direct_child_spans(source: str, start: int, end: int) -> Iterator[tuple
                 child_end = _balanced_end(source, token.start)
                 if child_end > end:
                     raise _location("child expression extends past parent", token.start)
-                yield _expression_name(source, token.start, child_end), token.start, child_end
+                name = _expression_name(source, token.start, child_end)
+                if not name:
+                    raise _location(
+                        "child expression requires a nonempty atom name", token.start
+                    )
+                yield name, token.start, child_end
                 index = child_end
                 continue
             depth += 1

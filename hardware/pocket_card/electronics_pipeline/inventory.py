@@ -10,12 +10,14 @@ import re
 import shutil
 import subprocess
 import tempfile
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
 from typing import Iterable, Iterator
 
 from .kicad_sexpr import SexprError, iter_direct_child_spans, next_token, one_root
-from .paths import EDITABLE_PROJECT_DIRS, EDITABLE_PROJECT_FILES
+from .paths import EDITABLE_PROJECT_DIRS, EDITABLE_PROJECT_FILES, PROJECT_NAME
 
 
 @dataclass(frozen=True)
@@ -23,6 +25,24 @@ class Pad:
     number: str
     net: str | None
     uuid: str | None
+
+
+def _freeze_value(value: object) -> object:
+    if isinstance(value, Mapping):
+        return MappingProxyType(
+            {key: _freeze_value(nested) for key, nested in value.items()}
+        )
+    if isinstance(value, (list, tuple)):
+        return tuple(_freeze_value(nested) for nested in value)
+    if isinstance(value, (set, frozenset)):
+        return frozenset(_freeze_value(nested) for nested in value)
+    return value
+
+
+def _freeze_mapping(value: Mapping[str, object]) -> Mapping[str, object]:
+    frozen = _freeze_value(value)
+    assert isinstance(frozen, Mapping)
+    return frozen
 
 
 @dataclass(frozen=True)
@@ -37,8 +57,17 @@ class Footprint:
     rotation_deg: float
     layer: str
     locked: bool
-    pads: dict[str, tuple[Pad, ...]]
+    pads: Mapping[str, tuple[Pad, ...]]
     courtyard_bbox_mm: tuple[float, float, float, float] | None
+
+    def __post_init__(self) -> None:
+        pads = {
+            number: tuple(group)
+            for number, group in self.pads.items()
+        }
+        object.__setattr__(self, "pads", _freeze_mapping(pads))
+        if self.courtyard_bbox_mm is not None:
+            object.__setattr__(self, "courtyard_bbox_mm", tuple(self.courtyard_bbox_mm))
 
 
 @dataclass(frozen=True)
@@ -47,20 +76,41 @@ class SchematicComponent:
     value: str
     footprint: str
     uuid: str
-    fields: dict[str, str]
+    fields: Mapping[str, str]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "fields", _freeze_mapping(dict(self.fields)))
 
 
 @dataclass(frozen=True)
 class BoardInventory:
     thickness_mm: float
-    footprints: dict[str, Footprint]
-    edge_cuts: tuple[dict[str, object], ...]
+    footprints: Mapping[str, Footprint]
+    edge_cuts: tuple[Mapping[str, object], ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "footprints", _freeze_mapping(dict(self.footprints)))
+        object.__setattr__(
+            self,
+            "edge_cuts",
+            tuple(_freeze_mapping(primitive) for primitive in self.edge_cuts),
+        )
 
 
 @dataclass(frozen=True)
 class SchematicInventory:
-    components: dict[str, SchematicComponent]
-    nets: dict[str, tuple[str, ...]]
+    components: Mapping[str, SchematicComponent]
+    nets: Mapping[str, tuple[str, ...]]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "components", _freeze_mapping(dict(self.components)))
+        object.__setattr__(
+            self,
+            "nets",
+            _freeze_mapping(
+                {name: tuple(endpoints) for name, endpoints in self.nets.items()}
+            ),
+        )
 
 
 @dataclass(frozen=True)
@@ -521,6 +571,7 @@ def parse_board(text: str) -> BoardInventory:
     root = one_root(text, "kicad_pcb")
     thickness: float | None = None
     footprints: dict[str, Footprint] = {}
+    uuid_owners: dict[str, str] = {}
     edge_cuts: list[dict[str, object]] = []
     for kind, start, end in _children(text, root.start, root.end):
         if kind == "general":
@@ -531,6 +582,14 @@ def parse_board(text: str) -> BoardInventory:
             footprint = _parse_footprint(text, start, end)
             if footprint.ref in footprints:
                 raise SexprError(f"duplicate board footprint reference {footprint.ref} at index {start}")
+            previous_ref = uuid_owners.get(footprint.uuid)
+            if previous_ref is not None:
+                first_ref, second_ref = sorted((previous_ref, footprint.ref))
+                raise SexprError(
+                    f"duplicate board footprint UUID {footprint.uuid} used by "
+                    f"{first_ref} and {second_ref} at index {start}"
+                )
+            uuid_owners[footprint.uuid] = footprint.ref
             footprints[footprint.ref] = footprint
         elif kind.startswith("gr_") and _child_value(text, start, end, "layer") == "Edge.Cuts":
             edge_cuts.append(_parse_graphic(text, start, end, kind))
@@ -579,7 +638,7 @@ def _parse_component(source: str, start: int, end: int) -> SchematicComponent:
     uuid = _child_value(source, start, end, "tstamps")
     if uuid is None:
         uuid = _child_value(source, start, end, "uuid")
-    if uuid is None:
+    if not uuid:
         raise SexprError(f"schematic component {ref} is missing UUID at index {start}")
     if uuid.startswith("/"):
         uuid = uuid[1:]
@@ -601,12 +660,21 @@ def parse_netlist(text: str) -> SchematicInventory:
 
     root = one_root(text, "export")
     components: dict[str, SchematicComponent] = {}
+    uuid_owners: dict[str, str] = {}
     components_block = _first_child(text, root.start, root.end, "components")
     if components_block is not None:
         for _, start, end in _children(text, components_block[0], components_block[1], {"comp"}):
             component = _parse_component(text, start, end)
             if component.ref in components:
                 raise SexprError(f"duplicate schematic component reference {component.ref} at index {start}")
+            previous_ref = uuid_owners.get(component.uuid)
+            if previous_ref is not None:
+                first_ref, second_ref = sorted((previous_ref, component.ref))
+                raise SexprError(
+                    f"duplicate schematic component UUID {component.uuid} used by "
+                    f"{first_ref} and {second_ref} at index {start}"
+                )
+            uuid_owners[component.uuid] = component.ref
             components[component.ref] = component
 
     nets: dict[str, tuple[str, ...]] = {}
@@ -683,6 +751,10 @@ def compare_schematic_to_board(
             )
         expected_library = _library_basename(component.footprint)
         actual_library = _library_basename(footprint.library_id)
+        if footprint.value != actual_library and footprint.value != component.value:
+            errors.append(
+                f"{ref} value expected {component.value}, found {footprint.value or 'missing'}"
+            )
         if actual_library != expected_library:
             errors.append(
                 f"{ref} footprint expected {expected_library}, found {actual_library or 'missing'}"
@@ -719,6 +791,8 @@ def compare_schematic_to_board(
 
 
 _VERSION_PATTERN = re.compile(r"^(\d+)\.(\d+)(?:\.(\d+))?")
+KICAD_VERSION_TIMEOUT_SECONDS = 10
+KICAD_EXPORT_TIMEOUT_SECONDS = 120
 
 
 def _version_tuple(value: str) -> tuple[int, int, int]:
@@ -731,10 +805,22 @@ def _version_tuple(value: str) -> tuple[int, int, int]:
 def _kicad_cli_candidates() -> Iterable[str]:
     configured = os.environ.get("KICAD_CLI")
     if configured:
-        yield configured
+        if Path(configured).is_absolute() or "/" in configured or "\\" in configured:
+            configured_path = Path(configured).expanduser()
+            if not configured_path.is_absolute():
+                configured_path = Path.cwd() / configured_path
+            yield str(configured_path.resolve(strict=False))
+        else:
+            resolved_command = shutil.which(configured)
+            if resolved_command is None:
+                raise RuntimeError(
+                    f"configured KICAD_CLI command {configured!r} was not found on PATH"
+                )
+            yield str(Path(resolved_command).resolve(strict=False))
+        return
     on_path = shutil.which("kicad-cli")
     if on_path:
-        yield on_path
+        yield str(Path(on_path).resolve(strict=False))
     if os.name == "nt":
         for root_name in ("ProgramFiles", "ProgramFiles(x86)"):
             root = os.environ.get(root_name)
@@ -760,9 +846,23 @@ def _find_kicad_cli(expected_major: int, minimum: str) -> str:
         if not path.is_file() or not os.access(path, os.X_OK):
             checked.append(f"{candidate} (missing)")
             continue
-        result = subprocess.run(
-            [candidate, "--version"], text=True, capture_output=True, check=False
-        )
+        try:
+            result = subprocess.run(
+                [candidate, "--version"],
+                text=True,
+                capture_output=True,
+                check=False,
+                timeout=KICAD_VERSION_TIMEOUT_SECONDS,
+            )
+        except subprocess.TimeoutExpired:
+            checked.append(
+                f"{candidate} (version probe timed out after "
+                f"{KICAD_VERSION_TIMEOUT_SECONDS} seconds)"
+            )
+            continue
+        except OSError as error:
+            checked.append(f"{candidate} (version probe failed: {error})")
+            continue
         version_text = result.stdout.strip() or result.stderr.strip()
         if result.returncode != 0:
             checked.append(f"{candidate} (version command failed)")
@@ -785,45 +885,75 @@ def _find_kicad_cli(expected_major: int, minimum: str) -> str:
 def inventory_project(project_dir: Path) -> ProjectInventory:
     """Export a temporary netlist and inventory a native KiCad project."""
 
-    directory = Path(project_dir)
+    directory = _validated_project_root(Path(project_dir))
     toolchain_path = directory / "toolchain.json"
+    if toolchain_path.is_symlink():
+        raise RuntimeError(f"toolchain policy path is a symlink: {toolchain_path}")
     try:
         policy = json.loads(toolchain_path.read_text(encoding="utf-8"))
-        project_name = policy["project"]
+        project_name = _validated_project_name(policy["project"])
         expected_major = int(policy["kicad"]["major"])
         minimum = str(policy["kicad"]["minimum"])
     except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
         raise RuntimeError(f"invalid pinned KiCad toolchain policy {toolchain_path}: {error}") from error
-    schematic_path = directory / f"{project_name}.kicad_sch"
-    board_path = directory / f"{project_name}.kicad_pcb"
+    editable_paths = editable_project_files(directory, project_name=project_name)
+    editable_by_name = {
+        path.relative_to(directory).as_posix(): path for path in editable_paths
+    }
+    schematic_name = f"{project_name}.kicad_sch"
+    board_name = f"{project_name}.kicad_pcb"
+    project_name_with_suffix = f"{project_name}.kicad_pro"
+    for required_name in (project_name_with_suffix, schematic_name, board_name):
+        required_path = editable_by_name.get(required_name)
+        if required_path is None:
+            raise RuntimeError(f"native KiCad project source is missing: {directory / required_name}")
+        if required_path.parent != directory or required_path.name != required_name:
+            raise RuntimeError(
+                f"native KiCad project source must be directly inside {directory}: {required_path}"
+            )
+    schematic_path = editable_by_name[schematic_name]
+    board_path = editable_by_name[board_name]
     executable = _find_kicad_cli(expected_major, minimum)
     with tempfile.TemporaryDirectory(prefix="pocket-card-netlist-") as temporary_directory:
         temporary_project = Path(temporary_directory)
-        for filename in EDITABLE_PROJECT_FILES:
-            source_path = directory / filename
-            if source_path.is_file():
-                shutil.copy2(source_path, temporary_project / filename)
+        for source_path in editable_paths:
+            relative = source_path.relative_to(directory)
+            destination = temporary_project / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source_path, destination)
         temporary_schematic = temporary_project / schematic_path.name
         if not temporary_schematic.is_file():
             raise RuntimeError(f"native KiCad schematic is missing: {schematic_path}")
         netlist_path = temporary_project / f"{project_name}.net"
-        result = subprocess.run(
-            [
-                executable,
-                "sch",
-                "export",
-                "netlist",
-                "--format",
-                "kicadsexpr",
-                "--output",
-                str(netlist_path),
-                str(temporary_schematic),
-            ],
-            cwd=temporary_project,
-            text=True,
-            capture_output=True,
-            check=False,
-        )
+        command = [
+            executable,
+            "sch",
+            "export",
+            "netlist",
+            "--format",
+            "kicadsexpr",
+            "--output",
+            str(netlist_path),
+            str(temporary_schematic),
+        ]
+        try:
+            result = subprocess.run(
+                command,
+                cwd=temporary_project,
+                text=True,
+                capture_output=True,
+                check=False,
+                timeout=KICAD_EXPORT_TIMEOUT_SECONDS,
+            )
+        except subprocess.TimeoutExpired as error:
+            raise RuntimeError(
+                f"KiCad netlist export timed out after "
+                f"{KICAD_EXPORT_TIMEOUT_SECONDS} seconds using {executable}"
+            ) from error
+        except OSError as error:
+            raise RuntimeError(
+                f"KiCad netlist export could not start using {executable}: {error}"
+            ) from error
         if result.returncode != 0:
             detail = (result.stderr or result.stdout).strip()
             raise RuntimeError(f"KiCad netlist export failed with status {result.returncode}: {detail}")
@@ -844,30 +974,115 @@ _LOCAL_EDITABLE_SUFFIXES = {
 }
 
 
-def _editable_project_paths(project_dir: Path) -> tuple[Path, ...]:
-    paths: list[Path] = []
+def _validated_project_root(project_dir: Path) -> Path:
+    if project_dir.is_symlink():
+        raise ValueError(f"editable project path is a symlink: {project_dir}")
+    try:
+        root = project_dir.resolve(strict=True)
+    except OSError as error:
+        raise ValueError(f"editable project directory is unavailable: {project_dir}: {error}") from error
+    if not root.is_dir():
+        raise ValueError(f"editable project root is not a directory: {root}")
+    return root
+
+
+def _validated_project_name(value: object) -> str:
+    if (
+        not isinstance(value, str)
+        or not value
+        or value != value.strip()
+        or value in {".", ".."}
+        or "." in value
+        or "/" in value
+        or "\\" in value
+        or Path(value).is_absolute()
+    ):
+        raise RuntimeError(
+            f"invalid toolchain project name {value!r}; expected a nonempty plain filename stem"
+        )
+    return value
+
+
+def _project_filenames(project_name: str) -> tuple[str, ...]:
+    filenames: list[str] = []
     for filename in EDITABLE_PROJECT_FILES:
-        candidate = project_dir / filename
-        if candidate.is_file() and not candidate.is_symlink():
-            paths.append(candidate)
+        if filename.startswith(f"{PROJECT_NAME}."):
+            filenames.append(project_name + filename[len(PROJECT_NAME) :])
+        else:
+            filenames.append(filename)
+    return tuple(filenames)
+
+
+def _ensure_path_within_root(path: Path, root: Path) -> Path:
+    if path.is_symlink():
+        raise ValueError(f"editable project path is a symlink: {path}")
+    try:
+        resolved = path.resolve(strict=True)
+    except OSError as error:
+        raise ValueError(f"editable project path is unavailable: {path}: {error}") from error
+    try:
+        resolved.relative_to(root)
+    except ValueError as error:
+        raise ValueError(f"editable project path escapes project root {root}: {path}") from error
+    return resolved
+
+
+def _iter_local_editable_files(directory: Path, root: Path, suffixes: frozenset[str]) -> Iterator[Path]:
+    for candidate in sorted(directory.iterdir(), key=lambda path: path.name):
+        if candidate.is_symlink():
+            raise ValueError(f"editable project path is a symlink: {candidate}")
+        resolved = _ensure_path_within_root(candidate, root)
+        if resolved.is_dir():
+            if resolved.name.endswith("-backups"):
+                continue
+            yield from _iter_local_editable_files(resolved, root, suffixes)
+        elif resolved.is_file() and resolved.suffix.lower() in suffixes:
+            yield resolved
+
+
+def editable_project_files(
+    project_dir: Path, *, project_name: str = PROJECT_NAME
+) -> tuple[Path, ...]:
+    """Return validated editable project files in deterministic relative order.
+
+    Symlinks are rejected rather than omitted or dereferenced, and every returned
+    path is resolved beneath the resolved project root.  KiCad's exact
+    ``*-backups`` directory convention is excluded without filtering legitimate
+    library names containing the word "backup".
+    """
+
+    project_name = _validated_project_name(project_name)
+    root = _validated_project_root(Path(project_dir))
+    paths: list[Path] = []
+    for filename in _project_filenames(project_name):
+        candidate = root / filename
+        if candidate.is_symlink():
+            raise ValueError(f"editable project path is a symlink: {candidate}")
+        if candidate.exists():
+            resolved = _ensure_path_within_root(candidate, root)
+            if not resolved.is_file():
+                raise ValueError(f"editable project source is not a file: {resolved}")
+            paths.append(resolved)
     for directory_name in EDITABLE_PROJECT_DIRS:
         suffixes = _LOCAL_EDITABLE_SUFFIXES[directory_name]
-        directory = project_dir / directory_name
-        if not directory.is_dir() or directory.is_symlink():
+        directory = root / directory_name
+        if directory.is_symlink():
+            raise ValueError(f"editable project path is a symlink: {directory}")
+        if not directory.exists():
             continue
-        for candidate in directory.rglob("*"):
-            if candidate.is_file() and not candidate.is_symlink() and candidate.suffix.lower() in suffixes:
-                if not any(part.startswith((".", "~")) or "backup" in part.lower() for part in candidate.relative_to(project_dir).parts):
-                    paths.append(candidate)
-    return tuple(sorted(paths, key=lambda path: path.relative_to(project_dir).as_posix()))
+        resolved_directory = _ensure_path_within_root(directory, root)
+        if not resolved_directory.is_dir():
+            raise ValueError(f"editable project library path is not a directory: {resolved_directory}")
+        paths.extend(_iter_local_editable_files(resolved_directory, root, suffixes))
+    return tuple(sorted(paths, key=lambda path: path.relative_to(root).as_posix()))
 
 
 def project_digest(project_dir: Path) -> str:
     """Hash editable native project sources independently of local artifacts."""
 
-    directory = Path(project_dir)
+    directory = _validated_project_root(Path(project_dir))
     digest = hashlib.sha256()
-    for path in _editable_project_paths(directory):
+    for path in editable_project_files(directory):
         relative = path.relative_to(directory).as_posix()
         digest.update(relative.encode("utf-8"))
         digest.update(b"\0")
@@ -877,7 +1092,7 @@ def project_digest(project_dir: Path) -> str:
 
 
 def _json_value(value: object) -> object:
-    if isinstance(value, dict):
+    if isinstance(value, Mapping):
         return {str(key): _json_value(value[key]) for key in sorted(value)}
     if isinstance(value, tuple):
         return [_json_value(item) for item in value]
