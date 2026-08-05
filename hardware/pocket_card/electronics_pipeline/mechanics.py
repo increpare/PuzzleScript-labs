@@ -410,7 +410,9 @@ def load_contract(path: str | Path) -> MechanicalContract:
 
     board_raw = _mapping(root["board"], "board", _BOARD_KEYS)
     board = BoardContract(
-        thickness_mm=_number(board_raw["thicknessMm"], "board.thicknessMm"),
+        thickness_mm=_number(
+            board_raw["thicknessMm"], "board.thicknessMm", nonnegative=True
+        ),
         thickness_tolerance_mm=_number(
             board_raw["thicknessToleranceMm"],
             "board.thicknessToleranceMm",
@@ -577,13 +579,9 @@ def check_mechanics(
                     f"{ref} allowed {keepout.name} overlap is stale: courtyard no longer intersects"
                 )
                 continue
-            feature = contract.features_by_ref[ref]
-            if _bbox_changed(
-                courtyard, allowed.courtyard_bbox_mm, feature.xy_tolerance_mm
-            ) or _bbox_changed(
-                intersection,
-                allowed.intersection_bbox_mm,
-                feature.xy_tolerance_mm,
+            if (
+                courtyard != allowed.courtyard_bbox_mm
+                or intersection != allowed.intersection_bbox_mm
             ):
                 findings.add(
                     f"{ref} allowed {keepout.name} overlap changed: expected courtyard "

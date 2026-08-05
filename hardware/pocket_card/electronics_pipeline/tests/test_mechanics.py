@@ -116,14 +116,23 @@ class MechanicalContractTest(unittest.TestCase):
 
     def test_keepout_allowed_overlap_growth_and_staleness_require_review(self):
         baseline = self.board.footprints["J_I2C1"].courtyard_bbox_mm
-        grown = _replace_footprint(
-            self.board,
-            "J_I2C1",
-            courtyard_bbox_mm=(baseline[0] - 0.06, baseline[1], baseline[2], baseline[3]),
-        )
-        self.assertTrue(
-            any("J_I2C1" in item and "allowed battery overlap" in item for item in check_mechanics(self.contract, grown))
-        )
+        changed_bboxes = {
+            "growth": (baseline[0] - 0.001, baseline[1], baseline[2], baseline[3]),
+            "shrink": (baseline[0], baseline[1], baseline[2] - 0.001, baseline[3]),
+        }
+        for label, courtyard_bbox in changed_bboxes.items():
+            with self.subTest(label=label):
+                changed = _replace_footprint(
+                    self.board,
+                    "J_I2C1",
+                    courtyard_bbox_mm=courtyard_bbox,
+                )
+                self.assertTrue(
+                    any(
+                        "J_I2C1" in item and "allowed battery overlap" in item
+                        for item in check_mechanics(self.contract, changed)
+                    )
+                )
 
         stale = _replace_footprint(
             self.board,
@@ -216,6 +225,16 @@ class ContractSchemaTest(unittest.TestCase):
         self._assert_rejected(lambda payload: payload["board"].__setitem__("surprise", True))
         self._assert_rejected(lambda payload: payload["features"][0].pop("rationale"))
 
+    def test_rejects_negative_board_thickness(self):
+        self._assert_rejected(
+            lambda payload: payload["board"].__setitem__("thicknessMm", -0.001)
+        )
+        self._assert_rejected(
+            lambda payload: payload["board"].__setitem__(
+                "thicknessToleranceMm", -0.001
+            )
+        )
+
     def test_rejects_invalid_feature_fields(self):
         mutations = (
             lambda p: p["features"][0].__setitem__("ref", ""),
@@ -224,6 +243,7 @@ class ContractSchemaTest(unittest.TestCase):
             lambda p: p["features"][0].__setitem__("lockedRequired", 1),
             lambda p: p["features"][0].__setitem__("rationale", "  "),
             lambda p: p["features"][0].__setitem__("xyToleranceMm", -0.01),
+            lambda p: p["features"][0].__setitem__("rotationToleranceDeg", -0.01),
             lambda p: p["features"][0].__setitem__("rotationToleranceDeg", float("nan")),
             lambda p: p["features"][0].__setitem__("xMm", float("inf")),
         )
@@ -269,6 +289,13 @@ class LockMechanicalItemsTest(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         return path
 
+    def _temporary_board_bytes(self, payload):
+        temporary = tempfile.TemporaryDirectory()
+        path = Path(temporary.name) / BOARD.name
+        path.write_bytes(payload)
+        self.addCleanup(temporary.cleanup)
+        return path
+
     def test_migration_is_exact_and_idempotent(self):
         path = self._temporary_board()
         original_text = path.read_text(encoding="utf-8")
@@ -283,6 +310,35 @@ class LockMechanicalItemsTest(unittest.TestCase):
         second = lock_mechanical_items(path, MECHANICAL_CONTRACT)
         self.assertEqual(second, "already locked")
         self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), digest)
+
+    def test_migration_preserves_crlf_and_non_ascii_prefix_bytes(self):
+        text = _unlocked_canonical_text().replace(
+            "(kicad_pcb\n",
+            "(kicad_pcb\n\t# mécanique 🧩 before all edited blocks\n",
+            1,
+        )
+        original = text.replace("\n", "\r\n").encode("utf-8")
+        path = self._temporary_board_bytes(original)
+
+        first = lock_mechanical_items(path, MECHANICAL_CONTRACT)
+        self.assertEqual(first, "locked 16 footprints and 10 Edge.Cuts items")
+        migrated = path.read_bytes()
+        lock_line = b"\r\n\t\t(locked yes)"
+        self.assertEqual(migrated.count(lock_line), 26)
+        self.assertEqual(migrated.replace(lock_line, b""), original)
+        self.assertNotIn(b"\n", migrated.replace(b"\r\n", b""))
+
+        digest = hashlib.sha256(migrated).hexdigest()
+        self.assertEqual(lock_mechanical_items(path, MECHANICAL_CONTRACT), "already locked")
+        self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), digest)
+
+    def test_migration_refuses_mixed_newlines_without_writing(self):
+        mixed = _unlocked_canonical_text().replace("\n", "\r\n", 1).encode("utf-8")
+        path = self._temporary_board_bytes(mixed)
+        before = path.read_bytes()
+        with self.assertRaisesRegex(LockMigrationRefused, "newline convention"):
+            lock_mechanical_items(path, MECHANICAL_CONTRACT)
+        self.assertEqual(path.read_bytes(), before)
 
     def test_migration_refuses_non_lock_mechanical_drift_without_writing(self):
         text = _unlocked_canonical_text().replace("\n\t\t(at 64.5 56)", "\n\t\t(at 64.6 56)", 1)

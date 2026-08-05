@@ -206,8 +206,21 @@ def _indent_at(source: str, offset: int) -> str:
     return prefix
 
 
-def _with_locks(source: str, blocks: tuple[_Block, ...]) -> str:
-    newline = "\r\n" if "\r\n" in source else "\n"
+def _newline_convention(source: str) -> str:
+    without_crlf = source.replace("\r\n", "")
+    has_crlf = "\r\n" in source
+    has_lf = "\n" in without_crlf
+    has_cr = "\r" in without_crlf
+    if has_cr or (has_crlf and has_lf):
+        raise LockMigrationRefused(
+            ("board newline convention is mixed or unsupported",)
+        )
+    return "\r\n" if has_crlf else "\n"
+
+
+def _with_locks(
+    source: str, blocks: tuple[_Block, ...], newline: str
+) -> str:
     replacements = []
     for block in blocks:
         if block.lock_state:
@@ -253,7 +266,8 @@ def lock_mechanical_items(
 
     path = Path(board_path)
     contract = load_contract(contract_path)
-    source = path.read_text(encoding="utf-8")
+    source = path.read_bytes().decode("utf-8")
+    newline = _newline_convention(source)
     board = parse_board(source)
     non_lock_findings = tuple(
         finding
@@ -269,7 +283,9 @@ def lock_mechanical_items(
     if not unlocked_footprints and not unlocked_edges:
         return "already locked"
 
-    migrated = _with_locks(source, (*unlocked_footprints, *unlocked_edges))
+    migrated = _with_locks(
+        source, (*unlocked_footprints, *unlocked_edges), newline
+    )
     migrated_board = parse_board(migrated)
     post_findings = check_mechanics(contract, migrated_board)
     if post_findings:
