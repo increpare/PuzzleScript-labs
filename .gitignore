@@ -3,6 +3,12 @@ build/
 build-mask64/
 **/.DS_Store
 
+# KiCad local state (project sources remain tracked)
+*.kicad_prl
+~*.lck
+*-backups/
+fp-info-cache
+
 hardware/card/**/.history/
 hardware/card/**/*.kicad_prl
 hardware/card/**/*.lck

@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -21,3 +22,22 @@ EDITABLE_PROJECT_FILES = (
     "sym-lib-table",
 )
 EDITABLE_PROJECT_DIRS = ("symbols", "footprints.pretty", "3dmodels")
+
+_FORBIDDEN_MACHINE_PATH_PATTERNS = (
+    re.compile(r"file://[^\s\"')]+", re.IGNORECASE),
+    re.compile(r"(?<![A-Za-z0-9_])[A-Za-z]:[\\/]+[^\s\"')]+"),
+    re.compile(
+        r"(?<![:/\\])(?:\\{2,}|//)[^/\\\s\"')]+"
+        r"(?:[\\/]+[^/\\\s\"')]+)+"
+    ),
+    re.compile(
+        r"(?<![:/\\A-Za-z0-9_}])/(?:[^/\s\"'()]+/)+[^/\s\"'()]+"
+    ),
+)
+
+
+def find_forbidden_machine_paths(text):
+    matches = []
+    for pattern in _FORBIDDEN_MACHINE_PATH_PATTERNS:
+        matches.extend((match.start(), match.group(0)) for match in pattern.finditer(text))
+    return tuple(value for _, value in sorted(matches))

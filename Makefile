@@ -15,7 +15,7 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: help build build_32 build_solver build_generator build_simplify handheld_report handheld_memory_audit handheld_blockout_tests handheld_pcb_export handheld_card_preview handheld_card_easyeda_handoff handheld_card_schematic_tests handheld_card_kicad handheld_devkit_input_kicad locality_survey handheld_p4_probe_build handheld_p4_probe_flash handheld_p4_probe_monitor handheld_p4_probe_capture handheld_p4_probe_summarize handheld_p4_probe_check_log pocket_card_schematic_tests pocket_card_kicad pocket_card_contract_tests pocket_card_fixture pocket_card_probe_build pocket_card_probe_flash pocket_card_probe_monitor pocket_card_probe_capture pocket_card_probe_summarize pocket_card_probe_check_log pocket_card_probe_check_map generator remix simplify solver run ctest tests all_tests_thorough js_parity_tests tests_js static_analysis_tests static_analysis_runtime_contracts static_analysis_performance_tests static_analysis_explorer static_analysis_fuzz static_analysis_consistency_giant static_analysis_corpus_audit_giant canonicalization_fuzz canonicalizer_giant_corpus compile_exception_corpus compile_exception_corpus_nodupes fuzz_corpus_batch fuzz_corpus_batch_giant fuzz_corpus_batch_single fuzz_corpus_batch_parallel simulation_tests_js simulation_tests_js_profile simulation_tests_js_profile_breakdown compilation_tests_js performance_testpage \
+.PHONY: help build build_32 build_solver build_generator build_simplify handheld_report handheld_memory_audit handheld_blockout_tests handheld_pcb_export handheld_card_preview handheld_card_easyeda_handoff handheld_card_schematic_tests handheld_card_kicad handheld_devkit_input_kicad locality_survey handheld_p4_probe_build handheld_p4_probe_flash handheld_p4_probe_monitor handheld_p4_probe_capture handheld_p4_probe_summarize handheld_p4_probe_check_log pocket_card_electronics_tests pocket_card_schematic_tests pocket_card_kicad pocket_card_contract_tests pocket_card_fixture pocket_card_probe_build pocket_card_probe_flash pocket_card_probe_monitor pocket_card_probe_capture pocket_card_probe_summarize pocket_card_probe_check_log pocket_card_probe_check_map generator remix simplify solver run ctest tests all_tests_thorough js_parity_tests tests_js static_analysis_tests static_analysis_runtime_contracts static_analysis_performance_tests static_analysis_explorer static_analysis_fuzz static_analysis_consistency_giant static_analysis_corpus_audit_giant canonicalization_fuzz canonicalizer_giant_corpus compile_exception_corpus compile_exception_corpus_nodupes fuzz_corpus_batch fuzz_corpus_batch_giant fuzz_corpus_batch_single fuzz_corpus_batch_parallel simulation_tests_js simulation_tests_js_profile simulation_tests_js_profile_breakdown compilation_tests_js performance_testpage \
 	simulation_tests_cpp compilation_tests_cpp simulation_tests compilation_tests simulation_corpus_interpreter_benchmark simulation_corpus_compiled_rulegroups_benchmark simulation_corpus_compiled_compact_benchmark simulation_corpus_perf_report simulation_corpus_perf_report_quick \
 	simulation_tests_cpp_32 compilation_tests_cpp_32 \
 	solver_tests_cpp solver_tests_js solver_tests solver_timeout_curve solver-time-curve-single-game solver-time-curve-single-game-hda-compiled solver_timeout_curve_replot solver_js_coverage_cpp solver_smoke_tests native_runtime_counters_tests solver_search_mode_tests solver_determinism_tests solver_parity_smoke solver_portfolio_regression_tests native_static_analysis_parity_tests native_static_analysis_native_parity_tests native_static_analysis_fallback_parity_tests native_static_analysis_fallback_soundness_tests solver_compact_parity_smoke solver_compact_parity solver_benchmark solver_mine_pippable solver_focus_mine solver_focus_manifest_check solver_focus_benchmark solver_focus_compare solver_focus_compact_compare solver_focus_compact_codegen_compare solver_corpus_manifest solver_corpus_compact_codegen_compare solver_focus_perf_report solver_focus_compact_perf_report solver_focus_compact_codegen_perf_report solver_benchmark_targets solver_instrumentation_pack solver_instrumentation_analysis solver_instrumentation_analysis_tests js_static_optimization_comparison_solver_smoke js_static_optimization_comparison_solver_focus solver_canonical_replay solver_canonical_replay_long canonical_roundtrip_replay static_optimizer_page generator_smoke_tests generator_benchmark \
@@ -561,8 +561,9 @@ help:
 	@echo "  make handheld_p4_probe_capture     Capture, summarize, and gate monitor logs"
 	@echo "  make handheld_p4_probe_summarize   Summarize captured ESP32-P4 probe log (set ESP32P4_LOG=...)"
 	@echo "  make handheld_p4_probe_check_log   Fail if captured ESP32-P4 probe log has failures"
-	@echo "  make pocket_card_schematic_tests   Test Pocket Card schematic/connectivity without regenerating it"
-	@echo "  make pocket_card_kicad             Validate, regenerate, and test the Pocket Card schematic"
+	@echo "  make pocket_card_electronics_tests Test the canonical Pocket Card KiCad source layout"
+	@echo "  make pocket_card_schematic_tests   Test canonical and legacy Pocket Card electronics sources"
+	@echo "  make pocket_card_kicad             Regenerate legacy Pocket Card compatibility artifacts and test"
 	@echo "  make pocket_card_case              Rebuild Pocket Card shells + PCB (incl. 3D meshes)"
 	@echo "  make pocket_card_probe_build       Build Pocket Card ESP32-S3 runtime probe firmware"
 	@echo "  .\\scripts\\pocket_card_probe.ps1   Windows: build + flash in one command (-Port COM3)"
@@ -963,7 +964,10 @@ endif
 
 .PHONY: pocket_card_case pocket_card_case_shells pocket_card_case_embossed pocket_card_case_sculpted
 
-pocket_card_schematic_tests:
+pocket_card_electronics_tests:
+	python3 -m unittest discover -s hardware/pocket_card/electronics_pipeline/tests -p 'test_*.py' -v
+
+pocket_card_schematic_tests: pocket_card_electronics_tests
 	$(NODE) hardware/pocket_card/schematic/connectivity_test.js
 	$(NODE) hardware/pocket_card/schematic/generate_kicad_test.js
 	POCKET_CARD_BOARD="$${POCKET_CARD_BOARD:-hardware/pocket_card/case/out/pcb/pocket_card_controller.kicad_pcb}" \
