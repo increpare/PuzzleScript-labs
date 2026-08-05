@@ -141,6 +141,7 @@ class HandoffAcceptResult:
     changed: tuple[str, ...]
     retained: tuple[str, ...]
     returned_digest: str
+    expected_digest: str
     status: str
 
     def __iter__(self):
@@ -2982,27 +2983,109 @@ def _promotion_plan(
     return changed, retained
 
 
-def _replace_promoted_file(source: Path, destination: Path) -> None:
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    temporary = destination.with_name(
-        f".handoff-accept-{uuid.uuid4().hex}.tmp"
+def _merged_editable_digest(
+    staged_project: Path,
+    canonical_project: Path,
+    retained: Sequence[str],
+) -> str:
+    staged_items = {
+        path.relative_to(staged_project).as_posix(): path
+        for path in editable_project_files(staged_project)
+    }
+    merged = [(relative, staged_items[relative]) for relative in sorted(staged_items)]
+    merged.extend(
+        (relative, canonical_project / relative) for relative in sorted(retained)
     )
-    if temporary.exists():
-        raise HandoffInvalid("handoff acceptance temporary file already exists")
-    try:
-        _snapshot_regular(source, temporary, f"accepted project source {source.name}")
-        os.replace(temporary, destination)
-        parent_descriptor = os.open(destination.parent, os.O_RDONLY)
+    return _labeled_project_digest(merged)
+
+
+def _restore_promotion_backups(backups: Mapping[Path, bytes | None]) -> None:
+    for destination, original in backups.items():
         try:
-            os.fsync(parent_descriptor)
-        finally:
-            os.close(parent_descriptor)
-    finally:
-        if temporary.exists():
+            if original is None:
+                if destination.is_file():
+                    destination.unlink()
+                continue
+            temporary = destination.with_name(
+                f".handoff-accept-restore-{uuid.uuid4().hex}.tmp"
+            )
+            if temporary.exists():
+                raise HandoffInvalid("handoff acceptance restore temporary file exists")
+            _snapshot_bytes(temporary, original)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            os.replace(temporary, destination)
+            parent_descriptor = os.open(destination.parent, os.O_RDONLY)
             try:
-                temporary.unlink()
-            except OSError:
-                pass
+                os.fsync(parent_descriptor)
+            finally:
+                os.close(parent_descriptor)
+        except OSError as error:
+            raise HandoffInvalid(
+                "handoff acceptance failed and canonical project restore is incomplete"
+            ) from error
+
+
+def _apply_promotion(
+    pending: Sequence[tuple[Path, Path]],
+    *,
+    expected_digest: str,
+    canonical_project: Path,
+) -> None:
+    backups: dict[Path, bytes | None] = {}
+    staged_pairs: list[tuple[Path, Path]] = []
+    staged_temps: list[Path] = []
+    replaced: list[Path] = []
+
+    try:
+        for source, destination in pending:
+            if destination.is_file():
+                backups[destination] = _read_regular_bytes(
+                    destination,
+                    "canonical project source",
+                    max_size=_MAX_ARCHIVE_BYTES,
+                )
+            else:
+                backups[destination] = None
+
+            temporary = destination.with_name(
+                f".handoff-accept-{uuid.uuid4().hex}.tmp"
+            )
+            if temporary.exists():
+                raise HandoffInvalid("handoff acceptance temporary file already exists")
+            _snapshot_regular(
+                source,
+                temporary,
+                f"accepted project source {source.name}",
+            )
+            staged_pairs.append((temporary, destination))
+            staged_temps.append(temporary)
+
+        for temporary, destination in staged_pairs:
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            os.replace(temporary, destination)
+            replaced.append(destination)
+            parent_descriptor = os.open(destination.parent, os.O_RDONLY)
+            try:
+                os.fsync(parent_descriptor)
+            finally:
+                os.close(parent_descriptor)
+
+        final_digest = _handoff_project_digest(canonical_project)
+        if final_digest != expected_digest:
+            raise HandoffInvalid(
+                "canonical project digest does not match the accepted merged digest"
+            )
+    except BaseException:
+        if replaced:
+            _restore_promotion_backups(backups)
+        raise
+    finally:
+        for temporary in staged_temps:
+            if temporary.exists():
+                try:
+                    temporary.unlink()
+                except OSError:
+                    pass
 
 
 def accept_stage(
@@ -3060,6 +3143,12 @@ def accept_stage(
         destination = canonical_project / relative
         pending.append((source, destination))
 
+    expected_digest = _merged_editable_digest(staged_project, canonical_project, retained)
+    if not retained and expected_digest != returned_digest:
+        raise HandoffInvalid(
+            "merged editable digest does not match the checked returned digest"
+        )
+
     for source, destination in pending:
         _, staged_hash = _regular_fingerprint(source, "staged returned project source")
         expected = expected_hashes.get(source.relative_to(staged_project).as_posix())
@@ -3068,13 +3157,15 @@ def accept_stage(
                 f"staged returned project source changed before promotion: {source.name}"
             )
 
-    for source, destination in pending:
-        _replace_promoted_file(source, destination)
-
-    final_digest = _handoff_project_digest(canonical_project)
-    if final_digest != returned_digest:
+    if pending:
+        _apply_promotion(
+            pending,
+            expected_digest=expected_digest,
+            canonical_project=canonical_project,
+        )
+    elif _handoff_project_digest(canonical_project) != expected_digest:
         raise HandoffInvalid(
-            "canonical project digest does not match the accepted returned digest"
+            "canonical project digest does not match the accepted merged digest"
         )
 
     if status == MECHANICAL_REVIEW_REQUIRED:
@@ -3087,6 +3178,7 @@ def accept_stage(
         changed=tuple(changed),
         retained=tuple(retained),
         returned_digest=returned_digest,
+        expected_digest=expected_digest,
         status=status,
     )
 
@@ -3095,7 +3187,7 @@ def _print_accept_summary(
     result_paths: Sequence[str],
     *,
     retained: Sequence[str],
-    returned_digest: str,
+    expected_digest: str,
     status: str,
 ) -> None:
     if result_paths:
@@ -3108,7 +3200,7 @@ def _print_accept_summary(
         print("Retained canonical project files absent from the returned handoff:")
         for relative in sorted(retained):
             print(f"  retained: {relative}")
-    print(f"Canonical project digest: {returned_digest}")
+    print(f"Canonical project digest: {expected_digest}")
     print(f"Checked status: {status}")
     print("")
     print("Next:")
@@ -3159,7 +3251,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             _print_accept_summary(
                 result.changed,
                 retained=result.retained,
-                returned_digest=result.returned_digest,
+                expected_digest=result.expected_digest,
                 status=result.status,
             )
             return 0

@@ -189,6 +189,7 @@ class HandoffAcceptTest(unittest.TestCase):
     def test_refuses_master_failed_check_and_tampered_stage(self):
         for branch, status, tamper in (
             ("master", PASS, False),
+            ("main", PASS, False),
             ("codex/review", INVALID, False),
             ("codex/review", PASS, True),
         ):
@@ -229,6 +230,107 @@ class HandoffAcceptTest(unittest.TestCase):
         stage = self._stage(status=MECHANICAL_REVIEW_REQUIRED, add_pullup=True)
         accepted = self._accept(stage, branch_name="codex/review")
         self.assertIn(f"{PROJECT_NAME}.kicad_sch", accepted)
+
+    def test_accepts_with_retained_local_editable_file(self):
+        symbols = self.project / "symbols"
+        symbols.mkdir()
+        local_symbol = symbols / "local.kicad_sym"
+        local_symbol.write_text("(kicad_symbol_lib)\n", encoding="utf-8")
+        subprocess.run(
+            ("git", "add", "hardware/pocket_card/electronics/symbols/local.kicad_sym"),
+            cwd=self.repo,
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            ("git", "commit", "-m", "add local symbol"),
+            cwd=self.repo,
+            check=True,
+            capture_output=True,
+            env=_GIT_ENV,
+        )
+        local_bytes = local_symbol.read_bytes()
+        base_digest = handoff_module._handoff_project_digest(self.project)
+
+        stage = self._stage(status=PASS, add_pullup=True)
+        accepted = self._accept(stage, branch_name="codex/review")
+
+        self.assertIn(f"{PROJECT_NAME}.kicad_sch", accepted)
+        self.assertIn("symbols/local.kicad_sym", accepted.retained)
+        self.assertEqual(read_policy(self.repo), self.original_policy)
+        self.assertEqual(local_symbol.read_bytes(), local_bytes)
+        self.assertNotEqual(accepted.returned_digest, accepted.expected_digest)
+        self.assertEqual(
+            handoff_module._handoff_project_digest(self.project),
+            accepted.expected_digest,
+        )
+        self.assertNotEqual(base_digest, accepted.expected_digest)
+
+    def test_replace_failure_restores_canonical(self):
+        stage = self._stage(status=PASS, add_pullup=True)
+        originals = {
+            path.name: path.read_bytes()
+            for path in (
+                self.project / f"{PROJECT_NAME}.kicad_sch",
+                self.project / f"{PROJECT_NAME}.kicad_pcb",
+            )
+        }
+        real_replace = handoff_module.os.replace
+        calls = 0
+
+        def fail_second_replace(source, destination):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                raise OSError("simulated replace failure")
+            return real_replace(source, destination)
+
+        with mock.patch.object(handoff_module.os, "replace", side_effect=fail_second_replace):
+            with self.assertRaises(OSError):
+                self._accept(stage, branch_name="codex/review")
+
+        for name, content in originals.items():
+            self.assertEqual((self.project / name).read_bytes(), content)
+
+    def test_postcondition_failure_restores_canonical(self):
+        stage = self._stage(status=PASS, add_pullup=True)
+        originals = {
+            path.relative_to(self.project).as_posix(): path.read_bytes()
+            for path in handoff_module.editable_project_files(self.project)
+        }
+        real_digest = handoff_module._handoff_project_digest
+        calls = 0
+
+        def flaky_digest(project):
+            nonlocal calls
+            calls += 1
+            if calls >= 3:
+                return "f" * 64
+            return real_digest(project)
+
+        with mock.patch.object(
+            handoff_module, "_handoff_project_digest", side_effect=flaky_digest
+        ):
+            with self.assertRaises(HandoffInvalid):
+                self._accept(stage, branch_name="codex/review")
+
+        for relative, content in originals.items():
+            self.assertEqual((self.project / relative).read_bytes(), content)
+
+    def test_cli_accept_smoke(self):
+        stage = self._stage(status=PASS, add_pullup=True)
+        with mock.patch.object(handoff_module, "ELECTRONICS_DIR", self.project), mock.patch.object(
+            handoff_module, "HANDOFF_BUILD_DIR", self.stage_root
+        ), mock.patch.object(
+            handoff_module, "_git_current_branch", return_value="codex/review"
+        ), mock.patch("builtins.print") as printed:
+            status = handoff_module.main(["accept", "--staged", str(stage)])
+        self.assertEqual(status, 0)
+        output = "\n".join(call.args[0] for call in printed.call_args_list)
+        self.assertIn("Accepted canonical project changes:", output)
+        self.assertIn(f"{PROJECT_NAME}.kicad_sch", output)
+        self.assertIn("Canonical project digest:", output)
+        self.assertIn("git diff -- hardware/pocket_card/electronics/", output)
 
 
 if __name__ == "__main__":
