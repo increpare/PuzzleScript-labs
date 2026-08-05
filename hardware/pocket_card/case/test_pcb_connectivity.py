@@ -329,36 +329,29 @@ class ConnectivityAdapterTests(unittest.TestCase):
             copy.deepcopy(candidate["boardOnlyPadRules"][0]))
         self.assert_model_invalid(candidate, "duplicate board-only.*SW_MUTE.*empty")
 
-    def test_board_only_rule_is_exactly_the_canonical_one_item_invariant(self):
-        candidate = C.model()
-        del candidate["boardOnlyPadRules"]
-        self.assert_model_invalid(candidate, "boardOnlyPadRules.*required")
+    def test_structurally_valid_board_only_rules_remain_data_driven(self):
+        candidates = [C.model(), C.model()]
+        candidates[0]["boardOnlyPadRules"] = []
+        candidates[1]["boardOnlyPadRules"] = [{
+            "ref": "H1", "pad": "MECH", "net": "CHASSIS",
+            "reason": "alternate structurally valid board-only rule",
+        }]
 
-        candidates = []
+        for candidate in candidates:
+            with tempfile.TemporaryDirectory() as directory:
+                path = os.path.join(directory, "connectivity.json")
+                with open(path, "w", encoding="utf-8") as handle:
+                    json.dump(candidate, handle)
+                self.assertEqual(
+                    C._load_model(path)["boardOnlyPadRules"],
+                    candidate["boardOnlyPadRules"],
+                )
 
-        candidate = C.model()
-        candidate["boardOnlyPadRules"] = []
-        candidates.append(candidate)
-
-        candidate = C.model()
-        candidate["boardOnlyPadRules"].append({
-            "ref": "H1", "pad": "MECH", "net": "GND",
-            "reason": "unexpected extra rule",
-        })
-        candidates.append(candidate)
-
-        candidate = C.model()
-        candidate["boardOnlyPadRules"][0]["reason"] = "semantic replacement"
-        candidates.append(candidate)
-
-        candidate = C.model()
-        candidate["boardOnlyPadRules"][0]["unexpected"] = "extra field"
-        candidates.append(candidate)
-
-        for index, malformed in enumerate(candidates):
-            with self.subTest(case=index):
-                self.assert_model_invalid(
-                    malformed, "boardOnlyPadRules.*exactly.*canonical")
+    def test_adapter_has_no_hand_coded_board_only_electrical_mapping(self):
+        with open(C.__file__, encoding="utf-8") as handle:
+            source = handle.read()
+        self.assertNotIn('"SW_MUTE"', source)
+        self.assertNotIn('"GND"', source)
 
 
 class HeadlessFootprintUuidTests(unittest.TestCase):
