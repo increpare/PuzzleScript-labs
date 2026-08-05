@@ -2,6 +2,7 @@ import hashlib
 import json
 import os
 import shutil
+import stat
 import subprocess
 import tempfile
 import threading
@@ -58,6 +59,21 @@ def _snapshot(directory):
         for path in sorted(directory.rglob("*"))
         if path.is_file()
     }
+
+
+def _tree_snapshot(directory):
+    entries = {}
+    for path in sorted(directory.rglob("*")):
+        relative = path.relative_to(directory).as_posix()
+        if path.is_symlink():
+            entries[relative] = ("symlink", os.readlink(path))
+        elif path.is_dir():
+            entries[relative] = ("directory", None)
+        elif path.is_file():
+            entries[relative] = ("file", path.read_bytes())
+        else:
+            entries[relative] = ("other", None)
+    return entries
 
 
 class FakeValidator:
@@ -695,12 +711,118 @@ class ExportPublicationTest(unittest.TestCase):
             )
         self.assertEqual(_snapshot(unknown), {"marker.txt": b"preserve me\n"})
 
-    def test_preexisting_unrelated_output_is_refused_and_preserved(self):
+    def test_manifestless_legacy_output_is_replaced_on_success(self):
         self.output.mkdir()
-        (self.output / "unrelated.txt").write_bytes(b"unknown owner\n")
-        with self.assertRaises((OSError, ValueError)):
+        nested = self.output / "legacy" / "nested"
+        nested.mkdir(parents=True)
+        (nested / "old.bin").write_bytes(b"legacy bytes\x00\n")
+        (self.output / "old.txt").write_bytes(b"legacy root\n")
+        _publish_export_directory(self.output, self.make_stage("new"))
+        self.assertEqual((self.output / "artifact.txt").read_text(), "new\n")
+        self.assertFalse((self.output / "legacy").exists())
+        self.assertFalse((self.output / "old.txt").exists())
+        self.assertEqual(self.temporary_siblings(), ())
+
+    def test_legacy_tree_identity_is_journaled_before_any_rename(self):
+        self.output.mkdir()
+        (self.output / "empty").mkdir()
+        (self.output / "old.txt").write_bytes(b"legacy root\n")
+        expected_identity = list(
+            exports_module._directory_identity(self.output, "legacy output")
+        )
+        expected_manifest = exports_module._tree_digest_manifest(
+            self.output, "legacy output"
+        )
+        journal_path = self.parent / ".pcb.exports.transaction.json"
+        observed = []
+        real_replace = os.replace
+
+        def observe_allocated():
+            observed.append(
+                json.loads(journal_path.read_text(encoding="utf-8"))
+            )
+
+        def observe_prepared_then_rename(source, destination):
+            if Path(source) == self.output:
+                observed.append(
+                    json.loads(journal_path.read_text(encoding="utf-8"))
+                )
+            return real_replace(source, destination)
+
+        _publish_export_directory(
+            self.output,
+            self.make_stage("new"),
+            after_stage=observe_allocated,
+            rename=observe_prepared_then_rename,
+        )
+        self.assertEqual([item["state"] for item in observed], ["allocated", "prepared"])
+        for item in observed:
+            self.assertEqual(item["backupIdentity"], expected_identity)
+            self.assertEqual(item["backupManifest"], expected_manifest)
+
+    def test_manifestless_legacy_output_is_restored_exactly_on_failure(self):
+        self.output.mkdir()
+        (self.output / "empty").mkdir()
+        nested = self.output / "legacy" / "nested"
+        nested.mkdir(parents=True)
+        (nested / "old.bin").write_bytes(b"legacy bytes\x00\n")
+        before = _tree_snapshot(self.output)
+
+        with self.assertRaisesRegex(OSError, "injected legacy failure"):
+            _publish_export_directory(
+                self.output,
+                self.make_stage("new"),
+                after_backup=lambda: (_ for _ in ()).throw(
+                    OSError("injected legacy failure")
+                ),
+            )
+        self.assertEqual(_tree_snapshot(self.output), before)
+        self.assertEqual(self.temporary_siblings(), ())
+
+    def test_manifestless_legacy_output_is_recovered_after_backup_crash(self):
+        self.output.mkdir()
+        (self.output / "empty").mkdir()
+        (self.output / "old.txt").write_bytes(b"legacy root\n")
+        before = _tree_snapshot(self.output)
+
+        class SimulatedCrash(BaseException):
+            pass
+
+        with self.assertRaises(SimulatedCrash):
+            _publish_export_directory(
+                self.output,
+                self.make_stage("crash"),
+                after_backup=lambda: (_ for _ in ()).throw(SimulatedCrash()),
+            )
+        self.assertFalse(self.output.exists())
+        observed = []
+        _publish_export_directory(
+            self.output,
+            self.make_stage("new"),
+            after_recovery=lambda: observed.append(_tree_snapshot(self.output)),
+        )
+        self.assertEqual(observed, [before])
+        self.assertEqual((self.output / "artifact.txt").read_text(), "new\n")
+
+    def test_manifestless_legacy_output_with_symlink_is_refused_and_preserved(self):
+        outside = self.parent / "outside.txt"
+        outside.write_bytes(b"outside owner\n")
+        self.output.mkdir()
+        legacy_link = self.output / "legacy-link"
+        legacy_link.symlink_to(outside)
+        with self.assertRaisesRegex(OSError, "symlink"):
             _publish_export_directory(self.output, self.make_stage("new"))
-        self.assertEqual(_snapshot(self.output), {"unrelated.txt": b"unknown owner\n"})
+        self.assertTrue(legacy_link.is_symlink())
+        self.assertEqual(os.readlink(legacy_link), str(outside))
+        self.assertEqual(outside.read_bytes(), b"outside owner\n")
+
+    def test_manifestless_legacy_output_with_nonregular_entry_is_refused(self):
+        self.output.mkdir()
+        fifo = self.output / "legacy.pipe"
+        os.mkfifo(fifo)
+        with self.assertRaisesRegex(OSError, "non-regular"):
+            _publish_export_directory(self.output, self.make_stage("new"))
+        self.assertTrue(stat.S_ISFIFO(fifo.stat(follow_symlinks=False).st_mode))
 
     def test_recovery_accepts_committed_output_after_owned_backup_was_removed(self):
         _publish_export_directory(self.output, self.make_stage("old"))
@@ -812,6 +934,38 @@ class ExportPublicationTest(unittest.TestCase):
 
 
 class CaseHelperIntegrationTest(unittest.TestCase):
+    def test_checked_in_default_legacy_export_has_no_manifest_and_is_stale(self):
+        repository = Path(__file__).resolve().parents[4]
+        manifest_relative = (
+            "hardware/pocket_card/case/out/pcb/source_manifest.json"
+        )
+        tracked_manifest = subprocess.run(
+            ["git", "ls-files", "--error-unmatch", manifest_relative],
+            cwd=repository,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(tracked_manifest.returncode, 1)
+
+        board_relative = (
+            "hardware/pocket_card/case/out/pcb/"
+            "pocket_card_controller.kicad_pcb"
+        )
+        checked_in_board = subprocess.run(
+            ["git", "show", f"HEAD:{board_relative}"],
+            cwd=repository,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(checked_in_board.returncode, 0)
+        with tempfile.TemporaryDirectory() as directory:
+            legacy = Path(directory) / "pcb"
+            legacy.mkdir()
+            (legacy / "pocket_card_controller.kicad_pcb").write_bytes(
+                checked_in_board.stdout
+            )
+            self.assertFalse(exports_are_current(BOARD.parent, legacy))
+
     def test_export_runtime_protocol_artifacts_are_exactly_ignored(self):
         repository = Path(__file__).resolve().parents[4]
         ignored = (

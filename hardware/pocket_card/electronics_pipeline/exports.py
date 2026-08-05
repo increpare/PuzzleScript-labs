@@ -1156,8 +1156,10 @@ def _publish_export_directory(
         after_recovery()
         if output.is_symlink() or (output.exists() and not output.is_dir()):
             raise OSError("PCB export output must be a non-symlink directory")
-        if output.exists():
-            _verify_export_tree(output, require_required_artifacts=False)
+        if _transaction_artifacts(output):
+            raise OSError(
+                "ambiguous PCB export transaction artifacts appeared after recovery"
+            )
         transaction = uuid.uuid4().hex
         stage, backup, _ = _transaction_names(output, transaction)
         had_output = output.exists()
@@ -1218,6 +1220,13 @@ def _publish_export_directory(
                 journal_path, journal, journal_token
             )
             if had_output:
+                assert isinstance(backup_identity, tuple)
+                _require_owned_tree(
+                    output,
+                    backup_identity,
+                    backup_manifest,
+                    "existing PCB export output",
+                )
                 rename(output, backup)
                 _fsync_directory(output.parent)
             journal["state"] = "backed_up"
