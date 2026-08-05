@@ -19,7 +19,6 @@ Order matters, and three things here were learned the hard way:
 Routing itself is freerouting's job. A hand-rolled router produced 83 DRC
 violations including shorted nets, and looked entirely plausible doing it.
 """
-import math
 import os
 import subprocess
 import sys
@@ -33,6 +32,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import params as P
+import pcb_connectivity as C
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BRD = os.path.join(HERE, "out", "pcb", "pocket_card_controller.kicad_pcb")
@@ -40,26 +40,10 @@ BRD = os.path.join(HERE, "out", "pcb", "pocket_card_controller.kicad_pcb")
 TRACK_W, CLEAR = 0.2, 0.15
 VIA_D, VIA_DRILL = 0.6, 0.3
 
-# MCP23017 SOIC-28: GPA0..7 are pins 21..28, GPB0 is pin 1.
-GPIO = list(zip(["GPA0", "GPA1", "GPA2", "GPA3", "GPA4", "GPA5", "GPA6",
-                 "GPA7", "GPB0"],
-                ["21", "22", "23", "24", "25", "26", "27", "28", "1"]))
-
-SWITCHES = [("SW_UP", "UP"), ("SW_DOWN", "DOWN"), ("SW_LEFT", "LEFT"),
-            ("SW_RIGHT", "RIGHT"), ("SW_UNDO", "UNDO"), ("SW_ACTION", "ACTION"),
-            ("SW_RESET", "RESET"), ("SW_MENU", "MENU"), ("SW_MUTE", "MUTE")]
-
 
 def mm(v):
     import pcbnew
     return pcbnew.FromMM(v)
-
-
-def pad_of(fp, name):
-    for p in fp.Pads():
-        if p.GetPadName() == name:
-            return p
-    raise KeyError("%s has no pad %s" % (fp.GetReference(), name))
 
 
 def net(board, name):
@@ -69,6 +53,67 @@ def net(board, name):
         n = pcbnew.NETINFO_ITEM(board, name)
         board.Add(n)
     return n
+
+
+def footprints_by_reference(footprints):
+    """Index physical footprints without silently collapsing duplicate refs."""
+    indexed = {}
+    for footprint in footprints:
+        ref = str(footprint.GetReference())
+        if ref in indexed:
+            raise ValueError("duplicate footprint reference %s on board" % ref)
+        indexed[ref] = footprint
+    return indexed
+
+
+def apply_connectivity(board, footprints):
+    """Apply the canonical schematic nets to every matching physical pad."""
+    def footprint(ref):
+        try:
+            return footprints[ref]
+        except KeyError:
+            raise KeyError(
+                "missing footprint %s required by canonical connectivity" % ref
+            ) from None
+
+    def matching_pads(ref, pad_name, context):
+        matches = [pad for pad in footprint(ref).Pads()
+                   if str(pad.GetPadName()) == pad_name]
+        if not matches:
+            if pad_name == "":
+                detail = "empty-name pad"
+            else:
+                detail = "pad %s" % pad_name
+            raise KeyError("%s has no physical %s required by %s"
+                           % (ref, detail, context))
+        return matches
+
+    for component in C.model()["components"]:
+        footprint(component["ref"])
+
+    assignments = []
+    for (ref, pad_name), net_name in C.pad_net_map().items():
+        assignments.append((
+            matching_pads(ref, pad_name, "canonical connectivity"), net_name))
+
+    for rule in C.board_only_rules():
+        assignments.append((
+            matching_pads(rule["ref"], rule["pad"], "board-only rule"),
+            rule["net"],
+        ))
+
+    nets = {}
+
+    def net_named(name):
+        if name not in nets:
+            nets[name] = net(board, name)
+        return nets[name]
+
+    for pads, net_name in assignments:
+        for pad in pads:
+            pad.SetNet(net_named(net_name))
+
+    return nets
 
 
 ZONE_TEMPLATE = """	(zone
@@ -162,55 +207,8 @@ def inject_zones(path):
 def main():
     import pcbnew
     board = pcbnew.LoadBoard(BRD)
-    fps = {f.GetReference(): f for f in board.GetFootprints()}
-    u1 = fps["U1"]
-
-    gnd, v3 = net(board, "GND"), net(board, "+3V3")
-    sig = {n: net(board, n) for n in ("SDA", "SCL", "INT", "BAT_P", "BAT_SW")}
-
-    # Let geometry pick the GPIO allocation: which bit a button lands on is a
-    # firmware constant, so choosing it here shortens every trace for free.
-    free = [(nm, pad_of(u1, pin)) for nm, pin in GPIO]
-    mapping = []
-    for ref, name in SWITCHES:
-        fp = fps[ref]
-        fx = pcbnew.ToMM(fp.GetPosition().x)
-        fy = pcbnew.ToMM(fp.GetPosition().y)
-        best = min(free, key=lambda g: math.hypot(
-            pcbnew.ToMM(g[1].GetPosition().x) - fx,
-            pcbnew.ToMM(g[1].GetPosition().y) - fy))
-        free.remove(best)
-        mapping.append((ref, name, best[0], best[1]))
-
-    for ref, name, gpio, gpad in mapping:
-        n = net(board, "SIG_" + name)
-        # By pad NAME, not index: this footprint has TWO pads called "1" and
-        # TWO called "2" -- the tact's two internal contacts, each broken out
-        # to a pair of lands. Indexing put one "1" land on GND, shorting the
-        # signal to ground through the switch itself.
-        for pd in fps[ref].Pads():
-            pd.SetNet(n if pd.GetPadName() == "1" else gnd)
-        gpad.SetNet(n)
-
-    for pin, n in (("9", v3), ("10", gnd), ("12", sig["SCL"]),
-                   ("13", sig["SDA"]), ("15", gnd), ("16", gnd), ("17", gnd),
-                   ("18", v3), ("20", sig["INT"])):
-        pad_of(u1, pin).SetNet(n)
-
-    for pin, n in (("1", v3), ("2", gnd), ("3", sig["SCL"]), ("4", sig["SDA"])):
-        pad_of(fps["J_I2C"], pin).SetNet(n)
-    pad_of(fps["J_EXP"], "1").SetNet(sig["INT"])
-    for pin, n in (("1", sig["BAT_P"]), ("2", gnd)):
-        pad_of(fps["J_BAT_IN"], pin).SetNet(n)
-    for pin, n in (("1", sig["BAT_SW"]), ("2", gnd)):
-        pad_of(fps["J_BAT_OUT"], pin).SetNet(n)
-    # GH mounting pads are copper pour anchors — tie them to GND.
-    for ref in ("J_I2C", "J_EXP", "J_BAT_IN", "J_BAT_OUT"):
-        for pd in fps[ref].Pads():
-            if pd.GetPadName() == "MP":
-                pd.SetNet(gnd)
-    pad_of(fps["SW_PWR"], "2").SetNet(sig["BAT_P"])
-    pad_of(fps["SW_PWR"], "1").SetNet(sig["BAT_SW"])
+    fps = footprints_by_reference(board.GetFootprints())
+    apply_connectivity(board, fps)
 
     nc = board.GetDesignSettings().m_NetSettings.GetDefaultNetclass()
     nc.SetClearance(mm(CLEAR))
@@ -265,9 +263,12 @@ def main():
     vi = [t for t in board.GetTracks() if t.Type() == pcbnew.PCB_VIA_T]
     print("tracks %d, vias %d, zones %d, nets %d"
           % (len(tr), len(vi), len(board.Zones()), board.GetNetCount()))
-    print("\nexpander allocation, chosen by geometry:")
-    for _ref, name, gpio, _ in mapping:
-        print("   %-6s -> %s" % (name, gpio))
+    print("\nfixed expander mapping from canonical connectivity:")
+    u1_signals = [(pin, net_name)
+                  for pin, net_name in C.assignments_for("U1").items()
+                  if net_name.startswith("SIG_")]
+    for pin, net_name in sorted(u1_signals, key=lambda item: int(item[0])):
+        print("   U1 pin %-2s -> %s" % (pin, net_name))
 
 
 if __name__ == "__main__":

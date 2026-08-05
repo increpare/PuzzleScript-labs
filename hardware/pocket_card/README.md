@@ -4,6 +4,20 @@ This is the ES3C28P/ESP32-S3 target defined by `docs/superpowers/specs/2026-07-1
 
 It does not inherit the ESP32-P4, DSI, power, or geometry contracts in `hardware/card/`.
 
+The controller board's canonical electrical contract is
+[`schematic/connectivity.json`](schematic/connectivity.json). The generated
+KiCad schematic, its tests, the safe board-linking workflow, and the live-board
+parity override are documented in [`schematic/README.md`](schematic/README.md).
+Review [`ELECTRICAL_AUDIT.md`](ELECTRICAL_AUDIT.md) before treating the
+generated schematic or routed board as manufacture-ready.
+
+From the repository root:
+
+```
+make pocket_card_kicad             # validate, regenerate, then test
+make pocket_card_schematic_tests   # test only; do not regenerate
+```
+
 The JSON contract is transcribed from the vendor specification and schematic. Pin changes require updating the test and citing a new module revision.
 
 Primary sources:
