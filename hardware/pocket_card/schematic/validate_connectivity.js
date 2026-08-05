@@ -379,6 +379,22 @@ function isHexDigit(character) {
     return /^[0-9a-f]$/i.test(character);
 }
 
+function appendUtf8Bytes(bytes, text) {
+    var encoded = Buffer.from(text, "utf8");
+    for (var index = 0; index < encoded.length; index++) {
+        bytes.push(encoded[index]);
+    }
+}
+
+function decodeUtf8Bytes(bytes, quoteStart) {
+    var encoded = Buffer.from(bytes);
+    var decoded = encoded.toString("utf8");
+    if (!Buffer.from(decoded, "utf8").equals(encoded)) {
+        throw new Error("invalid UTF-8 in quoted string starting at index " + quoteStart);
+    }
+    return decoded;
+}
+
 function nextKiCadToken(text, start) {
     var index = start;
     while (index < text.length) {
@@ -416,7 +432,7 @@ function nextKiCadToken(text, start) {
     }
 
     var quoteStart = index;
-    var value = "";
+    var bytes = [];
     index++;
     while (index < text.length) {
         var character = text[index];
@@ -428,28 +444,28 @@ function nextKiCadToken(text, start) {
             }
             var escaped = text[index];
             if (escaped === '"' || escaped === "\\") {
-                value += escaped;
+                bytes.push(escaped.charCodeAt(0));
                 index++;
             } else if (escaped === "a") {
-                value += "\x07";
+                bytes.push(0x07);
                 index++;
             } else if (escaped === "b") {
-                value += "\x08";
+                bytes.push(0x08);
                 index++;
             } else if (escaped === "f") {
-                value += "\x0c";
+                bytes.push(0x0c);
                 index++;
             } else if (escaped === "n") {
-                value += "\n";
+                bytes.push(0x0a);
                 index++;
             } else if (escaped === "r") {
-                value += "\r";
+                bytes.push(0x0d);
                 index++;
             } else if (escaped === "t") {
-                value += "\t";
+                bytes.push(0x09);
                 index++;
             } else if (escaped === "v") {
-                value += "\x0b";
+                bytes.push(0x0b);
                 index++;
             } else if (escaped === "x") {
                 index++;
@@ -458,9 +474,9 @@ function nextKiCadToken(text, start) {
                     index++;
                 }
                 if (index === hexStart) {
-                    value += "x";
+                    bytes.push("x".charCodeAt(0));
                 } else {
-                    value += String.fromCharCode(parseInt(text.slice(hexStart, index), 16));
+                    bytes.push(parseInt(text.slice(hexStart, index), 16));
                 }
             } else {
                 var octalStart = index;
@@ -468,23 +484,24 @@ function nextKiCadToken(text, start) {
                     index++;
                 }
                 if (index === octalStart) {
-                    value += "\\";
+                    bytes.push("\\".charCodeAt(0));
                     index = escapeStart + 1;
                 } else {
-                    value += String.fromCharCode(parseInt(text.slice(octalStart, index), 8));
+                    bytes.push(parseInt(text.slice(octalStart, index), 8) & 0xff);
                 }
             }
         } else if (character === '"') {
             return {
                 type: "atom",
-                value: value,
+                value: decodeUtf8Bytes(bytes, quoteStart),
                 quoted: true,
                 start: quoteStart,
                 end: index + 1
             };
         } else {
-            value += character;
-            index++;
+            var codePointLength = text.codePointAt(index) > 0xffff ? 2 : 1;
+            appendUtf8Bytes(bytes, text.slice(index, index + codePointLength));
+            index += codePointLength;
         }
     }
     throw new Error("unterminated quoted string starting at index " + quoteStart);

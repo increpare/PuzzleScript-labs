@@ -595,6 +595,41 @@ test("quoted KiCad atoms decode simple, hexadecimal, and octal escapes", functio
     assert.deepStrictEqual(footprint.pads, [{ number: "1", net: "SIG_UP" }]);
 });
 
+function boardWithEscapedReference(reference) {
+    return '(kicad_pcb (footprint "Escaped" (uuid "uuid-escaped") ' +
+        '(property "Reference" "' + reference + '")))';
+}
+
+test("hexadecimal byte escapes decode as one UTF-8 string", function () {
+    var footprints = V.parseBoardFootprints(
+        boardWithEscapedReference("R_\\xC3\\xA9")
+    );
+    assert.ok(footprints["R_é"], "hex byte sequence must decode to R_é");
+});
+
+test("octal byte escapes decode as one UTF-8 string", function () {
+    var footprints = V.parseBoardFootprints(
+        boardWithEscapedReference("R_\\303\\251")
+    );
+    assert.ok(footprints["R_é"], "octal byte sequence must decode to R_é");
+});
+
+test("literal and escaped Unicode share one UTF-8 byte stream", function () {
+    var footprints = V.parseBoardFootprints(
+        boardWithEscapedReference("R_é_\\xE2\\x98\\x83")
+    );
+    assert.ok(footprints["R_é_☃"], "mixed literal and escaped Unicode must decode together");
+});
+
+test("invalid UTF-8 byte escapes are rejected with actionable locations", function () {
+    assert.throws(function () {
+        V.parseBoardFootprints(boardWithEscapedReference("R_\\xC3\\x28"));
+    }, /invalid UTF-8.*quoted string.*index/i);
+    assert.throws(function () {
+        V.parseBoardFootprints(boardWithEscapedReference("R_\\377"));
+    }, /invalid UTF-8.*quoted string.*index/i);
+});
+
 test("board parser requires one kicad_pcb root instead of a bare footprint", function () {
     assert.throws(function () {
         V.parseBoardFootprints('(footprint "Bare" (uuid "bare") ' +
