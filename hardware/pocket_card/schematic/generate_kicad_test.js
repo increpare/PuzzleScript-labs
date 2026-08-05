@@ -11,7 +11,14 @@ var outputPath = path.join(
     __dirname,
     "../case/out/pcb/pocket_card_controller.kicad_sch"
 );
+var footprintLibraryTablePath = path.join(path.dirname(outputPath), "fp-lib-table");
 var model = require("./connectivity.json");
+var expectedFootprintLibraries = [
+    "Button_Switch_SMD",
+    "Connector_JST",
+    "MountingHole",
+    "Package_SO"
+];
 
 assert.ok(fs.existsSync(generatorPath), "generate_kicad.js must exist");
 
@@ -193,6 +200,72 @@ function directChildren(node, name) {
 function directChild(node, name) {
     var children = directChildren(node, name);
     return children.length === 1 ? children[0] : undefined;
+}
+
+function assertFootprintLibraryTable(source) {
+    var root = parseSExpression(source);
+    assert.strictEqual(expressionName(root), "fp_lib_table",
+        "footprint table root must be fp_lib_table");
+    assert.strictEqual(atomValue(directChild(root, "version"), 1), "7",
+        "footprint table must use version 7");
+    var libraries = directChildren(root, "lib");
+    assert.deepStrictEqual(libraries.map(function (library) {
+        return atomValue(directChild(library, "name"), 1);
+    }), expectedFootprintLibraries,
+    "footprint table must contain exactly the sorted required libraries");
+    libraries.forEach(function (library, index) {
+        var libraryName = expectedFootprintLibraries[index];
+        assert.strictEqual(atomValue(directChild(library, "type"), 1), "KiCad",
+            libraryName + " must be a KiCad footprint library");
+        assert.strictEqual(
+            atomValue(directChild(library, "uri"), 1),
+            "${KICAD10_FOOTPRINT_DIR}/" + libraryName + ".pretty",
+            libraryName + " must resolve through KICAD10_FOOTPRINT_DIR"
+        );
+    });
+}
+
+function findInstalledFootprintRoot() {
+    var candidates = [];
+    if (process.env.KICAD10_FOOTPRINT_DIR) {
+        candidates.push(process.env.KICAD10_FOOTPRINT_DIR);
+    }
+    candidates.push("/usr/share/kicad/footprints");
+    candidates.push("/usr/local/share/kicad/footprints");
+
+    var executable = childProcess.execFileSync("which", ["kicad-cli"], {
+        encoding: "utf8"
+    }).trim();
+    var realExecutable = fs.realpathSync(executable);
+    candidates.push(path.join(
+        path.dirname(path.dirname(realExecutable)),
+        "SharedSupport",
+        "footprints"
+    ));
+
+    var root = candidates.find(function (candidate) {
+        return fs.existsSync(candidate) && fs.statSync(candidate).isDirectory();
+    });
+    assert.ok(root,
+        "cannot locate installed KiCad footprints; checked: " + candidates.join(", "));
+    return root;
+}
+
+function assertInstalledFootprints(root) {
+    model.components.forEach(function (component) {
+        var separator = component.footprint.indexOf(":");
+        assert.ok(separator > 0 && separator < component.footprint.length - 1,
+            component.ref + " footprint must be Library:Footprint");
+        var library = component.footprint.slice(0, separator);
+        var footprint = component.footprint.slice(separator + 1);
+        var modulePath = path.join(
+            root,
+            library + ".pretty",
+            footprint + ".kicad_mod"
+        );
+        assert.ok(fs.existsSync(modulePath),
+            component.ref + " footprint module is not installed: " + modulePath);
+    });
 }
 
 function numericTuple(node, name, size) {
@@ -525,6 +598,25 @@ var firstPureGeneration = generator.generateSchematic(model);
 var secondPureGeneration = generator.generateSchematic(model);
 assert.strictEqual(secondPureGeneration, firstPureGeneration,
     "pure schematic generation must be byte-identical");
+var footprintContractErrors = [];
+var firstPureFootprintTable;
+try {
+    firstPureFootprintTable = generator.generateFootprintLibraryTable(model);
+    assert.strictEqual(
+        generator.generateFootprintLibraryTable(model),
+        firstPureFootprintTable,
+        "pure footprint table generation must be byte-identical"
+    );
+    assertFootprintLibraryTable(firstPureFootprintTable);
+    assert.throws(function () {
+        generator.generateFootprintLibraryTable({ components: [], connections: [], noConnects: {} });
+    }, /invalid connectivity model:/,
+    "footprint table generation must reject an invalid connectivity model");
+} catch (error) {
+    footprintContractErrors.push("pure footprint table: " + error.message);
+}
+var installedFootprintRoot = findInstalledFootprintRoot();
+assertInstalledFootprints(installedFootprintRoot);
 assert.throws(function () {
     assertArtifactCurrent(Buffer.from("deliberately stale schematic\n"),
         Buffer.from(firstPureGeneration));
@@ -536,17 +628,35 @@ var trackedModifiedTime = fs.statSync(outputPath).mtimeMs;
 var generationDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "pocket-card-generate-test-"));
 var firstFileGeneration;
 var secondFileGeneration;
+var firstFileFootprintTable;
+var secondFileFootprintTable;
 try {
     var generatedOutputPath = path.join(generationDirectory, "pocket_card_controller.kicad_sch");
+    var generatedFootprintTablePath = path.join(generationDirectory, "fp-lib-table");
     childProcess.execFileSync(process.execPath, [generatorPath, generatedOutputPath], { stdio: "pipe" });
     assert.ok(fs.existsSync(generatedOutputPath),
         "generator CLI must write to the requested temporary output path");
     firstFileGeneration = fs.readFileSync(generatedOutputPath);
+    if (fs.existsSync(generatedFootprintTablePath)) {
+        firstFileFootprintTable = fs.readFileSync(generatedFootprintTablePath);
+    } else {
+        footprintContractErrors.push(
+            "CLI footprint table: generator CLI must write fp-lib-table beside the schematic"
+        );
+    }
     childProcess.execFileSync(process.execPath, [generatorPath, generatedOutputPath], { stdio: "pipe" });
     secondFileGeneration = fs.readFileSync(generatedOutputPath);
+    if (fs.existsSync(generatedFootprintTablePath)) {
+        secondFileFootprintTable = fs.readFileSync(generatedFootprintTablePath);
+        assert.ok(firstFileFootprintTable.equals(secondFileFootprintTable),
+            "running generation twice must produce byte-identical fp-lib-table output");
+        assertFootprintLibraryTable(secondFileFootprintTable.toString("utf8"));
+    }
 } finally {
     fs.rmSync(generationDirectory, { recursive: true, force: true });
 }
+assert.deepStrictEqual(footprintContractErrors, [],
+    "footprint library generation contracts must pass");
 assertArtifactCurrent(fs.readFileSync(outputPath), trackedGeneration);
 assert.strictEqual(fs.statSync(outputPath).mtimeMs, trackedModifiedTime,
     "generator CLI tests must not touch the tracked schematic");
@@ -554,6 +664,10 @@ assert.ok(firstFileGeneration.equals(secondFileGeneration),
     "running generation twice must produce byte-identical output");
 assert.strictEqual(secondFileGeneration.toString("utf8"), firstPureGeneration,
     "CLI and pure generation must agree");
+assert.ok(fs.readFileSync(footprintLibraryTablePath).equals(Buffer.from(firstPureFootprintTable)),
+    "tracked fp-lib-table must agree with pure generation");
+assert.ok(secondFileFootprintTable.equals(Buffer.from(firstPureFootprintTable)),
+    "CLI and pure footprint table generation must agree");
 
 var schematic = secondFileGeneration.toString("utf8");
 [
@@ -915,4 +1029,6 @@ console.log("generate_kicad_test: KiCad CLI verified " + ercErrorCount +
     " ERC errors in " + ercByteCount + " report bytes, " +
     model.connections.length + " canonical nets, " +
     netlistByteCount + " netlist bytes, and " + pdfByteCount + " PDF bytes");
+console.log("generate_kicad_test: resolved " + model.components.length +
+    " footprint assignments under " + installedFootprintRoot);
 console.log("generate_kicad_test: all tests passed");

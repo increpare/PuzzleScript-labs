@@ -462,6 +462,27 @@ function renderNoConnect(record) {
         "(uuid " + quote(stableUuid("no-connect:" + endpoint)) + "))";
 }
 
+function footprintLibraryNames(model) {
+    return Array.from(new Set(model.components.map(function (component) {
+        return component.footprint.split(":", 1)[0];
+    }))).sort();
+}
+
+function generateFootprintLibraryTable(model) {
+    var errors = connectivity.validateConnectivity(model);
+    if (errors.length > 0) {
+        throw new Error("invalid connectivity model:\n- " + errors.join("\n- "));
+    }
+    var lines = ["(fp_lib_table", "  (version 7)"];
+    footprintLibraryNames(model).forEach(function (library) {
+        lines.push('  (lib (name "' + library + '") (type "KiCad") ' +
+            '(uri "${KICAD10_FOOTPRINT_DIR}/' + library + '.pretty") ' +
+            '(options "") (descr "Pocket Card required KiCad standard library"))');
+    });
+    lines.push(")");
+    return lines.join("\n") + "\n";
+}
+
 function generateSchematic(model) {
     var errors = connectivity.validateConnectivity(model);
     if (errors.length > 0) {
@@ -513,22 +534,26 @@ function generateSchematic(model) {
     return lines.join("\n") + "\n";
 }
 
-function writeSchematic(outputPath) {
+function writeProjectFiles(outputPath) {
     var destination = outputPath || OUTPUT_PATH;
-    var schematic = generateSchematic(connectivity.model);
-    fs.mkdirSync(path.dirname(destination), { recursive: true });
-    fs.writeFileSync(destination, schematic, "utf8");
-    return destination;
+    var directory = path.dirname(destination);
+    var tableDestination = path.join(directory, "fp-lib-table");
+    fs.mkdirSync(directory, { recursive: true });
+    fs.writeFileSync(destination, generateSchematic(connectivity.model), "utf8");
+    fs.writeFileSync(tableDestination,
+        generateFootprintLibraryTable(connectivity.model), "utf8");
+    return { schematic: destination, footprintLibraryTable: tableDestination };
 }
 
 if (require.main === module) {
-    writeSchematic(process.argv[2]);
+    writeProjectFiles(process.argv[2]);
 }
 
 module.exports = {
     stableUuid: stableUuid,
     generateSchematic: generateSchematic,
+    generateFootprintLibraryTable: generateFootprintLibraryTable,
     connectedEndpoints: connectedEndpoints,
     noConnectRecords: noConnectRecords,
-    writeSchematic: writeSchematic
+    writeProjectFiles: writeProjectFiles
 };
