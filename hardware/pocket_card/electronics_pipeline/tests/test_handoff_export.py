@@ -1,13 +1,19 @@
 import json
+import hashlib
 import stat
+import subprocess
 import tempfile
+import threading
+import time
 import unittest
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest import mock
 
 import hardware.pocket_card.electronics_pipeline.handoff as handoff_module
 from hardware.pocket_card.electronics_pipeline.exports import (
+    _policy_digest,
     export_outputs,
 )
 from hardware.pocket_card.electronics_pipeline.handoff import export_handoff
@@ -55,13 +61,29 @@ class HandoffExportTest(unittest.TestCase):
             "drc.json": b'{"violations":[]}\n',
         }.items():
             (self.exports / name).write_bytes(content)
+        artifact_metadata = {
+            name: {
+                "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                "size": path.stat().st_size,
+            }
+            for name in (
+                f"{PROJECT_NAME}.pdf",
+                f"{PROJECT_NAME}.step",
+                "erc.json",
+                "drc.json",
+            )
+            for path in (self.exports / name,)
+        }
         (self.exports / "source_manifest.json").write_text(
             json.dumps(
                 {
                     "schemaVersion": 1,
                     "projectName": PROJECT_NAME,
                     "projectDigest": project_digest(self.project),
+                    "policyDigest": _policy_digest(self.project),
+                    "exportRecipeDigest": "c" * 64,
                     "kicadVersion": "10.0.4",
+                    "artifacts": artifact_metadata,
                 },
                 sort_keys=True,
             )
@@ -329,7 +351,7 @@ class HandoffExportTest(unittest.TestCase):
             elif pdf.read_bytes() != b"%PDF-fake\n":
                 raise RuntimeError("PCB export is missing or stale")
 
-        with self.assertRaisesRegex(RuntimeError, "stale"):
+        with self.assertRaisesRegex(RuntimeError, "stale|hash"):
             self.export(current_exports_checker=mutating_checker)
         self.assertFalse(self.output.exists())
 
@@ -492,6 +514,19 @@ class HandoffExportTest(unittest.TestCase):
         self.assertTrue(message.startswith("ERROR: "))
         self.assertLessEqual(len(message), len("ERROR: ") + 8192)
 
+    def test_cli_failure_sanitizes_workstation_paths(self):
+        secret_path = str(self.root / "secret")
+        with mock.patch.object(
+            handoff_module,
+            "export_handoff",
+            side_effect=RuntimeError(f"unsafe input at {secret_path}"),
+        ), mock.patch("builtins.print") as printed:
+            status = handoff_module.main(["export"])
+        self.assertEqual(status, 1)
+        message = printed.call_args.args[0]
+        self.assertNotIn(str(self.root), message)
+        self.assertIn("<tmp>", message)
+
     def test_backslash_in_local_asset_name_is_rejected_as_non_posix(self):
         models = self.project / "3dmodels"
         models.mkdir()
@@ -581,6 +616,335 @@ class HandoffExportTest(unittest.TestCase):
                 self.export()
         self.assertEqual(archive.read_bytes(), old)
         self.assertEqual(list(self.output.glob(".*.tmp")), [])
+
+    def test_transient_export_swap_cannot_be_hidden_by_later_currentness_restore(self):
+        pdf = self.exports / f"{PROJECT_NAME}.pdf"
+        original = pdf.read_bytes()
+        transient = b"%PDF-transient-attack\n"
+        calls = 0
+
+        def checker(project, exports):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                pdf.write_bytes(transient)
+            else:
+                pdf.write_bytes(original)
+
+        try:
+            with self.assertRaisesRegex(RuntimeError, "manifest|hash|snapshot"):
+                self.export(current_exports_checker=checker)
+        finally:
+            pdf.write_bytes(original)
+        self.assertFalse((self.output / "pocket-card-controller.zip").exists())
+
+    def test_transient_project_swap_cannot_be_hidden_by_later_digest_restore(self):
+        board = self.project / f"{PROJECT_NAME}.kicad_pcb"
+        original = board.read_bytes()
+        calls = 0
+
+        def checker(project, exports):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                board.write_bytes(original + b"transient attack\n")
+            else:
+                board.write_bytes(original)
+
+        try:
+            with self.assertRaisesRegex(RuntimeError, "digest|snapshot"):
+                self.export(current_exports_checker=checker)
+        finally:
+            board.write_bytes(original)
+        self.assertFalse((self.output / "pocket-card-controller.zip").exists())
+
+    def test_transient_manifest_and_artifact_pair_cannot_replace_verified_provenance(self):
+        pdf = self.exports / f"{PROJECT_NAME}.pdf"
+        manifest_path = self.exports / "source_manifest.json"
+        original_pdf = pdf.read_bytes()
+        original_manifest = manifest_path.read_bytes()
+        transient_pdf = b"%PDF-transient-with-matching-manifest\n"
+        transient_manifest = json.loads(original_manifest)
+        transient_manifest["artifacts"][f"{PROJECT_NAME}.pdf"] = {
+            "sha256": hashlib.sha256(transient_pdf).hexdigest(),
+            "size": len(transient_pdf),
+        }
+        transient_manifest_bytes = (
+            json.dumps(transient_manifest, sort_keys=True) + "\n"
+        ).encode()
+        calls = 0
+
+        def checker(project, exports):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                pdf.write_bytes(transient_pdf)
+                manifest_path.write_bytes(transient_manifest_bytes)
+            else:
+                pdf.write_bytes(original_pdf)
+                manifest_path.write_bytes(original_manifest)
+
+        try:
+            with self.assertRaisesRegex(RuntimeError, "manifest.*changed|provenance"):
+                self.export(current_exports_checker=checker)
+        finally:
+            pdf.write_bytes(original_pdf)
+            manifest_path.write_bytes(original_manifest)
+        self.assertFalse((self.output / "pocket-card-controller.zip").exists())
+
+    def test_optional_blender_fifo_is_rejected_without_blocking(self):
+        fifo = self.root / "visual.blend"
+        fifo_code = f"""
+import os
+from pathlib import Path
+from hardware.pocket_card.electronics_pipeline.handoff import _read_regular_bytes
+path = Path({str(fifo)!r})
+os.mkfifo(path)
+try:
+    _read_regular_bytes(path, 'Blender visual reference')
+except Exception as error:
+    print(error)
+    raise SystemExit(0)
+raise SystemExit(3)
+"""
+        result = subprocess.run(
+            ["python3", "-c", fifo_code],
+            cwd=Path(__file__).resolve().parents[4],
+            text=True,
+            capture_output=True,
+            timeout=2,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("regular file", result.stdout)
+
+    def test_blender_requires_real_header_and_rejects_lfs_pointer(self):
+        for content in (
+            b"arbitrary bytes\n",
+            b"version https://git-lfs.github.com/spec/v1\noid sha256:123\n",
+        ):
+            with self.subTest(content=content[:12]):
+                blend = self.root / "invalid.blend"
+                blend.write_bytes(content)
+                with self.assertRaisesRegex(RuntimeError, "Blender.*header|BLENDER"):
+                    self.export(include_blend=True, blend_path=blend)
+                self.assertFalse(self.output.exists())
+
+    def test_archive_member_and_total_size_bounds_are_inclusive_and_strict(self):
+        entry_type = handoff_module._ArchiveEntry
+        placeholder = self.root / "placeholder"
+        digest = "0" * 64
+        exactly_members = [
+            entry_type(f"pocket-card-controller/project/{index}", placeholder, 1, digest)
+            for index in range(2_000)
+        ]
+        self.assertEqual(handoff_module._check_archive_bounds(exactly_members), 2_000)
+        with self.assertRaisesRegex(RuntimeError, "2000 members"):
+            handoff_module._check_archive_bounds(
+                exactly_members
+                + [entry_type("pocket-card-controller/project/overflow", placeholder, 1, digest)]
+            )
+
+        exactly_bytes = [
+            entry_type("pocket-card-controller/project/a", placeholder, 2**31 - 1, digest),
+            entry_type("pocket-card-controller/project/b", placeholder, 1, digest),
+        ]
+        self.assertEqual(handoff_module._check_archive_bounds(exactly_bytes), 2**31)
+        with self.assertRaisesRegex(RuntimeError, "2147483648 uncompressed bytes"):
+            handoff_module._check_archive_bounds(
+                exactly_bytes
+                + [entry_type("pocket-card-controller/project/c", placeholder, 1, digest)]
+            )
+
+    def test_archive_bounds_reject_malformed_per_file_digest(self):
+        entry = handoff_module._ArchiveEntry(
+            "pocket-card-controller/project/a", self.root / "a", 1, "bad"
+        )
+        with self.assertRaisesRegex(RuntimeError, "digest"):
+            handoff_module._check_archive_bounds([entry])
+
+    def test_sparse_oversized_blender_is_rejected_before_copying_payload(self):
+        blend = self.root / "oversized.blend"
+        with blend.open("wb") as stream:
+            stream.write(b"BLENDER")
+            stream.truncate(2**31 + 1)
+        snapshot = self.root / "snapshot"
+        with self.assertRaisesRegex(RuntimeError, "maximum supported size"):
+            handoff_module._snapshot_regular(
+                blend,
+                snapshot,
+                "Blender visual reference",
+                required_prefix=b"BLENDER",
+            )
+        self.assertFalse(snapshot.exists())
+
+    def test_project_local_asset_fifo_is_rejected_without_opening_it(self):
+        models = self.project / "3dmodels"
+        models.mkdir()
+        fifo = models / "model.step"
+        fifo_code = f"""
+import os
+from pathlib import Path
+from hardware.pocket_card.electronics_pipeline.handoff import _canonical_project_digest
+project = Path({str(self.project)!r})
+os.mkfifo(project / '3dmodels' / 'model.step')
+try:
+    _canonical_project_digest(project)
+except Exception as error:
+    print(error)
+    raise SystemExit(0)
+raise SystemExit(3)
+"""
+        fifo.unlink(missing_ok=True)
+        result = subprocess.run(
+            ["python3", "-c", fifo_code],
+            cwd=Path(__file__).resolve().parents[4],
+            text=True,
+            capture_output=True,
+            timeout=2,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("regular file", result.stdout)
+
+    def test_export_streaming_does_not_use_path_read_bytes_for_payloads(self):
+        with mock.patch.object(
+            Path,
+            "read_bytes",
+            side_effect=AssertionError("payload buffering is forbidden"),
+        ):
+            archive = self.export()
+        with zipfile.ZipFile(archive) as package:
+            self.assertEqual(
+                package.read(
+                    "pocket-card-controller/project/pocket_card_controller.kicad_pcb"
+                ),
+                b"(kicad_pcb)\n",
+            )
+
+    def test_post_replace_directory_fsync_failure_leaves_new_zip_authoritative(self):
+        archive = self.export()
+        old = archive.read_bytes()
+
+        def fail_directory_fsync(descriptor):
+            raise OSError("directory fsync failed")
+
+        with self.assertRaisesRegex(
+            RuntimeError, "publication committed; durability unknown"
+        ):
+            self.export(
+                source_date_epoch=1785888002,
+                directory_fsync=fail_directory_fsync,
+            )
+        self.assertTrue(archive.is_file())
+        self.assertNotEqual(archive.read_bytes(), old)
+        with zipfile.ZipFile(archive) as package:
+            metadata = json.loads(package.read("pocket-card-controller/handoff.json"))
+        self.assertEqual(metadata["createdAt"], "2026-08-05T00:00:02Z")
+        journal = self.output / ".pocket-card-controller.zip.handoff-journal.json"
+        self.assertTrue(journal.is_file())
+        recovered = self.export(source_date_epoch=1785888004)
+        self.assertTrue(recovered.is_file())
+        self.assertFalse(journal.exists())
+
+    def test_abrupt_crash_complete_temp_is_recovered_before_next_export(self):
+        archive = self.export()
+        old = archive.read_bytes()
+
+        class SimulatedCrash(BaseException):
+            pass
+
+        with self.assertRaises(SimulatedCrash):
+            self.export(
+                source_date_epoch=1785888002,
+                before_publish=lambda: (_ for _ in ()).throw(SimulatedCrash()),
+            )
+        hidden = list(self.output.glob(".pocket-card-controller.zip.*.tmp"))
+        self.assertEqual(len(hidden), 1)
+        self.assertTrue(
+            (self.output / ".pocket-card-controller.zip.handoff-journal.json").is_file()
+        )
+        self.assertEqual(archive.read_bytes(), old)
+
+        recovered = self.export(source_date_epoch=1785888004)
+        self.assertNotEqual(recovered.read_bytes(), old)
+        self.assertEqual(
+            list(self.output.glob(".pocket-card-controller.zip.*.tmp")), []
+        )
+        self.assertFalse(
+            (self.output / ".pocket-card-controller.zip.handoff-journal.json").exists()
+        )
+
+    def test_crash_recovery_refuses_substituted_temp_and_journal(self):
+        class SimulatedCrash(BaseException):
+            pass
+
+        with self.assertRaises(SimulatedCrash):
+            self.export(
+                before_publish=lambda: (_ for _ in ()).throw(SimulatedCrash())
+            )
+        temp_path = next(self.output.glob(".pocket-card-controller.zip.*.tmp"))
+        journal = self.output / ".pocket-card-controller.zip.handoff-journal.json"
+        victim = self.root / "victim"
+        victim.write_bytes(b"victim\n")
+        temp_path.unlink()
+        temp_path.symlink_to(victim)
+        with self.assertRaisesRegex(RuntimeError, "ownership|substitut"):
+            self.export()
+        self.assertEqual(victim.read_bytes(), b"victim\n")
+        self.assertTrue(temp_path.is_symlink())
+        self.assertTrue(journal.is_file())
+
+        temp_path.unlink()
+        journal.unlink()
+        journal.symlink_to(victim)
+        with self.assertRaisesRegex(RuntimeError, "journal|unsafe"):
+            self.export()
+        self.assertEqual(victim.read_bytes(), b"victim\n")
+        self.assertTrue(journal.is_symlink())
+
+    def test_concurrent_publishers_are_serialized_by_variant_lock(self):
+        active = 0
+        maximum_active = 0
+        state_lock = threading.Lock()
+        rendezvous = threading.Barrier(2)
+
+        def callback():
+            nonlocal active, maximum_active
+            with state_lock:
+                active += 1
+                maximum_active = max(maximum_active, active)
+            try:
+                try:
+                    rendezvous.wait(timeout=0.3)
+                except threading.BrokenBarrierError:
+                    pass
+                time.sleep(0.05)
+            finally:
+                with state_lock:
+                    active -= 1
+
+        def publish(epoch):
+            return self.export(source_date_epoch=epoch, before_publish=callback)
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            results = tuple(executor.map(publish, (1785888000, 1785888002)))
+        self.assertEqual(maximum_active, 1)
+        self.assertTrue(all(path.is_file() for path in results))
+        self.assertEqual(
+            list(self.output.glob(".pocket-card-controller.zip.*.tmp")), []
+        )
+
+    def test_unknown_matching_temp_without_journal_is_never_scavenged(self):
+        self.output.mkdir()
+        unknown = (
+            self.output
+            / ".pocket-card-controller.zip.0123456789abcdef0123456789abcdef.tmp"
+        )
+        unknown.write_bytes(b"unowned\n")
+        archive = self.export()
+        self.assertTrue(archive.is_file())
+        self.assertEqual(unknown.read_bytes(), b"unowned\n")
 
 
 if __name__ == "__main__":
