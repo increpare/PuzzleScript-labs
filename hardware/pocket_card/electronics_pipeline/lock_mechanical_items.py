@@ -53,6 +53,9 @@ class _FileIdentity:
     device: int
     inode: int
     mode: int
+    size: int
+    mtime_ns: int
+    ctime_ns: int
 
 
 def _direct_children(
@@ -257,6 +260,17 @@ def _with_locks(
     return source
 
 
+def _file_identity(file_stat: os.stat_result) -> _FileIdentity:
+    return _FileIdentity(
+        device=file_stat.st_dev,
+        inode=file_stat.st_ino,
+        mode=stat.S_IMODE(file_stat.st_mode),
+        size=file_stat.st_size,
+        mtime_ns=file_stat.st_mtime_ns,
+        ctime_ns=file_stat.st_ctime_ns,
+    )
+
+
 def _read_regular_file(path: Path) -> tuple[bytes, _FileIdentity]:
     before = os.lstat(path)
     if stat.S_ISLNK(before.st_mode):
@@ -275,40 +289,36 @@ def _read_regular_file(path: Path) -> tuple[bytes, _FileIdentity]:
             if error.errno == errno.ELOOP:
                 raise LockMigrationRefused((f"board path {path} is a symlink",)) from error
             raise
-        opened = os.fstat(descriptor)
-        if not stat.S_ISREG(opened.st_mode):
+        opened_before = os.fstat(descriptor)
+        if not stat.S_ISREG(opened_before.st_mode):
             raise LockMigrationRefused((f"board path {path} is not a regular file",))
-        if (opened.st_dev, opened.st_ino) != (before.st_dev, before.st_ino):
+        before_identity = _file_identity(before)
+        opened_identity = _file_identity(opened_before)
+        if opened_identity != before_identity:
             raise LockMigrationRefused((f"board path {path} changed while opening",))
-        identity = _FileIdentity(
-            device=opened.st_dev,
-            inode=opened.st_ino,
-            mode=stat.S_IMODE(opened.st_mode),
-        )
         with os.fdopen(descriptor, "rb") as board_file:
             descriptor = None
-            return board_file.read(), identity
+            payload = board_file.read()
+            opened_after = os.fstat(board_file.fileno())
+        identity = _file_identity(opened_after)
+        if identity != opened_identity:
+            raise LockMigrationRefused((f"board path {path} changed while reading",))
+        return payload, identity
     finally:
         if descriptor is not None:
             os.close(descriptor)
 
 
-def _revalidate_destination(path: Path, identity: _FileIdentity) -> None:
+def _revalidate_destination(
+    path: Path, identity: _FileIdentity, validated_payload: bytes
+) -> None:
     try:
-        current = os.lstat(path)
-    except OSError as error:
+        current_payload, current_identity = _read_regular_file(path)
+    except (LockMigrationRefused, OSError) as error:
         raise LockMigrationRefused(
             (f"board path {path} changed since it was read: {error}",)
         ) from error
-    if stat.S_ISLNK(current.st_mode):
-        raise LockMigrationRefused(
-            (f"board path {path} changed since it was read and is now a symlink",)
-        )
-    if not stat.S_ISREG(current.st_mode):
-        raise LockMigrationRefused(
-            (f"board path {path} changed since it was read and is not a regular file",)
-        )
-    if (current.st_dev, current.st_ino) != (identity.device, identity.inode):
+    if current_identity != identity or current_payload != validated_payload:
         raise LockMigrationRefused((f"board path {path} changed since it was read",))
 
 
@@ -327,6 +337,7 @@ def _atomic_write(
     path: Path,
     payload: bytes,
     identity: _FileIdentity,
+    validated_payload: bytes,
     before_replace: Callable[[Path], None] | None,
 ) -> None:
     temporary_name: str | None = None
@@ -341,11 +352,11 @@ def _atomic_write(
             temporary_name = temporary.name
             temporary.write(payload)
             temporary.flush()
-            os.fsync(temporary.fileno())
             os.fchmod(temporary.fileno(), identity.mode)
+            os.fsync(temporary.fileno())
         if before_replace is not None:
             before_replace(path)
-        _revalidate_destination(path, identity)
+        _revalidate_destination(path, identity, validated_payload)
         os.replace(temporary_name, path)
         temporary_name = None
         try:
@@ -405,6 +416,7 @@ def lock_mechanical_items(
         path,
         migrated.encode("utf-8"),
         identity,
+        payload,
         _before_replace,
     )
     return (

@@ -622,6 +622,68 @@ class LockMechanicalItemsTest(unittest.TestCase):
         self.assertEqual(path.read_bytes(), replacement_payload)
         self.assertEqual(tuple(path.parent.glob(f".{path.name}.*.tmp")), ())
 
+    def test_migration_refuses_same_inode_in_place_rewrite_and_preserves_it(self):
+        path = self._temporary_board()
+        original_inode = path.stat().st_ino
+        concurrent_payload = b"concurrent same-inode board rewrite"
+
+        def rewrite_destination_in_place(destination):
+            destination.write_bytes(concurrent_payload)
+            self.assertEqual(destination.stat().st_ino, original_inode)
+
+        caught = None
+        try:
+            lock_mechanical_items(
+                path,
+                MECHANICAL_CONTRACT,
+                _before_replace=rewrite_destination_in_place,
+            )
+        except Exception as error:
+            caught = error
+        self.assertIsInstance(caught, LockMigrationRefused)
+        self.assertIn("changed since it was read", str(caught))
+        self.assertEqual(path.read_bytes(), concurrent_payload)
+        self.assertEqual(tuple(path.parent.glob(f".{path.name}.*.tmp")), ())
+
+    def test_atomic_write_orders_permissions_and_durability_barriers(self):
+        path = self._temporary_board()
+        events = []
+        real_fchmod = os.fchmod
+        real_fsync = os.fsync
+        real_replace = os.replace
+
+        def tracking_fchmod(file_descriptor, mode):
+            events.append("fchmod")
+            return real_fchmod(file_descriptor, mode)
+
+        def tracking_fsync(file_descriptor):
+            kind = (
+                "directory fsync"
+                if stat.S_ISDIR(os.fstat(file_descriptor).st_mode)
+                else "file fsync"
+            )
+            events.append(kind)
+            return real_fsync(file_descriptor)
+
+        def tracking_replace(source, destination):
+            events.append("replace")
+            return real_replace(source, destination)
+
+        with (
+            mock.patch.object(
+                lock_module.os, "fchmod", side_effect=tracking_fchmod
+            ),
+            mock.patch.object(lock_module.os, "fsync", side_effect=tracking_fsync),
+            mock.patch.object(
+                lock_module.os, "replace", side_effect=tracking_replace
+            ),
+        ):
+            lock_mechanical_items(path, MECHANICAL_CONTRACT)
+
+        self.assertLess(events.index("fchmod"), events.index("file fsync"), events)
+        self.assertLess(events.index("file fsync"), events.index("replace"), events)
+        self.assertLess(events.index("replace"), events.index("directory fsync"), events)
+
     def test_directory_fsync_failure_reports_replaced_but_not_durable(self):
         path = self._temporary_board()
         real_fsync = os.fsync
