@@ -157,6 +157,20 @@ class SourceLayoutTest(unittest.TestCase):
         text = '(uri "%USERPROFILE%/KiCad/private.pretty")'
         self.assertEqual(detector(text), ("%USERPROFILE%",), text)
 
+        delimiter_references = (
+            "${FOO-BAR}",
+            "${env:HOME}",
+            "${HOME:-tmp}",
+            "${HOME.dir}",
+            "%HOME-DIR%",
+            "%HOME DIR%",
+            "${}",
+            "%%",
+        )
+        for reference in delimiter_references:
+            text = f'(uri "{reference}/private.pretty")'
+            self.assertEqual(detector(text), (reference,), text)
+
     def test_project_has_no_machine_local_library_paths(self):
         detector = getattr(pipeline_paths, "find_forbidden_machine_paths", None)
         self.assertIsNotNone(detector)

@@ -23,13 +23,17 @@ EDITABLE_PROJECT_FILES = (
 )
 EDITABLE_PROJECT_DIRS = ("symbols", "footprints.pretty", "3dmodels")
 
-_ALLOWED_KICAD_PATH_VARIABLES = frozenset(
-    {"KIPRJMOD", "KICAD10_FOOTPRINT_DIR", "KICAD10_3DMODEL_DIR"}
+_ALLOWED_KICAD_PATH_VARIABLE_TOKENS = frozenset(
+    {
+        "${KIPRJMOD}",
+        "${KICAD10_FOOTPRINT_DIR}",
+        "${KICAD10_3DMODEL_DIR}",
+    }
 )
 _VARIABLE_REFERENCE_PATTERN = re.compile(
-    r"(?P<braced>\$\{(?P<braced_name>[A-Za-z_][A-Za-z0-9_]*)\})"
-    r"|(?P<unbraced>\$(?P<unbraced_name>[A-Za-z_][A-Za-z0-9_]*))"
-    r"|(?P<percent>%(?P<percent_name>[A-Za-z_][A-Za-z0-9_]*)%)"
+    r"(?P<braced>\$\{[^{}\r\n\"']*\})"
+    r"|(?P<percent>%[^%\r\n\"']*%)"
+    r"|(?P<unbraced>\$[A-Za-z_][A-Za-z0-9_]*)"
 )
 # KiCad expands this built-in only as footprint fabrication text; it is not a
 # library-path variable and is allowed solely in this exact field form.
@@ -57,12 +61,12 @@ def find_forbidden_machine_paths(text):
     matches = set()
 
     for match in _VARIABLE_REFERENCE_PATTERN.finditer(text):
-        braced_name = match.group("braced_name")
-        if braced_name in _ALLOWED_KICAD_PATH_VARIABLES:
+        token = match.group(0)
+        if token in _ALLOWED_KICAD_PATH_VARIABLE_TOKENS:
             continue
-        if braced_name == "REFERENCE" and match.span() in allowed_reference_spans:
+        if token == "${REFERENCE}" and match.span() in allowed_reference_spans:
             continue
-        matches.add((match.start(), match.end(), match.group(0)))
+        matches.add((match.start(), match.end(), token))
 
     for pattern in _FORBIDDEN_MACHINE_PATH_PATTERNS:
         matches.update(
