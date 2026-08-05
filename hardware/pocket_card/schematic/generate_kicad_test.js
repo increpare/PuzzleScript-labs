@@ -254,6 +254,15 @@ function executableOnPath(executableName, environment, platform) {
     return undefined;
 }
 
+function installRelativeFootprintCandidates(executable, platform, pathImplementation) {
+    var activePath = pathImplementation || (platform === "win32" ? path.win32 : path);
+    var installRoot = activePath.dirname(activePath.dirname(executable));
+    if (platform === "darwin") {
+        return [activePath.join(installRoot, "SharedSupport", "footprints")];
+    }
+    return [activePath.join(installRoot, "share", "kicad", "footprints")];
+}
+
 function findInstalledFootprintRoot(environment, platform) {
     var activeEnvironment = environment || process.env;
     var activePlatform = platform || process.platform;
@@ -272,13 +281,15 @@ function findInstalledFootprintRoot(environment, platform) {
     }
 
     var executable = executableOnPath("kicad-cli", activeEnvironment, activePlatform);
-    if (activePlatform === "darwin" && executable) {
+    if (executable) {
         var realExecutable = fs.realpathSync(executable);
-        candidates.push(path.join(
-            path.dirname(path.dirname(realExecutable)),
-            "SharedSupport",
-            "footprints"
-        ));
+        installRelativeFootprintCandidates(realExecutable, activePlatform).forEach(
+            function (candidate) {
+                if (candidates.indexOf(candidate) === -1) {
+                    candidates.push(candidate);
+                }
+            }
+        );
         root = candidates.find(function (candidate) {
             return fs.existsSync(candidate) && fs.statSync(candidate).isDirectory();
         });
@@ -707,6 +718,28 @@ try {
 } finally {
     fs.rmSync(lazyRootDirectory, { recursive: true, force: true });
 }
+var windowsExecutableFixture = path.win32.join(
+    "C:\\",
+    "Program Files",
+    "KiCad",
+    "10.0",
+    "bin",
+    "kicad-cli.exe"
+);
+var windowsFootprintRootFixture = path.win32.join(
+    "C:\\",
+    "Program Files",
+    "KiCad",
+    "10.0",
+    "share",
+    "kicad",
+    "footprints"
+);
+assert.deepStrictEqual(
+    installRelativeFootprintCandidates(windowsExecutableFixture, "win32", path.win32),
+    [windowsFootprintRootFixture],
+    "Windows KiCad discovery must include the install-relative footprint root"
+);
 var installedFootprintRoot = findInstalledFootprintRoot();
 assertInstalledFootprints(installedFootprintRoot);
 assert.throws(function () {
