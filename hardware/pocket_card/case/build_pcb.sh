@@ -1,5 +1,7 @@
 #!/bin/bash
-# Build the controller PCB end to end, with no manual steps.
+# Intentionally and destructively regenerate the routed controller PCB and
+# derived outputs end to end, with no manual steps. Commit, stash, or copy
+# reviewed PCB work first.
 #
 # The zone fill is done by `kicad-cli pcb drc --refill-zones --save-board`,
 # which is exactly what pressing B in the GUI does. pcbnew's own ZONE_FILLER
@@ -12,6 +14,7 @@
 # case -- ~25 point-to-point ground connections were the whole difficulty.
 #
 # Usage:
+#   # WARNING: this replaces the reviewed/routed board output.
 #   FREEROUTING_JAR=tools/freerouting-2.1.0.jar ./build_pcb.sh
 #   # or rely on the default path below
 set -e
@@ -34,13 +37,19 @@ if [[ ! -f "$FREEROUTING_JAR" ]]; then
   exit 1
 fi
 
-echo "== 1. placement and outline, from params.py"
+echo "WARNING: build_pcb.sh intentionally and destructively regenerates $BRD." >&2
+echo "Commit, stash, or copy reviewed PCB work before continuing." >&2
+echo "== 1. validate canonical controller connectivity and regenerate schematic"
+node ../schematic/validate_connectivity.js
+node ../schematic/generate_kicad.js
+
+echo "== 2. placement and outline, from params.py"
 python3 pcb.py | grep -E "outline|footprints|saved"
 
-echo "== 2. netlist, first routing pass, zones injected"
+echo "== 3. netlist, first routing pass, zones injected"
 "$KPY" pcb_route.py 2>/dev/null | grep -E "tracks|zones|injected|reused|expander|allocation|->"
 
-echo "== 3. fill the pour"
+echo "== 4. fill the pour"
 if ! kicad-cli pcb drc --refill-zones --save-board --format json \
     --output out/pcb/drc.json "$BRD" 2>out/pcb/drc_cli.log; then
   echo "kicad-cli DRC failed; see out/pcb/drc_cli.log" >&2
@@ -53,10 +62,10 @@ if grep -q 'Fehler beim Laden\|Error loading\|failed to load' out/pcb/drc_cli.lo
   exit 1
 fi
 
-echo "== 4. second routing pass, now that ground is carried"
+echo "== 5. second routing pass, now that ground is carried"
 "$KPY" pcb_reroute.py 2>/dev/null | grep -E "tracks|zones|found"
 
-echo "== 5. fill again -- a fill is stale the moment copper moves"
+echo "== 6. fill again -- a fill is stale the moment copper moves"
 if ! kicad-cli pcb drc --refill-zones --save-board --format json \
     --output out/pcb/drc.json "$BRD" 2>out/pcb/drc_cli.log; then
   echo "kicad-cli DRC failed; see out/pcb/drc_cli.log" >&2
@@ -68,7 +77,7 @@ if grep -q 'Fehler beim Laden\|Error loading\|failed to load' out/pcb/drc_cli.lo
   exit 1
 fi
 
-echo "== 6. verdict"
+echo "== 7. verdict"
 python3 - <<'PY'
 import json, collections, re
 d = json.load(open("out/pcb/drc.json"))
@@ -88,7 +97,7 @@ if errs:
         print("   ERR %-28s %s" % (i.get("type"), (i.get("description") or "")[:100]))
 PY
 
-echo "== 7. 3D mesh (board + components) via kicad-cli"
+echo "== 8. 3D mesh (board + components) via kicad-cli"
 STL=out/pcb/pocket_card_controller.stl
 STEP=out/pcb/pocket_card_controller.step
 # --subst-models: prefer STEP companions when a footprint only lists VRML.
@@ -99,7 +108,7 @@ cp -f "$STL" out/pcb/exported.stl
 cp -f "$STEP" out/pcb/exported.step
 ls -la "$STL" "$STEP" | awk '{printf "   %s  %s\n", $5, $9}'
 
-echo "== 8. place PCB into shell model space (exported_placed.*)"
+echo "== 9. place PCB into shell model space (exported_placed.*)"
 if [[ -x .venv/bin/python ]]; then
   .venv/bin/python -c "import place_preview; place_preview.place_pcb()"
 else

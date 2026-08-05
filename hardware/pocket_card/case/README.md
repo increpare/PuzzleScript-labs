@@ -24,6 +24,12 @@ From the repo root, rebuild shells + PCB (including footprint 3D meshes):
 make pocket_card_case
 ```
 
+This is a destructive rebuild: `build_pcb.sh` intentionally regenerates the
+reviewed/routed controller board and its derived outputs. Commit, stash, or copy
+reviewed PCB work before running it. The script validates the canonical
+connectivity and regenerates the schematic before it rebuilds board placement,
+routing, and zones.
+
 Shells / order pack only (reuse the existing PCB mesh):
 
 ```
@@ -41,6 +47,32 @@ Or from this directory:
 ```
 
 Outputs land in `out/`.
+
+## Controller PCB electrical source
+
+The controller's input/GPIO/net mapping is no longer selected from footprint
+geometry. `../schematic/connectivity.json` is the canonical electrical source,
+and the deterministic generator writes
+`out/pcb/pocket_card_controller.kicad_sch`. Board parity checks the JSON's net
+mapping and component UUIDs against the existing routed PCB.
+
+Run these from the repository root:
+
+```
+make pocket_card_schematic_tests   # validate generated output and board parity
+make pocket_card_kicad             # validate, regenerate schematic, then test
+```
+
+In an isolated worktree, point the tests at the authoritative live routed board
+when the worktree copy is intentionally stale:
+
+```
+POCKET_CARD_BOARD=/absolute/path/to/hardware/pocket_card/case/out/pcb/pocket_card_controller.kicad_pcb make pocket_card_schematic_tests
+```
+
+See [`../schematic/README.md`](../schematic/README.md) for the KiCad linking,
+ERC, and DRC workflow. Do not use `build_pcb.sh` merely to update the schematic;
+it destructively regenerates routing. Use `make pocket_card_kicad` instead.
 
 ### Blender finishing
 

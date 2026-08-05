@@ -803,6 +803,17 @@ function compareBoard(candidate, footprints) {
     return errors;
 }
 
+if (require.main === module) {
+    var cliErrors = validateConnectivity(model);
+    if (cliErrors.length > 0) {
+        console.error("connectivity validation failed:\n- " + cliErrors.join("\n- "));
+        process.exitCode = 1;
+    } else {
+        console.log("connectivity OK (" + model.components.length + " components, " +
+            model.connections.length + " nets)");
+    }
+}
+
 module.exports = {
     model: model,
     componentMap: componentMap,
