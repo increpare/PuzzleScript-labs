@@ -243,6 +243,12 @@ class MakeIntegrationTest(unittest.TestCase):
                 )
                 self.assertEqual(result.returncode, 0, result.stdout)
                 output = result.stdout
+                if target == "pocket_card_case":
+                    self.assertIn("electronics_pipeline.validation", output)
+                    self.assertIn("electronics_pipeline.exports", output)
+                    self.assertNotIn("exports --check-current", output)
+                else:
+                    self.assertIn("exports --check-current", output)
                 build_index = output.index("build_variants.py")
                 finish_index = output.index("emboss_shells.py")
                 export_index = output.index("sculpted_buttons.py")
@@ -252,6 +258,7 @@ class MakeIntegrationTest(unittest.TestCase):
                 self.assertLess(export_index, replace_index)
                 self.assertIn("out/order/pocket_card_complete.blend", output)
                 self.assertNotIn("dpad_petals", output)
+                self.assertNotIn("build_pcb.sh", output)
 
     def test_sculpted_target_reuses_standard_complete_assembly(self):
         result = subprocess.run(

@@ -20,6 +20,11 @@
 set -e
 cd "$(dirname "$0")"
 
+if [[ "${POCKET_CARD_ALLOW_LEGACY_REBUILD:-}" != "1" ]]; then
+  echo "legacy generator disabled; set POCKET_CARD_ALLOW_LEGACY_REBUILD=1 explicitly" >&2
+  exit 2
+fi
+
 KPY=/Users/stephenlavelle/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/3.9/bin/python3
 BRD=out/pcb/pocket_card_controller.kicad_pcb
 KICAD_APP="${KICAD_APP:-/Users/stephenlavelle/Applications/KiCad/KiCad.app}"
