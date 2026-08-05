@@ -1,24 +1,38 @@
-"""Export JLCPCB SMT BOM + CPL from the controller board.
+"""Export curated JLCPCB SMT BOM + CPL from the canonical controller board.
 
 Writes:
-  out/pcb/BOM.csv
+  out/pcb/BOM_JLCPCB.csv
   out/pcb/CPL.csv
   out/pcb/pocket_card_controller-all-pos.csv   (raw KiCad pos)
+
+The generic KiCad schematic BOM is a separate ``BOM.csv`` produced by the
+electronics export pipeline.  It intentionally includes parts not present in
+the curated, present-board-specific JLC mapping below.
 
 LCSC numbers are curated below — re-check stock/library type before ordering.
 """
 from __future__ import annotations
 
 import csv
+import math
 import os
 import subprocess
 import sys
+from pathlib import Path
 
-import params as P
+if __package__:
+    from . import params as P
+    from hardware.pocket_card.electronics_pipeline.paths import BOARD, PCB_OUTPUT_DIR
+else:  # Direct ``python3 export_smt.py`` execution.
+    REPO_ROOT = Path(__file__).resolve().parents[3]
+    sys.path.insert(0, str(REPO_ROOT))
+    import params as P
+    from hardware.pocket_card.electronics_pipeline.paths import BOARD, PCB_OUTPUT_DIR
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-OUT = os.path.join(HERE, "out", "pcb")
-BRD = os.path.join(OUT, "pocket_card_controller.kicad_pcb")
+HERE = Path(__file__).resolve().parent
+OUT = PCB_OUTPUT_DIR
+BRD = BOARD
+JLC_BOM_NAME = "BOM_JLCPCB.csv"
 
 # ref → (comment/MPN, footprint label for BOM, LCSC C#)
 # Mounting holes omitted (not SMT).
@@ -47,39 +61,103 @@ PARTS = {
 }
 
 
-def export_kicad_pos() -> str:
-    path = os.path.join(OUT, "pocket_card_controller-all-pos.csv")
+def export_kicad_pos(
+    board_path: str | Path = BRD,
+    output_dir: str | Path = OUT,
+    *,
+    runner=subprocess.run,
+) -> str:
+    """Export raw positions from the explicit board into the explicit output."""
+
+    board = Path(board_path)
+    output = Path(output_dir)
+    output.mkdir(parents=True, exist_ok=True)
+    path = output / "pocket_card_controller-all-pos.csv"
     cmd = [
         "kicad-cli", "pcb", "export", "pos",
         "--format", "csv",
         "--units", "mm",
         "--side", "both",
         "--bottom-negate-x",
-        "-o", path,
-        BRD,
+        "-o", str(path),
+        str(board),
     ]
-    subprocess.check_call(cmd)
-    return path
+    environment = dict(os.environ)
+    environment["LANG"] = "C"
+    environment["LC_ALL"] = "C"
+    result = runner(
+        cmd,
+        cwd=board.parent,
+        text=True,
+        capture_output=True,
+        check=False,
+        timeout=120,
+        env=environment,
+    )
+    if getattr(result, "returncode", None) != 0:
+        diagnostic = str(getattr(result, "stderr", "") or getattr(result, "stdout", ""))
+        raise RuntimeError(f"KiCad position export failed: {diagnostic[:8192]}")
+    if path.is_symlink() or not path.is_file():
+        raise RuntimeError(f"KiCad position export did not produce {path}")
+    return str(path)
 
 
-def write_cpl(pos_path: str) -> str:
+def write_cpl(
+    pos_path: str | Path,
+    output_dir: str | Path = OUT,
+) -> str:
     """JLCPCB pick-and-place: Designator,Mid X,Mid Y,Layer,Rotation."""
-    out = os.path.join(OUT, "CPL.csv")
+    output = Path(output_dir)
+    out = output / "CPL.csv"
     rows = []
-    with open(pos_path, newline="", encoding="utf-8") as f:
-        for row in csv.DictReader(f):
+    seen = set()
+    expected_fields = ("Ref", "Val", "Package", "PosX", "PosY", "Rot", "Side")
+    with Path(pos_path).open(newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        if tuple(reader.fieldnames or ()) != expected_fields:
+            raise ValueError(
+                "position CSV columns must be exactly " + ",".join(expected_fields)
+            )
+        for line_number, row in enumerate(reader, start=2):
             ref = row["Ref"].strip('"')
-            if ref.startswith("H") or ref not in PARTS:
+            if not ref:
+                raise ValueError(f"position CSV row {line_number} has an empty Ref")
+            side = row["Side"].strip('"')
+            if side not in ("top", "bottom"):
+                raise ValueError(
+                    f"position CSV row {line_number} has invalid Side {side!r}"
+                )
+            numbers = {}
+            for field in ("PosX", "PosY", "Rot"):
+                try:
+                    number = float(row[field])
+                except (TypeError, ValueError) as error:
+                    raise ValueError(
+                        f"position CSV row {line_number} {field} must be numeric"
+                    ) from error
+                if not math.isfinite(number):
+                    raise ValueError(
+                        f"position CSV row {line_number} {field} must be finite"
+                    )
+                numbers[field] = number
+            if ref not in PARTS:
                 continue
+            if ref in seen:
+                raise ValueError(f"duplicate curated placement for {ref}")
+            seen.add(ref)
             rows.append({
                 "Designator": ref,
-                "Mid X": float(row["PosX"]),
-                "Mid Y": float(row["PosY"]),
-                "Layer": "top" if row["Side"].strip('"') == "top" else "bottom",
-                "Rotation": float(row["Rot"]),
+                "Mid X": numbers["PosX"],
+                "Mid Y": numbers["PosY"],
+                "Layer": side,
+                "Rotation": numbers["Rot"],
             })
+    missing = sorted(set(PARTS) - seen)
+    if missing:
+        raise ValueError("missing curated placement rows: " + ", ".join(missing))
     rows.sort(key=lambda r: r["Designator"])
-    with open(out, "w", newline="", encoding="utf-8") as f:
+    output.mkdir(parents=True, exist_ok=True)
+    with out.open("w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(
             f, fieldnames=["Designator", "Mid X", "Mid Y", "Layer", "Rotation"]
         )
@@ -92,34 +170,37 @@ def write_cpl(pos_path: str) -> str:
                 "Layer": r["Layer"],
                 "Rotation": "%.1f" % r["Rotation"],
             })
-    return out
+    return str(out)
 
 
-def write_bom() -> str:
+def write_bom(output_dir: str | Path = OUT) -> str:
     """JLCPCB BOM: Comment,Designator,Footprint,LCSC Part #."""
     groups = {}
     for ref, (comment, fp, lcsc) in PARTS.items():
         key = (comment, fp, lcsc)
         groups.setdefault(key, []).append(ref)
-    out = os.path.join(OUT, "BOM.csv")
-    with open(out, "w", newline="", encoding="utf-8") as f:
+    output = Path(output_dir)
+    output.mkdir(parents=True, exist_ok=True)
+    out = output / JLC_BOM_NAME
+    with out.open("w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["Comment", "Designator", "Footprint", "LCSC Part #"])
         for (comment, fp, lcsc), refs in sorted(
             groups.items(), key=lambda kv: kv[0][2]
         ):
             w.writerow([comment, ",".join(sorted(refs)), fp, lcsc])
-    return out
+    return str(out)
 
 
-def write_hardware_bom() -> str:
+def write_hardware_bom(output_dir: str | Path | None = None) -> str:
     """Case assembly fasteners — not SMT, not for JLCPCB.
 
     The north rib deepened two module screw seats, so M2×10 is needed there
     and M2×8 elsewhere. Sourced from params.SCREW_*.
     """
-    out = os.path.join(HERE, "out", "hardware_BOM.csv")
-    os.makedirs(os.path.dirname(out), exist_ok=True)
+    output = Path(output_dir) if output_dir is not None else HERE / "out"
+    output.mkdir(parents=True, exist_ok=True)
+    out = output / "hardware_BOM.csv"
     rows = []
     for key, spec in (("SCREW_NORTH", P.SCREW_NORTH),
                       ("SCREW_SOUTH", P.SCREW_SOUTH)):
@@ -132,19 +213,19 @@ def write_hardware_bom() -> str:
             "M2 pan-head self-tap into Ø1.7 pilot",
             sites,
         ])
-    with open(out, "w", newline="", encoding="utf-8") as f:
+    with out.open("w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["Comment", "Designator", "Qty", "Length_mm",
                     "Notes", "Sites_xy"])
         w.writerows(rows)
-    return out
+    return str(out)
 
 
 def main():
-    os.makedirs(OUT, exist_ok=True)
+    OUT.mkdir(parents=True, exist_ok=True)
     hw = write_hardware_bom()
     print("wrote", hw)
-    if not os.path.isfile(BRD):
+    if not BRD.is_file():
         sys.exit("missing board: %s" % BRD)
     pos = export_kicad_pos()
     bom = write_bom()

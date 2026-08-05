@@ -1,5 +1,10 @@
 tools/*.jar
 .venv
 out/pcb/~*
+out/.pcb.exports.lock
+out/.pcb.exports.transaction.json
+out/.pcb.exports.transaction.json.*.tmp
+out/.pcb.exports-stage-*
+out/.pcb.exports-backup-*
 out/sculpted_buttons/
 __pycache__/
