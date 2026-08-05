@@ -40,6 +40,7 @@ BRD = os.path.join(HERE, "out", "pcb", "pocket_card_controller.kicad_pcb")
 TRACK_W, CLEAR = 0.2, 0.15
 VIA_D, VIA_DRILL = 0.6, 0.3
 
+
 def mm(v):
     import pcbnew
     return pcbnew.FromMM(v)
@@ -54,15 +55,19 @@ def net(board, name):
     return n
 
 
+def footprints_by_reference(footprints):
+    """Index physical footprints without silently collapsing duplicate refs."""
+    indexed = {}
+    for footprint in footprints:
+        ref = str(footprint.GetReference())
+        if ref in indexed:
+            raise ValueError("duplicate footprint reference %s on board" % ref)
+        indexed[ref] = footprint
+    return indexed
+
+
 def apply_connectivity(board, footprints):
     """Apply the canonical schematic nets to every matching physical pad."""
-    nets = {}
-
-    def net_named(name):
-        if name not in nets:
-            nets[name] = net(board, name)
-        return nets[name]
-
     def footprint(ref):
         try:
             return footprints[ref]
@@ -83,13 +88,30 @@ def apply_connectivity(board, footprints):
                            % (ref, detail, context))
         return matches
 
+    for component in C.model()["components"]:
+        footprint(component["ref"])
+
+    assignments = []
     for (ref, pad_name), net_name in C.pad_net_map().items():
-        for pad in matching_pads(ref, pad_name, "canonical connectivity"):
-            pad.SetNet(net_named(net_name))
+        assignments.append((
+            matching_pads(ref, pad_name, "canonical connectivity"), net_name))
 
     for rule in C.board_only_rules():
-        for pad in matching_pads(rule["ref"], rule["pad"], "board-only rule"):
-            pad.SetNet(net_named(rule["net"]))
+        assignments.append((
+            matching_pads(rule["ref"], rule["pad"], "board-only rule"),
+            rule["net"],
+        ))
+
+    nets = {}
+
+    def net_named(name):
+        if name not in nets:
+            nets[name] = net(board, name)
+        return nets[name]
+
+    for pads, net_name in assignments:
+        for pad in pads:
+            pad.SetNet(net_named(net_name))
 
     return nets
 
@@ -185,7 +207,7 @@ def inject_zones(path):
 def main():
     import pcbnew
     board = pcbnew.LoadBoard(BRD)
-    fps = {f.GetReference(): f for f in board.GetFootprints()}
+    fps = footprints_by_reference(board.GetFootprints())
     apply_connectivity(board, fps)
 
     nc = board.GetDesignSettings().m_NetSettings.GetDefaultNetclass()

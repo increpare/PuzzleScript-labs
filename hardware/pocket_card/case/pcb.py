@@ -127,6 +127,71 @@ def _set_property_ref(body, ref, rot):
     return body
 
 
+def _remove_direct_uuid_forms(text):
+    """Remove UUID forms that are direct children of the library footprint."""
+    removals = []
+    depth = 0
+    quoted = False
+    escaped = False
+    index = 0
+    while index < len(text):
+        char = text[index]
+        if quoted:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                quoted = False
+            index += 1
+            continue
+        if char == '"':
+            quoted = True
+            index += 1
+            continue
+        if char == "(" and depth == 1 and re.match(
+                r'\(\s*uuid(?=\s|\))', text[index:]):
+            end = index
+            form_depth = 0
+            form_quoted = False
+            form_escaped = False
+            while end < len(text):
+                form_char = text[end]
+                if form_quoted:
+                    if form_escaped:
+                        form_escaped = False
+                    elif form_char == "\\":
+                        form_escaped = True
+                    elif form_char == '"':
+                        form_quoted = False
+                elif form_char == '"':
+                    form_quoted = True
+                elif form_char == "(":
+                    form_depth += 1
+                elif form_char == ")":
+                    form_depth -= 1
+                    if form_depth == 0:
+                        end += 1
+                        break
+                end += 1
+            line_start = text.rfind("\n", 0, index) + 1
+            start = line_start if not text[line_start:index].strip() else index
+            if end < len(text) and text[end] == "\n":
+                end += 1
+            removals.append((start, end))
+            index = end
+            continue
+        if char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+        index += 1
+
+    for start, end in reversed(removals):
+        text = text[:start] + text[end:]
+    return text
+
+
 def footprint_sexpr(lib, name, x, y, ref, rot=0, back=False):
     path = _mod_path(lib, name)
     if not os.path.exists(path):
@@ -145,6 +210,7 @@ def footprint_sexpr(lib, name, x, y, ref, rot=0, back=False):
     if back:
         raw = _flip_layers(raw)
 
+    raw = _remove_direct_uuid_forms(raw)
     raw = re.sub(r'\(uuid "[^"]+"\)', lambda _m: '(uuid "%s")' % _uid(), raw)
     raw = _set_property_ref(raw, ref, rot)
     # Decorative silk owns the board — hide footprint ref/value legends.

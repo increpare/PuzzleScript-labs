@@ -1,4 +1,6 @@
 import ast
+import copy
+import json
 import os
 import sys
 import tempfile
@@ -95,14 +97,18 @@ class FakeNet:
 
 
 class FakeBoard:
-    def __init__(self):
+    def __init__(self, footprints=None):
         self.nets = {}
+        self.footprints = list(footprints or [])
 
     def FindNet(self, name):
         return self.nets.get(name)
 
     def Add(self, item):
         self.nets[item.name] = item
+
+    def GetFootprints(self):
+        return list(self.footprints)
 
 
 def fake_footprints():
@@ -194,6 +200,127 @@ class ConnectivityAdapterTests(unittest.TestCase):
         self.assertEqual(C.pad_net_map()[("U1", "1")], "SIG_UP")
         self.assertEqual(C.board_only_rules()[0]["net"], "GND")
 
+    def assert_model_invalid(self, candidate, pattern):
+        self.assertTrue(hasattr(C, "_load_model"),
+                        "pcb_connectivity needs a testable validated loader")
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "connectivity.json")
+            with open(path, "w", encoding="utf-8") as handle:
+                json.dump(candidate, handle)
+            with self.assertRaisesRegex(ValueError, pattern) as caught:
+                C._load_model(path)
+            self.assertIn(path, str(caught.exception))
+
+    def test_consumed_top_level_fields_are_required_with_exact_shapes(self):
+        wrong_shapes = {
+            "components": {},
+            "connections": {},
+            "noConnects": [],
+            "boardOnlyPadRules": {},
+        }
+        for field, wrong_shape in wrong_shapes.items():
+            with self.subTest(field=field, problem="missing"):
+                candidate = C.model()
+                del candidate[field]
+                self.assert_model_invalid(candidate, field + ".*required")
+            with self.subTest(field=field, problem="shape"):
+                candidate = C.model()
+                candidate[field] = wrong_shape
+                self.assert_model_invalid(candidate, field + ".*must be")
+
+    def test_component_identity_fields_are_required_nonempty_strings(self):
+        fields = ("ref", "value", "footprint", "uuid", "symbol")
+        for field in fields:
+            with self.subTest(field=field, problem="missing"):
+                candidate = C.model()
+                del candidate["components"][0][field]
+                self.assert_model_invalid(candidate,
+                                          r"components\[0\]\.%s.*required" % field)
+            for bad_value in (None, ""):
+                with self.subTest(field=field, value=bad_value):
+                    candidate = C.model()
+                    candidate["components"][0][field] = bad_value
+                    self.assert_model_invalid(
+                        candidate, r"components\[0\]\.%s.*nonempty string" % field)
+
+    def test_duplicate_component_refs_and_uuids_are_rejected(self):
+        candidate = C.model()
+        candidate["components"][1]["ref"] = candidate["components"][0]["ref"]
+        self.assert_model_invalid(candidate, "duplicate component ref.*U1")
+
+        candidate = C.model()
+        candidate["components"][1]["uuid"] = candidate["components"][0]["uuid"]
+        self.assert_model_invalid(candidate, "duplicate component UUID")
+
+    def test_connection_records_and_nodes_reject_ambiguous_input(self):
+        candidate = C.model()
+        candidate["connections"][1]["net"] = candidate["connections"][0]["net"]
+        self.assert_model_invalid(candidate, "duplicate connection net.*\\+3V3")
+
+        candidate = C.model()
+        candidate["connections"][0]["nodes"][0] = ["U1"]
+        self.assert_model_invalid(candidate, r"connections\[0\]\.nodes\[0\].*pair")
+
+        candidate = C.model()
+        candidate["connections"][0]["nodes"][0] = ["U1", 9]
+        self.assert_model_invalid(candidate,
+                                  r"connections\[0\]\.nodes\[0\].*strings")
+
+        candidate = C.model()
+        candidate["connections"][0]["nodes"][0][0] = "MISSING"
+        self.assert_model_invalid(candidate, "unknown component ref.*MISSING")
+
+    def test_duplicate_endpoints_are_rejected_on_same_or_conflicting_nets(self):
+        candidate = C.model()
+        candidate["connections"][0]["nodes"].append(["U1", "9"])
+        self.assert_model_invalid(candidate, "duplicate endpoint.*U1.*9.*\\+3V3")
+
+        candidate = C.model()
+        candidate["connections"][1]["nodes"].append(["U1", "9"])
+        self.assert_model_invalid(
+            candidate, "endpoint.*U1.*9.*both.*\\+3V3.*GND")
+
+    def test_no_connects_are_shaped_and_cannot_collide_with_connections(self):
+        candidate = C.model()
+        candidate["noConnects"]["U1"] = "2"
+        self.assert_model_invalid(candidate, "noConnects.U1.*must be a list")
+
+        candidate = C.model()
+        candidate["noConnects"]["U1"].append("2")
+        self.assert_model_invalid(candidate, "duplicate no-connect.*U1.*2")
+
+        candidate = C.model()
+        candidate["noConnects"]["U1"].append("9")
+        self.assert_model_invalid(candidate, "U1.*9.*connected.*no-connect")
+
+    def test_board_only_rules_require_typed_fields_known_refs_and_unique_targets(self):
+        fields = ("ref", "pad", "net", "reason")
+        for field in fields:
+            candidate = C.model()
+            del candidate["boardOnlyPadRules"][0][field]
+            self.assert_model_invalid(
+                candidate, r"boardOnlyPadRules\[0\]\.%s.*required" % field)
+
+        candidate = C.model()
+        candidate["boardOnlyPadRules"][0]["net"] = None
+        self.assert_model_invalid(
+            candidate, r"boardOnlyPadRules\[0\]\.net.*string")
+
+        candidate = C.model()
+        candidate["boardOnlyPadRules"][0]["ref"] = "MISSING"
+        self.assert_model_invalid(candidate, "board-only.*unknown component.*MISSING")
+
+        candidate = C.model()
+        candidate["boardOnlyPadRules"][0].update({
+            "ref": "U1", "pad": "9", "net": "+3V3",
+        })
+        self.assert_model_invalid(candidate, "board-only.*U1.*9.*already connected")
+
+        candidate = C.model()
+        candidate["boardOnlyPadRules"].append(
+            copy.deepcopy(candidate["boardOnlyPadRules"][0]))
+        self.assert_model_invalid(candidate, "duplicate board-only.*SW_MUTE.*empty")
+
 
 class HeadlessFootprintUuidTests(unittest.TestCase):
     def setUp(self):
@@ -205,6 +332,7 @@ class HeadlessFootprintUuidTests(unittest.TestCase):
 \t(generator "pcbnew")
 \t(generator_version "10.0")
 \t(layer "F.Cu")
+\t(uuid "00000000-0000-4000-8000-000000000000")
 \t(property "Reference" "REF**"
 \t\t(at 0 0 0)
 \t\t(layer "F.SilkS")
@@ -258,6 +386,7 @@ class HeadlessFootprintUuidTests(unittest.TestCase):
                         nested_uuids.append(item[1])
                     else:
                         stack.extend(item[1:])
+            self.assertGreaterEqual(len(nested_uuids), 3)
             self.assertNotIn(C.component_uuid(refs[0]), nested_uuids)
 
         expected = {item["ref"]: item["uuid"]
@@ -346,12 +475,17 @@ class ApplyConnectivityTests(unittest.TestCase):
         self.assertEqual(assigned["28"], "SIG_ACTION")
         self.assertIsNotNone(nets["SIG_UP"])
 
-    def test_unmodeled_and_no_connect_pads_remain_unassigned(self):
+    def test_unmodeled_and_no_connect_pads_remain_exactly_untouched(self):
         footprints = fake_footprints()
-        self.apply(footprints)
+        sentinel = FakeNet(None, "EXISTING_UNMODELED_NET")
+        untouched = []
         for ref, pad_name in (("U1", "2"), ("J_EXP", "2"), ("SW_PWR", "3")):
             pad = next(pad for pad in footprints[ref].pads if pad.name == pad_name)
-            self.assertIsNone(pad.assigned_net, "%s.%s" % (ref, pad_name))
+            pad.assigned_net = sentinel
+            untouched.append((ref, pad_name, pad))
+        self.apply(footprints)
+        for ref, pad_name, pad in untouched:
+            self.assertIs(pad.assigned_net, sentinel, "%s.%s" % (ref, pad_name))
 
     def test_missing_footprint_error_names_the_reference(self):
         footprints = fake_footprints()
@@ -372,6 +506,50 @@ class ApplyConnectivityTests(unittest.TestCase):
                                        if pad.name != ""]
         with self.assertRaisesRegex(KeyError, "SW_MUTE.*empty.*pad"):
             self.apply(footprints)
+
+    def test_preflight_error_leaves_every_net_and_pad_unchanged(self):
+        footprints = fake_footprints()
+        footprints["SW_MUTE"].pads = [pad for pad in footprints["SW_MUTE"].pads
+                                       if pad.name != ""]
+        board = FakeBoard()
+        before = [(pad, pad.assigned_net) for footprint in footprints.values()
+                  for pad in footprint.pads]
+        with mock.patch.dict(sys.modules, {"pcbnew": self.fake_pcbnew}):
+            with self.assertRaisesRegex(KeyError, "SW_MUTE.*empty.*pad"):
+                pcb_route.apply_connectivity(board, footprints)
+        self.assertEqual(board.nets, {})
+        for pad, assigned_net in before:
+            self.assertIs(pad.assigned_net, assigned_net, pad.name)
+
+    def test_preflight_requires_every_canonical_component_before_mutating(self):
+        footprints = fake_footprints()
+        del footprints["H1"]
+        board = FakeBoard()
+        before = [(pad, pad.assigned_net) for footprint in footprints.values()
+                  for pad in footprint.pads]
+        with mock.patch.dict(sys.modules, {"pcbnew": self.fake_pcbnew}):
+            with self.assertRaisesRegex(KeyError, "missing footprint.*H1"):
+                pcb_route.apply_connectivity(board, footprints)
+        self.assertEqual(board.nets, {})
+        for pad, assigned_net in before:
+            self.assertIs(pad.assigned_net, assigned_net, pad.name)
+
+
+class FootprintIndexTests(unittest.TestCase):
+    def test_unique_references_are_indexed_without_loss(self):
+        self.assertTrue(hasattr(pcb_route, "footprints_by_reference"),
+                        "router needs a duplicate-safe footprint index helper")
+        footprints = [FakeFootprint("U1", []), FakeFootprint("SW_UP", [])]
+        indexed = pcb_route.footprints_by_reference(
+            FakeBoard(footprints).GetFootprints())
+        self.assertEqual(indexed, {"U1": footprints[0], "SW_UP": footprints[1]})
+
+    def test_duplicate_reference_is_rejected_actionably(self):
+        self.assertTrue(hasattr(pcb_route, "footprints_by_reference"),
+                        "router needs a duplicate-safe footprint index helper")
+        footprints = [FakeFootprint("U1", []), FakeFootprint("U1", [])]
+        with self.assertRaisesRegex(ValueError, "duplicate footprint reference.*U1"):
+            pcb_route.footprints_by_reference(FakeBoard(footprints).GetFootprints())
 
     def test_geometry_allocator_names_and_behavior_are_gone(self):
         with open(pcb_route.__file__, encoding="utf-8") as handle:
