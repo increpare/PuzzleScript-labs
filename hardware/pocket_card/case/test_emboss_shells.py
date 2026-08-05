@@ -242,10 +242,39 @@ class MakeIntegrationTest(unittest.TestCase):
                     check=False,
                 )
                 self.assertEqual(result.returncode, 0, result.stdout)
-                self.assertIn("emboss_shells.py", result.stdout)
-                shell_index = result.stdout.index("build_variants.py")
-                blender_index = result.stdout.index("emboss_shells.py")
-                self.assertLess(shell_index, blender_index)
+                output = result.stdout
+                build_index = output.index("build_variants.py")
+                finish_index = output.index("emboss_shells.py")
+                export_index = output.index("sculpted_buttons.py")
+                replace_index = output.index("sculpted_buttons_blender.py")
+                self.assertLess(build_index, finish_index)
+                self.assertLess(finish_index, export_index)
+                self.assertLess(export_index, replace_index)
+                self.assertIn("out/order/pocket_card_complete.blend", output)
+                self.assertNotIn("dpad_petals", output)
+
+    def test_sculpted_target_reuses_standard_complete_assembly(self):
+        result = subprocess.run(
+            ["make", "-n", "pocket_card_case_sculpted"],
+            cwd=ROOT,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout)
+        output = result.stdout
+        self.assertIn("sculpted_buttons.py", output)
+        self.assertIn("sculpted_buttons_blender.py", output)
+        self.assertIn("out/sculpted_buttons/placed", output)
+        complete_blend = (
+            '"hardware/pocket_card/case/out/order/'
+            'pocket_card_complete.blend"'
+        )
+        self.assertIn(f"--background {complete_blend}", output)
+        self.assertIn(f"--input {complete_blend}", output)
+        self.assertIn(f"--output {complete_blend}", output)
+        self.assertNotIn("dpad_petals", output)
 
 
 if __name__ == "__main__":

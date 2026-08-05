@@ -950,6 +950,10 @@ locality_survey_tests:
 POCKET_CARD_CASE_DIR := hardware/pocket_card/case
 POCKET_CARD_BLEND_TEMPLATE := hardware/card/case/case_updated.blend
 POCKET_CARD_BLEND_SCRIPT := $(POCKET_CARD_CASE_DIR)/emboss_shells.py
+POCKET_CARD_SCULPTED_EXPORTER := $(POCKET_CARD_CASE_DIR)/sculpted_buttons.py
+POCKET_CARD_SCULPTED_BLEND_SCRIPT := $(POCKET_CARD_CASE_DIR)/sculpted_buttons_blender.py
+POCKET_CARD_SCULPTED_PLACED_DIR := $(POCKET_CARD_CASE_DIR)/out/sculpted_buttons/placed
+POCKET_CARD_COMPLETE_BLEND := $(POCKET_CARD_CASE_DIR)/out/order/pocket_card_complete.blend
 BLENDER ?= $(shell command -v blender 2>/dev/null)
 ifeq ($(strip $(BLENDER)),)
 ifneq ($(wildcard /Applications/Blender.app/Contents/MacOS/Blender),)
@@ -957,7 +961,7 @@ BLENDER := /Applications/Blender.app/Contents/MacOS/Blender
 endif
 endif
 
-.PHONY: pocket_card_case pocket_card_case_shells pocket_card_case_embossed
+.PHONY: pocket_card_case pocket_card_case_shells pocket_card_case_embossed pocket_card_case_sculpted
 
 pocket_card_schematic_tests:
 	$(NODE) hardware/pocket_card/schematic/connectivity_test.js
@@ -991,6 +995,16 @@ pocket_card_case_shells:
 pocket_card_case_embossed:
 	@test -n "$(BLENDER)" || (echo "Blender not found; set BLENDER=/path/to/blender" >&2; exit 1)
 	$(BLENDER) --background $(POCKET_CARD_BLEND_TEMPLATE) --python-exit-code 1 --python $(POCKET_CARD_BLEND_SCRIPT)
+	$(MAKE) pocket_card_case_sculpted
+
+pocket_card_case_sculpted:
+	@test -n "$(BLENDER)" || (echo "Blender not found; set BLENDER=/path/to/blender" >&2; exit 1)
+	cd "$(POCKET_CARD_CASE_DIR)" && .venv/bin/python "$(notdir $(POCKET_CARD_SCULPTED_EXPORTER))"
+	"$(BLENDER)" --background "$(POCKET_CARD_COMPLETE_BLEND)" \
+		--python-exit-code 1 --python "$(POCKET_CARD_SCULPTED_BLEND_SCRIPT)" -- \
+		--input "$(POCKET_CARD_COMPLETE_BLEND)" \
+		--buttons-dir "$(POCKET_CARD_SCULPTED_PLACED_DIR)" \
+		--output "$(POCKET_CARD_COMPLETE_BLEND)"
 
 pocket_card_contract_tests: build
 	$(NODE) hardware/pocket_card/test_pin_contract.js
