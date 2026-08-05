@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import tempfile
+import threading
 import unittest
 from contextlib import contextmanager
 from pathlib import Path
@@ -95,6 +96,42 @@ class FingerprintPolicyTest(unittest.TestCase):
             b"erc|warning|endpoint_off_grid|uuid-a|uuid-z"
         ).hexdigest()
         self.assertEqual(warning_group_digest((item,)), expected)
+
+    def test_fingerprint_rejects_delimiters_controls_and_padded_tokens(self):
+        unsafe_tokens = (
+            "contains|delimiter",
+            "contains\rreturn",
+            "contains\nnewline",
+            "contains\0nul",
+            "contains\x1fcontrol",
+            "contains\x7fdelete",
+            " padded",
+            "padded ",
+        )
+        for field in ("type", "uuid"):
+            for token in unsafe_tokens:
+                with self.subTest(field=field, token=repr(token)):
+                    item = violation(
+                        kind=token if field == "type" else "endpoint_off_grid",
+                        uuids=(token,) if field == "uuid" else ("item-a",),
+                    )
+                    with self.assertRaisesRegex(ValueError, "safe token"):
+                        violation_fingerprint(item)
+
+    def test_structurally_different_delimited_uuid_lists_cannot_collide(self):
+        approved = violation(uuids=("a", "b", "c"))
+        colliding = violation(uuids=("a|b", "c"))
+        self.assertEqual(
+            "erc|warning|endpoint_off_grid|a|b|c",
+            "|".join(("erc", "warning", "endpoint_off_grid", "a|b", "c")),
+        )
+        with expected_policy_for(approved):
+            result = classify_reports(reports(colliding), waiver_for(approved))
+        self.assertEqual(result.status, INVALID)
+        self.assertTrue(
+            any("safe token" in message.lower() for message in result.messages),
+            result.messages,
+        )
 
     def test_warning_waiver_requires_exact_count_and_uuid_fingerprint(self):
         baseline = (
@@ -310,6 +347,24 @@ class ReportMetadataTest(unittest.TestCase):
                 with self.assertRaisesRegex(ValidationError, expected + ".*nonempty"):
                     _parse_drc_report(self.report_path)
 
+    def test_report_fingerprint_tokens_reject_delimiters_and_controls(self):
+        cases = {
+            "type": {"severity": "warning", "type": "bad|type", "items": [{"uuid": "item"}]},
+            "uuid": {"severity": "warning", "type": "via_dangling", "items": [{"uuid": "bad\nitem"}]},
+        }
+        for expected, violation_data in cases.items():
+            with self.subTest(expected=expected):
+                self.write_report({
+                    "$schema": "https://schemas.kicad.org/drc.v1.json",
+                    "coordinate_units": "mm",
+                    "kicad_version": "10.0.4",
+                    "violations": [violation_data],
+                    "schematic_parity": [],
+                    "unconnected_items": [],
+                })
+                with self.assertRaisesRegex(ValidationError, expected + ".*safe token"):
+                    _parse_drc_report(self.report_path)
+
 
 class PublicationTest(unittest.TestCase):
     def setUp(self):
@@ -342,20 +397,37 @@ class PublicationTest(unittest.TestCase):
         return tuple(
             child.name
             for child in self.parent.iterdir()
-            if child != self.output
+            if child != self.output and child.name != f".{self.output.name}.lock"
+        )
+
+    def assert_exact_published_set(self):
+        self.assertEqual(
+            set(self.snapshot()),
+            {"erc.json", "drc.json", "validation.json"},
         )
 
     def test_success_replaces_existing_directory_with_exact_deterministic_set(self):
         self.populate_original()
         _publish_reports(self.output, self.reports, self.result)
-        self.assertEqual(
-            set(self.snapshot()),
-            {"erc.json", "drc.json", "validation.json"},
-        )
+        self.assert_exact_published_set()
         first = self.snapshot()
         _publish_reports(self.output, self.reports, self.result)
         self.assertEqual(self.snapshot(), first)
         self.assertEqual(self.temporary_siblings(), ())
+        self.assertTrue((self.parent / ".reports.lock").is_file())
+
+    def test_writer_lock_rejects_symlink_and_nonregular_paths(self):
+        lock = self.parent / ".reports.lock"
+        target = self.parent / "lock-target"
+        target.write_text("not a lock", encoding="utf-8")
+        lock.symlink_to(target)
+        with self.assertRaisesRegex(OSError, "lock.*unsafe|lock.*regular"):
+            _publish_reports(self.output, self.reports, self.result)
+        lock.unlink()
+        lock.mkdir()
+        with self.assertRaisesRegex(OSError, "lock.*unsafe|lock.*regular"):
+            _publish_reports(self.output, self.reports, self.result)
+        self.assertFalse(self.output.exists())
 
     def test_failure_after_old_directory_rename_restores_exact_original(self):
         original = self.populate_original()
@@ -394,20 +466,139 @@ class PublicationTest(unittest.TestCase):
         self.assertEqual(self.snapshot(), original)
         self.assertEqual(self.temporary_siblings(), ())
 
-    def test_failure_after_publish_rename_restores_exact_original(self):
-        original = self.populate_original()
+    def test_failure_after_publish_commit_keeps_new_output_authoritative(self):
+        self.populate_original()
 
         def fail_after_publish():
             raise OSError("injected after publish")
 
-        with self.assertRaisesRegex(OSError, "injected after publish"):
+        with self.assertRaisesRegex(OSError, "cleanup pending.*injected after publish"):
             _publish_reports(
                 self.output,
                 self.reports,
                 self.result,
                 after_publish=fail_after_publish,
             )
+        self.assert_exact_published_set()
+        self.assertNotEqual(self.temporary_siblings(), ())
+
+        _publish_reports(self.output, self.reports, self.result)
+        self.assert_exact_published_set()
+        self.assertEqual(self.temporary_siblings(), ())
+
+    def test_interleaved_publishers_serialize_before_older_failure(self):
+        original = self.populate_original()
+        entered = threading.Event()
+        release = threading.Event()
+        failures = []
+
+        def pause_then_fail():
+            entered.set()
+            self.assertTrue(release.wait(5))
+            raise OSError("older publisher failed")
+
+        def older_publisher():
+            try:
+                _publish_reports(
+                    self.output,
+                    self.reports,
+                    self.result,
+                    after_backup=pause_then_fail,
+                )
+            except OSError as error:
+                failures.append(str(error))
+
+        thread = threading.Thread(target=older_publisher)
+        thread.start()
+        self.assertTrue(entered.wait(5))
+        with self.assertRaisesRegex(OSError, "writer is busy"):
+            _publish_reports(self.output, self.reports, self.result)
+        release.set()
+        thread.join(5)
+        self.assertFalse(thread.is_alive())
+        self.assertTrue(any("older publisher failed" in item for item in failures))
         self.assertEqual(self.snapshot(), original)
+
+        _publish_reports(self.output, self.reports, self.result)
+        self.assert_exact_published_set()
+        self.assertEqual(self.temporary_siblings(), ())
+
+    def test_crash_after_backup_is_recovered_before_next_publication(self):
+        original = self.populate_original()
+
+        class SimulatedCrash(BaseException):
+            pass
+
+        def crash_after_backup():
+            raise SimulatedCrash("power loss")
+
+        with self.assertRaises(SimulatedCrash):
+            _publish_reports(
+                self.output,
+                self.reports,
+                self.result,
+                after_backup=crash_after_backup,
+            )
+        self.assertFalse(self.output.exists())
+        self.assertNotEqual(self.temporary_siblings(), ())
+        recovered = []
+
+        def observe_recovery():
+            recovered.append(self.snapshot())
+
+        _publish_reports(
+            self.output,
+            self.reports,
+            self.result,
+            after_recovery=observe_recovery,
+        )
+        self.assertEqual(recovered, [original])
+        self.assert_exact_published_set()
+        self.assertEqual(self.temporary_siblings(), ())
+
+    def test_partial_backup_cleanup_is_recovered_without_replacing_new_output(self):
+        self.populate_original()
+
+        def partially_remove_backup(path):
+            first = next(Path(path).iterdir())
+            first.unlink()
+            raise OSError("partial backup cleanup")
+
+        with self.assertRaisesRegex(OSError, "cleanup pending.*partial backup cleanup"):
+            _publish_reports(
+                self.output,
+                self.reports,
+                self.result,
+                remove_tree=partially_remove_backup,
+            )
+        committed = self.snapshot()
+        self.assert_exact_published_set()
+        self.assertNotEqual(self.temporary_siblings(), ())
+
+        _publish_reports(self.output, self.reports, self.result)
+        self.assertEqual(self.snapshot(), committed)
+        self.assertEqual(self.temporary_siblings(), ())
+
+    def test_ownership_mismatch_prevents_rollback_over_newer_output(self):
+        original = self.populate_original()
+
+        def install_newer_output_then_fail():
+            self.output.mkdir()
+            (self.output / "newer.txt").write_bytes(b"newer publication\n")
+            raise OSError("older publisher failed")
+
+        with self.assertRaisesRegex(OSError, "ownership mismatch"):
+            _publish_reports(
+                self.output,
+                self.reports,
+                self.result,
+                after_backup=install_newer_output_then_fail,
+            )
+        self.assertEqual(self.snapshot(), {"newer.txt": b"newer publication\n"})
+        self.assertNotEqual(self.snapshot(), original)
+
+        _publish_reports(self.output, self.reports, self.result)
+        self.assert_exact_published_set()
         self.assertEqual(self.temporary_siblings(), ())
 
 class RecordingRunner:
@@ -421,6 +612,8 @@ class RecordingRunner:
         version="10.0.4",
         mutate_canonical=False,
         netlist_text="(export (components) (nets))",
+        fail_stderr=None,
+        omit_output_on=None,
     ):
         self.canonical = canonical.resolve()
         self.fail_on = fail_on
@@ -429,6 +622,8 @@ class RecordingRunner:
         self.version = version
         self.mutate_canonical = mutate_canonical
         self.netlist_text = netlist_text
+        self.fail_stderr = fail_stderr
+        self.omit_output_on = omit_output_on
         self.calls = []
 
     def __call__(self, command, **kwargs):
@@ -450,7 +645,14 @@ class RecordingRunner:
             board = self.canonical / "pocket_card_controller.kicad_pcb"
             board.write_text(board.read_text(encoding="utf-8") + "\n", encoding="utf-8")
         if self.fail_on == operation:
-            return subprocess.CompletedProcess(command, 7, "", f"{operation} exploded")
+            stderr = (
+                self.fail_stderr(command)
+                if callable(self.fail_stderr)
+                else self.fail_stderr or f"{operation} exploded"
+            )
+            return subprocess.CompletedProcess(command, 7, "", stderr)
+        if self.omit_output_on == operation:
+            return subprocess.CompletedProcess(command, 0, "", "")
         if operation == "erc":
             output.write_text(json.dumps({
                 "$schema": "https://schemas.kicad.org/erc.v1.json",
@@ -541,6 +743,11 @@ class ValidateProjectTest(unittest.TestCase):
         ), expected_policy_for():
             return validate_project(self.project, output_dir=output_dir, runner=runner)
 
+    def assert_source_provenance(self, result, before, after, unchanged):
+        self.assertEqual(result.reports["sourceDigestBefore"], before)
+        self.assertEqual(result.reports["sourceDigestAfter"], after)
+        self.assertIs(result.reports["sourceUnchanged"], unchanged)
+
     def test_validation_uses_complete_copy_preserves_digest_and_publishes_reports(self):
         before = project_digest(self.project)
         output_dir = Path(self.temporary.name) / "reports"
@@ -565,6 +772,7 @@ class ValidateProjectTest(unittest.TestCase):
                 self.assertEqual(result.status, INVALID)
                 self.assertTrue(any(label in message.lower() or "timed out" in message.lower() for message in result.messages))
                 self.assertEqual(project_digest(self.project), before)
+                self.assert_source_provenance(result, before, before, True)
 
     def test_output_directory_must_not_be_inside_editable_source(self):
         runner = RecordingRunner(self.project)
@@ -592,6 +800,7 @@ class ValidateProjectTest(unittest.TestCase):
                 self.assertTrue(any(expected in message.lower() or "kicad 10" in message.lower() for message in result.messages), result.messages)
 
     def test_canonical_mutation_wins_over_command_failure(self):
+        before = project_digest(self.project)
         runner = RecordingRunner(
             self.project,
             fail_on="erc",
@@ -600,6 +809,104 @@ class ValidateProjectTest(unittest.TestCase):
         result = self.run_validation(runner)
         self.assertEqual(result.status, INVALID)
         self.assertTrue(any("mutation detected" in message.lower() for message in result.messages), result.messages)
+        self.assertTrue(any("erc exploded" in message.lower() for message in result.messages), result.messages)
+        after = project_digest(self.project)
+        self.assertNotEqual(after, before)
+        self.assert_source_provenance(result, before, after, False)
+
+    def test_digest_recomputation_failure_preserves_original_failure(self):
+        before = project_digest(self.project)
+        runner = RecordingRunner(self.project, fail_on="erc")
+        with mock.patch.object(
+            validation_module,
+            "project_digest",
+            side_effect=(before, OSError("digest recomputation denied")),
+        ):
+            result = self.run_validation(runner)
+        self.assertEqual(result.status, INVALID)
+        self.assertTrue(any("erc exploded" in message.lower() for message in result.messages), result.messages)
+        self.assertTrue(any("digest recomputation" in message.lower() for message in result.messages), result.messages)
+        self.assert_source_provenance(result, before, None, None)
+
+    def test_publication_failures_preserve_reports_inventory_and_provenance(self):
+        before = project_digest(self.project)
+        cases = (
+            "precommit rollback failed",
+            "publication committed; cleanup pending",
+        )
+        for failure in cases:
+            with self.subTest(failure=failure), mock.patch.object(
+                validation_module,
+                "_publish_reports",
+                side_effect=OSError(failure),
+            ):
+                result = self.run_validation(
+                    RecordingRunner(self.project),
+                    Path(self.temporary.name) / "published",
+                )
+            self.assertEqual(result.status, INVALID)
+            self.assertIsNotNone(result.inventory)
+            self.assertTrue({"ERC", "DRC", "parity", "unconnected"}.issubset(result.reports))
+            self.assert_source_provenance(result, before, before, True)
+            self.assertTrue(any(failure in message for message in result.messages), result.messages)
+
+    def test_classifier_invalidity_retains_digest_evidence_and_inventory(self):
+        before = project_digest(self.project)
+        with mock.patch.object(
+            validation_module,
+            "compare_schematic_to_board",
+            return_value=("forced native mismatch",),
+        ):
+            result = self.run_validation(RecordingRunner(self.project))
+        self.assertEqual(result.status, INVALID)
+        self.assertIsNotNone(result.inventory)
+        self.assertTrue(any("forced native mismatch" in item for item in result.messages))
+        self.assert_source_provenance(result, before, before, True)
+
+    def test_large_command_stderr_is_bounded_with_deterministic_marker(self):
+        runner = RecordingRunner(
+            self.project,
+            fail_on="erc",
+            fail_stderr="x" * (1024 * 1024),
+        )
+        result = self.run_validation(runner)
+        rendered = result.render_text()
+        self.assertEqual(result.status, INVALID)
+        self.assertLess(len(rendered), 20_000)
+        self.assertIn("[truncated ", rendered)
+
+    def test_temp_paths_are_sanitized_and_missing_report_label_is_stable(self):
+        def path_diagnostic(command):
+            output = command[command.index("--output") + 1]
+            return f"failed beside {output} from {command[-1]}"
+
+        first = self.run_validation(
+            RecordingRunner(self.project, fail_on="erc", fail_stderr=path_diagnostic)
+        )
+        second = self.run_validation(
+            RecordingRunner(self.project, fail_on="erc", fail_stderr=path_diagnostic)
+        )
+        self.assertEqual(first.messages, second.messages)
+        for result in (first, second):
+            rendered = result.render_text()
+            self.assertNotIn(str(self.project.parent), rendered)
+            self.assertNotIn(tempfile.gettempdir(), rendered)
+
+        missing = self.run_validation(
+            RecordingRunner(self.project, omit_output_on="erc")
+        )
+        self.assertTrue(
+            any(message == "ERC report was not created" for message in missing.messages),
+            missing.messages,
+        )
+
+    def test_published_validation_json_has_no_absolute_workspace_or_temp_paths(self):
+        output = Path(self.temporary.name) / "published"
+        result = self.run_validation(RecordingRunner(self.project), output)
+        self.assertEqual(result.status, PASS, result.messages)
+        published = (output / "validation.json").read_text(encoding="utf-8")
+        for forbidden in (str(self.project.parent), str(Path.home()), tempfile.gettempdir()):
+            self.assertNotIn(forbidden, published)
 
     def test_fp_lib_table_is_required_and_strictly_parsed(self):
         table = self.project / "fp-lib-table"
@@ -681,6 +988,100 @@ class ValidateProjectTest(unittest.TestCase):
         )
         result = self.run_validation(RecordingRunner(self.project, netlist_text=netlist))
         self.assertEqual(result.status, PASS, result.messages)
+
+    def test_local_footprint_requires_the_exact_referenced_module(self):
+        pretty = self.project / "footprints.pretty"
+        pretty.mkdir()
+        (pretty / "Unrelated.kicad_mod").write_text(
+            '(footprint "Unrelated")', encoding="utf-8"
+        )
+        (self.project / "fp-lib-table").write_text(
+            '(fp_lib_table (version 7) '
+            '(lib (name "Local") (type "KiCad") '
+            '(uri "${KIPRJMOD}/footprints.pretty")))',
+            encoding="utf-8",
+        )
+        netlist = (
+            '(export (components (comp (ref "R1") (value "10k") '
+            '(footprint "Local:MissingModule") '
+            '(tstamps "11111111-2222-4333-8444-555555555555"))) (nets))'
+        )
+        result = self.run_validation(
+            RecordingRunner(self.project, netlist_text=netlist)
+        )
+        self.assertEqual(result.status, INVALID)
+        self.assertTrue(
+            any("missingmodule" in message.lower() for message in result.messages),
+            result.messages,
+        )
+
+    def test_fp_lib_type_and_builtin_uri_are_exact_and_safe(self):
+        pretty = self.project / "footprints.pretty"
+        pretty.mkdir()
+        (pretty / "Thing.kicad_mod").write_text(
+            '(footprint "Thing")', encoding="utf-8"
+        )
+        cases = {
+            "type": (
+                '(fp_lib_table (version 7) (lib (name "Local") '
+                '(type "Anything") (uri "${KIPRJMOD}/footprints.pretty")))'
+            ),
+            "traversal": (
+                '(fp_lib_table (version 7) (lib (name "Builtin") '
+                '(type "KiCad") '
+                '(uri "${KICAD10_FOOTPRINT_DIR}/../Secrets.pretty")))'
+            ),
+            "component": (
+                '(fp_lib_table (version 7) (lib (name "Builtin") '
+                '(type "KiCad") '
+                '(uri "${KICAD10_FOOTPRINT_DIR}/Group/Secrets.pretty")))'
+            ),
+            "backslash": (
+                '(fp_lib_table (version 7) (lib (name "Builtin") '
+                '(type "KiCad") '
+                '(uri "${KICAD10_FOOTPRINT_DIR}/Group\\\\Secrets.pretty")))'
+            ),
+        }
+        for expected, content in cases.items():
+            with self.subTest(expected=expected):
+                (self.project / "fp-lib-table").write_text(content, encoding="utf-8")
+                result = self.run_validation(RecordingRunner(self.project))
+                self.assertEqual(result.status, INVALID)
+                self.assertTrue(
+                    any(expected in message.lower() for message in result.messages),
+                    result.messages,
+                )
+
+    def test_builtin_footprint_requires_exact_existing_module(self):
+        builtin_root = Path(self.temporary.name) / "builtin-footprints"
+        library = builtin_root / "Builtin.pretty"
+        library.mkdir(parents=True)
+        (library / "Unrelated.kicad_mod").write_text(
+            '(footprint "Unrelated")', encoding="utf-8"
+        )
+        (self.project / "fp-lib-table").write_text(
+            '(fp_lib_table (version 7) (lib (name "Builtin") '
+            '(type "KiCad") '
+            '(uri "${KICAD10_FOOTPRINT_DIR}/Builtin.pretty")))',
+            encoding="utf-8",
+        )
+        netlist = (
+            '(export (components (comp (ref "R1") (value "10k") '
+            '(footprint "Builtin:MissingModule") '
+            '(tstamps "11111111-2222-4333-8444-555555555555"))) (nets))'
+        )
+        with mock.patch.dict(
+            os.environ,
+            {"KICAD10_FOOTPRINT_DIR": str(builtin_root)},
+        ):
+            result = self.run_validation(
+                RecordingRunner(self.project, netlist_text=netlist)
+            )
+        self.assertEqual(result.status, INVALID)
+        self.assertTrue(
+            any("missingmodule" in message.lower() for message in result.messages),
+            result.messages,
+        )
 
     def test_missing_local_kiprjmod_directory_or_file_is_invalid(self):
         table = self.project / "fp-lib-table"

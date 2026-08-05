@@ -3,15 +3,19 @@
 from __future__ import annotations
 
 import argparse
+import fcntl
 import hashlib
 import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 import tempfile
+import uuid
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Mapping, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
@@ -211,6 +215,24 @@ def load_waivers(path: str | Path) -> Mapping[str, object]:
     return frozen
 
 
+def _require_safe_token(
+    value: object,
+    context: str,
+    error_type: type[Exception] = ValueError,
+) -> str:
+    if (
+        not isinstance(value, str)
+        or not value
+        or value != value.strip()
+        or "|" in value
+        or any(ord(character) < 32 or ord(character) == 127 for character in value)
+    ):
+        raise error_type(
+            f"{context} must be a nonempty safe token without padding, delimiters, or controls"
+        )
+    return value
+
+
 def _violation_parts(violation: Mapping[str, object]) -> tuple[str, str, str, tuple[str, ...]]:
     scope = violation.get("scope")
     severity = violation.get("severity")
@@ -220,17 +242,16 @@ def _violation_parts(violation: Mapping[str, object]) -> tuple[str, str, str, tu
         raise ValueError(f"violation has unknown scope {scope!r}")
     if severity not in ("error", "warning"):
         raise ValueError(f"{scope} violation has unsupported severity {severity!r}")
-    if not isinstance(kind, str) or not kind.strip() or kind != kind.strip():
-        raise ValueError(f"{scope} violation type must be a nonempty string")
+    kind = _require_safe_token(kind, f"{scope} violation type")
     if not isinstance(items, (tuple, list)) or not items:
         raise ValueError(f"{scope}/{kind} violation items must be a nonempty array")
     uuids: list[str] = []
     for index, item in enumerate(items):
         if not isinstance(item, Mapping):
             raise ValueError(f"{scope}/{kind} item {index} must be an object")
-        uuid = item.get("uuid")
-        if not isinstance(uuid, str) or not uuid.strip() or uuid != uuid.strip():
-            raise ValueError(f"{scope}/{kind} item {index} UUID must be nonempty")
+        uuid = _require_safe_token(
+            item.get("uuid"), f"{scope}/{kind} item {index} UUID"
+        )
         uuids.append(uuid)
     return str(scope), str(severity), kind, tuple(sorted(uuids))
 
@@ -294,8 +315,10 @@ def _validated_waiver_groups(
         if scope not in _POLICY_SCOPES:
             errors.append(f"{context} has unknown scope {scope!r}")
             group_valid = False
-        if not isinstance(kind, str) or not kind:
-            errors.append(f"{context} type must be a nonempty string")
+        try:
+            kind = _require_safe_token(kind, f"{context} type")
+        except ValueError as error:
+            errors.append(str(error))
             group_valid = False
         if type(count) is not int or count < 1:
             errors.append(f"{context} has bad count {count!r}; expected a positive integer")
@@ -579,6 +602,10 @@ def _parse_fp_lib_table(path: Path) -> Mapping[str, str]:
             value = fields.get(key)
             if not isinstance(value, str) or not value.strip() or value != value.strip():
                 raise ValidationError(f"fp-lib-table lib {index} has empty or padded {key}")
+        if fields["type"] != "KiCad":
+            raise ValidationError(
+                f"fp-lib-table lib {index} type must be exactly 'KiCad'"
+            )
         nickname = fields["name"]
         if nickname in libraries:
             raise ValidationError(f"fp-lib-table has duplicate nickname {nickname!r}")
@@ -622,14 +649,35 @@ _LOCAL_FILE_SUFFIXES = frozenset(
 )
 
 
+def _require_safe_path_component(value: str, context: str) -> str:
+    if (
+        not value
+        or value in (".", "..")
+        or value != value.strip()
+        or any(character in value for character in ("/", "\\", ":"))
+        or any(ord(character) < 32 or ord(character) == 127 for character in value)
+    ):
+        raise ValidationError(
+            f"{context} must be a safe POSIX path component without traversal, separators, or controls"
+        )
+    return value
+
+
+def _safe_relative_parts(relative_text: str, context: str) -> tuple[str, ...]:
+    if "\\" in relative_text:
+        raise ValidationError(f"{context} contains a backslash instead of POSIX separators")
+    parts = tuple(relative_text.split("/"))
+    for part in parts:
+        _require_safe_path_component(part, context)
+    return parts
+
+
 def _resolve_kiprjmod_reference(project_dir: Path, reference: str, context: str) -> Path:
     prefix = "${KIPRJMOD}/"
     if not reference.startswith(prefix):
         raise ValidationError(f"{context} has malformed ${{KIPRJMOD}} reference {reference!r}")
     relative_text = reference[len(prefix) :]
-    parts = tuple(relative_text.replace("\\", "/").split("/"))
-    if not relative_text or any(part in ("", ".", "..") for part in parts):
-        raise ValidationError(f"{context} has path traversal or empty component in {reference!r}")
+    parts = _safe_relative_parts(relative_text, context)
     candidate = project_dir.joinpath(*parts)
     cursor = project_dir
     for part in parts:
@@ -659,6 +707,72 @@ def _resolve_kiprjmod_reference(project_dir: Path, reference: str, context: str)
     return resolved
 
 
+def _resolve_kicad_footprint_root(kicad_cli: str) -> Path:
+    configured = os.environ.get("KICAD10_FOOTPRINT_DIR")
+    if configured is not None:
+        if not configured or configured != configured.strip():
+            raise ValidationError("KICAD10_FOOTPRINT_DIR must name one existing directory")
+        candidates = (Path(configured),)
+    else:
+        executable = Path(kicad_cli).resolve(strict=True)
+        candidates = (
+            executable.parent.parent / "SharedSupport" / "footprints",
+            executable.parent.parent / "share" / "kicad" / "footprints",
+            Path("/usr/share/kicad/footprints"),
+            Path("/usr/local/share/kicad/footprints"),
+        )
+    for candidate in candidates:
+        if candidate.is_symlink() or not candidate.is_dir():
+            continue
+        try:
+            return candidate.resolve(strict=True)
+        except OSError:
+            continue
+    raise ValidationError("KiCad 10 footprint library root is unavailable")
+
+
+def _resolve_footprint_library(
+    project_dir: Path,
+    uri: str,
+    nickname: str,
+    kicad_cli: str,
+) -> Path:
+    context = f"fp-lib-table nickname {nickname!r}"
+    project_prefix = "${KIPRJMOD}/"
+    builtin_prefix = "${KICAD10_FOOTPRINT_DIR}/"
+    if uri.startswith(project_prefix):
+        relative_text = uri[len(project_prefix) :]
+        parts = _safe_relative_parts(relative_text, context)
+        if not parts[-1].endswith(".pretty"):
+            raise ValidationError(f"{context} local URI must end in .pretty")
+        resolved = _resolve_kiprjmod_reference(project_dir, uri, context)
+        if resolved.suffix.lower() != ".pretty" or not resolved.is_dir():
+            raise ValidationError(f"{context} must reference a .pretty directory")
+        return resolved
+    if uri.startswith(builtin_prefix):
+        library_name = uri[len(builtin_prefix) :]
+        if "\\" in library_name:
+            raise ValidationError(f"{context} built-in URI contains a backslash")
+        _require_safe_path_component(library_name, f"{context} built-in URI")
+        if not library_name.endswith(".pretty"):
+            raise ValidationError(f"{context} built-in URI must end in .pretty")
+        root = _resolve_kicad_footprint_root(kicad_cli)
+        candidate = root / library_name
+        if candidate.is_symlink() or not candidate.is_dir():
+            raise ValidationError(
+                f"{context} references unavailable built-in library {library_name!r}"
+            )
+        resolved = candidate.resolve(strict=True)
+        try:
+            resolved.relative_to(root)
+        except ValueError as error:
+            raise ValidationError(f"{context} built-in library escapes its root") from error
+        return resolved
+    raise ValidationError(
+        f"{context} URI must use KIPRJMOD or KICAD10_FOOTPRINT_DIR exactly"
+    )
+
+
 def _kiprjmod_references(source: str) -> tuple[str, ...]:
     references: set[str] = set()
     index = 0
@@ -677,18 +791,15 @@ def _kiprjmod_references(source: str) -> tuple[str, ...]:
     return tuple(sorted(references))
 
 
-def _validate_local_assets(project_dir: Path, project: str) -> Mapping[str, str]:
+def _validate_local_assets(
+    project_dir: Path, project: str, kicad_cli: str
+) -> Mapping[str, Path]:
     project_dir = project_dir.resolve(strict=True)
-    libraries = _parse_fp_lib_table(project_dir / "fp-lib-table")
-    for nickname, uri in libraries.items():
-        if uri.startswith("${KIPRJMOD}"):
-            resolved = _resolve_kiprjmod_reference(
-                project_dir, uri, f"fp-lib-table nickname {nickname!r}"
-            )
-            if resolved.suffix.lower() != ".pretty" or not resolved.is_dir():
-                raise ValidationError(
-                    f"fp-lib-table nickname {nickname!r} must reference a .pretty directory"
-                )
+    table = _parse_fp_lib_table(project_dir / "fp-lib-table")
+    libraries = {
+        nickname: _resolve_footprint_library(project_dir, uri, nickname, kicad_cli)
+        for nickname, uri in table.items()
+    }
     for source_path in editable_project_files(project_dir, project_name=project):
         try:
             source = source_path.read_text(encoding="utf-8")
@@ -700,11 +811,11 @@ def _validate_local_assets(project_dir: Path, project: str) -> Mapping[str, str]
                 reference,
                 f"editable source {source_path.relative_to(project_dir)}",
             )
-    return libraries
+    return MappingProxyType(dict(sorted(libraries.items())))
 
 
 def _footprint_nickname_errors(
-    inventory: ProjectInventory | object, libraries: Mapping[str, str]
+    inventory: ProjectInventory | object, libraries: Mapping[str, Path]
 ) -> tuple[str, ...]:
     schematic = getattr(inventory, "schematic", inventory)
     components = getattr(schematic, "components", {})
@@ -719,6 +830,26 @@ def _footprint_nickname_errors(
             errors.append(
                 f"{ref} footprint {footprint!r} uses missing project-local library nickname {nickname!r}"
             )
+            continue
+        module = footprint.split(":", 1)[1]
+        try:
+            _require_safe_path_component(module, f"{ref} footprint module")
+        except ValidationError as error:
+            errors.append(str(error))
+            continue
+        library = libraries[nickname]
+        module_path = library / f"{module}.kicad_mod"
+        if module_path.is_symlink() or not module_path.is_file():
+            errors.append(
+                f"{ref} footprint {footprint!r} exact module {module!r} is unavailable"
+            )
+            continue
+        try:
+            module_path.resolve(strict=True).relative_to(library)
+        except (OSError, ValueError):
+            errors.append(
+                f"{ref} footprint {footprint!r} exact module {module!r} is unsafe"
+            )
     return tuple(errors)
 
 
@@ -727,6 +858,20 @@ def _runner_environment() -> dict[str, str]:
     environment["LANG"] = "C"
     environment["LC_ALL"] = "C"
     return environment
+
+
+_DIAGNOSTIC_STREAM_LIMIT = 8192
+
+
+def _bounded_stream(value: object) -> str:
+    text = str(value or "").strip()
+    if len(text) <= _DIAGNOSTIC_STREAM_LIMIT:
+        return text
+    omitted = len(text) - _DIAGNOSTIC_STREAM_LIMIT
+    return (
+        text[:_DIAGNOSTIC_STREAM_LIMIT]
+        + f"\n[truncated {omitted} characters]"
+    )
 
 
 def _run(
@@ -753,9 +898,14 @@ def _run(
         raise ValidationError(f"{label} could not start: {error}") from error
     returncode = getattr(result, "returncode", None)
     if returncode != 0:
-        stderr = str(getattr(result, "stderr", "") or "").strip()
-        stdout = str(getattr(result, "stdout", "") or "").strip()
-        detail = stderr or stdout or "no command output"
+        stderr = _bounded_stream(getattr(result, "stderr", ""))
+        stdout = _bounded_stream(getattr(result, "stdout", ""))
+        streams = []
+        if stderr:
+            streams.append(f"stderr: {stderr}")
+        if stdout:
+            streams.append(f"stdout: {stdout}")
+        detail = "; ".join(streams) or "no command output"
         raise ValidationError(f"{label} command failure (status {returncode}): {detail}")
     return result
 
@@ -822,22 +972,25 @@ def _normalize_violation(raw: object, scope: str, context: str) -> dict[str, obj
     kind = raw.get("type")
     if severity not in ("error", "warning"):
         raise ValidationError(f"{context}.severity is unsupported: {severity!r}")
-    if not isinstance(kind, str) or not kind.strip() or kind != kind.strip():
-        raise ValidationError(f"{context}.type must be a nonempty string")
+    kind = _require_safe_token(kind, f"{context}.type", ValidationError)
     raw_items = _list(raw.get("items"), f"{context}.items", nonempty=True)
     items: list[dict[str, str]] = []
     for index, raw_item in enumerate(raw_items):
         if not isinstance(raw_item, Mapping):
             raise ValidationError(f"{context}.items[{index}] must be an object")
-        uuid = raw_item.get("uuid")
-        if not isinstance(uuid, str) or not uuid.strip() or uuid != uuid.strip():
-            raise ValidationError(f"{context}.items[{index}].uuid must be nonempty")
+        uuid = _require_safe_token(
+            raw_item.get("uuid"),
+            f"{context}.items[{index}].uuid",
+            ValidationError,
+        )
         items.append({"uuid": uuid})
     items.sort(key=lambda item: item["uuid"])
     return {"scope": scope, "severity": severity, "type": kind, "items": items}
 
 
 def _read_report_json(path: Path, context: str) -> Mapping[str, object]:
+    if path.is_symlink() or not path.is_file():
+        raise ValidationError(f"{context} was not created")
     raw = _load_json(path, context)
     if not isinstance(raw, Mapping):
         raise ValidationError(f"{context} must be a JSON object")
@@ -899,9 +1052,7 @@ def _parse_erc_report(path: Path) -> dict[str, object]:
 def _normalize_unconnected(raw: object, context: str) -> dict[str, str]:
     if not isinstance(raw, Mapping):
         raise ValidationError(f"{context} must be an object")
-    uuid = raw.get("uuid")
-    if not isinstance(uuid, str) or not uuid.strip() or uuid != uuid.strip():
-        raise ValidationError(f"{context}.uuid must be nonempty")
+    uuid = _require_safe_token(raw.get("uuid"), f"{context}.uuid", ValidationError)
     return {"uuid": uuid}
 
 
@@ -975,6 +1126,284 @@ def _noop() -> None:
     return None
 
 
+_REPORT_FILENAMES = frozenset({"erc.json", "drc.json", "validation.json"})
+_TRANSACTION_ID_PATTERN = re.compile(r"[0-9a-f]{32}")
+
+
+def _directory_identity(path: Path, context: str) -> tuple[int, int]:
+    try:
+        information = path.stat(follow_symlinks=False)
+    except OSError as error:
+        raise OSError(f"{context} is unavailable") from error
+    if not stat.S_ISDIR(information.st_mode):
+        raise OSError(f"{context} must be a real directory")
+    return information.st_dev, information.st_ino
+
+
+def _directory_manifest(path: Path, context: str) -> dict[str, str]:
+    manifest: dict[str, str] = {}
+    for child in sorted(path.iterdir(), key=lambda item: item.name):
+        if child.is_symlink() or not child.is_file():
+            raise OSError(f"{context} contains a non-regular entry")
+        try:
+            content = child.read_bytes()
+        except OSError as error:
+            raise OSError(f"{context} contains an unreadable entry") from error
+        manifest[child.name] = hashlib.sha256(content).hexdigest()
+    return manifest
+
+
+def _journal_identity(value: object, context: str, *, optional: bool = False) -> tuple[int, int] | None:
+    if value is None and optional:
+        return None
+    if (
+        not isinstance(value, list)
+        or len(value) != 2
+        or any(type(item) is not int or item < 0 for item in value)
+    ):
+        raise OSError(f"transaction journal has invalid {context}")
+    return value[0], value[1]
+
+
+def _journal_manifest(value: object, context: str) -> dict[str, str]:
+    if not isinstance(value, Mapping):
+        raise OSError(f"transaction journal has invalid {context}")
+    result: dict[str, str] = {}
+    for name, digest in value.items():
+        if (
+            not isinstance(name, str)
+            or not name
+            or "/" in name
+            or "\\" in name
+            or not isinstance(digest, str)
+            or _DIGEST_PATTERN.fullmatch(digest) is None
+        ):
+            raise OSError(f"transaction journal has invalid {context}")
+        result[name] = digest
+    return dict(sorted(result.items()))
+
+
+def _write_transaction_journal(path: Path, value: Mapping[str, object]) -> None:
+    transaction = str(value["transaction"])
+    temporary = path.with_name(f"{path.name}.{transaction}.tmp")
+    try:
+        if temporary.exists() or temporary.is_symlink():
+            raise OSError("transaction journal temporary file already exists")
+        _write_json(temporary, value)
+        os.replace(temporary, path)
+        _fsync_directory(path.parent)
+    except Exception:
+        if temporary.is_file() and not temporary.is_symlink():
+            temporary.unlink()
+        raise
+
+
+def _read_transaction_journal(path: Path, output_dir: Path) -> dict[str, object]:
+    if path.is_symlink() or not path.is_file():
+        raise OSError("transaction journal must be a no-follow regular file")
+    try:
+        raw = json.loads(
+            path.read_text(encoding="utf-8"),
+            object_pairs_hook=_duplicate_rejecting_object,
+            parse_constant=_reject_json_constant,
+        )
+    except (OSError, UnicodeError, ValueError, json.JSONDecodeError) as error:
+        raise OSError("transaction journal is malformed") from error
+    expected_keys = {
+        "schemaVersion",
+        "transaction",
+        "output",
+        "stage",
+        "backup",
+        "state",
+        "hadOutput",
+        "stageIdentity",
+        "stageManifest",
+        "backupIdentity",
+        "backupManifest",
+    }
+    if not isinstance(raw, Mapping) or set(raw) != expected_keys:
+        raise OSError("transaction journal has an invalid schema")
+    transaction = raw.get("transaction")
+    if (
+        raw.get("schemaVersion") != 1
+        or not isinstance(transaction, str)
+        or _TRANSACTION_ID_PATTERN.fullmatch(transaction) is None
+        or raw.get("output") != output_dir.name
+        or raw.get("stage") != f".{output_dir.name}.stage-{transaction}"
+        or raw.get("backup") != f".{output_dir.name}.backup-{transaction}"
+        or raw.get("state") not in {"prepared", "backed_up", "published"}
+        or type(raw.get("hadOutput")) is not bool
+    ):
+        raise OSError("transaction journal has invalid transaction metadata")
+    stage_identity = _journal_identity(raw.get("stageIdentity"), "stage identity")
+    backup_identity = _journal_identity(
+        raw.get("backupIdentity"), "backup identity", optional=True
+    )
+    stage_manifest = _journal_manifest(raw.get("stageManifest"), "stage manifest")
+    backup_manifest = _journal_manifest(raw.get("backupManifest"), "backup manifest")
+    if set(stage_manifest) != _REPORT_FILENAMES:
+        raise OSError("transaction journal stage manifest is incomplete")
+    if bool(raw["hadOutput"]) != (backup_identity is not None):
+        raise OSError("transaction journal backup ownership is inconsistent")
+    return {
+        **raw,
+        "stageIdentity": stage_identity,
+        "stageManifest": stage_manifest,
+        "backupIdentity": backup_identity,
+        "backupManifest": backup_manifest,
+    }
+
+
+def _remove_owned_directory(
+    path: Path,
+    expected_identity: tuple[int, int],
+    context: str,
+    remove_tree: Callable[[str | Path], object],
+) -> None:
+    if not path.exists() and not path.is_symlink():
+        return
+    if _directory_identity(path, context) != expected_identity:
+        raise OSError(f"{context} ownership mismatch")
+    remove_tree(path)
+
+
+def _remove_journal(path: Path) -> None:
+    if not path.exists() and not path.is_symlink():
+        return
+    if path.is_symlink() or not path.is_file():
+        raise OSError("transaction journal ownership mismatch")
+    path.unlink()
+    _fsync_directory(path.parent)
+
+
+def _transaction_artifacts(output_dir: Path) -> tuple[Path, ...]:
+    prefixes = (
+        f".{output_dir.name}.stage-",
+        f".{output_dir.name}.backup-",
+        f".{output_dir.name}.transaction.json.",
+    )
+    return tuple(
+        child
+        for child in output_dir.parent.iterdir()
+        if any(child.name.startswith(prefix) for prefix in prefixes)
+    )
+
+
+@contextmanager
+def _publication_lock(output_dir: Path):
+    lock_path = output_dir.parent / f".{output_dir.name}.lock"
+    flags = os.O_RDWR | os.O_CREAT
+    flags |= getattr(os, "O_CLOEXEC", 0)
+    flags |= getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(lock_path, flags, 0o600)
+    except OSError as error:
+        raise OSError("validation report writer lock is unsafe or unavailable") from error
+    try:
+        information = os.fstat(descriptor)
+        if not stat.S_ISREG(information.st_mode) or information.st_nlink != 1:
+            raise OSError("validation report writer lock must be a regular file")
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as error:
+            raise OSError("validation report writer is busy") from error
+        yield
+    finally:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_UN)
+        finally:
+            os.close(descriptor)
+
+
+def _recover_publication(
+    output_dir: Path,
+    journal_path: Path,
+    *,
+    rename: Callable[[str | Path, str | Path], object],
+    remove_tree: Callable[[str | Path], object],
+) -> None:
+    if not journal_path.exists() and not journal_path.is_symlink():
+        if _transaction_artifacts(output_dir):
+            raise OSError("ambiguous report recovery artifacts exist without a journal")
+        return
+    journal = _read_transaction_journal(journal_path, output_dir)
+    stage = output_dir.parent / str(journal["stage"])
+    backup = output_dir.parent / str(journal["backup"])
+    stage_identity = journal["stageIdentity"]
+    backup_identity = journal["backupIdentity"]
+    assert isinstance(stage_identity, tuple)
+    assert backup_identity is None or isinstance(backup_identity, tuple)
+
+    if output_dir.exists() or output_dir.is_symlink():
+        _directory_identity(output_dir, "authoritative report output")
+        _remove_owned_directory(
+            stage, stage_identity, "stale report stage", remove_tree
+        )
+        if backup_identity is not None:
+            _remove_owned_directory(
+                backup, backup_identity, "stale report backup", remove_tree
+            )
+        elif backup.exists() or backup.is_symlink():
+            raise OSError("stale report backup ownership mismatch")
+        _remove_journal(journal_path)
+        return
+
+    if backup_identity is not None:
+        if not backup.exists() or backup.is_symlink():
+            raise OSError("report recovery has no complete owned backup")
+        if _directory_identity(backup, "report recovery backup") != backup_identity:
+            raise OSError("report recovery backup ownership mismatch")
+        if _directory_manifest(backup, "report recovery backup") != journal["backupManifest"]:
+            raise OSError("report recovery backup is incomplete")
+        rename(backup, output_dir)
+        _fsync_directory(output_dir.parent)
+    elif backup.exists() or backup.is_symlink():
+        raise OSError("report recovery found an unowned backup")
+
+    _remove_owned_directory(stage, stage_identity, "stale report stage", remove_tree)
+    _remove_journal(journal_path)
+
+
+def _rollback_precommit(
+    output_dir: Path,
+    stage: Path,
+    backup: Path,
+    journal_path: Path,
+    journal: Mapping[str, object],
+    *,
+    rename: Callable[[str | Path, str | Path], object],
+    remove_tree: Callable[[str | Path], object],
+) -> bool:
+    stage_identity = journal["stageIdentity"]
+    backup_identity = journal["backupIdentity"]
+    assert isinstance(stage_identity, tuple)
+    assert backup_identity is None or isinstance(backup_identity, tuple)
+    if output_dir.exists() or output_dir.is_symlink():
+        output_identity = _directory_identity(output_dir, "report output")
+        if output_identity == stage_identity:
+            return True
+        if backup_identity is not None and output_identity == backup_identity and not backup.exists():
+            _remove_owned_directory(
+                stage, stage_identity, "failed report stage", remove_tree
+            )
+            _remove_journal(journal_path)
+            return False
+        raise OSError("report output ownership mismatch prevents rollback")
+    if backup_identity is not None:
+        if not backup.exists() or backup.is_symlink():
+            raise OSError("report backup ownership mismatch prevents rollback")
+        if _directory_identity(backup, "report backup") != backup_identity:
+            raise OSError("report backup ownership mismatch prevents rollback")
+        if _directory_manifest(backup, "report backup") != journal["backupManifest"]:
+            raise OSError("report backup is incomplete; rollback refused")
+        rename(backup, output_dir)
+        _fsync_directory(output_dir.parent)
+    _remove_owned_directory(stage, stage_identity, "failed report stage", remove_tree)
+    _remove_journal(journal_path)
+    return False
+
+
 def _publish_reports(
     output_dir: Path,
     reports: Mapping[str, object],
@@ -983,78 +1412,130 @@ def _publish_reports(
     rename: Callable[[str | Path, str | Path], object] = os.replace,
     after_backup: Callable[[], object] = _noop,
     after_publish: Callable[[], object] = _noop,
+    after_recovery: Callable[[], object] = _noop,
+    remove_tree: Callable[[str | Path], object] = shutil.rmtree,
 ) -> None:
-    """Publish the complete report directory with rollback of an existing set."""
+    """Serialize and atomically publish one crash-recoverable report set."""
 
     output_dir.parent.mkdir(parents=True, exist_ok=True)
-    if output_dir.is_symlink() or (output_dir.exists() and not output_dir.is_dir()):
-        raise OSError(f"validation output must be a non-symlink directory: {output_dir}")
-    stage = Path(
-        tempfile.mkdtemp(
-            prefix=f".{output_dir.name}.stage-", dir=output_dir.parent
+    journal_path = output_dir.parent / f".{output_dir.name}.transaction.json"
+    with _publication_lock(output_dir):
+        _recover_publication(
+            output_dir,
+            journal_path,
+            rename=rename,
+            remove_tree=remove_tree,
         )
-    )
-    backup: Path | None = None
-    old_moved = False
-    published = False
-    try:
-        _write_json(stage / "erc.json", reports["ERC"])
-        _write_json(
-            stage / "drc.json",
-            {
-                "DRC": reports["DRC"],
-                "parity": reports["parity"],
-                "unconnected": reports["unconnected"],
-            },
-        )
-        _write_json(
-            stage / "validation.json",
-            {
-                "status": result.status,
-                "messages": result.messages,
-                "reports": result.reports,
-            },
-        )
-        _fsync_directory(stage)
-        if output_dir.exists():
-            backup = Path(
-                tempfile.mkdtemp(
-                    prefix=f".{output_dir.name}.backup-", dir=output_dir.parent
-                )
-            )
-            backup.rmdir()
-            rename(output_dir, backup)
-            old_moved = True
-            _fsync_directory(output_dir.parent)
-            after_backup()
-        rename(stage, output_dir)
-        published = True
-        _fsync_directory(output_dir.parent)
-        after_publish()
-        if old_moved and backup is not None:
-            shutil.rmtree(backup)
-            old_moved = False
-            _fsync_directory(output_dir.parent)
-    except BaseException as publish_error:
+        after_recovery()
+        if output_dir.is_symlink() or (output_dir.exists() and not output_dir.is_dir()):
+            raise OSError("validation output must be a non-symlink directory")
+
+        transaction = uuid.uuid4().hex
+        stage = output_dir.parent / f".{output_dir.name}.stage-{transaction}"
+        backup = output_dir.parent / f".{output_dir.name}.backup-{transaction}"
+        stage.mkdir(mode=0o700)
+        journal: dict[str, object] | None = None
         try:
-            if published:
-                rename(output_dir, stage)
-                published = False
+            _write_json(stage / "erc.json", reports["ERC"])
+            _write_json(
+                stage / "drc.json",
+                {
+                    "DRC": reports["DRC"],
+                    "parity": reports["parity"],
+                    "unconnected": reports["unconnected"],
+                },
+            )
+            _write_json(
+                stage / "validation.json",
+                {
+                    "status": result.status,
+                    "messages": result.messages,
+                    "reports": result.reports,
+                },
+            )
+            _fsync_directory(stage)
+            stage_identity = _directory_identity(stage, "report stage")
+            stage_manifest = _directory_manifest(stage, "report stage")
+            if set(stage_manifest) != _REPORT_FILENAMES:
+                raise OSError("report stage is incomplete")
+            had_output = output_dir.exists()
+            backup_identity = (
+                _directory_identity(output_dir, "existing report output")
+                if had_output
+                else None
+            )
+            backup_manifest = (
+                _directory_manifest(output_dir, "existing report output")
+                if had_output
+                else {}
+            )
+            journal = {
+                "schemaVersion": 1,
+                "transaction": transaction,
+                "output": output_dir.name,
+                "stage": stage.name,
+                "backup": backup.name,
+                "state": "prepared",
+                "hadOutput": had_output,
+                "stageIdentity": stage_identity,
+                "stageManifest": stage_manifest,
+                "backupIdentity": backup_identity,
+                "backupManifest": backup_manifest,
+            }
+            _write_transaction_journal(journal_path, journal)
+            if had_output:
+                rename(output_dir, backup)
                 _fsync_directory(output_dir.parent)
-            if old_moved and backup is not None:
-                rename(backup, output_dir)
-                old_moved = False
-                _fsync_directory(output_dir.parent)
-        except BaseException as rollback_error:
+            journal["state"] = "backed_up"
+            _write_transaction_journal(journal_path, journal)
+            if had_output:
+                after_backup()
+            rename(stage, output_dir)
+        except Exception as publish_error:
+            if journal is None:
+                if stage.exists() and not stage.is_symlink():
+                    remove_tree(stage)
+                raise
+            try:
+                committed = _rollback_precommit(
+                    output_dir,
+                    stage,
+                    backup,
+                    journal_path,
+                    journal,
+                    rename=rename,
+                    remove_tree=remove_tree,
+                )
+            except Exception as rollback_error:
+                raise OSError(
+                    f"report publication failed ({publish_error}); {rollback_error}"
+                ) from rollback_error
+            if not committed:
+                raise
             raise OSError(
-                f"report publication failed ({publish_error}); rollback failed ({rollback_error})"
-            ) from rollback_error
-        raise
-    finally:
-        if stage.exists() and stage != output_dir:
-            shutil.rmtree(stage)
-        if backup is not None and backup.exists() and not old_moved:
-            shutil.rmtree(backup)
+                f"report publication committed; cleanup pending: {publish_error}"
+            ) from publish_error
+
+        try:
+            _fsync_directory(output_dir.parent)
+            assert journal is not None
+            journal["state"] = "published"
+            _write_transaction_journal(journal_path, journal)
+            after_publish()
+            backup_identity = journal["backupIdentity"]
+            if isinstance(backup_identity, tuple):
+                _remove_owned_directory(
+                    backup,
+                    backup_identity,
+                    "published report backup",
+                    remove_tree,
+                )
+                _fsync_directory(output_dir.parent)
+            _remove_journal(journal_path)
+        except Exception as cleanup_error:
+            raise OSError(
+                f"report publication committed; cleanup pending: {cleanup_error}"
+            ) from cleanup_error
 
 
 def _copy_project_sources(sources: Iterable[Path], project_dir: Path, destination: Path) -> None:
@@ -1067,8 +1548,93 @@ def _copy_project_sources(sources: Iterable[Path], project_dir: Path, destinatio
         shutil.copy2(project_dir / name, destination / name)
 
 
-def _invalid_result(message: str, reports: Mapping[str, object] | None = None) -> ValidationResult:
-    return ValidationResult(INVALID, (message,), reports or {}, None)
+def _sanitize_diagnostic(value: object) -> str:
+    message = str(value)
+    replacements = {
+        str(Path.home()): "<home>",
+        tempfile.gettempdir(): "<tmp>",
+        str(Path(tempfile.gettempdir()).resolve(strict=False)): "<tmp>",
+    }
+    for source in sorted(replacements, key=len, reverse=True):
+        if source and source != "/":
+            message = message.replace(source, replacements[source])
+    message = re.sub(
+        r"pocket-card-validation-[A-Za-z0-9_-]+",
+        "<validation-copy>",
+        message,
+    )
+    return message
+
+
+def _invalid_result(
+    message: str,
+    reports: Mapping[str, object] | None = None,
+    inventory: ProjectInventory | None = None,
+) -> ValidationResult:
+    return ValidationResult(
+        INVALID,
+        (_sanitize_diagnostic(message),),
+        reports or {},
+        inventory,
+    )
+
+
+def _result_with_error(result: ValidationResult, message: str) -> ValidationResult:
+    return ValidationResult(
+        INVALID,
+        (*result.messages, _sanitize_diagnostic(message)),
+        result.reports,
+        result.inventory,
+    )
+
+
+def _finalize_result(
+    result: ValidationResult,
+    canonical: Path | None,
+    before_digest: str | None,
+) -> ValidationResult:
+    after_digest: str | None = None
+    digest_error: str | None = None
+    if canonical is not None:
+        try:
+            after_digest = project_digest(canonical)
+        except (OSError, RuntimeError, ValueError) as error:
+            digest_error = _sanitize_diagnostic(
+                f"source digest recomputation failed: {error}"
+            )
+    if before_digest is not None and after_digest is not None:
+        unchanged: bool | None = before_digest == after_digest
+    else:
+        unchanged = None
+        if digest_error is None:
+            digest_error = "source digest evidence is incomplete"
+
+    messages = [_sanitize_diagnostic(message) for message in result.messages]
+    status = result.status
+    if digest_error is not None:
+        status = INVALID
+        messages.append(digest_error)
+    if unchanged is False:
+        status = INVALID
+        messages.append(
+            "canonical project mutation detected: digest changed from "
+            f"{before_digest} to {after_digest}"
+        )
+    finalized_reports = dict(_json_ready(result.reports))
+    finalized_reports.update(
+        {
+            "sourceDigestBefore": before_digest,
+            "sourceDigestAfter": after_digest,
+            "sourceUnchanged": unchanged,
+            "sourceDigestError": digest_error,
+        }
+    )
+    return ValidationResult(
+        status,
+        tuple(messages),
+        finalized_reports,
+        result.inventory,
+    )
 
 
 def validate_project(
@@ -1079,6 +1645,8 @@ def validate_project(
     """Validate a complete temporary copy without ever asking KiCad to save it."""
 
     raw_project_dir = Path(project_dir).expanduser()
+    canonical: Path | None = None
+    before_digest: str | None = None
     try:
         if raw_project_dir.is_symlink():
             raise ValidationError(f"editable project path is a symlink: {raw_project_dir}")
@@ -1087,7 +1655,7 @@ def validate_project(
             raise ValidationError(f"editable project root is not a directory: {canonical}")
         before_digest = project_digest(canonical)
     except (OSError, RuntimeError, ValueError, ValidationError) as error:
-        return _invalid_result(str(error))
+        return _finalize_result(_invalid_result(str(error)), canonical, before_digest)
 
     result: ValidationResult
     normalized_reports: dict[str, object] = {}
@@ -1105,7 +1673,9 @@ def validate_project(
             project_file = temporary / f"{project}.kicad_pro"
             if not project_file.is_file() or schematic.parent != project_file.parent or board.parent != project_file.parent:
                 raise ValidationError("temporary KiCad copy is incomplete or not co-located")
-            footprint_libraries = _validate_local_assets(temporary, project)
+            footprint_libraries = _validate_local_assets(
+                temporary, project, executable
+            )
             erc_path = temporary / "erc.json"
             drc_path = temporary / "drc.json"
             netlist_path = temporary / f"{project}.net"
@@ -1205,33 +1775,18 @@ def validate_project(
     except (OSError, RuntimeError, UnicodeError, ValueError, ValidationError) as error:
         result = _invalid_result(str(error), normalized_reports)
 
-    try:
-        after_digest = project_digest(canonical)
-    except (OSError, RuntimeError, ValueError) as error:
-        return _invalid_result(f"cannot verify canonical source digest after validation: {error}")
-    if after_digest != before_digest:
-        return _invalid_result(
-            f"canonical project mutation detected: digest changed from {before_digest} to {after_digest}",
-            normalized_reports,
-        )
-
-    reports_with_source = dict(_json_ready(result.reports))
-    reports_with_source["source"] = {
-        "digestBefore": before_digest,
-        "digestAfter": after_digest,
-        "unchanged": True,
-    }
-    result = ValidationResult(
-        result.status,
-        result.messages,
-        reports_with_source,
-        result.inventory,
-    )
-    if publish_to is not None and normalized_reports:
+    result = _finalize_result(result, canonical, before_digest)
+    if (
+        publish_to is not None
+        and normalized_reports
+        and result.reports.get("sourceUnchanged") is True
+    ):
         try:
             _publish_reports(publish_to, normalized_reports, result)
         except OSError as error:
-            return _invalid_result(f"cannot publish validation reports to {publish_to}: {error}")
+            result = _result_with_error(
+                result, f"cannot publish validation reports: {error}"
+            )
     return result
 
 
