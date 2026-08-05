@@ -587,6 +587,21 @@ test("mounting-hole footprints allow only unnumbered unconnected mechanical pads
         /H1 pad 1 is not an allowed unnumbered mechanical pad/);
 });
 
+test("mounting-hole pads reject nets even when a board-only rule declares them", function () {
+    var model = {
+        components: [{ ref: "H1", uuid: "uuid-h1" }],
+        connections: [],
+        boardOnlyPadRules: [
+            { ref: "H1", pad: "", net: "CHASSIS", reason: "invalid mechanical override" }
+        ]
+    };
+    var footprints = {
+        H1: { uuid: "uuid-h1", pads: [{ number: "", net: "CHASSIS" }] }
+    };
+    assertBoardError(model, footprints,
+        /H1 pad <empty> expected unconnected, found CHASSIS/);
+});
+
 test("board-only pad rules require every matching pad to have the specified net", function () {
     var footprints = comparisonFootprints();
     footprints.SW_MUTE.pads[1].net = null;

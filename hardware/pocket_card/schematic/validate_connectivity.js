@@ -688,11 +688,12 @@ function compareBoard(candidate, footprints) {
                 return;
             }
             var number = String(pad.number);
-            if ((ref === "H1" || ref === "H2") && number !== "") {
+            var mountingHole = ref === "H1" || ref === "H2";
+            if (mountingHole && number !== "") {
                 errors.push(ref + " pad " + boardPadLabel(number) +
                     " is not an allowed unnumbered mechanical pad");
             }
-            if (!connectedPads.has(number) && !boardOnlyPads.has(number) &&
+            if ((mountingHole || (!connectedPads.has(number) && !boardOnlyPads.has(number))) &&
                 pad.net !== null && pad.net !== undefined) {
                 errors.push(ref + " pad " + boardPadLabel(number) +
                     " expected unconnected, found " + boardNetLabel(pad.net));
