@@ -51,9 +51,10 @@ The generated references are already fully annotated (`SW_UP1`, `SW_PWR1`,
 `J_I2C1`, and `J_BAT_OUT1`); do not run **Annotate Schematic**. The generator
 also writes the project-local `fp-lib-table` containing the four required
 KiCad 10 standard libraries: `Button_Switch_SMD`, `Connector_JST`,
-`MountingHole`, and `Package_SO`. This makes footprint lookup independent of
-the user's global footprint-library table; do not repair or replace global
-KiCad configuration for this project.
+`MountingHole`, and `Package_SO`. The table contains exactly those four entries,
+each with URI `${KICAD10_FOOTPRINT_DIR}/<library>.pretty`. This makes footprint
+lookup independent of the user's global footprint-library table; do not repair
+or replace global KiCad configuration for this project.
 
 `board_parity_test.js` reads the board in this checkout by default. In an
 isolated worktree whose copy is intentionally stale, test against the

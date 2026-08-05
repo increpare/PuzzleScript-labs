@@ -63,7 +63,9 @@ The generated references are already fully annotated (`SW_UP1`, `SW_PWR1`,
 `J_I2C1`, and `J_BAT_OUT1`); do not run **Annotate Schematic**. The generator
 also writes `out/pcb/fp-lib-table` with the four required KiCad 10 standard
 libraries (`Button_Switch_SMD`, `Connector_JST`, `MountingHole`, and
-`Package_SO`), so the project does not depend on the user's global table.
+`Package_SO`). The table contains exactly those four entries, each with URI
+`${KICAD10_FOOTPRINT_DIR}/<library>.pretty`, so the project does not depend on
+the user's global table.
 
 Run these from the repository root:
 

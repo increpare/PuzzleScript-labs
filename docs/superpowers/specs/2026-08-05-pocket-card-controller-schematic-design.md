@@ -144,7 +144,9 @@ The generated references are already fully annotated (`SW_UP1`, `SW_PWR1`,
 `J_I2C1`, and `J_BAT_OUT1`); do not run **Annotate Schematic**. Generation also
 writes a project-local `fp-lib-table` for the four required KiCad 10 standard
 libraries (`Button_Switch_SMD`, `Connector_JST`, `MountingHole`, and
-`Package_SO`), avoiding any dependency on the user's global table.
+`Package_SO`). The table contains exactly those four entries, each with URI
+`${KICAD10_FOOTPRINT_DIR}/<library>.pretty`, avoiding any dependency on the
+user's global table.
 
 Use one A4 landscape sheet because the circuit is small. The sheet has four
 left-to-right functional regions:
