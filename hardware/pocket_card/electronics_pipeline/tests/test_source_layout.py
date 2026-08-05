@@ -81,6 +81,11 @@ class SourceLayoutTest(unittest.TestCase):
         project = json.loads(PROJECT.read_text(encoding="utf-8"))
         self.assertIsInstance(project["board"], dict)
         self.assertIsInstance(project["schematic"], dict)
+        self.assertEqual(project["meta"]["filename"], PROJECT.name)
+        top_level_sheets = project["schematic"]["top_level_sheets"]
+        self.assertEqual(len(top_level_sheets), 1)
+        self.assertEqual(top_level_sheets[0]["filename"], SCHEMATIC.name)
+        self.assertEqual(top_level_sheets[0]["name"], PROJECT_NAME)
         self.assertTrue(
             SCHEMATIC.read_text(encoding="utf-8").lstrip().startswith("(kicad_sch")
         )
@@ -118,6 +123,39 @@ class SourceLayoutTest(unittest.TestCase):
         )
         for text in allowed_examples:
             self.assertEqual(detector(text), (), text)
+
+    def test_machine_local_path_detector_allows_reference_field_interpolation(self):
+        detector = getattr(pipeline_paths, "find_forbidden_machine_paths", None)
+        self.assertIsNotNone(detector)
+        text = '(fp_text user "${REFERENCE}" (at 0 0) (layer "F.Fab"))'
+        self.assertEqual(detector(text), ())
+
+    def test_machine_local_path_detector_rejects_unapproved_variables(self):
+        detector = getattr(pipeline_paths, "find_forbidden_machine_paths", None)
+        self.assertIsNotNone(detector)
+        forbidden_references = (
+            "${HOME}",
+            "${USERPROFILE}",
+            "${KICAD9_FOOTPRINT_DIR}",
+            "${ARBITRARY_NETWORK_SHARE}",
+            "${REFERENCE}",
+            "${kiprjmod}",
+            "$HOME",
+            "$USERPROFILE",
+            "$KIPRJMOD",
+            "%HOME%",
+            "%USERPROFILE%",
+            "%KIPRJMOD%",
+        )
+        for reference in forbidden_references:
+            text = f'(uri "{reference}")'
+            self.assertEqual(detector(text), (reference,), text)
+
+        self.assertEqual(detector("${REFERENCE}"), ("${REFERENCE}",))
+        text = '(uri "${REFERENCE}/private.pretty")'
+        self.assertEqual(detector(text), ("${REFERENCE}",), text)
+        text = '(uri "%USERPROFILE%/KiCad/private.pretty")'
+        self.assertEqual(detector(text), ("%USERPROFILE%",), text)
 
     def test_project_has_no_machine_local_library_paths(self):
         detector = getattr(pipeline_paths, "find_forbidden_machine_paths", None)
