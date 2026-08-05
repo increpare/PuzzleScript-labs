@@ -27,10 +27,15 @@ from .exports import (
     require_current_exports,
 )
 from .inventory import (
+    BoardInventory,
+    Footprint,
+    Pad,
+    ProjectInventory,
+    SchematicComponent,
+    SchematicInventory,
     _version_tuple,
     editable_project_files,
     inventory_json,
-    project_digest,
     semantic_diff,
 )
 from .paths import (
@@ -2341,14 +2346,23 @@ def _inspect_returned_archive(archive_path: Path) -> tuple[list[zipfile.ZipInfo]
         return members, project_members
 
 
-def _digest_project_members(members: Mapping[str, bytes]) -> str:
+def _labeled_bytes_digest(items: Sequence[tuple[str, bytes]]) -> str:
+    """Hash labeled archive bytes with the same algorithm as `_labeled_project_digest`."""
+
     digest = hashlib.sha256()
-    for relative in sorted(members):
+    for relative, content in sorted(items, key=lambda item: item[0]):
         digest.update(relative.encode("utf-8"))
         digest.update(b"\0")
-        digest.update(members[relative])
+        digest.update(content)
         digest.update(b"\0")
     return digest.hexdigest()
+
+
+def _handoff_project_digest(project: Path) -> str:
+    """Return the export-compatible editable-project digest for one project tree."""
+
+    digest, _ = _canonical_project_digest(project)
+    return digest
 
 
 def _load_returned_handoff_metadata(archive_path: Path) -> dict[str, object]:
@@ -2379,95 +2393,130 @@ def _returned_base_digest(metadata: Mapping[str, object]) -> str:
     return digest
 
 
-def _inventory_as_json(inventory: object) -> dict[str, object]:
-    if inventory is None:
-        return {
-            "schematic": {"components": {}, "nets": {}},
-            "board": {"footprints": {}, "edge_cuts": [], "thickness_mm": 0.0},
-        }
-    if isinstance(inventory, Mapping):
-        return {str(key): _inventory_value(inventory[key]) for key in inventory}
-    return inventory_json(inventory)  # type: ignore[arg-type]
+def _pad_from_mapping(raw: Mapping[str, object]) -> Pad:
+    net = raw.get("net")
+    uuid = raw.get("uuid")
+    return Pad(
+        number=str(raw.get("number", "")),
+        net=None if net is None else str(net),
+        uuid=None if uuid is None else str(uuid),
+    )
 
 
-def _mapping_diff(before: dict[str, object], after: dict[str, object]) -> dict[str, object]:
-    before_keys = set(before)
-    after_keys = set(after)
-    changed = {
-        key: {"before": before[key], "after": after[key]}
-        for key in sorted(before_keys & after_keys)
-        if before[key] != after[key]
-    }
-    return {
-        "added": sorted(after_keys - before_keys),
-        "removed": sorted(before_keys - after_keys),
-        "changed": changed,
-    }
+def _footprint_from_mapping(raw: Mapping[str, object]) -> Footprint:
+    pads: dict[str, tuple[Pad, ...]] = {}
+    pads_raw = raw.get("pads")
+    if isinstance(pads_raw, Mapping):
+        for number, group in pads_raw.items():
+            if isinstance(group, list):
+                pads[str(number)] = tuple(
+                    _pad_from_mapping(item)
+                    for item in group
+                    if isinstance(item, Mapping)
+                )
+    courtyard = raw.get("courtyard_bbox_mm")
+    return Footprint(
+        ref=str(raw.get("ref", "")),
+        value=str(raw.get("value", "")),
+        library_id=str(raw.get("library_id", "")),
+        uuid=str(raw.get("uuid", "")),
+        symbol_path=str(raw.get("symbol_path", "")),
+        x_mm=float(raw.get("x_mm", 0.0)),
+        y_mm=float(raw.get("y_mm", 0.0)),
+        rotation_deg=float(raw.get("rotation_deg", 0.0)),
+        layer=str(raw.get("layer", "")),
+        locked=bool(raw.get("locked", False)),
+        pads=pads,
+        courtyard_bbox_mm=(
+            tuple(courtyard)  # type: ignore[arg-type]
+            if isinstance(courtyard, (list, tuple)) and len(courtyard) == 4
+            else None
+        ),
+    )
 
 
-def _semantic_diff_from_values(before: object, after: object) -> dict[str, object]:
-    before_json = _inventory_as_json(before)
-    after_json = _inventory_as_json(after)
-    before_schematic = before_json["schematic"]
-    after_schematic = after_json["schematic"]
-    before_board = before_json["board"]
-    after_board = after_json["board"]
-    if not isinstance(before_schematic, dict) or not isinstance(after_schematic, dict):
-        raise HandoffError("semantic inventory schematic section is invalid")
-    if not isinstance(before_board, dict) or not isinstance(after_board, dict):
-        raise HandoffError("semantic inventory board section is invalid")
-    before_footprints = before_board.get("footprints", {})
-    after_footprints = after_board.get("footprints", {})
-    if not isinstance(before_footprints, dict) or not isinstance(after_footprints, dict):
-        raise HandoffError("semantic inventory footprints section is invalid")
-    placement_keys = ("x_mm", "y_mm", "rotation_deg", "layer", "locked", "courtyard_bbox_mm")
-    before_placements = {
-        ref: {key: footprint[key] for key in placement_keys if key in footprint}
-        for ref, footprint in before_footprints.items()
-        if isinstance(footprint, Mapping)
-    }
-    after_placements = {
-        ref: {key: footprint[key] for key in placement_keys if key in footprint}
-        for ref, footprint in after_footprints.items()
-        if isinstance(footprint, Mapping)
-    }
-    before_footprint_semantics = {
-        ref: {key: value for key, value in footprint.items() if key not in placement_keys}
-        for ref, footprint in before_footprints.items()
-        if isinstance(footprint, Mapping)
-    }
-    after_footprint_semantics = {
-        ref: {key: value for key, value in footprint.items() if key not in placement_keys}
-        for ref, footprint in after_footprints.items()
-        if isinstance(footprint, Mapping)
-    }
-    before_components = before_schematic.get("components", {})
-    after_components = after_schematic.get("components", {})
-    before_nets = before_schematic.get("nets", {})
-    after_nets = after_schematic.get("nets", {})
-    if not isinstance(before_components, dict) or not isinstance(after_components, dict):
-        raise HandoffError("semantic inventory components section is invalid")
-    if not isinstance(before_nets, dict) or not isinstance(after_nets, dict):
-        raise HandoffError("semantic inventory nets section is invalid")
-    before_outline = {
-        "thickness_mm": before_board.get("thickness_mm"),
-        "edge_cuts": before_board.get("edge_cuts"),
-    }
-    after_outline = {
-        "thickness_mm": after_board.get("thickness_mm"),
-        "edge_cuts": after_board.get("edge_cuts"),
-    }
-    return {
-        "components": _mapping_diff(before_components, after_components),
-        "nets": _mapping_diff(before_nets, after_nets),
-        "footprints": _mapping_diff(before_footprint_semantics, after_footprint_semantics),
-        "placements": _mapping_diff(before_placements, after_placements),
-        "outline": {
-            "changed": before_outline != after_outline,
-            "before": before_outline,
-            "after": after_outline,
-        },
-    }
+def _schematic_inventory_from_mapping(raw: Mapping[str, object]) -> SchematicInventory:
+    components: dict[str, SchematicComponent] = {}
+    components_raw = raw.get("components")
+    if isinstance(components_raw, Mapping):
+        for ref, payload in components_raw.items():
+            if isinstance(payload, Mapping):
+                fields_raw = payload.get("fields")
+                fields = (
+                    {str(key): str(value) for key, value in fields_raw.items()}
+                    if isinstance(fields_raw, Mapping)
+                    else {}
+                )
+                components[str(ref)] = SchematicComponent(
+                    ref=str(payload.get("ref", ref)),
+                    value=str(payload.get("value", "")),
+                    footprint=str(payload.get("footprint", "")),
+                    uuid=str(payload.get("uuid", "")),
+                    fields=fields,
+                )
+    nets: dict[str, tuple[str, ...]] = {}
+    nets_raw = raw.get("nets")
+    if isinstance(nets_raw, Mapping):
+        for name, endpoints in nets_raw.items():
+            if isinstance(endpoints, (list, tuple)):
+                nets[str(name)] = tuple(str(item) for item in endpoints)
+    return SchematicInventory(components=components, nets=nets)
+
+
+def _board_inventory_from_mapping(raw: Mapping[str, object]) -> BoardInventory:
+    footprints: dict[str, Footprint] = {}
+    footprints_raw = raw.get("footprints")
+    if isinstance(footprints_raw, Mapping):
+        for ref, payload in footprints_raw.items():
+            if isinstance(payload, Mapping):
+                footprints[str(ref)] = _footprint_from_mapping(payload)
+    edge_cuts_raw = raw.get("edge_cuts")
+    edge_cuts = tuple(
+        dict(item)
+        for item in edge_cuts_raw
+        if isinstance(item, Mapping)
+    ) if isinstance(edge_cuts_raw, (list, tuple)) else ()
+    return BoardInventory(
+        thickness_mm=float(raw.get("thickness_mm", 0.0)),
+        footprints=footprints,
+        edge_cuts=edge_cuts,
+    )
+
+
+def _coerce_project_inventory(value: object) -> ProjectInventory:
+    if isinstance(value, ProjectInventory):
+        return value
+    if not isinstance(value, Mapping):
+        raise HandoffError("validation inventory is invalid")
+    schematic_raw = value.get("schematic")
+    board_raw = value.get("board")
+    if not isinstance(schematic_raw, Mapping) or not isinstance(board_raw, Mapping):
+        raise HandoffError("validation inventory is invalid")
+    return ProjectInventory(
+        schematic=_schematic_inventory_from_mapping(schematic_raw),
+        board=_board_inventory_from_mapping(board_raw),
+    )
+
+
+def _empty_project_inventory() -> ProjectInventory:
+    return ProjectInventory(
+        schematic=SchematicInventory(components={}, nets={}),
+        board=BoardInventory(thickness_mm=0.0, footprints={}, edge_cuts=()),
+    )
+
+
+def _semantic_diff_report(before: object, after: object) -> dict[str, object]:
+    before_inventory = (
+        _empty_project_inventory()
+        if before is None
+        else _coerce_project_inventory(before)
+    )
+    after_inventory = (
+        _empty_project_inventory()
+        if after is None
+        else _coerce_project_inventory(after)
+    )
+    return _inventory_value(semantic_diff(before_inventory, after_inventory))
 
 
 def _report_scope_counts(reports: Mapping[str, object]) -> dict[str, int]:
@@ -2664,11 +2713,12 @@ def check_returned_zip(
 
     archive = Path(archive_path).expanduser()
     _resolved_directory(repo_root, "repository root")
+    canonical_project = _resolved_directory(ELECTRONICS_DIR, "canonical project")
     _, project_members = _inspect_returned_archive(archive)
     metadata = _load_returned_handoff_metadata(archive)
     returned_base_digest = _returned_base_digest(metadata)
-    returned_digest = _digest_project_members(project_members)
-    current_digest = project_digest(ELECTRONICS_DIR)
+    returned_digest = _labeled_bytes_digest(tuple(project_members.items()))
+    current_digest = _handoff_project_digest(canonical_project)
     stage_dir = (HANDOFF_BUILD_DIR / "staged" / returned_digest).resolve()
     validation_messages: list[str] = []
     semantic_diff_report: dict[str, object] = {}
@@ -2706,16 +2756,46 @@ def check_returned_zip(
 
     project_dir = stage_dir / "project"
     _extract_returned_project(archive, project_members, project_dir)
-    _install_canonical_validation_policy(project_dir)
-    source_hashes = _source_file_hashes(project_dir)
+    staged_project = _resolved_directory(project_dir, "staged returned project")
+    staged_digest = _handoff_project_digest(staged_project)
+    if staged_digest != returned_digest:
+        validation_messages.append(
+            "staged returned project digest "
+            f"{staged_digest} does not match archive digest {returned_digest}"
+        )
+        status = INVALID
+        shutil.rmtree(project_dir, ignore_errors=True)
+        report_json, report_markdown = _write_check_reports(
+            stage_dir,
+            status=status,
+            base_digest=current_digest,
+            returned_digest=returned_digest,
+            returned_base_digest=returned_base_digest,
+            validation_messages=validation_messages,
+            semantic_diff_report=semantic_diff_report,
+            source_hashes=source_hashes,
+            validation_reports=validation_reports,
+        )
+        return HandoffCheckResult(
+            status=status,
+            stage_dir=stage_dir,
+            base_digest=current_digest,
+            returned_digest=returned_digest,
+            semantic_diff=semantic_diff_report,
+            report_json=report_json,
+            report_markdown=report_markdown,
+        )
 
-    baseline_validation = _call_validator(validator, ELECTRONICS_DIR, runner)
-    returned_validation = _call_validator(validator, project_dir, runner)
+    _install_canonical_validation_policy(staged_project)
+    source_hashes = _source_file_hashes(staged_project)
+
+    baseline_validation = _call_validator(validator, canonical_project, runner)
+    returned_validation = _call_validator(validator, staged_project, runner)
     validation_reports = dict(getattr(returned_validation, "reports", {}) or {})
     validation_messages.extend(
         str(item) for item in getattr(returned_validation, "messages", ())
     )
-    semantic_diff_report = _semantic_diff_from_values(
+    semantic_diff_report = _semantic_diff_report(
         getattr(baseline_validation, "inventory", None),
         getattr(returned_validation, "inventory", None),
     )
@@ -2724,7 +2804,7 @@ def check_returned_zip(
         status = INVALID
 
     if status == INVALID:
-        shutil.rmtree(project_dir, ignore_errors=True)
+        shutil.rmtree(staged_project, ignore_errors=True)
 
     report_json, report_markdown = _write_check_reports(
         stage_dir,

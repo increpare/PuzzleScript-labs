@@ -8,12 +8,17 @@ from pathlib import Path
 from unittest import mock
 
 import hardware.pocket_card.electronics_pipeline.handoff as handoff_module
+from hardware.pocket_card.electronics_pipeline.exports import (
+    _export_recipe_digest,
+    _policy_digest,
+)
 from hardware.pocket_card.electronics_pipeline.handoff import (
     HandoffInvalid,
     check_returned_zip,
+    export_handoff,
 )
-from hardware.pocket_card.electronics_pipeline.inventory import project_digest
 from hardware.pocket_card.electronics_pipeline.validation import (
+    INVALID,
     MECHANICAL_REVIEW_REQUIRED,
     PASS,
     ValidationResult,
@@ -91,8 +96,9 @@ class HandoffCheckTest(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
         self.repo = self.root / "repo"
-        self.project = self.repo / "hardware" / "pocket_card" / "electronics"
-        self.project.mkdir(parents=True)
+        project_dir = self.repo / "hardware" / "pocket_card" / "electronics"
+        project_dir.mkdir(parents=True)
+        self.project = project_dir.resolve(strict=True)
         for name, content in {
             f"{PROJECT_NAME}.kicad_pro": "{}\n",
             f"{PROJECT_NAME}.kicad_sch": "(kicad_sch)\n",
@@ -103,7 +109,7 @@ class HandoffCheckTest(unittest.TestCase):
             "validation_waivers.json": '{"schemaVersion":1,"groups":[]}\n',
         }.items():
             (self.project / name).write_text(content, encoding="utf-8")
-        self.base_digest = project_digest(self.project)
+        self.base_digest = handoff_module._handoff_project_digest(self.project)
         self.stage_root = self.repo / "build" / "pocket_card" / "handoff"
 
     def returned_zip(self, *, base_digest=None, move=False, pullup=False):
@@ -127,21 +133,33 @@ class HandoffCheckTest(unittest.TestCase):
                 archive.writestr(name, content)
         return path
 
-    def check(self, archive, *, moved=False, pullup=False):
+    def check(self, archive, *, moved=False, pullup=False, validator=None):
         baseline = _inventory()
         returned = _inventory(moved=moved, pullup=pullup)
 
-        def validator(project, runner=None):
-            inventory = returned if "moved" in (project / f"{PROJECT_NAME}.kicad_pcb").read_text(encoding="utf-8") else baseline
-            if "pullup" in (project / f"{PROJECT_NAME}.kicad_pcb").read_text(encoding="utf-8"):
+        def default_validator(project, runner=None):
+            board_text = (project / f"{PROJECT_NAME}.kicad_pcb").read_text(
+                encoding="utf-8"
+            )
+            inventory = returned if "moved" in board_text else baseline
+            if "pullup" in board_text:
                 inventory = _inventory(pullup=True)
             status = MECHANICAL_REVIEW_REQUIRED if moved else PASS
             return ValidationResult(status, ("fake validation",), {}, inventory)
 
         with mock.patch.object(handoff_module, "ELECTRONICS_DIR", self.project), mock.patch.object(
             handoff_module, "HANDOFF_BUILD_DIR", self.stage_root
-        ), mock.patch.object(handoff_module, "validate_project", side_effect=validator):
+        ), mock.patch.object(
+            handoff_module,
+            "validate_project",
+            side_effect=validator or default_validator,
+        ):
             return check_returned_zip(archive, self.repo, runner=FakeKiCadRunner())
+
+    def test_handoff_project_digest_matches_export_digest(self):
+        export_digest = handoff_module._canonical_project_digest(self.project)[0]
+        self.assertEqual(handoff_module._handoff_project_digest(self.project), export_digest)
+        self.assertEqual(self.base_digest, export_digest)
 
     def test_rejects_traversal_symlink_and_multiple_roots(self):
         traversal = self.root / "traversal.zip"
@@ -161,6 +179,23 @@ class HandoffCheckTest(unittest.TestCase):
             with self.subTest(archive=archive.name), self.assertRaises(HandoffInvalid):
                 self.check(archive)
 
+    def test_rejects_unexpected_project_member(self):
+        archive = self.returned_zip()
+        with zipfile.ZipFile(archive, "a") as package:
+            package.writestr("pocket-card-controller/project/evil.txt", "x")
+        with self.assertRaises(HandoffInvalid):
+            self.check(archive)
+
+    def test_rejects_returned_policy_file_in_project_tree(self):
+        archive = self.returned_zip()
+        with zipfile.ZipFile(archive, "a") as package:
+            package.writestr(
+                "pocket-card-controller/project/toolchain.json",
+                '{"schemaVersion":1,"project":"evil"}\n',
+            )
+        with self.assertRaises(HandoffInvalid):
+            self.check(archive)
+
     def test_unknown_baseline_returns_invalid_do_not_auto_merge(self):
         result = self.check(self.returned_zip(base_digest="0" * 64))
         self.assertEqual(result.status, "INVALID")
@@ -168,6 +203,34 @@ class HandoffCheckTest(unittest.TestCase):
         self.assertIn("0" * 64, "\n".join(report["validationMessages"]))
         self.assertIn(self.base_digest, "\n".join(report["validationMessages"]))
         self.assertTrue(report["validationMessages"][-1].endswith("do not auto-merge"))
+        self.assertFalse((result.stage_dir / "project").exists())
+
+    def test_staged_project_uses_canonical_validation_policy(self):
+        canonical_policy = (
+            '{"schemaVersion":1,"groups":[{"scope":"ERC","type":"test"}]}\n'
+        )
+        (self.project / "validation_waivers.json").write_text(
+            canonical_policy, encoding="utf-8"
+        )
+        self.base_digest = handoff_module._handoff_project_digest(self.project)
+        archive = self.returned_zip()
+        with zipfile.ZipFile(archive, "a") as package:
+            package.writestr(
+                "pocket-card-controller/reference/validation_waivers.json",
+                '{"schemaVersion":1,"groups":[]}\n',
+            )
+        result = self.check(archive)
+        staged_policy = (
+            result.stage_dir / "project" / "validation_waivers.json"
+        ).read_text(encoding="utf-8")
+        self.assertEqual(staged_policy, canonical_policy)
+
+    def test_validation_invalid_removes_staged_project(self):
+        def invalid_validator(project, runner=None):
+            return ValidationResult(INVALID, ("bad project",), {}, _inventory())
+
+        result = self.check(self.returned_zip(), validator=invalid_validator)
+        self.assertEqual(result.status, "INVALID")
         self.assertFalse((result.stage_dir / "project").exists())
 
     def test_electrical_pass_with_moved_locked_switch_requires_mechanical_review(self):
@@ -179,6 +242,77 @@ class HandoffCheckTest(unittest.TestCase):
         result = self.check(self.returned_zip(pullup=True), pullup=True)
         self.assertEqual(result.status, "PASS")
         self.assertEqual(result.semantic_diff["components"]["added"], ["R99"])
+
+    def test_export_check_unchanged_round_trip_passes_with_empty_semantic_diff(self):
+        exports = self.root / "exports"
+        output = self.root / "outgoing"
+        exports.mkdir()
+        output.mkdir()
+        for name, content in {
+            f"{PROJECT_NAME}.pdf": b"%PDF-fake\n",
+            f"{PROJECT_NAME}.step": b"ISO-10303-21;\n",
+            "erc.json": b'{"violations":[]}\n',
+            "drc.json": b'{"violations":[]}\n',
+        }.items():
+            (exports / name).write_bytes(content)
+        digest = handoff_module._handoff_project_digest(self.project)
+        (exports / "source_manifest.json").write_text(
+            json.dumps(
+                {
+                    "schemaVersion": 1,
+                    "projectName": PROJECT_NAME,
+                    "projectDigest": digest,
+                    "policyDigest": _policy_digest(self.project),
+                    "exportRecipeDigest": _export_recipe_digest(),
+                    "kicadVersion": "10.0.4",
+                    "artifacts": {
+                        name: {
+                            "sha256": hashlib.sha256((exports / name).read_bytes()).hexdigest(),
+                            "size": (exports / name).stat().st_size,
+                        }
+                        for name in (
+                            f"{PROJECT_NAME}.pdf",
+                            f"{PROJECT_NAME}.step",
+                            "erc.json",
+                            "drc.json",
+                        )
+                    },
+                },
+                sort_keys=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        inventory = _inventory()
+
+        def validator(project, runner=None):
+            return ValidationResult(PASS, ("ok",), {}, inventory)
+
+        with mock.patch.object(handoff_module, "ELECTRONICS_DIR", self.project), mock.patch.object(
+            handoff_module, "HANDOFF_BUILD_DIR", self.stage_root
+        ), mock.patch.object(handoff_module, "validate_project", side_effect=validator):
+            archive = export_handoff(
+                self.project,
+                output_dir=output,
+                export_dir=exports,
+                validator=validator,
+                current_exports_checker=lambda project, export_dir: None,
+                git_metadata_provider=lambda repo_root: ("a" * 40, 1785888000),
+                source_date_epoch=1785888000,
+            )
+            result = check_returned_zip(archive, self.repo, runner=FakeKiCadRunner())
+
+        with zipfile.ZipFile(archive) as package:
+            metadata = json.loads(package.read("pocket-card-controller/handoff.json"))
+        self.assertEqual(metadata["baseProjectDigest"], digest)
+        self.assertEqual(result.status, "PASS")
+        self.assertEqual(result.base_digest, digest)
+        self.assertEqual(result.returned_digest, digest)
+        self.assertEqual(result.semantic_diff["components"]["added"], [])
+        self.assertEqual(result.semantic_diff["components"]["removed"], [])
+        self.assertEqual(result.semantic_diff["components"]["changed"], {})
+        self.assertTrue((result.stage_dir / "project").is_dir())
 
 
 if __name__ == "__main__":
