@@ -1,0 +1,7224 @@
+{
+  "messages": [
+    "0 ERC errors; 90 warnings",
+    "0 DRC errors; 389 warnings",
+    "0 unconnected items",
+    "All 10 warning groups matched",
+    "Native parity passed",
+    "Mechanics passed"
+  ],
+  "reports": {
+    "DRC": {
+      "toolVersion": "10.0.4",
+      "violations": [
+        {
+          "items": [
+            {
+              "uuid": "2966d8d7-3426-439b-949f-b4c5032f72b8"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "nonmirrored_text_on_back_layer"
+        },
+        {
+          "items": [
+            {
+              "uuid": "2bff3b2b-65eb-4d13-84c9-a41238d34e16"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "nonmirrored_text_on_back_layer"
+        },
+        {
+          "items": [
+            {
+              "uuid": "3ffa98ec-2124-4009-96b9-e1cb91d9eeba"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "nonmirrored_text_on_back_layer"
+        },
+        {
+          "items": [
+            {
+              "uuid": "6f3ccc64-6c1c-46ad-8f0b-15d810ce9e4a"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "nonmirrored_text_on_back_layer"
+        },
+        {
+          "items": [
+            {
+              "uuid": "000c4a3c-1688-427e-8cf1-1a372cac4461"
+            },
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "020c0f76-6a56-4b83-ac43-43994a686a9f"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "058e186d-8a53-4670-84f0-f1d542811591"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "067960e4-d7c9-4058-baaf-1f15dcbd14d0"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "074ed986-391c-454b-a107-c20d73d4c4d8"
+            },
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "0755227e-3611-4aca-9ae4-d6e2cc2fa56d"
+            },
+            {
+              "uuid": "f2eea66b-fdc1-4c16-8dd4-a92a6d23b41f"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "07c580c2-f069-4091-913f-5e06060d17ac"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "084366e9-8df6-49ec-85eb-8e40388f8c51"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "08a9f718-b248-4e20-947e-8ab078e911fc"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "0b019b1b-239e-4c05-b8bb-1da550aba32b"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "0be01694-f84d-4b96-8824-2112c88a0e75"
+            },
+            {
+              "uuid": "5363ede6-7ebe-490e-8bfa-eaefc4bceccd"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "0be01694-f84d-4b96-8824-2112c88a0e75"
+            },
+            {
+              "uuid": "d0605874-d739-471a-8721-d253948c435b"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "0be01694-f84d-4b96-8824-2112c88a0e75"
+            },
+            {
+              "uuid": "e12daa66-bcaa-40ab-8aae-cdd7c81a8fe8"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "0be01694-f84d-4b96-8824-2112c88a0e75"
+            },
+            {
+              "uuid": "e5d3b56f-4666-469a-8d43-22a2d3bfb0ba"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "0c45af66-064c-437f-904a-7beea52314cc"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "0dc269e5-33ee-4dd2-91f1-27c3ed0cedbc"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "0f49697a-a636-4e6d-a5b1-f75ecd665fb8"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "110352f8-1a64-4b64-a8be-b825b6b1c00e"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "12769cca-33d4-436f-9d6d-be4e6972d4a1"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "136fff69-6bbe-4abc-ad47-02d4b5369d89"
+            },
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "137025dd-de84-4ca6-bce9-ac0757b48e4c"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "13ca2187-f0c0-416f-8ba6-2a2bb539c0b5"
+            },
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "15d66350-060b-4c19-b678-2e2b4533d1df"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "1bbd7b37-47ce-4f8e-98dc-d84c1afffc36"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "1e032384-9ebf-448e-9255-615526e0844d"
+            },
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "1f541a0d-d865-4cc7-87e2-079fa7b84d22"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "2115ee16-3a15-4e87-aa98-17b64ad5a30a"
+            },
+            {
+              "uuid": "bc6bbfd3-5bf0-41f5-b146-1ea8d733ec06"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "22c2323f-340e-438d-90b2-47ccb92e38e6"
+            },
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "25061661-a296-4afd-8e25-4fe871c80ff6"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "25330816-eba9-4a95-97b2-e077329a15a8"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "27ec9117-3ff8-417f-8d24-0ad951367103"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "2a7cb74b-147d-4ff0-92e6-ec4c8780c051"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "2a88ad6c-d26c-428c-ae24-e8ca11dfbcec"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "2b452ece-0c78-4e57-b2a8-15eaf48e585e"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "2b5c336d-4384-4004-9906-35abf3dad585"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "3004cd18-26fd-41fb-a1b5-d36f8d32c308"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "3029c915-3de1-4e55-8130-e0a45e0e0a20"
+            },
+            {
+              "uuid": "bc6bbfd3-5bf0-41f5-b146-1ea8d733ec06"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "30529633-32f4-4745-952e-2523e347c964"
+            },
+            {
+              "uuid": "bc6bbfd3-5bf0-41f5-b146-1ea8d733ec06"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "30922229-b834-458c-b32c-bb9936d6c0ea"
+            },
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "309dafa6-5ee5-4ae9-8a75-0521a8301030"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "369685ae-8fda-4bec-803d-863fb79334e2"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "3a313a0b-012b-4b8f-a5cf-0287db63a529"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "3cd28a34-aaf8-4d12-afb8-00f9f210cf62"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "40a76185-62b8-43d6-9547-676986186018"
+            },
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "43b63b5d-1bc7-473e-a6e2-4372dc469a21"
+            },
+            {
+              "uuid": "a60a1a0f-19b2-4697-9481-0ebaa2ebc40f"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "46435f47-7999-4e65-97e4-fea5e5dc4602"
+            },
+            {
+              "uuid": "59daffc1-23b3-4501-aa21-63f314896f3c"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "478d84ca-e17c-4f78-aafb-e4b6eb62cf3b"
+            },
+            {
+              "uuid": "59daffc1-23b3-4501-aa21-63f314896f3c"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "47c2a6fa-1ac9-4865-afca-7a3678f2d863"
+            },
+            {
+              "uuid": "a60a1a0f-19b2-4697-9481-0ebaa2ebc40f"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "47ddff00-6fe3-4fe7-87c0-8751dffe4bf6"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "48f906f7-27f1-434a-a5eb-a313c5d00719"
+            },
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "4a6417f2-db34-4d89-b5d1-666830b86854"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "4bb9c071-fe7e-41c0-889d-c3124de5890e"
+            },
+            {
+              "uuid": "bc6bbfd3-5bf0-41f5-b146-1ea8d733ec06"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "4c64c660-1ca4-48b7-9cab-6db779f6dc48"
+            },
+            {
+              "uuid": "f2eea66b-fdc1-4c16-8dd4-a92a6d23b41f"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "4ddebf03-b2ae-4eb5-8149-cc69fcecc23b"
+            },
+            {
+              "uuid": "bc6bbfd3-5bf0-41f5-b146-1ea8d733ec06"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "5244aa16-aff5-4b58-b1ff-3ac3c3b9de0d"
+            },
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "526aa09e-066c-40bf-979e-0376e83100fe"
+            },
+            {
+              "uuid": "bc6bbfd3-5bf0-41f5-b146-1ea8d733ec06"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "5524b184-61e4-4015-8d27-beaf4b4f7215"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "57a1e40e-03c1-42f5-86ad-49789d429957"
+            },
+            {
+              "uuid": "a60a1a0f-19b2-4697-9481-0ebaa2ebc40f"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "581db8bc-183c-48f5-a7d3-c84c15d62a22"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "59daffc1-23b3-4501-aa21-63f314896f3c"
+            },
+            {
+              "uuid": "6c922632-63f1-423c-af25-b1c7d6812083"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "59daffc1-23b3-4501-aa21-63f314896f3c"
+            },
+            {
+              "uuid": "9c642289-5ef2-4175-a75a-2f9202ab69f4"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "59daffc1-23b3-4501-aa21-63f314896f3c"
+            },
+            {
+              "uuid": "a59def46-40a7-427b-8c51-12ea30951ddb"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "59daffc1-23b3-4501-aa21-63f314896f3c"
+            },
+            {
+              "uuid": "c6ce182c-1ca2-4410-9876-9b3529702661"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "59daffc1-23b3-4501-aa21-63f314896f3c"
+            },
+            {
+              "uuid": "d0957be2-77c7-48e2-84f3-aa65e622af0b"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "59daffc1-23b3-4501-aa21-63f314896f3c"
+            },
+            {
+              "uuid": "df68dff3-71f2-454e-b7ac-ad5846777e9e"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "59daffc1-23b3-4501-aa21-63f314896f3c"
+            },
+            {
+              "uuid": "e2f4480a-6377-4162-85cb-9d27c9376d21"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "59daffc1-23b3-4501-aa21-63f314896f3c"
+            },
+            {
+              "uuid": "eeb5d0f7-31e8-4808-8d3b-741f1e50175e"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "59daffc1-23b3-4501-aa21-63f314896f3c"
+            },
+            {
+              "uuid": "f7ddb3f6-01f2-41e9-9080-3c3f5299471d"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "59daffc1-23b3-4501-aa21-63f314896f3c"
+            },
+            {
+              "uuid": "fbfd19d5-fb9b-4b34-b036-cbe3658c9411"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "59daffc1-23b3-4501-aa21-63f314896f3c"
+            },
+            {
+              "uuid": "fc892561-5808-410d-b803-9f4ca89e2b68"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "5a8d9cb6-6005-43e7-8043-47ea77d30844"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "607cb560-4af4-40d9-b06f-d2942a0fffb1"
+            },
+            {
+              "uuid": "bc6bbfd3-5bf0-41f5-b146-1ea8d733ec06"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "60a1fba8-88d7-413c-8e0f-4d79eac188d2"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "61d4592e-88e5-424c-9386-0cc6e8401843"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "6222014d-b92c-411e-9532-c34569282d8c"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "63ecd24e-ba48-48b5-82ef-afdb242081a2"
+            },
+            {
+              "uuid": "bc6bbfd3-5bf0-41f5-b146-1ea8d733ec06"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "6417dc1b-4533-4bec-91f4-17c72e909eff"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "642c0854-8329-45c4-ba74-4babb13fe362"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "649d2ce2-4507-4f69-b726-62d2520291db"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "64d507e2-7f8a-4183-a678-e41d33a3ccd5"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "668cb41b-990e-4162-944a-68991703b75d"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "67bc9ed8-8572-467b-9761-9cc332e82876"
+            },
+            {
+              "uuid": "a60a1a0f-19b2-4697-9481-0ebaa2ebc40f"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "67c4e3cb-98db-4a24-ae91-4440658056e2"
+            },
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "6b4bb75b-fc1e-45c2-8d11-0173443400b5"
+            },
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "6c6c4c7c-3592-4f3b-9663-440d68b57d63"
+            },
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "6f2b30e5-4ea7-46cf-b63f-3e78155ad671"
+            },
+            {
+              "uuid": "bc6bbfd3-5bf0-41f5-b146-1ea8d733ec06"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "6f8be2e3-51b8-40f0-ae49-3f87ae934fef"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "71c965ca-3efe-4908-90ce-9c5d30167135"
+            },
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "73211b12-3b3e-4600-9554-767906a799a5"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "750178c0-c635-4d76-bbd4-6926c901c942"
+            },
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "7788c90c-7cbf-4d2c-84c8-c200d54f54e4"
+            },
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "78d25c49-b005-40e8-88c6-4e9ef84e80f5"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "78fc12c8-14b2-4ad8-ace9-5acf4c69b3ea"
+            },
+            {
+              "uuid": "bc6bbfd3-5bf0-41f5-b146-1ea8d733ec06"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "7d3e6363-05c2-4a73-8424-2c40f5f2b6ef"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "7dc362ea-2a9a-4d01-8d07-d4c3a6237cdd"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "8026081d-836d-4978-bada-1e72dc9546f1"
+            },
+            {
+              "uuid": "a60a1a0f-19b2-4697-9481-0ebaa2ebc40f"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "8374e730-3249-4f22-9d9f-269e0c6028f9"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "83feeead-feeb-4016-8b0b-8a32c8fd9660"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "85ae5a81-8002-41d3-9571-240104831d4d"
+            },
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "868abde6-8b5a-4219-944c-a567fc8e190f"
+            },
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "86bc4b9b-951a-49a1-8cd1-8945d4606e80"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "86db69cf-42df-4bcc-9742-b0a4b754916a"
+            },
+            {
+              "uuid": "bc6bbfd3-5bf0-41f5-b146-1ea8d733ec06"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "86f3f41c-e8dd-465f-9b81-e82edd2f1fe8"
+            },
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "88298f47-10ec-4125-a396-2ff899ba3998"
+            },
+            {
+              "uuid": "bc6bbfd3-5bf0-41f5-b146-1ea8d733ec06"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "896a6986-be28-4ae0-b156-fe2708eb0157"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "8acdb553-f7fa-4a02-a756-044334db3b06"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "8af4829b-f919-40d0-bc8c-34f20cd25161"
+            },
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "8bc7734f-47c8-4ffa-bbf2-6904229f81db"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "90f9152c-ab77-46cd-a4c5-d63e433fffcb"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "918996a3-4fd3-49c0-9109-ab9264b55bb9"
+            },
+            {
+              "uuid": "bc6bbfd3-5bf0-41f5-b146-1ea8d733ec06"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "937a6fa6-b2ce-4ca2-9f3b-3f79d78a0425"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "982e7a33-fe42-44d2-80c9-912bfcfa1089"
+            },
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "98a04f23-ec26-4c73-829f-ac39426933ca"
+            },
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            },
+            {
+              "uuid": "9dd3027e-b7a2-4332-b313-550635686afa"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            },
+            {
+              "uuid": "a1756a72-6a0e-45b2-bc31-38e3024ad4ea"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            },
+            {
+              "uuid": "a36b34a4-b02e-4e54-85d3-193debba5c30"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            },
+            {
+              "uuid": "a38e1df2-dbd7-4d17-b196-569a0c827a4b"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            },
+            {
+              "uuid": "a958c2a3-6fcc-447e-9737-74bdd3a73154"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            },
+            {
+              "uuid": "ac8bbb56-43a8-41db-87be-7562b6e37aad"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            },
+            {
+              "uuid": "b0898ae4-3fbf-4916-9304-4671c49750d6"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            },
+            {
+              "uuid": "b329b788-88d0-4bf5-a932-6b71eacffd5a"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            },
+            {
+              "uuid": "bb5c5a27-cbd6-42cb-b4a9-739fad75235c"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            },
+            {
+              "uuid": "bb6fde77-91b8-42cc-91b5-9d4548ffdb39"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            },
+            {
+              "uuid": "c41535a1-c4b3-4036-ac5b-712a8dbc16d5"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            },
+            {
+              "uuid": "cc338170-80a4-41a5-9cc9-5dd8a3b03f2a"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            },
+            {
+              "uuid": "cf7fb69a-6e1c-4fb1-a1fd-39fc71895bf6"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            },
+            {
+              "uuid": "cfb0573d-ba9c-48a7-a627-97d7b765a156"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            },
+            {
+              "uuid": "e3dba128-2ad7-4094-bb01-bc25cb85b311"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            },
+            {
+              "uuid": "ebbbe808-050b-4552-9939-bdfddd6039bd"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            },
+            {
+              "uuid": "ec0717d4-4338-424f-a6ee-456825f9c095"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            },
+            {
+              "uuid": "f0a7057f-cfd3-47c1-96a4-8ca66addca5d"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            },
+            {
+              "uuid": "f80b8a2e-a1c0-4d58-ba2a-918d8b3966ef"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "996203c1-225b-47b8-82c5-6aa139b073af"
+            },
+            {
+              "uuid": "fcbdb015-30aa-40d5-9fa7-f7b31a31ae6b"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "a0ab2da3-c66e-4197-8b27-918e8502e3de"
+            },
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "a60a1a0f-19b2-4697-9481-0ebaa2ebc40f"
+            },
+            {
+              "uuid": "d9f703d3-8f85-482d-8340-afe8f3601c23"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "a60a1a0f-19b2-4697-9481-0ebaa2ebc40f"
+            },
+            {
+              "uuid": "eeb19bbb-c40f-4be8-b84b-729bc1c3e6b0"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "a6cc195e-1722-4d62-99c0-0c718d8c1125"
+            },
+            {
+              "uuid": "bc6bbfd3-5bf0-41f5-b146-1ea8d733ec06"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "a928b31b-3e5b-4d7b-a659-c275c9548a02"
+            },
+            {
+              "uuid": "bc6bbfd3-5bf0-41f5-b146-1ea8d733ec06"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "a93d7a64-0504-414a-a450-56b6cc5fc59d"
+            },
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "aaa3a1a1-5486-4b76-8822-bdf6f4707e30"
+            },
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "ab95bfba-5ece-43f4-a206-5f9576a12ba9"
+            },
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "bc6bbfd3-5bf0-41f5-b146-1ea8d733ec06"
+            },
+            {
+              "uuid": "c1a902b8-4001-47f9-82b3-1d021c04824c"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "bc6bbfd3-5bf0-41f5-b146-1ea8d733ec06"
+            },
+            {
+              "uuid": "c5778052-918e-4582-ab3f-395d02b777d1"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "bc6bbfd3-5bf0-41f5-b146-1ea8d733ec06"
+            },
+            {
+              "uuid": "ca1bd538-654b-40e4-a887-edd79132f958"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "bc6bbfd3-5bf0-41f5-b146-1ea8d733ec06"
+            },
+            {
+              "uuid": "d84cdfa0-b237-47f2-b5e2-a72e9ab7aec2"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "bc6bbfd3-5bf0-41f5-b146-1ea8d733ec06"
+            },
+            {
+              "uuid": "eb47f5db-c304-4e1d-8417-b06982615c63"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "bc6bbfd3-5bf0-41f5-b146-1ea8d733ec06"
+            },
+            {
+              "uuid": "ed7fafe7-1682-450c-98ad-9208b3aab162"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "bc6bbfd3-5bf0-41f5-b146-1ea8d733ec06"
+            },
+            {
+              "uuid": "f248e1bc-1eb6-442a-b2f7-f163e72247cd"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "bc6bbfd3-5bf0-41f5-b146-1ea8d733ec06"
+            },
+            {
+              "uuid": "f62c7b0d-c742-48af-8eab-e00af0d8014e"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "c3b671d1-f04c-41e3-b894-111bc5e7431a"
+            },
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            },
+            {
+              "uuid": "d0f8ee5b-19ed-41fc-913c-9465377123d3"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            },
+            {
+              "uuid": "d608b48f-266f-4d86-bc4c-bef15505d53d"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            },
+            {
+              "uuid": "d63a02a6-0bc5-4257-8495-ce1f2d44d4de"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            },
+            {
+              "uuid": "da77bcd9-bb1b-41f5-8074-afac81786c56"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            },
+            {
+              "uuid": "e1a47c83-4f6a-48bc-a245-2d6118ff14f4"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            },
+            {
+              "uuid": "e2fee9c8-7407-4e5d-8fca-fe89852a634f"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            },
+            {
+              "uuid": "e35f93f8-618f-48a6-8704-74d09c9e1b8b"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            },
+            {
+              "uuid": "e824bce5-b75b-499a-9e81-911f0d3c2ada"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            },
+            {
+              "uuid": "f20e7316-dd66-4c09-8d46-5c7b766ccecf"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            },
+            {
+              "uuid": "ff0dd467-4f8f-4007-b4d5-ea14f5fb93d5"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            },
+            {
+              "uuid": "ff5a2c84-f417-48f6-95c5-cccac716701e"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "ce46cae0-9e38-4ee7-b250-66ff67b9ac17"
+            },
+            {
+              "uuid": "ffbca8ac-5ea1-4acd-bf7d-394beae14769"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "f2eea66b-fdc1-4c16-8dd4-a92a6d23b41f"
+            },
+            {
+              "uuid": "f590b14b-9c01-49c9-915c-1fd90664ffd2"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_edge_clearance"
+        },
+        {
+          "items": [
+            {
+              "uuid": "07565b4d-7d5b-4b8b-b1d8-892c91990f1b"
+            },
+            {
+              "uuid": "1e032384-9ebf-448e-9255-615526e0844d"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_over_copper"
+        },
+        {
+          "items": [
+            {
+              "uuid": "07565b4d-7d5b-4b8b-b1d8-892c91990f1b"
+            },
+            {
+              "uuid": "20c68b77-2feb-40de-a561-0f63570011a4"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_over_copper"
+        },
+        {
+          "items": [
+            {
+              "uuid": "07565b4d-7d5b-4b8b-b1d8-892c91990f1b"
+            },
+            {
+              "uuid": "2d82956b-5818-4302-bd3a-9f028144fdc5"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_over_copper"
+        },
+        {
+          "items": [
+            {
+              "uuid": "07565b4d-7d5b-4b8b-b1d8-892c91990f1b"
+            },
+            {
+              "uuid": "2e26c9d2-f500-4e31-93c5-69c1c69dd574"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_over_copper"
+        },
+        {
+          "items": [
+            {
+              "uuid": "07565b4d-7d5b-4b8b-b1d8-892c91990f1b"
+            },
+            {
+              "uuid": "3287f9ca-6e85-4b4c-af02-60f25559d557"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_over_copper"
+        },
+        {
+          "items": [
+            {
+              "uuid": "07565b4d-7d5b-4b8b-b1d8-892c91990f1b"
+            },
+            {
+              "uuid": "394c0439-055b-4b84-9c36-3fe8efdf729b"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_over_copper"
+        },
+        {
+          "items": [
+            {
+              "uuid": "07565b4d-7d5b-4b8b-b1d8-892c91990f1b"
+            },
+            {
+              "uuid": "56c2f2e8-cce7-48f3-b9b9-0fc59f564e99"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_over_copper"
+        },
+        {
+          "items": [
+            {
+              "uuid": "07565b4d-7d5b-4b8b-b1d8-892c91990f1b"
+            },
+            {
+              "uuid": "6a2d8c7c-26b4-404d-b4d1-47cc4c7babeb"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_over_copper"
+        },
+        {
+          "items": [
+            {
+              "uuid": "07565b4d-7d5b-4b8b-b1d8-892c91990f1b"
+            },
+            {
+              "uuid": "71750453-f150-42b6-89bb-35bd5cca1c84"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_over_copper"
+        },
+        {
+          "items": [
+            {
+              "uuid": "07565b4d-7d5b-4b8b-b1d8-892c91990f1b"
+            },
+            {
+              "uuid": "91562aff-ba9c-402b-85d8-97879614f287"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_over_copper"
+        },
+        {
+          "items": [
+            {
+              "uuid": "07565b4d-7d5b-4b8b-b1d8-892c91990f1b"
+            },
+            {
+              "uuid": "f9a897ab-209b-4dbe-a5f7-ddd3e27a4bda"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_over_copper"
+        },
+        {
+          "items": [
+            {
+              "uuid": "07565b4d-7d5b-4b8b-b1d8-892c91990f1b"
+            },
+            {
+              "uuid": "fcf475d8-6d7e-43c3-b0e4-0889cb3920b2"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_over_copper"
+        },
+        {
+          "items": [
+            {
+              "uuid": "1e032384-9ebf-448e-9255-615526e0844d"
+            },
+            {
+              "uuid": "70ed071b-cb28-4338-a546-b19206ba1a74"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_over_copper"
+        },
+        {
+          "items": [
+            {
+              "uuid": "1e032384-9ebf-448e-9255-615526e0844d"
+            },
+            {
+              "uuid": "910ddbb4-a1c8-43da-8a88-3c4cdee4238c"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_over_copper"
+        },
+        {
+          "items": [
+            {
+              "uuid": "1e032384-9ebf-448e-9255-615526e0844d"
+            },
+            {
+              "uuid": "94ab16a6-135f-4c48-8bcc-ca7df7be0cfb"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_over_copper"
+        },
+        {
+          "items": [
+            {
+              "uuid": "2b7cdd46-4828-46e5-9a2a-1ea58e5aa805"
+            },
+            {
+              "uuid": "94ab16a6-135f-4c48-8bcc-ca7df7be0cfb"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_over_copper"
+        },
+        {
+          "items": [
+            {
+              "uuid": "61597718-0444-43b4-b9ee-a44ec52f5cc3"
+            },
+            {
+              "uuid": "910ddbb4-a1c8-43da-8a88-3c4cdee4238c"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_over_copper"
+        },
+        {
+          "items": [
+            {
+              "uuid": "6ceaa53f-8d1d-4144-b62c-8456ebbc706b"
+            },
+            {
+              "uuid": "910ddbb4-a1c8-43da-8a88-3c4cdee4238c"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_over_copper"
+        },
+        {
+          "items": [
+            {
+              "uuid": "71685c86-14c2-43c6-8ca4-1ec5be92e266"
+            },
+            {
+              "uuid": "94ab16a6-135f-4c48-8bcc-ca7df7be0cfb"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_over_copper"
+        },
+        {
+          "items": [
+            {
+              "uuid": "94ab16a6-135f-4c48-8bcc-ca7df7be0cfb"
+            },
+            {
+              "uuid": "d29ec2cb-9499-4da3-ba8e-270366e0ec4a"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_over_copper"
+        },
+        {
+          "items": [
+            {
+              "uuid": "94ab16a6-135f-4c48-8bcc-ca7df7be0cfb"
+            },
+            {
+              "uuid": "df6403f7-181c-4e04-b175-49e27b376f98"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_over_copper"
+        },
+        {
+          "items": [
+            {
+              "uuid": "00b83fd9-419c-4411-93e7-6ecbd1a1113d"
+            },
+            {
+              "uuid": "1ed7c932-1417-4809-b7ff-43ecbb36ae1b"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "00b85f57-122f-420e-bc57-7d647f22ff54"
+            },
+            {
+              "uuid": "60d9848e-89d3-47b4-931e-3180ff5c630b"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "00b85f57-122f-420e-bc57-7d647f22ff54"
+            },
+            {
+              "uuid": "79f5d967-be33-4f64-a975-5c4cea4e0964"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "01ff1c0c-094e-4e0f-ac19-bc59e90cf523"
+            },
+            {
+              "uuid": "40d494de-7e06-4db4-a970-4f127e1cff81"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "02ab24bf-674b-4a92-9f12-d80b64d5be8c"
+            },
+            {
+              "uuid": "8d155059-bbc9-487b-84ed-4adc849e55ce"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "02e04167-ac0d-4f76-8bd9-ec33f978d17e"
+            },
+            {
+              "uuid": "faf134eb-cc6b-41e2-a76f-eb4f5e6a1834"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "03c9f685-8c92-43a8-a84f-dbe8b2d2f172"
+            },
+            {
+              "uuid": "2530b80a-6526-4cb5-a742-5139dacc92dd"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "03c9f685-8c92-43a8-a84f-dbe8b2d2f172"
+            },
+            {
+              "uuid": "3d587341-2ca8-46fb-8b49-766093368295"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "03c9f685-8c92-43a8-a84f-dbe8b2d2f172"
+            },
+            {
+              "uuid": "b5e57858-8491-4683-aeec-6964b808019d"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "03c9f685-8c92-43a8-a84f-dbe8b2d2f172"
+            },
+            {
+              "uuid": "c2036573-8477-4a44-953c-a32214e32197"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "03c9f685-8c92-43a8-a84f-dbe8b2d2f172"
+            },
+            {
+              "uuid": "e56696e5-31d2-42e2-b2c8-c45f54bda6bd"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "04f4acf7-902e-48dc-95bc-003d45bdb401"
+            },
+            {
+              "uuid": "457fd9f3-8fa2-431e-9d0d-19485d4b5d70"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "04f4acf7-902e-48dc-95bc-003d45bdb401"
+            },
+            {
+              "uuid": "520ae314-4655-4c7d-a775-22e5dc55b173"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "04f4acf7-902e-48dc-95bc-003d45bdb401"
+            },
+            {
+              "uuid": "708d7a97-217a-4c6d-a386-ab475a194aeb"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "04f4acf7-902e-48dc-95bc-003d45bdb401"
+            },
+            {
+              "uuid": "81c49548-301e-4191-9be1-78227215bbc0"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "04f4acf7-902e-48dc-95bc-003d45bdb401"
+            },
+            {
+              "uuid": "86339678-8334-4f63-91f9-83a3dd8a6485"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "04f4acf7-902e-48dc-95bc-003d45bdb401"
+            },
+            {
+              "uuid": "b8eb1a8d-7679-490f-b841-ba6a5c0b1fca"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "04f4acf7-902e-48dc-95bc-003d45bdb401"
+            },
+            {
+              "uuid": "f905a7c6-209c-46dd-ac49-eacd9400708d"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "05be566e-692b-46e4-9d9b-9ae27344ac53"
+            },
+            {
+              "uuid": "d7a842c2-e76f-49df-a8f8-797701dff5f5"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "0605eb6b-db28-4fcb-90df-a660480aee80"
+            },
+            {
+              "uuid": "81c49548-301e-4191-9be1-78227215bbc0"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "0688d20c-d20c-4eb0-bcc5-df8e325fbd7e"
+            },
+            {
+              "uuid": "07e686f0-67e9-4147-8c6f-b5a301cb0c28"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "0688d20c-d20c-4eb0-bcc5-df8e325fbd7e"
+            },
+            {
+              "uuid": "dfc681f0-1220-4bb1-9cc6-37b0b3a0e998"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "06d5ae3b-e121-4643-a1be-d1d809e776af"
+            },
+            {
+              "uuid": "489833b0-b6bd-4633-9850-c4b86c77931f"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "07e686f0-67e9-4147-8c6f-b5a301cb0c28"
+            },
+            {
+              "uuid": "44a1f670-b3e6-4855-bea5-fa7571b124b3"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "07e686f0-67e9-4147-8c6f-b5a301cb0c28"
+            },
+            {
+              "uuid": "8c9379ca-2876-473a-99c4-551ec0ec235b"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "07e686f0-67e9-4147-8c6f-b5a301cb0c28"
+            },
+            {
+              "uuid": "9e2286a0-d8a0-4d4d-b36e-f7d596cd1ad4"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "0879ee48-cb1a-447d-9096-ca6034621f79"
+            },
+            {
+              "uuid": "8cad9c35-ea50-44b8-a0af-e5506b7d6694"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "0bc12911-2af5-4acf-97cc-172aa9e1e010"
+            },
+            {
+              "uuid": "d7a842c2-e76f-49df-a8f8-797701dff5f5"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "0d1c1a3b-5f9f-44d5-9929-059bc4061cf6"
+            },
+            {
+              "uuid": "74bfce6e-6c25-4299-9a2b-81da4e1c9cfa"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "10986ba7-2e64-4a2e-9617-dd6a544d6ac6"
+            },
+            {
+              "uuid": "e0f6dfcb-ed75-454c-82ad-20322e9b09b8"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "11c6b1e2-4308-409e-8ada-8f43864eeb4e"
+            },
+            {
+              "uuid": "df40b447-b7c5-473e-8f2a-46f4e7937360"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "11eefd6b-ba76-4ed9-873b-dfd6eb570370"
+            },
+            {
+              "uuid": "e4839ca0-31fa-4828-862d-c4d9a9982ad5"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "12f81d03-fd88-4ac4-926a-5065dab67cb9"
+            },
+            {
+              "uuid": "e4839ca0-31fa-4828-862d-c4d9a9982ad5"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "13600248-6ecf-43c0-9d6f-7e64ea29df8a"
+            },
+            {
+              "uuid": "ad47fcb0-1f89-4e35-8caa-74c39eb2651f"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "140f39f7-07c6-4b09-8a89-534638638c67"
+            },
+            {
+              "uuid": "4f3c4524-d121-4505-9f8e-c69ad005313a"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "14f9941c-441b-4f83-90f5-ef0958b14085"
+            },
+            {
+              "uuid": "2cd754a9-6474-4e45-a52f-f3ac9a2693d8"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "14f9941c-441b-4f83-90f5-ef0958b14085"
+            },
+            {
+              "uuid": "66d6aae9-0842-4022-995f-e8c3aca80055"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "17826422-c47a-4cf2-986d-af07ed148d08"
+            },
+            {
+              "uuid": "e0f6dfcb-ed75-454c-82ad-20322e9b09b8"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "190d19c3-6036-4706-a7c1-7bcc156f9679"
+            },
+            {
+              "uuid": "d9f89e8f-36db-4fae-b67c-e646a74d2c8a"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "1a2545cb-785a-4999-868c-58d86a40c827"
+            },
+            {
+              "uuid": "74bfce6e-6c25-4299-9a2b-81da4e1c9cfa"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "1ed7c932-1417-4809-b7ff-43ecbb36ae1b"
+            },
+            {
+              "uuid": "20cb5b14-a4ef-4aa3-92f1-04934bdaa798"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "1ed7c932-1417-4809-b7ff-43ecbb36ae1b"
+            },
+            {
+              "uuid": "2cae5ad4-8484-44aa-8c76-589799a23869"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "1ed7c932-1417-4809-b7ff-43ecbb36ae1b"
+            },
+            {
+              "uuid": "6ba2d2b9-8a10-460b-b61a-8f4558853888"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "1ed7c932-1417-4809-b7ff-43ecbb36ae1b"
+            },
+            {
+              "uuid": "758a991f-7237-4792-8879-712dd01e6bdb"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "1ed7c932-1417-4809-b7ff-43ecbb36ae1b"
+            },
+            {
+              "uuid": "98c64d36-f445-487d-a3f8-c2be2a956b54"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "23e9c2b1-b60f-4cd0-b47e-216e7119e41c"
+            },
+            {
+              "uuid": "fb72b5eb-c5e6-49a9-bc8e-dbc19dcb4114"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "24709886-90cc-4143-8e62-e9e7c7813156"
+            },
+            {
+              "uuid": "3a2cbb75-1783-4e87-9483-68aaf292e4a2"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "24709886-90cc-4143-8e62-e9e7c7813156"
+            },
+            {
+              "uuid": "bf7ca588-a25e-415b-8aa1-11313c91da67"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "251b56ff-e6aa-4620-8094-43c36bc6f5de"
+            },
+            {
+              "uuid": "dfc681f0-1220-4bb1-9cc6-37b0b3a0e998"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "27fc7b22-d07a-4f8c-942e-ac13a704bdf4"
+            },
+            {
+              "uuid": "79f5d967-be33-4f64-a975-5c4cea4e0964"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "280c930e-9673-48b9-8043-681930fad2dc"
+            },
+            {
+              "uuid": "79f5d967-be33-4f64-a975-5c4cea4e0964"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "280c930e-9673-48b9-8043-681930fad2dc"
+            },
+            {
+              "uuid": "ea0cc781-6e2e-4939-87b9-d9af54646d73"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "284cbe25-a695-47a5-9df2-e767f18e6c20"
+            },
+            {
+              "uuid": "a093a5cc-9720-40c3-b0ba-e36934bc0abb"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "298cb988-a17d-4889-b1f0-ef12b968a108"
+            },
+            {
+              "uuid": "6895e117-9ba6-4c51-8235-c11de3ece6ba"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "298cb988-a17d-4889-b1f0-ef12b968a108"
+            },
+            {
+              "uuid": "c6920611-b5bb-4759-8349-569b90ae8bc4"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "298cb988-a17d-4889-b1f0-ef12b968a108"
+            },
+            {
+              "uuid": "e2bf1a5d-c00a-4734-9a15-6b790cae5bdf"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "2b652e1d-de57-4e5a-9d3f-11b7d64f518d"
+            },
+            {
+              "uuid": "74bfce6e-6c25-4299-9a2b-81da4e1c9cfa"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "2cd754a9-6474-4e45-a52f-f3ac9a2693d8"
+            },
+            {
+              "uuid": "d9f89e8f-36db-4fae-b67c-e646a74d2c8a"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "2e7ee504-5090-4a73-bd27-1238d791b6b9"
+            },
+            {
+              "uuid": "40d494de-7e06-4db4-a970-4f127e1cff81"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "2e7ee504-5090-4a73-bd27-1238d791b6b9"
+            },
+            {
+              "uuid": "f91ae616-5fe2-465c-a074-b7c7c703379c"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "2e96bd91-22c0-4896-bba4-37171351dd29"
+            },
+            {
+              "uuid": "74bfce6e-6c25-4299-9a2b-81da4e1c9cfa"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "304cbb4d-3000-49f2-91fc-0ec51ce1db32"
+            },
+            {
+              "uuid": "ad47fcb0-1f89-4e35-8caa-74c39eb2651f"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "310a2a7c-98e6-4928-8860-94d058380251"
+            },
+            {
+              "uuid": "5f3382c2-bb82-473e-a75c-53141095745f"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "332d32c7-0e93-4f54-8778-ded2806b783a"
+            },
+            {
+              "uuid": "489833b0-b6bd-4633-9850-c4b86c77931f"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "34bba57d-97f6-4ea0-8eb0-5b64dc1c916a"
+            },
+            {
+              "uuid": "40e1382c-fd1f-4a19-a1d6-62de97409f3c"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "373487ae-32f2-474f-b3fd-ca76ab77f2d0"
+            },
+            {
+              "uuid": "d7a842c2-e76f-49df-a8f8-797701dff5f5"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "3859a55c-bbbb-4f4e-bd6d-f61cacba26af"
+            },
+            {
+              "uuid": "9f50ff0f-128a-436f-b59d-28b44162a500"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "38fab72a-d721-4eda-8503-b5c16301659c"
+            },
+            {
+              "uuid": "78ed2385-58d7-4311-a90f-8786abee552d"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "39b63c3f-8586-46b3-b4d0-50b96669d671"
+            },
+            {
+              "uuid": "90e0c78a-befd-4516-961b-69d1c722fdfa"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "3a2cbb75-1783-4e87-9483-68aaf292e4a2"
+            },
+            {
+              "uuid": "ad47fcb0-1f89-4e35-8caa-74c39eb2651f"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "3a2cbb75-1783-4e87-9483-68aaf292e4a2"
+            },
+            {
+              "uuid": "d0a3bf8a-7861-46bf-ab41-dd2cc85958df"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "3aa87fa0-3a65-49cd-8fae-5d17240987d0"
+            },
+            {
+              "uuid": "489833b0-b6bd-4633-9850-c4b86c77931f"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "3aeb9212-f00a-437e-ad69-4a12d07de2ae"
+            },
+            {
+              "uuid": "ad47fcb0-1f89-4e35-8caa-74c39eb2651f"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "3c673632-66ce-4b03-90c6-a88436e5aa07"
+            },
+            {
+              "uuid": "489833b0-b6bd-4633-9850-c4b86c77931f"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "3cadec40-256f-421d-80b7-27bdbb07f411"
+            },
+            {
+              "uuid": "ece6cfbb-58ef-44a2-849e-73709c364a1d"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "3d24ea6b-2a6c-43aa-8b11-9164f9fc7ce1"
+            },
+            {
+              "uuid": "52d5640b-f836-4d53-9cf1-4a19497bf226"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "3d7a2ad2-a18e-4342-b6cf-f95d5819ffb0"
+            },
+            {
+              "uuid": "41475317-1d02-483c-89a6-9a65a8b6706e"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "3d81a6b2-768a-4343-98fc-1036b39ec1a4"
+            },
+            {
+              "uuid": "ad47fcb0-1f89-4e35-8caa-74c39eb2651f"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "3e380526-4dea-4f47-88fe-3fd00c8881d2"
+            },
+            {
+              "uuid": "d9f89e8f-36db-4fae-b67c-e646a74d2c8a"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "40c3aa42-b453-46c9-b9b7-21604915fd9a"
+            },
+            {
+              "uuid": "78ed2385-58d7-4311-a90f-8786abee552d"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "40d494de-7e06-4db4-a970-4f127e1cff81"
+            },
+            {
+              "uuid": "aff02ef7-ed58-4107-9f83-aaaf2aba835f"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "41047afc-bad4-4009-b1fb-10325294fc24"
+            },
+            {
+              "uuid": "4f3c4524-d121-4505-9f8e-c69ad005313a"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "41475317-1d02-483c-89a6-9a65a8b6706e"
+            },
+            {
+              "uuid": "b1ac6631-3890-4de6-a579-f79fc2be99e0"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "41475317-1d02-483c-89a6-9a65a8b6706e"
+            },
+            {
+              "uuid": "b3ee2ae3-8f05-4807-b62c-d1a30f3b91b9"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "4220e7c9-a8a9-42fd-9521-2427c368e55a"
+            },
+            {
+              "uuid": "658f7061-edec-443c-89bc-dc7b5fef5669"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "4220e7c9-a8a9-42fd-9521-2427c368e55a"
+            },
+            {
+              "uuid": "ccd38b82-812b-4333-bcee-c7a2a8886e64"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "42381bec-1e92-4edf-9d9a-de033e61bbf5"
+            },
+            {
+              "uuid": "d9f89e8f-36db-4fae-b67c-e646a74d2c8a"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "433fe0ff-2951-4cef-adca-f3f04644a713"
+            },
+            {
+              "uuid": "489833b0-b6bd-4633-9850-c4b86c77931f"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "44a1f670-b3e6-4855-bea5-fa7571b124b3"
+            },
+            {
+              "uuid": "dfc681f0-1220-4bb1-9cc6-37b0b3a0e998"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "46aabcb0-e243-44c4-99f5-10bb1bddbf49"
+            },
+            {
+              "uuid": "92825c78-2acd-47be-a3fc-c90b191a4625"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "489833b0-b6bd-4633-9850-c4b86c77931f"
+            },
+            {
+              "uuid": "4da91011-5120-4e7e-ae97-6578e1bb078f"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "489833b0-b6bd-4633-9850-c4b86c77931f"
+            },
+            {
+              "uuid": "5149c7c0-104f-478a-9512-07289bcf67da"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "489833b0-b6bd-4633-9850-c4b86c77931f"
+            },
+            {
+              "uuid": "5e8be66b-a506-4e38-83e9-793f512a3a3d"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "489833b0-b6bd-4633-9850-c4b86c77931f"
+            },
+            {
+              "uuid": "8888392f-1322-4a35-9a53-b9eae19147b9"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "489833b0-b6bd-4633-9850-c4b86c77931f"
+            },
+            {
+              "uuid": "b0c9f9c4-f522-4de0-b823-0690be5804a5"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "489833b0-b6bd-4633-9850-c4b86c77931f"
+            },
+            {
+              "uuid": "b16b2fde-6fe1-4edd-a1e8-8fc8a022b750"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "489833b0-b6bd-4633-9850-c4b86c77931f"
+            },
+            {
+              "uuid": "c5c44c12-2c3c-4027-badf-b7602efe47f3"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "489833b0-b6bd-4633-9850-c4b86c77931f"
+            },
+            {
+              "uuid": "ccb54e43-2d7b-4b01-924f-382857964147"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "489833b0-b6bd-4633-9850-c4b86c77931f"
+            },
+            {
+              "uuid": "cf80e30f-5ed7-44bc-b07d-59ec7b9ac504"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "489833b0-b6bd-4633-9850-c4b86c77931f"
+            },
+            {
+              "uuid": "ec682c0b-f129-4946-a747-dc3def038fe8"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "489833b0-b6bd-4633-9850-c4b86c77931f"
+            },
+            {
+              "uuid": "ee7e9981-38ac-47a3-9e00-3d0257a98ca0"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "4a543b03-c4a0-4c2c-9c31-5d25537841c4"
+            },
+            {
+              "uuid": "74bfce6e-6c25-4299-9a2b-81da4e1c9cfa"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "4b7cc78e-c505-4828-9c69-42ab1844a168"
+            },
+            {
+              "uuid": "90e0c78a-befd-4516-961b-69d1c722fdfa"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "4f3c4524-d121-4505-9f8e-c69ad005313a"
+            },
+            {
+              "uuid": "83ac1d16-6a50-444e-a483-a20acdb0ada8"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "50754394-1aaf-4d8b-8212-d152ac9e7b96"
+            },
+            {
+              "uuid": "faf134eb-cc6b-41e2-a76f-eb4f5e6a1834"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "52d5640b-f836-4d53-9cf1-4a19497bf226"
+            },
+            {
+              "uuid": "64d9df3d-0d9e-4eb7-861e-9050e535a4f3"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "52d5640b-f836-4d53-9cf1-4a19497bf226"
+            },
+            {
+              "uuid": "78ed2385-58d7-4311-a90f-8786abee552d"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "5434e27f-959e-4c6d-a30c-e045b032f874"
+            },
+            {
+              "uuid": "faf134eb-cc6b-41e2-a76f-eb4f5e6a1834"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "567b207c-433a-478f-84cf-c507bb073344"
+            },
+            {
+              "uuid": "ad47fcb0-1f89-4e35-8caa-74c39eb2651f"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "56c10238-2b7c-4bd3-b3ca-b14ffa7ef0e7"
+            },
+            {
+              "uuid": "9f50ff0f-128a-436f-b59d-28b44162a500"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "56d3bdf6-7e29-4c50-89d9-15931498be26"
+            },
+            {
+              "uuid": "d3e44b35-b8ba-4537-8ecb-14afee18ce3f"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "57131b60-fb64-4145-a7da-ce447ad0cb2b"
+            },
+            {
+              "uuid": "d7a842c2-e76f-49df-a8f8-797701dff5f5"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "58169ef0-c83e-4fb7-a225-059d7e975e5b"
+            },
+            {
+              "uuid": "faf134eb-cc6b-41e2-a76f-eb4f5e6a1834"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "5b91cf3c-fc48-4c42-be1d-e2b7fc36f3da"
+            },
+            {
+              "uuid": "7c57de7d-7851-42dd-b4e1-516dbd419ebe"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "5b91cf3c-fc48-4c42-be1d-e2b7fc36f3da"
+            },
+            {
+              "uuid": "cb28a818-25fd-4d2d-a76a-d983399f7426"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "5b91cf3c-fc48-4c42-be1d-e2b7fc36f3da"
+            },
+            {
+              "uuid": "e4e0ffef-765e-464e-bcc4-b625e38ea625"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "5b91cf3c-fc48-4c42-be1d-e2b7fc36f3da"
+            },
+            {
+              "uuid": "fa0c79e4-69b9-4bbf-87bb-c146184c157c"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "5c576d9c-d048-4e61-af4b-2c0ebb8a147f"
+            },
+            {
+              "uuid": "ad47fcb0-1f89-4e35-8caa-74c39eb2651f"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "5e2eb881-55e0-47b1-97e4-f0bb3c3925a3"
+            },
+            {
+              "uuid": "81cc07f5-fd21-4309-9343-2d7124e8bbb8"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "5ec50c24-769a-4fbc-aa0f-10d5fda880f8"
+            },
+            {
+              "uuid": "e5eb1e4b-5a75-4e7a-b56c-8a8c0a89da3a"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "5ed7f2b0-43ac-4c1d-adcc-aba93ea10324"
+            },
+            {
+              "uuid": "e5eb1e4b-5a75-4e7a-b56c-8a8c0a89da3a"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "60d9848e-89d3-47b4-931e-3180ff5c630b"
+            },
+            {
+              "uuid": "fe7f358a-c8fc-49ea-b661-45eb6d94dc6f"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "61c6726f-86cd-47e7-9ac6-d132df8a6411"
+            },
+            {
+              "uuid": "d9f89e8f-36db-4fae-b67c-e646a74d2c8a"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "61c6726f-86cd-47e7-9ac6-d132df8a6411"
+            },
+            {
+              "uuid": "ece6cfbb-58ef-44a2-849e-73709c364a1d"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "62db946d-0298-4b03-b6eb-030f96ae308b"
+            },
+            {
+              "uuid": "d7a842c2-e76f-49df-a8f8-797701dff5f5"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "6546353d-c7c4-4eb8-a5dc-eab7b52bb8ca"
+            },
+            {
+              "uuid": "8d23db06-0096-4955-a878-f67644bd51bf"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "6546353d-c7c4-4eb8-a5dc-eab7b52bb8ca"
+            },
+            {
+              "uuid": "be556c65-e0c1-41fc-97f7-f23fb4743ba5"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "6546353d-c7c4-4eb8-a5dc-eab7b52bb8ca"
+            },
+            {
+              "uuid": "f89b6492-2faf-4491-8d12-278934ad5b0a"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "672233bb-7c64-4cce-b2cf-b5692086da7d"
+            },
+            {
+              "uuid": "81cc07f5-fd21-4309-9343-2d7124e8bbb8"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "69b40a08-490d-44d8-bd26-38dfc574a156"
+            },
+            {
+              "uuid": "ad47fcb0-1f89-4e35-8caa-74c39eb2651f"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "6b4bb8a2-189b-46e1-a4e4-ece1f3817d2e"
+            },
+            {
+              "uuid": "e4839ca0-31fa-4828-862d-c4d9a9982ad5"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "6e6a69ed-549d-46f3-8295-8bcd8f0afdab"
+            },
+            {
+              "uuid": "ad47fcb0-1f89-4e35-8caa-74c39eb2651f"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "6fb3ea9f-5f44-4ef3-a6b5-bcd7d7bbf9ca"
+            },
+            {
+              "uuid": "e0f6dfcb-ed75-454c-82ad-20322e9b09b8"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "708d7a97-217a-4c6d-a386-ab475a194aeb"
+            },
+            {
+              "uuid": "b9e072ca-1dbf-4c69-89f6-3b2789ad1532"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "73c344c0-73af-425d-9b9f-1f0e99d17d7c"
+            },
+            {
+              "uuid": "e4839ca0-31fa-4828-862d-c4d9a9982ad5"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "7494859d-a7b3-456c-92a5-97832ef143d0"
+            },
+            {
+              "uuid": "df40b447-b7c5-473e-8f2a-46f4e7937360"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "74bfce6e-6c25-4299-9a2b-81da4e1c9cfa"
+            },
+            {
+              "uuid": "8b83ff8f-6adc-47c6-b9a8-11126babd9fb"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "74bfce6e-6c25-4299-9a2b-81da4e1c9cfa"
+            },
+            {
+              "uuid": "ac04ea0c-f78d-48c3-9c37-659eed69086d"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "74bfce6e-6c25-4299-9a2b-81da4e1c9cfa"
+            },
+            {
+              "uuid": "afcbdf26-0935-43cc-a710-7ec522ebf6d1"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "74bfce6e-6c25-4299-9a2b-81da4e1c9cfa"
+            },
+            {
+              "uuid": "d6a35aab-39ba-48b7-8c61-fc526868444b"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "74bfce6e-6c25-4299-9a2b-81da4e1c9cfa"
+            },
+            {
+              "uuid": "ef80fc91-4189-45fd-99cf-eb9c82cc9535"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "74bfce6e-6c25-4299-9a2b-81da4e1c9cfa"
+            },
+            {
+              "uuid": "f27c8c15-9b8f-4014-adcf-d250fc648b4a"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "74bfce6e-6c25-4299-9a2b-81da4e1c9cfa"
+            },
+            {
+              "uuid": "f4f0ee9a-2ade-485d-bf5d-05dec9137532"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "74f5222d-63b5-4399-a17f-de56a23794ad"
+            },
+            {
+              "uuid": "e5eb1e4b-5a75-4e7a-b56c-8a8c0a89da3a"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "7511583b-b744-49bc-83fe-1a6f1039d31d"
+            },
+            {
+              "uuid": "d0a3bf8a-7861-46bf-ab41-dd2cc85958df"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "79461e71-6807-4816-9f3e-5486b68cf208"
+            },
+            {
+              "uuid": "7c57de7d-7851-42dd-b4e1-516dbd419ebe"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "79461e71-6807-4816-9f3e-5486b68cf208"
+            },
+            {
+              "uuid": "cb28a818-25fd-4d2d-a76a-d983399f7426"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "79461e71-6807-4816-9f3e-5486b68cf208"
+            },
+            {
+              "uuid": "e4e0ffef-765e-464e-bcc4-b625e38ea625"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "79f5d967-be33-4f64-a975-5c4cea4e0964"
+            },
+            {
+              "uuid": "fe7f358a-c8fc-49ea-b661-45eb6d94dc6f"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "7bb6968b-c9a7-43f9-bbde-2d4f250f714a"
+            },
+            {
+              "uuid": "868abde6-8b5a-4219-944c-a567fc8e190f"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "7bbef6ba-3c97-4db7-8f77-9c066cf92360"
+            },
+            {
+              "uuid": "90e0c78a-befd-4516-961b-69d1c722fdfa"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "7bc68f04-67da-4c56-bca2-3b654bdb3337"
+            },
+            {
+              "uuid": "e4839ca0-31fa-4828-862d-c4d9a9982ad5"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "7bf2453e-4768-408c-a046-10f9ef50ace5"
+            },
+            {
+              "uuid": "8242ccf0-1438-46c2-a912-6af2335a334d"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "7bf2453e-4768-408c-a046-10f9ef50ace5"
+            },
+            {
+              "uuid": "92ab6a4a-141f-4d10-ae1f-576a4fa1250c"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "7c57de7d-7851-42dd-b4e1-516dbd419ebe"
+            },
+            {
+              "uuid": "e28d9a17-0015-4a88-b8fd-439a744822c7"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "7cd0bf87-7f08-4b1f-9377-66cb9170b4e7"
+            },
+            {
+              "uuid": "fb72b5eb-c5e6-49a9-bc8e-dbc19dcb4114"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "81e69af9-ad7b-4608-b2da-aef6528d16bf"
+            },
+            {
+              "uuid": "d3e44b35-b8ba-4537-8ecb-14afee18ce3f"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "85675c77-db7e-4d61-90a9-66300710c4ff"
+            },
+            {
+              "uuid": "df40b447-b7c5-473e-8f2a-46f4e7937360"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "87c4bd03-b77c-42eb-b423-1d1dc29996b1"
+            },
+            {
+              "uuid": "faf134eb-cc6b-41e2-a76f-eb4f5e6a1834"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "88b49455-142c-4528-8fce-f94040adbc72"
+            },
+            {
+              "uuid": "fb72b5eb-c5e6-49a9-bc8e-dbc19dcb4114"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "90e0c78a-befd-4516-961b-69d1c722fdfa"
+            },
+            {
+              "uuid": "b717d0f2-c70c-4be3-814a-23f03f276c9c"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "90e0c78a-befd-4516-961b-69d1c722fdfa"
+            },
+            {
+              "uuid": "e6cefbdf-511f-498a-869f-dedba56b8435"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "90e0c78a-befd-4516-961b-69d1c722fdfa"
+            },
+            {
+              "uuid": "f98924d8-e331-4241-a833-c6f438c94bef"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "91e661c8-9a9d-4617-8346-314f789d802a"
+            },
+            {
+              "uuid": "faf134eb-cc6b-41e2-a76f-eb4f5e6a1834"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "92588a02-37ca-407f-bc49-6887a6af8fd1"
+            },
+            {
+              "uuid": "b481a5da-8980-4997-b845-b710948a7a72"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "92825c78-2acd-47be-a3fc-c90b191a4625"
+            },
+            {
+              "uuid": "cc534289-f5c5-4c2e-841b-663f063cba43"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "92825c78-2acd-47be-a3fc-c90b191a4625"
+            },
+            {
+              "uuid": "e568bfd0-b848-4786-9823-8fd12bd0f310"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "92825c78-2acd-47be-a3fc-c90b191a4625"
+            },
+            {
+              "uuid": "ed876f97-cdcd-4b6d-a1a9-bfe226b2986c"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "92a6997d-a95a-47ec-8daa-66175ae18921"
+            },
+            {
+              "uuid": "e593b6b7-0e1e-42c6-88d6-ccd6c6f04d77"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "9528e41f-95d4-4662-ab4e-0b76fb6da3fd"
+            },
+            {
+              "uuid": "d7a842c2-e76f-49df-a8f8-797701dff5f5"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "953e69af-42c5-447c-bd25-74ac3b0417f1"
+            },
+            {
+              "uuid": "9f50ff0f-128a-436f-b59d-28b44162a500"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "9bcc2a17-244e-4771-b592-31445ff91322"
+            },
+            {
+              "uuid": "d9f89e8f-36db-4fae-b67c-e646a74d2c8a"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "9bcc2a17-244e-4771-b592-31445ff91322"
+            },
+            {
+              "uuid": "ece6cfbb-58ef-44a2-849e-73709c364a1d"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "9e1a193a-e14e-4e95-bf64-14934ea46788"
+            },
+            {
+              "uuid": "df40b447-b7c5-473e-8f2a-46f4e7937360"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "9f50ff0f-128a-436f-b59d-28b44162a500"
+            },
+            {
+              "uuid": "f8f7c30e-9274-42e4-9222-df342802f299"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "9fc2f496-8d09-4fe5-aa05-d177deb2dfa7"
+            },
+            {
+              "uuid": "e4839ca0-31fa-4828-862d-c4d9a9982ad5"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "ad47fcb0-1f89-4e35-8caa-74c39eb2651f"
+            },
+            {
+              "uuid": "bbe08b90-660b-45c0-9475-0fc99b389a1d"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "ad47fcb0-1f89-4e35-8caa-74c39eb2651f"
+            },
+            {
+              "uuid": "bf7ca588-a25e-415b-8aa1-11313c91da67"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "ad47fcb0-1f89-4e35-8caa-74c39eb2651f"
+            },
+            {
+              "uuid": "f711cd2e-006a-4980-ac28-7979f6c5898e"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "ad8109fe-bfc8-45f6-9360-bda449e6cd18"
+            },
+            {
+              "uuid": "b9e072ca-1dbf-4c69-89f6-3b2789ad1532"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "b1abb45c-7953-4e92-ac5f-a72cc8cdf7d0"
+            },
+            {
+              "uuid": "d0a3bf8a-7861-46bf-ab41-dd2cc85958df"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "b4140420-aa7d-4a59-bd49-22b7d9c0a631"
+            },
+            {
+              "uuid": "d0a3bf8a-7861-46bf-ab41-dd2cc85958df"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "b481a5da-8980-4997-b845-b710948a7a72"
+            },
+            {
+              "uuid": "ebbcb602-5147-42a8-afa1-71113758241c"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "b5655fb9-8440-4c0a-aa61-c496c0da56f7"
+            },
+            {
+              "uuid": "f76eccc3-5b40-41e3-afd3-42e276aabb3c"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "baada77b-fc41-412f-9f82-5ec4f62b7365"
+            },
+            {
+              "uuid": "fb72b5eb-c5e6-49a9-bc8e-dbc19dcb4114"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "cb28a818-25fd-4d2d-a76a-d983399f7426"
+            },
+            {
+              "uuid": "e28d9a17-0015-4a88-b8fd-439a744822c7"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "ce25ce74-7b24-40f4-bc33-a076ea7d257e"
+            },
+            {
+              "uuid": "da25ed04-0171-49fa-8df0-e88402ed76ea"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "d065469e-de42-4d14-83e6-a60ab20b0560"
+            },
+            {
+              "uuid": "fb72b5eb-c5e6-49a9-bc8e-dbc19dcb4114"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "d0a3bf8a-7861-46bf-ab41-dd2cc85958df"
+            },
+            {
+              "uuid": "d55be9de-d187-46ec-ae13-f2893c0777ea"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "d39ba942-e585-4705-959f-934185a59451"
+            },
+            {
+              "uuid": "e4839ca0-31fa-4828-862d-c4d9a9982ad5"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "d3e44b35-b8ba-4537-8ecb-14afee18ce3f"
+            },
+            {
+              "uuid": "dadc08d7-945e-48b4-97a9-859e681a2fd1"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "d7a842c2-e76f-49df-a8f8-797701dff5f5"
+            },
+            {
+              "uuid": "f89b6492-2faf-4491-8d12-278934ad5b0a"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "dcb8a55a-fd90-4fef-abc9-27907ffdfe1e"
+            },
+            {
+              "uuid": "e4839ca0-31fa-4828-862d-c4d9a9982ad5"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "df40b447-b7c5-473e-8f2a-46f4e7937360"
+            },
+            {
+              "uuid": "e822f501-b236-4ffe-ada1-2c40e730184b"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "dfc681f0-1220-4bb1-9cc6-37b0b3a0e998"
+            },
+            {
+              "uuid": "ffe4f4b0-76d0-481b-a62c-68796e2767ae"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "ea1c3c80-7e9a-4a9f-b3b9-0b057cb34674"
+            },
+            {
+              "uuid": "fb72b5eb-c5e6-49a9-bc8e-dbc19dcb4114"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "ece6cfbb-58ef-44a2-849e-73709c364a1d"
+            },
+            {
+              "uuid": "fa6ff812-d52e-487b-b067-72231864cd8e"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "ed990d4c-bb8f-47f1-bc9a-294d54010645"
+            },
+            {
+              "uuid": "fb72b5eb-c5e6-49a9-bc8e-dbc19dcb4114"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "fa9de1a2-9d43-4f85-a862-9a043af15871"
+            },
+            {
+              "uuid": "fb72b5eb-c5e6-49a9-bc8e-dbc19dcb4114"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "silk_overlap"
+        },
+        {
+          "items": [
+            {
+              "uuid": "5ee4d9fd-2251-46e5-a6b1-ccff4bc2d3c0"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "via_dangling"
+        },
+        {
+          "items": [
+            {
+              "uuid": "fc51d928-1c0c-4593-8627-c812cdb03bc1"
+            }
+          ],
+          "scope": "DRC",
+          "severity": "warning",
+          "type": "via_dangling"
+        }
+      ]
+    },
+    "ERC": {
+      "toolVersion": "10.0.4",
+      "violations": [
+        {
+          "items": [
+            {
+              "uuid": "0298f29f-c2c8-4d73-9909-8398de581bae"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "0b389f62-dac5-4812-b26b-e8b2b84db096"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "0be67850-321d-4e86-abe0-f80e3f4eefaa"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "128dd865-ef66-4b43-95a2-26b634e6fec2"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "1690b839-f84a-40eb-a771-c994d3dfa2d8"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "1766eae2-f943-46c1-924d-e0f866008342"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "1ab360df-e33a-4db2-b357-983f7fd6e29f"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "225f2811-03e8-45b4-9a5a-3b7710ae8b1e"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "24c53e24-025a-42b7-8ae8-6c68d90f6e3a"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "26148bf0-a819-4ee7-82ea-1b5e8f857c52"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "2755eb17-d055-4d97-aca1-be7e9bd2c5d8"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "28eb2e07-d50d-458c-82a8-830a1bfafec2"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "2e9459a3-dd50-4b4c-b796-71371624a577"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "421da976-9202-4736-a0f6-767072f4068b"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "49d0ba4d-f3c3-439f-b690-4db1f035a2eb"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "4b184163-a70e-46ac-97ab-8582e161378d"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "519473d9-ac48-4380-a4f5-a0d4378c2a2f"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "52a23e53-b753-4e09-bd51-0912f7270612"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "58c67370-db5c-4db3-9102-171f77d1ac63"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "5b5ed70d-f66b-4e21-8bf1-9d3551a83c48"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "5d83209a-a0d3-4d74-b8c2-2275d343ef5e"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "5f0a22e4-6300-4d6e-aa79-6cb7797796f4"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "6010cffa-4f7e-4766-8461-7945f45c5fa2"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "6a77edcf-e447-404e-8e91-3f801e0e7474"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "6b5a42c4-9d96-42e0-be4c-bfcbb9a48130"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "6bce0230-31dd-42de-a79d-9df4a8f27b7d"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "6c14480e-79f5-457a-8934-ce374a59f215"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "6c261b3a-9927-4764-a33b-a3b6bb2ce5dc"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "6eb828bb-7cb4-4d8f-89dc-5076174aa6d7"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "71b2de05-5a58-4548-af10-1ef63da6376f"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "74212b29-c887-40ac-a87e-13a7b110b269"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "7cc29384-3f00-4dce-97f5-f4f92817cef7"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "810be3f6-18be-4c5f-82fb-561005b94107"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "813bc79a-793d-46f5-8078-be0ab24882c2"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "85066d86-d836-48f2-a558-7eed1417e455"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "88d08d03-7da9-4d55-825f-5094d4cf7d29"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "91130462-1689-49e0-8be3-9a8d7678fd8f"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "93dd83ce-c5fb-469f-a3ec-367be65a02c2"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "9a8b7f3f-baed-4b54-8f37-84e6bc120e5a"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "9f948df4-c02f-46c2-9df2-1cd6e8d326fe"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "a3368334-a8dd-4f3f-805b-8fe08713e0d0"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "a580d3b2-8549-4030-988d-92ae37f94d88"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "a960df44-bd3a-4b77-87dc-db55bd10be32"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "aae210f5-89af-481b-a27d-93d622a2cb87"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "ad132f6c-eaf1-44a5-9af7-794ab7f24857"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "aef938a2-6a24-4ad2-90d5-7dde29874e79"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "b0b76d3f-63e2-440c-b133-02675f6866b8"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "b26a4756-7b2c-4ab7-9224-c314f0b8e3a7"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "b642a71e-dadf-45c6-badd-6279f2f8ac9a"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "bac2c059-9406-44c0-be74-2d128fe7dad2"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "bcdd94dd-5347-4bb8-9b9e-c25be3121eb4"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "bde2e55e-e293-4880-9dcd-71f50676f23c"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "c225f38d-e95e-4933-a809-7df425d0311e"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "c649f9fd-7d6f-49c3-ab31-924ae149ca8a"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "c91b1c2f-0cff-4f3a-b1c1-b3aad9c8d8a4"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "d0c561d4-b941-416a-bf2a-ff2a1ebdafef"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "d2d966cc-30f1-4feb-a425-4edeced37d18"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "d392e0ef-ec1f-4679-aa0d-91c33a9de08d"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "d5ffff9b-c7f1-455e-8241-f502290bb0e0"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "dbfeabad-8b11-498e-a375-1ae37833bd65"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "dd0412e2-3b94-4023-8862-c505cfb739d2"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "dfd32e5e-e3b2-4e8c-af2f-a8029630abe8"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "e7afcf33-f976-47e8-bdf6-03dd63e7e799"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "ee334322-2490-4381-9403-92f112279e21"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "ee6b93d8-0340-4632-a69e-7ded101a751f"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "f13a7801-cadd-4331-80e7-b8f8faebbe98"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "f2d37949-1e4e-4f5d-93d4-570596b95a45"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "f4e1c14b-8430-4188-b70a-5a756a82e660"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "f61b39ac-f889-4bb6-858e-3ef07cf12784"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "f918fed4-4930-4d31-8531-84b485a467e8"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "f94852bb-0561-46ab-adc9-c0e87bc5d781"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "endpoint_off_grid"
+        },
+        {
+          "items": [
+            {
+              "uuid": "023c2f5f-b5bd-4271-830c-e37e2934b255"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "lib_symbol_issues"
+        },
+        {
+          "items": [
+            {
+              "uuid": "0e4c7620-48d6-4920-a112-21a3249bfba7"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "lib_symbol_issues"
+        },
+        {
+          "items": [
+            {
+              "uuid": "2d954156-91bb-4370-a6cb-35be5c7ff576"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "lib_symbol_issues"
+        },
+        {
+          "items": [
+            {
+              "uuid": "366484ad-06ff-4a23-ab3f-f69d88ea88ca"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "lib_symbol_issues"
+        },
+        {
+          "items": [
+            {
+              "uuid": "3dd44c71-4aac-49f5-81ec-108b40379bb0"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "lib_symbol_issues"
+        },
+        {
+          "items": [
+            {
+              "uuid": "3e016402-85c6-43ed-a254-0f878d988740"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "lib_symbol_issues"
+        },
+        {
+          "items": [
+            {
+              "uuid": "46493532-cedd-425e-a83b-150b6baf58c7"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "lib_symbol_issues"
+        },
+        {
+          "items": [
+            {
+              "uuid": "54709c66-66ed-4fc3-bb15-0ec33ecd272f"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "lib_symbol_issues"
+        },
+        {
+          "items": [
+            {
+              "uuid": "57d0226d-8795-4ef7-a0c1-66e4f791f8c0"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "lib_symbol_issues"
+        },
+        {
+          "items": [
+            {
+              "uuid": "5abed186-9cb3-4286-abbb-e9d8339a14ad"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "lib_symbol_issues"
+        },
+        {
+          "items": [
+            {
+              "uuid": "62cee17b-aa96-44b5-a818-d88c4d4bf07a"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "lib_symbol_issues"
+        },
+        {
+          "items": [
+            {
+              "uuid": "6ef5c169-59a4-41dd-a19c-3daf87f107fd"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "lib_symbol_issues"
+        },
+        {
+          "items": [
+            {
+              "uuid": "82a0ed80-77a0-40cf-a208-39cca4201c6b"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "lib_symbol_issues"
+        },
+        {
+          "items": [
+            {
+              "uuid": "8448c040-e282-4175-89bf-5bdbe34ce139"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "lib_symbol_issues"
+        },
+        {
+          "items": [
+            {
+              "uuid": "9b63372c-f11f-42f2-b30e-7cc0cd058c1f"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "lib_symbol_issues"
+        },
+        {
+          "items": [
+            {
+              "uuid": "a1ddb411-d507-48b9-af26-f860c81613ad"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "lib_symbol_issues"
+        },
+        {
+          "items": [
+            {
+              "uuid": "bbe1f9f9-ba44-4a0f-a92b-2211f17ab508"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "lib_symbol_issues"
+        },
+        {
+          "items": [
+            {
+              "uuid": "f2abe43b-79ce-4f91-a34f-27e849a4046d"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "lib_symbol_issues"
+        },
+        {
+          "items": [
+            {
+              "uuid": "f3d81676-4e8d-4f5c-be9d-6e4fd10ffc5a"
+            }
+          ],
+          "scope": "ERC",
+          "severity": "warning",
+          "type": "lib_symbol_issues"
+        }
+      ]
+    },
+    "parity": {
+      "toolVersion": "10.0.4",
+      "violations": [
+        {
+          "items": [
+            {
+              "uuid": "46493532-cedd-425e-a83b-150b6baf58c7"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "footprint_symbol_field_mismatch"
+        },
+        {
+          "items": [
+            {
+              "uuid": "6ef5c169-59a4-41dd-a19c-3daf87f107fd"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "footprint_symbol_field_mismatch"
+        },
+        {
+          "items": [
+            {
+              "uuid": "f2abe43b-79ce-4f91-a34f-27e849a4046d"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "footprint_symbol_field_mismatch"
+        },
+        {
+          "items": [
+            {
+              "uuid": "023c2f5f-b5bd-4271-830c-e37e2934b255"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "footprint_symbol_mismatch"
+        },
+        {
+          "items": [
+            {
+              "uuid": "0e4c7620-48d6-4920-a112-21a3249bfba7"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "footprint_symbol_mismatch"
+        },
+        {
+          "items": [
+            {
+              "uuid": "0e4c7620-48d6-4920-a112-21a3249bfba7"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "footprint_symbol_mismatch"
+        },
+        {
+          "items": [
+            {
+              "uuid": "2d954156-91bb-4370-a6cb-35be5c7ff576"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "footprint_symbol_mismatch"
+        },
+        {
+          "items": [
+            {
+              "uuid": "2d954156-91bb-4370-a6cb-35be5c7ff576"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "footprint_symbol_mismatch"
+        },
+        {
+          "items": [
+            {
+              "uuid": "366484ad-06ff-4a23-ab3f-f69d88ea88ca"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "footprint_symbol_mismatch"
+        },
+        {
+          "items": [
+            {
+              "uuid": "366484ad-06ff-4a23-ab3f-f69d88ea88ca"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "footprint_symbol_mismatch"
+        },
+        {
+          "items": [
+            {
+              "uuid": "3dd44c71-4aac-49f5-81ec-108b40379bb0"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "footprint_symbol_mismatch"
+        },
+        {
+          "items": [
+            {
+              "uuid": "3e016402-85c6-43ed-a254-0f878d988740"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "footprint_symbol_mismatch"
+        },
+        {
+          "items": [
+            {
+              "uuid": "3e016402-85c6-43ed-a254-0f878d988740"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "footprint_symbol_mismatch"
+        },
+        {
+          "items": [
+            {
+              "uuid": "46493532-cedd-425e-a83b-150b6baf58c7"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "footprint_symbol_mismatch"
+        },
+        {
+          "items": [
+            {
+              "uuid": "46493532-cedd-425e-a83b-150b6baf58c7"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "footprint_symbol_mismatch"
+        },
+        {
+          "items": [
+            {
+              "uuid": "54709c66-66ed-4fc3-bb15-0ec33ecd272f"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "footprint_symbol_mismatch"
+        },
+        {
+          "items": [
+            {
+              "uuid": "54709c66-66ed-4fc3-bb15-0ec33ecd272f"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "footprint_symbol_mismatch"
+        },
+        {
+          "items": [
+            {
+              "uuid": "57d0226d-8795-4ef7-a0c1-66e4f791f8c0"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "footprint_symbol_mismatch"
+        },
+        {
+          "items": [
+            {
+              "uuid": "57d0226d-8795-4ef7-a0c1-66e4f791f8c0"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "footprint_symbol_mismatch"
+        },
+        {
+          "items": [
+            {
+              "uuid": "5abed186-9cb3-4286-abbb-e9d8339a14ad"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "footprint_symbol_mismatch"
+        },
+        {
+          "items": [
+            {
+              "uuid": "5abed186-9cb3-4286-abbb-e9d8339a14ad"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "footprint_symbol_mismatch"
+        },
+        {
+          "items": [
+            {
+              "uuid": "62cee17b-aa96-44b5-a818-d88c4d4bf07a"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "footprint_symbol_mismatch"
+        },
+        {
+          "items": [
+            {
+              "uuid": "62cee17b-aa96-44b5-a818-d88c4d4bf07a"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "footprint_symbol_mismatch"
+        },
+        {
+          "items": [
+            {
+              "uuid": "6ef5c169-59a4-41dd-a19c-3daf87f107fd"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "footprint_symbol_mismatch"
+        },
+        {
+          "items": [
+            {
+              "uuid": "6ef5c169-59a4-41dd-a19c-3daf87f107fd"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "footprint_symbol_mismatch"
+        },
+        {
+          "items": [
+            {
+              "uuid": "82a0ed80-77a0-40cf-a208-39cca4201c6b"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "footprint_symbol_mismatch"
+        },
+        {
+          "items": [
+            {
+              "uuid": "82a0ed80-77a0-40cf-a208-39cca4201c6b"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "footprint_symbol_mismatch"
+        },
+        {
+          "items": [
+            {
+              "uuid": "8448c040-e282-4175-89bf-5bdbe34ce139"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "footprint_symbol_mismatch"
+        },
+        {
+          "items": [
+            {
+              "uuid": "8448c040-e282-4175-89bf-5bdbe34ce139"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "footprint_symbol_mismatch"
+        },
+        {
+          "items": [
+            {
+              "uuid": "9b63372c-f11f-42f2-b30e-7cc0cd058c1f"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "footprint_symbol_mismatch"
+        },
+        {
+          "items": [
+            {
+              "uuid": "9b63372c-f11f-42f2-b30e-7cc0cd058c1f"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "footprint_symbol_mismatch"
+        },
+        {
+          "items": [
+            {
+              "uuid": "a1ddb411-d507-48b9-af26-f860c81613ad"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "footprint_symbol_mismatch"
+        },
+        {
+          "items": [
+            {
+              "uuid": "a1ddb411-d507-48b9-af26-f860c81613ad"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "footprint_symbol_mismatch"
+        },
+        {
+          "items": [
+            {
+              "uuid": "f2abe43b-79ce-4f91-a34f-27e849a4046d"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "footprint_symbol_mismatch"
+        },
+        {
+          "items": [
+            {
+              "uuid": "f2abe43b-79ce-4f91-a34f-27e849a4046d"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "footprint_symbol_mismatch"
+        },
+        {
+          "items": [
+            {
+              "uuid": "023c6a15-c1bb-4901-b17f-67d3e0113f8f"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "033a8d2f-5de6-49fc-8f7c-73ffafd15801"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "072049d1-c718-4f9d-8a1b-990413f85e30"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "07554eb1-fe67-4638-bc3b-d815e5f6ab6a"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "0b66ddac-731c-4665-88dc-9bfaa4b55291"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "0d85476b-4dd0-465f-9c9a-160815a88b00"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "0e3282b2-8285-4604-8c85-f01b897d8a78"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "10d51253-cec5-46a0-bcaa-48cc617000b9"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "15859cf9-350e-4599-8526-628906d84fa9"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "1b5629e6-5f9b-42a3-b221-167224d77c46"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "1c7f3cd3-74aa-4333-bf56-c76d5e10c682"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "22860c81-49e2-4bf6-bdf1-2a21892afa3d"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "22f6de68-4b0d-4fbe-8e89-7d88070f3952"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "24c6ac11-febd-4227-9867-358193ef406c"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "27425cca-d7c9-4430-9398-ffe3322f725e"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "3048d90b-8b2b-4522-96a2-ecd7cd07c2ca"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "324f2eeb-50f7-44fe-ba0c-134ef1af0934"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "356a7dff-2bd4-4819-aa03-8b6f6478ab04"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "3a96859c-8a29-4bc5-bdfa-532117abdbed"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "3ab0cbcd-e2aa-4f89-bb16-b6108bec32d2"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "3b16d441-2869-4627-a146-cb0d7eb2e2d3"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "3cc16178-da88-4ce9-bc3a-72c5c0710c14"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "3cc2142b-9208-45cd-b6cb-5e6564aa578b"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "3e814faa-16c9-4d16-9841-8d34e2ad957c"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "3fe471e8-aa9d-440e-850b-30959eac5947"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "4149977c-ae01-4586-8d0f-f0ea5ece649b"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "44a5b7ac-bbb2-4fbd-86ef-da1de5901941"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "461a8242-d373-4373-8f73-cff6607497e4"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "509a2e3e-ad9c-497d-815a-9ffbaf603dd4"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "5434edb0-6364-4166-baa2-32f322e857ca"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "54813b76-f864-47a6-be68-0057045d74dc"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "54856958-67dc-499d-b1d1-72a6583edbf2"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "54c89a42-26aa-4669-81a5-50cd8d7b4a73"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "5cf7f379-fa6f-4bad-a399-23aeebfac6a2"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "5fa9d24d-3f6c-4f88-99cf-bc93e5275430"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "5fc23c26-bf96-4d86-810a-c57a6ec0d6c9"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "63891e98-67d1-4a55-9d47-92cf7dd822be"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "6ac8a76b-b1d3-4430-833b-26ad4eed4659"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "6bfda29d-d1a9-4540-b882-f4cf87128d87"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "745e70d5-3b1d-444a-bf7d-3ef988d6dbe3"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "74bdb38d-dbfd-4974-845d-318ea2a5dc8d"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "76c00131-28db-4966-aa47-d294d501909b"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "772048a8-80cc-45a0-9eff-6d0cad5b4abd"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "78bd062b-fe9b-4b54-8c4f-f3a8e032b209"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "79e40f24-f1d8-43c2-bc1b-9e6e86f51c84"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "7d747f96-2e3e-4551-9dab-67498cc8377f"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "7e3260fd-0170-4870-a759-6581477a908b"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "7f362d6f-c805-4fc0-a037-ba84949b2ff5"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "804de4d3-1ace-40b1-9849-def3b0e1a86e"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "8217e75f-eb75-4893-8b4b-ae97a7aab368"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "82d8d907-fb32-46e5-9b3b-6105f6c7303b"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "82eb6aec-181e-47f2-96f7-f3d0e0192849"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "832e3f27-9539-4e7b-9372-2846c690fde6"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "8418b6a9-5e2e-4210-a4bb-4709175e124b"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "86c5d92b-7e29-4902-aed3-41e2acb730fc"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "86d3f5aa-5e71-4162-92b8-781a35bb43b8"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "87a2b5f4-3d56-49a3-ad5f-152f93920a34"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "8bf156fa-60dc-4a4c-a6b7-55fc2d85a872"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "8ceb5a41-429a-4e28-bc0a-08edf2b4ef52"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "954a353e-b4f9-4908-8f0e-f45310ec07fa"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "9a149803-7efe-4a36-bcb8-d666c79925a2"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "a00f191c-78c1-484d-be99-a7619fa5789b"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "a2b530b5-3ee6-4a83-a165-75098c6fe14b"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "a372c476-5bbd-4a15-b38f-e10c18d3f43c"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "ad06fd2a-baf3-4c53-869a-8bda4d3db69a"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "afc45b33-4fcb-4dcc-afa3-7604e8e97b72"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "b8589162-a3fa-46e6-afd9-5614a2851788"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "b8d4f662-f537-44ff-8c87-d16882151340"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "b95b308a-0fbc-4b01-8f16-7e0b47a8f3fa"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "bc83e51d-581e-4b30-8ec3-521cd0e7da17"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "be506a15-19dc-46fa-a547-116f56459400"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "bf70eb7d-041d-433b-b85a-fdf5e10aeb17"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "c1448f26-dd76-4330-b8d8-188f1ef61f69"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "cb23d5fb-e4e2-4bbc-9e5d-34c8397c0888"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "cda17598-3ae9-4555-9c88-4581a8b76b9b"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "d5b373e3-f1c2-4028-b5af-36b02877f9cc"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "dc157a2d-d76e-4aad-9b76-cdf0777e91d8"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "e04ca3ad-ab61-422f-986a-c321bb9ca1d6"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "e4b1f716-fca8-4637-a90c-52c0e2390f5e"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "e7dd7c12-143a-44ee-adb1-aa1e1eba2412"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "ecdf2f0e-bc66-480d-8226-ed5694e21d95"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "f4d5c6ba-9db6-4bbe-a44e-1e6f678c35f6"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "f4de480b-17bd-4b3e-a3f4-b85cc9d4dbd3"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "f52124aa-7666-4958-9f94-2198f44c4e6e"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "f5511b85-30a8-43c5-b848-7712b2a76f4b"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "f7e9f239-b035-4ee0-af4f-454519a6e312"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "fa92f7ee-8db6-41d4-820c-0838e028281c"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "fd55c2c1-af05-4a0f-ae2d-386a82a27c93"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "fe44a312-1069-47ab-b350-d73cae522c3e"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        },
+        {
+          "items": [
+            {
+              "uuid": "ff57654a-0b50-4a55-bfa6-29aecc64c2b7"
+            }
+          ],
+          "scope": "parity",
+          "severity": "warning",
+          "type": "net_conflict"
+        }
+      ]
+    },
+    "sourceDigestAfter": "13e8ebcc989c17526b0a79128922751d6b410db8ce6fabbeefed7df8894da0db",
+    "sourceDigestBefore": "13e8ebcc989c17526b0a79128922751d6b410db8ce6fabbeefed7df8894da0db",
+    "sourceDigestError": null,
+    "sourceUnchanged": true,
+    "unconnected": {
+      "items": []
+    }
+  },
+  "status": "PASS"
+}

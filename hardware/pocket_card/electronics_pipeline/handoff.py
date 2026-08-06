@@ -280,6 +280,20 @@ def _write_all(descriptor: int, content: bytes) -> None:
         offset += written
 
 
+# Uncompressed Blender files start with "BLENDER". Modern Blender may also
+# write Zstandard- or gzip-compressed .blend files that keep those container
+# magics at offset 0 instead of the expanded "BLENDER" header.
+_BLENDER_FILE_MAGICS = (
+    b"BLENDER",
+    b"\x28\xb5\x2f\xfd",  # zstd
+    b"\x1f\x8b",  # gzip
+)
+
+
+def _header_matches_any(prefix: bytes, candidates: Sequence[bytes]) -> bool:
+    return any(prefix.startswith(candidate) for candidate in candidates)
+
+
 def _snapshot_regular(
     source: Path,
     destination: Path,
@@ -287,8 +301,18 @@ def _snapshot_regular(
     *,
     max_size: int = _MAX_ARCHIVE_BYTES,
     required_prefix: bytes | None = None,
+    required_prefixes: Sequence[bytes] | None = None,
 ) -> tuple[int, str]:
     """Copy a stable regular-file view into a private system-temp snapshot."""
+
+    if required_prefix is not None and required_prefixes is not None:
+        raise ValueError("pass only one of required_prefix or required_prefixes")
+    prefixes = (
+        (required_prefix,)
+        if required_prefix is not None
+        else tuple(required_prefixes or ())
+    )
+    prefix_need = max((len(item) for item in prefixes), default=0)
 
     source_descriptor, before = _open_regular(source, label, max_size=max_size)
     try:
@@ -308,8 +332,8 @@ def _snapshot_regular(
             chunk = os.read(source_descriptor, _COPY_CHUNK_SIZE)
             if not chunk:
                 break
-            if required_prefix is not None and len(prefix) < len(required_prefix):
-                prefix.extend(chunk[: len(required_prefix) - len(prefix)])
+            if prefix_need and len(prefix) < prefix_need:
+                prefix.extend(chunk[: prefix_need - len(prefix)])
             digest.update(chunk)
             copied += len(chunk)
             _write_all(destination_descriptor, chunk)
@@ -326,9 +350,12 @@ def _snapshot_regular(
             after.st_mtime_ns,
         ) or copied != before.st_size:
             raise HandoffError(f"{label} changed while it was being snapshotted: {source.name}")
-        if required_prefix is not None and bytes(prefix) != required_prefix:
+        if prefixes and not _header_matches_any(bytes(prefix), prefixes):
+            expected = ", ".join(
+                item.decode("ascii", errors="backslashreplace") for item in prefixes
+            )
             raise HandoffError(
-                f"{label} has an invalid header; expected {required_prefix.decode('ascii')}"
+                f"{label} has an invalid header; expected one of: {expected}"
             )
         os.fsync(destination_descriptor)
     except Exception:
@@ -1981,6 +2008,7 @@ def export_handoff(
             label: str,
             *,
             required_prefix: bytes | None = None,
+            required_prefixes: Sequence[bytes] | None = None,
             max_size: int = _MAX_ARCHIVE_BYTES,
         ) -> _ArchiveEntry:
             nonlocal counter
@@ -2002,6 +2030,7 @@ def export_handoff(
                 label,
                 max_size=min(max_size, remaining),
                 required_prefix=required_prefix,
+                required_prefixes=required_prefixes,
             )
             entry = _ArchiveEntry(archive_name, destination, size, digest)
             entries.append(entry)
@@ -2146,7 +2175,7 @@ def export_handoff(
                 f"{_ARCHIVE_ROOT}/reference/pocket_card_complete.blend",
                 blend_source,
                 "Blender visual reference",
-                required_prefix=b"BLENDER",
+                required_prefixes=_BLENDER_FILE_MAGICS,
             )
 
         metadata = {
@@ -2181,7 +2210,7 @@ def export_handoff(
                 blend_source,
                 current_blend,
                 "Blender visual reference",
-                required_prefix=b"BLENDER",
+                required_prefixes=_BLENDER_FILE_MAGICS,
             )
             if size != blend_entry.size or digest != blend_entry.sha256:
                 raise HandoffError(
@@ -2211,7 +2240,7 @@ def export_handoff(
                     blend_source,
                     current_blend,
                     "Blender visual reference",
-                    required_prefix=b"BLENDER",
+                    required_prefixes=_BLENDER_FILE_MAGICS,
                 )
                 if size != blend_entry.size or digest != blend_entry.sha256:
                     raise HandoffError(

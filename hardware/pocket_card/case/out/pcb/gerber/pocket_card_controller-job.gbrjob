@@ -5,7 +5,7 @@
       "Application": "Pcbnew",
       "Version": "10.0.4"
     },
-    "CreationDate": "2026-08-02T19:12:27+02:00"
+    "CreationDate": "2026-08-06T02:45:21+02:00"
   },
   "GeneralSpecs": {
     "ProjectId": {
@@ -34,88 +34,48 @@
   ],
   "FilesAttributes": [
     {
-      "Path": "pocket_card_controller-F_Cu.gtl",
+      "Path": "pocket_card_controller-F_Cu.gbr",
       "FileFunction": "Copper,L1,Top",
       "FilePolarity": "Positive"
     },
     {
-      "Path": "pocket_card_controller-B_Cu.gbl",
+      "Path": "pocket_card_controller-B_Cu.gbr",
       "FileFunction": "Copper,L2,Bot",
       "FilePolarity": "Positive"
     },
     {
-      "Path": "pocket_card_controller-F_Adhesive.gta",
-      "FileFunction": "Glue,Top",
-      "FilePolarity": "Positive"
-    },
-    {
-      "Path": "pocket_card_controller-B_Adhesive.gba",
-      "FileFunction": "Glue,Bot",
-      "FilePolarity": "Positive"
-    },
-    {
-      "Path": "pocket_card_controller-F_Paste.gtp",
+      "Path": "pocket_card_controller-F_Paste.gbr",
       "FileFunction": "SolderPaste,Top",
       "FilePolarity": "Positive"
     },
     {
-      "Path": "pocket_card_controller-B_Paste.gbp",
+      "Path": "pocket_card_controller-B_Paste.gbr",
       "FileFunction": "SolderPaste,Bot",
       "FilePolarity": "Positive"
     },
     {
-      "Path": "pocket_card_controller-F_Silkscreen.gto",
+      "Path": "pocket_card_controller-F_Silkscreen.gbr",
       "FileFunction": "Legend,Top",
       "FilePolarity": "Positive"
     },
     {
-      "Path": "pocket_card_controller-B_Silkscreen.gbo",
+      "Path": "pocket_card_controller-B_Silkscreen.gbr",
       "FileFunction": "Legend,Bot",
       "FilePolarity": "Positive"
     },
     {
-      "Path": "pocket_card_controller-F_Mask.gts",
+      "Path": "pocket_card_controller-F_Mask.gbr",
       "FileFunction": "SolderMask,Top",
       "FilePolarity": "Negative"
     },
     {
-      "Path": "pocket_card_controller-B_Mask.gbs",
+      "Path": "pocket_card_controller-B_Mask.gbr",
       "FileFunction": "SolderMask,Bot",
       "FilePolarity": "Negative"
     },
     {
-      "Path": "pocket_card_controller-User_Drawings.gbr",
-      "FileFunction": "Other,User",
-      "FilePolarity": "Positive"
-    },
-    {
-      "Path": "pocket_card_controller-User_Comments.gbr",
-      "FileFunction": "Other,User",
-      "FilePolarity": "Positive"
-    },
-    {
-      "Path": "pocket_card_controller-User_Eco1.gbr",
-      "FileFunction": "Other,User",
-      "FilePolarity": "Positive"
-    },
-    {
-      "Path": "pocket_card_controller-User_Eco2.gbr",
-      "FileFunction": "Other,User",
-      "FilePolarity": "Positive"
-    },
-    {
-      "Path": "pocket_card_controller-Edge_Cuts.gm1",
+      "Path": "pocket_card_controller-Edge_Cuts.gbr",
       "FileFunction": "Profile",
-      "FilePolarity": "Positive"
-    },
-    {
-      "Path": "pocket_card_controller-F_Fab.gbr",
-      "FileFunction": "AssemblyDrawing,Top",
-      "FilePolarity": "Positive"
-    },
-    {
-      "Path": "pocket_card_controller-B_Fab.gbr",
-      "FileFunction": "AssemblyDrawing,Bot",
       "FilePolarity": "Positive"
     }
   ],

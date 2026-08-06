@@ -1183,6 +1183,23 @@ raise SystemExit(3)
                     self.export(include_blend=True, blend_path=blend)
                 self.assertFalse(self.output.exists())
 
+    def test_blender_accepts_zstd_and_gzip_compressed_headers(self):
+        for magic, label in (
+            (b"\x28\xb5\x2f\xfdcompressed-blend", "zstd"),
+            (b"\x1f\x8bcompressed-blend", "gzip"),
+        ):
+            with self.subTest(label=label):
+                blend = self.root / f"{label}.blend"
+                blend.write_bytes(magic)
+                archive = self.export(include_blend=True, blend_path=blend)
+                with zipfile.ZipFile(archive) as package:
+                    self.assertEqual(
+                        package.read(
+                            "pocket-card-controller/reference/pocket_card_complete.blend"
+                        ),
+                        magic,
+                    )
+
     def test_archive_member_and_total_size_bounds_are_inclusive_and_strict(self):
         entry_type = handoff_module._ArchiveEntry
         placeholder = self.root / "placeholder"

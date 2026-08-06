@@ -1,0 +1,905 @@
+{
+  "toolVersion": "10.0.4",
+  "violations": [
+    {
+      "items": [
+        {
+          "uuid": "0298f29f-c2c8-4d73-9909-8398de581bae"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "0b389f62-dac5-4812-b26b-e8b2b84db096"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "0be67850-321d-4e86-abe0-f80e3f4eefaa"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "128dd865-ef66-4b43-95a2-26b634e6fec2"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "1690b839-f84a-40eb-a771-c994d3dfa2d8"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "1766eae2-f943-46c1-924d-e0f866008342"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "1ab360df-e33a-4db2-b357-983f7fd6e29f"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "225f2811-03e8-45b4-9a5a-3b7710ae8b1e"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "24c53e24-025a-42b7-8ae8-6c68d90f6e3a"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "26148bf0-a819-4ee7-82ea-1b5e8f857c52"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "2755eb17-d055-4d97-aca1-be7e9bd2c5d8"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "28eb2e07-d50d-458c-82a8-830a1bfafec2"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "2e9459a3-dd50-4b4c-b796-71371624a577"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "421da976-9202-4736-a0f6-767072f4068b"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "49d0ba4d-f3c3-439f-b690-4db1f035a2eb"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "4b184163-a70e-46ac-97ab-8582e161378d"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "519473d9-ac48-4380-a4f5-a0d4378c2a2f"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "52a23e53-b753-4e09-bd51-0912f7270612"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "58c67370-db5c-4db3-9102-171f77d1ac63"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "5b5ed70d-f66b-4e21-8bf1-9d3551a83c48"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "5d83209a-a0d3-4d74-b8c2-2275d343ef5e"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "5f0a22e4-6300-4d6e-aa79-6cb7797796f4"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "6010cffa-4f7e-4766-8461-7945f45c5fa2"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "6a77edcf-e447-404e-8e91-3f801e0e7474"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "6b5a42c4-9d96-42e0-be4c-bfcbb9a48130"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "6bce0230-31dd-42de-a79d-9df4a8f27b7d"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "6c14480e-79f5-457a-8934-ce374a59f215"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "6c261b3a-9927-4764-a33b-a3b6bb2ce5dc"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "6eb828bb-7cb4-4d8f-89dc-5076174aa6d7"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "71b2de05-5a58-4548-af10-1ef63da6376f"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "74212b29-c887-40ac-a87e-13a7b110b269"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "7cc29384-3f00-4dce-97f5-f4f92817cef7"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "810be3f6-18be-4c5f-82fb-561005b94107"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "813bc79a-793d-46f5-8078-be0ab24882c2"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "85066d86-d836-48f2-a558-7eed1417e455"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "88d08d03-7da9-4d55-825f-5094d4cf7d29"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "91130462-1689-49e0-8be3-9a8d7678fd8f"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "93dd83ce-c5fb-469f-a3ec-367be65a02c2"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "9a8b7f3f-baed-4b54-8f37-84e6bc120e5a"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "9f948df4-c02f-46c2-9df2-1cd6e8d326fe"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "a3368334-a8dd-4f3f-805b-8fe08713e0d0"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "a580d3b2-8549-4030-988d-92ae37f94d88"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "a960df44-bd3a-4b77-87dc-db55bd10be32"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "aae210f5-89af-481b-a27d-93d622a2cb87"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "ad132f6c-eaf1-44a5-9af7-794ab7f24857"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "aef938a2-6a24-4ad2-90d5-7dde29874e79"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "b0b76d3f-63e2-440c-b133-02675f6866b8"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "b26a4756-7b2c-4ab7-9224-c314f0b8e3a7"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "b642a71e-dadf-45c6-badd-6279f2f8ac9a"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "bac2c059-9406-44c0-be74-2d128fe7dad2"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "bcdd94dd-5347-4bb8-9b9e-c25be3121eb4"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "bde2e55e-e293-4880-9dcd-71f50676f23c"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "c225f38d-e95e-4933-a809-7df425d0311e"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "c649f9fd-7d6f-49c3-ab31-924ae149ca8a"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "c91b1c2f-0cff-4f3a-b1c1-b3aad9c8d8a4"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "d0c561d4-b941-416a-bf2a-ff2a1ebdafef"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "d2d966cc-30f1-4feb-a425-4edeced37d18"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "d392e0ef-ec1f-4679-aa0d-91c33a9de08d"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "d5ffff9b-c7f1-455e-8241-f502290bb0e0"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "dbfeabad-8b11-498e-a375-1ae37833bd65"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "dd0412e2-3b94-4023-8862-c505cfb739d2"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "dfd32e5e-e3b2-4e8c-af2f-a8029630abe8"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "e7afcf33-f976-47e8-bdf6-03dd63e7e799"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "ee334322-2490-4381-9403-92f112279e21"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "ee6b93d8-0340-4632-a69e-7ded101a751f"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "f13a7801-cadd-4331-80e7-b8f8faebbe98"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "f2d37949-1e4e-4f5d-93d4-570596b95a45"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "f4e1c14b-8430-4188-b70a-5a756a82e660"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "f61b39ac-f889-4bb6-858e-3ef07cf12784"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "f918fed4-4930-4d31-8531-84b485a467e8"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "f94852bb-0561-46ab-adc9-c0e87bc5d781"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "endpoint_off_grid"
+    },
+    {
+      "items": [
+        {
+          "uuid": "023c2f5f-b5bd-4271-830c-e37e2934b255"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "lib_symbol_issues"
+    },
+    {
+      "items": [
+        {
+          "uuid": "0e4c7620-48d6-4920-a112-21a3249bfba7"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "lib_symbol_issues"
+    },
+    {
+      "items": [
+        {
+          "uuid": "2d954156-91bb-4370-a6cb-35be5c7ff576"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "lib_symbol_issues"
+    },
+    {
+      "items": [
+        {
+          "uuid": "366484ad-06ff-4a23-ab3f-f69d88ea88ca"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "lib_symbol_issues"
+    },
+    {
+      "items": [
+        {
+          "uuid": "3dd44c71-4aac-49f5-81ec-108b40379bb0"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "lib_symbol_issues"
+    },
+    {
+      "items": [
+        {
+          "uuid": "3e016402-85c6-43ed-a254-0f878d988740"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "lib_symbol_issues"
+    },
+    {
+      "items": [
+        {
+          "uuid": "46493532-cedd-425e-a83b-150b6baf58c7"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "lib_symbol_issues"
+    },
+    {
+      "items": [
+        {
+          "uuid": "54709c66-66ed-4fc3-bb15-0ec33ecd272f"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "lib_symbol_issues"
+    },
+    {
+      "items": [
+        {
+          "uuid": "57d0226d-8795-4ef7-a0c1-66e4f791f8c0"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "lib_symbol_issues"
+    },
+    {
+      "items": [
+        {
+          "uuid": "5abed186-9cb3-4286-abbb-e9d8339a14ad"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "lib_symbol_issues"
+    },
+    {
+      "items": [
+        {
+          "uuid": "62cee17b-aa96-44b5-a818-d88c4d4bf07a"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "lib_symbol_issues"
+    },
+    {
+      "items": [
+        {
+          "uuid": "6ef5c169-59a4-41dd-a19c-3daf87f107fd"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "lib_symbol_issues"
+    },
+    {
+      "items": [
+        {
+          "uuid": "82a0ed80-77a0-40cf-a208-39cca4201c6b"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "lib_symbol_issues"
+    },
+    {
+      "items": [
+        {
+          "uuid": "8448c040-e282-4175-89bf-5bdbe34ce139"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "lib_symbol_issues"
+    },
+    {
+      "items": [
+        {
+          "uuid": "9b63372c-f11f-42f2-b30e-7cc0cd058c1f"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "lib_symbol_issues"
+    },
+    {
+      "items": [
+        {
+          "uuid": "a1ddb411-d507-48b9-af26-f860c81613ad"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "lib_symbol_issues"
+    },
+    {
+      "items": [
+        {
+          "uuid": "bbe1f9f9-ba44-4a0f-a92b-2211f17ab508"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "lib_symbol_issues"
+    },
+    {
+      "items": [
+        {
+          "uuid": "f2abe43b-79ce-4f91-a34f-27e849a4046d"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "lib_symbol_issues"
+    },
+    {
+      "items": [
+        {
+          "uuid": "f3d81676-4e8d-4f5c-be9d-6e4fd10ffc5a"
+        }
+      ],
+      "scope": "ERC",
+      "severity": "warning",
+      "type": "lib_symbol_issues"
+    }
+  ]
+}
