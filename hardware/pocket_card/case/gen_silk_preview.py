@@ -252,12 +252,10 @@ def vtext_neg_glyphs(x, y, s, size):
 
 
 def io_block(fx, fy, labels, title, flipped=True, preview_body=False,
-             below=False):
+             below=False, title_dx=0.0, title_side=None):
     """Per-pin vertical legends beside the footprint; tight per-glyph masks.
 
-    Legends go north of the body unless ``below`` (BAT_OUT sits 3 mm off the
-    board's north edge, so its stack mirrors south). Keep in lockstep with
-    silk_layout.io_block.
+    Keep in lockstep with silk_layout.io_block (title_dx / title_side).
     """
     n = len(labels)
     xs = pin_xs(n)
@@ -266,6 +264,7 @@ def io_block(fx, fy, labels, title, flipped=True, preview_body=False,
     body_h = 5.2
     body_x = fx - body_w / 2
     body_top = fy - 2.1
+    body_south = fy + 2.1
     label_size = 0.95
     cw = label_size * MASK_ADV
     # No spaces — avoids seep gaps; thin separator still readable
@@ -273,22 +272,32 @@ def io_block(fx, fy, labels, title, flipped=True, preview_body=False,
     max_len = max(len(c) for c in cols)
     title_size = 1.05
     if below:
-        base_y = fy + 2.1
-        anchors = [base_y + 0.35 + len(c) * cw for c in cols]
-        title_y = base_y + 0.35 + max_len * cw + 1.4 + title_size
-        tick_y = base_y - 0.1
+        anchors = [body_south + 0.35 + len(c) * cw for c in cols]
+        tick_y = body_south - 0.1
+        pin_title_y = body_south + 0.35 + max_len * cw + 1.4 + title_size
     else:
         anchors = [body_top - 0.35] * n
-        title_y = body_top - 0.35 - max_len * cw - 1.4
         tick_y = body_top - 0.35
+        pin_title_y = body_top - 0.35 - max_len * cw - 1.4
+
+    side_name = title_side or ("south" if below else "north")
+    if side_name == "north" and below:
+        title_y = title_size + 0.15
+    elif side_name == "south" and not below:
+        title_y = body_south + 1.4 + title_size
+    elif side_name == "north":
+        title_y = pin_title_y
+    else:
+        title_y = pin_title_y
+    title_x = fx + title_dx
 
     # masks first
-    parts = [text_neg_outline(fx, title_y, title, title_size, anchor="middle")]
+    parts = [text_neg_outline(title_x, title_y, title, title_size, anchor="middle")]
     for bx, col, ay in zip(board_xs, cols, anchors):
         parts.append(vtext_neg_glyphs(bx, ay, col, label_size))
 
     # silk
-    parts.append(text_line(fx, title_y, title, title_size, anchor="middle"))
+    parts.append(text_line(title_x, title_y, title, title_size, anchor="middle"))
     for bx, col, ay in zip(board_xs, cols, anchors):
         parts.append(vtext(bx, ay, col, label_size))
         parts.append(
@@ -377,10 +386,13 @@ def build_silk_svgs(corpus=None, grid=None, disp=True):
         f'<g id="rules">{columns_fill(2.6, 2.4, 79.2, 36.3, sb, 3, 0.55)}</g>',
         f'<g id="logo">{brand_block(8.0, 3.2, 0.88, grid, "PuzzlePocket", "PuzzleScript", 2.8, 1.55)}</g>',
         '<g id="labels">',
-        io_block(*conn_anchor(P.CONN_I2C), ["3V3", "GND", "SCL", "SDA"], "J_I2C1", preview_body=False),
+        io_block(*conn_anchor(P.CONN_I2C), ["3V3", "GND", "SCL", "SDA"], "J_I2C1",
+                 preview_body=False, title_dx=-2.5),
         io_block(*conn_anchor(P.CONN_EXP), ["INT", "NC", "NC", "NC"], "J_EXP1", preview_body=False),
-        io_block(*conn_anchor(P.CONN_BAT_IN), ["BAT+", "GND"], "J_BAT_IN1", preview_body=False),
-        io_block(*conn_anchor(P.CONN_BAT_OUT), ["BAT_SW", "GND"], "J_BAT_OUT1", preview_body=False, below=True),
+        io_block(*conn_anchor(P.CONN_BAT_IN), ["BAT+", "GND"], "J_BAT_IN1",
+                 preview_body=False, title_side="south"),
+        io_block(*conn_anchor(P.CONN_BAT_OUT), ["BAT_SW", "GND"], "J_BAT_OUT1",
+                 preview_body=False, below=True, title_side="north"),
         '</g>',
         "</svg>",
     ])

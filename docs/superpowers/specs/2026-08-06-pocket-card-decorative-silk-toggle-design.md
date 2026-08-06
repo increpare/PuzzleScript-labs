@@ -8,8 +8,10 @@ Related: `docs/superpowers/specs/2026-08-01-puzzlepocket-silkscreen-design.md`
 
 Make the routed board readable in KiCad and for engineer handoff by defaulting off dense decorative silkscreen (brick wallpaper, rule corpus, brand/logo), while keeping:
 
-1. Functional silk UI legends (POWER / MUTE / d-pad arrows / connector titles and pin names)
+1. Functional silk UI legends (POWER / MUTE / connector titles and pin names)
 2. Standard KiCad footprint `Reference` labels (`SW_UP1`, `U1`, `J_I2C1`, …)
+
+D-pad `^V<>` glyphs count as decorative (refs name the switches).
 
 Decorative art must remain one flag flip away for later manufacturing/visual builds.
 
@@ -47,10 +49,13 @@ Default **False** (readable). Setting `True` restores the existing horror-vacui 
 
 When `DECORATIVE_SILK` is False:
 
-- `build_front` / `build_back` emit only the L3 labels layer (no rules, no logo)
+- `build_front` / `build_back` emit only the L3 labels layer (no rules, no logo,
+  no d-pad `^V<>` glyphs)
 - `silk.py` paint path skips L0 brick
 - `silk_sexpr()` / SVG preview emit only the remaining label ink
-- footprint `Reference` on silk is shown (`hide` removed); `Value` stays hidden
+- front (`F.SilkS`) footprint `Reference`s are shown; back (`B.SilkS`) refs stay
+  hidden so they don't duplicate generator connector titles / pin legends
+- `Value` stays hidden
 
 When `DECORATIVE_SILK` is True:
 
@@ -59,7 +64,9 @@ When `DECORATIVE_SILK` is True:
 
 ### Board refresh
 
-`refresh_board_silk()` continues to replace top-level F/B silk `gr_rect`s, and additionally syncs Reference visibility with the flag. Target path for production refresh:
+`refresh_board_silk()` continues to replace top-level F/B silk `gr_rect`s, and
+additionally syncs Reference visibility: decorative hides all refs; readable
+shows front refs and hides back refs. Target path for production refresh:
 
 `hardware/pocket_card/electronics/pocket_card_controller.kicad_pcb`
 

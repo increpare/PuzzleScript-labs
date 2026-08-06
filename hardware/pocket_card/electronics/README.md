@@ -59,8 +59,11 @@ uses this repository file.
 ## Silkscreen
 
 Board silk defaults to **readable mode**: functional UI legends (POWER / MUTE /
-d-pad / connector pin names) plus visible KiCad `Reference` labels. Dense
-decorative art (brick wallpaper, rule corpus, brand/logo) is off by default.
+connector titles + pin names) plus visible front KiCad `Reference`s. D-pad
+`^V<>` glyphs are decorative and stay off.
+Back-side connector refs stay hidden so they don't stamp over the generator
+labels. Dense decorative art (brick wallpaper, rule corpus, brand/logo) is off
+by default.
 
 Restore decorative silk later by setting `DECORATIVE_SILK = True` in
 `../case/params.py`, then:

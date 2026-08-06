@@ -414,8 +414,13 @@ def silk_sexpr() -> str:
     )
 
 
-def _sync_reference_visibility(text: str, *, hide: bool) -> str:
-    """Show or hide footprint Reference legends to match decorative silk mode."""
+def _sync_reference_visibility(text: str, *, decorative: bool) -> str:
+    """Sync footprint Reference visibility with silk mode.
+
+    Decorative mode: hide all refs (art owns labeling).
+    Readable mode: show front refs; hide back refs so they don't duplicate the
+    carefully placed connector titles / pin legends on B.SilkS.
+    """
     import re
 
     pattern = re.compile(
@@ -426,6 +431,9 @@ def _sync_reference_visibility(text: str, *, hide: bool) -> str:
 
     def replacer(match: re.Match[str]) -> str:
         block = match.group(1)
+        layer_match = re.search(r'\(layer "([^"]+)"\)', block)
+        layer = layer_match.group(1) if layer_match else ""
+        hide = decorative or layer == "B.SilkS"
         if hide:
             if "(hide yes)" in block:
                 return block
@@ -462,7 +470,7 @@ def refresh_board_silk(board_path=None) -> str:
         cut = stripped.rstrip().rfind("\n)")
         out = stripped[:cut] + "\n" + silk_txt + stripped[cut:]
     out = _sync_reference_visibility(
-        out, hide=bool(getattr(P, "DECORATIVE_SILK", True))
+        out, decorative=bool(getattr(P, "DECORATIVE_SILK", True))
     )
     open(path, "w", encoding="utf-8").write(out)
     return "refreshed %s silk gr_rects (removed %d)" % (path, n)

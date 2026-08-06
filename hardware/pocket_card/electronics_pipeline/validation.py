@@ -74,12 +74,12 @@ _EXPECTED_WARNING_POLICY = MappingProxyType(
             "8dd9624672478ba9a4d35890412f9dd15ba486b57ff7f1878f9b141ebb857899",
         ),
         ("DRC", "silk_overlap"): (
-            121,
-            "c499f7c606635bc00771ac3930a8dd3223b853bb9ee1199ef548d17f53a4a949",
+            4,
+            "a30caee201e8cba465e5ac11573624dfcdde5ba85f9fc86d9291390c34c830ac",
         ),
         ("DRC", "nonmirrored_text_on_back_layer"): (
-            8,
-            "6bb0d71db696bfe4ae9df078279f492b847064bbccb47938b53e2973c0d534b8",
+            4,
+            "d54988b0fd8a967b1c1526fbae6d064316605bca07fe8ccfbc072ef2938421b3",
         ),
         ("parity", "footprint_symbol_mismatch"): (
             32,

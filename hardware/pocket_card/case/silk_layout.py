@@ -272,8 +272,15 @@ def io_block(
     flipped=True,
     below=False,
     *,
-    include_title: bool = True,
+    title_dx: float = 0.0,
+    title_side: str | None = None,
 ):
+    """Pin legends + connector title.
+
+    Pin stacks sit north of the body unless ``below``. ``title_side`` may
+    override title placement ("north" / "south"); default follows the pins.
+    ``title_dx`` shifts only the title in X (pin columns stay on the pads).
+    """
     n = len(labels)
     xs = pin_xs(n)
     board_xs = [fx + (-x if flipped else x) for x in xs]
@@ -282,31 +289,41 @@ def io_block(
     cols = ["%d·%s" % (i, lab) for i, lab in enumerate(labels, 1)]
     max_len = max(len(c) for c in cols)
     title_size = 1.05
+    body_north = fy - 2.1
+    body_south = fy + 2.1
     if below:
-        # Stack mirrored SOUTH of the body: BAT_OUT sits 3 mm off the north
-        # edge (module-socket clearance), so there is no room above it.
-        # vtext runs upward from its anchor, so anchor each column lower by
-        # its own length to keep the stacks top-aligned at the body.
-        body_y = fy + 2.1
-        anchors = [body_y + 0.35 + len(c) * cw for c in cols]
-        title_y = body_y + 0.35 + max_len * cw + 1.4 + title_size
-        tick_y = body_y - 0.1
+        # Stack mirrored SOUTH of the body. vtext runs upward from its
+        # anchor, so anchor each column lower by its own length to keep the
+        # stacks top-aligned at the body.
+        anchors = [body_south + 0.35 + len(c) * cw for c in cols]
+        tick_y = body_south - 0.1
+        pin_title_y = body_south + 0.35 + max_len * cw + 1.4 + title_size
     else:
-        body_y = fy - 2.1
-        anchors = [body_y - 0.35] * n
-        title_y = body_y - 0.35 - max_len * cw - 1.4
-        tick_y = body_y - 0.35
+        anchors = [body_north - 0.35] * n
+        tick_y = body_north - 0.35
+        pin_title_y = body_north - 0.35 - max_len * cw - 1.4
 
-    # Readable mode keeps KiCad Reference legends; repeating the connector
-    # title here just stamps over the pin columns.
-    if include_title:
-        side.masks.extend(
-            text_neg_outline(fx, title_y, title, title_size, anchor="middle")
-        )
-        side.texts.append(TextItem(title, fx, title_y, title_size, anchor="middle"))
+    side_name = title_side or ("south" if below else "north")
+    if side_name == "north" and below:
+        # Title only: tuck into the north-edge strip; pin stack stays south.
+        title_y = title_size + 0.15
+    elif side_name == "south" and not below:
+        # Title only south of the body; pin stack stays north.
+        title_y = body_south + 1.4 + title_size
+    elif side_name == "north":
+        title_y = pin_title_y
+    else:
+        # below + south (default): title after the south pin stack.
+        title_y = pin_title_y
+
+    title_x = fx + title_dx
+    side.masks.extend(
+        text_neg_outline(title_x, title_y, title, title_size, anchor="middle")
+    )
     for bx, col, ay in zip(board_xs, cols, anchors):
         side.masks.extend(vtext_neg_glyphs(bx, ay, col, label_size))
 
+    side.texts.append(TextItem(title, title_x, title_y, title_size, anchor="middle"))
     for bx, col, ay in zip(board_xs, cols, anchors):
         side.texts.append(TextItem(col, bx, ay, label_size, rot=-90))
         side.rects.append(_rect(bx - 0.15, tick_y, 0.3, 0.45))
@@ -371,7 +388,9 @@ def build_front(corpus=None, grid=None) -> Tuple[Side, RuleStream]:
     stream = RuleStream(corpus)
 
     labels = Layer()
-    dir_labels(labels)
+    # ^V<> d-pad glyphs are decorative; readable mode keeps POWER/MUTE only.
+    if getattr(P, "DECORATIVE_SILK", True):
+        dir_labels(labels)
     slide_labels(labels)
 
     if not getattr(P, "DECORATIVE_SILK", True):
@@ -396,35 +415,33 @@ def build_back(corpus=None, grid=None, start: int = 0) -> Side:
     stream = RuleStream(corpus, start=start)
 
     labels = Layer()
-    include_title = bool(getattr(P, "DECORATIVE_SILK", True))
+    # Title nudged west of H1 (board-local ~62,3); pin columns stay on pads.
+    # Back-view "right" is −X in board coords.
     io_block(
         labels,
         *conn_anchor(P.CONN_I2C),
         ["3V3", "GND", "SCL", "SDA"],
         "J_I2C1",
-        include_title=include_title,
+        title_dx=-2.5,
     )
-    io_block(
-        labels,
-        *conn_anchor(P.CONN_EXP),
-        ["INT", "NC", "NC", "NC"],
-        "J_EXP1",
-        include_title=include_title,
-    )
+    io_block(labels, *conn_anchor(P.CONN_EXP), ["INT", "NC", "NC", "NC"], "J_EXP1")
+    # Pin columns stay north (were fine); title only flips to the south edge.
     io_block(
         labels,
         *conn_anchor(P.CONN_BAT_IN),
         ["BAT+", "GND"],
         "J_BAT_IN1",
-        include_title=include_title,
+        title_side="south",
     )
+    # Pin stack stays south (no room in the 3 mm north strip); title sits on
+    # the north edge of the board beside the body.
     io_block(
         labels,
         *conn_anchor(P.CONN_BAT_OUT),
         ["BAT_SW", "GND"],
         "J_BAT_OUT1",
         below=True,
-        include_title=include_title,
+        title_side="north",
     )
 
     if not getattr(P, "DECORATIVE_SILK", True):

@@ -4911,12 +4911,12 @@
 <text x="23.279999999999998" y="9.36" fill="#f5f0e1" font-size="2.8" font-weight="600" text-anchor="start" font-family="ui-monospace, Menlo, Consolas, monospace" xml:space="preserve">PuzzlePocket</text>
 <text x="23.279999999999998" y="12.71" fill="#f5f0e1" font-size="1.55" font-weight="600" text-anchor="start" font-family="ui-monospace, Menlo, Consolas, monospace" xml:space="preserve">PuzzleScript</text></g>
 <g id="labels">
-<rect x="58.232" y="2.245" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
-<rect x="58.883" y="2.245" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
-<rect x="59.534" y="2.245" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
-<rect x="60.185" y="2.245" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
-<rect x="60.836" y="2.245" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
-<rect x="61.487" y="2.245" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
+<rect x="55.732" y="2.245" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
+<rect x="56.383" y="2.245" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
+<rect x="57.034" y="2.245" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
+<rect x="57.685" y="2.245" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
+<rect x="58.336" y="2.245" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
+<rect x="58.987" y="2.245" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
 <rect x="61.394999999999996" y="6.912" width="1.17" height="0.715" fill="#2d5a3d"/>
 <rect x="61.394999999999996" y="6.323" width="1.17" height="0.715" fill="#2d5a3d"/>
 <rect x="61.394999999999996" y="5.734000000000001" width="1.17" height="0.715" fill="#2d5a3d"/>
@@ -4937,7 +4937,7 @@
 <rect x="57.644999999999996" y="5.734000000000001" width="1.17" height="0.715" fill="#2d5a3d"/>
 <rect x="57.644999999999996" y="5.1450000000000005" width="1.17" height="0.715" fill="#2d5a3d"/>
 <rect x="57.644999999999996" y="4.556" width="1.17" height="0.715" fill="#2d5a3d"/>
-<text x="60.5" y="3.2050000000000005" fill="#f5f0e1" font-size="1.05" font-weight="600" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" xml:space="preserve">J_I2C1</text>
+<text x="58.0" y="3.2050000000000005" fill="#f5f0e1" font-size="1.05" font-weight="600" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" xml:space="preserve">J_I2C1</text>
 <text x="62.38" y="7.55" fill="#f5f0e1" font-size="0.95" font-weight="600" transform="rotate(-90 62.38,7.55)" font-family="ui-monospace, Menlo, Consolas, monospace" xml:space="preserve">1·3V3</text>
 <rect x="62.23" y="7.55" width="0.3" height="0.45" fill="#f5f0e1"/>
 <text x="61.12" y="7.55" fill="#f5f0e1" font-size="0.95" font-weight="600" transform="rotate(-90 61.12,7.55)" font-family="ui-monospace, Menlo, Consolas, monospace" xml:space="preserve">2·GND</text>
@@ -4978,15 +4978,15 @@
 <rect x="74.72" y="10.15" width="0.3" height="0.45" fill="#f5f0e1"/>
 <text x="73.62" y="10.15" fill="#f5f0e1" font-size="0.95" font-weight="600" transform="rotate(-90 73.62,10.15)" font-family="ui-monospace, Menlo, Consolas, monospace" xml:space="preserve">4·NC</text>
 <rect x="73.47" y="10.15" width="0.3" height="0.45" fill="#f5f0e1"/>
-<rect x="57.255500000000005" y="14.655999999999997" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
-<rect x="57.90650000000001" y="14.655999999999997" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
-<rect x="58.557500000000005" y="14.655999999999997" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
-<rect x="59.20850000000001" y="14.655999999999997" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
-<rect x="59.859500000000004" y="14.655999999999997" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
-<rect x="60.51050000000001" y="14.655999999999997" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
-<rect x="61.161500000000004" y="14.655999999999997" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
-<rect x="61.81250000000001" y="14.655999999999997" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
-<rect x="62.4635" y="14.655999999999997" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
+<rect x="57.255500000000005" y="26.59" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
+<rect x="57.90650000000001" y="26.59" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
+<rect x="58.557500000000005" y="26.59" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
+<rect x="59.20850000000001" y="26.59" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
+<rect x="59.859500000000004" y="26.59" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
+<rect x="60.51050000000001" y="26.59" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
+<rect x="61.161500000000004" y="26.59" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
+<rect x="61.81250000000001" y="26.59" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
+<rect x="62.4635" y="26.59" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
 <rect x="60.144999999999996" y="19.912" width="1.17" height="0.715" fill="#2d5a3d"/>
 <rect x="60.144999999999996" y="19.322999999999997" width="1.17" height="0.715" fill="#2d5a3d"/>
 <rect x="60.144999999999996" y="18.733999999999998" width="1.17" height="0.715" fill="#2d5a3d"/>
@@ -4998,21 +4998,21 @@
 <rect x="58.894999999999996" y="18.733999999999998" width="1.17" height="0.715" fill="#2d5a3d"/>
 <rect x="58.894999999999996" y="18.144999999999996" width="1.17" height="0.715" fill="#2d5a3d"/>
 <rect x="58.894999999999996" y="17.555999999999997" width="1.17" height="0.715" fill="#2d5a3d"/>
-<text x="60.5" y="15.615999999999998" fill="#f5f0e1" font-size="1.05" font-weight="600" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" xml:space="preserve">J_BAT_IN1</text>
+<text x="60.5" y="27.55" fill="#f5f0e1" font-size="1.05" font-weight="600" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" xml:space="preserve">J_BAT_IN1</text>
 <text x="61.12" y="20.55" fill="#f5f0e1" font-size="0.95" font-weight="600" transform="rotate(-90 61.12,20.55)" font-family="ui-monospace, Menlo, Consolas, monospace" xml:space="preserve">1·BAT+</text>
 <rect x="60.98" y="20.55" width="0.3" height="0.45" fill="#f5f0e1"/>
 <text x="59.88" y="20.55" fill="#f5f0e1" font-size="0.95" font-weight="600" transform="rotate(-90 59.88,20.55)" font-family="ui-monospace, Menlo, Consolas, monospace" xml:space="preserve">2·GND</text>
 <rect x="59.73" y="20.55" width="0.3" height="0.45" fill="#f5f0e1"/>
-<rect x="66.23" y="14.152" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
-<rect x="66.881" y="14.152" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
-<rect x="67.53200000000001" y="14.152" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
-<rect x="68.183" y="14.152" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
-<rect x="68.834" y="14.152" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
-<rect x="69.485" y="14.152" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
-<rect x="70.13600000000001" y="14.152" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
-<rect x="70.787" y="14.152" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
-<rect x="71.438" y="14.152" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
-<rect x="72.089" y="14.152" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
+<rect x="66.23" y="0.23999999999999994" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
+<rect x="66.881" y="0.23999999999999994" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
+<rect x="67.53200000000001" y="0.23999999999999994" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
+<rect x="68.183" y="0.23999999999999994" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
+<rect x="68.834" y="0.23999999999999994" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
+<rect x="69.485" y="0.23999999999999994" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
+<rect x="70.13600000000001" y="0.23999999999999994" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
+<rect x="70.787" y="0.23999999999999994" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
+<rect x="71.438" y="0.23999999999999994" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
+<rect x="72.089" y="0.23999999999999994" width="1.2810000000000001" height="1.6350000000000002" fill="#2d5a3d"/>
 <rect x="69.445" y="12.024" width="1.17" height="0.715" fill="#2d5a3d"/>
 <rect x="69.445" y="11.434999999999999" width="1.17" height="0.715" fill="#2d5a3d"/>
 <rect x="69.445" y="10.846" width="1.17" height="0.715" fill="#2d5a3d"/>
@@ -5026,7 +5026,7 @@
 <rect x="68.195" y="9.079" width="1.17" height="0.715" fill="#2d5a3d"/>
 <rect x="68.195" y="8.49" width="1.17" height="0.715" fill="#2d5a3d"/>
 <rect x="68.195" y="7.900999999999999" width="1.17" height="0.715" fill="#2d5a3d"/>
-<text x="69.8" y="15.112" fill="#f5f0e1" font-size="1.05" font-weight="600" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" xml:space="preserve">J_BAT_OUT1</text>
+<text x="69.8" y="1.2" fill="#f5f0e1" font-size="1.05" font-weight="600" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" xml:space="preserve">J_BAT_OUT1</text>
 <text x="70.42" y="12.66" fill="#f5f0e1" font-size="0.95" font-weight="600" transform="rotate(-90 70.42,12.66)" font-family="ui-monospace, Menlo, Consolas, monospace" xml:space="preserve">1·BAT_SW</text>
 <rect x="70.27" y="7.50" width="0.3" height="0.45" fill="#f5f0e1"/>
 <text x="69.17" y="10.89" fill="#f5f0e1" font-size="0.95" font-weight="600" transform="rotate(-90 69.17,10.89)" font-family="ui-monospace, Menlo, Consolas, monospace" xml:space="preserve">2·GND</text>

@@ -20,15 +20,49 @@ class DecorativeSilkTest(unittest.TestCase):
             self.assertEqual(len(side.layers), 1)
             self.assertGreater(len(side.layers[0].texts), 0)
 
-    def test_readable_back_omits_connector_titles_keeps_pin_legends(self):
+    def test_readable_front_keeps_slides_hides_dpad_glyphs(self):
+        with mock.patch.object(P, "DECORATIVE_SILK", False):
+            front, _ = L.build_both()
+        texts = {item.s for item in front.texts}
+        self.assertTrue({"POWER", "MUTE"} <= texts)
+        self.assertFalse(texts & {"^", "V", "<", ">"})
+        with mock.patch.object(P, "DECORATIVE_SILK", True):
+            front, _ = L.build_both()
+        self.assertTrue({"^", "V", "<", ">"} <= {item.s for item in front.texts})
+
+    def test_readable_back_keeps_connector_titles_and_pin_legends(self):
         with mock.patch.object(P, "DECORATIVE_SILK", False):
             _, back = L.build_both()
-        texts = [item.s for item in back.texts]
-        self.assertNotIn("J_BAT_IN1", texts)
-        self.assertNotIn("J_I2C1", texts)
-        self.assertNotIn("J_EXP1", texts)
-        self.assertNotIn("J_BAT_OUT1", texts)
+        texts = {item.s for item in back.texts}
+        self.assertTrue({"J_BAT_IN1", "J_I2C1", "J_EXP1", "J_BAT_OUT1"} <= texts)
         self.assertTrue(any(text.startswith("1·") for text in texts))
+
+    def test_back_title_placements_clear_mounts(self):
+        with mock.patch.object(P, "DECORATIVE_SILK", False):
+            _, back = L.build_both()
+        by_name = {item.s: item for item in back.texts}
+        i2c = by_name["J_I2C1"]
+        bat_in = by_name["J_BAT_IN1"]
+        bat_out = by_name["J_BAT_OUT1"]
+        # Nudged west of H1 (board-local x≈62); pin columns stay at connector.
+        self.assertAlmostEqual(i2c.x, L.conn_anchor(P.CONN_I2C)[0] - 2.5, places=3)
+        # BAT_IN: pin columns stay north; title only flips south of the body.
+        fy = L.conn_anchor(P.CONN_BAT_IN)[1]
+        self.assertGreater(bat_in.y, fy + 2.0)
+        self.assertTrue(
+            any(
+                item.s.startswith("1·BAT+") and item.y < fy
+                for item in back.texts
+            )
+        )
+        # BAT_OUT: title on the north edge strip; pin stack south of the body.
+        self.assertLess(bat_out.y, L.conn_anchor(P.CONN_BAT_OUT)[1] - 2.0)
+        self.assertTrue(
+            any(
+                item.s.startswith("1·BAT_SW") and item.y > L.conn_anchor(P.CONN_BAT_OUT)[1]
+                for item in back.texts
+            )
+        )
 
     def test_layout_keeps_full_stack_when_decorative_on(self):
         with mock.patch.object(P, "DECORATIVE_SILK", True):
@@ -56,25 +90,26 @@ class DecorativeSilkTest(unittest.TestCase):
         self.addCleanup(lambda: Path(temporary.name).unlink(missing_ok=True))
         return temporary.name
 
-    def test_refresh_unhides_references_when_decorative_off(self):
+    def test_refresh_shows_front_refs_and_hides_back_refs_when_readable(self):
         board = (
             "(kicad_pcb\n"
-            "\t(gr_rect\n"
-            "\t\t(start 0 0)\n"
-            "\t\t(end 1 1)\n"
-            "\t\t(stroke (width 0) (type default))\n"
-            "\t\t(fill yes)\n"
-            '\t\t(layer "F.SilkS")\n'
-            '\t\t(uuid "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")\n'
-            "\t)\n"
-            '\t(footprint "Lib:FP"\n'
+            '\t(footprint "Lib:Front"\n'
             '\t\t(layer "F.Cu")\n'
             '\t\t(uuid "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")\n'
-            '\t\t(property "Reference" "U1"\n'
+            '\t\t(property "Reference" "SW_UP1"\n'
             "\t\t\t(at 0 0 0)\n"
             '\t\t\t(layer "F.SilkS")\n'
             "\t\t\t(hide yes)\n"
             '\t\t\t(uuid "cccccccc-cccc-4ccc-8ccc-cccccccccccc")\n'
+            "\t\t)\n"
+            "\t)\n"
+            '\t(footprint "Lib:Back"\n'
+            '\t\t(layer "B.Cu")\n'
+            '\t\t(uuid "dddddddd-dddd-4ddd-8ddd-dddddddddddd")\n'
+            '\t\t(property "Reference" "J_BAT_IN1"\n'
+            "\t\t\t(at 0 -3.9 0)\n"
+            '\t\t\t(layer "B.SilkS")\n'
+            '\t\t\t(uuid "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee")\n'
             "\t\t)\n"
             "\t)\n"
             "\t(embedded_fonts no)\n"
@@ -85,11 +120,14 @@ class DecorativeSilkTest(unittest.TestCase):
             with mock.patch.object(silk, "silk_sexpr", return_value=""):
                 silk.refresh_board_silk(path)
         text = Path(path).read_text(encoding="utf-8")
-        self.assertNotIn("(gr_rect\n", text)
-        ref_block = text.split('(property "Reference" "U1"', 1)[1].split(
+        front = text.split('(property "Reference" "SW_UP1"', 1)[1].split(
             "(property", 1
         )[0]
-        self.assertNotIn("(hide yes)", ref_block)
+        back = text.split('(property "Reference" "J_BAT_IN1"', 1)[1].split(
+            "(property", 1
+        )[0]
+        self.assertNotIn("(hide yes)", front)
+        self.assertIn("(hide yes)", back)
 
     def test_refresh_hides_references_when_decorative_on(self):
         board = (
