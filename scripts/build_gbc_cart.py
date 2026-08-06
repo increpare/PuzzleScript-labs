@@ -50,6 +50,10 @@ COMPACT_FACADE_CANARY_ALIASES = tuple(
 )
 COMPACT_FACADE_CANARY_IMPLEMENTATION_BYTES = 349
 
+# Specialized turn on SDCC/banked carts falsely clears coins on the first
+# again tick for these games (host specialized is fine). Build interpreter-only.
+SPECIALIZED_FORCE_INTERPRETER_SLUGS = frozenset({"slot-machine"})
+
 
 @dataclass(frozen=True)
 class CartItem:
@@ -1182,6 +1186,18 @@ def build_cart(
             export_directory / "generated_facade_rules.c",
         )
         specialized_sources = _read_specialized_sources(export_directory)
+        force_interpreter = slug in SPECIALIZED_FORCE_INTERPRETER_SLUGS
+        if force_interpreter:
+            print(
+                f"  note {slug}: interpreter-only quarantine "
+                f"(specialized diverges on cart)",
+                flush=True,
+            )
+        specialized_defines = (
+            ()
+            if force_interpreter
+            else ("PS_GBC_HAS_SPECIALIZED_TURN=1",)
+        )
 
         core_objects: list[Path] = []
         for generated_source in (core_source, game_source):
@@ -1191,7 +1207,7 @@ def build_cart(
                 source=generated_source,
                 object_path=object_path,
                 include_directories=include_directories,
-                defines=("PS_GBC_HAS_SPECIALIZED_TURN=1",),
+                defines=specialized_defines,
             )
             core_objects.append(object_path)
             all_game_objects.append(object_path)
@@ -1225,24 +1241,25 @@ def build_cart(
         )
 
         specialized_objects: list[Path] = []
-        for generated_source in specialized_sources:
-            object_path = objects_root / _object_name(prefix, generated_source)
-            compile_source(
-                lcc=lcc,
-                source=generated_source,
-                object_path=object_path,
-                include_directories=include_directories,
-                defines=("PS_GBC_HAS_SPECIALIZED_TURN=1",),
-            )
-            specialized_objects.append(object_path)
-            all_game_objects.append(object_path)
-            items.append(
-                CartItem(
-                    name=f"{prefix}-{generated_source.stem}",
-                    size=object_code_size(object_path),
-                    objects=(object_path,),
+        if not force_interpreter:
+            for generated_source in specialized_sources:
+                object_path = objects_root / _object_name(prefix, generated_source)
+                compile_source(
+                    lcc=lcc,
+                    source=generated_source,
+                    object_path=object_path,
+                    include_directories=include_directories,
+                    defines=specialized_defines,
                 )
-            )
+                specialized_objects.append(object_path)
+                all_game_objects.append(object_path)
+                items.append(
+                    CartItem(
+                        name=f"{prefix}-{generated_source.stem}",
+                        size=object_code_size(object_path),
+                        objects=(object_path,),
+                    )
+                )
 
         entry = CartIndexEntry(
             slug=slug,

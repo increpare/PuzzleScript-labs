@@ -42,7 +42,9 @@ TOKEN_KEYS = {
 
 BOOT_RELEASE_FRAMES = 10
 MENU_RELEASE_FRAMES = 9
-LAUNCH_RELEASE_FRAMES = 49
+# Interpreter-heavy / again-settling games need more than ~49 frames after
+# title->board before the first solution key or cart telemetry never publishes.
+LAUNCH_RELEASE_FRAMES = 120
 SOLUTION_RELEASE_FRAMES = 502
 MAX_SOLUTION_TOKENS = 65535
 CART_BENCH_MAGIC = 0x42424350
