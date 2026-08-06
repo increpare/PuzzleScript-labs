@@ -25,30 +25,23 @@
     {
       "scope": "DRC",
       "type": "silk_edge_clearance",
-      "count": 163,
-      "fingerprintDigest": "2ab9120f0ff908b419033b6765ce4be49f0634795c1d20c4b61a36592c196d39",
-      "rationale": "Intentionally dense decorative silk."
+      "count": 4,
+      "fingerprintDigest": "8dd9624672478ba9a4d35890412f9dd15ba486b57ff7f1878f9b141ebb857899",
+      "rationale": "Optional decorative silk off by default (params.DECORATIVE_SILK); residual label silk."
     },
     {
       "scope": "DRC",
       "type": "silk_overlap",
-      "count": 199,
-      "fingerprintDigest": "bb8c204cb57e95e9230625dde888cc15f56afeaffbd4a15894e77b240c431e9d",
-      "rationale": "Intentionally dense decorative silk."
-    },
-    {
-      "scope": "DRC",
-      "type": "silk_over_copper",
-      "count": 21,
-      "fingerprintDigest": "1ef1749815a28e02b61e4e3650689beae9ee9101c66bec3acd61d6f30521de32",
-      "rationale": "Intentionally dense decorative silk."
+      "count": 121,
+      "fingerprintDigest": "f880ecc7acd5e476b9cf26175fe44eac6745ea8c6e0e36c290b49fa8e4382b3b",
+      "rationale": "Optional decorative silk off by default (params.DECORATIVE_SILK); residual label silk."
     },
     {
       "scope": "DRC",
       "type": "nonmirrored_text_on_back_layer",
-      "count": 4,
-      "fingerprintDigest": "d54988b0fd8a967b1c1526fbae6d064316605bca07fe8ccfbc072ef2938421b3",
-      "rationale": "Intentionally dense decorative silk."
+      "count": 8,
+      "fingerprintDigest": "6bb0d71db696bfe4ae9df078279f492b847064bbccb47938b53e2973c0d534b8",
+      "rationale": "Optional decorative silk off by default (params.DECORATIVE_SILK); residual label silk."
     },
     {
       "scope": "parity",

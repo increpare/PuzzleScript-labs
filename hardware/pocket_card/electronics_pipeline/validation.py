@@ -70,20 +70,16 @@ _EXPECTED_WARNING_POLICY = MappingProxyType(
             "27b20d9750762cbf26cbf4343b6f0bc3542faea666c8c26b8b3f107ddc67ff95",
         ),
         ("DRC", "silk_edge_clearance"): (
-            163,
-            "2ab9120f0ff908b419033b6765ce4be49f0634795c1d20c4b61a36592c196d39",
+            4,
+            "8dd9624672478ba9a4d35890412f9dd15ba486b57ff7f1878f9b141ebb857899",
         ),
         ("DRC", "silk_overlap"): (
-            199,
-            "bb8c204cb57e95e9230625dde888cc15f56afeaffbd4a15894e77b240c431e9d",
-        ),
-        ("DRC", "silk_over_copper"): (
-            21,
-            "1ef1749815a28e02b61e4e3650689beae9ee9101c66bec3acd61d6f30521de32",
+            121,
+            "f880ecc7acd5e476b9cf26175fe44eac6745ea8c6e0e36c290b49fa8e4382b3b",
         ),
         ("DRC", "nonmirrored_text_on_back_layer"): (
-            4,
-            "d54988b0fd8a967b1c1526fbae6d064316605bca07fe8ccfbc072ef2938421b3",
+            8,
+            "6bb0d71db696bfe4ae9df078279f492b847064bbccb47938b53e2973c0d534b8",
         ),
         ("parity", "footprint_symbol_mismatch"): (
             32,
@@ -104,10 +100,18 @@ _EXPECTED_WARNING_RATIONALES = MappingProxyType(
         ("ERC", "endpoint_off_grid"): "Historical generated symbol/grid layout.",
         ("ERC", "lib_symbol_issues"): "Historical generated symbol/grid layout.",
         ("DRC", "via_dangling"): "Dangling vias remain visible for engineer disposition.",
-        ("DRC", "silk_edge_clearance"): "Intentionally dense decorative silk.",
-        ("DRC", "silk_overlap"): "Intentionally dense decorative silk.",
-        ("DRC", "silk_over_copper"): "Intentionally dense decorative silk.",
-        ("DRC", "nonmirrored_text_on_back_layer"): "Intentionally dense decorative silk.",
+        ("DRC", "silk_edge_clearance"): (
+            "Optional decorative silk off by default (params.DECORATIVE_SILK); "
+            "residual label silk."
+        ),
+        ("DRC", "silk_overlap"): (
+            "Optional decorative silk off by default (params.DECORATIVE_SILK); "
+            "residual label silk."
+        ),
+        ("DRC", "nonmirrored_text_on_back_layer"): (
+            "Optional decorative silk off by default (params.DECORATIVE_SILK); "
+            "residual label silk."
+        ),
         ("parity", "footprint_symbol_mismatch"): "Historical library-prefix, board-value, and leading-slash mismatch; normalized UUID/pad/net comparison passes.",
         ("parity", "net_conflict"): "Historical library-prefix, board-value, and leading-slash mismatch; normalized UUID/pad/net comparison passes.",
         ("parity", "footprint_symbol_field_mismatch"): "Historical library-prefix, board-value, and leading-slash mismatch; normalized UUID/pad/net comparison passes.",
