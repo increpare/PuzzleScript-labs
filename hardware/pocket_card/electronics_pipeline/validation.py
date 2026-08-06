@@ -75,7 +75,7 @@ _EXPECTED_WARNING_POLICY = MappingProxyType(
         ),
         ("DRC", "silk_overlap"): (
             121,
-            "f880ecc7acd5e476b9cf26175fe44eac6745ea8c6e0e36c290b49fa8e4382b3b",
+            "c499f7c606635bc00771ac3930a8dd3223b853bb9ee1199ef548d17f53a4a949",
         ),
         ("DRC", "nonmirrored_text_on_back_layer"): (
             8,

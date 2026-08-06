@@ -263,7 +263,17 @@ def pin_xs(n: int) -> List[float]:
     return []
 
 
-def io_block(side: Side, fx, fy, labels, title, flipped=True, below=False):
+def io_block(
+    side: Side,
+    fx,
+    fy,
+    labels,
+    title,
+    flipped=True,
+    below=False,
+    *,
+    include_title: bool = True,
+):
     n = len(labels)
     xs = pin_xs(n)
     board_xs = [fx + (-x if flipped else x) for x in xs]
@@ -287,11 +297,16 @@ def io_block(side: Side, fx, fy, labels, title, flipped=True, below=False):
         title_y = body_y - 0.35 - max_len * cw - 1.4
         tick_y = body_y - 0.35
 
-    side.masks.extend(text_neg_outline(fx, title_y, title, title_size, anchor="middle"))
+    # Readable mode keeps KiCad Reference legends; repeating the connector
+    # title here just stamps over the pin columns.
+    if include_title:
+        side.masks.extend(
+            text_neg_outline(fx, title_y, title, title_size, anchor="middle")
+        )
+        side.texts.append(TextItem(title, fx, title_y, title_size, anchor="middle"))
     for bx, col, ay in zip(board_xs, cols, anchors):
         side.masks.extend(vtext_neg_glyphs(bx, ay, col, label_size))
 
-    side.texts.append(TextItem(title, fx, title_y, title_size, anchor="middle"))
     for bx, col, ay in zip(board_xs, cols, anchors):
         side.texts.append(TextItem(col, bx, ay, label_size, rot=-90))
         side.rects.append(_rect(bx - 0.15, tick_y, 0.3, 0.45))
@@ -381,11 +396,36 @@ def build_back(corpus=None, grid=None, start: int = 0) -> Side:
     stream = RuleStream(corpus, start=start)
 
     labels = Layer()
-    io_block(labels, *conn_anchor(P.CONN_I2C), ["3V3", "GND", "SCL", "SDA"], "J_I2C1")
-    io_block(labels, *conn_anchor(P.CONN_EXP), ["INT", "NC", "NC", "NC"], "J_EXP1")
-    io_block(labels, *conn_anchor(P.CONN_BAT_IN), ["BAT+", "GND"], "J_BAT_IN1")
-    io_block(labels, *conn_anchor(P.CONN_BAT_OUT), ["BAT_SW", "GND"], "J_BAT_OUT1",
-             below=True)
+    include_title = bool(getattr(P, "DECORATIVE_SILK", True))
+    io_block(
+        labels,
+        *conn_anchor(P.CONN_I2C),
+        ["3V3", "GND", "SCL", "SDA"],
+        "J_I2C1",
+        include_title=include_title,
+    )
+    io_block(
+        labels,
+        *conn_anchor(P.CONN_EXP),
+        ["INT", "NC", "NC", "NC"],
+        "J_EXP1",
+        include_title=include_title,
+    )
+    io_block(
+        labels,
+        *conn_anchor(P.CONN_BAT_IN),
+        ["BAT+", "GND"],
+        "J_BAT_IN1",
+        include_title=include_title,
+    )
+    io_block(
+        labels,
+        *conn_anchor(P.CONN_BAT_OUT),
+        ["BAT_SW", "GND"],
+        "J_BAT_OUT1",
+        below=True,
+        include_title=include_title,
+    )
 
     if not getattr(P, "DECORATIVE_SILK", True):
         return Side(layers=[labels], rule_count=0)

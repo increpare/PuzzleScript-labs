@@ -20,11 +20,23 @@ class DecorativeSilkTest(unittest.TestCase):
             self.assertEqual(len(side.layers), 1)
             self.assertGreater(len(side.layers[0].texts), 0)
 
+    def test_readable_back_omits_connector_titles_keeps_pin_legends(self):
+        with mock.patch.object(P, "DECORATIVE_SILK", False):
+            _, back = L.build_both()
+        texts = [item.s for item in back.texts]
+        self.assertNotIn("J_BAT_IN1", texts)
+        self.assertNotIn("J_I2C1", texts)
+        self.assertNotIn("J_EXP1", texts)
+        self.assertNotIn("J_BAT_OUT1", texts)
+        self.assertTrue(any(text.startswith("1·") for text in texts))
+
     def test_layout_keeps_full_stack_when_decorative_on(self):
         with mock.patch.object(P, "DECORATIVE_SILK", True):
-            front, _ = L.build_both()
+            front, back = L.build_both()
         self.assertEqual(len(front.layers), 3)
         self.assertGreater(front.rule_count, 0)
+        titles = {item.s for item in back.texts}
+        self.assertTrue({"J_BAT_IN1", "J_I2C1", "J_EXP1", "J_BAT_OUT1"} <= titles)
 
     def test_raster_skips_brick_when_decorative_off(self):
         with mock.patch.object(P, "DECORATIVE_SILK", False):

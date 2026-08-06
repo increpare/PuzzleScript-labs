@@ -269,7 +269,7 @@ class FingerprintPolicyTest(unittest.TestCase):
             ("ERC", "lib_symbol_issues"): (19, "078197b8ae3f4753b71a8329cec228bc7b895e147329d8cbde9b347336490eb9"),
             ("DRC", "via_dangling"): (2, "27b20d9750762cbf26cbf4343b6f0bc3542faea666c8c26b8b3f107ddc67ff95"),
             ("DRC", "silk_edge_clearance"): (4, "8dd9624672478ba9a4d35890412f9dd15ba486b57ff7f1878f9b141ebb857899"),
-            ("DRC", "silk_overlap"): (121, "f880ecc7acd5e476b9cf26175fe44eac6745ea8c6e0e36c290b49fa8e4382b3b"),
+            ("DRC", "silk_overlap"): (121, "c499f7c606635bc00771ac3930a8dd3223b853bb9ee1199ef548d17f53a4a949"),
             ("DRC", "nonmirrored_text_on_back_layer"): (8, "6bb0d71db696bfe4ae9df078279f492b847064bbccb47938b53e2973c0d534b8"),
             ("parity", "footprint_symbol_mismatch"): (32, "9c0f14314f30187bc131e9a9d693cb40e81b98f2d19ff38b9164f49a08187e23"),
             ("parity", "net_conflict"): (90, "f0cd0a9a2d6da3052181b7f0e848d6be7a3a1a02d775cf27413a65effdfdc527"),
