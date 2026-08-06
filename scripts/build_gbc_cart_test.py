@@ -717,12 +717,12 @@ def main() -> int:
     assert (
         '{3U, &g00_ps_gbc_generated_descriptor, 0x12345678UL, '
         '"FIRST", 9U, g00_ps_gbc_launcher_art, 11U, '
-        'g00_ps_gbc_launcher_selected_art, 4U}'
+        'g00_ps_gbc_launcher_selected_art, 4U, 0U}'
     ) in cart_source
     assert (
         '{4U, &g01_ps_gbc_generated_descriptor, 0x90abcdefUL, '
         '"SECOND", 10U, g01_ps_gbc_launcher_art, 12U, '
-        'g01_ps_gbc_launcher_selected_art, 4U}'
+        'g01_ps_gbc_launcher_selected_art, 4U, 0U}'
     ) in cart_source
     assert "static const ps_gbc_launcher_card kLauncherCards" in cart_source
     assert "{1U, 2U, 3U, 4U}" in cart_source

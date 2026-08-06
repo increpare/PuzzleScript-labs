@@ -15,6 +15,10 @@
 #include "session_internal.h"
 #include "specialized_turn.h"
 
+#if defined(PS_GBC_FREESTANDING)
+#include "puzzlescript/gbc_bank_access.h"
+#endif
+
 #include <string.h>
 
 #if defined(PS_GBC_GENERATED_PACKED_PATTERNS)
@@ -471,6 +475,20 @@ static void ps_gbc_clear_transient(ps_gbc_session* session) {
 
 static void ps_gbc_run_rules_on_level_start(ps_gbc_session* session);
 
+static bool ps_gbc_copy_level_cells(
+    const void* source,
+    void* destination,
+    uint16_t byte_count
+) {
+#if defined(PS_GBC_FREESTANDING)
+    if (ps_gbc_level_cells_read != NULL) {
+        return ps_gbc_level_cells_read(source, destination, byte_count);
+    }
+#endif
+    memcpy(destination, source, byte_count);
+    return true;
+}
+
 static bool ps_gbc_load_board(ps_gbc_session* session, uint16_t level_index) {
     const ps_gbc_level* level = &session->game->levels[level_index];
     size_t cells;
@@ -479,7 +497,9 @@ static bool ps_gbc_load_board(ps_gbc_session* session, uint16_t level_index) {
     cells = (size_t)level->width * (size_t)level->height;
     if (cells == 0U || cells > session->game->max_level_cells) return false;
     bytes = cells * ps_gbc_object_width(session->game);
-    memcpy(session->board, level->cells, bytes);
+    if (!ps_gbc_copy_level_cells(level->cells, session->board, (uint16_t)bytes)) {
+        return false;
+    }
     if (bytes < ps_gbc_board_bytes(session->game)) {
         memset((uint8_t*)session->board + bytes, 0, ps_gbc_board_bytes(session->game) - bytes);
     }
@@ -1144,7 +1164,9 @@ bool ps_gbc_restart(ps_gbc_session* session) {
                 bytes)) return false;
     } else {
         level = &session->game->levels[session->current_level];
-        memcpy(session->board, level->cells, bytes);
+        if (!ps_gbc_copy_level_cells(level->cells, session->board, bytes)) {
+            return false;
+        }
     }
 #if PS_GBC_HAS_OBJECT_PRESENCE_PRECHECK
     session->present_objects = 0U;

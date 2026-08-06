@@ -7,6 +7,9 @@
 static ps_gbc_game_descriptor gActiveDescriptor;
 static ps_gbc_game_view gActiveGameView;
 static bool gHasActiveGame;
+static uint8_t gActiveAssetBank;
+
+ps_gbc_level_cells_read_fn ps_gbc_level_cells_read = NULL;
 
 static uint8_t mbc5CurrentBank(void* context) NONBANKED {
     (void)context;
@@ -24,9 +27,24 @@ static const ps_gbc_bank_access kMbc5Access = {
     mbc5SwitchBank
 };
 
+static bool activeAssetLevelCellsRead(
+    const void* source,
+    void* destination,
+    uint16_t byte_count
+) NONBANKED {
+    if (gActiveAssetBank == 0U) return false;
+    return ps_gbc_bank_copy(
+        &kMbc5Access,
+        gActiveAssetBank,
+        source,
+        destination,
+        byte_count);
+}
+
 bool ps_gbc_activate_game(
     uint8_t descriptor_bank,
-    const ps_gbc_game_descriptor* descriptor
+    const ps_gbc_game_descriptor* descriptor,
+    uint8_t asset_bank
 ) NONBANKED {
     ps_gbc_game_descriptor descriptor_copy;
     ps_gbc_game_view game_view_copy;
@@ -48,12 +66,17 @@ bool ps_gbc_activate_game(
     }
     gActiveDescriptor = descriptor_copy;
     gActiveGameView = game_view_copy;
+    gActiveAssetBank = asset_bank;
+    ps_gbc_level_cells_read =
+        (asset_bank != 0U) ? activeAssetLevelCellsRead : NULL;
     gHasActiveGame = true;
     return true;
 }
 
 void ps_gbc_deactivate_game(void) NONBANKED {
     gHasActiveGame = false;
+    gActiveAssetBank = 0U;
+    ps_gbc_level_cells_read = NULL;
 }
 
 const ps_gbc_game_descriptor* ps_gbc_active_descriptor(void) NONBANKED {

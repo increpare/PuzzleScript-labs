@@ -50,12 +50,19 @@ COMPACT_FACADE_CANARY_ALIASES = tuple(
 )
 COMPACT_FACADE_CANARY_IMPLEMENTATION_BYTES = 349
 
-# Specialized turn on SDCC/banked carts falsely clears coins on the first
-# again tick for these games (host specialized is fine). Build interpreter-only.
-# Cart/SDCC specialized divergence: omit generated specialized objects and keep
-# the interpreter path in core/game. Only viable when core+game still fit one
-# ROM bank (yellow-box / pipe-puffer do not; those use cart_quarantine tags).
-SPECIALIZED_FORCE_INTERPRETER_SLUGS = frozenset({"slot-machine"})
+# Specialized turn diverges under SDCC/banked carts (host specialized is fine).
+# Omit generated specialized objects and keep the interpreter path in core/game.
+# Oversized interpreter games also strip precomposed tiles and split level-cell
+# arrays into a sibling ROM bank (see asset_bank on the cart entry).
+SPECIALIZED_FORCE_INTERPRETER_SLUGS = frozenset({
+    "slot-machine",
+    "pipe-puffer",
+    "yellow-box",
+})
+INTERPRETER_SPLIT_LEVEL_CELLS_SLUGS = frozenset({
+    "pipe-puffer",
+    "yellow-box",
+})
 
 
 @dataclass(frozen=True)
@@ -101,6 +108,7 @@ class CartIndexEntry:
     launcher_art_bank: int
     launcher_selected_art_bank: int
     launcher_card: LauncherCard
+    asset_bank: int = 0
 
 
 @dataclass(frozen=True)
@@ -798,7 +806,8 @@ def emit_cart_source(entries: Sequence[CartIndexEntry]) -> str:
         f"{entry.prefix}_ps_gbc_launcher_art, "
         f"{entry.launcher_selected_art_bank}U, "
         f"{entry.prefix}_ps_gbc_launcher_selected_art, "
-        f"{entry.launcher_card.board_level_count + 2}U"
+        f"{entry.launcher_card.board_level_count + 2}U, "
+        f"{entry.asset_bank}U"
         "}"
         for entry in entries
     )
@@ -991,6 +1000,7 @@ def compile_source(
     object_path: Path,
     include_directories: Sequence[Path],
     defines: Sequence[str] = (),
+    extra_flags: Sequence[str] = (),
 ) -> None:
     object_path.parent.mkdir(parents=True, exist_ok=True)
     command = [
@@ -1000,6 +1010,7 @@ def compile_source(
         "-DPS_GBC_FREESTANDING=1",
         "-DPS_GBC_GENERATED_BUILD=1",
         "-Wf--max-allocs-per-node50000",
+        *extra_flags,
         *[f"-D{define}" for define in defines],
         "-c",
         "-o",
@@ -1007,6 +1018,97 @@ def compile_source(
         str(source),
     ]
     run_checked(command, cwd=object_path.parent)
+
+
+def strip_interpreter_precomposed(game_source: Path) -> None:
+    """Drop bulky precomposed tile tables; solution replay does not need them."""
+    text = game_source.read_text(encoding="utf-8")
+    text = re.sub(
+        r"const uint8_t ps_gbc_generated_precomposed_tiles\[[^\]]*\] = \{.*?\};",
+        "const uint8_t ps_gbc_generated_precomposed_tiles[1] = {0};",
+        text,
+        count=1,
+        flags=re.S,
+    )
+    text = re.sub(
+        r"const uint32_t ps_gbc_generated_precomposed_masks\[[^\]]*\] = \{.*?\};",
+        "const uint32_t ps_gbc_generated_precomposed_masks[1] = {0};",
+        text,
+        count=1,
+        flags=re.S,
+    )
+    text = re.sub(
+        r"const uint8_t ps_gbc_generated_precomposed_palettes\[[^\]]*\] = \{.*?\};",
+        "const uint8_t ps_gbc_generated_precomposed_palettes[1] = {0};",
+        text,
+        count=1,
+        flags=re.S,
+    )
+    text = re.sub(
+        r"ps_gbc_generated_precomposed_masks,\n"
+        r"\s*ps_gbc_generated_precomposed_palettes,\n"
+        r"\s*ps_gbc_generated_precomposed_tiles, \d+U,",
+        "0, 0, 0, 0U,",
+        text,
+    )
+    text = re.sub(
+        r'(PS_GBC_LEVEL_MESSAGE, \d+U, \d+U, NULL, )"[^"]*"',
+        r"\1NULL",
+        text,
+    )
+    game_source.write_text(text, encoding="utf-8")
+
+
+def split_interpreter_level_cells(
+    game_source: Path,
+    cells_source: Path,
+    *,
+    prefix: str,
+) -> bool:
+    """Move kLevelNCells arrays into a sibling translation unit.
+
+    Returns True when any arrays were moved. Symbols are prefixed so multiple
+    interpreter-quarantine games can link into one cart.
+    """
+    text = game_source.read_text(encoding="utf-8")
+    moved: list[str] = []
+    originals: list[str] = []
+    pattern = re.compile(
+        r"static const uint32_t (kLevel\d+Cells)\[\] = \{[^}]+\};"
+    )
+
+    def replacer(match: re.Match[str]) -> str:
+        original = match.group(1)
+        namespaced = f"{prefix}_{original}"
+        originals.append(original)
+        definition = match.group(0).replace("static ", "", 1)
+        definition = definition.replace(
+            f"const uint32_t {original}[",
+            f"const uint32_t {namespaced}[",
+            1,
+        )
+        moved.append(definition)
+        return f"extern const uint32_t {namespaced}[];"
+
+    text, count = pattern.subn(replacer, text)
+    if count == 0:
+        return False
+    for original in sorted(set(originals), reverse=True):
+        namespaced = f"{prefix}_{original}"
+        text = re.sub(rf"\b{re.escape(original)}\b", namespaced, text)
+    cells_source.write_text(
+        "/* Generated by build_gbc_cart for interpreter bank fit. */\n"
+        "#if defined(__SDCC)\n"
+        "#pragma bank 10\n"
+        "#endif\n"
+        "#include <stdint.h>\n"
+        f"/* prefix={prefix} */\n"
+        + "\n".join(moved)
+        + "\n",
+        encoding="utf-8",
+    )
+    game_source.write_text(text, encoding="utf-8")
+    return True
 
 
 def _read_specialized_sources(export_directory: Path) -> list[Path]:
@@ -1147,6 +1249,7 @@ def build_cart(
     all_game_objects: list[Path] = []
     launcher_art_objects: dict[str, Path] = {}
     launcher_selected_art_objects: dict[str, Path] = {}
+    asset_objects: dict[str, Path] = {}
 
     for index, (slug, source_relative) in enumerate(games):
         prefix = f"g{index:02d}"
@@ -1190,16 +1293,37 @@ def build_cart(
         )
         specialized_sources = _read_specialized_sources(export_directory)
         force_interpreter = slug in SPECIALIZED_FORCE_INTERPRETER_SLUGS
+        split_level_cells = slug in INTERPRETER_SPLIT_LEVEL_CELLS_SLUGS
         if force_interpreter:
             print(
                 f"  note {slug}: interpreter-only quarantine "
                 f"(specialized diverges on cart)",
                 flush=True,
             )
+        if force_interpreter and split_level_cells:
+            strip_interpreter_precomposed(game_source)
+            cells_source = export_directory / "generated_level_cells.c"
+            if not split_interpreter_level_cells(
+                game_source,
+                cells_source,
+                prefix=prefix,
+            ):
+                raise RuntimeError(
+                    f"{slug}: expected level cell arrays to split for "
+                    "interpreter bank fit"
+                )
+            print(
+                f"  note {slug}: split level cells + stripped precomposed "
+                f"for interpreter bank fit",
+                flush=True,
+            )
         specialized_defines = (
             ()
             if force_interpreter
             else ("PS_GBC_HAS_SPECIALIZED_TURN=1",)
+        )
+        interpreter_flags = (
+            ("-Wf--opt-code-size",) if force_interpreter else ()
         )
 
         core_objects: list[Path] = []
@@ -1211,10 +1335,16 @@ def build_cart(
                 object_path=object_path,
                 include_directories=include_directories,
                 defines=specialized_defines,
+                extra_flags=interpreter_flags,
             )
             core_objects.append(object_path)
             all_game_objects.append(object_path)
         core_size = sum(object_code_size(path) for path in core_objects)
+        if core_size > ROM_BANK_BYTES:
+            raise RuntimeError(
+                f"{slug}: interpreter core+game is {core_size} bytes "
+                f"(bank limit {ROM_BANK_BYTES})"
+            )
         items.append(
             CartItem(
                 name=f"{prefix}-core-data",
@@ -1223,6 +1353,27 @@ def build_cart(
                 pinned_bank=game_bank,
             )
         )
+
+        if force_interpreter and split_level_cells:
+            cells_source = export_directory / "generated_level_cells.c"
+            cells_object = objects_root / f"{prefix}_generated_level_cells.o"
+            compile_source(
+                lcc=lcc,
+                source=cells_source,
+                object_path=cells_object,
+                include_directories=include_directories,
+                defines=specialized_defines,
+                extra_flags=interpreter_flags,
+            )
+            asset_objects[prefix] = cells_object
+            all_game_objects.append(cells_object)
+            items.append(
+                CartItem(
+                    name=f"{prefix}-level-cells",
+                    size=object_code_size(cells_object),
+                    objects=(cells_object,),
+                )
+            )
 
         facade_objects: list[Path] = []
         for generated_source in facade_sources:
@@ -1412,15 +1563,21 @@ def build_cart(
         launcher_selected_art_bank = object_banks[
             launcher_selected_art_object.name
         ]
+        asset_object = asset_objects.get(entry.prefix)
+        asset_bank = (
+            object_banks[asset_object.name] if asset_object is not None else 0
+        )
         entries[index] = replace(
             entry,
             launcher_art_bank=launcher_art_bank,
             launcher_selected_art_bank=launcher_selected_art_bank,
+            asset_bank=asset_bank,
         )
         game_records[index]["launcher_art_bank"] = launcher_art_bank
         game_records[index]["launcher_selected_art_bank"] = (
             launcher_selected_art_bank
         )
+        game_records[index]["asset_bank"] = asset_bank
 
     (generated_root / "generated_cart.h").write_text(
         emit_cart_header(entries),

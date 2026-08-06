@@ -25,3 +25,13 @@ bool ps_gbc_bank_copy_string(
     const char* source,
     char* destination,
     uint16_t capacity);
+
+/* Optional freestanding hook: when non-NULL, level cell payloads are read
+ * through this instead of memcpy (cells may live in a sibling ROM bank). */
+typedef bool (*ps_gbc_level_cells_read_fn)(
+    const void* source,
+    void* destination,
+    uint16_t byte_count);
+#if defined(PS_GBC_FREESTANDING)
+extern ps_gbc_level_cells_read_fn ps_gbc_level_cells_read;
+#endif
