@@ -54,6 +54,7 @@ add_compile_definitions(
 
 find_package(Threads REQUIRED)
 find_package(PkgConfig QUIET)
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
 find_program(NODE_EXECUTABLE node REQUIRED)
 option(PS_ENABLE_SLOW_SOLVER_COVERAGE_TESTS "Enable slow full solver JS-coverage CTest checks" OFF)
 
@@ -863,6 +864,22 @@ target_link_libraries(puzzlescript_gbc_solution_replay_bench PRIVATE
 add_test(
   NAME puzzlescript_gbc_solution_replay_bench
   COMMAND puzzlescript_gbc_solution_replay_bench
+)
+
+# Checked-in eligible solution cache (host_known_good): C++ + host GBC.
+# Invokes the Python gate so `ctest` and `make solution_cache_tests` share one path.
+add_test(
+  NAME puzzlescript_solution_cache_host_known_good
+  COMMAND ${Python3_EXECUTABLE} ${PUZZLESCRIPT_REPO_ROOT}/scripts/run_solution_cache_tests.py
+          --repository ${PUZZLESCRIPT_REPO_ROOT}
+          --cache-root src/tests/solution_cache/eligible
+          --export-dir ${CMAKE_BINARY_DIR}/gbc/eligible/host-exports
+          --tag host_known_good
+          --thorough-host-policy strict
+)
+set_tests_properties(puzzlescript_solution_cache_host_known_good PROPERTIES
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+  ENVIRONMENT "PYTHONPATH=${PUZZLESCRIPT_REPO_ROOT}/scripts"
 )
 
 set(GBC_LEVEL_START_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated/gbc_level_start)

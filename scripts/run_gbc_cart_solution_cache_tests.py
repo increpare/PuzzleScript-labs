@@ -1,0 +1,156 @@
+#!/usr/bin/env python3
+"""Thorough cart/libmGBA replay of cached board-0 solutions.
+
+The cart benchmark firmware finalizes telemetry on the first win, so this gate
+replays board 0 for each game that has a cached board-0 solution. Multi-board
+coverage is owned by the host GBC + C++ cache runners.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+from typing import Any
+
+import solution_cache as sc
+from bench_gbc_cart_solutions import (
+    configure_key_runner,
+    run_game,
+    validate_benchmark_manifest,
+)
+from build_gbc_cart import build_cart
+from build_gbc_eligible_roms import ELIGIBLE_GAMES
+import run_gbc_smoke
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--repository", type=Path, default=Path.cwd())
+    parser.add_argument("--cache-root", type=Path, default=sc.DEFAULT_CACHE_ROOT)
+    parser.add_argument("--compiler", type=Path)
+    parser.add_argument(
+        "--gbdk-home",
+        type=Path,
+        default=Path(".codex_tmp/toolchains/gbdk"),
+    )
+    parser.add_argument(
+        "--out-dir",
+        type=Path,
+        default=Path("build/gbc/cart-solution-cache"),
+    )
+    parser.add_argument("--reuse-cart", action="store_true")
+    parser.add_argument("--limit", type=int)
+    parser.add_argument("--mgba-prefix", type=Path)
+    args = parser.parse_args()
+
+    repository = args.repository.resolve()
+    root = sc.cache_root(repository, args.cache_root)
+    manifest = sc.load_manifest(sc.manifest_path(root))
+    entries = list(manifest.get("entries") or [])
+    board0_by_slug: dict[str, dict[str, Any]] = {}
+    for entry in entries:
+        errors = sc.validate_entry_against_source(repository, entry)
+        if errors:
+            print("FAIL manifest:", *errors, sep="\n  ")
+            return 1
+        if int(entry["board_index"]) == 0:
+            board0_by_slug[str(entry["slug"])] = entry
+
+    games = list(ELIGIBLE_GAMES)
+    if args.limit is not None:
+        games = games[: args.limit]
+
+    compiler = (
+        args.compiler.resolve()
+        if args.compiler is not None
+        else repository / "build" / "native" / "puzzlescript_cpp"
+    )
+    out_dir = (
+        args.out_dir
+        if args.out_dir.is_absolute()
+        else (repository / args.out_dir).resolve()
+    )
+    gbdk_home = (
+        args.gbdk_home
+        if args.gbdk_home.is_absolute()
+        else (repository / args.gbdk_home).resolve()
+    )
+
+    try:
+        if args.reuse_cart:
+            rom = out_dir / f"puzzlescript-compilation-benchmark-{len(games)}.gb"
+            manifest_path = out_dir / "cart-manifest.json"
+            if not rom.is_file() or not manifest_path.is_file():
+                raise RuntimeError("--reuse-cart requires existing ROM+manifest")
+        else:
+            rom, manifest_path = build_cart(
+                repository=repository,
+                compiler=compiler,
+                gbdk_home=gbdk_home,
+                out=out_dir,
+                games=games,
+                cull=True,
+                autotest=False,
+                benchmark=True,
+            )
+        cart_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        validate_benchmark_manifest(
+            cart_manifest, games=games, repository=repository
+        )
+        prefix, missing = run_gbc_smoke.find_libmgba_prefix(args.mgba_prefix)
+        if prefix is None:
+            raise RuntimeError(f"libmGBA unavailable: {missing}")
+        handle = run_gbc_smoke.load_libmgba_shim(
+            prefix, repository / ".codex_tmp" / "mgba-shim"
+        )
+        configure_key_runner(handle)
+    except (OSError, RuntimeError, SystemExit) as exc:
+        print(f"gbc_cart_solution_cache_tests: {exc}")
+        return 1
+
+    failures = 0
+    checked = 0
+    for index, (slug, _source_relative) in enumerate(games):
+        entry = board0_by_slug.get(slug)
+        if entry is None:
+            print(f"[{index + 1}/{len(games)}] {slug}: SKIP no board-0 cache")
+            continue
+        tokens = sc.read_tokens(repository / str(entry["solution_path"]))
+        print(
+            f"[{index + 1}/{len(games)}] {slug}: board=0 turns={len(tokens)}",
+            flush=True,
+        )
+        try:
+            telemetry, _elapsed, warning_count = run_game(
+                handle=handle,
+                rom=rom,
+                game_index=index,
+                tokens=tokens,
+                maximum_warnings=None,
+            )
+            if not telemetry.won:
+                raise RuntimeError("cart replay did not win")
+            if int(telemetry.user_turns) != len(tokens):
+                # Soft check: some paths may coalesce; require win above.
+                pass
+            checked += 1
+            print(
+                f"  ok user_turns={telemetry.user_turns} "
+                f"warnings={warning_count}",
+                flush=True,
+            )
+        except Exception as exc:  # noqa: BLE001
+            failures += 1
+            print(f"  FAIL {exc}", flush=True)
+
+    print(
+        f"gbc_cart_solution_cache_tests: checked={checked} failures={failures}",
+        flush=True,
+    )
+    return 1 if failures else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

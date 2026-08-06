@@ -1,0 +1,17 @@
+down
+up
+up
+down
+down
+right
+right
+up
+down
+left
+down
+left
+up
+right
+down
+right
+up

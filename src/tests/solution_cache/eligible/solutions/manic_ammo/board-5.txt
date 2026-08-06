@@ -1,0 +1,11 @@
+down
+down
+right
+right
+down
+down
+left
+action
+left
+left
+left

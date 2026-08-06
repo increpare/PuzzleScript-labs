@@ -1,0 +1,3506 @@
+{
+  "corpus": "eligible_gbc",
+  "counts": {
+    "entries": 280,
+    "host_known_good": 134,
+    "js_valid": 280
+  },
+  "entries": [
+    {
+      "board_index": 0,
+      "replay_turns": 37,
+      "slug": "15-push-pull-levels",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/15-push-pull-levels/board-0.txt",
+      "source": "src/tests/good_games/15 push pull levels.txt",
+      "source_level": 1,
+      "source_sha256": "c6c2dbdc520105a073326fdfd2c130767739ae2a111f320cb976fc9d0bd72a1c",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 18,
+      "slug": "15-push-pull-levels",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/15-push-pull-levels/board-1.txt",
+      "source": "src/tests/good_games/15 push pull levels.txt",
+      "source_level": 3,
+      "source_sha256": "c6c2dbdc520105a073326fdfd2c130767739ae2a111f320cb976fc9d0bd72a1c",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 2,
+      "replay_turns": 41,
+      "slug": "15-push-pull-levels",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/15-push-pull-levels/board-2.txt",
+      "source": "src/tests/good_games/15 push pull levels.txt",
+      "source_level": 5,
+      "source_sha256": "c6c2dbdc520105a073326fdfd2c130767739ae2a111f320cb976fc9d0bd72a1c",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 3,
+      "replay_turns": 45,
+      "slug": "15-push-pull-levels",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/15-push-pull-levels/board-3.txt",
+      "source": "src/tests/good_games/15 push pull levels.txt",
+      "source_level": 7,
+      "source_sha256": "c6c2dbdc520105a073326fdfd2c130767739ae2a111f320cb976fc9d0bd72a1c",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 4,
+      "replay_turns": 49,
+      "slug": "15-push-pull-levels",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/15-push-pull-levels/board-4.txt",
+      "source": "src/tests/good_games/15 push pull levels.txt",
+      "source_level": 9,
+      "source_sha256": "c6c2dbdc520105a073326fdfd2c130767739ae2a111f320cb976fc9d0bd72a1c",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 5,
+      "replay_turns": 22,
+      "slug": "15-push-pull-levels",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/15-push-pull-levels/board-5.txt",
+      "source": "src/tests/good_games/15 push pull levels.txt",
+      "source_level": 11,
+      "source_sha256": "c6c2dbdc520105a073326fdfd2c130767739ae2a111f320cb976fc9d0bd72a1c",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 6,
+      "replay_turns": 18,
+      "slug": "15-push-pull-levels",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/15-push-pull-levels/board-6.txt",
+      "source": "src/tests/good_games/15 push pull levels.txt",
+      "source_level": 13,
+      "source_sha256": "c6c2dbdc520105a073326fdfd2c130767739ae2a111f320cb976fc9d0bd72a1c",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 7,
+      "replay_turns": 34,
+      "slug": "15-push-pull-levels",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/15-push-pull-levels/board-7.txt",
+      "source": "src/tests/good_games/15 push pull levels.txt",
+      "source_level": 15,
+      "source_sha256": "c6c2dbdc520105a073326fdfd2c130767739ae2a111f320cb976fc9d0bd72a1c",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 8,
+      "replay_turns": 20,
+      "slug": "15-push-pull-levels",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/15-push-pull-levels/board-8.txt",
+      "source": "src/tests/good_games/15 push pull levels.txt",
+      "source_level": 17,
+      "source_sha256": "c6c2dbdc520105a073326fdfd2c130767739ae2a111f320cb976fc9d0bd72a1c",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 9,
+      "replay_turns": 29,
+      "slug": "15-push-pull-levels",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/15-push-pull-levels/board-9.txt",
+      "source": "src/tests/good_games/15 push pull levels.txt",
+      "source_level": 19,
+      "source_sha256": "c6c2dbdc520105a073326fdfd2c130767739ae2a111f320cb976fc9d0bd72a1c",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 10,
+      "replay_turns": 38,
+      "slug": "15-push-pull-levels",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/15-push-pull-levels/board-10.txt",
+      "source": "src/tests/good_games/15 push pull levels.txt",
+      "source_level": 21,
+      "source_sha256": "c6c2dbdc520105a073326fdfd2c130767739ae2a111f320cb976fc9d0bd72a1c",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 11,
+      "replay_turns": 50,
+      "slug": "15-push-pull-levels",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/15-push-pull-levels/board-11.txt",
+      "source": "src/tests/good_games/15 push pull levels.txt",
+      "source_level": 23,
+      "source_sha256": "c6c2dbdc520105a073326fdfd2c130767739ae2a111f320cb976fc9d0bd72a1c",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 12,
+      "replay_turns": 34,
+      "slug": "15-push-pull-levels",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/15-push-pull-levels/board-12.txt",
+      "source": "src/tests/good_games/15 push pull levels.txt",
+      "source_level": 25,
+      "source_sha256": "c6c2dbdc520105a073326fdfd2c130767739ae2a111f320cb976fc9d0bd72a1c",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 13,
+      "replay_turns": 60,
+      "slug": "15-push-pull-levels",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/15-push-pull-levels/board-13.txt",
+      "source": "src/tests/good_games/15 push pull levels.txt",
+      "source_level": 27,
+      "source_sha256": "c6c2dbdc520105a073326fdfd2c130767739ae2a111f320cb976fc9d0bd72a1c",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 14,
+      "replay_turns": 97,
+      "slug": "15-push-pull-levels",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/15-push-pull-levels/board-14.txt",
+      "source": "src/tests/good_games/15 push pull levels.txt",
+      "source_level": 29,
+      "source_sha256": "c6c2dbdc520105a073326fdfd2c130767739ae2a111f320cb976fc9d0bd72a1c",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 19,
+      "slug": "all-green-and-blue-on-yellow",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/all-green-and-blue-on-yellow/board-0.txt",
+      "source": "src/tests/good_games/All Green and Blue on Yellow.txt",
+      "source_level": 1,
+      "source_sha256": "d36e4f0ee4fb82f4a2ab632ae482f7f9299852a4cf84d27f01ac52bb37128770",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 24,
+      "slug": "all-green-and-blue-on-yellow",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/all-green-and-blue-on-yellow/board-1.txt",
+      "source": "src/tests/good_games/All Green and Blue on Yellow.txt",
+      "source_level": 3,
+      "source_sha256": "d36e4f0ee4fb82f4a2ab632ae482f7f9299852a4cf84d27f01ac52bb37128770",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 2,
+      "replay_turns": 30,
+      "slug": "all-green-and-blue-on-yellow",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/all-green-and-blue-on-yellow/board-2.txt",
+      "source": "src/tests/good_games/All Green and Blue on Yellow.txt",
+      "source_level": 5,
+      "source_sha256": "d36e4f0ee4fb82f4a2ab632ae482f7f9299852a4cf84d27f01ac52bb37128770",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 3,
+      "replay_turns": 33,
+      "slug": "all-green-and-blue-on-yellow",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/all-green-and-blue-on-yellow/board-3.txt",
+      "source": "src/tests/good_games/All Green and Blue on Yellow.txt",
+      "source_level": 7,
+      "source_sha256": "d36e4f0ee4fb82f4a2ab632ae482f7f9299852a4cf84d27f01ac52bb37128770",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 4,
+      "replay_turns": 31,
+      "slug": "all-green-and-blue-on-yellow",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/all-green-and-blue-on-yellow/board-4.txt",
+      "source": "src/tests/good_games/All Green and Blue on Yellow.txt",
+      "source_level": 9,
+      "source_sha256": "d36e4f0ee4fb82f4a2ab632ae482f7f9299852a4cf84d27f01ac52bb37128770",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 16,
+      "slug": "all-green-to-blue",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/all-green-to-blue/board-0.txt",
+      "source": "src/tests/good_games/ALL GREEN TO BLUE.txt",
+      "source_level": 1,
+      "source_sha256": "67ef8c4459d0eacc3a800cb91293602738ed7befff82f60b77a272570c0a825d",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 20,
+      "slug": "all-green-to-blue",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/all-green-to-blue/board-1.txt",
+      "source": "src/tests/good_games/ALL GREEN TO BLUE.txt",
+      "source_level": 5,
+      "source_sha256": "67ef8c4459d0eacc3a800cb91293602738ed7befff82f60b77a272570c0a825d",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 2,
+      "replay_turns": 37,
+      "slug": "all-green-to-blue",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/all-green-to-blue/board-2.txt",
+      "source": "src/tests/good_games/ALL GREEN TO BLUE.txt",
+      "source_level": 11,
+      "source_sha256": "67ef8c4459d0eacc3a800cb91293602738ed7befff82f60b77a272570c0a825d",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 3,
+      "replay_turns": 16,
+      "slug": "all-green-to-blue",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/all-green-to-blue/board-3.txt",
+      "source": "src/tests/good_games/ALL GREEN TO BLUE.txt",
+      "source_level": 13,
+      "source_sha256": "67ef8c4459d0eacc3a800cb91293602738ed7befff82f60b77a272570c0a825d",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 4,
+      "replay_turns": 20,
+      "slug": "all-green-to-blue",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/all-green-to-blue/board-4.txt",
+      "source": "src/tests/good_games/ALL GREEN TO BLUE.txt",
+      "source_level": 15,
+      "source_sha256": "67ef8c4459d0eacc3a800cb91293602738ed7befff82f60b77a272570c0a825d",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 5,
+      "replay_turns": 25,
+      "slug": "all-green-to-blue",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/all-green-to-blue/board-5.txt",
+      "source": "src/tests/good_games/ALL GREEN TO BLUE.txt",
+      "source_level": 17,
+      "source_sha256": "67ef8c4459d0eacc3a800cb91293602738ed7befff82f60b77a272570c0a825d",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 6,
+      "replay_turns": 17,
+      "slug": "all-green-to-blue",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/all-green-to-blue/board-6.txt",
+      "source": "src/tests/good_games/ALL GREEN TO BLUE.txt",
+      "source_level": 19,
+      "source_sha256": "67ef8c4459d0eacc3a800cb91293602738ed7befff82f60b77a272570c0a825d",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 59,
+      "slug": "an-ok-multiban-level",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/an-ok-multiban-level/board-0.txt",
+      "source": "src/tests/good_games/an ok multiban level.txt",
+      "source_level": 1,
+      "source_sha256": "89096fb24a157ef486984134ebaf6ab9514d12279ca2ac3d624b0867e299471e",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 43,
+      "slug": "attractor-net",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/attractor-net/board-0.txt",
+      "source": "src/tests/good_games/Attractor Net.txt",
+      "source_level": 3,
+      "source_sha256": "db24164b393b9bbe1b2367223379a74a8bf7938ebe7254c02f70c2ff61c89132",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 28,
+      "slug": "attractor-net",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/attractor-net/board-1.txt",
+      "source": "src/tests/good_games/Attractor Net.txt",
+      "source_level": 5,
+      "source_sha256": "db24164b393b9bbe1b2367223379a74a8bf7938ebe7254c02f70c2ff61c89132",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 2,
+      "replay_turns": 18,
+      "slug": "attractor-net",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/attractor-net/board-2.txt",
+      "source": "src/tests/good_games/Attractor Net.txt",
+      "source_level": 7,
+      "source_sha256": "db24164b393b9bbe1b2367223379a74a8bf7938ebe7254c02f70c2ff61c89132",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 3,
+      "replay_turns": 10,
+      "slug": "attractor-net",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/attractor-net/board-3.txt",
+      "source": "src/tests/good_games/Attractor Net.txt",
+      "source_level": 9,
+      "source_sha256": "db24164b393b9bbe1b2367223379a74a8bf7938ebe7254c02f70c2ff61c89132",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 4,
+      "replay_turns": 18,
+      "slug": "attractor-net",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/attractor-net/board-4.txt",
+      "source": "src/tests/good_games/Attractor Net.txt",
+      "source_level": 11,
+      "source_sha256": "db24164b393b9bbe1b2367223379a74a8bf7938ebe7254c02f70c2ff61c89132",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 5,
+      "replay_turns": 28,
+      "slug": "attractor-net",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/attractor-net/board-5.txt",
+      "source": "src/tests/good_games/Attractor Net.txt",
+      "source_level": 13,
+      "source_sha256": "db24164b393b9bbe1b2367223379a74a8bf7938ebe7254c02f70c2ff61c89132",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 6,
+      "replay_turns": 27,
+      "slug": "attractor-net",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/attractor-net/board-6.txt",
+      "source": "src/tests/good_games/Attractor Net.txt",
+      "source_level": 15,
+      "source_sha256": "db24164b393b9bbe1b2367223379a74a8bf7938ebe7254c02f70c2ff61c89132",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 7,
+      "replay_turns": 6,
+      "slug": "attractor-net",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/attractor-net/board-7.txt",
+      "source": "src/tests/good_games/Attractor Net.txt",
+      "source_level": 17,
+      "source_sha256": "db24164b393b9bbe1b2367223379a74a8bf7938ebe7254c02f70c2ff61c89132",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 8,
+      "replay_turns": 47,
+      "slug": "attractor-net",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/attractor-net/board-8.txt",
+      "source": "src/tests/good_games/Attractor Net.txt",
+      "source_level": 19,
+      "source_sha256": "db24164b393b9bbe1b2367223379a74a8bf7938ebe7254c02f70c2ff61c89132",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 14,
+      "slug": "chevron-lodger",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/chevron-lodger/board-0.txt",
+      "source": "src/tests/good_games/Chevron Lodger.txt",
+      "source_level": 1,
+      "source_sha256": "7d431e85330beabe07cb001c2e3ee45ac43b922b243f1e11fcbc8a53e0668383",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 23,
+      "slug": "chevron-lodger",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/chevron-lodger/board-1.txt",
+      "source": "src/tests/good_games/Chevron Lodger.txt",
+      "source_level": 3,
+      "source_sha256": "7d431e85330beabe07cb001c2e3ee45ac43b922b243f1e11fcbc8a53e0668383",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 2,
+      "replay_turns": 40,
+      "slug": "chevron-lodger",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/chevron-lodger/board-2.txt",
+      "source": "src/tests/good_games/Chevron Lodger.txt",
+      "source_level": 7,
+      "source_sha256": "7d431e85330beabe07cb001c2e3ee45ac43b922b243f1e11fcbc8a53e0668383",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 46,
+      "slug": "crate-guardian",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/crate-guardian/board-0.txt",
+      "source": "src/tests/good_games/crate guardian.txt",
+      "source_level": 5,
+      "source_sha256": "a946de6064f7887c9a78ac2f7db6ed00ebdd9b7f14aff7dfb236a38570f194e6",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 37,
+      "slug": "crate-guardian",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/crate-guardian/board-1.txt",
+      "source": "src/tests/good_games/crate guardian.txt",
+      "source_level": 7,
+      "source_sha256": "a946de6064f7887c9a78ac2f7db6ed00ebdd9b7f14aff7dfb236a38570f194e6",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 35,
+      "slug": "crate-swap",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/crate-swap/board-0.txt",
+      "source": "src/tests/good_games/crate swap.txt",
+      "source_level": 1,
+      "source_sha256": "efc13c340b767a16d6c795a6283e39d6fc2c95e8c43bca2219d7c88d52a64416",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 31,
+      "slug": "crate-swap",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/crate-swap/board-1.txt",
+      "source": "src/tests/good_games/crate swap.txt",
+      "source_level": 3,
+      "source_sha256": "efc13c340b767a16d6c795a6283e39d6fc2c95e8c43bca2219d7c88d52a64416",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 2,
+      "replay_turns": 35,
+      "slug": "crate-swap",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/crate-swap/board-2.txt",
+      "source": "src/tests/good_games/crate swap.txt",
+      "source_level": 5,
+      "source_sha256": "efc13c340b767a16d6c795a6283e39d6fc2c95e8c43bca2219d7c88d52a64416",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 3,
+      "replay_turns": 30,
+      "slug": "crate-swap",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/crate-swap/board-3.txt",
+      "source": "src/tests/good_games/crate swap.txt",
+      "source_level": 7,
+      "source_sha256": "efc13c340b767a16d6c795a6283e39d6fc2c95e8c43bca2219d7c88d52a64416",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 4,
+      "replay_turns": 44,
+      "slug": "crate-swap",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/crate-swap/board-4.txt",
+      "source": "src/tests/good_games/crate swap.txt",
+      "source_level": 9,
+      "source_sha256": "efc13c340b767a16d6c795a6283e39d6fc2c95e8c43bca2219d7c88d52a64416",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 5,
+      "replay_turns": 43,
+      "slug": "crate-swap",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/crate-swap/board-5.txt",
+      "source": "src/tests/good_games/crate swap.txt",
+      "source_level": 11,
+      "source_sha256": "efc13c340b767a16d6c795a6283e39d6fc2c95e8c43bca2219d7c88d52a64416",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 6,
+      "replay_turns": 53,
+      "slug": "crate-swap",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/crate-swap/board-6.txt",
+      "source": "src/tests/good_games/crate swap.txt",
+      "source_level": 13,
+      "source_sha256": "efc13c340b767a16d6c795a6283e39d6fc2c95e8c43bca2219d7c88d52a64416",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 7,
+      "replay_turns": 36,
+      "slug": "crate-swap",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/crate-swap/board-7.txt",
+      "source": "src/tests/good_games/crate swap.txt",
+      "source_level": 15,
+      "source_sha256": "efc13c340b767a16d6c795a6283e39d6fc2c95e8c43bca2219d7c88d52a64416",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 9,
+      "slug": "crates-move-when-you-move",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/crates-move-when-you-move/board-0.txt",
+      "source": "src/tests/good_games/Crates move when you move.txt",
+      "source_level": 1,
+      "source_sha256": "fd34ff28c6f10e8b61a74a225716f651f50f677d050a5903aa3aed8df9627c0e",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 10,
+      "slug": "crates-move-when-you-move",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/crates-move-when-you-move/board-1.txt",
+      "source": "src/tests/good_games/Crates move when you move.txt",
+      "source_level": 3,
+      "source_sha256": "fd34ff28c6f10e8b61a74a225716f651f50f677d050a5903aa3aed8df9627c0e",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 2,
+      "replay_turns": 9,
+      "slug": "crates-move-when-you-move",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/crates-move-when-you-move/board-2.txt",
+      "source": "src/tests/good_games/Crates move when you move.txt",
+      "source_level": 5,
+      "source_sha256": "fd34ff28c6f10e8b61a74a225716f651f50f677d050a5903aa3aed8df9627c0e",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 3,
+      "replay_turns": 23,
+      "slug": "crates-move-when-you-move",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/crates-move-when-you-move/board-3.txt",
+      "source": "src/tests/good_games/Crates move when you move.txt",
+      "source_level": 7,
+      "source_sha256": "fd34ff28c6f10e8b61a74a225716f651f50f677d050a5903aa3aed8df9627c0e",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 4,
+      "replay_turns": 4,
+      "slug": "crates-move-when-you-move",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/crates-move-when-you-move/board-4.txt",
+      "source": "src/tests/good_games/Crates move when you move.txt",
+      "source_level": 9,
+      "source_sha256": "fd34ff28c6f10e8b61a74a225716f651f50f677d050a5903aa3aed8df9627c0e",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 5,
+      "replay_turns": 3,
+      "slug": "crates-move-when-you-move",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/crates-move-when-you-move/board-5.txt",
+      "source": "src/tests/good_games/Crates move when you move.txt",
+      "source_level": 11,
+      "source_sha256": "fd34ff28c6f10e8b61a74a225716f651f50f677d050a5903aa3aed8df9627c0e",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 6,
+      "replay_turns": 10,
+      "slug": "crates-move-when-you-move",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/crates-move-when-you-move/board-6.txt",
+      "source": "src/tests/good_games/Crates move when you move.txt",
+      "source_level": 15,
+      "source_sha256": "fd34ff28c6f10e8b61a74a225716f651f50f677d050a5903aa3aed8df9627c0e",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 7,
+      "replay_turns": 7,
+      "slug": "crates-move-when-you-move",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/crates-move-when-you-move/board-7.txt",
+      "source": "src/tests/good_games/Crates move when you move.txt",
+      "source_level": 17,
+      "source_sha256": "fd34ff28c6f10e8b61a74a225716f651f50f677d050a5903aa3aed8df9627c0e",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 8,
+      "replay_turns": 13,
+      "slug": "crates-move-when-you-move",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/crates-move-when-you-move/board-8.txt",
+      "source": "src/tests/good_games/Crates move when you move.txt",
+      "source_level": 19,
+      "source_sha256": "fd34ff28c6f10e8b61a74a225716f651f50f677d050a5903aa3aed8df9627c0e",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 27,
+      "slug": "dollyban",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/dollyban/board-0.txt",
+      "source": "src/tests/good_games/dollyban.txt",
+      "source_level": 1,
+      "source_sha256": "a104e9fe895c7bc4701226f34dc37026882bb57c6c0ba0a6b2c65f70f2d692e6",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 35,
+      "slug": "dollyban",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/dollyban/board-1.txt",
+      "source": "src/tests/good_games/dollyban.txt",
+      "source_level": 3,
+      "source_sha256": "a104e9fe895c7bc4701226f34dc37026882bb57c6c0ba0a6b2c65f70f2d692e6",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 2,
+      "replay_turns": 56,
+      "slug": "dollyban",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/dollyban/board-2.txt",
+      "source": "src/tests/good_games/dollyban.txt",
+      "source_level": 5,
+      "source_sha256": "a104e9fe895c7bc4701226f34dc37026882bb57c6c0ba0a6b2c65f70f2d692e6",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 3,
+      "replay_turns": 52,
+      "slug": "dollyban",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/dollyban/board-3.txt",
+      "source": "src/tests/good_games/dollyban.txt",
+      "source_level": 7,
+      "source_sha256": "a104e9fe895c7bc4701226f34dc37026882bb57c6c0ba0a6b2c65f70f2d692e6",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 4,
+      "replay_turns": 48,
+      "slug": "dollyban",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/dollyban/board-4.txt",
+      "source": "src/tests/good_games/dollyban.txt",
+      "source_level": 9,
+      "source_sha256": "a104e9fe895c7bc4701226f34dc37026882bb57c6c0ba0a6b2c65f70f2d692e6",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 5,
+      "replay_turns": 70,
+      "slug": "dollyban",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/dollyban/board-5.txt",
+      "source": "src/tests/good_games/dollyban.txt",
+      "source_level": 23,
+      "source_sha256": "a104e9fe895c7bc4701226f34dc37026882bb57c6c0ba0a6b2c65f70f2d692e6",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 14,
+      "slug": "don't-let-your-goals-slip-away",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/don't-let-your-goals-slip-away/board-0.txt",
+      "source": "src/tests/good_games/Don't let your goals slip away.txt",
+      "source_level": 1,
+      "source_sha256": "75925827e25c0c0f000dbcafe84fcacaca4c93b249532e3f0cbbffa828ba8ba5",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 42,
+      "slug": "don't-let-your-goals-slip-away",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/don't-let-your-goals-slip-away/board-1.txt",
+      "source": "src/tests/good_games/Don't let your goals slip away.txt",
+      "source_level": 3,
+      "source_sha256": "75925827e25c0c0f000dbcafe84fcacaca4c93b249532e3f0cbbffa828ba8ba5",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 2,
+      "replay_turns": 38,
+      "slug": "don't-let-your-goals-slip-away",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/don't-let-your-goals-slip-away/board-2.txt",
+      "source": "src/tests/good_games/Don't let your goals slip away.txt",
+      "source_level": 5,
+      "source_sha256": "75925827e25c0c0f000dbcafe84fcacaca4c93b249532e3f0cbbffa828ba8ba5",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 3,
+      "replay_turns": 37,
+      "slug": "don't-let-your-goals-slip-away",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/don't-let-your-goals-slip-away/board-3.txt",
+      "source": "src/tests/good_games/Don't let your goals slip away.txt",
+      "source_level": 7,
+      "source_sha256": "75925827e25c0c0f000dbcafe84fcacaca4c93b249532e3f0cbbffa828ba8ba5",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 4,
+      "replay_turns": 24,
+      "slug": "don't-let-your-goals-slip-away",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/don't-let-your-goals-slip-away/board-4.txt",
+      "source": "src/tests/good_games/Don't let your goals slip away.txt",
+      "source_level": 9,
+      "source_sha256": "75925827e25c0c0f000dbcafe84fcacaca4c93b249532e3f0cbbffa828ba8ba5",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 5,
+      "replay_turns": 60,
+      "slug": "don't-let-your-goals-slip-away",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/don't-let-your-goals-slip-away/board-5.txt",
+      "source": "src/tests/good_games/Don't let your goals slip away.txt",
+      "source_level": 11,
+      "source_sha256": "75925827e25c0c0f000dbcafe84fcacaca4c93b249532e3f0cbbffa828ba8ba5",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 6,
+      "replay_turns": 34,
+      "slug": "don't-let-your-goals-slip-away",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/don't-let-your-goals-slip-away/board-6.txt",
+      "source": "src/tests/good_games/Don't let your goals slip away.txt",
+      "source_level": 13,
+      "source_sha256": "75925827e25c0c0f000dbcafe84fcacaca4c93b249532e3f0cbbffa828ba8ba5",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 7,
+      "replay_turns": 31,
+      "slug": "don't-let-your-goals-slip-away",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/don't-let-your-goals-slip-away/board-7.txt",
+      "source": "src/tests/good_games/Don't let your goals slip away.txt",
+      "source_level": 15,
+      "source_sha256": "75925827e25c0c0f000dbcafe84fcacaca4c93b249532e3f0cbbffa828ba8ba5",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 23,
+      "slug": "explodoban",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/explodoban/board-0.txt",
+      "source": "src/tests/good_games/Explodoban.txt",
+      "source_level": 1,
+      "source_sha256": "1a8e87a474f4c3830a73323e0d8d3da9022e358d80ca7b8ecd48c4ce1fd44f87",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 28,
+      "slug": "explodoban",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/explodoban/board-1.txt",
+      "source": "src/tests/good_games/Explodoban.txt",
+      "source_level": 3,
+      "source_sha256": "1a8e87a474f4c3830a73323e0d8d3da9022e358d80ca7b8ecd48c4ce1fd44f87",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 2,
+      "replay_turns": 40,
+      "slug": "explodoban",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/explodoban/board-2.txt",
+      "source": "src/tests/good_games/Explodoban.txt",
+      "source_level": 5,
+      "source_sha256": "1a8e87a474f4c3830a73323e0d8d3da9022e358d80ca7b8ecd48c4ce1fd44f87",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 3,
+      "replay_turns": 30,
+      "slug": "explodoban",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/explodoban/board-3.txt",
+      "source": "src/tests/good_games/Explodoban.txt",
+      "source_level": 7,
+      "source_sha256": "1a8e87a474f4c3830a73323e0d8d3da9022e358d80ca7b8ecd48c4ce1fd44f87",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 4,
+      "replay_turns": 43,
+      "slug": "explodoban",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/explodoban/board-4.txt",
+      "source": "src/tests/good_games/Explodoban.txt",
+      "source_level": 9,
+      "source_sha256": "1a8e87a474f4c3830a73323e0d8d3da9022e358d80ca7b8ecd48c4ce1fd44f87",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 5,
+      "replay_turns": 51,
+      "slug": "explodoban",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/explodoban/board-5.txt",
+      "source": "src/tests/good_games/Explodoban.txt",
+      "source_level": 11,
+      "source_sha256": "1a8e87a474f4c3830a73323e0d8d3da9022e358d80ca7b8ecd48c4ce1fd44f87",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 6,
+      "replay_turns": 39,
+      "slug": "explodoban",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/explodoban/board-6.txt",
+      "source": "src/tests/good_games/Explodoban.txt",
+      "source_level": 13,
+      "source_sha256": "1a8e87a474f4c3830a73323e0d8d3da9022e358d80ca7b8ecd48c4ce1fd44f87",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 26,
+      "slug": "fickle-fred",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/fickle-fred/board-0.txt",
+      "source": "src/tests/good_games/fickle fred.txt",
+      "source_level": 1,
+      "source_sha256": "58978321487cf2d1e310a8249f4364a5c0dabbd057bc189d2023ebd65663ae7d",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 60,
+      "slug": "fickle-fred",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/fickle-fred/board-1.txt",
+      "source": "src/tests/good_games/fickle fred.txt",
+      "source_level": 3,
+      "source_sha256": "58978321487cf2d1e310a8249f4364a5c0dabbd057bc189d2023ebd65663ae7d",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 2,
+      "replay_turns": 44,
+      "slug": "fickle-fred",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/fickle-fred/board-2.txt",
+      "source": "src/tests/good_games/fickle fred.txt",
+      "source_level": 7,
+      "source_sha256": "58978321487cf2d1e310a8249f4364a5c0dabbd057bc189d2023ebd65663ae7d",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 3,
+      "replay_turns": 75,
+      "slug": "fickle-fred",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/fickle-fred/board-3.txt",
+      "source": "src/tests/good_games/fickle fred.txt",
+      "source_level": 9,
+      "source_sha256": "58978321487cf2d1e310a8249f4364a5c0dabbd057bc189d2023ebd65663ae7d",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 17,
+      "slug": "flesh-handed-hot-casserole-delivery-bot",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/flesh-handed-hot-casserole-delivery-bot/board-0.txt",
+      "source": "src/tests/good_games/flesh-handed hot casserole delivery bot.txt",
+      "source_level": 1,
+      "source_sha256": "687a678d5be36854c7e57ec9716ce88886a4d1477e21f0c307ccb0032b9d6f9a",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 33,
+      "slug": "flesh-handed-hot-casserole-delivery-bot",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/flesh-handed-hot-casserole-delivery-bot/board-1.txt",
+      "source": "src/tests/good_games/flesh-handed hot casserole delivery bot.txt",
+      "source_level": 2,
+      "source_sha256": "687a678d5be36854c7e57ec9716ce88886a4d1477e21f0c307ccb0032b9d6f9a",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 2,
+      "replay_turns": 68,
+      "slug": "flesh-handed-hot-casserole-delivery-bot",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/flesh-handed-hot-casserole-delivery-bot/board-2.txt",
+      "source": "src/tests/good_games/flesh-handed hot casserole delivery bot.txt",
+      "source_level": 4,
+      "source_sha256": "687a678d5be36854c7e57ec9716ce88886a4d1477e21f0c307ccb0032b9d6f9a",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 3,
+      "replay_turns": 47,
+      "slug": "flesh-handed-hot-casserole-delivery-bot",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/flesh-handed-hot-casserole-delivery-bot/board-3.txt",
+      "source": "src/tests/good_games/flesh-handed hot casserole delivery bot.txt",
+      "source_level": 6,
+      "source_sha256": "687a678d5be36854c7e57ec9716ce88886a4d1477e21f0c307ccb0032b9d6f9a",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 4,
+      "replay_turns": 43,
+      "slug": "flesh-handed-hot-casserole-delivery-bot",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/flesh-handed-hot-casserole-delivery-bot/board-4.txt",
+      "source": "src/tests/good_games/flesh-handed hot casserole delivery bot.txt",
+      "source_level": 8,
+      "source_sha256": "687a678d5be36854c7e57ec9716ce88886a4d1477e21f0c307ccb0032b9d6f9a",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 5,
+      "replay_turns": 48,
+      "slug": "flesh-handed-hot-casserole-delivery-bot",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/flesh-handed-hot-casserole-delivery-bot/board-5.txt",
+      "source": "src/tests/good_games/flesh-handed hot casserole delivery bot.txt",
+      "source_level": 10,
+      "source_sha256": "687a678d5be36854c7e57ec9716ce88886a4d1477e21f0c307ccb0032b9d6f9a",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 6,
+      "replay_turns": 53,
+      "slug": "flesh-handed-hot-casserole-delivery-bot",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/flesh-handed-hot-casserole-delivery-bot/board-6.txt",
+      "source": "src/tests/good_games/flesh-handed hot casserole delivery bot.txt",
+      "source_level": 12,
+      "source_sha256": "687a678d5be36854c7e57ec9716ce88886a4d1477e21f0c307ccb0032b9d6f9a",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 7,
+      "replay_turns": 63,
+      "slug": "flesh-handed-hot-casserole-delivery-bot",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/flesh-handed-hot-casserole-delivery-bot/board-7.txt",
+      "source": "src/tests/good_games/flesh-handed hot casserole delivery bot.txt",
+      "source_level": 14,
+      "source_sha256": "687a678d5be36854c7e57ec9716ce88886a4d1477e21f0c307ccb0032b9d6f9a",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 8,
+      "replay_turns": 64,
+      "slug": "flesh-handed-hot-casserole-delivery-bot",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/flesh-handed-hot-casserole-delivery-bot/board-8.txt",
+      "source": "src/tests/good_games/flesh-handed hot casserole delivery bot.txt",
+      "source_level": 16,
+      "source_sha256": "687a678d5be36854c7e57ec9716ce88886a4d1477e21f0c307ccb0032b9d6f9a",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 9,
+      "replay_turns": 47,
+      "slug": "flesh-handed-hot-casserole-delivery-bot",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/flesh-handed-hot-casserole-delivery-bot/board-9.txt",
+      "source": "src/tests/good_games/flesh-handed hot casserole delivery bot.txt",
+      "source_level": 18,
+      "source_sha256": "687a678d5be36854c7e57ec9716ce88886a4d1477e21f0c307ccb0032b9d6f9a",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 22,
+      "slug": "gapfiller",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/gapfiller/board-0.txt",
+      "source": "src/tests/good_games/gapfiller.txt",
+      "source_level": 1,
+      "source_sha256": "393753be9b0312339a8904732dcce3f77b60e89c03a10e00e98ad9d139654399",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 17,
+      "slug": "gapfiller",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/gapfiller/board-1.txt",
+      "source": "src/tests/good_games/gapfiller.txt",
+      "source_level": 5,
+      "source_sha256": "393753be9b0312339a8904732dcce3f77b60e89c03a10e00e98ad9d139654399",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 2,
+      "replay_turns": 17,
+      "slug": "gapfiller",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/gapfiller/board-2.txt",
+      "source": "src/tests/good_games/gapfiller.txt",
+      "source_level": 7,
+      "source_sha256": "393753be9b0312339a8904732dcce3f77b60e89c03a10e00e98ad9d139654399",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 3,
+      "replay_turns": 16,
+      "slug": "gapfiller",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/gapfiller/board-3.txt",
+      "source": "src/tests/good_games/gapfiller.txt",
+      "source_level": 9,
+      "source_sha256": "393753be9b0312339a8904732dcce3f77b60e89c03a10e00e98ad9d139654399",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 4,
+      "replay_turns": 19,
+      "slug": "gapfiller",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/gapfiller/board-4.txt",
+      "source": "src/tests/good_games/gapfiller.txt",
+      "source_level": 13,
+      "source_sha256": "393753be9b0312339a8904732dcce3f77b60e89c03a10e00e98ad9d139654399",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 5,
+      "replay_turns": 25,
+      "slug": "gapfiller",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/gapfiller/board-5.txt",
+      "source": "src/tests/good_games/gapfiller.txt",
+      "source_level": 15,
+      "source_sha256": "393753be9b0312339a8904732dcce3f77b60e89c03a10e00e98ad9d139654399",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 6,
+      "replay_turns": 30,
+      "slug": "gapfiller",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/gapfiller/board-6.txt",
+      "source": "src/tests/good_games/gapfiller.txt",
+      "source_level": 17,
+      "source_sha256": "393753be9b0312339a8904732dcce3f77b60e89c03a10e00e98ad9d139654399",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 7,
+      "replay_turns": 59,
+      "slug": "gapfiller",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/gapfiller/board-7.txt",
+      "source": "src/tests/good_games/gapfiller.txt",
+      "source_level": 19,
+      "source_sha256": "393753be9b0312339a8904732dcce3f77b60e89c03a10e00e98ad9d139654399",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 35,
+      "slug": "head-skuller",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/head-skuller/board-0.txt",
+      "source": "src/tests/good_games/head skuller.txt",
+      "source_level": 1,
+      "source_sha256": "60546a1f7ca16fa8200f3664493a4a802f8336567c9e1dec65a47bc1e127e672",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 46,
+      "slug": "head-skuller",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/head-skuller/board-1.txt",
+      "source": "src/tests/good_games/head skuller.txt",
+      "source_level": 3,
+      "source_sha256": "60546a1f7ca16fa8200f3664493a4a802f8336567c9e1dec65a47bc1e127e672",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 3,
+      "replay_turns": 34,
+      "slug": "head-skuller",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/head-skuller/board-3.txt",
+      "source": "src/tests/good_games/head skuller.txt",
+      "source_level": 7,
+      "source_sha256": "60546a1f7ca16fa8200f3664493a4a802f8336567c9e1dec65a47bc1e127e672",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 5,
+      "replay_turns": 31,
+      "slug": "head-skuller",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/head-skuller/board-5.txt",
+      "source": "src/tests/good_games/head skuller.txt",
+      "source_level": 11,
+      "source_sha256": "60546a1f7ca16fa8200f3664493a4a802f8336567c9e1dec65a47bc1e127e672",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 47,
+      "slug": "hedgehog-stimulator",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/hedgehog-stimulator/board-0.txt",
+      "source": "src/tests/good_games/hedgehog stimulator.txt",
+      "source_level": 3,
+      "source_sha256": "61aae1eb509f86ef50e117a4109c1860ce7c7beb2327ea4999a7300905104b6e",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 69,
+      "slug": "hedgehog-stimulator",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/hedgehog-stimulator/board-1.txt",
+      "source": "src/tests/good_games/hedgehog stimulator.txt",
+      "source_level": 5,
+      "source_sha256": "61aae1eb509f86ef50e117a4109c1860ce7c7beb2327ea4999a7300905104b6e",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 2,
+      "replay_turns": 37,
+      "slug": "hedgehog-stimulator",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/hedgehog-stimulator/board-2.txt",
+      "source": "src/tests/good_games/hedgehog stimulator.txt",
+      "source_level": 7,
+      "source_sha256": "61aae1eb509f86ef50e117a4109c1860ce7c7beb2327ea4999a7300905104b6e",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 3,
+      "replay_turns": 59,
+      "slug": "hedgehog-stimulator",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/hedgehog-stimulator/board-3.txt",
+      "source": "src/tests/good_games/hedgehog stimulator.txt",
+      "source_level": 9,
+      "source_sha256": "61aae1eb509f86ef50e117a4109c1860ce7c7beb2327ea4999a7300905104b6e",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 4,
+      "replay_turns": 46,
+      "slug": "hedgehog-stimulator",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/hedgehog-stimulator/board-4.txt",
+      "source": "src/tests/good_games/hedgehog stimulator.txt",
+      "source_level": 11,
+      "source_sha256": "61aae1eb509f86ef50e117a4109c1860ce7c7beb2327ea4999a7300905104b6e",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 5,
+      "replay_turns": 28,
+      "slug": "hedgehog-stimulator",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/hedgehog-stimulator/board-5.txt",
+      "source": "src/tests/good_games/hedgehog stimulator.txt",
+      "source_level": 13,
+      "source_sha256": "61aae1eb509f86ef50e117a4109c1860ce7c7beb2327ea4999a7300905104b6e",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 6,
+      "replay_turns": 39,
+      "slug": "hedgehog-stimulator",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/hedgehog-stimulator/board-6.txt",
+      "source": "src/tests/good_games/hedgehog stimulator.txt",
+      "source_level": 15,
+      "source_sha256": "61aae1eb509f86ef50e117a4109c1860ce7c7beb2327ea4999a7300905104b6e",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 7,
+      "replay_turns": 77,
+      "slug": "hedgehog-stimulator",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/hedgehog-stimulator/board-7.txt",
+      "source": "src/tests/good_games/hedgehog stimulator.txt",
+      "source_level": 17,
+      "source_sha256": "61aae1eb509f86ef50e117a4109c1860ce7c7beb2327ea4999a7300905104b6e",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 8,
+      "replay_turns": 34,
+      "slug": "hedgehog-stimulator",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/hedgehog-stimulator/board-8.txt",
+      "source": "src/tests/good_games/hedgehog stimulator.txt",
+      "source_level": 19,
+      "source_sha256": "61aae1eb509f86ef50e117a4109c1860ce7c7beb2327ea4999a7300905104b6e",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 10,
+      "replay_turns": 68,
+      "slug": "hedgehog-stimulator",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/hedgehog-stimulator/board-10.txt",
+      "source": "src/tests/good_games/hedgehog stimulator.txt",
+      "source_level": 23,
+      "source_sha256": "61aae1eb509f86ef50e117a4109c1860ce7c7beb2327ea4999a7300905104b6e",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 20,
+      "slug": "i-am-a-gust-of-wind",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/i-am-a-gust-of-wind/board-0.txt",
+      "source": "src/tests/good_games/i am a gust of wind.txt",
+      "source_level": 1,
+      "source_sha256": "187041c0eb7bf7c1301149b1fdff9ab381b960efddff207d57424690672ed003",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 31,
+      "slug": "i-am-a-gust-of-wind",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/i-am-a-gust-of-wind/board-1.txt",
+      "source": "src/tests/good_games/i am a gust of wind.txt",
+      "source_level": 3,
+      "source_sha256": "187041c0eb7bf7c1301149b1fdff9ab381b960efddff207d57424690672ed003",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 2,
+      "replay_turns": 36,
+      "slug": "i-am-a-gust-of-wind",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/i-am-a-gust-of-wind/board-2.txt",
+      "source": "src/tests/good_games/i am a gust of wind.txt",
+      "source_level": 5,
+      "source_sha256": "187041c0eb7bf7c1301149b1fdff9ab381b960efddff207d57424690672ed003",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 3,
+      "replay_turns": 78,
+      "slug": "i-am-a-gust-of-wind",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/i-am-a-gust-of-wind/board-3.txt",
+      "source": "src/tests/good_games/i am a gust of wind.txt",
+      "source_level": 7,
+      "source_sha256": "187041c0eb7bf7c1301149b1fdff9ab381b960efddff207d57424690672ed003",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 4,
+      "slug": "m-c-eschers-armageddon",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/m-c-eschers-armageddon/board-0.txt",
+      "source": "src/tests/good_games/m c eschers armageddon.txt",
+      "source_level": 1,
+      "source_sha256": "37b6211c9c3b1f9e1099e8f5de91c292114eb49a68988ba1618765e2bcea68e0",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 9,
+      "slug": "manic_ammo",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/manic_ammo/board-0.txt",
+      "source": "src/tests/good_games/manic_ammo.txt",
+      "source_level": 1,
+      "source_sha256": "aae60f13f4c6f9bd7ba6b1b6b27823184f4a57024d5bd61ff64234e13945e276",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 9,
+      "slug": "manic_ammo",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/manic_ammo/board-1.txt",
+      "source": "src/tests/good_games/manic_ammo.txt",
+      "source_level": 3,
+      "source_sha256": "aae60f13f4c6f9bd7ba6b1b6b27823184f4a57024d5bd61ff64234e13945e276",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 2,
+      "replay_turns": 10,
+      "slug": "manic_ammo",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/manic_ammo/board-2.txt",
+      "source": "src/tests/good_games/manic_ammo.txt",
+      "source_level": 5,
+      "source_sha256": "aae60f13f4c6f9bd7ba6b1b6b27823184f4a57024d5bd61ff64234e13945e276",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 3,
+      "replay_turns": 9,
+      "slug": "manic_ammo",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/manic_ammo/board-3.txt",
+      "source": "src/tests/good_games/manic_ammo.txt",
+      "source_level": 8,
+      "source_sha256": "aae60f13f4c6f9bd7ba6b1b6b27823184f4a57024d5bd61ff64234e13945e276",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 4,
+      "replay_turns": 19,
+      "slug": "manic_ammo",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/manic_ammo/board-4.txt",
+      "source": "src/tests/good_games/manic_ammo.txt",
+      "source_level": 10,
+      "source_sha256": "aae60f13f4c6f9bd7ba6b1b6b27823184f4a57024d5bd61ff64234e13945e276",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 5,
+      "replay_turns": 11,
+      "slug": "manic_ammo",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/manic_ammo/board-5.txt",
+      "source": "src/tests/good_games/manic_ammo.txt",
+      "source_level": 12,
+      "source_sha256": "aae60f13f4c6f9bd7ba6b1b6b27823184f4a57024d5bd61ff64234e13945e276",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 7,
+      "replay_turns": 25,
+      "slug": "manic_ammo",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/manic_ammo/board-7.txt",
+      "source": "src/tests/good_games/manic_ammo.txt",
+      "source_level": 16,
+      "source_sha256": "aae60f13f4c6f9bd7ba6b1b6b27823184f4a57024d5bd61ff64234e13945e276",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 8,
+      "replay_turns": 5,
+      "slug": "manic_ammo",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/manic_ammo/board-8.txt",
+      "source": "src/tests/good_games/manic_ammo.txt",
+      "source_level": 18,
+      "source_sha256": "aae60f13f4c6f9bd7ba6b1b6b27823184f4a57024d5bd61ff64234e13945e276",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 17,
+      "slug": "match-maker",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/match-maker/board-0.txt",
+      "source": "src/tests/good_games/Match-Maker.txt",
+      "source_level": 1,
+      "source_sha256": "f51f57154961c1c6985ebd7920520ed1a9e9fba229e98c47111ffe61f02312de",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 17,
+      "slug": "match-maker",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/match-maker/board-1.txt",
+      "source": "src/tests/good_games/Match-Maker.txt",
+      "source_level": 3,
+      "source_sha256": "f51f57154961c1c6985ebd7920520ed1a9e9fba229e98c47111ffe61f02312de",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 2,
+      "replay_turns": 21,
+      "slug": "match-maker",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/match-maker/board-2.txt",
+      "source": "src/tests/good_games/Match-Maker.txt",
+      "source_level": 5,
+      "source_sha256": "f51f57154961c1c6985ebd7920520ed1a9e9fba229e98c47111ffe61f02312de",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 3,
+      "replay_turns": 31,
+      "slug": "match-maker",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/match-maker/board-3.txt",
+      "source": "src/tests/good_games/Match-Maker.txt",
+      "source_level": 7,
+      "source_sha256": "f51f57154961c1c6985ebd7920520ed1a9e9fba229e98c47111ffe61f02312de",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 4,
+      "replay_turns": 27,
+      "slug": "match-maker",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/match-maker/board-4.txt",
+      "source": "src/tests/good_games/Match-Maker.txt",
+      "source_level": 9,
+      "source_sha256": "f51f57154961c1c6985ebd7920520ed1a9e9fba229e98c47111ffe61f02312de",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 5,
+      "replay_turns": 20,
+      "slug": "match-maker",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/match-maker/board-5.txt",
+      "source": "src/tests/good_games/Match-Maker.txt",
+      "source_level": 11,
+      "source_sha256": "f51f57154961c1c6985ebd7920520ed1a9e9fba229e98c47111ffe61f02312de",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 6,
+      "replay_turns": 33,
+      "slug": "match-maker",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/match-maker/board-6.txt",
+      "source": "src/tests/good_games/Match-Maker.txt",
+      "source_level": 13,
+      "source_sha256": "f51f57154961c1c6985ebd7920520ed1a9e9fba229e98c47111ffe61f02312de",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 7,
+      "replay_turns": 47,
+      "slug": "match-maker",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/match-maker/board-7.txt",
+      "source": "src/tests/good_games/Match-Maker.txt",
+      "source_level": 15,
+      "source_sha256": "f51f57154961c1c6985ebd7920520ed1a9e9fba229e98c47111ffe61f02312de",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 8,
+      "replay_turns": 37,
+      "slug": "match-maker",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/match-maker/board-8.txt",
+      "source": "src/tests/good_games/Match-Maker.txt",
+      "source_level": 17,
+      "source_sha256": "f51f57154961c1c6985ebd7920520ed1a9e9fba229e98c47111ffe61f02312de",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 3,
+      "slug": "muraphilic-monophobic-multiban",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/muraphilic-monophobic-multiban/board-0.txt",
+      "source": "src/tests/good_games/Muraphilic Monophobic Multiban.txt",
+      "source_level": 3,
+      "source_sha256": "2262042713c011427992a0487e876fab09976f4cfedd53be8908f71644dc7e15",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 22,
+      "slug": "nightmarecroban",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/nightmarecroban/board-0.txt",
+      "source": "src/tests/good_games/NIGHTMARECROBAN.txt",
+      "source_level": 1,
+      "source_sha256": "60914995619a3006b765cd19541f8f029407bc8e58eb397933ba569d60bd123d",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 29,
+      "slug": "nightmarecroban",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/nightmarecroban/board-1.txt",
+      "source": "src/tests/good_games/NIGHTMARECROBAN.txt",
+      "source_level": 3,
+      "source_sha256": "60914995619a3006b765cd19541f8f029407bc8e58eb397933ba569d60bd123d",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 2,
+      "replay_turns": 24,
+      "slug": "nightmarecroban",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/nightmarecroban/board-2.txt",
+      "source": "src/tests/good_games/NIGHTMARECROBAN.txt",
+      "source_level": 5,
+      "source_sha256": "60914995619a3006b765cd19541f8f029407bc8e58eb397933ba569d60bd123d",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 3,
+      "replay_turns": 47,
+      "slug": "nightmarecroban",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/nightmarecroban/board-3.txt",
+      "source": "src/tests/good_games/NIGHTMARECROBAN.txt",
+      "source_level": 7,
+      "source_sha256": "60914995619a3006b765cd19541f8f029407bc8e58eb397933ba569d60bd123d",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 4,
+      "replay_turns": 26,
+      "slug": "nightmarecroban",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/nightmarecroban/board-4.txt",
+      "source": "src/tests/good_games/NIGHTMARECROBAN.txt",
+      "source_level": 11,
+      "source_sha256": "60914995619a3006b765cd19541f8f029407bc8e58eb397933ba569d60bd123d",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 5,
+      "replay_turns": 38,
+      "slug": "nightmarecroban",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/nightmarecroban/board-5.txt",
+      "source": "src/tests/good_games/NIGHTMARECROBAN.txt",
+      "source_level": 13,
+      "source_sha256": "60914995619a3006b765cd19541f8f029407bc8e58eb397933ba569d60bd123d",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 17,
+      "slug": "no-forbidden-symbols",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/no-forbidden-symbols/board-0.txt",
+      "source": "src/tests/good_games/no forbidden symbols.txt",
+      "source_level": 1,
+      "source_sha256": "5b2307779a3fc2954227ce8a0de415fa3377e5e44f030af3bcfbd88d30b8d194",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 30,
+      "slug": "pipe-puffer",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/pipe-puffer/board-0.txt",
+      "source": "src/tests/good_games/pipe puffer.txt",
+      "source_level": 2,
+      "source_sha256": "762f6eb9f0dc3f62e156519cbf602696c5843f24f8571fe06f310d76db3484f4",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 16,
+      "slug": "pipe-puffer",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/pipe-puffer/board-1.txt",
+      "source": "src/tests/good_games/pipe puffer.txt",
+      "source_level": 4,
+      "source_sha256": "762f6eb9f0dc3f62e156519cbf602696c5843f24f8571fe06f310d76db3484f4",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 42,
+      "slug": "push-pull",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/push-pull/board-0.txt",
+      "source": "src/tests/good_games/push pull.txt",
+      "source_level": 1,
+      "source_sha256": "97e627155d8d5763bb1919a1676a3c06b8f6ab0937062f7671ca83d61a93d1d1",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 19,
+      "slug": "push-pull",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/push-pull/board-1.txt",
+      "source": "src/tests/good_games/push pull.txt",
+      "source_level": 3,
+      "source_sha256": "97e627155d8d5763bb1919a1676a3c06b8f6ab0937062f7671ca83d61a93d1d1",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 2,
+      "replay_turns": 39,
+      "slug": "push-pull",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/push-pull/board-2.txt",
+      "source": "src/tests/good_games/push pull.txt",
+      "source_level": 5,
+      "source_sha256": "97e627155d8d5763bb1919a1676a3c06b8f6ab0937062f7671ca83d61a93d1d1",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 41,
+      "slug": "pushit",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/pushit/board-0.txt",
+      "source": "src/tests/good_games/pushit.txt",
+      "source_level": 5,
+      "source_sha256": "9cdc586b204eb682c7761eeeb6e6b795a16e51d3a5d4e10248126771c51a8114",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 34,
+      "slug": "pushit",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/pushit/board-1.txt",
+      "source": "src/tests/good_games/pushit.txt",
+      "source_level": 7,
+      "source_sha256": "9cdc586b204eb682c7761eeeb6e6b795a16e51d3a5d4e10248126771c51a8114",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 27,
+      "slug": "pushy-v-pully-h",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/pushy-v-pully-h/board-0.txt",
+      "source": "src/tests/good_games/Pushy-V Pully-H.txt",
+      "source_level": 1,
+      "source_sha256": "af260e9efa21bef5ac21499306cdf7df9181db1ea557fd04e80f2bbb883d397a",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 8,
+      "slug": "pushy-v-pully-h",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/pushy-v-pully-h/board-1.txt",
+      "source": "src/tests/good_games/Pushy-V Pully-H.txt",
+      "source_level": 3,
+      "source_sha256": "af260e9efa21bef5ac21499306cdf7df9181db1ea557fd04e80f2bbb883d397a",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 2,
+      "replay_turns": 36,
+      "slug": "pushy-v-pully-h",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/pushy-v-pully-h/board-2.txt",
+      "source": "src/tests/good_games/Pushy-V Pully-H.txt",
+      "source_level": 5,
+      "source_sha256": "af260e9efa21bef5ac21499306cdf7df9181db1ea557fd04e80f2bbb883d397a",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 3,
+      "replay_turns": 30,
+      "slug": "pushy-v-pully-h",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/pushy-v-pully-h/board-3.txt",
+      "source": "src/tests/good_games/Pushy-V Pully-H.txt",
+      "source_level": 7,
+      "source_sha256": "af260e9efa21bef5ac21499306cdf7df9181db1ea557fd04e80f2bbb883d397a",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 4,
+      "replay_turns": 7,
+      "slug": "pushy-v-pully-h",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/pushy-v-pully-h/board-4.txt",
+      "source": "src/tests/good_games/Pushy-V Pully-H.txt",
+      "source_level": 9,
+      "source_sha256": "af260e9efa21bef5ac21499306cdf7df9181db1ea557fd04e80f2bbb883d397a",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 5,
+      "replay_turns": 17,
+      "slug": "pushy-v-pully-h",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/pushy-v-pully-h/board-5.txt",
+      "source": "src/tests/good_games/Pushy-V Pully-H.txt",
+      "source_level": 11,
+      "source_sha256": "af260e9efa21bef5ac21499306cdf7df9181db1ea557fd04e80f2bbb883d397a",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 6,
+      "replay_turns": 25,
+      "slug": "pushy-v-pully-h",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/pushy-v-pully-h/board-6.txt",
+      "source": "src/tests/good_games/Pushy-V Pully-H.txt",
+      "source_level": 13,
+      "source_sha256": "af260e9efa21bef5ac21499306cdf7df9181db1ea557fd04e80f2bbb883d397a",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 7,
+      "replay_turns": 56,
+      "slug": "pushy-v-pully-h",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/pushy-v-pully-h/board-7.txt",
+      "source": "src/tests/good_games/Pushy-V Pully-H.txt",
+      "source_level": 15,
+      "source_sha256": "af260e9efa21bef5ac21499306cdf7df9181db1ea557fd04e80f2bbb883d397a",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 8,
+      "replay_turns": 45,
+      "slug": "pushy-v-pully-h",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/pushy-v-pully-h/board-8.txt",
+      "source": "src/tests/good_games/Pushy-V Pully-H.txt",
+      "source_level": 17,
+      "source_sha256": "af260e9efa21bef5ac21499306cdf7df9181db1ea557fd04e80f2bbb883d397a",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 9,
+      "replay_turns": 30,
+      "slug": "pushy-v-pully-h",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/pushy-v-pully-h/board-9.txt",
+      "source": "src/tests/good_games/Pushy-V Pully-H.txt",
+      "source_level": 19,
+      "source_sha256": "af260e9efa21bef5ac21499306cdf7df9181db1ea557fd04e80f2bbb883d397a",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 10,
+      "replay_turns": 38,
+      "slug": "pushy-v-pully-h",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/pushy-v-pully-h/board-10.txt",
+      "source": "src/tests/good_games/Pushy-V Pully-H.txt",
+      "source_level": 21,
+      "source_sha256": "af260e9efa21bef5ac21499306cdf7df9181db1ea557fd04e80f2bbb883d397a",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 32,
+      "slug": "recondite-star-sector-sigma",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/recondite-star-sector-sigma/board-0.txt",
+      "source": "src/tests/good_games/Recondite Star Sector Sigma.txt",
+      "source_level": 1,
+      "source_sha256": "36272e3b89bab2a774e0f2dbd3b7efaeb3166f0c555af8b4dfcf80ccb80dfb24",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 28,
+      "slug": "recondite-star-sector-sigma",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/recondite-star-sector-sigma/board-1.txt",
+      "source": "src/tests/good_games/Recondite Star Sector Sigma.txt",
+      "source_level": 5,
+      "source_sha256": "36272e3b89bab2a774e0f2dbd3b7efaeb3166f0c555af8b4dfcf80ccb80dfb24",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 2,
+      "replay_turns": 41,
+      "slug": "recondite-star-sector-sigma",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/recondite-star-sector-sigma/board-2.txt",
+      "source": "src/tests/good_games/Recondite Star Sector Sigma.txt",
+      "source_level": 9,
+      "source_sha256": "36272e3b89bab2a774e0f2dbd3b7efaeb3166f0c555af8b4dfcf80ccb80dfb24",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 3,
+      "replay_turns": 29,
+      "slug": "recondite-star-sector-sigma",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/recondite-star-sector-sigma/board-3.txt",
+      "source": "src/tests/good_games/Recondite Star Sector Sigma.txt",
+      "source_level": 11,
+      "source_sha256": "36272e3b89bab2a774e0f2dbd3b7efaeb3166f0c555af8b4dfcf80ccb80dfb24",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 4,
+      "replay_turns": 42,
+      "slug": "recondite-star-sector-sigma",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/recondite-star-sector-sigma/board-4.txt",
+      "source": "src/tests/good_games/Recondite Star Sector Sigma.txt",
+      "source_level": 13,
+      "source_sha256": "36272e3b89bab2a774e0f2dbd3b7efaeb3166f0c555af8b4dfcf80ccb80dfb24",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 5,
+      "replay_turns": 32,
+      "slug": "recondite-star-sector-sigma",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/recondite-star-sector-sigma/board-5.txt",
+      "source": "src/tests/good_games/Recondite Star Sector Sigma.txt",
+      "source_level": 15,
+      "source_sha256": "36272e3b89bab2a774e0f2dbd3b7efaeb3166f0c555af8b4dfcf80ccb80dfb24",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 6,
+      "replay_turns": 39,
+      "slug": "recondite-star-sector-sigma",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/recondite-star-sector-sigma/board-6.txt",
+      "source": "src/tests/good_games/Recondite Star Sector Sigma.txt",
+      "source_level": 17,
+      "source_sha256": "36272e3b89bab2a774e0f2dbd3b7efaeb3166f0c555af8b4dfcf80ccb80dfb24",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 7,
+      "replay_turns": 28,
+      "slug": "recondite-star-sector-sigma",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/recondite-star-sector-sigma/board-7.txt",
+      "source": "src/tests/good_games/Recondite Star Sector Sigma.txt",
+      "source_level": 19,
+      "source_sha256": "36272e3b89bab2a774e0f2dbd3b7efaeb3166f0c555af8b4dfcf80ccb80dfb24",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 18,
+      "slug": "resin-caster",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/resin-caster/board-0.txt",
+      "source": "src/tests/good_games/Resin-Caster.txt",
+      "source_level": 2,
+      "source_sha256": "858c4389aca4ad303056816aeb77ca8d465ad8419e80c3ca738d57f2053caf3e",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 17,
+      "slug": "resin-caster",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/resin-caster/board-1.txt",
+      "source": "src/tests/good_games/Resin-Caster.txt",
+      "source_level": 4,
+      "source_sha256": "858c4389aca4ad303056816aeb77ca8d465ad8419e80c3ca738d57f2053caf3e",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 2,
+      "replay_turns": 32,
+      "slug": "resin-caster",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/resin-caster/board-2.txt",
+      "source": "src/tests/good_games/Resin-Caster.txt",
+      "source_level": 6,
+      "source_sha256": "858c4389aca4ad303056816aeb77ca8d465ad8419e80c3ca738d57f2053caf3e",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 3,
+      "replay_turns": 29,
+      "slug": "resin-caster",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/resin-caster/board-3.txt",
+      "source": "src/tests/good_games/Resin-Caster.txt",
+      "source_level": 8,
+      "source_sha256": "858c4389aca4ad303056816aeb77ca8d465ad8419e80c3ca738d57f2053caf3e",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 4,
+      "replay_turns": 35,
+      "slug": "resin-caster",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/resin-caster/board-4.txt",
+      "source": "src/tests/good_games/Resin-Caster.txt",
+      "source_level": 10,
+      "source_sha256": "858c4389aca4ad303056816aeb77ca8d465ad8419e80c3ca738d57f2053caf3e",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 5,
+      "replay_turns": 30,
+      "slug": "resin-caster",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/resin-caster/board-5.txt",
+      "source": "src/tests/good_games/Resin-Caster.txt",
+      "source_level": 12,
+      "source_sha256": "858c4389aca4ad303056816aeb77ca8d465ad8419e80c3ca738d57f2053caf3e",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 6,
+      "replay_turns": 47,
+      "slug": "resin-caster",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/resin-caster/board-6.txt",
+      "source": "src/tests/good_games/Resin-Caster.txt",
+      "source_level": 14,
+      "source_sha256": "858c4389aca4ad303056816aeb77ca8d465ad8419e80c3ca738d57f2053caf3e",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 7,
+      "replay_turns": 24,
+      "slug": "resin-caster",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/resin-caster/board-7.txt",
+      "source": "src/tests/good_games/Resin-Caster.txt",
+      "source_level": 16,
+      "source_sha256": "858c4389aca4ad303056816aeb77ca8d465ad8419e80c3ca738d57f2053caf3e",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 8,
+      "replay_turns": 39,
+      "slug": "resin-caster",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/resin-caster/board-8.txt",
+      "source": "src/tests/good_games/Resin-Caster.txt",
+      "source_level": 18,
+      "source_sha256": "858c4389aca4ad303056816aeb77ca8d465ad8419e80c3ca738d57f2053caf3e",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 9,
+      "replay_turns": 35,
+      "slug": "resin-caster",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/resin-caster/board-9.txt",
+      "source": "src/tests/good_games/Resin-Caster.txt",
+      "source_level": 20,
+      "source_sha256": "858c4389aca4ad303056816aeb77ca8d465ad8419e80c3ca738d57f2053caf3e",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 21,
+      "slug": "slime-vat-filler",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/slime-vat-filler/board-0.txt",
+      "source": "src/tests/good_games/slime vat filler.txt",
+      "source_level": 2,
+      "source_sha256": "9d8b06a26eb6bf7c562e02eec7d32691a1fce4654cdbda9e4c0679febf02f210",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 20,
+      "slug": "slime-vat-filler",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/slime-vat-filler/board-1.txt",
+      "source": "src/tests/good_games/slime vat filler.txt",
+      "source_level": 4,
+      "source_sha256": "9d8b06a26eb6bf7c562e02eec7d32691a1fce4654cdbda9e4c0679febf02f210",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 2,
+      "replay_turns": 36,
+      "slug": "slime-vat-filler",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/slime-vat-filler/board-2.txt",
+      "source": "src/tests/good_games/slime vat filler.txt",
+      "source_level": 6,
+      "source_sha256": "9d8b06a26eb6bf7c562e02eec7d32691a1fce4654cdbda9e4c0679febf02f210",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 3,
+      "replay_turns": 30,
+      "slug": "slime-vat-filler",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/slime-vat-filler/board-3.txt",
+      "source": "src/tests/good_games/slime vat filler.txt",
+      "source_level": 8,
+      "source_sha256": "9d8b06a26eb6bf7c562e02eec7d32691a1fce4654cdbda9e4c0679febf02f210",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 4,
+      "replay_turns": 42,
+      "slug": "slime-vat-filler",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/slime-vat-filler/board-4.txt",
+      "source": "src/tests/good_games/slime vat filler.txt",
+      "source_level": 10,
+      "source_sha256": "9d8b06a26eb6bf7c562e02eec7d32691a1fce4654cdbda9e4c0679febf02f210",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 5,
+      "replay_turns": 142,
+      "slug": "slime-vat-filler",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/slime-vat-filler/board-5.txt",
+      "source": "src/tests/good_games/slime vat filler.txt",
+      "source_level": 12,
+      "source_sha256": "9d8b06a26eb6bf7c562e02eec7d32691a1fce4654cdbda9e4c0679febf02f210",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 6,
+      "replay_turns": 74,
+      "slug": "slime-vat-filler",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/slime-vat-filler/board-6.txt",
+      "source": "src/tests/good_games/slime vat filler.txt",
+      "source_level": 14,
+      "source_sha256": "9d8b06a26eb6bf7c562e02eec7d32691a1fce4654cdbda9e4c0679febf02f210",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 7,
+      "replay_turns": 123,
+      "slug": "slime-vat-filler",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/slime-vat-filler/board-7.txt",
+      "source": "src/tests/good_games/slime vat filler.txt",
+      "source_level": 18,
+      "source_sha256": "9d8b06a26eb6bf7c562e02eec7d32691a1fce4654cdbda9e4c0679febf02f210",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 8,
+      "replay_turns": 99,
+      "slug": "slime-vat-filler",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/slime-vat-filler/board-8.txt",
+      "source": "src/tests/good_games/slime vat filler.txt",
+      "source_level": 21,
+      "source_sha256": "9d8b06a26eb6bf7c562e02eec7d32691a1fce4654cdbda9e4c0679febf02f210",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 11,
+      "slug": "slot-machine",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/slot-machine/board-0.txt",
+      "source": "src/tests/good_games/slot machine.txt",
+      "source_level": 1,
+      "source_sha256": "d7c04b3a3dd8b2c9624ff460407fbc10cd13d2dadc0b51d04f3fb5f23acf0d3e",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 10,
+      "slug": "sokobond-demake",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/sokobond-demake/board-0.txt",
+      "source": "src/tests/good_games/sokobond demake.txt",
+      "source_level": 2,
+      "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 6,
+      "slug": "sokobond-demake",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/sokobond-demake/board-1.txt",
+      "source": "src/tests/good_games/sokobond demake.txt",
+      "source_level": 4,
+      "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 2,
+      "replay_turns": 6,
+      "slug": "sokobond-demake",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/sokobond-demake/board-2.txt",
+      "source": "src/tests/good_games/sokobond demake.txt",
+      "source_level": 6,
+      "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 3,
+      "replay_turns": 17,
+      "slug": "sokobond-demake",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/sokobond-demake/board-3.txt",
+      "source": "src/tests/good_games/sokobond demake.txt",
+      "source_level": 8,
+      "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 4,
+      "replay_turns": 7,
+      "slug": "sokobond-demake",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/sokobond-demake/board-4.txt",
+      "source": "src/tests/good_games/sokobond demake.txt",
+      "source_level": 10,
+      "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 5,
+      "replay_turns": 15,
+      "slug": "sokobond-demake",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/sokobond-demake/board-5.txt",
+      "source": "src/tests/good_games/sokobond demake.txt",
+      "source_level": 12,
+      "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 6,
+      "replay_turns": 9,
+      "slug": "sokobond-demake",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/sokobond-demake/board-6.txt",
+      "source": "src/tests/good_games/sokobond demake.txt",
+      "source_level": 14,
+      "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 7,
+      "replay_turns": 12,
+      "slug": "sokobond-demake",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/sokobond-demake/board-7.txt",
+      "source": "src/tests/good_games/sokobond demake.txt",
+      "source_level": 16,
+      "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 8,
+      "replay_turns": 10,
+      "slug": "sokobond-demake",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/sokobond-demake/board-8.txt",
+      "source": "src/tests/good_games/sokobond demake.txt",
+      "source_level": 18,
+      "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 9,
+      "replay_turns": 14,
+      "slug": "sokobond-demake",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/sokobond-demake/board-9.txt",
+      "source": "src/tests/good_games/sokobond demake.txt",
+      "source_level": 20,
+      "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 10,
+      "replay_turns": 16,
+      "slug": "sokobond-demake",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/sokobond-demake/board-10.txt",
+      "source": "src/tests/good_games/sokobond demake.txt",
+      "source_level": 22,
+      "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 11,
+      "replay_turns": 24,
+      "slug": "sokobond-demake",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/sokobond-demake/board-11.txt",
+      "source": "src/tests/good_games/sokobond demake.txt",
+      "source_level": 24,
+      "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 12,
+      "replay_turns": 7,
+      "slug": "sokobond-demake",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/sokobond-demake/board-12.txt",
+      "source": "src/tests/good_games/sokobond demake.txt",
+      "source_level": 26,
+      "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 13,
+      "replay_turns": 23,
+      "slug": "sokobond-demake",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/sokobond-demake/board-13.txt",
+      "source": "src/tests/good_games/sokobond demake.txt",
+      "source_level": 28,
+      "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 33,
+      "slug": "subway-upholstry-snot-smearing-championship",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/subway-upholstry-snot-smearing-championship/board-0.txt",
+      "source": "src/tests/good_games/Subway upholstry snot smearing championship.txt",
+      "source_level": 2,
+      "source_sha256": "a89b14d7a664089b3c1eb8df61151eb52725be7a1650a23f08898e04c69cfd43",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 58,
+      "slug": "subway-upholstry-snot-smearing-championship",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/subway-upholstry-snot-smearing-championship/board-1.txt",
+      "source": "src/tests/good_games/Subway upholstry snot smearing championship.txt",
+      "source_level": 4,
+      "source_sha256": "a89b14d7a664089b3c1eb8df61151eb52725be7a1650a23f08898e04c69cfd43",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 2,
+      "replay_turns": 31,
+      "slug": "subway-upholstry-snot-smearing-championship",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/subway-upholstry-snot-smearing-championship/board-2.txt",
+      "source": "src/tests/good_games/Subway upholstry snot smearing championship.txt",
+      "source_level": 6,
+      "source_sha256": "a89b14d7a664089b3c1eb8df61151eb52725be7a1650a23f08898e04c69cfd43",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 3,
+      "replay_turns": 92,
+      "slug": "subway-upholstry-snot-smearing-championship",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/subway-upholstry-snot-smearing-championship/board-3.txt",
+      "source": "src/tests/good_games/Subway upholstry snot smearing championship.txt",
+      "source_level": 8,
+      "source_sha256": "a89b14d7a664089b3c1eb8df61151eb52725be7a1650a23f08898e04c69cfd43",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 4,
+      "replay_turns": 67,
+      "slug": "subway-upholstry-snot-smearing-championship",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/subway-upholstry-snot-smearing-championship/board-4.txt",
+      "source": "src/tests/good_games/Subway upholstry snot smearing championship.txt",
+      "source_level": 10,
+      "source_sha256": "a89b14d7a664089b3c1eb8df61151eb52725be7a1650a23f08898e04c69cfd43",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 3,
+      "slug": "take-heart-lass",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/take-heart-lass/board-0.txt",
+      "source": "src/tests/good_games/take heart lass.txt",
+      "source_level": 1,
+      "source_sha256": "a1d9383791a88198b6bec06d9dcab392b8a5879f0a497fece0681839fa3db67f",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 9,
+      "slug": "take-heart-lass",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/take-heart-lass/board-1.txt",
+      "source": "src/tests/good_games/take heart lass.txt",
+      "source_level": 3,
+      "source_sha256": "a1d9383791a88198b6bec06d9dcab392b8a5879f0a497fece0681839fa3db67f",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 2,
+      "replay_turns": 8,
+      "slug": "take-heart-lass",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/take-heart-lass/board-2.txt",
+      "source": "src/tests/good_games/take heart lass.txt",
+      "source_level": 5,
+      "source_sha256": "a1d9383791a88198b6bec06d9dcab392b8a5879f0a497fece0681839fa3db67f",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 3,
+      "replay_turns": 8,
+      "slug": "take-heart-lass",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/take-heart-lass/board-3.txt",
+      "source": "src/tests/good_games/take heart lass.txt",
+      "source_level": 7,
+      "source_sha256": "a1d9383791a88198b6bec06d9dcab392b8a5879f0a497fece0681839fa3db67f",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 37,
+      "slug": "the-monsterous-autoshove",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/the-monsterous-autoshove/board-0.txt",
+      "source": "src/tests/good_games/The Monsterous Autoshove.txt",
+      "source_level": 1,
+      "source_sha256": "9a2f240ca99fd18b26ff98fbcd244c62e165be8b8a4d6fbe0440ca77117a21e4",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 19,
+      "slug": "the-monsterous-autoshove",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/the-monsterous-autoshove/board-1.txt",
+      "source": "src/tests/good_games/The Monsterous Autoshove.txt",
+      "source_level": 3,
+      "source_sha256": "9a2f240ca99fd18b26ff98fbcd244c62e165be8b8a4d6fbe0440ca77117a21e4",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 2,
+      "replay_turns": 24,
+      "slug": "the-monsterous-autoshove",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/the-monsterous-autoshove/board-2.txt",
+      "source": "src/tests/good_games/The Monsterous Autoshove.txt",
+      "source_level": 7,
+      "source_sha256": "9a2f240ca99fd18b26ff98fbcd244c62e165be8b8a4d6fbe0440ca77117a21e4",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 15,
+      "slug": "the-red-ring-of-immortality",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/the-red-ring-of-immortality/board-0.txt",
+      "source": "src/tests/good_games/The Red Ring of Immortality.txt",
+      "source_level": 1,
+      "source_sha256": "9e8fa6930829753f606d9e69a1f6b501743d1453c7f4a8badea1a3a68c9446ff",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 26,
+      "slug": "the-red-ring-of-immortality",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/the-red-ring-of-immortality/board-1.txt",
+      "source": "src/tests/good_games/The Red Ring of Immortality.txt",
+      "source_level": 3,
+      "source_sha256": "9e8fa6930829753f606d9e69a1f6b501743d1453c7f4a8badea1a3a68c9446ff",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 2,
+      "replay_turns": 15,
+      "slug": "the-red-ring-of-immortality",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/the-red-ring-of-immortality/board-2.txt",
+      "source": "src/tests/good_games/The Red Ring of Immortality.txt",
+      "source_level": 5,
+      "source_sha256": "9e8fa6930829753f606d9e69a1f6b501743d1453c7f4a8badea1a3a68c9446ff",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 3,
+      "replay_turns": 23,
+      "slug": "the-red-ring-of-immortality",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/the-red-ring-of-immortality/board-3.txt",
+      "source": "src/tests/good_games/The Red Ring of Immortality.txt",
+      "source_level": 7,
+      "source_sha256": "9e8fa6930829753f606d9e69a1f6b501743d1453c7f4a8badea1a3a68c9446ff",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 4,
+      "replay_turns": 18,
+      "slug": "the-red-ring-of-immortality",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/the-red-ring-of-immortality/board-4.txt",
+      "source": "src/tests/good_games/The Red Ring of Immortality.txt",
+      "source_level": 9,
+      "source_sha256": "9e8fa6930829753f606d9e69a1f6b501743d1453c7f4a8badea1a3a68c9446ff",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 5,
+      "replay_turns": 12,
+      "slug": "the-red-ring-of-immortality",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/the-red-ring-of-immortality/board-5.txt",
+      "source": "src/tests/good_games/The Red Ring of Immortality.txt",
+      "source_level": 11,
+      "source_sha256": "9e8fa6930829753f606d9e69a1f6b501743d1453c7f4a8badea1a3a68c9446ff",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 6,
+      "replay_turns": 43,
+      "slug": "the-red-ring-of-immortality",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/the-red-ring-of-immortality/board-6.txt",
+      "source": "src/tests/good_games/The Red Ring of Immortality.txt",
+      "source_level": 13,
+      "source_sha256": "9e8fa6930829753f606d9e69a1f6b501743d1453c7f4a8badea1a3a68c9446ff",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 7,
+      "replay_turns": 41,
+      "slug": "the-red-ring-of-immortality",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/the-red-ring-of-immortality/board-7.txt",
+      "source": "src/tests/good_games/The Red Ring of Immortality.txt",
+      "source_level": 17,
+      "source_sha256": "9e8fa6930829753f606d9e69a1f6b501743d1453c7f4a8badea1a3a68c9446ff",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 8,
+      "replay_turns": 25,
+      "slug": "the-red-ring-of-immortality",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/the-red-ring-of-immortality/board-8.txt",
+      "source": "src/tests/good_games/The Red Ring of Immortality.txt",
+      "source_level": 19,
+      "source_sha256": "9e8fa6930829753f606d9e69a1f6b501743d1453c7f4a8badea1a3a68c9446ff",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 9,
+      "replay_turns": 17,
+      "slug": "the-red-ring-of-immortality",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/the-red-ring-of-immortality/board-9.txt",
+      "source": "src/tests/good_games/The Red Ring of Immortality.txt",
+      "source_level": 21,
+      "source_sha256": "9e8fa6930829753f606d9e69a1f6b501743d1453c7f4a8badea1a3a68c9446ff",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 10,
+      "replay_turns": 2,
+      "slug": "the-red-ring-of-immortality",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/the-red-ring-of-immortality/board-10.txt",
+      "source": "src/tests/good_games/The Red Ring of Immortality.txt",
+      "source_level": 23,
+      "source_sha256": "9e8fa6930829753f606d9e69a1f6b501743d1453c7f4a8badea1a3a68c9446ff",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 11,
+      "slug": "two-step-pete",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/two-step-pete/board-0.txt",
+      "source": "src/tests/good_games/Two-Step Pete.txt",
+      "source_level": 1,
+      "source_sha256": "6834a86544ad73aa977d1cb22474b0089c85a04173c57d27d7e1010616ac2e84",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 36,
+      "slug": "two-step-pete",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/two-step-pete/board-1.txt",
+      "source": "src/tests/good_games/Two-Step Pete.txt",
+      "source_level": 3,
+      "source_sha256": "6834a86544ad73aa977d1cb22474b0089c85a04173c57d27d7e1010616ac2e84",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 2,
+      "replay_turns": 18,
+      "slug": "two-step-pete",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/two-step-pete/board-2.txt",
+      "source": "src/tests/good_games/Two-Step Pete.txt",
+      "source_level": 5,
+      "source_sha256": "6834a86544ad73aa977d1cb22474b0089c85a04173c57d27d7e1010616ac2e84",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 3,
+      "replay_turns": 14,
+      "slug": "two-step-pete",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/two-step-pete/board-3.txt",
+      "source": "src/tests/good_games/Two-Step Pete.txt",
+      "source_level": 9,
+      "source_sha256": "6834a86544ad73aa977d1cb22474b0089c85a04173c57d27d7e1010616ac2e84",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 4,
+      "replay_turns": 14,
+      "slug": "two-step-pete",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/two-step-pete/board-4.txt",
+      "source": "src/tests/good_games/Two-Step Pete.txt",
+      "source_level": 11,
+      "source_sha256": "6834a86544ad73aa977d1cb22474b0089c85a04173c57d27d7e1010616ac2e84",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 5,
+      "replay_turns": 40,
+      "slug": "two-step-pete",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/two-step-pete/board-5.txt",
+      "source": "src/tests/good_games/Two-Step Pete.txt",
+      "source_level": 13,
+      "source_sha256": "6834a86544ad73aa977d1cb22474b0089c85a04173c57d27d7e1010616ac2e84",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 6,
+      "replay_turns": 50,
+      "slug": "two-step-pete",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/two-step-pete/board-6.txt",
+      "source": "src/tests/good_games/Two-Step Pete.txt",
+      "source_level": 15,
+      "source_sha256": "6834a86544ad73aa977d1cb22474b0089c85a04173c57d27d7e1010616ac2e84",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 27,
+      "slug": "two-tone-tango",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/two-tone-tango/board-0.txt",
+      "source": "src/tests/good_games/Two-Tone Tango.txt",
+      "source_level": 3,
+      "source_sha256": "7073aafe78746b9952211ef67f4eead27968d2c6041ac79fd6e94fbd13f7e239",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 28,
+      "slug": "two-tone-tango",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/two-tone-tango/board-1.txt",
+      "source": "src/tests/good_games/Two-Tone Tango.txt",
+      "source_level": 5,
+      "source_sha256": "7073aafe78746b9952211ef67f4eead27968d2c6041ac79fd6e94fbd13f7e239",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 2,
+      "replay_turns": 36,
+      "slug": "two-tone-tango",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/two-tone-tango/board-2.txt",
+      "source": "src/tests/good_games/Two-Tone Tango.txt",
+      "source_level": 7,
+      "source_sha256": "7073aafe78746b9952211ef67f4eead27968d2c6041ac79fd6e94fbd13f7e239",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 3,
+      "replay_turns": 14,
+      "slug": "two-tone-tango",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/two-tone-tango/board-3.txt",
+      "source": "src/tests/good_games/Two-Tone Tango.txt",
+      "source_level": 9,
+      "source_sha256": "7073aafe78746b9952211ef67f4eead27968d2c6041ac79fd6e94fbd13f7e239",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 4,
+      "replay_turns": 28,
+      "slug": "two-tone-tango",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/two-tone-tango/board-4.txt",
+      "source": "src/tests/good_games/Two-Tone Tango.txt",
+      "source_level": 11,
+      "source_sha256": "7073aafe78746b9952211ef67f4eead27968d2c6041ac79fd6e94fbd13f7e239",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 5,
+      "replay_turns": 32,
+      "slug": "two-tone-tango",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/two-tone-tango/board-5.txt",
+      "source": "src/tests/good_games/Two-Tone Tango.txt",
+      "source_level": 13,
+      "source_sha256": "7073aafe78746b9952211ef67f4eead27968d2c6041ac79fd6e94fbd13f7e239",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 6,
+      "replay_turns": 32,
+      "slug": "two-tone-tango",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/two-tone-tango/board-6.txt",
+      "source": "src/tests/good_games/Two-Tone Tango.txt",
+      "source_level": 15,
+      "source_sha256": "7073aafe78746b9952211ef67f4eead27968d2c6041ac79fd6e94fbd13f7e239",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 35,
+      "slug": "unclean-residues",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/unclean-residues/board-0.txt",
+      "source": "src/tests/good_games/unclean residues.txt",
+      "source_level": 4,
+      "source_sha256": "9c416a53740cb3c9789bca29169810342b651ff71ca17e6fcba6b44217b17b12",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 43,
+      "slug": "unclean-residues",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/unclean-residues/board-1.txt",
+      "source": "src/tests/good_games/unclean residues.txt",
+      "source_level": 6,
+      "source_sha256": "9c416a53740cb3c9789bca29169810342b651ff71ca17e6fcba6b44217b17b12",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 2,
+      "replay_turns": 26,
+      "slug": "unclean-residues",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/unclean-residues/board-2.txt",
+      "source": "src/tests/good_games/unclean residues.txt",
+      "source_level": 8,
+      "source_sha256": "9c416a53740cb3c9789bca29169810342b651ff71ca17e6fcba6b44217b17b12",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 3,
+      "replay_turns": 40,
+      "slug": "unclean-residues",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/unclean-residues/board-3.txt",
+      "source": "src/tests/good_games/unclean residues.txt",
+      "source_level": 13,
+      "source_sha256": "9c416a53740cb3c9789bca29169810342b651ff71ca17e6fcba6b44217b17b12",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 15,
+      "slug": "wand-spinner",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/wand-spinner/board-0.txt",
+      "source": "src/tests/good_games/Wand Spinner.txt",
+      "source_level": 1,
+      "source_sha256": "167376047ec933357f344dfe6e695f70e90bfc9c771254ef6041855d07e7ccf8",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 19,
+      "slug": "wand-spinner",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/wand-spinner/board-1.txt",
+      "source": "src/tests/good_games/Wand Spinner.txt",
+      "source_level": 3,
+      "source_sha256": "167376047ec933357f344dfe6e695f70e90bfc9c771254ef6041855d07e7ccf8",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 2,
+      "replay_turns": 17,
+      "slug": "wand-spinner",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/wand-spinner/board-2.txt",
+      "source": "src/tests/good_games/Wand Spinner.txt",
+      "source_level": 5,
+      "source_sha256": "167376047ec933357f344dfe6e695f70e90bfc9c771254ef6041855d07e7ccf8",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 3,
+      "replay_turns": 20,
+      "slug": "wand-spinner",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/wand-spinner/board-3.txt",
+      "source": "src/tests/good_games/Wand Spinner.txt",
+      "source_level": 7,
+      "source_sha256": "167376047ec933357f344dfe6e695f70e90bfc9c771254ef6041855d07e7ccf8",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 4,
+      "replay_turns": 31,
+      "slug": "wand-spinner",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/wand-spinner/board-4.txt",
+      "source": "src/tests/good_games/Wand Spinner.txt",
+      "source_level": 9,
+      "source_sha256": "167376047ec933357f344dfe6e695f70e90bfc9c771254ef6041855d07e7ccf8",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 5,
+      "replay_turns": 39,
+      "slug": "wand-spinner",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/wand-spinner/board-5.txt",
+      "source": "src/tests/good_games/Wand Spinner.txt",
+      "source_level": 11,
+      "source_sha256": "167376047ec933357f344dfe6e695f70e90bfc9c771254ef6041855d07e7ccf8",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 6,
+      "replay_turns": 46,
+      "slug": "wand-spinner",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/wand-spinner/board-6.txt",
+      "source": "src/tests/good_games/Wand Spinner.txt",
+      "source_level": 13,
+      "source_sha256": "167376047ec933357f344dfe6e695f70e90bfc9c771254ef6041855d07e7ccf8",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 7,
+      "replay_turns": 17,
+      "slug": "wand-spinner",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/wand-spinner/board-7.txt",
+      "source": "src/tests/good_games/Wand Spinner.txt",
+      "source_level": 15,
+      "source_sha256": "167376047ec933357f344dfe6e695f70e90bfc9c771254ef6041855d07e7ccf8",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 8,
+      "replay_turns": 41,
+      "slug": "wand-spinner",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/wand-spinner/board-8.txt",
+      "source": "src/tests/good_games/Wand Spinner.txt",
+      "source_level": 17,
+      "source_sha256": "167376047ec933357f344dfe6e695f70e90bfc9c771254ef6041855d07e7ccf8",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 9,
+      "replay_turns": 22,
+      "slug": "wand-spinner",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/wand-spinner/board-9.txt",
+      "source": "src/tests/good_games/Wand Spinner.txt",
+      "source_level": 21,
+      "source_sha256": "167376047ec933357f344dfe6e695f70e90bfc9c771254ef6041855d07e7ccf8",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 10,
+      "replay_turns": 43,
+      "slug": "wand-spinner",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/wand-spinner/board-10.txt",
+      "source": "src/tests/good_games/Wand Spinner.txt",
+      "source_level": 23,
+      "source_sha256": "167376047ec933357f344dfe6e695f70e90bfc9c771254ef6041855d07e7ccf8",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 11,
+      "replay_turns": 21,
+      "slug": "wand-spinner",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/wand-spinner/board-11.txt",
+      "source": "src/tests/good_games/Wand Spinner.txt",
+      "source_level": 25,
+      "source_sha256": "167376047ec933357f344dfe6e695f70e90bfc9c771254ef6041855d07e7ccf8",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 12,
+      "replay_turns": 25,
+      "slug": "wand-spinner",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/wand-spinner/board-12.txt",
+      "source": "src/tests/good_games/Wand Spinner.txt",
+      "source_level": 27,
+      "source_sha256": "167376047ec933357f344dfe6e695f70e90bfc9c771254ef6041855d07e7ccf8",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 13,
+      "replay_turns": 50,
+      "slug": "wand-spinner",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/wand-spinner/board-13.txt",
+      "source": "src/tests/good_games/Wand Spinner.txt",
+      "source_level": 29,
+      "source_sha256": "167376047ec933357f344dfe6e695f70e90bfc9c771254ef6041855d07e7ccf8",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 14,
+      "replay_turns": 23,
+      "slug": "wand-spinner",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/wand-spinner/board-14.txt",
+      "source": "src/tests/good_games/Wand Spinner.txt",
+      "source_level": 31,
+      "source_sha256": "167376047ec933357f344dfe6e695f70e90bfc9c771254ef6041855d07e7ccf8",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 15,
+      "replay_turns": 29,
+      "slug": "wand-spinner",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/wand-spinner/board-15.txt",
+      "source": "src/tests/good_games/Wand Spinner.txt",
+      "source_level": 33,
+      "source_sha256": "167376047ec933357f344dfe6e695f70e90bfc9c771254ef6041855d07e7ccf8",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 16,
+      "replay_turns": 30,
+      "slug": "wand-spinner",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/wand-spinner/board-16.txt",
+      "source": "src/tests/good_games/Wand Spinner.txt",
+      "source_level": 35,
+      "source_sha256": "167376047ec933357f344dfe6e695f70e90bfc9c771254ef6041855d07e7ccf8",
+      "tags": [
+        "js_valid"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 24,
+      "slug": "xorro-the-chaos-warden",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/xorro-the-chaos-warden/board-0.txt",
+      "source": "src/tests/good_games/Xorro The Chaos Warden.txt",
+      "source_level": 1,
+      "source_sha256": "5e99ed2df7b4c9b2b28265bdba0af2cf75185070be9e686d0af61ef1b5a4d517",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 31,
+      "slug": "xorro-the-chaos-warden",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/xorro-the-chaos-warden/board-1.txt",
+      "source": "src/tests/good_games/Xorro The Chaos Warden.txt",
+      "source_level": 3,
+      "source_sha256": "5e99ed2df7b4c9b2b28265bdba0af2cf75185070be9e686d0af61ef1b5a4d517",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 2,
+      "replay_turns": 43,
+      "slug": "xorro-the-chaos-warden",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/xorro-the-chaos-warden/board-2.txt",
+      "source": "src/tests/good_games/Xorro The Chaos Warden.txt",
+      "source_level": 5,
+      "source_sha256": "5e99ed2df7b4c9b2b28265bdba0af2cf75185070be9e686d0af61ef1b5a4d517",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 0,
+      "replay_turns": 43,
+      "slug": "yellow-box",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/yellow-box/board-0.txt",
+      "source": "src/tests/good_games/Yellow Box.txt",
+      "source_level": 1,
+      "source_sha256": "7eaacd527fcbbbee10a32c1df074d643f0f316644235a6ad40e29ce12c9ef706",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 1,
+      "replay_turns": 15,
+      "slug": "yellow-box",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/yellow-box/board-1.txt",
+      "source": "src/tests/good_games/Yellow Box.txt",
+      "source_level": 3,
+      "source_sha256": "7eaacd527fcbbbee10a32c1df074d643f0f316644235a6ad40e29ce12c9ef706",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 2,
+      "replay_turns": 19,
+      "slug": "yellow-box",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/yellow-box/board-2.txt",
+      "source": "src/tests/good_games/Yellow Box.txt",
+      "source_level": 7,
+      "source_sha256": "7eaacd527fcbbbee10a32c1df074d643f0f316644235a6ad40e29ce12c9ef706",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 3,
+      "replay_turns": 14,
+      "slug": "yellow-box",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/yellow-box/board-3.txt",
+      "source": "src/tests/good_games/Yellow Box.txt",
+      "source_level": 13,
+      "source_sha256": "7eaacd527fcbbbee10a32c1df074d643f0f316644235a6ad40e29ce12c9ef706",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 4,
+      "replay_turns": 43,
+      "slug": "yellow-box",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/yellow-box/board-4.txt",
+      "source": "src/tests/good_games/Yellow Box.txt",
+      "source_level": 15,
+      "source_sha256": "7eaacd527fcbbbee10a32c1df074d643f0f316644235a6ad40e29ce12c9ef706",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 5,
+      "replay_turns": 21,
+      "slug": "yellow-box",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/yellow-box/board-5.txt",
+      "source": "src/tests/good_games/Yellow Box.txt",
+      "source_level": 17,
+      "source_sha256": "7eaacd527fcbbbee10a32c1df074d643f0f316644235a6ad40e29ce12c9ef706",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 6,
+      "replay_turns": 21,
+      "slug": "yellow-box",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/yellow-box/board-6.txt",
+      "source": "src/tests/good_games/Yellow Box.txt",
+      "source_level": 21,
+      "source_sha256": "7eaacd527fcbbbee10a32c1df074d643f0f316644235a6ad40e29ce12c9ef706",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 7,
+      "replay_turns": 14,
+      "slug": "yellow-box",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/yellow-box/board-7.txt",
+      "source": "src/tests/good_games/Yellow Box.txt",
+      "source_level": 23,
+      "source_sha256": "7eaacd527fcbbbee10a32c1df074d643f0f316644235a6ad40e29ce12c9ef706",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 8,
+      "replay_turns": 9,
+      "slug": "yellow-box",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/yellow-box/board-8.txt",
+      "source": "src/tests/good_games/Yellow Box.txt",
+      "source_level": 25,
+      "source_sha256": "7eaacd527fcbbbee10a32c1df074d643f0f316644235a6ad40e29ce12c9ef706",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 9,
+      "replay_turns": 26,
+      "slug": "yellow-box",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/yellow-box/board-9.txt",
+      "source": "src/tests/good_games/Yellow Box.txt",
+      "source_level": 29,
+      "source_sha256": "7eaacd527fcbbbee10a32c1df074d643f0f316644235a6ad40e29ce12c9ef706",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 10,
+      "replay_turns": 34,
+      "slug": "yellow-box",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/yellow-box/board-10.txt",
+      "source": "src/tests/good_games/Yellow Box.txt",
+      "source_level": 31,
+      "source_sha256": "7eaacd527fcbbbee10a32c1df074d643f0f316644235a6ad40e29ce12c9ef706",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 11,
+      "replay_turns": 20,
+      "slug": "yellow-box",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/yellow-box/board-11.txt",
+      "source": "src/tests/good_games/Yellow Box.txt",
+      "source_level": 33,
+      "source_sha256": "7eaacd527fcbbbee10a32c1df074d643f0f316644235a6ad40e29ce12c9ef706",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    },
+    {
+      "board_index": 12,
+      "replay_turns": 55,
+      "slug": "yellow-box",
+      "solution_path": "src/tests/solution_cache/eligible/solutions/yellow-box/board-12.txt",
+      "source": "src/tests/good_games/Yellow Box.txt",
+      "source_level": 35,
+      "source_sha256": "7eaacd527fcbbbee10a32c1df074d643f0f316644235a6ad40e29ce12c9ef706",
+      "tags": [
+        "js_valid",
+        "host_known_good"
+      ]
+    }
+  ],
+  "format": "puzzlescript-eligible-solution-cache-v1",
+  "seeded_from": "build/gbc/eligible/solution-bench-3s-all-levels.json"
+}

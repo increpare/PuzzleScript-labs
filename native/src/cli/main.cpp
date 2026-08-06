@@ -2971,6 +2971,7 @@ int runSourceCommand(const std::string& sourcePath, int argc, char** argv) {
     bool finalOnly = false;
     bool emitJson = false;
     bool nativeCompile = false;
+    bool requireWin = false;
     std::optional<std::string> inputsJson;
     std::optional<std::string> inputsFile;
     std::optional<int32_t> requestedLevel;
@@ -2986,6 +2987,10 @@ int runSourceCommand(const std::string& sourcePath, int argc, char** argv) {
         }
         if (arg == "--final-only") {
             finalOnly = true;
+            continue;
+        }
+        if (arg == "--require-win") {
+            requireWin = true;
             continue;
         }
         if (arg == "--json") {
@@ -3087,6 +3092,10 @@ int runSourceCommand(const std::string& sourcePath, int argc, char** argv) {
             tokens.clear();
         }
 
+        ps_full_state_status_info startStatus{};
+        ps_full_state_status(session, &startStatus);
+        const int32_t startLevelIndex = startStatus.current_level_index;
+
         std::vector<std::string> sounds;
         sounds.reserve(16);
         if (!replayInputTokens(session, tokens, emitJson ? &sounds : nullptr)) {
@@ -3094,6 +3103,14 @@ int runSourceCommand(const std::string& sourcePath, int argc, char** argv) {
             ps_free_game(game);
             return 1;
         }
+
+        ps_full_state_status_info status{};
+        ps_full_state_status(session, &status);
+        // Winning can clear after level advance; treat level/title transitions as wins too.
+        const bool won = status.winning
+            || status.current_level_index != startLevelIndex
+            || status.mode == PS_FULL_STATE_MODE_TITLE
+            || status.title_screen;
 
         char* serialized = ps_full_state_serialize_test_string(session);
         const std::string actualFinal = serialized ? serialized : "";
@@ -3107,6 +3124,7 @@ int runSourceCommand(const std::string& sourcePath, int argc, char** argv) {
         } else {
             std::cout << "{"
                       << "\"serialized_level\":" << jsonStringLiteral(actualFinal)
+                      << ",\"won\":" << (won ? "true" : "false")
                       << ",\"sounds\":[";
             for (size_t i = 0; i < sounds.size(); ++i) {
                 if (i > 0) {
@@ -3119,7 +3137,12 @@ int runSourceCommand(const std::string& sourcePath, int argc, char** argv) {
         }
 
         ps_full_state_destroy(session);
-        result = 0;
+        if (requireWin && !won) {
+            std::cerr << "puzzlescript_cpp run: --require-win failed (level not won)\n";
+            result = 1;
+        } else {
+            result = 0;
+        }
     }
     ps_free_game(game);
     return result;

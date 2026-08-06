@@ -29,6 +29,7 @@
 
 .PHONY: gba gba_export gba_preflight gba_generated_replay_build gba_generated_replay_tests
 .PHONY: gbc gbc_export gbc_smoke gbc_cart gbc_cart_smoke gbc_cart_solutions_bench gbc_eligible gbc_specialized_bench gbc_eligible_solutions_bench
+.PHONY: solution_cache_tests solution_cache_tests_thorough gbc_cart_solution_cache_tests refresh_eligible_solution_cache
 
 NODE ?= node
 PYTHON ?= python3
@@ -548,6 +549,10 @@ help:
 	@echo "  make gbc_specialized_bench         Bench specialized Sokoban solution-replay timing"
 	@echo "  make gbc_eligible_solutions_bench  Host solution-replay scoreboard for ELIGIBLE_GAMES"
 	@echo "                                     (cull oversized levels by default; GBC_CULL=0 to disable)"
+	@echo "  make solution_cache_tests          Replay cached host_known_good solutions (C++ + host GBC)"
+	@echo "  make solution_cache_tests_thorough Replay full js_valid cache (C++ hard, host quarantine)"
+	@echo "  make gbc_cart_solution_cache_tests Cart/libmGBA replay of cached board-0 solutions"
+	@echo "  make refresh_eligible_solution_cache  Reclassify/fill checked-in solution cache"
 	@echo "  make handheld_memory_audit         Measure per-game native peak RSS for handheld Track 0"
 	@echo "  make handheld_blockout_tests       Run card blockout + PCB mechanical export tests"
 	@echo "  make handheld_pcb_export           Export card PCB outline/anchors to hardware/card/mechanical/"
@@ -911,6 +916,40 @@ gbc_eligible_solutions_bench: $(PUZZLESCRIPT_CPP)
 		$(GBC_ELIGIBLE_BENCH_SKIP_ROM_FLAG) \
 		$(GBC_ELIGIBLE_CULL_FLAG) \
 		--gbdk-home "$(if $(strip $(GBDK_HOME)),$(abspath $(GBDK_HOME)),.codex_tmp/toolchains/gbdk)"
+
+# Checked-in eligible solution cache gates (no solver).
+SOLUTION_CACHE_ROOT ?= src/tests/solution_cache/eligible
+SOLUTION_CACHE_EXPORT_DIR ?= $(BUILD_DIR)/gbc/eligible/host-exports
+solution_cache_tests: $(PUZZLESCRIPT_CPP)
+	PYTHONPATH=scripts python3 scripts/solution_cache_test.py
+	PYTHONPATH=scripts python3 scripts/run_solution_cache_tests.py \
+		--repository . \
+		--cache-root "$(SOLUTION_CACHE_ROOT)" \
+		--export-dir "$(SOLUTION_CACHE_EXPORT_DIR)" \
+		--tag host_known_good \
+		--thorough-host-policy strict
+
+solution_cache_tests_thorough: $(PUZZLESCRIPT_CPP)
+	PYTHONPATH=scripts python3 scripts/run_solution_cache_tests.py \
+		--repository . \
+		--cache-root "$(SOLUTION_CACHE_ROOT)" \
+		--export-dir "$(SOLUTION_CACHE_EXPORT_DIR)" \
+		--tag js_valid \
+		--thorough-host-policy quarantine
+
+gbc_cart_solution_cache_tests: $(PUZZLESCRIPT_CPP)
+	PYTHONPATH=scripts python3 scripts/run_gbc_cart_solution_cache_tests.py \
+		--repository . \
+		--cache-root "$(SOLUTION_CACHE_ROOT)" \
+		--compiler "$(abspath $(PUZZLESCRIPT_CPP))" \
+		--gbdk-home "$(if $(strip $(GBDK_HOME)),$(abspath $(GBDK_HOME)),.codex_tmp/toolchains/gbdk)" \
+		--out-dir "$(BUILD_DIR)/gbc/cart-solution-cache"
+
+refresh_eligible_solution_cache: $(PUZZLESCRIPT_CPP) build_solver
+	PYTHONPATH=scripts python3 scripts/refresh_eligible_solution_cache.py \
+		--repository . \
+		--cache-root "$(SOLUTION_CACHE_ROOT)" \
+		--export-dir "$(SOLUTION_CACHE_EXPORT_DIR)"
 
 handheld_memory_audit:
 	$(CMAKE) -S . -B $(BUILD_DIR) -DPS_MASK_WORD_BITS=64
@@ -2392,10 +2431,12 @@ profile_simulation_tests_32: build_32
 	PROFILE_STATS_OUT="$(abspath $(BUILD_DIR_32))/profile_stats.txt" \
 	src/tests/profile_native_trace_suite.sh
 
-tests: ctest js_parity_tests gba_generated_replay_tests
+tests: ctest js_parity_tests gba_generated_replay_tests solution_cache_tests
 
 all_tests_thorough:
 	$(MAKE) tests
+	$(MAKE) solution_cache_tests_thorough
+	$(MAKE) gbc_cart_solution_cache_tests
 	$(MAKE) solver_instrumentation_analysis_tests
 	$(MAKE) solver_portfolio_regression_tests
 	$(MAKE) native_static_analysis_parity_tests
