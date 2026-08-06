@@ -1065,6 +1065,14 @@ static bool runActiveGame(void) {
                 }
             }
 #endif
+#if defined(PS_GBC_CART_BENCHMARK)
+        } else if ((pressed & (J_B | J_SELECT)) == (J_B | J_SELECT)) {
+            /* Harness end-of-script chord: publish loss telemetry if no win. */
+            if (!cartBenchHasPublished()) {
+                cartBenchFinish(false);
+            }
+            return true;
+#endif
         } else if ((pressed & J_B) != 0U) {
             redraw = psd_undo(gSession);
             if (redraw) audioPlayNamed(PS_GBC_SOUND_UNDO);

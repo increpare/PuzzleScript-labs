@@ -71,6 +71,7 @@ bool cartBenchHasActiveTurn(void) BANKED;
 void cartBenchAccumulateLogic(uint32_t ticks) BANKED;
 void cartBenchRender(void) BANKED;
 void cartBenchFinish(bool won) BANKED;
+bool cartBenchHasPublished(void) BANKED;
 void cartBenchShutdown(void) BANKED;
 #endif
 

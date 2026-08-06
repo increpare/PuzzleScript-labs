@@ -45,6 +45,7 @@ def test_key_script_order_and_releases() -> None:
         bench.KEY_A,
         bench.KEY_UP,
         bench.KEY_A,
+        bench.KEY_FORCE_PUBLISH,
     ]
     menu_frames = [index for index, _ in pressed[:4]]
     assert all(
@@ -53,9 +54,13 @@ def test_key_script_order_and_releases() -> None:
     )
     first_solution_frame = pressed[4][0]
     second_solution_frame = pressed[5][0]
+    force_publish_frame = pressed[6][0]
     assert second_solution_frame - first_solution_frame == 503
     assert keys[first_solution_frame + 1 : second_solution_frame] == [0] * 502
-    assert keys[second_solution_frame + 1 :] == [0] * 502
+    assert (
+        keys[second_solution_frame + 1 : force_publish_frame] == [0] * 502
+    )
+    assert keys[force_publish_frame + 1 :] == [0] * bench.FORCE_PUBLISH_RELEASE_FRAMES
     assert keys[: bench.BOOT_RELEASE_FRAMES] == [0] * bench.BOOT_RELEASE_FRAMES
 
 

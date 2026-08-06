@@ -27,6 +27,8 @@ from build_gbc_eligible_roms import ELIGIBLE_GAMES
 
 
 KEY_A = 1 << 0
+KEY_B = 1 << 1
+KEY_SELECT = 1 << 2
 # mCore::setKeys uses the libmGBA key indices: Right=4, Left=5.
 KEY_RIGHT = 1 << 4
 KEY_LEFT = 1 << 5
@@ -39,6 +41,9 @@ TOKEN_KEYS = {
     "right": KEY_RIGHT,
     "action": KEY_A,
 }
+# Firmware cart-benchmark chord: publish loss telemetry if the run never won.
+KEY_FORCE_PUBLISH = KEY_B | KEY_SELECT
+FORCE_PUBLISH_RELEASE_FRAMES = 30
 
 BOOT_RELEASE_FRAMES = 10
 MENU_RELEASE_FRAMES = 9
@@ -169,6 +174,8 @@ def build_key_script(game_index: int, tokens: Sequence[str]) -> list[int]:
                 f"unsupported solution token: {raw_token!r}"
             ) from error
         press(key, SOLUTION_RELEASE_FRAMES)
+    # Always request a final publish so losses report turns instead of magic=0.
+    press(KEY_FORCE_PUBLISH, FORCE_PUBLISH_RELEASE_FRAMES)
     return keys
 
 

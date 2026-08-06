@@ -282,6 +282,7 @@ static uint32_t gCartBenchMaxTurnTicks;
 static uint32_t gCartBenchTurnLogicTicks;
 static uint32_t gCartBenchTurnRenderTicks;
 static bool gCartBenchTurnActive;
+static bool gCartBenchPublished;
 
 static void cartBenchWrite32(
     volatile uint8_t* destination,
@@ -311,6 +312,7 @@ static void cartBenchFinalizeTurn(void) {
 static void cartBenchPublish(bool won) {
     volatile uint8_t* destination;
     uint8_t byte;
+    if (gCartBenchPublished) return;
     ENABLE_RAM_MBC5;
     SWITCH_RAM_MBC5(CART_BENCH_SRAM_BANK);
     destination = (volatile uint8_t*)(
@@ -332,6 +334,7 @@ static void cartBenchPublish(bool won) {
     /* Commit marker last: all preceding fixed-width fields are now durable. */
     cartBenchWrite32(destination, 0U, CART_BENCH_MAGIC);
     DISABLE_RAM_MBC5;
+    gCartBenchPublished = true;
 }
 
 void cartBenchInitialize(uint16_t game_index) BANKED {
@@ -346,6 +349,7 @@ void cartBenchInitialize(uint16_t game_index) BANKED {
     gCartBenchTurnLogicTicks = 0U;
     gCartBenchTurnRenderTicks = 0U;
     gCartBenchTurnActive = false;
+    gCartBenchPublished = false;
     ENABLE_RAM_MBC5;
     SWITCH_RAM_MBC5(CART_BENCH_SRAM_BANK);
     request = (volatile uint8_t*)(
@@ -413,6 +417,10 @@ void cartBenchRender(void) BANKED {
 void cartBenchFinish(bool won) BANKED {
     cartBenchFinalizeTurn();
     cartBenchPublish(won);
+}
+
+bool cartBenchHasPublished(void) BANKED {
+    return gCartBenchPublished;
 }
 
 void cartBenchShutdown(void) BANKED {
