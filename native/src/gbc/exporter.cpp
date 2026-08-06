@@ -1849,6 +1849,12 @@ static const char* const kNamespacedSymbols[] = {
     "ps_gbc_board",
     "ps_gbc_game",
     "ps_gbc_resolve_movements",
+    /* Interpreter-only cart builds emit these from core.c; namespace them so
+     * multiple force-interpreter games can share one ROM without clashing. */
+    "ps_gbc_apply_turn_phases",
+    "ps_gbc_apply_early_rule_groups",
+    "ps_gbc_apply_late_rule_groups",
+    "ps_gbc_apply_rules_and_movement",
     "ps_gbc_generated_game",
     "ps_gbc_generated_descriptor",
     "ps_gbc_generated_render_objects",
