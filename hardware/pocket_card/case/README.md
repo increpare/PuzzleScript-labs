@@ -193,10 +193,12 @@ Constants: `params.CONN_4P_*` / `CONN_2P_*`. Spec:
 `docs/superpowers/specs/2026-07-31-pocket-card-skqg-rear-connectors-design.md`.
 
 Silk is punched clear of every pad/NPTH (+0.25 mm) so JLCPCB previews don't
-show ink on contacts. After a silk tweak on a routed board:
+show ink on contacts. `params.DECORATIVE_SILK` defaults to `False` (labels +
+KiCad refs only). Set it `True` to restore brick/rules/logo. After a silk
+tweak on the native routed board:
 
 ```
-python3 -c "import silk; print(silk.refresh_board_silk())"
+python3 -c "import silk; print(silk.refresh_board_silk('../electronics/pocket_card_controller.kicad_pcb'))"
 # then re-export gerbers (subtract-soldermask is on in pcbplotparams)
 ```
 

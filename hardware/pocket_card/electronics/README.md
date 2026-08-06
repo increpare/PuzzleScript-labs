@@ -56,6 +56,24 @@ passes.
 Returned copies in engineer handoff ZIPs cannot waive findings; check always
 uses this repository file.
 
+## Silkscreen
+
+Board silk defaults to **readable mode**: functional UI legends (POWER / MUTE /
+d-pad / connector pin names) plus visible KiCad `Reference` labels. Dense
+decorative art (brick wallpaper, rule corpus, brand/logo) is off by default.
+
+Restore decorative silk later by setting `DECORATIVE_SILK = True` in
+`../case/params.py`, then:
+
+```bash
+cd hardware/pocket_card/case && .venv/bin/python -c \
+  "import silk; print(silk.refresh_board_silk('../electronics/pocket_card_controller.kicad_pcb'))"
+```
+
+After toggling, regenerate silk DRC waiver digests in `validation_waivers.json`
+(and the matching `_EXPECTED_WARNING_POLICY` entries) so `make pocket_card_kicad`
+still passes.
+
 ## Engineer handoff
 
 Repeated ZIP exchange with an external engineer:
