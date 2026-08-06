@@ -8,9 +8,9 @@
 		(title "Pocket Card Controller")
 		(date "2026-08-05")
 		(rev "as-routed")
-		(comment 1 "Deterministically generated from schematic/connectivity.json")
-		(comment 2 "A4 landscape; local labels connect repeated net names")
-		(comment 3 "Canonical revision: as-routed-2026-08-05")
+		(comment 1 "Native KiCad project; repository scripts validate and export only")
+		(comment 2 "Existing local labels preserve the reviewed as-routed net names")
+		(comment 3 "Migration baseline: as-routed-2026-08-05")
 	)
 	(lib_symbols
 		(symbol "PocketCard:JST2"

@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "project": "pocket_card_controller",
+  "kicad": {
+    "major": 10,
+    "minimum": "10.0.4"
+  }
+}

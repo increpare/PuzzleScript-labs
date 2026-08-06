@@ -85,6 +85,7 @@
 	)
 	(footprint "SW_SPST_SKQG_WithStem"
 		(layer "F.Cu")
+		(locked yes)
 		(uuid "0e4c7620-48d6-4920-a112-21a3249bfba7")
 		(path "/0e4c7620-48d6-4920-a112-21a3249bfba7")
 		(at 19.7 59.8)
@@ -591,6 +592,7 @@
 	)
 	(footprint "SW_SPST_SKQG_WithStem"
 		(layer "F.Cu")
+		(locked yes)
 		(uuid "82a0ed80-77a0-40cf-a208-39cca4201c6b")
 		(path "/82a0ed80-77a0-40cf-a208-39cca4201c6b")
 		(at 39.6 85.4)
@@ -1097,6 +1099,7 @@
 	)
 	(footprint "SW_SPDT_PCM12"
 		(layer "F.Cu")
+		(locked yes)
 		(uuid "3e016402-85c6-43ed-a254-0f878d988740")
 		(path "/3e016402-85c6-43ed-a254-0f878d988740")
 		(at 58 87.65)
@@ -1524,6 +1527,7 @@
 	)
 	(footprint "SW_SPST_SKQG_WithStem"
 		(layer "F.Cu")
+		(locked yes)
 		(uuid "62cee17b-aa96-44b5-a818-d88c4d4bf07a")
 		(path "/62cee17b-aa96-44b5-a818-d88c4d4bf07a")
 		(at 10.7 68.8)
@@ -2030,6 +2034,7 @@
 	)
 	(footprint "SW_SPST_SKQG_WithStem"
 		(layer "F.Cu")
+		(locked yes)
 		(uuid "54709c66-66ed-4fc3-bb15-0ec33ecd272f")
 		(path "/54709c66-66ed-4fc3-bb15-0ec33ecd272f")
 		(at 60.4 65.8)
@@ -2536,6 +2541,7 @@
 	)
 	(footprint "SW_SPST_SKQG_WithStem"
 		(layer "F.Cu")
+		(locked yes)
 		(uuid "2d954156-91bb-4370-a6cb-35be5c7ff576")
 		(path "/2d954156-91bb-4370-a6cb-35be5c7ff576")
 		(at 77.1 61.1)
@@ -3042,6 +3048,7 @@
 	)
 	(footprint "SW_SPST_SKQG_WithStem"
 		(layer "F.Cu")
+		(locked yes)
 		(uuid "a1ddb411-d507-48b9-af26-f860c81613ad")
 		(path "/a1ddb411-d507-48b9-af26-f860c81613ad")
 		(at 28.7 68.8)
@@ -3548,6 +3555,7 @@
 	)
 	(footprint "SW_SPST_SKQG_WithStem"
 		(layer "F.Cu")
+		(locked yes)
 		(uuid "366484ad-06ff-4a23-ab3f-f69d88ea88ca")
 		(path "/366484ad-06ff-4a23-ab3f-f69d88ea88ca")
 		(at 56.5 80)
@@ -4054,6 +4062,7 @@
 	)
 	(footprint "SW_SPDT_PCM12"
 		(layer "F.Cu")
+		(locked yes)
 		(uuid "6ef5c169-59a4-41dd-a19c-3daf87f107fd")
 		(path "/6ef5c169-59a4-41dd-a19c-3daf87f107fd")
 		(at 20 87.65)
@@ -4983,6 +4992,7 @@
 	)
 	(footprint "SW_SPST_SKQG_WithStem"
 		(layer "F.Cu")
+		(locked yes)
 		(uuid "5abed186-9cb3-4286-abbb-e9d8339a14ad")
 		(path "/5abed186-9cb3-4286-abbb-e9d8339a14ad")
 		(at 19.7 77.8)
@@ -5489,6 +5499,7 @@
 	)
 	(footprint "MountingHole_2.7mm_M2.5"
 		(layer "F.Cu")
+		(locked yes)
 		(uuid "3dd44c71-4aac-49f5-81ec-108b40379bb0")
 		(path "/3dd44c71-4aac-49f5-81ec-108b40379bb0")
 		(at 64.5 56)
@@ -5598,6 +5609,7 @@
 	)
 	(footprint "MountingHole_2.7mm_M2.5"
 		(layer "F.Cu")
+		(locked yes)
 		(uuid "023c2f5f-b5bd-4271-830c-e37e2934b255")
 		(path "/023c2f5f-b5bd-4271-830c-e37e2934b255")
 		(at 66 84)
@@ -5707,6 +5719,7 @@
 	)
 	(footprint "JST_GH_SM02B-GHS-TB_1x02-1MP_P1.25mm_Horizontal"
 		(layer "B.Cu")
+		(locked yes)
 		(uuid "9b63372c-f11f-42f2-b30e-7cc0cd058c1f")
 		(path "/9b63372c-f11f-42f2-b30e-7cc0cd058c1f")
 		(at 63 76)
@@ -6110,6 +6123,7 @@
 	)
 	(footprint "JST_GH_SM04B-GHS-TB_1x04-1MP_P1.25mm_Horizontal"
 		(layer "B.Cu")
+		(locked yes)
 		(uuid "8448c040-e282-4175-89bf-5bdbe34ce139")
 		(path "/8448c040-e282-4175-89bf-5bdbe34ce139")
 		(at 63 63)
@@ -6529,6 +6543,7 @@
 	)
 	(footprint "JST_GH_SM02B-GHS-TB_1x02-1MP_P1.25mm_Horizontal"
 		(layer "B.Cu")
+		(locked yes)
 		(uuid "57d0226d-8795-4ef7-a0c1-66e4f791f8c0")
 		(path "/57d0226d-8795-4ef7-a0c1-66e4f791f8c0")
 		(at 72.3 58.5)
@@ -6932,6 +6947,7 @@
 	)
 	(footprint "JST_GH_SM04B-GHS-TB_1x04-1MP_P1.25mm_Horizontal"
 		(layer "B.Cu")
+		(locked yes)
 		(uuid "46493532-cedd-425e-a83b-150b6baf58c7")
 		(path "/46493532-cedd-425e-a83b-150b6baf58c7")
 		(at 78 65.6)
@@ -278879,6 +278895,7 @@
 			(type default)
 		)
 		(layer "Edge.Cuts")
+		(locked yes)
 		(uuid "a60a1a0f-19b2-4697-9481-0ebaa2ebc40f")
 	)
 	(gr_line
@@ -278889,6 +278906,7 @@
 			(type default)
 		)
 		(layer "Edge.Cuts")
+		(locked yes)
 		(uuid "3b281b82-cc95-4a9d-bc43-437901e615ed")
 	)
 	(gr_line
@@ -278899,6 +278917,7 @@
 			(type default)
 		)
 		(layer "Edge.Cuts")
+		(locked yes)
 		(uuid "3f449aef-fdc1-4615-a520-6368043af521")
 	)
 	(gr_arc
@@ -278910,6 +278929,7 @@
 			(type default)
 		)
 		(layer "Edge.Cuts")
+		(locked yes)
 		(uuid "ce46cae0-9e38-4ee7-b250-66ff67b9ac17")
 	)
 	(gr_line
@@ -278920,6 +278940,7 @@
 			(type default)
 		)
 		(layer "Edge.Cuts")
+		(locked yes)
 		(uuid "996203c1-225b-47b8-82c5-6aa139b073af")
 	)
 	(gr_arc
@@ -278931,6 +278952,7 @@
 			(type default)
 		)
 		(layer "Edge.Cuts")
+		(locked yes)
 		(uuid "59daffc1-23b3-4501-aa21-63f314896f3c")
 	)
 	(gr_line
@@ -278941,6 +278963,7 @@
 			(type default)
 		)
 		(layer "Edge.Cuts")
+		(locked yes)
 		(uuid "0be01694-f84d-4b96-8824-2112c88a0e75")
 	)
 	(gr_arc
@@ -278952,6 +278975,7 @@
 			(type default)
 		)
 		(layer "Edge.Cuts")
+		(locked yes)
 		(uuid "f2eea66b-fdc1-4c16-8dd4-a92a6d23b41f")
 	)
 	(gr_line
@@ -278962,6 +278986,7 @@
 			(type default)
 		)
 		(layer "Edge.Cuts")
+		(locked yes)
 		(uuid "9252b14d-a5de-4a1a-9420-e2ce91bbe713")
 	)
 	(gr_line
@@ -278972,6 +278997,7 @@
 			(type default)
 		)
 		(layer "Edge.Cuts")
+		(locked yes)
 		(uuid "bc6bbfd3-5bf0-41f5-b146-1ea8d733ec06")
 	)
 	(segment
@@ -279720,11 +279746,19 @@
 	)
 	(segment
 		(start 63.625 74.15)
+		(end 67.5 68)
+		(width 0.2)
+		(layer "B.Cu")
+		(net "GND")
+		(uuid "2c3c35a9-2e18-43dc-a6c3-35eff62b28fa")
+	)
+	(segment
+		(start 67.5 68)
 		(end 70.825 66.95)
 		(width 0.2)
 		(layer "B.Cu")
 		(net "GND")
-		(uuid "3bb44a83-ff96-4855-abff-4ba62d083478")
+		(uuid "4b0a6a18-6675-4662-9c3b-13c98f73e4d1")
 	)
 	(segment
 		(start 76.6949 61.7699)

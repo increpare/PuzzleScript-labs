@@ -1,0 +1,261 @@
+{
+  "schemaVersion": 1,
+  "board": {
+    "thicknessMm": 1.6,
+    "thicknessToleranceMm": 0.01
+  },
+  "outline": {
+    "coordinateToleranceMm": 0.01,
+    "primitives": [
+      {
+        "kind": "line",
+        "points": [[4.5, 53.0], [81.0, 53.0]]
+      },
+      {
+        "kind": "line",
+        "points": [[83.0, 55.0], [83.0, 69.0]]
+      },
+      {
+        "kind": "line",
+        "points": [[2.5, 55.0], [2.5, 76.0]]
+      },
+      {
+        "kind": "line",
+        "points": [[16.5, 90.0], [68.2, 90.0]]
+      },
+      {
+        "kind": "line",
+        "points": [[68.2, 71.0], [68.2, 90.0]]
+      },
+      {
+        "kind": "line",
+        "points": [[70.2, 69.0], [83.0, 69.0]]
+      },
+      {
+        "kind": "arc",
+        "points": [[2.5, 55.0], [3.085786, 53.585786], [4.5, 53.0]]
+      },
+      {
+        "kind": "arc",
+        "points": [[16.5, 90.0], [6.600505, 85.899495], [2.5, 76.0]]
+      },
+      {
+        "kind": "arc",
+        "points": [[68.2, 71.0], [68.785786, 69.585786], [70.2, 69.0]]
+      },
+      {
+        "kind": "arc",
+        "points": [[81.0, 53.0], [82.414214, 53.585786], [83.0, 55.0]]
+      }
+    ]
+  },
+  "features": [
+    {
+      "ref": "H1",
+      "xMm": 64.5,
+      "yMm": 56.0,
+      "rotationDeg": 0.0,
+      "side": "F.Cu",
+      "xyToleranceMm": 0.05,
+      "rotationToleranceDeg": 0.1,
+      "lockedRequired": true,
+      "rationale": "Rear enclosure mounting pin and shoulder interface."
+    },
+    {
+      "ref": "H2",
+      "xMm": 66.0,
+      "yMm": 84.0,
+      "rotationDeg": 0.0,
+      "side": "F.Cu",
+      "xyToleranceMm": 0.05,
+      "rotationToleranceDeg": 0.1,
+      "lockedRequired": true,
+      "rationale": "Rear enclosure mounting pin and shoulder interface."
+    },
+    {
+      "ref": "SW_UP1",
+      "xMm": 19.7,
+      "yMm": 59.8,
+      "rotationDeg": 0.0,
+      "side": "F.Cu",
+      "xyToleranceMm": 0.05,
+      "rotationToleranceDeg": 0.1,
+      "lockedRequired": true,
+      "rationale": "Up button must remain concentric with its enclosure guide."
+    },
+    {
+      "ref": "SW_DOWN1",
+      "xMm": 19.7,
+      "yMm": 77.8,
+      "rotationDeg": 0.0,
+      "side": "F.Cu",
+      "xyToleranceMm": 0.05,
+      "rotationToleranceDeg": 0.1,
+      "lockedRequired": true,
+      "rationale": "Down button must remain concentric with its enclosure guide."
+    },
+    {
+      "ref": "SW_LEFT1",
+      "xMm": 10.7,
+      "yMm": 68.8,
+      "rotationDeg": 0.0,
+      "side": "F.Cu",
+      "xyToleranceMm": 0.05,
+      "rotationToleranceDeg": 0.1,
+      "lockedRequired": true,
+      "rationale": "Left button must remain concentric with its enclosure guide."
+    },
+    {
+      "ref": "SW_RIGHT1",
+      "xMm": 28.7,
+      "yMm": 68.8,
+      "rotationDeg": 0.0,
+      "side": "F.Cu",
+      "xyToleranceMm": 0.05,
+      "rotationToleranceDeg": 0.1,
+      "lockedRequired": true,
+      "rationale": "Right button must remain concentric with its enclosure guide."
+    },
+    {
+      "ref": "SW_UNDO1",
+      "xMm": 60.4,
+      "yMm": 65.8,
+      "rotationDeg": 0.0,
+      "side": "F.Cu",
+      "xyToleranceMm": 0.05,
+      "rotationToleranceDeg": 0.1,
+      "lockedRequired": true,
+      "rationale": "Undo button must remain concentric with its enclosure guide."
+    },
+    {
+      "ref": "SW_ACTION1",
+      "xMm": 77.1,
+      "yMm": 61.1,
+      "rotationDeg": 0.0,
+      "side": "F.Cu",
+      "xyToleranceMm": 0.05,
+      "rotationToleranceDeg": 0.1,
+      "lockedRequired": true,
+      "rationale": "Action button must remain concentric with its enclosure guide."
+    },
+    {
+      "ref": "SW_RESET1",
+      "xMm": 56.5,
+      "yMm": 80.0,
+      "rotationDeg": 0.0,
+      "side": "F.Cu",
+      "xyToleranceMm": 0.05,
+      "rotationToleranceDeg": 0.1,
+      "lockedRequired": true,
+      "rationale": "Reset button must remain concentric with its enclosure guide."
+    },
+    {
+      "ref": "SW_MENU1",
+      "xMm": 39.6,
+      "yMm": 85.4,
+      "rotationDeg": 0.0,
+      "side": "F.Cu",
+      "xyToleranceMm": 0.05,
+      "rotationToleranceDeg": 0.1,
+      "lockedRequired": true,
+      "rationale": "Menu button must remain aligned with its pill-shaped enclosure guide."
+    },
+    {
+      "ref": "SW_PWR1",
+      "xMm": 20.0,
+      "yMm": 87.65,
+      "rotationDeg": 0.0,
+      "side": "F.Cu",
+      "xyToleranceMm": 0.05,
+      "rotationToleranceDeg": 0.1,
+      "lockedRequired": true,
+      "rationale": "Power switch actuator must remain aligned with the enclosure slide tip."
+    },
+    {
+      "ref": "SW_MUTE1",
+      "xMm": 58.0,
+      "yMm": 87.65,
+      "rotationDeg": 0.0,
+      "side": "F.Cu",
+      "xyToleranceMm": 0.05,
+      "rotationToleranceDeg": 0.1,
+      "lockedRequired": true,
+      "rationale": "Mute switch actuator must remain aligned with the enclosure slide tip."
+    },
+    {
+      "ref": "J_I2C1",
+      "xMm": 63.0,
+      "yMm": 63.0,
+      "rotationDeg": 0.0,
+      "side": "B.Cu",
+      "xyToleranceMm": 0.05,
+      "rotationToleranceDeg": 0.1,
+      "lockedRequired": true,
+      "rationale": "I2C connector must remain in the rear wiring pocket."
+    },
+    {
+      "ref": "J_EXP1",
+      "xMm": 78.0,
+      "yMm": 65.6,
+      "rotationDeg": 0.0,
+      "side": "B.Cu",
+      "xyToleranceMm": 0.05,
+      "rotationToleranceDeg": 0.1,
+      "lockedRequired": true,
+      "rationale": "Expansion connector must remain in the rear wiring pocket and clear the PCB notch."
+    },
+    {
+      "ref": "J_BAT_IN1",
+      "xMm": 63.0,
+      "yMm": 76.0,
+      "rotationDeg": 0.0,
+      "side": "B.Cu",
+      "xyToleranceMm": 0.05,
+      "rotationToleranceDeg": 0.1,
+      "lockedRequired": true,
+      "rationale": "Battery input connector must remain beside the cell pocket."
+    },
+    {
+      "ref": "J_BAT_OUT1",
+      "xMm": 72.3,
+      "yMm": 58.5,
+      "rotationDeg": 0.0,
+      "side": "B.Cu",
+      "xyToleranceMm": 0.05,
+      "rotationToleranceDeg": 0.1,
+      "lockedRequired": true,
+      "rationale": "Module battery output connector must remain in the north rear wiring band."
+    }
+  ],
+  "keepouts": [
+    {
+      "name": "battery",
+      "kind": "rectangle",
+      "side": "B.Cu",
+      "xMinMm": 8.4,
+      "yMinMm": 54.4,
+      "xMaxMm": 59.6,
+      "yMaxMm": 89.6,
+      "boundaryTouchIsIntrusion": false,
+      "derivation": {
+        "source": "hardware/pocket_card/case/params.py",
+        "xMin": "BATT_X - BATT_CLEAR",
+        "yMin": "BATT_Y - BATT_CLEAR",
+        "xMax": "BATT_X + CELL_W + BATT_CLEAR",
+        "yMax": "BATT_Y + CELL_H + BATT_CLEAR"
+      },
+      "allowedOverlaps": {
+        "J_BAT_IN1": {
+          "rationale": "Reviewed baseline: the connector courtyard enters the cell fence envelope by 0.08 mm while the established mechanical stack remains acceptable.",
+          "courtyardBboxMm": [59.52, 72.8, 66.48, 79.2],
+          "intersectionBboxMm": [59.52, 72.8, 59.6, 79.2]
+        },
+        "J_I2C1": {
+          "rationale": "Reviewed baseline: the connector courtyard enters the cell fence envelope by 1.33 mm; any increase requires renewed mechanical review.",
+          "courtyardBboxMm": [58.27, 59.8, 67.73, 66.2],
+          "intersectionBboxMm": [58.27, 59.8, 59.6, 66.2]
+        }
+      }
+    }
+  ]
+}
