@@ -273,6 +273,7 @@ void perfMeasureInteraction(perf_interaction* result) BANKED {
 
 #if defined(PS_GBC_CART_BENCHMARK)
 static uint16_t gCartBenchGameIndex;
+static uint16_t gCartBenchTargetBoard;
 static uint32_t gCartBenchUserTurns;
 static uint32_t gCartBenchRedraws;
 static uint32_t gCartBenchLogicTicks;
@@ -335,6 +336,7 @@ static void cartBenchPublish(bool won) {
 
 void cartBenchInitialize(uint16_t game_index) BANKED {
     volatile uint8_t* destination;
+    volatile uint8_t* request;
     gCartBenchGameIndex = game_index;
     gCartBenchUserTurns = 0U;
     gCartBenchRedraws = 0U;
@@ -346,6 +348,13 @@ void cartBenchInitialize(uint16_t game_index) BANKED {
     gCartBenchTurnActive = false;
     ENABLE_RAM_MBC5;
     SWITCH_RAM_MBC5(CART_BENCH_SRAM_BANK);
+    request = (volatile uint8_t*)(
+        0xa000U + CART_BENCH_REQUEST_OFFSET);
+    gCartBenchTargetBoard = (uint16_t)(
+        (uint16_t)request[0U] | ((uint16_t)request[1U] << 8U));
+    if (gCartBenchTargetBoard == 0xffffU) {
+        gCartBenchTargetBoard = 0U;
+    }
     destination = (volatile uint8_t*)(
         0xa000U + CART_BENCH_SRAM_OFFSET);
     /* An interrupted boot must never leave an earlier valid record. */
@@ -357,6 +366,7 @@ void cartBenchInitialize(uint16_t game_index) BANKED {
 bool cartBenchLoadFirstBoard(void) BANKED {
     const ps_gbc_game_view* game = ps_gbc_active_game_view();
     uint16_t level_index;
+    uint16_t board_ordinal = 0U;
     ps_gbc_level level;
     if (game == NULL) return false;
     for (level_index = 0U;
@@ -367,7 +377,10 @@ bool cartBenchLoadFirstBoard(void) BANKED {
                 &level,
                 sizeof(level))
             && level.kind == PS_GBC_LEVEL_BOARD) {
-            return psd_load_level(gSession, level_index);
+            if (board_ordinal == gCartBenchTargetBoard) {
+                return psd_load_level(gSession, level_index);
+            }
+            ++board_ordinal;
         }
     }
     return false;

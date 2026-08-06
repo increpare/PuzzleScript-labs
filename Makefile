@@ -551,7 +551,7 @@ help:
 	@echo "                                     (cull oversized levels by default; GBC_CULL=0 to disable)"
 	@echo "  make solution_cache_tests          Replay cached host_known_good solutions (C++ + host GBC)"
 	@echo "  make solution_cache_tests_thorough Replay full js_valid cache (C++ hard, host quarantine)"
-	@echo "  make gbc_cart_solution_cache_tests Cart/libmGBA replay of cached board-0 solutions"
+	@echo "  make gbc_cart_solution_cache_tests Cart/libmGBA replay of every cached board"
 	@echo "  make refresh_eligible_solution_cache  Reclassify/fill checked-in solution cache"
 	@echo "  make handheld_memory_audit         Measure per-game native peak RSS for handheld Track 0"
 	@echo "  make handheld_blockout_tests       Run card blockout + PCB mechanical export tests"

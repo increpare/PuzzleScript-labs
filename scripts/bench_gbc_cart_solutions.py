@@ -49,12 +49,26 @@ CART_BENCH_MAGIC = 0x42424350
 CART_BENCH_VERSION = 1
 CART_BENCH_SRAM_BANK = 3
 CART_BENCH_SRAM_OFFSET = 512
+CART_BENCH_RECORD_BYTES = 32
+CART_BENCH_REQUEST_OFFSET = CART_BENCH_SRAM_OFFSET + CART_BENCH_RECORD_BYTES
 SRAM_BANK_BYTES = 8 * 1024
+SRAM_TOTAL_BYTES = 4 * SRAM_BANK_BYTES
 # The final three padding bytes make the on-SRAM ABI exactly 32 bytes without
 # relying on the C compiler's struct packing.
 CART_BENCH_RECORD = struct.Struct("<IHHIIIIIB3x")
 REPORT_FORMAT = "puzzlescript-gbc-cart-solution-bench-v1"
 TIMING_SOURCE = "cgb_4096hz_timer_via_libmgba"
+
+
+def write_cart_bench_board_request(save_path: Path, board_index: int) -> None:
+    """Pre-seed SRAM so cartBenchLoadFirstBoard loads the Nth retained board."""
+    if board_index < 0 or board_index > 0xFFFE:
+        raise ValueError(f"board_index out of range: {board_index}")
+    data = bytearray(SRAM_TOTAL_BYTES)
+    offset = CART_BENCH_SRAM_BANK * SRAM_BANK_BYTES + CART_BENCH_REQUEST_OFFSET
+    data[offset] = board_index & 0xFF
+    data[offset + 1] = (board_index >> 8) & 0xFF
+    save_path.write_bytes(data)
 
 
 @dataclass(frozen=True)
@@ -367,6 +381,7 @@ def run_game(
     game_index: int,
     tokens: Sequence[str],
     maximum_warnings: int | None,
+    board_index: int = 0,
 ) -> tuple[CartBenchTelemetry, float, int]:
     keys = build_key_script(game_index, tokens)
     key_array = (ctypes.c_uint32 * len(keys))(*keys)
@@ -377,6 +392,7 @@ def run_game(
         local_rom = directory / "benchmark.gb"
         save = directory / "benchmark.sav"
         shutil.copy2(rom, local_rom)
+        write_cart_bench_board_request(save, board_index)
         capacity = 1 << 20
         sram = (ctypes.c_ubyte * capacity)()
         sram_size = ctypes.c_uint(0)

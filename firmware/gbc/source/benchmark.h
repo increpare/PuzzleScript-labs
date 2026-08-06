@@ -23,6 +23,9 @@ extern bool gPerfRenderEnabled;
 #define CART_BENCH_SRAM_BANK 3U
 #define CART_BENCH_SRAM_OFFSET 512U
 #define CART_BENCH_RECORD_BYTES 32U
+/* Host pre-seeds this uint16 little-endian before boot to select board ordinal. */
+#define CART_BENCH_REQUEST_OFFSET (CART_BENCH_SRAM_OFFSET + CART_BENCH_RECORD_BYTES)
+#define CART_BENCH_REQUEST_BYTES 2U
 
 #if defined(PS_GBC_PERF_BENCH)
 typedef struct perf_render_sample {

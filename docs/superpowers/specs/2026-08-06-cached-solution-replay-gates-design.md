@@ -122,11 +122,10 @@ In addition to the default gate:
    - `js_valid` only (known host gap) → run and report, but do **not** fail the
      thorough gate until promoted (fixing those gaps is out of scope here)
 3. Build one multi-game benchmark cart (existing cart builder)
-4. Replay each game’s cached **board 0** under libmGBA (one cart build, many
-   emulated replays — not a rebuild per level). The cart benchmark firmware
-   finalizes on the first win, so multi-board cart replay is deferred; full
-   multi-board coverage is owned by the host GBC + C++ runners. Hard fail if a
-   board-0 cart replay does not win.
+4. Replay **every** cached board under libmGBA (one cart build, one emulated
+   run per cached board). The host pre-seeds a board-ordinal request in SRAM;
+   the cart benchmark firmware loads that retained board and finalizes on win.
+   Hard fail if any cached board replay does not win.
 
 Wiring:
 
@@ -187,6 +186,6 @@ Seed from the 2026-08-06 verified fixtures where possible:
   by `host_known_good` for the fast gate
 - Cache all JS-valid solutions; split via tags/manifests
 - Same cache used for C++ and GBC
-- Thorough cart replays each game’s cached board 0 after one cart build
-  (firmware finalizes on first win; multi-board remains host/C++)
+- Thorough cart replays every cached board after one cart build (per-board
+  SRAM board-ordinal request + one libmGBA run each)
 - Approach: checked-in corpus + thin runners (not generate-on-first-run)

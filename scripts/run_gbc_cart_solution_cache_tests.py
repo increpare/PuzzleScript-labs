@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Thorough cart/libmGBA replay of cached board-0 solutions.
+"""Thorough cart/libmGBA replay of every cached eligible board.
 
-The cart benchmark firmware finalizes telemetry on the first win, so this gate
-replays board 0 for each game that has a cached board-0 solution. Multi-board
-coverage is owned by the host GBC + C++ cache runners.
+Builds one benchmark cart, then for each cached (game, board_index) entry
+pre-seeds the target board ordinal in SRAM and replays that board's solution.
 """
 
 from __future__ import annotations
@@ -11,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
@@ -41,26 +41,29 @@ def main() -> int:
         default=Path("build/gbc/cart-solution-cache"),
     )
     parser.add_argument("--reuse-cart", action="store_true")
-    parser.add_argument("--limit", type=int)
+    parser.add_argument("--limit", type=int, help="limit games in the cart")
     parser.add_argument("--mgba-prefix", type=Path)
+    parser.add_argument("--slug", action="append", default=[])
     args = parser.parse_args()
 
     repository = args.repository.resolve()
     root = sc.cache_root(repository, args.cache_root)
     manifest = sc.load_manifest(sc.manifest_path(root))
     entries = list(manifest.get("entries") or [])
-    board0_by_slug: dict[str, dict[str, Any]] = {}
+    by_slug: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for entry in entries:
         errors = sc.validate_entry_against_source(repository, entry)
         if errors:
             print("FAIL manifest:", *errors, sep="\n  ")
             return 1
-        if int(entry["board_index"]) == 0:
-            board0_by_slug[str(entry["slug"])] = entry
+        by_slug[str(entry["slug"])].append(entry)
 
     games = list(ELIGIBLE_GAMES)
     if args.limit is not None:
         games = games[: args.limit]
+    if args.slug:
+        wanted = set(args.slug)
+        games = [item for item in games if item[0] in wanted]
 
     compiler = (
         args.compiler.resolve()
@@ -113,37 +116,40 @@ def main() -> int:
     failures = 0
     checked = 0
     for index, (slug, _source_relative) in enumerate(games):
-        entry = board0_by_slug.get(slug)
-        if entry is None:
-            print(f"[{index + 1}/{len(games)}] {slug}: SKIP no board-0 cache")
+        group = sorted(
+            by_slug.get(slug, []),
+            key=lambda item: int(item["board_index"]),
+        )
+        if not group:
+            print(f"[{index + 1}/{len(games)}] {slug}: SKIP no cached boards")
             continue
-        tokens = sc.read_tokens(repository / str(entry["solution_path"]))
         print(
-            f"[{index + 1}/{len(games)}] {slug}: board=0 turns={len(tokens)}",
+            f"[{index + 1}/{len(games)}] {slug}: {len(group)} cached board(s)",
             flush=True,
         )
-        try:
-            telemetry, _elapsed, warning_count = run_game(
-                handle=handle,
-                rom=rom,
-                game_index=index,
-                tokens=tokens,
-                maximum_warnings=None,
-            )
-            if not telemetry.won:
-                raise RuntimeError("cart replay did not win")
-            if int(telemetry.user_turns) != len(tokens):
-                # Soft check: some paths may coalesce; require win above.
-                pass
-            checked += 1
-            print(
-                f"  ok user_turns={telemetry.user_turns} "
-                f"warnings={warning_count}",
-                flush=True,
-            )
-        except Exception as exc:  # noqa: BLE001
-            failures += 1
-            print(f"  FAIL {exc}", flush=True)
+        for entry in group:
+            board_index = int(entry["board_index"])
+            tokens = sc.read_tokens(repository / str(entry["solution_path"]))
+            try:
+                telemetry, _elapsed, warning_count = run_game(
+                    handle=handle,
+                    rom=rom,
+                    game_index=index,
+                    tokens=tokens,
+                    maximum_warnings=None,
+                    board_index=board_index,
+                )
+                if not telemetry.won:
+                    raise RuntimeError("cart replay did not win")
+                checked += 1
+                print(
+                    f"  ok board={board_index} turns={telemetry.user_turns} "
+                    f"warnings={warning_count}",
+                    flush=True,
+                )
+            except Exception as exc:  # noqa: BLE001
+                failures += 1
+                print(f"  FAIL board={board_index}: {exc}", flush=True)
 
     print(
         f"gbc_cart_solution_cache_tests: checked={checked} failures={failures}",
