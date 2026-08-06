@@ -245,6 +245,8 @@ BATT_CLEAR     = 0.6               # ASSUMED  fence clearance around the cell
 # x=7.2 and overhung the old edge.
 PCB_X, PCB_Y   = 2.5, 53.0
 PCB_W, PCB_H   = 80.5, 37.0
+# False = readable silk (UI legends + KiCad refs). True restores brick/rules/logo.
+DECORATIVE_SILK = False
 
 # Edge switches, on the bottom rail of the controller PCB
 # PCB mounting screws. Both must land on actual board material -- the driver

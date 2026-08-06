@@ -355,6 +355,13 @@ def build_front(corpus=None, grid=None) -> Tuple[Side, RuleStream]:
     grid = grid if grid is not None else load_mascot()
     stream = RuleStream(corpus)
 
+    labels = Layer()
+    dir_labels(labels)
+    slide_labels(labels)
+
+    if not getattr(P, "DECORATIVE_SILK", True):
+        return Side(layers=[labels], rule_count=0), stream
+
     # Keep ALL rules — HTML paints them then covers with higher-layer masks.
     # Dropping intersections was deleting whole stretches of columns.
     rules = Layer()
@@ -363,10 +370,6 @@ def build_front(corpus=None, grid=None) -> Tuple[Side, RuleStream]:
     logo = Layer()
     brand_block(logo, 23.5, 1.2, 0.55, grid, "PuzzlePocket", "PuzzleScript", 2.1, 1.25)
     sprite_logo(logo)
-
-    labels = Layer()
-    dir_labels(labels)
-    slide_labels(labels)
 
     side = Side(layers=[rules, logo, labels], rule_count=len(rules.texts))
     return side, stream
@@ -377,18 +380,21 @@ def build_back(corpus=None, grid=None, start: int = 0) -> Side:
     grid = grid if grid is not None else load_mascot()
     stream = RuleStream(corpus, start=start)
 
-    rules = Layer()
-    columns_fill(rules, 2.6, 2.4, 79.2, 36.3, stream, 3, 0.55)
-
-    logo = Layer()
-    brand_block(logo, 8.0, 3.2, 0.88, grid, "PuzzlePocket", "PuzzleScript", 2.8, 1.55)
-
     labels = Layer()
     io_block(labels, *conn_anchor(P.CONN_I2C), ["3V3", "GND", "SCL", "SDA"], "J_I2C1")
     io_block(labels, *conn_anchor(P.CONN_EXP), ["INT", "NC", "NC", "NC"], "J_EXP1")
     io_block(labels, *conn_anchor(P.CONN_BAT_IN), ["BAT+", "GND"], "J_BAT_IN1")
     io_block(labels, *conn_anchor(P.CONN_BAT_OUT), ["BAT_SW", "GND"], "J_BAT_OUT1",
              below=True)
+
+    if not getattr(P, "DECORATIVE_SILK", True):
+        return Side(layers=[labels], rule_count=0)
+
+    rules = Layer()
+    columns_fill(rules, 2.6, 2.4, 79.2, 36.3, stream, 3, 0.55)
+
+    logo = Layer()
+    brand_block(logo, 8.0, 3.2, 0.88, grid, "PuzzlePocket", "PuzzleScript", 2.8, 1.55)
 
     return Side(layers=[rules, logo, labels], rule_count=len(rules.texts))
 

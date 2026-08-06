@@ -269,11 +269,12 @@ def rasterize_side(side: L.Side, mirror_glyphs: bool = False) -> Image.Image:
     draw = ImageDraw.Draw(im)
 
     # L0 — full brick wallpaper; higher layers carve clean FR4 then draw ink
-    for x0, y0, x1, y1 in L.brick_rects_full():
-        draw.rectangle(
-            [x0 / PX_MM, y0 / PX_MM, x1 / PX_MM - 1e-6, y1 / PX_MM - 1e-6],
-            fill=255,
-        )
+    if getattr(P, "DECORATIVE_SILK", True):
+        for x0, y0, x1, y1 in L.brick_rects_full():
+            draw.rectangle(
+                [x0 / PX_MM, y0 / PX_MM, x1 / PX_MM - 1e-6, y1 / PX_MM - 1e-6],
+                fill=255,
+            )
 
     for layer in side.layers:
         masks = list(layer.masks)
@@ -413,6 +414,32 @@ def silk_sexpr() -> str:
     )
 
 
+def _sync_reference_visibility(text: str, *, hide: bool) -> str:
+    """Show or hide footprint Reference legends to match decorative silk mode."""
+    import re
+
+    pattern = re.compile(
+        r'(\t\t\(property "Reference" [^\n]*\n'
+        r'(?:\t\t\t.*\n)*?'
+        r'\t\t\))'
+    )
+
+    def replacer(match: re.Match[str]) -> str:
+        block = match.group(1)
+        if hide:
+            if "(hide yes)" in block:
+                return block
+            return re.sub(
+                r'(\t\t\t\(layer "[^"]+"\)\n)',
+                r"\1\t\t\t(hide yes)\n",
+                block,
+                count=1,
+            )
+        return re.sub(r"\n\t\t\t\(hide yes\)", "", block)
+
+    return pattern.sub(replacer, text)
+
+
 def refresh_board_silk(board_path=None) -> str:
     """Replace top-level F/B silk gr_rects in an existing board (keeps copper)."""
     import re
@@ -434,6 +461,9 @@ def refresh_board_silk(board_path=None) -> str:
     else:
         cut = stripped.rstrip().rfind("\n)")
         out = stripped[:cut] + "\n" + silk_txt + stripped[cut:]
+    out = _sync_reference_visibility(
+        out, hide=bool(getattr(P, "DECORATIVE_SILK", True))
+    )
     open(path, "w", encoding="utf-8").write(out)
     return "refreshed %s silk gr_rects (removed %d)" % (path, n)
 
