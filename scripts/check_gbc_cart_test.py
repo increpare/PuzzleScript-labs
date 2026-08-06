@@ -3,15 +3,103 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
+import json
 import tempfile
 from pathlib import Path
 
 import check_gbc_cart
 
 
+COMPACT_FACADE_SUFFIXES = (
+    "ps_gbc_facade_get_movements",
+    "ps_gbc_facade_set_movements",
+    "ps_gbc_facade_get_objects",
+    "ps_gbc_facade_cell_has_all",
+    "ps_gbc_facade_set_objects",
+    "ps_gbc_facade_cell_has_any",
+    "ps_gbc_facade_cell_count",
+    "ps_gbc_facade_mark_dirty",
+)
+SHARING_CHECK_LABELS = (
+    "compact facade aliases",
+    "compact facade same-bank capacity",
+    "compact facade duplicate omission",
+    "compact facade sharing metadata",
+)
+
+
 def write_object(path: Path, text: str) -> Path:
     path.write_text(text, encoding="utf-8")
     return path
+
+
+def compact_facade_owner_text(
+    bank: int,
+    *,
+    missing_alias: str | None = None,
+    wrong_alias: str | None = None,
+    definitions_in_home: bool = False,
+    address_overrides: dict[str, int] | None = None,
+) -> str:
+    address_overrides = (
+        {} if address_overrides is None else address_overrides
+    )
+    definitions = [
+        *(
+            f"S _g21_{suffix} Def"
+            f"{address_overrides.get(suffix, address):08X}"
+            for address, suffix in enumerate(
+                COMPACT_FACADE_SUFFIXES,
+                start=1,
+            )
+        ),
+        *(
+            f"S _g31_{suffix} Def"
+            f"{address_overrides.get(suffix, address) + (
+                1 if suffix == wrong_alias else 0
+            ):08X}"
+            for address, suffix in enumerate(
+                COMPACT_FACADE_SUFFIXES,
+                start=1,
+            )
+            if suffix != missing_alias
+        ),
+    ]
+    definition_area = (
+        "A _HOME size 0 flags 0 addr 0\n"
+        if definitions_in_home
+        else f"A _CODE_{bank} size 15D flags 0 addr 0\n"
+    )
+    trailing_code_area = (
+        f"A _CODE_{bank} size 15D flags 0 addr 0\n"
+        if definitions_in_home
+        else ""
+    )
+    return (
+        "XL4\n"
+        f"H {2 if definitions_in_home else 1:X} areas "
+        f"{len(definitions):X} global symbols\n"
+        "M generated_compact_facade\n"
+        f"{definition_area}"
+        + "\n".join(definitions)
+        + "\n"
+        f"{trailing_code_area}"
+        "T 00 00 00 00 C9\n"
+        "R 00 00 08 00\n"
+    )
+
+
+def banked_object_text(bank: int, size: int) -> str:
+    return (
+        "XL4\n"
+        "H 1 areas 1 global symbols\n"
+        "M generated_facade_rules\n"
+        "S .__.ABS. Def00000000\n"
+        f"A _CODE_{bank} size {size:X} flags 0 addr 0\n"
+        "T 00 00 00 00 C9\n"
+        "R 00 00 08 00\n"
+    )
 
 
 def main() -> int:
@@ -182,6 +270,856 @@ def main() -> int:
         assert not check_gbc_cart.check_named(
             checks, "per-game static WRAM"
         ).passed
+
+        valid_objects[-1] = write_object(
+            build_dir / "g01_generated_game.o",
+            "A _DATA size 0 flags 0 addr 0\n"
+            "A _CODE_4 size 100 flags 0 addr 0\n",
+        )
+        owner_compact = build_dir / "g21_generated_compact_facade.o"
+        owner_rules = build_dir / "g21_generated_facade_rules.o"
+        member_compact = build_dir / "g31_generated_compact_facade.o"
+        member_rules = build_dir / "g31_generated_facade_rules.o"
+        compound_bytes = 349 + 1000 + 1200
+        sharing_manifest = deepcopy(manifest)
+        sharing_manifest["highest_game_bank"] = 142
+        sharing_manifest["packed_banks"] = [
+            *manifest["packed_banks"],
+            {
+                "bank": 142,
+                "used": compound_bytes,
+                "items": ["g21-g31-shared-compact-facade-canary"],
+            },
+        ]
+        sharing_manifest["object_banks"] = {
+            **manifest["object_banks"],
+            owner_compact.name: 142,
+            owner_rules.name: 142,
+            member_rules.name: 142,
+        }
+        sharing_manifest["compact_facade_sharing"] = {
+            "mode": "same-bank-alias-canary-v1",
+            "owner": "g21",
+            "members": ["g21", "g31"],
+            "normalized_sha256": "a" * 64,
+            "implementation_bytes": 349,
+            "gross_removed_bytes": 349,
+            "bank": 142,
+            "aliases": sorted(
+                f"g31_{suffix}" for suffix in COMPACT_FACADE_SUFFIXES
+            ),
+        }
+        sharing_areas = {
+            **areas,
+            "_CODE_142": (0x8E4000, compound_bytes),
+        }
+
+        def canary_checks(
+            candidate_manifest: dict[str, object],
+            *,
+            candidate_areas: dict[str, tuple[int, int]] | None = None,
+            owner_text: str | None = None,
+            owner_rules_bank: int = 142,
+            owner_rules_size: int = 1000,
+            member_rules_bank: int = 142,
+            member_rules_size: int = 1200,
+            owner_rules_text: str | None = None,
+            member_rules_text: str | None = None,
+            retain_member: bool = False,
+            provide_omitted_identity: bool = True,
+            provide_linked_evidence: bool = True,
+            missing_linked_object: Path | None = None,
+        ) -> list[check_gbc_cart.CartCheck]:
+            write_object(
+                owner_compact,
+                (
+                    compact_facade_owner_text(142)
+                    if owner_text is None
+                    else owner_text
+                ),
+            )
+            write_object(
+                owner_rules,
+                (
+                    banked_object_text(
+                        owner_rules_bank,
+                        owner_rules_size,
+                    )
+                    if owner_rules_text is None
+                    else owner_rules_text
+                ),
+            )
+            write_object(
+                member_rules,
+                (
+                    banked_object_text(
+                        member_rules_bank,
+                        member_rules_size,
+                    )
+                    if member_rules_text is None
+                    else member_rules_text
+                ),
+            )
+            write_object(
+                member_compact,
+                banked_object_text(142, 349),
+            )
+            compiled_objects = [
+                *valid_objects,
+                owner_compact,
+                owner_rules,
+                member_rules,
+            ]
+            if provide_omitted_identity:
+                compiled_objects.append(member_compact)
+            linked_object_paths = {
+                owner_compact.resolve(),
+                owner_rules.resolve(),
+                member_rules.resolve(),
+            }
+            if retain_member:
+                linked_object_paths.add(member_compact.resolve())
+            if missing_linked_object is not None:
+                linked_object_paths.discard(
+                    missing_linked_object.resolve()
+                )
+            return check_gbc_cart.evaluate_cart(
+                bytes(rom),
+                candidate_manifest,
+                (
+                    sharing_areas
+                    if candidate_areas is None
+                    else candidate_areas
+                ),
+                compiled_objects,
+                expected_games=2,
+                linked_object_paths=(
+                    linked_object_paths
+                    if provide_linked_evidence
+                    else None
+                ),
+            )
+
+        write_object(
+            owner_compact,
+            compact_facade_owner_text(142),
+        )
+        write_object(
+            owner_rules,
+            banked_object_text(142, 1000),
+        )
+        write_object(
+            member_compact,
+            banked_object_text(142, 349),
+        )
+        write_object(
+            member_rules,
+            banked_object_text(142, 1200),
+        )
+        linked_map_text = (
+            "_CODE_142              008E4000    000009F5 = "
+            "2549. bytes (REL,CON)\n"
+            "\fASxxxx Linker V03.00/V05.40 + sdld,  page 184.\n"
+            "\n"
+            "Files Linked                              [ module(s) ]\n"
+            "\n"
+            f"{owner_compact}\n"
+            "                                          "
+            "[ generated_compact_facade ]\n"
+            f"{owner_rules}\n"
+            "                                          "
+            "[ generated_facade_rules ]\n"
+            f"{member_rules}\n"
+            "                                          "
+            "[ generated_facade_rules ]\n"
+            "00000000 g31_generated_compact_facade.o\n"
+            "/tmp/g31_generated_compact_facade.o trailing\n"
+            "\n"
+            "Libraries Linked                          "
+            "[ object file ]\n"
+            "\n"
+            "/toolchain/lib/gb.lib\n"
+            "                                          "
+            "[ g31_generated_compact_facade.o ]\n"
+        )
+        cli_rom = build_dir / "candidate.gb"
+        cli_manifest = build_dir / "cart-manifest.json"
+        cli_map = build_dir / "candidate.map"
+        cli_rom.write_bytes(bytes(rom))
+        cli_manifest.write_text(
+            json.dumps(sharing_manifest),
+            encoding="utf-8",
+        )
+        cli_map.write_text(linked_map_text, encoding="ascii")
+        cli_checks = check_gbc_cart.check_cart(
+            cli_rom,
+            cli_manifest,
+            cli_map,
+            build_dir,
+            expected_games=2,
+        )
+        assert check_gbc_cart.check_named(
+            cli_checks, "compact facade duplicate omission"
+        ).passed, "compiled but unlinked member was treated as linked"
+
+        decoy_root = Path("/tmp/gbc-cart-decoy-objects")
+        decoy_retained_map_text = linked_map_text
+        for retained_path in (
+            owner_compact,
+            owner_rules,
+            member_rules,
+        ):
+            decoy_retained_map_text = (
+                decoy_retained_map_text.replace(
+                    str(retained_path),
+                    str(decoy_root / retained_path.name),
+                )
+            )
+        cli_map.write_text(
+            decoy_retained_map_text,
+            encoding="ascii",
+        )
+        decoy_retained_checks = check_gbc_cart.check_cart(
+            cli_rom,
+            cli_manifest,
+            cli_map,
+            build_dir,
+            expected_games=2,
+        )
+        assert not check_gbc_cart.check_named(
+            decoy_retained_checks,
+            "compact facade duplicate omission",
+        ).passed, "same-basename decoy retained paths were accepted"
+
+        cli_map.write_text(linked_map_text, encoding="ascii")
+        parsed_linked_paths = (
+            check_gbc_cart.linked_object_paths_from_map_text(
+                linked_map_text
+            )
+        )
+        assert parsed_linked_paths == {
+            str(owner_compact),
+            str(owner_rules),
+            str(member_rules),
+            "00000000 g31_generated_compact_facade.o",
+        }
+        assert str(member_compact) not in parsed_linked_paths
+        bare_spaced_relative_map = (
+            "Files Linked                              "
+            "[ module(s) ]\n"
+            "foo bar.o\n"
+            "12345678 foo.o\n"
+            "Libraries Linked                          "
+            "[ object file ]\n"
+        )
+        assert (
+            check_gbc_cart.linked_object_paths_from_map_text(
+                bare_spaced_relative_map
+            )
+            == {"foo bar.o", "12345678 foo.o"}
+        )
+        assert (
+            check_gbc_cart.linked_object_paths_from_map_text(
+                "_CODE_142 008E4000 000009F5 =\n"
+            )
+            is None
+        )
+        assert (
+            check_gbc_cart.linked_object_paths_from_map_text(
+                linked_map_text.split(
+                    "Libraries Linked",
+                    maxsplit=1,
+                )[0]
+            )
+            is None
+        )
+        assert (
+            check_gbc_cart.linked_object_paths_from_map_text(
+                linked_map_text.replace(
+                    "Files Linked                              "
+                    "[ module(s) ]\n",
+                    "Files Linked                              "
+                    "[ module(s) ]\n"
+                    "Files Linked                              "
+                    "[ module(s) ]\n",
+                    1,
+                )
+            )
+            is None
+        )
+
+        spaced_objects = build_dir / "compiled objects"
+        spaced_objects.mkdir()
+        for source in (
+            *valid_objects,
+            owner_compact,
+            owner_rules,
+            member_compact,
+            member_rules,
+        ):
+            (spaced_objects / source.name).write_bytes(
+                source.read_bytes()
+            )
+        spaced_map_text = linked_map_text
+        for retained_path in (
+            owner_compact,
+            owner_rules,
+            member_rules,
+        ):
+            spaced_map_text = spaced_map_text.replace(
+                str(retained_path),
+                str(spaced_objects / retained_path.name),
+            )
+        cli_map.write_text(spaced_map_text, encoding="ascii")
+        spaced_checks = check_gbc_cart.check_cart(
+            cli_rom,
+            cli_manifest,
+            cli_map,
+            spaced_objects,
+            expected_games=2,
+        )
+        assert check_gbc_cart.check_named(
+            spaced_checks,
+            "compact facade duplicate omission",
+        ).passed, "exact retained object paths containing spaces failed"
+
+        linked_member_map_text = linked_map_text.replace(
+            "Libraries Linked                          "
+            "[ object file ]\n",
+            f"{member_compact}\n"
+            "                                          "
+            "[ generated_compact_facade ]\n"
+            "Libraries Linked                          "
+            "[ object file ]\n",
+        )
+        cli_map.write_text(linked_member_map_text, encoding="ascii")
+        linked_member_checks = check_gbc_cart.check_cart(
+            cli_rom,
+            cli_manifest,
+            cli_map,
+            build_dir,
+            expected_games=2,
+        )
+        assert not check_gbc_cart.check_named(
+            linked_member_checks,
+            "compact facade duplicate omission",
+        ).passed, "exact omitted member path was accepted"
+
+        decoy_member_map_text = linked_map_text.replace(
+            "Libraries Linked                          "
+            "[ object file ]\n",
+            f"{decoy_root / member_compact.name}\n"
+            "                                          "
+            "[ generated_compact_facade ]\n"
+            "Libraries Linked                          "
+            "[ object file ]\n",
+        )
+        cli_map.write_text(decoy_member_map_text, encoding="ascii")
+        decoy_member_checks = check_gbc_cart.check_cart(
+            cli_rom,
+            cli_manifest,
+            cli_map,
+            build_dir,
+            expected_games=2,
+        )
+        assert check_gbc_cart.check_named(
+            decoy_member_checks,
+            "compact facade duplicate omission",
+        ).passed, "same-basename decoy member was treated as retained"
+
+        relative_map_text = linked_map_text
+        for retained_path in (
+            owner_compact,
+            owner_rules,
+            member_rules,
+        ):
+            relative_map_text = relative_map_text.replace(
+                str(retained_path),
+                f"./{retained_path.name}",
+            )
+        cli_map.write_text(relative_map_text, encoding="ascii")
+        relative_checks = check_gbc_cart.check_cart(
+            cli_rom,
+            cli_manifest,
+            cli_map,
+            build_dir,
+            expected_games=2,
+        )
+        assert check_gbc_cart.check_named(
+            relative_checks,
+            "compact facade duplicate omission",
+        ).passed, "relative linked paths were not based on the map parent"
+
+        cli_map.write_text(linked_map_text, encoding="ascii")
+        checks = canary_checks(sharing_manifest)
+        missing_labels = set(SHARING_CHECK_LABELS) - {
+            check.label for check in checks
+        }
+        assert not missing_labels, f"missing sharing checks: {missing_labels}"
+        assert all(
+            check_gbc_cart.check_named(checks, label).passed
+            for label in SHARING_CHECK_LABELS
+        )
+
+        default_checks = check_gbc_cart.evaluate_cart(
+            bytes(rom),
+            manifest,
+            areas,
+            valid_objects,
+            expected_games=2,
+        )
+        assert all(
+            check_gbc_cart.check_named(default_checks, label).passed
+            for label in SHARING_CHECK_LABELS
+        )
+
+        checks = canary_checks(
+            sharing_manifest,
+            provide_linked_evidence=False,
+        )
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade duplicate omission"
+        ).passed, "missing linked-object evidence was accepted"
+
+        checks = canary_checks(
+            sharing_manifest,
+            provide_omitted_identity=False,
+        )
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade duplicate omission"
+        ).passed, "missing compiled-object identity was accepted"
+
+        checks = canary_checks(
+            sharing_manifest,
+            missing_linked_object=owner_rules,
+        )
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade duplicate omission"
+        ).passed, "missing retained linked object was accepted"
+
+        missing_sharing_map = dict(sharing_areas)
+        del missing_sharing_map["_CODE_142"]
+        checks = canary_checks(
+            sharing_manifest,
+            candidate_areas=missing_sharing_map,
+        )
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade same-bank capacity"
+        ).passed, "sharing bank absent from map was accepted"
+
+        absent_packed_bank = deepcopy(sharing_manifest)
+        absent_packed_bank["packed_banks"] = [
+            bank
+            for bank in absent_packed_bank["packed_banks"]
+            if bank["bank"] != 142
+        ]
+        checks = canary_checks(absent_packed_bank)
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade same-bank capacity"
+        ).passed, "sharing bank absent from packed banks was accepted"
+
+        mismatched_packed_bank = deepcopy(sharing_manifest)
+        mismatched_packed_bank["highest_game_bank"] = 143
+        mismatched_packed_bank["packed_banks"][-1]["bank"] = 143
+        checks = canary_checks(mismatched_packed_bank)
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade same-bank capacity"
+        ).passed, "mismatched packed sharing bank was accepted"
+
+        below_highest_bank = deepcopy(sharing_manifest)
+        below_highest_bank["highest_game_bank"] = 141
+        checks = canary_checks(below_highest_bank)
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade same-bank capacity"
+        ).passed, "sharing bank above highest bank was accepted"
+
+        undersized_map = dict(sharing_areas)
+        undersized_map["_CODE_142"] = (
+            sharing_areas["_CODE_142"][0],
+            compound_bytes - 1,
+        )
+        checks = canary_checks(
+            sharing_manifest,
+            candidate_areas=undersized_map,
+        )
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade same-bank capacity"
+        ).passed, "map smaller than compound objects was accepted"
+
+        undersized_packed_bank = deepcopy(sharing_manifest)
+        undersized_packed_bank["packed_banks"][-1]["used"] = (
+            compound_bytes - 1
+        )
+        checks = canary_checks(undersized_packed_bank)
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade same-bank capacity"
+        ).passed, "packed bank smaller than compound objects was accepted"
+
+        mismatched_map_used = dict(sharing_areas)
+        mismatched_map_used["_CODE_142"] = (
+            sharing_areas["_CODE_142"][0],
+            compound_bytes + 1,
+        )
+        checks = canary_checks(
+            sharing_manifest,
+            candidate_areas=mismatched_map_used,
+        )
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade same-bank capacity"
+        ).passed, "mismatched map/packed used bytes were accepted"
+
+        mismatched_sharing_bank = deepcopy(sharing_manifest)
+        mismatched_sharing_bank["compact_facade_sharing"]["bank"] = 143
+        checks = canary_checks(mismatched_sharing_bank)
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade same-bank capacity"
+        ).passed, "mismatched sharing metadata bank was accepted"
+
+        checks = canary_checks(
+            sharing_manifest,
+            owner_text=compact_facade_owner_text(
+                142,
+                missing_alias=COMPACT_FACADE_SUFFIXES[0],
+            ),
+        )
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade aliases"
+        ).passed
+
+        checks = canary_checks(
+            sharing_manifest,
+            owner_text=compact_facade_owner_text(
+                142,
+                wrong_alias=COMPACT_FACADE_SUFFIXES[1],
+            ),
+        )
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade aliases"
+        ).passed
+
+        checks = canary_checks(
+            sharing_manifest,
+            owner_text=compact_facade_owner_text(
+                142,
+                definitions_in_home=True,
+            ),
+        )
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade aliases"
+        ).passed, "aliases defined under _HOME were accepted"
+
+        first_suffix = COMPACT_FACADE_SUFFIXES[0]
+        for label, address in (
+            ("address equal to code size", 349),
+            ("maximum encoded address", 0xFFFFFFFF),
+        ):
+            checks = canary_checks(
+                sharing_manifest,
+                owner_text=compact_facade_owner_text(
+                    142,
+                    address_overrides={first_suffix: address},
+                ),
+            )
+            assert not check_gbc_cart.check_named(
+                checks, "compact facade aliases"
+            ).passed, f"{label} was accepted"
+
+        checks = canary_checks(
+            sharing_manifest,
+            owner_text=compact_facade_owner_text(
+                142,
+                address_overrides={first_suffix: 348},
+            ),
+        )
+        assert check_gbc_cart.check_named(
+            checks, "compact facade aliases"
+        ).passed, "last byte in the code area was rejected"
+
+        checks = canary_checks(sharing_manifest, retain_member=True)
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade duplicate omission"
+        ).passed
+
+        retained_mapping = deepcopy(sharing_manifest)
+        retained_mapping["object_banks"][member_compact.name] = 142
+        checks = canary_checks(retained_mapping)
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade duplicate omission"
+        ).passed
+
+        checks = canary_checks(
+            sharing_manifest,
+            member_rules_bank=143,
+        )
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade same-bank capacity"
+        ).passed
+
+        forged_bank_mapping = deepcopy(sharing_manifest)
+        forged_bank_mapping["object_banks"][member_rules.name] = 143
+        checks = canary_checks(forged_bank_mapping)
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade same-bank capacity"
+        ).passed
+
+        unknown_mode = deepcopy(sharing_manifest)
+        unknown_mode["compact_facade_sharing"]["mode"] = "future-mode"
+        checks = canary_checks(unknown_mode)
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade sharing metadata"
+        ).passed
+
+        checks = canary_checks(
+            sharing_manifest,
+            owner_rules_size=8000,
+            member_rules_size=8036,
+        )
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade same-bank capacity"
+        ).passed
+
+        unsorted_aliases = deepcopy(sharing_manifest)
+        unsorted_aliases["compact_facade_sharing"]["aliases"].reverse()
+        checks = canary_checks(unsorted_aliases)
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade sharing metadata"
+        ).passed
+
+        malformed_records: list[object] = [None, {}]
+        for field in sharing_manifest["compact_facade_sharing"]:
+            missing_field = deepcopy(
+                sharing_manifest["compact_facade_sharing"]
+            )
+            del missing_field[field]
+            malformed_records.append(missing_field)
+        for malformed in malformed_records:
+            malformed_manifest = deepcopy(sharing_manifest)
+            malformed_manifest["compact_facade_sharing"] = malformed
+            checks = canary_checks(malformed_manifest)
+            assert not check_gbc_cart.check_named(
+                checks, "compact facade sharing metadata"
+            ).passed, malformed
+
+        valid_owner_text = compact_facade_owner_text(142)
+        owner_header = "H 1 areas 10 global symbols\n"
+        owner_module = "M generated_compact_facade\n"
+        owner_area = "A _CODE_142 size 15D flags 0 addr 0\n"
+        owner_first_definition = (
+            "S _g21_ps_gbc_facade_get_movements Def00000001\n"
+        )
+        malformed_owners = (
+            (
+                "missing XL4",
+                valid_owner_text.removeprefix("XL4\n"),
+            ),
+            (
+                "missing H",
+                valid_owner_text.replace(owner_header, ""),
+            ),
+            (
+                "symbol-count mismatch",
+                valid_owner_text.replace(
+                    owner_header,
+                    "H 1 areas F global symbols\n",
+                ),
+            ),
+            (
+                "duplicate H",
+                valid_owner_text.replace(
+                    owner_header,
+                    owner_header + owner_header,
+                ),
+            ),
+            (
+                "malformed H",
+                valid_owner_text.replace(
+                    owner_header,
+                    "H nope areas 10 global symbols\n",
+                ),
+            ),
+            (
+                "trailing symbol garbage",
+                valid_owner_text.replace(
+                    "S _g21_ps_gbc_facade_get_movements "
+                    "Def00000001",
+                    "S _g21_ps_gbc_facade_get_movements "
+                    "Def00000001 garbage",
+                ),
+            ),
+            (
+                "malformed area",
+                valid_owner_text.replace(
+                    "A _CODE_142 size 15D flags 0 addr 0",
+                    "A _CODE_142 size 15D flags 0",
+                ),
+            ),
+            (
+                "area-count mismatch",
+                valid_owner_text.replace(
+                    owner_header,
+                    "H 2 areas 10 global symbols\n",
+                ),
+            ),
+            (
+                "missing module",
+                valid_owner_text.replace(owner_module, ""),
+            ),
+            (
+                "duplicate module",
+                valid_owner_text.replace(
+                    owner_module,
+                    owner_module + owner_module,
+                ),
+            ),
+            (
+                "duplicate reference",
+                valid_owner_text.replace(
+                    owner_header,
+                    "H 1 areas 12 global symbols\n",
+                ).replace(
+                    owner_area,
+                    "S _owner_duplicate Ref00000000\n"
+                    "S _owner_duplicate Ref00000000\n"
+                    + owner_area,
+                ),
+            ),
+            (
+                "duplicate definition",
+                valid_owner_text.replace(
+                    owner_header,
+                    "H 1 areas 11 global symbols\n",
+                ).replace(
+                    owner_first_definition,
+                    owner_first_definition + owner_first_definition,
+                ),
+            ),
+            (
+                "duplicate trailing zero-size area",
+                valid_owner_text.replace(
+                    owner_header,
+                    "H 2 areas 10 global symbols\n",
+                )
+                + "A _CODE_142 size 0 flags 0 addr 0\n",
+            ),
+        )
+        for problem, malformed_owner in malformed_owners:
+            checks = canary_checks(
+                sharing_manifest,
+                owner_text=malformed_owner,
+            )
+            assert not check_gbc_cart.check_named(
+                checks, "compact facade aliases"
+            ).passed, f"{problem} owner alias evidence was accepted"
+            assert not check_gbc_cart.check_named(
+                checks, "compact facade same-bank capacity"
+            ).passed, f"{problem} owner bank evidence was accepted"
+
+        valid_caller_text = banked_object_text(142, 1000)
+        caller_header = "H 1 areas 1 global symbols\n"
+        caller_module = "M generated_facade_rules\n"
+        caller_area = "A _CODE_142 size 3E8 flags 0 addr 0\n"
+        caller_definition = "S .__.ABS. Def00000000\n"
+        malformed_callers = (
+            (
+                "missing XL4",
+                valid_caller_text.removeprefix("XL4\n"),
+            ),
+            (
+                "missing H",
+                valid_caller_text.replace(caller_header, ""),
+            ),
+            (
+                "symbol-count mismatch",
+                valid_caller_text.replace(
+                    caller_header,
+                    "H 1 areas 0 global symbols\n",
+                ),
+            ),
+            (
+                "duplicate H",
+                valid_caller_text.replace(
+                    caller_header,
+                    caller_header + caller_header,
+                ),
+            ),
+            (
+                "malformed H",
+                valid_caller_text.replace(
+                    caller_header,
+                    "H 1 areas nope global symbols\n",
+                ),
+            ),
+            (
+                "trailing symbol garbage",
+                valid_caller_text.replace(
+                    "S .__.ABS. Def00000000",
+                    "S .__.ABS. Def00000000 garbage",
+                ),
+            ),
+            (
+                "trailing area garbage",
+                valid_caller_text.replace(
+                    "A _CODE_142 size 3E8 flags 0 addr 0",
+                    "A _CODE_142 size 3E8 flags 0 addr 0 garbage",
+                ),
+            ),
+            (
+                "area-count mismatch",
+                valid_caller_text.replace(
+                    caller_header,
+                    "H 2 areas 1 global symbols\n",
+                ),
+            ),
+            (
+                "missing module",
+                valid_caller_text.replace(caller_module, ""),
+            ),
+            (
+                "duplicate module",
+                valid_caller_text.replace(
+                    caller_module,
+                    caller_module + caller_module,
+                ),
+            ),
+            (
+                "duplicate reference",
+                valid_caller_text.replace(
+                    caller_header,
+                    "H 1 areas 3 global symbols\n",
+                ).replace(
+                    caller_area,
+                    "S _caller_duplicate Ref00000000\n"
+                    "S _caller_duplicate Ref00000000\n"
+                    + caller_area,
+                ),
+            ),
+            (
+                "duplicate definition",
+                valid_caller_text.replace(
+                    caller_header,
+                    "H 1 areas 2 global symbols\n",
+                ).replace(
+                    caller_definition,
+                    caller_definition + caller_definition,
+                ),
+            ),
+            (
+                "duplicate trailing zero-size area",
+                valid_caller_text.replace(
+                    caller_header,
+                    "H 2 areas 1 global symbols\n",
+                )
+                + "A _CODE_142 size 0 flags 0 addr 0\n",
+            ),
+        )
+        for problem, malformed_caller in malformed_callers:
+            checks = canary_checks(
+                sharing_manifest,
+                owner_rules_text=malformed_caller,
+            )
+            assert not check_gbc_cart.check_named(
+                checks, "compact facade same-bank capacity"
+            ).passed, f"{problem} caller evidence was accepted"
 
     print("check_gbc_cart_test: ok")
     return 0

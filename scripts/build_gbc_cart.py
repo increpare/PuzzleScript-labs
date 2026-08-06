@@ -4,16 +4,20 @@
 from __future__ import annotations
 
 import argparse
-import re
 import json
+import os
+import re
 import shutil
+import stat
 import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Sequence
 
 from build_gbc_eligible_roms import ELIGIBLE_GAMES
+from gbc_cart_object_aliases import merge_namespaced_definitions
 
 
 ROM_BANK_BYTES = 16 * 1024
@@ -29,6 +33,22 @@ OBJECT_BANK_SYMBOL = re.compile(
     r"^(S\s+b_\S+\s+Def)([0-9A-Fa-f]{8})(\b.*)$",
     re.MULTILINE,
 )
+COMPACT_FACADE_CANARY_PREFIXES = ("g21", "g31")
+COMPACT_FACADE_CANARY_ALIASES = tuple(
+    sorted(
+        (
+            "g31_ps_gbc_facade_get_movements",
+            "g31_ps_gbc_facade_set_movements",
+            "g31_ps_gbc_facade_get_objects",
+            "g31_ps_gbc_facade_cell_has_all",
+            "g31_ps_gbc_facade_set_objects",
+            "g31_ps_gbc_facade_cell_has_any",
+            "g31_ps_gbc_facade_cell_count",
+            "g31_ps_gbc_facade_mark_dirty",
+        )
+    )
+)
+COMPACT_FACADE_CANARY_IMPLEMENTATION_BYTES = 349
 
 
 @dataclass(frozen=True)
@@ -74,6 +94,265 @@ class CartIndexEntry:
     launcher_art_bank: int
     launcher_selected_art_bank: int
     launcher_card: LauncherCard
+
+
+@dataclass(frozen=True)
+class SharedCompactCanary:
+    item: CartItem
+    link_objects: tuple[Path, ...]
+    source_items: tuple[CartItem, CartItem]
+    owner_object: Path
+    merged_text: str
+    normalized_sha256: str
+    implementation_bytes: int
+    aliases: tuple[str, ...]
+
+
+def _require_compact_facade_canary_prefixes(
+    prefixes: Sequence[str],
+) -> None:
+    if tuple(prefixes) != COMPACT_FACADE_CANARY_PREFIXES:
+        raise ValueError(
+            "compact-facade sharing canary requires exactly g21 and g31"
+        )
+
+
+def _read_asxxxx_object(path: Path) -> str:
+    with path.open(
+        "r",
+        encoding="ascii",
+        errors="strict",
+        newline="",
+    ) as source:
+        return source.read()
+
+
+def write_shared_compact_canary_owner(
+    sharing: SharedCompactCanary,
+) -> None:
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="ascii",
+            errors="strict",
+            newline="",
+            dir=sharing.owner_object.parent,
+            prefix=f".{sharing.owner_object.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as destination:
+            temporary_path = Path(destination.name)
+            destination.write(sharing.merged_text)
+        os.chmod(
+            temporary_path,
+            stat.S_IMODE(sharing.owner_object.stat().st_mode),
+        )
+        os.replace(temporary_path, sharing.owner_object)
+        temporary_path = None
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
+
+
+def shared_compact_canary(
+    prefixes: Sequence[str],
+    *,
+    enabled: bool,
+    all_game_objects: Sequence[Path] = (),
+) -> SharedCompactCanary | None:
+    if not enabled:
+        return None
+    _require_compact_facade_canary_prefixes(prefixes)
+
+    owner_prefix, member_prefix = COMPACT_FACADE_CANARY_PREFIXES
+    expected_names = (
+        f"{owner_prefix}_generated_compact_facade.o",
+        f"{owner_prefix}_generated_facade_rules.o",
+        f"{member_prefix}_generated_compact_facade.o",
+        f"{member_prefix}_generated_facade_rules.o",
+    )
+    objects_by_name: dict[str, Path] = {}
+    duplicate_names: list[str] = []
+    for path in all_game_objects:
+        if path.name not in expected_names:
+            continue
+        if path.name in objects_by_name:
+            duplicate_names.append(path.name)
+        objects_by_name[path.name] = path
+    if duplicate_names:
+        raise ValueError(
+            "compact-facade sharing canary has duplicate objects: "
+            + ", ".join(sorted(set(duplicate_names)))
+        )
+    missing_names = [
+        name for name in expected_names if name not in objects_by_name
+    ]
+    if missing_names:
+        raise ValueError(
+            "compact-facade sharing canary requires both g21 and g31 "
+            "facade objects; missing: "
+            + ", ".join(missing_names)
+        )
+
+    owner_compact = objects_by_name[expected_names[0]]
+    owner_rules = objects_by_name[expected_names[1]]
+    member_compact = objects_by_name[expected_names[2]]
+    member_rules = objects_by_name[expected_names[3]]
+    merged = merge_namespaced_definitions(
+        _read_asxxxx_object(owner_compact),
+        _read_asxxxx_object(member_compact),
+        owner_prefix=owner_prefix,
+        member_prefix=member_prefix,
+    )
+    if (
+        merged.implementation_bytes
+        != COMPACT_FACADE_CANARY_IMPLEMENTATION_BYTES
+    ):
+        raise ValueError(
+            "compact-facade sharing canary implementation size changed: "
+            f"{merged.implementation_bytes} != "
+            f"{COMPACT_FACADE_CANARY_IMPLEMENTATION_BYTES}"
+        )
+    aliases = tuple(
+        sorted(name.removeprefix("_") for name, _address in merged.aliases)
+    )
+    if aliases != COMPACT_FACADE_CANARY_ALIASES:
+        raise ValueError(
+            "compact-facade sharing canary alias set changed: "
+            + ", ".join(aliases)
+        )
+
+    source_items = (
+        CartItem(
+            name=f"{owner_prefix}-facade",
+            size=(
+                merged.implementation_bytes
+                + object_code_size(owner_rules)
+            ),
+            objects=(owner_compact, owner_rules),
+        ),
+        CartItem(
+            name=f"{member_prefix}-facade",
+            size=(
+                merged.implementation_bytes
+                + object_code_size(member_rules)
+            ),
+            objects=(member_compact, member_rules),
+        ),
+    )
+    retained_objects = (owner_compact, owner_rules, member_rules)
+    item = CartItem(
+        name="g21-g31-shared-compact-facade-canary",
+        size=(
+            merged.implementation_bytes
+            + object_code_size(owner_rules)
+            + object_code_size(member_rules)
+        ),
+        objects=retained_objects,
+    )
+    if item.size > ROM_BANK_BYTES:
+        raise ValueError(
+            f"{item.name} is oversize: {item.size} > {ROM_BANK_BYTES}"
+        )
+
+    return SharedCompactCanary(
+        item=item,
+        link_objects=tuple(
+            path for path in all_game_objects if path != member_compact
+        ),
+        source_items=source_items,
+        owner_object=owner_compact,
+        merged_text=merged.text,
+        normalized_sha256=merged.normalized_sha256,
+        implementation_bytes=merged.implementation_bytes,
+        aliases=aliases,
+    )
+
+
+def apply_shared_compact_canary(
+    items: Sequence[CartItem],
+    all_game_objects: Sequence[Path],
+    sharing: SharedCompactCanary,
+) -> tuple[tuple[CartItem, ...], tuple[Path, ...]]:
+    source_names = {item.name for item in sharing.source_items}
+    for expected_item in sharing.source_items:
+        matches = [
+            item for item in items if item.name == expected_item.name
+        ]
+        if not matches:
+            raise ValueError(
+                "compact-facade sharing canary missing source item: "
+                + expected_item.name
+            )
+        if len(matches) != 1:
+            raise ValueError(
+                "compact-facade sharing canary duplicate source item: "
+                + expected_item.name
+            )
+        if matches[0] != expected_item:
+            raise ValueError(
+                "compact-facade sharing canary source composition "
+                "changed: "
+                + expected_item.name
+            )
+
+    omitted_object = sharing.source_items[1].objects[0]
+    if (
+        sum(path == omitted_object for path in all_game_objects) != 1
+        or tuple(
+            path
+            for path in all_game_objects
+            if path != omitted_object
+        )
+        != sharing.link_objects
+    ):
+        raise ValueError(
+            "compact-facade sharing canary link-object composition changed"
+        )
+
+    return (
+        tuple(item for item in items if item.name not in source_names)
+        + (sharing.item,),
+        sharing.link_objects,
+    )
+
+
+def compact_facade_sharing_evidence(
+    sharing: SharedCompactCanary | None,
+    object_banks: dict[str, int],
+) -> dict[str, object]:
+    if sharing is None:
+        return {}
+    missing_names = [
+        path.name
+        for path in sharing.item.objects
+        if path.name not in object_banks
+    ]
+    if missing_names:
+        raise ValueError(
+            "compact-facade sharing canary has unbanked objects: "
+            + ", ".join(missing_names)
+        )
+    banks = {
+        object_banks[path.name] for path in sharing.item.objects
+    }
+    if len(banks) != 1:
+        raise ValueError(
+            "compact-facade sharing canary objects are not in one bank"
+        )
+    return {
+        "compact_facade_sharing": {
+            "mode": "same-bank-alias-canary-v1",
+            "owner": COMPACT_FACADE_CANARY_PREFIXES[0],
+            "members": list(COMPACT_FACADE_CANARY_PREFIXES),
+            "normalized_sha256": sharing.normalized_sha256,
+            "implementation_bytes": sharing.implementation_bytes,
+            "gross_removed_bytes": sharing.implementation_bytes,
+            "bank": banks.pop(),
+            "aliases": list(sharing.aliases),
+        }
+    }
 
 
 _LAUNCHER_ROW_OFFSETS = (
@@ -814,6 +1093,8 @@ def build_cart(
     games: Sequence[tuple[str, str]],
     cull: bool,
     autotest: bool,
+    benchmark: bool = False,
+    share_compact_facade_canary: bool = False,
 ) -> tuple[Path, Path]:
     repository = repository.resolve()
     compiler = compiler.resolve()
@@ -828,6 +1109,19 @@ def build_cart(
         raise RuntimeError("cart needs at least one game")
     if len(games) > 253:
         raise RuntimeError("cart cannot reserve one core bank per game")
+    available_canary_prefixes = tuple(
+        prefix
+        for prefix in COMPACT_FACADE_CANARY_PREFIXES
+        if int(prefix[1:]) < len(games)
+    )
+    if share_compact_facade_canary:
+        _require_compact_facade_canary_prefixes(
+            available_canary_prefixes
+        )
+    shared_defines = shared_build_defines(
+        autotest=autotest,
+        benchmark=benchmark,
+    )
 
     exports_root = out / "exports"
     objects_root = out / "objects"
@@ -1048,6 +1342,23 @@ def build_cart(
             }
         )
 
+    sharing = shared_compact_canary(
+        available_canary_prefixes,
+        enabled=share_compact_facade_canary,
+        all_game_objects=all_game_objects,
+    )
+    if sharing is not None:
+        applied_items, applied_link_objects = (
+            apply_shared_compact_canary(
+                items,
+                all_game_objects,
+                sharing,
+            )
+        )
+        write_shared_compact_canary_owner(sharing)
+        items = list(applied_items)
+        all_game_objects = list(applied_link_objects)
+
     banks = pack_items(items, first_bank=FIRST_CART_GAME_BANK)
     object_banks: dict[str, int] = {}
     for bank in banks:
@@ -1055,6 +1366,10 @@ def build_cart(
             for object_path in packed_item.objects:
                 relocate_object_code_area(object_path, bank.number)
                 object_banks[object_path.name] = bank.number
+    sharing_evidence = compact_facade_sharing_evidence(
+        sharing,
+        object_banks,
+    )
     launcher_art_names = {
         path.name for path in launcher_art_objects.values()
     } | {
@@ -1105,6 +1420,7 @@ def build_cart(
     )
     shared_sources = (
         firmware_source / "main.c",
+        *((firmware_source / "benchmark.c",) if benchmark else ()),
         firmware_source / "audio.c",
         firmware_source / "text.c",
         firmware_source / "tile_cache.c",
@@ -1122,10 +1438,7 @@ def build_cart(
             source=shared_source,
             object_path=object_path,
             include_directories=shared_includes,
-            defines=(
-                "PS_GBC_CART_BUILD=1",
-                *(("PS_GBC_CART_AUTOTEST=1",) if autotest else ()),
-            ),
+            defines=shared_defines,
         )
         shared_objects.append(object_path)
     cart_index_object = objects_root / "cart_index.o"
@@ -1137,10 +1450,10 @@ def build_cart(
     )
     shared_objects.append(cart_index_object)
 
-    rom_name = (
-        f"puzzlescript-compilation-autotest-{len(entries)}.gb"
-        if autotest
-        else f"puzzlescript-compilation-{len(entries)}.gb"
+    rom_name = cart_rom_name(
+        len(entries),
+        autotest=autotest,
+        benchmark=benchmark,
     )
     rom = out / rom_name
     link_command = [
@@ -1169,6 +1482,7 @@ def build_cart(
         {
             "format": "puzzlescript-gbc-cart-v1",
             "autotest": autotest,
+            "benchmark": benchmark,
             "game_count": len(entries),
             "index_bank": 2,
             "max_session_bytes": max(
@@ -1186,25 +1500,69 @@ def build_cart(
             "object_banks": object_banks,
             "games": game_records,
             "rom": str(rom),
+            **sharing_evidence,
         },
     )
     return rom, cart_manifest
 
 
-def main() -> int:
+def shared_build_defines(
+    *,
+    autotest: bool,
+    benchmark: bool,
+) -> tuple[str, ...]:
+    if autotest and benchmark:
+        raise ValueError("--autotest and --benchmark are mutually exclusive")
+    return (
+        "PS_GBC_CART_BUILD=1",
+        *(("PS_GBC_CART_AUTOTEST=1",) if autotest else ()),
+        *(("PS_GBC_CART_BENCHMARK=1",) if benchmark else ()),
+    )
+
+
+def cart_rom_name(
+    game_count: int,
+    *,
+    autotest: bool,
+    benchmark: bool,
+) -> str:
+    shared_build_defines(autotest=autotest, benchmark=benchmark)
+    if benchmark:
+        return f"puzzlescript-compilation-benchmark-{game_count}.gb"
+    if autotest:
+        return f"puzzlescript-compilation-autotest-{game_count}.gb"
+    return f"puzzlescript-compilation-{game_count}.gb"
+
+
+def parse_options(
+    argv: Sequence[str] | None = None,
+) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repository", type=Path, default=Path.cwd())
     parser.add_argument("--compiler", type=Path)
     parser.add_argument("--gbdk-home", type=Path, required=True)
     parser.add_argument("--out", type=Path, default=Path("build/gbc/cart"))
     parser.add_argument("--limit", type=int)
-    parser.add_argument("--autotest", action="store_true")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--autotest", action="store_true")
+    mode.add_argument("--benchmark", action="store_true")
     parser.add_argument(
         "--cull",
         action=argparse.BooleanOptionalAction,
         default=True,
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "--share-compact-facade-canary",
+        action="store_true",
+    )
+    args = parser.parse_args(argv)
+    if args.limit is not None and args.limit < 1:
+        parser.error("--limit must be positive")
+    return args
+
+
+def main() -> int:
+    args = parse_options()
     repository = args.repository.resolve()
     compiler = args.compiler or (
         repository / "build" / "native" / "puzzlescript_cpp"
@@ -1212,8 +1570,6 @@ def main() -> int:
     out = args.out if args.out.is_absolute() else repository / args.out
     games = list(ELIGIBLE_GAMES)
     if args.limit is not None:
-        if args.limit < 1:
-            parser.error("--limit must be positive")
         games = games[: args.limit]
     try:
         rom, manifest = build_cart(
@@ -1224,6 +1580,10 @@ def main() -> int:
             games=games,
             cull=args.cull,
             autotest=args.autotest,
+            benchmark=args.benchmark,
+            share_compact_facade_canary=(
+                args.share_compact_facade_canary
+            ),
         )
     except (OSError, RuntimeError, ValueError) as error:
         print(f"gbc-cart: {error}", file=sys.stderr)

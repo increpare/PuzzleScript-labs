@@ -13,7 +13,14 @@ import sys
 from typing import Any
 
 from check_gbc_rom import map_usage
-from run_gbc_benchmark import default_mgba, run_once
+from run_gbc_benchmark import (
+    PERF_RENDER_COUNTER_NAMES,
+    PERF_RENDER_PHASE_NAMES,
+    PERF_RENDER_SAMPLE_NAMES,
+    default_mgba,
+    run_once,
+    validate_render_phase_hook_assembly,
+)
 
 
 DEFAULT_CASES = (
@@ -23,6 +30,17 @@ DEFAULT_CASES = (
     ("object_heavy", "src/tests/good_games/slot machine.txt"),
     ("two_movement_lanes", "src/tests/good_games/Voitex Rasteriser.txt"),
 )
+
+
+def default_compiler(repository: Path) -> Path:
+    suffix = ".exe" if os.name == "nt" else ""
+    return repository / "build" / "native" / f"puzzlescript_cpp{suffix}"
+
+
+def resolve_tool_path(path: Path, *, repository: Path) -> Path:
+    if not path.is_absolute():
+        path = repository / path
+    return path.resolve()
 
 
 def find_make() -> Path | None:
@@ -47,6 +65,14 @@ def git_value(repository: Path, *args: str) -> str:
 def benchmark_derived(record: dict[str, Any]) -> dict[str, Any]:
     logic_iterations = int(record["iterations"])
     render_iterations = int(record["render_iterations"])
+    alternating_render_ticks_per_frame = (
+        record["render_ticks"] / render_iterations
+    )
+    headline_render = {
+        f"{name}_ticks": ticks
+        for name, ticks in record["interaction_ticks"].items()
+        if name in {"walk_render", "push_render"}
+    }
     return {
         "ticks_per_turn": record["ticks"] / logic_iterations,
         "phase_ticks_per_turn": {
@@ -57,7 +83,7 @@ def benchmark_derived(record: dict[str, Any]) -> dict[str, Any]:
             name: count / logic_iterations
             for name, count in record["schedule_counts"].items()
         },
-        "render_ticks_per_frame": record["render_ticks"] / render_iterations,
+        "render_ticks_per_frame": alternating_render_ticks_per_frame,
         "composition_ticks_per_frame": (
             record["composition_ticks"] / render_iterations
         ),
@@ -75,7 +101,69 @@ def benchmark_derived(record: dict[str, Any]) -> dict[str, Any]:
             f"{name}_ticks": ticks
             for name, ticks in record["interaction_ticks"].items()
         },
+        "diagnostic": {
+            "alternating_render_ticks_per_frame": (
+                alternating_render_ticks_per_frame
+            ),
+        },
+        "headline_render": headline_render,
     }
+
+
+def validate_render_detail(
+    record: dict[str, Any],
+    *,
+    phase_probes: bool,
+) -> None:
+    detail = record["render_detail"]
+    for sample_name in PERF_RENDER_SAMPLE_NAMES:
+        sample = detail[sample_name]
+        phase_ticks = sample["phase_ticks"]
+        counts = sample["counts"]
+        if tuple(phase_ticks) != PERF_RENDER_PHASE_NAMES:
+            raise RuntimeError(
+                f"{sample_name}: unexpected render phases {tuple(phase_ticks)}"
+            )
+        if tuple(counts) != PERF_RENDER_COUNTER_NAMES:
+            raise RuntimeError(
+                f"{sample_name}: unexpected render counters {tuple(counts)}"
+            )
+        dirty_cells = int(counts["dirty_cells"])
+        cache_hits = int(counts["cache_hits"])
+        cache_misses = int(counts["cache_misses"])
+        dedicated_fallbacks = int(counts["dedicated_fallbacks"])
+        uploaded_quartets = int(counts["uploaded_quartets"])
+        sample_phase_ticks = sum(
+            int(value) for value in phase_ticks.values()
+        )
+        if dirty_cells != cache_hits + cache_misses:
+            raise RuntimeError(
+                f"{sample_name}: dirty_cells={dirty_cells} does not equal "
+                "cache_hits + cache_misses="
+                f"{cache_hits + cache_misses}"
+            )
+        if uploaded_quartets != cache_misses:
+            raise RuntimeError(
+                f"{sample_name}: uploaded_quartets={uploaded_quartets} "
+                f"does not equal cache_misses={cache_misses}"
+            )
+        if dedicated_fallbacks > cache_misses:
+            raise RuntimeError(
+                f"{sample_name}: dedicated_fallbacks={dedicated_fallbacks} "
+                f"exceeds cache_misses={cache_misses}"
+            )
+        if sample_name == "initial_render" and dirty_cells == 0:
+            raise RuntimeError(
+                "initial_render recorded no dirty cells or count activity"
+            )
+        if phase_probes and dirty_cells > 0 and sample_phase_ticks == 0:
+            raise RuntimeError(
+                f"{sample_name}: dirty sample recorded no phase ticks"
+            )
+        if not phase_probes and sample_phase_ticks != 0:
+            raise RuntimeError(
+                f"count-only {sample_name} unexpectedly contains phase ticks"
+            )
 
 
 def percent_delta(before: float, after: float) -> float | None:
@@ -91,7 +179,6 @@ def compare_case(
     metrics = {}
     for name in (
         "ticks_per_turn",
-        "render_ticks_per_frame",
         "composition_ticks_per_frame",
         "tile_upload_ticks_per_frame",
         "map_upload_ticks_per_frame",
@@ -203,11 +290,13 @@ def main() -> int:
         return 0
 
     make = args.make or find_make()
-    gbdk_home = args.gbdk_home or (
-        repository / ".codex_tmp" / "toolchains" / "gbdk"
+    gbdk_home = resolve_tool_path(
+        args.gbdk_home or Path(".codex_tmp/toolchains/gbdk"),
+        repository=repository,
     )
-    compiler = args.compiler or (
-        repository / "build-gbc-release" / "native" / "puzzlescript_cpp.exe"
+    compiler = resolve_tool_path(
+        args.compiler or default_compiler(repository),
+        repository=repository,
     )
     emulator = args.mgba or default_mgba()
     if make is None or not make.is_file():
@@ -265,6 +354,24 @@ def main() -> int:
         )
         if process.returncode != 0:
             raise SystemExit(f"GBC build failed for {name}; see {log_path}")
+        assembly_path = (
+            firmware
+            / f"build-autotest-perf-compact{suffix}"
+            / "tile_cache.asm"
+        )
+        if not assembly_path.is_file():
+            raise SystemExit(
+                f"GBC tile-cache assembly was not found: {assembly_path}"
+            )
+        try:
+            validate_render_phase_hook_assembly(
+                assembly_path.read_text(encoding="utf-8"),
+                phase_probes=args.phases,
+            )
+        except RuntimeError as error:
+            raise SystemExit(
+                f"invalid tile-cache probe assembly for {name}: {error}"
+            ) from error
 
         print(f"[{index}/{len(cases)}] mGBA {name}", flush=True)
         records = [
@@ -277,6 +384,10 @@ def main() -> int:
                 + json.dumps(records, sort_keys=True)
             )
         record = records[0]
+        try:
+            validate_render_detail(record, phase_probes=args.phases)
+        except RuntimeError as error:
+            raise SystemExit(f"invalid render detail for {name}: {error}") from error
         if args.schedules and record["schedule_counts"]["group_invocations"] == 0:
             raise SystemExit(f"schedule probes were not recorded for {name}")
         manifest_path = firmware / "generated" / "gbc_manifest.json"
@@ -356,7 +467,10 @@ def main() -> int:
         results.append(result)
         print(
             f"    logic={result['derived']['ticks_per_turn']:.3f} "
-            f"render={result['derived']['render_ticks_per_frame']:.3f} "
+            f"walk_render={result['derived']['walk_render_ticks']} "
+            f"push_render={result['derived']['push_render_ticks']} "
+            "alternating_render_diagnostic="
+            f"{result['derived']['diagnostic']['alternating_render_ticks_per_frame']:.3f} "
             f"session={result['memory']['estimated_session_bytes']} "
             f"game_bank={result['memory']['estimated_game_rom_bank_bytes']}",
             flush=True,

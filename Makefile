@@ -28,7 +28,7 @@
 	clean-native-32 clean-js-parity-data configure-native build-native js-parity-data lean_parity_smoke lean_clean_sim_candidates
 
 .PHONY: gba gba_export gba_preflight gba_generated_replay_build gba_generated_replay_tests
-.PHONY: gbc gbc_export gbc_smoke gbc_cart gbc_cart_smoke gbc_eligible gbc_specialized_bench gbc_eligible_solutions_bench
+.PHONY: gbc gbc_export gbc_smoke gbc_cart gbc_cart_smoke gbc_cart_solutions_bench gbc_eligible gbc_specialized_bench gbc_eligible_solutions_bench
 
 NODE ?= node
 PYTHON ?= python3
@@ -95,6 +95,7 @@ GBC_EXPORT_DIR ?= $(BUILD_DIR)/gbc/$(basename $(notdir $(GBC_GAME)))
 GBC_ELIGIBLE_OUT ?= $(BUILD_DIR)/gbc/eligible
 GBC_CART_OUT ?= $(BUILD_DIR)/gbc/cart
 GBC_CART_SMOKE_OUT ?= $(BUILD_DIR)/gbc/cart-smoke
+GBC_CART_SOLUTIONS_BENCH_OUT ?= $(GBC_CART_OUT)/solution-bench-cart.json
 GBC_EXPORT_FLAGS ?= --bank-base 2
 # Cull oversized boards (>10x9) for the eligible good_games corpus (set GBC_CULL=0 to disable).
 GBC_CULL ?= 1
@@ -539,6 +540,7 @@ help:
 	@echo "  make gbc                           Export and build one CGB-only ROM (set GBC_GAME=...)"
 	@echo "  make gbc_export                    Export bounded CGB data without requiring GBDK"
 	@echo "  make gbc_smoke                     Build an instrumented ROM and boot-test it in mGBA"
+	@echo "  make gbc_cart_solutions_bench      Benchmark first-board solutions in the 46-game cart"
 	@echo "  make gbc_eligible                  Rebuild documented GBC-compatible good_games ROMs"
 	@echo "  make gbc_specialized_bench         Bench specialized Sokoban solution-replay timing"
 	@echo "  make gbc_eligible_solutions_bench  Host solution-replay scoreboard for ELIGIBLE_GAMES"
@@ -868,6 +870,13 @@ gbc_cart_smoke: $(PUZZLESCRIPT_CPP)
 	python3 scripts/run_gbc_cart_smoke.py \
 		"$(GBC_CART_SMOKE_OUT)/puzzlescript-compilation-autotest-9.gb" \
 		"$(GBC_CART_SMOKE_OUT)/cart-manifest.json"
+
+gbc_cart_solutions_bench: $(PUZZLESCRIPT_CPP)
+	python3 scripts/bench_gbc_cart_solutions.py \
+		--repository . \
+		--compiler "$(abspath $(PUZZLESCRIPT_CPP))" \
+		--gbdk-home "$(if $(strip $(GBDK_HOME)),$(abspath $(GBDK_HOME)),.codex_tmp/toolchains/gbdk)" \
+		--out "$(GBC_CART_SOLUTIONS_BENCH_OUT)"
 
 gbc_eligible: $(PUZZLESCRIPT_CPP)
 	python3 scripts/build_gbc_eligible_roms.py \

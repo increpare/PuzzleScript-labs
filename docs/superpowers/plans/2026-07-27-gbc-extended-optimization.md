@@ -35,9 +35,10 @@ This is one optimization program with four gated workstreams:
 2. **Renderer:** Tasks 3-5. Task 2's render-phase split decides whether Tasks
    3, 4, or 5 is attempted first; the task numbering is not permission to skip
    that decision gate.
-3. **Specialized emitter:** Tasks 6-9. Early rejection lands first. Pointer
-   hoisting, helper fusion, and static scratch are independent experiments,
-   each measured and committed or reverted separately.
+3. **Specialized emitter:** Tasks 6-9. Early rejection was attempted first and
+   rejected by its performance gate. Pointer hoisting, helper fusion, and
+   static scratch remain independent experiments, each measured and committed
+   or reverted separately.
 4. **Shipping-cart capacity:** Tasks 10-12. The cart-native scoreboard must
    exist before direction sharing or any cross-bank sharing trade is judged.
    Task 13 records the 8 MB path as deferred while 4 MB headroom remains.
@@ -235,7 +236,7 @@ Do not combine two performance experiments in one commit.
 - Modify: `scripts/run_gbc_benchmark_suite.py`
 - Modify: `firmware/gbc/README.md`
 
-- [ ] **Step 1: Write failing tool-path tests**
+- [x] **Step 1: Write failing tool-path tests**
 
 Extract these helpers into `run_gbc_benchmark_suite.py` and test them without
 invoking GBDK:
@@ -265,7 +266,7 @@ assert resolve_tool_path(
 
 Use `Path("C:/repo")` and the `.exe` expectation when `os.name == "nt"`.
 
-- [ ] **Step 2: Run the test red**
+- [x] **Step 2: Run the test red**
 
 ```bash
 python3 scripts/run_gbc_benchmark_suite_test.py
@@ -274,7 +275,7 @@ python3 scripts/run_gbc_benchmark_suite_test.py
 Expected: import/assertion failure because the helpers and corrected default do
 not exist.
 
-- [ ] **Step 3: Use the helpers before validation and Makefile invocation**
+- [x] **Step 3: Use the helpers before validation and Makefile invocation**
 
 Replace the `build-gbc-release/native/puzzlescript_cpp.exe` default and resolve
 both explicit/default paths:
@@ -293,7 +294,7 @@ compiler = resolve_tool_path(
 
 Keep `make`, emulator, source, and output path handling unchanged.
 
-- [ ] **Step 4: Add a failing metrics parser test**
+- [x] **Step 4: Add a failing metrics parser test**
 
 The synthetic object should contain two specialized functions:
 
@@ -324,7 +325,7 @@ assert report["ldhl_sp_count"] == 3
 assert report["estimated_ldhl_sp_rom_bytes"] == 6
 ```
 
-- [ ] **Step 5: Implement the focused metrics reporter**
+- [x] **Step 5: Implement the focused metrics reporter**
 
 `scripts/report_gbc_cart_metrics.py` must:
 
@@ -351,7 +352,7 @@ python3 scripts/report_gbc_cart_metrics.py \
   --out build/gbc/cart/codegen-metrics.json
 ```
 
-- [ ] **Step 6: Run focused tests green**
+- [x] **Step 6: Run focused tests green**
 
 ```bash
 python3 scripts/run_gbc_benchmark_suite_test.py
@@ -360,7 +361,7 @@ python3 scripts/report_gbc_cart_metrics_test.py
 
 Expected: both print `ok`.
 
-- [ ] **Step 7: Reproduce the baseline with relative CLI paths**
+- [x] **Step 7: Reproduce the baseline with relative CLI paths**
 
 ```bash
 python3 scripts/run_gbc_benchmark_suite.py \
@@ -379,7 +380,7 @@ Expected: the suite completes with deterministic records and the metrics report
 matches the roadmap's order of magnitude: 1,394 rule functions, mean frame
 about 31 bytes, and about 125,200 `ldhl sp` instructions.
 
-- [ ] **Step 8: Update documentation and commit**
+- [x] **Step 8: Update documentation and commit**
 
 Document that explicit relative tool paths are resolved against
 `--repository`, and show the repository-root command above.
@@ -391,6 +392,14 @@ git add scripts/run_gbc_benchmark_suite.py \
   scripts/report_gbc_cart_metrics_test.py firmware/gbc/README.md
 git commit -m "Make GBC performance measurements reproducible"
 ```
+
+**Completed baseline (`980ce35b` artifacts):** 2,398,105 packed bytes,
+2,424,832 allocated bytes, 26,727 allocated-bank slack, 1,747,047 physical
+4 MB headroom, and highest bank 150. The validated artifact set contains 473
+payload objects and 151 specialized-rule ASM files. It reports 1,513
+specialized-rule labels, 1,371 functions with associated frames
+(mean/median/max 30.097/32/128 bytes), and 125,200 `ldhl sp` instructions.
+All five hardware cases were deterministic across three boots.
 
 ---
 
@@ -408,7 +417,7 @@ git commit -m "Make GBC performance measurements reproducible"
 - Modify: `scripts/run_gbc_benchmark_suite.py`
 - Modify: `scripts/run_gbc_benchmark_suite_test.py`
 
-- [ ] **Step 1: Define the failing Python record contract**
+- [x] **Step 1: Define the failing Python record contract**
 
 Refactor SRAM decoding out of `run_once()`:
 
@@ -450,7 +459,7 @@ The synthetic test must cover:
 - truncated SRAM;
 - a headline record with count values but zero phase ticks.
 
-- [ ] **Step 2: Run the parser test red**
+- [x] **Step 2: Run the parser test red**
 
 ```bash
 python3 scripts/run_gbc_benchmark_test.py
@@ -459,7 +468,7 @@ python3 scripts/run_gbc_benchmark_test.py
 Expected: failure because `parse_benchmark_sram()` and render-detail constants
 do not exist.
 
-- [ ] **Step 3: Add render probe enums to the shared ABI**
+- [x] **Step 3: Add render probe enums to the shared ABI**
 
 In `native/include/puzzlescript/gbc.h` add:
 
@@ -486,7 +495,7 @@ typedef enum ps_gbc_perf_render_counter {
 Do not change `ps_gbc_perf_phase`; logic and render probes remain separate so
 the existing seven-element record is backward compatible.
 
-- [ ] **Step 4: Implement headline counters and diagnostic timers**
+- [x] **Step 4: Implement headline counters and diagnostic timers**
 
 In `main.c`, under `PS_GBC_PERF_BENCH`, add phase starts/totals and counters.
 Counts are always active during a selected render sample. Timer probes are
@@ -525,7 +534,7 @@ void ps_gbc_perf_render_count(uint8_t counter) {
 
 Provide no-op macros in `tile_cache.c` outside `PS_GBC_PERF_BENCH`.
 
-- [ ] **Step 5: Probe mutually exclusive renderer regions**
+- [x] **Step 5: Probe mutually exclusive renderer regions**
 
 Instrument:
 
@@ -550,7 +559,7 @@ PS_GBC_RENDER_COUNT(PS_GBC_PERF_RENDER_UPLOADED_QUARTETS);
 Do not wrap `prepareComposition()` in one broad phase: nested/overlapping phase
 ticks would make the split add up to more than the measured redraw.
 
-- [ ] **Step 6: Capture initial, walk, and push samples independently**
+- [x] **Step 6: Capture initial, walk, and push samples independently**
 
 Add:
 
@@ -569,7 +578,7 @@ Publish the three samples at SRAM offset 192 after writing zero magic, then
 write the detail magic last. Keep the legacy phase/interaction offsets and
 versions intact.
 
-- [ ] **Step 7: Parse and surface the new record**
+- [x] **Step 7: Parse and surface the new record**
 
 `run_gbc_benchmark.py` must return:
 
@@ -604,13 +613,13 @@ Print:
 walk_render=<ticks> push_render=<ticks> alternating_render_diagnostic=<ticks>
 ```
 
-- [ ] **Step 8: Add suite comparison tests**
+- [x] **Step 8: Add suite comparison tests**
 
 Assert `compare_case()` compares `walk_render_ticks` and `push_render_ticks`,
 does not treat alternating render as a headline regression, and retains the
 diagnostic value in JSON.
 
-- [ ] **Step 9: Run focused and native tests**
+- [x] **Step 9: Run focused and native tests**
 
 ```bash
 python3 scripts/run_gbc_benchmark_test.py
@@ -621,7 +630,7 @@ ctest --test-dir build/native -R puzzlescript_gbc --output-on-failure
 
 Expected: all pass.
 
-- [ ] **Step 10: Measure probe overhead separately**
+- [x] **Step 10: Measure probe overhead separately**
 
 ```bash
 python3 scripts/run_gbc_benchmark_suite.py \
@@ -640,7 +649,7 @@ Expected: count-only records have nonzero counts and zero phase ticks;
 diagnostic records have a five-phase split. Record the difference between the
 two builds as probe overhead. Use the count-only ROM for all headline timing.
 
-- [ ] **Step 11: Commit instrumentation**
+- [x] **Step 11: Commit instrumentation**
 
 ```bash
 git add native/include/puzzlescript/gbc.h \
@@ -655,6 +664,22 @@ git commit -m "Attribute GBC interaction rendering costs"
 **Decision gate:** rank Tasks 3-5 by the `walk_render`/`push_render` split.
 Attempt the largest measured component first. Do not use the alternating
 right/left render sample to choose.
+
+**Completed decision (`5415f0e0` + `e0106a42`):** the corrected count-only
+walk/push ticks are Sokoban 57/68, large-board 514/517, rule-heavy 53/52,
+object-heavy 476/465, and two-movement-lanes 92/92. Across the real
+walk/push phase samples, encode accounts for 686 ticks (42.8%), map writes
+569 (35.5%), cache lookup 194 (12.1%), compose 130 (8.1%), and tile upload
+24 (1.5%). Dedicated fallbacks are zero in every sample.
+
+Task 5 therefore runs next: it targets the largest measured component covered
+by the existing renderer tasks and needs no new static-WRAM allocation.
+Task 4 is deferred because its dedicated-fallback mechanism was not exercised.
+Task 3 remains behind its approved memory-design checkpoint; the measured
+encode cost must be included in that design rather than assuming composition
+staging is the primary win. Phase-probe builds remain diagnostic only: their
+walk/push overhead ranges from +21 to +353 ticks after count-only hooks were
+compiled out.
 
 ---
 
@@ -981,6 +1006,12 @@ git commit -m "Size the GBC composition cache per level"
 
 ### Task 5: Stage dirty map spans and flush them at VBlank
 
+**Outcome (2026-07-28): completed and rejected.** The prototype passed its
+semantic, smoke, cart, and memory gates, but the three-boot count-only suite
+regressed in all five cases. No runtime or test change was retained. Full
+measurements and the rejection rationale are recorded in the
+[optimization ledger](../../performance/gbc-optimization-ledger.md#gbc-vblank-dirty-map-span-batching-rejected-2026-07-28).
+
 **Files:**
 
 - Modify: `firmware/gbc/source/tile_cache.h`
@@ -989,7 +1020,7 @@ git commit -m "Size the GBC composition cache per level"
 - Modify: `firmware/gbc/source/benchmark.c`
 - Modify: `scripts/run_gbc_smoke.py`
 
-- [ ] **Step 1: Extend the render smoke contract**
+- [x] **Step 1: Extend the render smoke contract**
 
 The existing smoke already checks:
 
@@ -1000,7 +1031,7 @@ The existing smoke already checks:
 Add a telemetry field for map-bank flips and assert a one-cell dirty render
 uses exactly two flips: one to tile-number bank 0 and one to attribute bank 1.
 
-- [ ] **Step 2: Run red**
+- [x] **Step 2: Run red**
 
 ```bash
 make gbc_smoke
@@ -1009,7 +1040,7 @@ make gbc_smoke
 Expected: the flip assertion fails because `mapComposition()` currently flips
 twice per physical tile, eight flips per logical cell.
 
-- [ ] **Step 3: Track pending row spans**
+- [x] **Step 3: Track pending row spans**
 
 Add:
 
@@ -1024,7 +1055,7 @@ logical cell changes, widen the spans of its two physical rows. Continue
 writing `gTileMap` and `gAttributes` immediately; remove all hardware map
 writes from `mapComposition()`.
 
-- [ ] **Step 4: Implement a grouped flush**
+- [x] **Step 4: Implement a grouped flush**
 
 Expose:
 
@@ -1052,7 +1083,7 @@ Wrap only this function in the `MAP_WRITE` render phase. A gap between two
 dirty cells may upload unchanged shadow bytes; that is correct and avoids a
 larger queue.
 
-- [ ] **Step 5: Flush immediately after the next `vsync()`**
+- [x] **Step 5: Flush immediately after the next `vsync()`**
 
 At the end of the active-game loop:
 
@@ -1071,7 +1102,7 @@ post-`vsync()` flush separately, excluding the wait itself, then sum them into
 the existing interaction render total. This preserves comparison with prior
 compute-time measurements while assigning the write cost to `MAP_WRITE`.
 
-- [ ] **Step 6: Verify smoke and the phase split**
+- [x] **Step 6: Verify smoke and the phase split**
 
 ```bash
 make gbc_smoke
@@ -1089,7 +1120,10 @@ Expected:
 - map flips are two;
 - `map_write` drops on dirty renders.
 
-- [ ] **Step 7: Gate tile-data upload variants**
+- [x] **Step 7: Gate tile-data upload variants — skipped by gate**
+
+Post-map `tile_upload` remained only 21 / 1,467 attributed ticks (1.4%), so
+the conditional DMA variants were not attempted.
 
 Only if Task 2 reports `tile_upload` as material after grouped map flush, test
 these as separate commits/measurements:
@@ -1104,25 +1138,34 @@ faster on the count-only suite, passes tile readback, and does not grow packed
 payload. Do not duplicate the launcher DMA implementation and do not re-test
 the already rejected one-call `set_bkg_data(..., 4)`.
 
-- [ ] **Step 8: Commit the retained map batching**
+- [x] **Step 8: Apply the retention gate — rejected**
 
-```bash
-git add firmware/gbc/source/tile_cache.h \
-  firmware/gbc/source/tile_cache.c firmware/gbc/source/main.c \
-  firmware/gbc/source/benchmark.c scripts/run_gbc_smoke.py
-git commit -m "Flush GBC dirty map spans at VBlank"
-```
+Count-only walk/push redraws regressed in every case, including
+`large_board` (514/517 → 530/527) and `object_heavy`
+(476/465 → 536/527). The candidate source, smoke/parser contract, and
+generated artifacts were reverted. Commit `0fb67653` retained only the
+measured rejection and roadmap status; there is no map-batching runtime
+commit.
 
 ---
 
 ### Task 6: Emit direct early rejection instead of `row_matched`
+
+**Outcome (2026-07-28): completed and rejected.** Structural and semantic
+gates passed, packed payload fell by 62,417 bytes, mean/median/max frames fell
+from 30.097/32/128 to 28.510/30/128 bytes, and `ldhl sp` fell 10.32%. However,
+`object_heavy` logic deterministically regressed 1,149.805 → 1,300.383
+ticks/turn (+13.10%, about 36.76 ms). Alternating direct A/B boots reproduced
+the regression, so no emitter or exporter-test change was retained. Full
+measurements are recorded in the
+[optimization ledger](../../performance/gbc-optimization-ledger.md#gbc-direct-early-pattern-rejection-rejected-2026-07-28).
 
 **Files:**
 
 - Modify: `native/src/compiler/compact_turn_codegen.cpp`
 - Modify: `native/tests/gbc_exporter.cpp`
 
-- [ ] **Step 1: Add failing structural assertions for every rule shape**
+- [x] **Step 1: Add failing structural assertions for every rule shape**
 
 For the existing Sokoban, aggregate/property, and two-row fixtures, concatenate
 all `generated_specialized_turn*.c` files and assert:
@@ -1145,7 +1188,7 @@ require(
 Also assert property and aggregate capture markers remain present and the
 two-row fixture still emits both row scratch arrays.
 
-- [ ] **Step 2: Run exporter test red**
+- [x] **Step 2: Run exporter test red**
 
 ```bash
 cmake --build build --target puzzlescript_gbc_exporter_tests
@@ -1154,7 +1197,7 @@ build/native/puzzlescript_gbc_exporter_tests
 
 Expected: structural assertion failure.
 
-- [ ] **Step 3: Change the match emitter contract**
+- [x] **Step 3: Change the match emitter contract**
 
 Replace `matchedFlagName` with a complete rejection statement:
 
@@ -1183,7 +1226,7 @@ For a non-fused `matches_at` helper, pass
 individual any-layer/layer-coupled alternative; never use one to guard the
 next pattern.
 
-- [ ] **Step 4: Use structured rejection at each caller**
+- [x] **Step 4: Use structured rejection at each caller**
 
 Use `do { ... } while (false)` so labels cannot collide:
 
@@ -1213,7 +1256,7 @@ The old `cell += delta` statements may be skipped after rejection because they
 mutate only a dead local. Property/aggregate capture and all writes must remain
 after the final match test.
 
-- [ ] **Step 5: Run structural and semantic parity tests**
+- [x] **Step 5: Run structural and semantic parity tests**
 
 ```bash
 cmake --build build --target \
@@ -1227,7 +1270,7 @@ ctest --test-dir build/native \
 Expected: all fixtures pass, including simultaneous matches, property
 bindings, aggregate bindings, and two-row rules.
 
-- [ ] **Step 6: Measure bytes, frames, and five-case ticks**
+- [x] **Step 6: Measure bytes, frames, and five-case ticks**
 
 ```bash
 make gbc_cart
@@ -1244,14 +1287,12 @@ Then run the standing gate. Expected:
 - rejection-heavy cases improve;
 - no case or semantic gate regresses.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Apply the retention gate — rejected**
 
-```bash
-git add native/src/compiler/compact_turn_codegen.cpp \
-  native/tests/gbc_exporter.cpp \
-  docs/performance/gbc-optimization-ledger.md
-git commit -m "Short-circuit generated GBC pattern rejection"
-```
+The candidate improved three logic cases, left Sokoban neutral, and regressed
+`object_heavy` by 13.10%. Candidate source, structural assertions, cart
+objects, linked ROM, and perf artifacts were reverted. Only this decision and
+the measured ledger entry are retained.
 
 ---
 
@@ -1262,7 +1303,7 @@ git commit -m "Short-circuit generated GBC pattern rejection"
 - Modify: `native/src/compiler/compact_turn_codegen.cpp`
 - Modify: `native/tests/gbc_exporter.cpp`
 
-- [ ] **Step 1: Add a failing structural assertion**
+- [x] **Step 1: Add a failing structural assertion**
 
 For each emitted rule body, require:
 
@@ -1275,7 +1316,7 @@ and require hot pattern loads to use `board[cell]` /
 `((uint16_t*)movements)[cell]`, not `session->board[cell]` /
 `session->movements[cell]`.
 
-- [ ] **Step 2: Parameterize storage emit helpers**
+- [x] **Step 2: Parameterize storage emit helpers**
 
 Change the internal `emitGbdCBoardGet/Assign/Set` and movement siblings to take
 `boardExpr` / `movementsExpr`. Existing non-rule callers may pass
@@ -1285,7 +1326,7 @@ Change the internal `emitGbdCBoardGet/Assign/Set` and movement siblings to take
 Emit both pointer locals once at the narrowest function that contains the scan
 loop. Do not duplicate them in each candidate-cell block.
 
-- [ ] **Step 3: Run exporter and oracle tests**
+- [x] **Step 3: Run exporter and oracle tests**
 
 ```bash
 cmake --build build --target \
@@ -1296,21 +1337,27 @@ ctest --test-dir build/native \
   --output-on-failure
 ```
 
-- [ ] **Step 4: Measure before deciding**
+- [x] **Step 4: Measure before deciding**
 
 Rebuild the cart and record ticks, payload, frame distribution, and `ldhl sp`.
 Hoisted pointers can themselves spill on SM83; retain only if the five-case
 suite and frame/ROM metrics improve together. Revert the complete experiment
 if SDCC increases frames or payload without a clear tick win.
 
-- [ ] **Step 5: Commit only if retained**
+- [x] **Step 5: Apply the retention gate — rejected**
 
-```bash
-git add native/src/compiler/compact_turn_codegen.cpp \
-  native/tests/gbc_exporter.cpp \
-  docs/performance/gbc-optimization-ledger.md
-git commit -m "Hoist generated GBC board base pointers"
-```
+The candidate reduced packed payload by 110,739 bytes (4.62%), reduced
+`ldhl sp` by 18,909 instructions (15.10%), and improved four of the five
+logic cases. However, `object_heavy` regressed deterministically from
+1,149.805 to 1,253.609 logic ticks per turn: +9.03%, reproduced in three
+alternating direct A/B pairs. SDCC kept both pointers in each rule's stack
+frame and reloaded them through `ldhl sp`; the global static improvement did
+not predict this hot-path loss.
+
+Candidate emitter/test changes and generated, linked, and performance
+artifacts were reverted. Only this decision and the measured
+[ledger entry](../../performance/gbc-optimization-ledger.md#gbc-generated-boardmovement-base-pointer-hoist-rejected-2026-07-28)
+are retained.
 
 ---
 
@@ -1321,7 +1368,7 @@ git commit -m "Hoist generated GBC board base pointers"
 - Modify: `native/src/compiler/compact_turn_codegen.cpp`
 - Modify: `native/tests/gbc_exporter.cpp`
 
-- [ ] **Step 1: Add a failing no-helper assertion**
+- [x] **Step 1: Add a failing no-helper assertion**
 
 For a fixture that emits collect-all semantics (`applyOnMatch == false`),
 assert no symbol contains `_matches_at` and the scan body still writes every
@@ -1331,7 +1378,7 @@ successful candidate into:
 session->match_cells[match_count]
 ```
 
-- [ ] **Step 2: Extract one reusable C++ emission lambda**
+- [x] **Step 2: Extract one reusable C++ emission lambda**
 
 Inside `emitGbcSpecializedRuleFunction()`, add an emitter-side lambda:
 
@@ -1350,7 +1397,14 @@ call/prologue/epilogue per candidate.
 Do not change collect-all ordering or the later apply loop over
 `session->match_cells`.
 
-- [ ] **Step 3: Verify structural and semantic behavior**
+**Dependency adjustment (2026-07-29):** the `do/while` direct-rejection body
+in the sketch depended on Task 6's rejected early-rejection experiment. Task
+8 was therefore isolated from Task 6: the candidate emitted the current
+`row_matched` matcher body verbatim inside a lexical block at each scan site.
+It did not reintroduce direct rejection or otherwise change matching
+semantics.
+
+- [x] **Step 3: Verify structural and semantic behavior**
 
 ```bash
 cmake --build build --target \
@@ -1361,18 +1415,35 @@ ctest --test-dir build/native \
   --output-on-failure
 ```
 
-- [ ] **Step 4: Apply the size/speed gate**
+- [x] **Step 4: Apply the size/speed gate**
 
 Measure all five cases, packed payload, mean/p90/max frames, and `ldhl sp`.
 Retain only if call-boundary savings outweigh duplicated bodies. A tick win
 that grows the cart requires an explicit byte trade justified by Task 10's
 shipping-cart scoreboard and the physical-headroom report.
 
-- [ ] **Step 5: Commit or document rejection**
+- [x] **Step 5: Commit or document rejection — rejected**
 
 If retained, commit the code and ledger. If rejected, restore the code, add
 only the measured rejection to the ledger, and commit that documentation
 separately.
+
+The candidate removed all non-fused helper symbols and passed the exporter,
+specialized, any-mask, layer-coupled, and general parity tests. All 46 games
+built and passed the cartridge checker. Packed payload fell by 65,633 bytes
+(2.74%), packed banks fell from 148 to 144, and `ldhl sp` fell by 6,446
+instructions (5.15%).
+
+The required three-boot suite was mixed: Sokoban was neutral, `large_board`
+improved 5.37%, `object_heavy` and `two_movement_lanes` were effectively
+neutral, but `rule_heavy` regressed from 853.023 to 874.070 logic ticks
+(+2.47%, about 5.14 ms/turn) and push rendering regressed from 52 to 53 ticks.
+Three alternating direct Task 2/candidate A/B pairs reproduced those exact
+numbers. This violates the no-material-fixture-regression gate, so the
+emitter, tests, generated artifacts, and performance artifacts were restored.
+Only this decision and the measured
+[ledger entry](../../performance/gbc-optimization-ledger.md#gbc-collect-all-matcher-scan-inlining-rejected-2026-07-29)
+are retained.
 
 ---
 
@@ -1388,13 +1459,13 @@ separately.
 - Modify: `scripts/build_gbc_cart.py`
 - Modify: `native/tests/gbc_exporter.cpp`
 
-- [ ] **Step 1: Preserve the cart's shared-WRAM invariant in a failing test**
+- [x] **Step 1: Preserve the cart's shared-WRAM invariant in a failing test**
 
 Extend `scripts/check_gbc_cart_test.py` with a generated rules object that has
 nonzero `_BSS`; keep the expectation that it is rejected. The experiment must
 not put file-scope statics in any `gNN_*` object.
 
-- [ ] **Step 2: Add one unnamespaced shared scratch object**
+- [x] **Step 2: Add one unnamespaced shared scratch object**
 
 Define only values shown by the current assembly to be repeatedly copied
 between stack slots:
@@ -1417,7 +1488,7 @@ Compile `specialized_scratch.c` once as shared firmware, not through
 `generated_core.c`. The desktop oracle links the same source. Do not add the
 symbol to `kNamespacedSymbols`.
 
-- [ ] **Step 3: Add an emitter-only experiment switch**
+- [x] **Step 3: Add an emitter-only experiment switch**
 
 Under a disabled-by-default option, emit references to the shared scratch for
 the selected locals. Keep the normal stack-local path for desktop builds
@@ -1426,13 +1497,19 @@ unless the host test explicitly defines the experiment macro.
 Never move arrays, property captures, aggregate captures, or row-match arrays
 into the shared object in this experiment.
 
-- [ ] **Step 4: Run re-entrancy and parity checks**
+- [x] **Step 4: Run re-entrancy and parity checks**
 
 Document and assert that no interrupt handler calls specialized rules and no
 specialized rule recursively calls another rule. Run exporter, oracle,
 eligible, cart, and sound/command gates.
 
-- [ ] **Step 5: Measure against the new baseline**
+Eligible-gate disposition: explicitly waived after the automatic payload and
+representative-runtime retention gates failed. This is an early-stop waiver,
+not a claimed eligible pass. The full production-cart build had already
+compiled and linked all 46 sources, and the measured candidate could no
+longer be retained.
+
+- [x] **Step 5: Measure against the new baseline**
 
 Compare:
 
@@ -1446,10 +1523,30 @@ Retain only for a clear speed **and** payload/frame win. The prior 0.301%
 interpreter result is not enough, and any per-game `_DATA/_BSS` is an automatic
 rejection.
 
-- [ ] **Step 6: Commit or fully remove**
+- [x] **Step 6: Commit or fully remove**
 
 If rejected, delete the new header/source/build wiring and record the result
 in the ledger. Do not leave a disabled scratch subsystem behind.
+
+Completed 2026-07-29: rejected and fully removed. The candidate used exactly
+one shared, unnamespaced nine-byte scratch object; the full 46-game cartridge
+passed with zero per-game `_DATA/_BSS`, and structural tests proved that
+specialized rule bodies do not call one another or run from the timer
+interrupt. The focused `_BSS` fixture passed immediately because the checker
+already enforced the invariant; it supplied exact coverage rather than a new
+behavioral failure. Mean/p90 rule frames fell from 30.097/50 to 26.014/44
+bytes and `ldhl sp` fell 15.36%, but packed payload grew by 55,019 bytes
+(2.29%) and four banks. Three-boot mGBA runs regressed `large_board` by
+4.16%, `rule_heavy` by 10.46%, and `object_heavy` by 3.18%; three alternating
+direct A/B pairs reproduced each result exactly. This failed both the runtime
+and payload retention gates, so the header/source, build wiring, switch,
+tests, and transient artifacts were restored. The failed gate ended the
+experiment with an explicit early-stop waiver for the remaining eligible-ROM
+sweep; it is not recorded as an eligible pass. The full production cart had
+already compiled and linked all 46 sources. Only this decision and the
+measured
+[ledger entry](../../performance/gbc-optimization-ledger.md#gbc-shared-specialized-rule-scratch-rejected-2026-07-29)
+are retained.
 
 ---
 
@@ -1461,10 +1558,11 @@ in the ledger. Do not leave a disabled scratch subsystem behind.
 - Create: `scripts/bench_gbc_cart_solutions_test.py`
 - Modify: `scripts/build_gbc_cart.py`
 - Modify: `firmware/gbc/source/main.c`
+- Modify: `firmware/gbc/source/benchmark.c`
 - Modify: `firmware/gbc/source/benchmark.h`
 - Modify: `Makefile`
 
-- [ ] **Step 1: Write failing key-script and telemetry tests**
+- [x] **Step 1: Write failing key-script and telemetry tests**
 
 Define key conversion:
 
@@ -1507,7 +1605,7 @@ class CartBenchTelemetry:
 Cover bad magic/version/index, zero turns, truncated data, weighted mean, and
 descending worst-ten ordering.
 
-- [ ] **Step 2: Add benchmark-cart build mode**
+- [x] **Step 2: Add benchmark-cart build mode**
 
 Add `benchmark: bool` to `build_cart()` and CLI `--benchmark`, mutually
 exclusive with `--autotest`. Compile shared firmware with:
@@ -1521,13 +1619,13 @@ Name the output `puzzlescript-compilation-benchmark-46.gb` and record
 `"benchmark": true` in the cart manifest. Generated game/rule objects remain
 byte-identical to production; only shared instrumentation differs.
 
-- [ ] **Step 3: Refactor the hardware timer for both benchmark modes**
+- [x] **Step 3: Refactor the hardware timer for both benchmark modes**
 
 Compile timer primitives when either `PS_GBC_PERF_BENCH` or
 `PS_GBC_CART_BENCHMARK` is set. Do not enable phase probes in the cart
 scoreboard.
 
-- [ ] **Step 4: Accumulate one user-visible turn correctly**
+- [x] **Step 4: Accumulate one user-visible turn correctly**
 
 In the active-game loop:
 
@@ -1544,7 +1642,7 @@ Publish one record in SRAM bank 3 at offset 512. Write zero magic first and
 valid magic last. A fresh emulator boot measures one game, so the record does
 not need 46 slots.
 
-- [ ] **Step 5: Reuse/generate first-retained-board fixtures**
+- [x] **Step 5: Reuse/generate first-retained-board fixtures**
 
 Import `ELIGIBLE_GAMES` from `build_gbc_eligible_roms.py`; do not copy the
 46-entry tuple again.
@@ -1555,7 +1653,7 @@ Otherwise reuse the existing retained-board solving helpers in
 `bench_gbc_eligible_solutions.py` to solve board 0 and cache the fixture.
 Report unsolved games explicitly; never silently omit them.
 
-- [ ] **Step 6: Drive one fresh libmGBA boot per game**
+- [x] **Step 6: Drive one fresh libmGBA boot per game**
 
 Reuse `run_gbc_smoke.load_libmgba_shim()` and
 `psgbc_run_with_keys()`. For each game:
@@ -1580,7 +1678,7 @@ Output:
 }
 ```
 
-- [ ] **Step 7: Add the Make target**
+- [x] **Step 7: Add the Make target**
 
 ```make
 GBC_CART_SOLUTIONS_BENCH_OUT ?= \
@@ -1596,7 +1694,7 @@ gbc_cart_solutions_bench: $(PUZZLESCRIPT_CPP)
 
 Add the target to `.PHONY` and help text.
 
-- [ ] **Step 8: Run focused tests and a three-game smoke scoreboard**
+- [x] **Step 8: Run focused tests and a three-game smoke scoreboard**
 
 ```bash
 python3 scripts/bench_gbc_cart_solutions_test.py
@@ -1609,7 +1707,7 @@ python3 scripts/bench_gbc_cart_solutions.py \
 
 Expected: three indexed, winning rows with nonzero timer counts.
 
-- [ ] **Step 9: Run all 46 and commit**
+- [x] **Step 9: Run all 46 and commit**
 
 ```bash
 make gbc_cart_solutions_bench
@@ -1621,9 +1719,48 @@ board, and stable worst-ten lists across a repeated run.
 ```bash
 git add scripts/bench_gbc_cart_solutions.py \
   scripts/bench_gbc_cart_solutions_test.py scripts/build_gbc_cart.py \
-  firmware/gbc/source/main.c firmware/gbc/source/benchmark.h Makefile
+  firmware/gbc/source/main.c firmware/gbc/source/benchmark.c \
+  firmware/gbc/source/benchmark.h Makefile
 git commit -m "Benchmark solution turns on the GBC compilation cart"
 ```
+
+Task 10 completed on 2026-07-29. The 46-game benchmark cart linked across
+148 packed banks at 7,543/8,192 HOME bytes and 5,965/6,080 static WRAM bytes.
+All 381 generated game/rule objects were byte-identical to the matching
+production build; the benchmark adds only shared instrumentation.
+
+Two fresh-boot libmGBA sweeps reproduced exactly: 36/46 games published
+winning records, 848 user-visible turns were timed, and both worst-ten index
+orders plus every successful `(logic, render, maximum-turn)` tick tuple were
+identical. Weighted totals were 507.532 logic ticks/turn, 724.519 combined
+interaction ticks/turn, and 203.545 render ticks/redraw. The slowest measured
+logic games were `sokobond-demake`, `wand-spinner`,
+`m-c-eschers-armageddon`, and `manic_ammo`; this confirms the scoreboard is
+not Sokoban-only.
+
+Successful rows expose fixture consumption explicitly.
+`sokobond-demake` remains successful and ranked, but is classified as a
+cart-versus-fixture semantic divergence because the cart wins after 6 of its
+10 fixture tokens. Its row records 4 unused tokens and `early_cart_win=true`;
+ordinary successful replays record zero unused tokens and
+`early_cart_win=false`.
+
+Failures remain explicit in the JSON: `slot-machine` has a zero-turn replay,
+`voitex-rasteriser` times out in the solver, and eight fixtures do not publish
+a cart win. Bounded host-GBC classification found two baseline/specialized
+fixture divergences (`crate-guardian`, `two-tone-tango`), one specialized-only
+divergence (`no-forbidden-symbols-2`), and five cartridge/integration
+follow-ups (`hedgehog-stimulator`, `the-red-ring-of-immortality`,
+`unclean-residues`, `pipe-puffer`, `yellow-box`). Those follow-ups are not
+silently excluded and are outside Task 10's measurement-harness scope.
+
+Validation passed the focused Python contracts, all 17 native GBC tests, all
+753 JS tests, the nine-game launcher/cart smoke, the full structural/capacity
+checker, and a fixed-frame libmGBA replay of the legacy PERF ROM. The external
+macOS mGBA app/save polling path failed on both the new and pre-Task10 control
+ROMs, while the in-process libmGBA backend parsed the complete perf record;
+that is recorded as an environmental harness limitation, not a firmware
+timer regression.
 
 ---
 
@@ -1634,7 +1771,7 @@ git commit -m "Benchmark solution turns on the GBC compilation cart"
 - Create: `scripts/analyze_gbc_cart_sharing.py`
 - Create: `scripts/analyze_gbc_cart_sharing_test.py`
 
-- [ ] **Step 1: Write a failing normalized-cluster test**
+- [x] **Step 1: Write a failing normalized-cluster test**
 
 Use synthetic objects/symbol tables to distinguish:
 
@@ -1656,11 +1793,12 @@ The report row must include:
 }
 ```
 
-- [ ] **Step 2: Implement source/object normalization**
+- [x] **Step 2: Implement source/object normalization**
 
 Normalize only:
 
-- `gNN_` namespace prefixes;
+- leading `_gNN_` / `b_gNN_` symbol namespaces that match the containing
+  `gNN_` object, plus the corresponding leading object/module prefix;
 - `_CODE_N` area numbers;
 - symbol addresses and generated bank literals.
 
@@ -1672,7 +1810,7 @@ normalized per-game reference. Mark an object directly shareable only when a
 single definition can satisfy every consumer without a per-game alias or
 cross-bank access.
 
-- [ ] **Step 3: Run against the shipping cart**
+- [x] **Step 3: Run against the shipping cart**
 
 ```bash
 python3 scripts/analyze_gbc_cart_sharing.py \
@@ -1684,7 +1822,7 @@ python3 scripts/analyze_gbc_cart_sharing.py \
 Expected: reconcile the roadmap's approximately 148 KB gross duplicates and
 explain how much is blocked by namespaced data/call references.
 
-- [ ] **Step 4: Apply the design gate**
+- [x] **Step 4: Apply the design gate**
 
 Do **not** change `pack_items()` merely because normalized bytes match.
 Proceed to a new shared-core design only if the report identifies at least
@@ -1699,10 +1837,43 @@ If the threshold is met, write a focused design/spec for the smallest safe
 cluster (prefer compact facade before core) and create a separate
 implementation plan. If not, record Task 8a as rejected with the report.
 
-- [ ] **Step 5: Commit the analysis tool/report conclusion**
+- [x] **Step 5: Commit the analysis tool/report conclusion**
 
 Commit the tool/test and the ledger conclusion. Build artifacts remain
 untracked.
+
+Task 11 completed on 2026-07-30 against the preserved Task 10 revision
+`9dab2dfa`. The untracked report is
+`build/gbc/cart-task10-9dab2dfa/sharing-analysis.json`.
+
+The analyzer parsed 473 per-game ASxxxx objects and reproduced the roadmap
+exactly: 110,558 duplicate bytes in `generated_core`, 27,160 in
+`generated_facade_rules`, and 10,644 in `generated_compact_facade`, for
+148,362 bytes total. The manifest/object map is an exact 473/473 bijection.
+All 1,634 per-game symbol-reference records resolved; 884 are same-bank, 750
+are cross-bank, and none has unknown bank ownership. No duplicate cluster is
+directly shareable because every cluster needs namespaced aliases, per-game
+references, different-bank ownership, or consumers outside the retained
+implementation bank.
+
+The conservative design model retains one implementation for each of 25
+configuration clusters and subtracts 1,034 bytes of descriptor/context
+state, 7,664 bytes of HOME/`BANKED` aliases, 1,856 bytes for 58 modeled shared
+bridge/thunks, and a 25,414-byte genericity reserve. That model yields
+112,394 bytes net. A stronger stress bound replaces the 58-thunk allowance
+with 32 bytes for each of all 750 observed cross-bank reference records
+(24,000 bytes), yielding 90,250 bytes. The 65,536-byte gate uses the stress
+bound and still passes.
+
+Per the gate, no packer, generated-code, or bank-ABI change was made here.
+The approved follow-up design and its separate unexecuted plan are:
+
+- `docs/superpowers/specs/2026-07-30-gbc-shared-compact-facade-design.md`
+- `docs/superpowers/plans/2026-07-30-gbc-shared-compact-facade.md`
+
+They authorize only a default-off, same-bank `g21`/`g31` compact-facade
+alias canary. Broader facade-rules/core or cross-bank sharing requires a new
+evidence checkpoint and approval.
 
 ---
 
@@ -1715,7 +1886,7 @@ untracked.
 - Modify: `native/src/gbc/exporter.cpp`
 - Modify: `native/tests/gbc_exporter.cpp`
 
-- [ ] **Step 1: Add an opt-in failing structural test**
+- [x] **Step 1: Add an opt-in failing structural test**
 
 Add `shareDirectionalBodies` to `GbcSpecializedTurnEmitOptions`, default
 false. In an exporter fixture with four direction-expanded siblings, enable it
@@ -1726,7 +1897,7 @@ and assert:
 - the family receives direction, `delta`, and scan bounds explicitly;
 - default exports remain byte-for-byte structurally unchanged.
 
-- [ ] **Step 2: Emit one family only for proved-equivalent siblings**
+- [x] **Step 2: Emit one family only for proved-equivalent siblings**
 
 Build a family key from every semantic field except direction and derived scan
 bounds:
@@ -1740,12 +1911,18 @@ Only siblings with identical keys may share. Emit the existing body once with
 direction/delta/bounds parameters, and retain thin indexed wrappers so group
 scheduling and rule sound/message identity do not change.
 
-- [ ] **Step 3: Verify oracle and full structural parity**
+- [ ] **Step 3: Verify oracle and full structural parity (partial; waived)**
 
 Run exporter/oracle tests, the full eligible corpus, command/sound gates, and
 cart smoke. Reject on any ordering, simultaneous-match, or sound difference.
 
-- [ ] **Step 4: Judge with the cart scoreboard**
+Short-circuited after the hard runtime rejection: exporter/oracle tests, the
+full 46-game cart structural build/check, and both scoreboard sweeps ran. The
+separate eligible-ROM sweep and candidate cart smoke did not run after the
+measured per-game regression exceeded 5%; this step is intentionally not
+recorded as complete.
+
+- [x] **Step 4: Judge with the cart scoreboard**
 
 Compare:
 
@@ -1758,12 +1935,36 @@ Retain only if payload falls by at least 1%, weighted cart timing regresses by
 no more than 2%, and no measured game regresses by more than 5%. These are
 experiment gates, not a permanent product latency target.
 
-- [ ] **Step 5: Commit or record rejection**
+- [x] **Step 5: Commit or record rejection**
 
 Keep the option default false until the complete gate passes. If it passes,
 make the selected policy explicit in exporter/cart build configuration and
 commit one measured change. If it fails, remove the option and record the
 result.
+
+Completed 2026-07-30: rejected and fully removed. The default-off structural
+fixture first failed on the missing option, then proved one parameterized
+body, original indexed wrappers/order, explicit direction/delta/bounds, and
+byte-identical default output. The complete family key covered every required
+semantic field; 45 conservative two-rule families produced 90 wrappers in
+eight games. The exact 46-game benchmark cart passed export, link, bank,
+HOME, WRAM, identity, and specialization checks.
+
+Size passed: packed payload fell 32,218 bytes (1.34%), rule packs fell 3.30%,
+and packed banks/highest bank fell from 148/150 to 146/148. Aggregate
+timing also passed: weighted logic rose 0.55% and interaction rose 0.39%.
+However, two fresh-emulator sweeps reproduced `dollyban` at
+675.296→745.259 logic ticks/turn (+10.36%) and 819.444→889.593 interaction
+ticks/turn (+8.56%), violating the mandatory 5% per-game ceiling. Its five
+families replaced direct unrolled entry with ten wrappers. Each call has
+eight total parameters: `session`/`commands` travel in DE/BC, while direction,
+`delta`, and the four bounds add six stack bytes. The candidate eligible-ROM
+and cart-smoke sweeps were waived after this automatic rejection gate failed;
+they are not claimed as passes. The experiment option, implementation,
+wiring, and tests were removed, and the pre-experiment source/tests were
+restored. Only this disposition and the measured
+[ledger entry](../../performance/gbc-optimization-ledger.md#gbc-direction-expanded-rule-body-sharing-rejected-2026-07-30)
+remain.
 
 ---
 
@@ -1773,29 +1974,49 @@ result.
 
 - Modify: `docs/performance/gbc-optimization-ledger.md`
 
-- [ ] **Step 1: Record the revalidated capacity**
+- [x] **Step 1: Record the revalidated capacity**
 
 Record the current packed payload, allocated-bank slack, highest used bank,
 and physical headroom through bank 255. State explicitly that allocated-bank
 fill is not physical-ROM fill.
 
-- [ ] **Step 2: Record the ABI constraint**
+- [x] **Step 2: Record the ABI constraint**
 
 Document that normal GBDK `BANKED` calls and `SWITCH_ROM_MBC5` carry an
 8-bit bank and that `SWITCH_ROM_MBC5_8M` does not make generated calls above
 bank 255 safe.
 
-- [ ] **Step 3: Define the reopen gate**
+- [x] **Step 3: Define the reopen gate**
 
 No spike or production code is part of this plan. Reopen 8 MB as a separate
 brainstorm/design/implementation cycle only when a cart forecast shows less
 than 256 KiB of physical 4 MB headroom or a queued game set demonstrably
 cannot pack below bank 256.
 
-- [ ] **Step 4: Commit the deferral**
+- [x] **Step 4: Commit the deferral**
 
 Commit only the ledger conclusion. Do not add high-bank smoke scripts, widen
 bank types, or modify the packer/checker/ROM header.
+
+Task 13 completed on 2026-07-30 as a documentation-only capacity decision.
+The exact retained Task 10 artifact at `9dab2dfa` still packs 2,398,105 bytes
+into 148 contiguous payload banks (3-150). Those allocated banks are 98.90%
+full, but the complete bank-3-through-255 payload region is only 57.85% full:
+26,727 bytes of allocated-bank slack plus 105 wholly unused banks leave
+1,747,047 bytes of physical 4 MB headroom.
+
+Bundled GBDK 4.5 keeps the normal call path eight-bit: `BANK()` casts the bank
+symbol to `uint8_t`, `SWITCH_ROM_MBC5()` selects a maximum of bank 255 and
+clears the ninth MBC5 bank bit, and SDCC `BANKED` calls track that ordinary
+bank in `CURRENT_BANK`. `SWITCH_ROM_MBC5_8M()` can set the ninth hardware
+bit, but GBDK explicitly says it neither tracks `CURRENT_BANK` nor supports
+banked SDCC calls. It therefore cannot make the cart's generated calls above
+bank 255 safe.
+
+No high-bank spike or production change was made. Reopen 8 MB only through a
+separate brainstorm/design/implementation cycle when a measured forecast has
+strictly less than 262,144 bytes of physical 4 MB headroom, or when the queued
+game set demonstrably cannot be packed entirely below bank 256.
 
 ---
 
@@ -1805,8 +2026,10 @@ bank types, or modify the packer/checker/ROM header.
 
 - Modify: `docs/performance/gbc-optimization-ledger.md`
 - Modify: `docs/performance/gbc-extended-optimization-plan-2026-07-27.md`
+- Modify (completion bookkeeping):
+  `docs/superpowers/plans/2026-07-27-gbc-extended-optimization.md`
 
-- [ ] **Step 1: Run the complete standing gate from a clean rebuild**
+- [x] **Step 1: Run the complete standing gate from a clean rebuild**
 
 Use fresh candidate labels and rebuild exporter artifacts after any ABI
 change. Also run:
@@ -1819,7 +2042,7 @@ python3 scripts/report_gbc_cart_metrics.py \
   --out build/gbc/cart/codegen-metrics-final.json
 ```
 
-- [ ] **Step 2: Produce one final before/after table**
+- [x] **Step 2: Produce one final before/after table**
 
 Include:
 
@@ -1832,19 +2055,29 @@ Include:
 - function frame mean/median/p90/max and `ldhl sp`;
 - fixed ROM, maximum bank, static WRAM, and snapshot SRAM.
 
-- [ ] **Step 3: Reconcile every roadmap task**
+- [x] **Step 3: Reconcile every roadmap task**
 
 Mark Tasks 0-8 in the source roadmap as retained, rejected, superseded,
 deferred, or split into a follow-up design. Preserve the corrected renderer
 bank-bracket, WRAM-overlay, physical-capacity, and 8 MB GBDK conclusions.
 
-- [ ] **Step 4: Commit documentation**
+- [x] **Step 4: Commit documentation**
 
 ```bash
 git add docs/performance/gbc-optimization-ledger.md \
-  docs/performance/gbc-extended-optimization-plan-2026-07-27.md
+  docs/performance/gbc-extended-optimization-plan-2026-07-27.md \
+  docs/superpowers/plans/2026-07-27-gbc-extended-optimization.md
 git commit -m "Record the extended GBC optimization results"
 ```
+
+Completed 2026-07-30 at code revision `35610684`. The clean isolated gate
+passed 17/17 native GBC tests, 753/753 JavaScript tests, 46/46 eligible ROMs,
+the production-cart checker, the nine-game cart smoke, and the standalone
+hardware smoke. Fresh count-only and phase-probed five-case runs, codegen
+metrics, and two exact 46-game scoreboard sweeps populate the final ledger
+entry; the two sweeps agree on all timing/failure projections and ranked
+arrays (their retained `wall_seconds` naturally differ). The source roadmap
+now records the measured retain/reject/defer/split disposition of Tasks 0-8.
 
 ## Program completion criteria
 
