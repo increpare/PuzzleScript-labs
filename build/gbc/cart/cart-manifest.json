@@ -1,5 +1,6 @@
 {
   "autotest": false,
+  "benchmark": true,
   "format": "puzzlescript-gbc-cart-v1",
   "game_count": 46,
   "games": [
@@ -2535,5 +2536,5 @@
       "used": 10282
     }
   ],
-  "rom": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/build/gbc/cart/puzzlescript-compilation-46.gb"
+  "rom": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/build/gbc/cart/puzzlescript-compilation-benchmark-46.gb"
 }
