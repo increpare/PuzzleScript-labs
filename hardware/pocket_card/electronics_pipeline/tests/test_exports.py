@@ -1084,7 +1084,7 @@ class CaseHelperIntegrationTest(unittest.TestCase):
         self.assertEqual(tracked_manifest.returncode, 1)
 
         board_relative = (
-            "hardware/pocket_card/case/out/pcb/"
+            "hardware/pocket_card/electronics/"
             "pocket_card_controller.kicad_pcb"
         )
         checked_in_board = subprocess.run(
