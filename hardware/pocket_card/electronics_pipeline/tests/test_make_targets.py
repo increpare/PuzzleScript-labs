@@ -41,6 +41,20 @@ class MakeTargetTest(unittest.TestCase):
         self.assertNotEqual(output.returncode, 0)
         self.assertIn("POCKET_CARD_ALLOW_LEGACY_REBUILD=1", output.stderr + output.stdout)
 
+    def test_engineer_export_includes_blend_by_default(self):
+        default = subprocess.check_output(
+            ["make", "-n", "pocket_card_engineer_export"],
+            cwd=ROOT,
+            text=True,
+        )
+        self.assertIn("--include-blend", default)
+        omitted = subprocess.check_output(
+            ["make", "-n", "pocket_card_engineer_export", "INCLUDE_BLEND=0"],
+            cwd=ROOT,
+            text=True,
+        )
+        self.assertNotIn("--include-blend", omitted)
+
 
 if __name__ == "__main__":
     unittest.main()

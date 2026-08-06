@@ -32,6 +32,9 @@
 
 NODE ?= node
 PYTHON ?= python3
+# Pocket Card engineer ZIP includes Blender visual context by default.
+# Set INCLUDE_BLEND=0 to omit it.
+INCLUDE_BLEND ?= 1
 CMAKE ?= cmake
 NATIVE_TEST_CONFIG ?= Debug
 BUILD_DIR ?= build
@@ -570,7 +573,7 @@ help:
 	@echo "  make pocket_card_pcb_exports       Export fabrication artifacts from native KiCad sources"
 	@echo "  make pocket_card_case              Rebuild Pocket Card shells + PCB exports (incl. 3D meshes)"
 	@echo "  make pocket_card_case_shells       Rebuild shells from current PCB exports"
-	@echo "  make pocket_card_engineer_export   Build engineer handoff revision zip"
+	@echo "  make pocket_card_engineer_export   Build engineer handoff zip (INCLUDE_BLEND=1 default; 0 omits Blender)"
 	@echo "  make pocket_card_engineer_check    Validate engineer handoff zip (set ZIP=...)"
 	@echo "  make pocket_card_engineer_accept   Accept staged engineer handoff (set STAGED=...)"
 	@echo "  make pocket_card_legacy_pcb_rebuild Destructive legacy PCB regen (set POCKET_CARD_ALLOW_LEGACY_REBUILD=1)"
@@ -1014,7 +1017,7 @@ pocket_card_case_shells:
 	$(MAKE) pocket_card_case_embossed
 
 pocket_card_engineer_export: pocket_card_pcb_exports
-	$(PYTHON) -m hardware.pocket_card.electronics_pipeline.handoff export $(if $(INCLUDE_BLEND),--include-blend,)
+	$(PYTHON) -m hardware.pocket_card.electronics_pipeline.handoff export $(if $(filter 1,$(INCLUDE_BLEND)),--include-blend,)
 
 pocket_card_engineer_check:
 	@test -n "$(ZIP)" || (echo "set ZIP=/absolute/path/revision.zip" >&2; exit 1)

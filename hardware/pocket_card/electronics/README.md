@@ -79,10 +79,11 @@ still passes.
 Repeated ZIP exchange with an external engineer:
 
 ```
-make pocket_card_engineer_export INCLUDE_BLEND=1
+make pocket_card_engineer_export                  # INCLUDE_BLEND=1 by default
 make pocket_card_engineer_check ZIP=/absolute/path/returned.zip
 make pocket_card_engineer_accept STAGED=/absolute/path/printed-stage
 ```
+
 
 Full operator runbook: [`../README.md`](../README.md#engineer-exchange-workflow).
 

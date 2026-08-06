@@ -70,7 +70,7 @@ pipeline in `electronics_pipeline/`. Details: [`electronics/README.md`](electron
 Operator runbook (each round):
 
 ```
-1. make pocket_card_engineer_export INCLUDE_BLEND=1
+1. make pocket_card_engineer_export
 2. Send the printed ZIP; keep its Git commit/digest in the archive.
 3. Receive the returned ZIP.
 4. git switch -c engineer/pocket-card-rN
@@ -83,11 +83,11 @@ Operator runbook (each round):
 11. Commit KiCad source separately from regenerated release artifacts.
 ```
 
-Export a handoff revision:
+Export a handoff revision (includes Blender visual context by default):
 
 ```
 make pocket_card_engineer_export
-make pocket_card_engineer_export INCLUDE_BLEND=1   # include completed Blender assembly
+make pocket_card_engineer_export INCLUDE_BLEND=0   # omit Blender assembly
 ```
 
 Validate a returned ZIP (does not modify the working tree):
