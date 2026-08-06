@@ -52,6 +52,9 @@ COMPACT_FACADE_CANARY_IMPLEMENTATION_BYTES = 349
 
 # Specialized turn on SDCC/banked carts falsely clears coins on the first
 # again tick for these games (host specialized is fine). Build interpreter-only.
+# Cart/SDCC specialized divergence: omit generated specialized objects and keep
+# the interpreter path in core/game. Only viable when core+game still fit one
+# ROM bank (yellow-box / pipe-puffer do not; those use cart_quarantine tags).
 SPECIALIZED_FORCE_INTERPRETER_SLUGS = frozenset({"slot-machine"})
 
 

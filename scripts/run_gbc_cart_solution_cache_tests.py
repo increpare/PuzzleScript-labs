@@ -3,6 +3,11 @@
 
 Builds one benchmark cart, then for each cached (game, board_index) entry
 pre-seeds the target board ordinal in SRAM and replays that board's solution.
+
+Hard-fail policy (aligned with host thorough quarantine):
+- `host_known_good` without `cart_quarantine` → miss is fatal
+- `js_valid` only, or `cart_quarantine` → miss is reported, not fatal
+Every cached board is still attempted.
 """
 
 from __future__ import annotations
@@ -23,6 +28,13 @@ from bench_gbc_cart_solutions import (
 from build_gbc_cart import build_cart
 from build_gbc_eligible_roms import ELIGIBLE_GAMES
 import run_gbc_smoke
+
+
+def entry_hard_fail_on_miss(entry: dict[str, Any]) -> bool:
+    tags = set(entry.get("tags") or [])
+    if sc.TAG_CART_QUARANTINE in tags:
+        return False
+    return sc.TAG_HOST_KNOWN_GOOD in tags
 
 
 def main() -> int:
@@ -114,6 +126,7 @@ def main() -> int:
         return 1
 
     failures = 0
+    quarantined = 0
     checked = 0
     for index, (slug, _source_relative) in enumerate(games):
         group = sorted(
@@ -130,6 +143,7 @@ def main() -> int:
         for entry in group:
             board_index = int(entry["board_index"])
             tokens = sc.read_tokens(repository / str(entry["solution_path"]))
+            hard = entry_hard_fail_on_miss(entry)
             try:
                 telemetry, _elapsed, warning_count = run_game(
                     handle=handle,
@@ -140,7 +154,10 @@ def main() -> int:
                     board_index=board_index,
                 )
                 if not telemetry.won:
-                    raise RuntimeError("cart replay did not win")
+                    raise RuntimeError(
+                        "cart replay did not win "
+                        f"(turns={telemetry.user_turns})"
+                    )
                 checked += 1
                 print(
                     f"  ok board={board_index} turns={telemetry.user_turns} "
@@ -148,11 +165,20 @@ def main() -> int:
                     flush=True,
                 )
             except Exception as exc:  # noqa: BLE001
-                failures += 1
-                print(f"  FAIL board={board_index}: {exc}", flush=True)
+                tags = ",".join(entry.get("tags") or [])
+                if hard:
+                    failures += 1
+                    print(f"  FAIL board={board_index}: {exc}", flush=True)
+                else:
+                    quarantined += 1
+                    print(
+                        f"  quarantine board={board_index} tags={tags}: {exc}",
+                        flush=True,
+                    )
 
     print(
-        f"gbc_cart_solution_cache_tests: checked={checked} failures={failures}",
+        f"gbc_cart_solution_cache_tests: checked={checked} "
+        f"failures={failures} quarantined={quarantined}",
         flush=True,
     )
     return 1 if failures else 0

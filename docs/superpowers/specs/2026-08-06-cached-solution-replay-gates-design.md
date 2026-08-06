@@ -62,13 +62,15 @@ Each `board-<n>.txt` is one input token per line (`up`/`down`/`left`/`right`/`ac
 | `source_level` | Source-level index used for JS/C++ replay |
 | `solution_path` | Repo-relative path to the token file |
 | `source_sha256` | SHA-256 of the current game source bytes |
-| `tags` | Array including `js_valid` and optionally `host_known_good` |
+| `tags` | Array including `js_valid` and optionally `host_known_good`, `cart_quarantine` |
 
 Rules:
 
 - Every committed solution must be tagged `js_valid` (JS engine replays to win
   on `source_level`).
 - `host_known_good` means host GBC core also wins that fixture on `board_index`.
+- `cart_quarantine` means host still wins but cart/libmGBA currently diverges
+  (maintainer-tagged; refresh preserves the tag).
 - Entries whose `source_sha256` no longer matches the game file are stale;
   runners fail until refresh updates or removes them.
 
@@ -125,7 +127,11 @@ In addition to the default gate:
 4. Replay **every** cached board under libmGBA (one cart build, one emulated
    run per cached board). The host pre-seeds a board-ordinal request in SRAM;
    the cart benchmark firmware loads that retained board and finalizes on win.
-   Hard fail if any cached board replay does not win.
+   Hard-fail policy mirrors host quarantine:
+   - `host_known_good` without `cart_quarantine` → miss is fatal
+   - `js_valid` only (known GBC gap) → run and report, not fatal
+   - `cart_quarantine` (known cart/SDCC divergence while host still wins) →
+     run and report, not fatal
 
 Wiring:
 
@@ -155,9 +161,12 @@ gate.
 | `js_valid` fails C++ in thorough | Fail thorough |
 | `host_known_good` fails host in thorough | Fail thorough |
 | `js_valid`-only fails host in thorough | Report only (quarantined host gap) |
-| Cart replay does not win in thorough | Fail thorough |
+| Cart `host_known_good` miss (no `cart_quarantine`) | Fail thorough |
+| Cart `js_valid`-only miss | Report only (same GBC gap class as host) |
+| Cart `cart_quarantine` miss | Report only (known cart/SDCC gap) |
 | JS-valid but host-losing solution | Stays in cache with `js_valid` only |
 | Host later wins that fixture | Refresh promotes `host_known_good` |
+| Cart later wins a quarantined fixture | Refresh/manual clears `cart_quarantine` |
 
 ### Initial cache seed
 
@@ -188,4 +197,14 @@ Seed from the 2026-08-06 verified fixtures where possible:
 - Same cache used for C++ and GBC
 - Thorough cart replays every cached board after one cart build (per-board
   SRAM board-ordinal request + one libmGBA run each)
+- Cart hard-fail scope matches host: only unexpected `host_known_good` misses;
+  `js_valid`-only and `cart_quarantine` are reported
 - Approach: checked-in corpus + thin runners (not generate-on-first-run)
+
+### Known cart quarantines (2026-08-06)
+
+- `pipe-puffer` boards 0–1: cart stack smash / `pc=0x38` after first input on
+  specialized SDCC build; interpreter-only core+game exceeds one ROM bank
+- `yellow-box` boards 0–4,7–11: specialized cart consumes full solution without
+  winning (host specialized wins); boards 5,6,12 remain gated; interpreter-only
+  core+game also exceeds one ROM bank

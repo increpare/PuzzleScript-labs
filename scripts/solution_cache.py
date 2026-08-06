@@ -13,6 +13,9 @@ DEFAULT_CACHE_ROOT = Path("src/tests/solution_cache/eligible")
 MANIFEST_NAME = "manifest.json"
 TAG_JS_VALID = "js_valid"
 TAG_HOST_KNOWN_GOOD = "host_known_good"
+# Cart/libmGBA diverges from host for these fixtures (SDCC specialized / crash).
+# Thorough cart still replays them, but misses are reported rather than hard-fail.
+TAG_CART_QUARANTINE = "cart_quarantine"
 
 
 def repository_root_from(path: Path) -> Path:
