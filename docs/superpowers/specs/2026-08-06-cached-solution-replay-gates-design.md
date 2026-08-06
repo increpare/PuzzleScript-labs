@@ -201,10 +201,8 @@ Seed from the 2026-08-06 verified fixtures where possible:
   `js_valid`-only and `cart_quarantine` are reported
 - Approach: checked-in corpus + thin runners (not generate-on-first-run)
 
-### Known cart quarantines (2026-08-06)
+### Known cart quarantines
 
-- `pipe-puffer` boards 0–1: cart stack smash / `pc=0x38` after first input on
-  specialized SDCC build; interpreter-only core+game exceeds one ROM bank
-- `yellow-box` boards 0–4,7–11: specialized cart consumes full solution without
-  winning (host specialized wins); boards 5,6,12 remain gated; interpreter-only
-  core+game also exceeds one ROM bank
+None. `pipe-puffer` and `yellow-box` use cart interpreter-only builds with
+level-cell arrays in a sibling asset bank (see `SPECIALIZED_FORCE_INTERPRETER_SLUGS`
+/ `INTERPRETER_SPLIT_LEVEL_CELLS_SLUGS` in `scripts/build_gbc_cart.py`).
