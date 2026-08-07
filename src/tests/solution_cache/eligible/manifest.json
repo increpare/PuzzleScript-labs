@@ -3,7 +3,7 @@
   "counts": {
     "cart_quarantine": 0,
     "entries": 280,
-    "host_known_good": 134,
+    "host_known_good": 280,
     "js_valid": 280
   },
   "entries": [
@@ -211,7 +211,8 @@
       "source_level": 1,
       "source_sha256": "d36e4f0ee4fb82f4a2ab632ae482f7f9299852a4cf84d27f01ac52bb37128770",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -223,7 +224,8 @@
       "source_level": 3,
       "source_sha256": "d36e4f0ee4fb82f4a2ab632ae482f7f9299852a4cf84d27f01ac52bb37128770",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -235,7 +237,8 @@
       "source_level": 5,
       "source_sha256": "d36e4f0ee4fb82f4a2ab632ae482f7f9299852a4cf84d27f01ac52bb37128770",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -247,7 +250,8 @@
       "source_level": 7,
       "source_sha256": "d36e4f0ee4fb82f4a2ab632ae482f7f9299852a4cf84d27f01ac52bb37128770",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -259,7 +263,8 @@
       "source_level": 9,
       "source_sha256": "d36e4f0ee4fb82f4a2ab632ae482f7f9299852a4cf84d27f01ac52bb37128770",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -271,7 +276,8 @@
       "source_level": 1,
       "source_sha256": "67ef8c4459d0eacc3a800cb91293602738ed7befff82f60b77a272570c0a825d",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -283,7 +289,8 @@
       "source_level": 5,
       "source_sha256": "67ef8c4459d0eacc3a800cb91293602738ed7befff82f60b77a272570c0a825d",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -295,7 +302,8 @@
       "source_level": 11,
       "source_sha256": "67ef8c4459d0eacc3a800cb91293602738ed7befff82f60b77a272570c0a825d",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -307,7 +315,8 @@
       "source_level": 13,
       "source_sha256": "67ef8c4459d0eacc3a800cb91293602738ed7befff82f60b77a272570c0a825d",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -319,7 +328,8 @@
       "source_level": 15,
       "source_sha256": "67ef8c4459d0eacc3a800cb91293602738ed7befff82f60b77a272570c0a825d",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -331,7 +341,8 @@
       "source_level": 17,
       "source_sha256": "67ef8c4459d0eacc3a800cb91293602738ed7befff82f60b77a272570c0a825d",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -343,7 +354,8 @@
       "source_level": 19,
       "source_sha256": "67ef8c4459d0eacc3a800cb91293602738ed7befff82f60b77a272570c0a825d",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -485,7 +497,8 @@
       "source_level": 1,
       "source_sha256": "7d431e85330beabe07cb001c2e3ee45ac43b922b243f1e11fcbc8a53e0668383",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -497,7 +510,8 @@
       "source_level": 3,
       "source_sha256": "7d431e85330beabe07cb001c2e3ee45ac43b922b243f1e11fcbc8a53e0668383",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -509,7 +523,8 @@
       "source_level": 7,
       "source_sha256": "7d431e85330beabe07cb001c2e3ee45ac43b922b243f1e11fcbc8a53e0668383",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -521,7 +536,8 @@
       "source_level": 5,
       "source_sha256": "a946de6064f7887c9a78ac2f7db6ed00ebdd9b7f14aff7dfb236a38570f194e6",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -533,7 +549,8 @@
       "source_level": 7,
       "source_sha256": "a946de6064f7887c9a78ac2f7db6ed00ebdd9b7f14aff7dfb236a38570f194e6",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -545,7 +562,8 @@
       "source_level": 1,
       "source_sha256": "efc13c340b767a16d6c795a6283e39d6fc2c95e8c43bca2219d7c88d52a64416",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -570,7 +588,8 @@
       "source_level": 5,
       "source_sha256": "efc13c340b767a16d6c795a6283e39d6fc2c95e8c43bca2219d7c88d52a64416",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -595,7 +614,8 @@
       "source_level": 9,
       "source_sha256": "efc13c340b767a16d6c795a6283e39d6fc2c95e8c43bca2219d7c88d52a64416",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -620,7 +640,8 @@
       "source_level": 13,
       "source_sha256": "efc13c340b767a16d6c795a6283e39d6fc2c95e8c43bca2219d7c88d52a64416",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -632,7 +653,8 @@
       "source_level": 15,
       "source_sha256": "efc13c340b767a16d6c795a6283e39d6fc2c95e8c43bca2219d7c88d52a64416",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -644,7 +666,8 @@
       "source_level": 1,
       "source_sha256": "fd34ff28c6f10e8b61a74a225716f651f50f677d050a5903aa3aed8df9627c0e",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -656,7 +679,8 @@
       "source_level": 3,
       "source_sha256": "fd34ff28c6f10e8b61a74a225716f651f50f677d050a5903aa3aed8df9627c0e",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -668,7 +692,8 @@
       "source_level": 5,
       "source_sha256": "fd34ff28c6f10e8b61a74a225716f651f50f677d050a5903aa3aed8df9627c0e",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -680,7 +705,8 @@
       "source_level": 7,
       "source_sha256": "fd34ff28c6f10e8b61a74a225716f651f50f677d050a5903aa3aed8df9627c0e",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -692,7 +718,8 @@
       "source_level": 9,
       "source_sha256": "fd34ff28c6f10e8b61a74a225716f651f50f677d050a5903aa3aed8df9627c0e",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -704,7 +731,8 @@
       "source_level": 11,
       "source_sha256": "fd34ff28c6f10e8b61a74a225716f651f50f677d050a5903aa3aed8df9627c0e",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -716,7 +744,8 @@
       "source_level": 15,
       "source_sha256": "fd34ff28c6f10e8b61a74a225716f651f50f677d050a5903aa3aed8df9627c0e",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -728,7 +757,8 @@
       "source_level": 17,
       "source_sha256": "fd34ff28c6f10e8b61a74a225716f651f50f677d050a5903aa3aed8df9627c0e",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -740,7 +770,8 @@
       "source_level": 19,
       "source_sha256": "fd34ff28c6f10e8b61a74a225716f651f50f677d050a5903aa3aed8df9627c0e",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -830,7 +861,8 @@
       "source_level": 1,
       "source_sha256": "75925827e25c0c0f000dbcafe84fcacaca4c93b249532e3f0cbbffa828ba8ba5",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -842,7 +874,8 @@
       "source_level": 3,
       "source_sha256": "75925827e25c0c0f000dbcafe84fcacaca4c93b249532e3f0cbbffa828ba8ba5",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -854,7 +887,8 @@
       "source_level": 5,
       "source_sha256": "75925827e25c0c0f000dbcafe84fcacaca4c93b249532e3f0cbbffa828ba8ba5",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -866,7 +900,8 @@
       "source_level": 7,
       "source_sha256": "75925827e25c0c0f000dbcafe84fcacaca4c93b249532e3f0cbbffa828ba8ba5",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -878,7 +913,8 @@
       "source_level": 9,
       "source_sha256": "75925827e25c0c0f000dbcafe84fcacaca4c93b249532e3f0cbbffa828ba8ba5",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -890,7 +926,8 @@
       "source_level": 11,
       "source_sha256": "75925827e25c0c0f000dbcafe84fcacaca4c93b249532e3f0cbbffa828ba8ba5",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -902,7 +939,8 @@
       "source_level": 13,
       "source_sha256": "75925827e25c0c0f000dbcafe84fcacaca4c93b249532e3f0cbbffa828ba8ba5",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -914,7 +952,8 @@
       "source_level": 15,
       "source_sha256": "75925827e25c0c0f000dbcafe84fcacaca4c93b249532e3f0cbbffa828ba8ba5",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1069,7 +1108,8 @@
       "source_level": 1,
       "source_sha256": "687a678d5be36854c7e57ec9716ce88886a4d1477e21f0c307ccb0032b9d6f9a",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1081,7 +1121,8 @@
       "source_level": 2,
       "source_sha256": "687a678d5be36854c7e57ec9716ce88886a4d1477e21f0c307ccb0032b9d6f9a",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1093,7 +1134,8 @@
       "source_level": 4,
       "source_sha256": "687a678d5be36854c7e57ec9716ce88886a4d1477e21f0c307ccb0032b9d6f9a",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1105,7 +1147,8 @@
       "source_level": 6,
       "source_sha256": "687a678d5be36854c7e57ec9716ce88886a4d1477e21f0c307ccb0032b9d6f9a",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1117,7 +1160,8 @@
       "source_level": 8,
       "source_sha256": "687a678d5be36854c7e57ec9716ce88886a4d1477e21f0c307ccb0032b9d6f9a",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1129,7 +1173,8 @@
       "source_level": 10,
       "source_sha256": "687a678d5be36854c7e57ec9716ce88886a4d1477e21f0c307ccb0032b9d6f9a",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1141,7 +1186,8 @@
       "source_level": 12,
       "source_sha256": "687a678d5be36854c7e57ec9716ce88886a4d1477e21f0c307ccb0032b9d6f9a",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1153,7 +1199,8 @@
       "source_level": 14,
       "source_sha256": "687a678d5be36854c7e57ec9716ce88886a4d1477e21f0c307ccb0032b9d6f9a",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1165,7 +1212,8 @@
       "source_level": 16,
       "source_sha256": "687a678d5be36854c7e57ec9716ce88886a4d1477e21f0c307ccb0032b9d6f9a",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1177,7 +1225,8 @@
       "source_level": 18,
       "source_sha256": "687a678d5be36854c7e57ec9716ce88886a4d1477e21f0c307ccb0032b9d6f9a",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1293,7 +1342,8 @@
       "source_level": 1,
       "source_sha256": "60546a1f7ca16fa8200f3664493a4a802f8336567c9e1dec65a47bc1e127e672",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1305,7 +1355,8 @@
       "source_level": 3,
       "source_sha256": "60546a1f7ca16fa8200f3664493a4a802f8336567c9e1dec65a47bc1e127e672",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1317,7 +1368,8 @@
       "source_level": 7,
       "source_sha256": "60546a1f7ca16fa8200f3664493a4a802f8336567c9e1dec65a47bc1e127e672",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1329,7 +1381,8 @@
       "source_level": 11,
       "source_sha256": "60546a1f7ca16fa8200f3664493a4a802f8336567c9e1dec65a47bc1e127e672",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1341,7 +1394,8 @@
       "source_level": 3,
       "source_sha256": "61aae1eb509f86ef50e117a4109c1860ce7c7beb2327ea4999a7300905104b6e",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1353,7 +1407,8 @@
       "source_level": 5,
       "source_sha256": "61aae1eb509f86ef50e117a4109c1860ce7c7beb2327ea4999a7300905104b6e",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1378,7 +1433,8 @@
       "source_level": 9,
       "source_sha256": "61aae1eb509f86ef50e117a4109c1860ce7c7beb2327ea4999a7300905104b6e",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1390,7 +1446,8 @@
       "source_level": 11,
       "source_sha256": "61aae1eb509f86ef50e117a4109c1860ce7c7beb2327ea4999a7300905104b6e",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1402,7 +1459,8 @@
       "source_level": 13,
       "source_sha256": "61aae1eb509f86ef50e117a4109c1860ce7c7beb2327ea4999a7300905104b6e",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1414,7 +1472,8 @@
       "source_level": 15,
       "source_sha256": "61aae1eb509f86ef50e117a4109c1860ce7c7beb2327ea4999a7300905104b6e",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1426,7 +1485,8 @@
       "source_level": 17,
       "source_sha256": "61aae1eb509f86ef50e117a4109c1860ce7c7beb2327ea4999a7300905104b6e",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1438,7 +1498,8 @@
       "source_level": 19,
       "source_sha256": "61aae1eb509f86ef50e117a4109c1860ce7c7beb2327ea4999a7300905104b6e",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1450,7 +1511,8 @@
       "source_level": 23,
       "source_sha256": "61aae1eb509f86ef50e117a4109c1860ce7c7beb2327ea4999a7300905104b6e",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1605,7 +1667,8 @@
       "source_level": 16,
       "source_sha256": "aae60f13f4c6f9bd7ba6b1b6b27823184f4a57024d5bd61ff64234e13945e276",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1656,7 +1719,8 @@
       "source_level": 5,
       "source_sha256": "f51f57154961c1c6985ebd7920520ed1a9e9fba229e98c47111ffe61f02312de",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1668,7 +1732,8 @@
       "source_level": 7,
       "source_sha256": "f51f57154961c1c6985ebd7920520ed1a9e9fba229e98c47111ffe61f02312de",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1680,7 +1745,8 @@
       "source_level": 9,
       "source_sha256": "f51f57154961c1c6985ebd7920520ed1a9e9fba229e98c47111ffe61f02312de",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1692,7 +1758,8 @@
       "source_level": 11,
       "source_sha256": "f51f57154961c1c6985ebd7920520ed1a9e9fba229e98c47111ffe61f02312de",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1704,7 +1771,8 @@
       "source_level": 13,
       "source_sha256": "f51f57154961c1c6985ebd7920520ed1a9e9fba229e98c47111ffe61f02312de",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1716,7 +1784,8 @@
       "source_level": 15,
       "source_sha256": "f51f57154961c1c6985ebd7920520ed1a9e9fba229e98c47111ffe61f02312de",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1728,7 +1797,8 @@
       "source_level": 17,
       "source_sha256": "f51f57154961c1c6985ebd7920520ed1a9e9fba229e98c47111ffe61f02312de",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1740,7 +1810,8 @@
       "source_level": 3,
       "source_sha256": "2262042713c011427992a0487e876fab09976f4cfedd53be8908f71644dc7e15",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1752,7 +1823,8 @@
       "source_level": 1,
       "source_sha256": "60914995619a3006b765cd19541f8f029407bc8e58eb397933ba569d60bd123d",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1764,7 +1836,8 @@
       "source_level": 3,
       "source_sha256": "60914995619a3006b765cd19541f8f029407bc8e58eb397933ba569d60bd123d",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1776,7 +1849,8 @@
       "source_level": 5,
       "source_sha256": "60914995619a3006b765cd19541f8f029407bc8e58eb397933ba569d60bd123d",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1788,7 +1862,8 @@
       "source_level": 7,
       "source_sha256": "60914995619a3006b765cd19541f8f029407bc8e58eb397933ba569d60bd123d",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1800,7 +1875,8 @@
       "source_level": 11,
       "source_sha256": "60914995619a3006b765cd19541f8f029407bc8e58eb397933ba569d60bd123d",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -1812,7 +1888,8 @@
       "source_level": 13,
       "source_sha256": "60914995619a3006b765cd19541f8f029407bc8e58eb397933ba569d60bd123d",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2175,7 +2252,8 @@
       "source_level": 2,
       "source_sha256": "858c4389aca4ad303056816aeb77ca8d465ad8419e80c3ca738d57f2053caf3e",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2200,7 +2278,8 @@
       "source_level": 6,
       "source_sha256": "858c4389aca4ad303056816aeb77ca8d465ad8419e80c3ca738d57f2053caf3e",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2238,7 +2317,8 @@
       "source_level": 12,
       "source_sha256": "858c4389aca4ad303056816aeb77ca8d465ad8419e80c3ca738d57f2053caf3e",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2250,7 +2330,8 @@
       "source_level": 14,
       "source_sha256": "858c4389aca4ad303056816aeb77ca8d465ad8419e80c3ca738d57f2053caf3e",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2262,7 +2343,8 @@
       "source_level": 16,
       "source_sha256": "858c4389aca4ad303056816aeb77ca8d465ad8419e80c3ca738d57f2053caf3e",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2274,7 +2356,8 @@
       "source_level": 18,
       "source_sha256": "858c4389aca4ad303056816aeb77ca8d465ad8419e80c3ca738d57f2053caf3e",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2286,7 +2369,8 @@
       "source_level": 20,
       "source_sha256": "858c4389aca4ad303056816aeb77ca8d465ad8419e80c3ca738d57f2053caf3e",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2428,7 +2512,8 @@
       "source_level": 2,
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2440,7 +2525,8 @@
       "source_level": 4,
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2452,7 +2538,8 @@
       "source_level": 6,
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2464,7 +2551,8 @@
       "source_level": 8,
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2476,7 +2564,8 @@
       "source_level": 10,
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2488,7 +2577,8 @@
       "source_level": 12,
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2500,7 +2590,8 @@
       "source_level": 14,
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2512,7 +2603,8 @@
       "source_level": 16,
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2524,7 +2616,8 @@
       "source_level": 18,
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2536,7 +2629,8 @@
       "source_level": 20,
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2548,7 +2642,8 @@
       "source_level": 22,
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2560,7 +2655,8 @@
       "source_level": 24,
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2572,7 +2668,8 @@
       "source_level": 26,
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2584,7 +2681,8 @@
       "source_level": 28,
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2596,7 +2694,8 @@
       "source_level": 2,
       "source_sha256": "a89b14d7a664089b3c1eb8df61151eb52725be7a1650a23f08898e04c69cfd43",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2608,7 +2707,8 @@
       "source_level": 4,
       "source_sha256": "a89b14d7a664089b3c1eb8df61151eb52725be7a1650a23f08898e04c69cfd43",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2620,7 +2720,8 @@
       "source_level": 6,
       "source_sha256": "a89b14d7a664089b3c1eb8df61151eb52725be7a1650a23f08898e04c69cfd43",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2632,7 +2733,8 @@
       "source_level": 8,
       "source_sha256": "a89b14d7a664089b3c1eb8df61151eb52725be7a1650a23f08898e04c69cfd43",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2644,7 +2746,8 @@
       "source_level": 10,
       "source_sha256": "a89b14d7a664089b3c1eb8df61151eb52725be7a1650a23f08898e04c69cfd43",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2656,7 +2759,8 @@
       "source_level": 1,
       "source_sha256": "a1d9383791a88198b6bec06d9dcab392b8a5879f0a497fece0681839fa3db67f",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2668,7 +2772,8 @@
       "source_level": 3,
       "source_sha256": "a1d9383791a88198b6bec06d9dcab392b8a5879f0a497fece0681839fa3db67f",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2680,7 +2785,8 @@
       "source_level": 5,
       "source_sha256": "a1d9383791a88198b6bec06d9dcab392b8a5879f0a497fece0681839fa3db67f",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2692,7 +2798,8 @@
       "source_level": 7,
       "source_sha256": "a1d9383791a88198b6bec06d9dcab392b8a5879f0a497fece0681839fa3db67f",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2743,7 +2850,8 @@
       "source_level": 1,
       "source_sha256": "9e8fa6930829753f606d9e69a1f6b501743d1453c7f4a8badea1a3a68c9446ff",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2755,7 +2863,8 @@
       "source_level": 3,
       "source_sha256": "9e8fa6930829753f606d9e69a1f6b501743d1453c7f4a8badea1a3a68c9446ff",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2767,7 +2876,8 @@
       "source_level": 5,
       "source_sha256": "9e8fa6930829753f606d9e69a1f6b501743d1453c7f4a8badea1a3a68c9446ff",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2779,7 +2889,8 @@
       "source_level": 7,
       "source_sha256": "9e8fa6930829753f606d9e69a1f6b501743d1453c7f4a8badea1a3a68c9446ff",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2791,7 +2902,8 @@
       "source_level": 9,
       "source_sha256": "9e8fa6930829753f606d9e69a1f6b501743d1453c7f4a8badea1a3a68c9446ff",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2803,7 +2915,8 @@
       "source_level": 11,
       "source_sha256": "9e8fa6930829753f606d9e69a1f6b501743d1453c7f4a8badea1a3a68c9446ff",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2815,7 +2928,8 @@
       "source_level": 13,
       "source_sha256": "9e8fa6930829753f606d9e69a1f6b501743d1453c7f4a8badea1a3a68c9446ff",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2827,7 +2941,8 @@
       "source_level": 17,
       "source_sha256": "9e8fa6930829753f606d9e69a1f6b501743d1453c7f4a8badea1a3a68c9446ff",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2839,7 +2954,8 @@
       "source_level": 19,
       "source_sha256": "9e8fa6930829753f606d9e69a1f6b501743d1453c7f4a8badea1a3a68c9446ff",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2851,7 +2967,8 @@
       "source_level": 21,
       "source_sha256": "9e8fa6930829753f606d9e69a1f6b501743d1453c7f4a8badea1a3a68c9446ff",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2863,7 +2980,8 @@
       "source_level": 23,
       "source_sha256": "9e8fa6930829753f606d9e69a1f6b501743d1453c7f4a8badea1a3a68c9446ff",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2966,7 +3084,8 @@
       "source_level": 3,
       "source_sha256": "7073aafe78746b9952211ef67f4eead27968d2c6041ac79fd6e94fbd13f7e239",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2978,7 +3097,8 @@
       "source_level": 5,
       "source_sha256": "7073aafe78746b9952211ef67f4eead27968d2c6041ac79fd6e94fbd13f7e239",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -2990,7 +3110,8 @@
       "source_level": 7,
       "source_sha256": "7073aafe78746b9952211ef67f4eead27968d2c6041ac79fd6e94fbd13f7e239",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -3002,7 +3123,8 @@
       "source_level": 9,
       "source_sha256": "7073aafe78746b9952211ef67f4eead27968d2c6041ac79fd6e94fbd13f7e239",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -3014,7 +3136,8 @@
       "source_level": 11,
       "source_sha256": "7073aafe78746b9952211ef67f4eead27968d2c6041ac79fd6e94fbd13f7e239",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -3026,7 +3149,8 @@
       "source_level": 13,
       "source_sha256": "7073aafe78746b9952211ef67f4eead27968d2c6041ac79fd6e94fbd13f7e239",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -3038,7 +3162,8 @@
       "source_level": 15,
       "source_sha256": "7073aafe78746b9952211ef67f4eead27968d2c6041ac79fd6e94fbd13f7e239",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -3050,7 +3175,8 @@
       "source_level": 4,
       "source_sha256": "9c416a53740cb3c9789bca29169810342b651ff71ca17e6fcba6b44217b17b12",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -3062,7 +3188,8 @@
       "source_level": 6,
       "source_sha256": "9c416a53740cb3c9789bca29169810342b651ff71ca17e6fcba6b44217b17b12",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -3074,7 +3201,8 @@
       "source_level": 8,
       "source_sha256": "9c416a53740cb3c9789bca29169810342b651ff71ca17e6fcba6b44217b17b12",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -3086,7 +3214,8 @@
       "source_level": 13,
       "source_sha256": "9c416a53740cb3c9789bca29169810342b651ff71ca17e6fcba6b44217b17b12",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -3098,7 +3227,8 @@
       "source_level": 1,
       "source_sha256": "167376047ec933357f344dfe6e695f70e90bfc9c771254ef6041855d07e7ccf8",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -3110,7 +3240,8 @@
       "source_level": 3,
       "source_sha256": "167376047ec933357f344dfe6e695f70e90bfc9c771254ef6041855d07e7ccf8",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -3122,7 +3253,8 @@
       "source_level": 5,
       "source_sha256": "167376047ec933357f344dfe6e695f70e90bfc9c771254ef6041855d07e7ccf8",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -3134,7 +3266,8 @@
       "source_level": 7,
       "source_sha256": "167376047ec933357f344dfe6e695f70e90bfc9c771254ef6041855d07e7ccf8",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -3146,7 +3279,8 @@
       "source_level": 9,
       "source_sha256": "167376047ec933357f344dfe6e695f70e90bfc9c771254ef6041855d07e7ccf8",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -3158,7 +3292,8 @@
       "source_level": 11,
       "source_sha256": "167376047ec933357f344dfe6e695f70e90bfc9c771254ef6041855d07e7ccf8",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -3170,7 +3305,8 @@
       "source_level": 13,
       "source_sha256": "167376047ec933357f344dfe6e695f70e90bfc9c771254ef6041855d07e7ccf8",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -3182,7 +3318,8 @@
       "source_level": 15,
       "source_sha256": "167376047ec933357f344dfe6e695f70e90bfc9c771254ef6041855d07e7ccf8",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -3194,7 +3331,8 @@
       "source_level": 17,
       "source_sha256": "167376047ec933357f344dfe6e695f70e90bfc9c771254ef6041855d07e7ccf8",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -3206,7 +3344,8 @@
       "source_level": 21,
       "source_sha256": "167376047ec933357f344dfe6e695f70e90bfc9c771254ef6041855d07e7ccf8",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -3218,7 +3357,8 @@
       "source_level": 23,
       "source_sha256": "167376047ec933357f344dfe6e695f70e90bfc9c771254ef6041855d07e7ccf8",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -3230,7 +3370,8 @@
       "source_level": 25,
       "source_sha256": "167376047ec933357f344dfe6e695f70e90bfc9c771254ef6041855d07e7ccf8",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -3242,7 +3383,8 @@
       "source_level": 27,
       "source_sha256": "167376047ec933357f344dfe6e695f70e90bfc9c771254ef6041855d07e7ccf8",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -3254,7 +3396,8 @@
       "source_level": 29,
       "source_sha256": "167376047ec933357f344dfe6e695f70e90bfc9c771254ef6041855d07e7ccf8",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -3266,7 +3409,8 @@
       "source_level": 31,
       "source_sha256": "167376047ec933357f344dfe6e695f70e90bfc9c771254ef6041855d07e7ccf8",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -3278,7 +3422,8 @@
       "source_level": 33,
       "source_sha256": "167376047ec933357f344dfe6e695f70e90bfc9c771254ef6041855d07e7ccf8",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {
@@ -3290,7 +3435,8 @@
       "source_level": 35,
       "source_sha256": "167376047ec933357f344dfe6e695f70e90bfc9c771254ef6041855d07e7ccf8",
       "tags": [
-        "js_valid"
+        "js_valid",
+        "host_known_good"
       ]
     },
     {

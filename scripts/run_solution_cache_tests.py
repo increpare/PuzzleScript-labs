@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 import json
 import shutil
 import subprocess
@@ -61,6 +62,14 @@ def replay_cpp(
             )
 
 
+def runtime_gbc_abi(repository: Path) -> int | None:
+    header = (
+        repository / "native" / "include" / "puzzlescript" / "gbc.h"
+    ).read_text(encoding="utf-8")
+    match = re.search(r"#define\s+PS_GBC_GAME_ABI_VERSION\s+(\d+)", header)
+    return int(match.group(1)) if match else None
+
+
 def ensure_export(
     repository: Path,
     compiler: Path,
@@ -72,7 +81,13 @@ def ensure_export(
     manifest = export_dir / "gbc_manifest.json"
     generated = export_dir / "generated_game.c"
     if manifest.is_file() and generated.is_file():
-        return export_dir
+        try:
+            cached = json.loads(manifest.read_text(encoding="utf-8"))
+            runtime_abi = runtime_gbc_abi(repository)
+            if runtime_abi is None or int(cached.get("abi_version") or -1) == runtime_abi:
+                return export_dir
+        except (OSError, ValueError, TypeError, json.JSONDecodeError):
+            pass
     export_dir.mkdir(parents=True, exist_ok=True)
     cmd = [
         str(compiler),

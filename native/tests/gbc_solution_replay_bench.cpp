@@ -234,6 +234,27 @@ int main(int argc, char** argv) {
 
         if (run == 0) turnMs.clear();
         size_t turnIndex = 0;
+        if (dumpTrace && run == 0) {
+            ps_gbc_status status{};
+            ps_gbc_status_get(session, &status);
+            fprintf(
+                stderr,
+                "trace turn=init input=none again=0 changed=0 won=0 "
+                "pending=%d hash=%016llx\n",
+                status.pending_again ? 1 : 0,
+                static_cast<unsigned long long>(boardHash(session)));
+            for (uint16_t y = 0; y < status.height; ++y) {
+                fprintf(stderr, "board y=%u:", y);
+                for (uint16_t x = 0; x < status.width; ++x) {
+                    fprintf(
+                        stderr,
+                        " %08x",
+                        ps_gbc_cell_objects(
+                            session, static_cast<int16_t>(x), static_cast<int16_t>(y)));
+                }
+                fprintf(stderr, "\n");
+            }
+        }
         for (const ps_input input : inputs) {
             // Solver solutions use AgainPolicy::Drain (player inputs only).
             // GBC exposes again as pending_again + PS_INPUT_TICK, so drain here

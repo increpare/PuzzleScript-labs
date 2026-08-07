@@ -21,20 +21,20 @@ static const ps_gbc_level kLevels[] = {
 static const ps_gbc_pattern kPatterns[] = {
     {
         4U, 0U, 8U, 0U,
-        12U, 4U, 0U, 8U, 0x1fU,
+        12U, 4U, 0U, 8U, 0x1fU, 0U, 0U, 0U, 0U,
         PS_GBC_PATTERN_OBJECTS_PRESENT | PS_GBC_PATTERN_MOVEMENTS_PRESENT
             | PS_GBC_PATTERN_HAS_REPLACEMENT
             | PS_GBC_REPLACEMENT_CLEAR_MOVEMENT_LAYERS
     },
     {
         8U, 0U, 0U, 0U,
-        12U, 8U, 0U, 8U, 0x1fU,
+        12U, 8U, 0U, 8U, 0x1fU, 0U, 0U, 0U, 0U,
         PS_GBC_PATTERN_OBJECTS_PRESENT | PS_GBC_PATTERN_HAS_REPLACEMENT
             | PS_GBC_REPLACEMENT_CLEAR_MOVEMENT_LAYERS
     },
 };
 static const ps_gbc_rule kRules[] = {
-    {PS_GBC_PATTERN_REFERENCE(0U), 2U, 8U, 0U, 0U, 0U, NULL},
+    {PS_GBC_PATTERN_REFERENCE(0U), 2U, 1U, 2U, 8U, 0U, 0U, 0U, NULL},
 };
 static const ps_gbc_rule_group kGroups[] = {
     {0U, 1U, -1},
@@ -42,13 +42,15 @@ static const ps_gbc_rule_group kGroups[] = {
 static const ps_gbc_pattern kLevelStartPatterns[] = {
     {
         2U, 0U, 0U, 0U,
-        2U, 8U, 0U, 0U, 0U,
+        2U, 8U, 0U, 0U, 0U, 0U, 0U, 0U, 0U,
         PS_GBC_PATTERN_OBJECTS_PRESENT | PS_GBC_PATTERN_HAS_REPLACEMENT
     },
 };
 static const ps_gbc_rule kLevelStartRules[] = {
     {
         PS_GBC_PATTERN_REFERENCE(0U),
+        1U,
+        1U,
         1U,
         1U,
         PS_GBC_COMMAND_AGAIN | PS_GBC_COMMAND_RESTART | PS_GBC_COMMAND_WIN,

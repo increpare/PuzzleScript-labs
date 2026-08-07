@@ -534,23 +534,23 @@ int main() {
         "generated header compiles out unprofitable Sokoban presence checks");
     require(
         header.find("PS_GBC_GENERATED_PACKED_PATTERNS 1") != std::string::npos
-            && header.find("PS_GBC_GENERATED_PATTERN_BYTES 10U")
+            && header.find("PS_GBC_GENERATED_PATTERN_BYTES 14U")
                 != std::string::npos
-            && manifest.find("\"pattern_record_bytes\": 10")
+            && manifest.find("\"pattern_record_bytes\": 14")
                 != std::string::npos,
         "generated Sokoban patterns use byte-wide object and movement masks");
     require(
-        header.find("PS_GBC_GENERATED_ABI_VERSION 19U") != std::string::npos
-            && source.find("    19U, 0x") != std::string::npos
-            && manifest.find("\"abi_version\": 19") != std::string::npos,
+        header.find("PS_GBC_GENERATED_ABI_VERSION 22U") != std::string::npos
+            && source.find("    22U, 0x") != std::string::npos
+            && manifest.find("\"abi_version\": 22") != std::string::npos,
         "generated data bakes in the exporter ABI for stale-tool detection");
     require(
         header.find("PS_GBC_GENERATED_PACKED_RULES 1") != std::string::npos
-            && header.find("PS_GBC_GENERATED_RULE_BYTES 5U")
+            && header.find("PS_GBC_GENERATED_RULE_BYTES 7U")
                 != std::string::npos
             && header.find("PS_GBC_GENERATED_RULE_MESSAGE_COUNT 0U")
                 != std::string::npos
-            && manifest.find("\"rule_record_bytes\": 5")
+            && manifest.find("\"rule_record_bytes\": 7")
                 != std::string::npos,
         "generated Sokoban rules omit absent sound and message fields");
     require(
@@ -691,7 +691,7 @@ int main() {
             && wideObjectHeader.find(
                 "PS_GBC_GENERATED_PLAYER_CELL_ANCHOR_COUNT 0U")
                 != std::string::npos
-            && wideObjectHeader.find("PS_GBC_GENERATED_PATTERN_BYTES 22U")
+            && wideObjectHeader.find("PS_GBC_GENERATED_PATTERN_BYTES 35U")
                 != std::string::npos,
         "wide-object games compile out the player index and certify singleton groups");
 
@@ -816,7 +816,7 @@ int main() {
                 != std::string::npos
             && audioHeader.find("PS_GBC_GENERATED_RULE_SOUND_COUNT 4U")
                 != std::string::npos
-            && audioHeader.find("PS_GBC_GENERATED_RULE_BYTES 7U")
+            && audioHeader.find("PS_GBC_GENERATED_RULE_BYTES 9U")
                 != std::string::npos,
         "audio fixture emits sound-count specialization constants");
 
@@ -833,7 +833,7 @@ int main() {
     require(
         messageAudioHeader.find("PS_GBC_GENERATED_RULE_MESSAGE_COUNT 1U")
                 != std::string::npos
-            && messageAudioHeader.find("PS_GBC_GENERATED_RULE_BYTES 9U")
+            && messageAudioHeader.find("PS_GBC_GENERATED_RULE_BYTES 11U")
                 != std::string::npos
             && messageAudioSource.find("\"Audio parity\"")
                 != std::string::npos,
@@ -995,11 +995,11 @@ int main() {
     require(staticSource.find("kMovementCollisionLayers[] = {6U}") != std::string::npos,
         "the high source collision layer remaps to compact movement lane zero");
     require(staticSource.find(
-            "0x2U, 0x0U, 0x2U, 0x0U, 0x0U, 0x0U, 0x0U, 0x0U, 0x0U, 117U")
+            "0x2U, 0x0U, 0x2U, 0x0U, 0x0U, 0x0U, 0x0U, 0x0U, 0x0U, 0x0U, 0x0U, 0x0U, 0U, 117U")
             != std::string::npos,
         "an impossible movement-present predicate is retained as never-matching");
     require(staticSource.find(
-            "0x4U, 0x0U, 0xcU, 0xcU, 0x0U, 0x0U, 0x0U, 0x0U, 0x0U, 57U")
+            "0x4U, 0x0U, 0xcU, 0xcU, 0x0U, 0x0U, 0x0U, 0x0U, 0x0U, 0x0U, 0x0U, 0x0U, 0U, 57U")
             != std::string::npos,
         "a dormant stationary predicate is folded to an always-true movement mask");
 
@@ -1052,8 +1052,8 @@ int main() {
         "three originating layers are discovered by shared static analysis");
     require(threeManifest.find("\"movement_bytes_per_cell\": 2") != std::string::npos,
         "three live lanes select two-byte movement cells");
-    require(threeManifest.find("\"pattern_record_bytes\": 15") != std::string::npos,
-        "byte-wide objects and two-byte movements produce 15-byte patterns");
+    require(threeManifest.find("\"pattern_record_bytes\": 19") != std::string::npos,
+        "byte-wide objects and two-byte movements produce 19-byte patterns");
 
     puzzlescript::gbc::ExportOptions sixMovers;
     sixMovers.sourcePath =
@@ -1065,8 +1065,8 @@ int main() {
         "all six lanes available in a 32-bit movement word are usable");
     require(sixManifest.find("\"movement_bytes_per_cell\": 4") != std::string::npos,
         "six live lanes select four-byte movement cells");
-    require(sixManifest.find("\"pattern_record_bytes\": 25") != std::string::npos,
-        "byte-wide objects and four-byte movements produce 25-byte patterns");
+    require(sixManifest.find("\"pattern_record_bytes\": 29") != std::string::npos,
+        "byte-wide objects and four-byte movements produce 29-byte patterns");
 
     puzzlescript::gbc::ExportOptions actionMovement;
     actionMovement.sourcePath =

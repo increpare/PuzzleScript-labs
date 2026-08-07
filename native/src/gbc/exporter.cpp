@@ -70,12 +70,16 @@ const char* unsignedTypeForBytes(uint8_t bytes) {
 }
 
 size_t generatedPatternBytes(uint8_t objectBytes, uint8_t movementBytes) {
-    return static_cast<size_t>(objectBytes) * 4U
-        + static_cast<size_t>(movementBytes) * 5U + 1U;
+    /* present/missing/clear/set + objects_any + objects_any2 + objects_coupled
+     * + coupled_dir + flags */
+    return static_cast<size_t>(objectBytes) * 7U
+        + static_cast<size_t>(movementBytes) * 5U + 2U;
 }
 
 size_t generatedRuleBytes(bool hasRuleAudio, bool hasRuleMessages) {
-    return 5U + (hasRuleAudio ? 2U : 0U) + (hasRuleMessages ? 2U : 0U);
+    /* first_pattern(2) + pattern_count + row_count + row0_pattern_count
+     * + direction + commands [+ sounds] [+ message ptr estimate] */
+    return 7U + (hasRuleAudio ? 2U : 0U) + (hasRuleMessages ? 2U : 0U);
 }
 
 struct Rgb {
@@ -908,13 +912,21 @@ RuleFlowSummary summarizeRuleFlow(const Game& game, const Rule& rule) {
             if (pattern.kind != Pattern::Kind::CellPattern) continue;
             const uint32_t lhsPresent = maskWord(game, pattern.objectsPresent);
             const uint32_t lhsMissing = maskWord(game, pattern.objectsMissing);
-            result.readObjectsPresent |= lhsPresent;
+            uint32_t lhsAny = 0U;
+            for (uint32_t anyIndex = 0U; anyIndex < pattern.anyObjectsCount; ++anyIndex) {
+                lhsAny |= maskWord(
+                    game,
+                    game.anyObjectOffsets[pattern.anyObjectsFirst + anyIndex]);
+            }
+            /* Concrete present bits plus property/aggregate OR-groups. */
+            const uint32_t lhsMatchedObjects = lhsPresent | lhsAny;
+            result.readObjectsPresent |= lhsMatchedObjects;
             result.readObjectsMissing |= lhsMissing;
 
             for (const ObjectDef& object : game.objectsById) {
                 if (object.id < 0 || object.id >= PS_GBC_MAX_OBJECTS) continue;
                 const uint32_t objectBit = 1UL << static_cast<uint8_t>(object.id);
-                if ((lhsPresent & objectBit) == 0U) continue;
+                if ((lhsMatchedObjects & objectBit) == 0U) continue;
                 result.readMovementsPresent[static_cast<size_t>(object.id)] |=
                     sourceMovementLayerBits(game, pattern.movementsPresent, object.layer);
                 result.readMovementsMissing[static_cast<size_t>(object.id)] |=
@@ -925,7 +937,19 @@ RuleFlowSummary summarizeRuleFlow(const Game& game, const Rule& rule) {
             const Replacement& replacement = *pattern.replacement;
             const uint32_t objectsClear = maskWord(game, replacement.objectsClear);
             const uint32_t objectsSet = maskWord(game, replacement.objectsSet);
-            result.writeObjectsPresent |= objectsSet & ~lhsPresent;
+            result.writeObjectsPresent |= objectsSet & ~lhsMatchedObjects;
+            const bool writesMovementOnly = objectsSet == 0U
+                && (replacement.movementsSet != kNullMaskOffset
+                    || replacement.hasMovementsLayerMask
+                    || (replacement.dynamic
+                        && (!replacement.dynamic->layerCoupledMovementReplacements.empty()
+                            || !replacement.dynamic->inferredAggregateBindings.empty()
+                            || !replacement.dynamic->inferredPropertyBindings.empty())));
+            /* Movement-only replacements on property matches still write movement
+             * for every object the LHS could have matched. */
+            const uint32_t movementWriteObjects = objectsSet != 0U
+                ? objectsSet
+                : (writesMovementOnly ? lhsMatchedObjects : 0U);
 
             for (const ObjectDef& object : game.objectsById) {
                 if (object.id < 0 || object.id >= PS_GBC_MAX_OBJECTS) continue;
@@ -936,7 +960,7 @@ RuleFlowSummary summarizeRuleFlow(const Game& game, const Rule& rule) {
                         game,
                         game.layerMaskOffsets[static_cast<size_t>(object.layer)])
                     : objectBit;
-                const uint32_t lhsLayerObjects = lhsPresent & layerMask;
+                const uint32_t lhsLayerObjects = lhsMatchedObjects & layerMask;
                 if ((objectsClear & objectBit) != 0U
                     && (objectsSet & objectBit) == 0U
                     && (lhsMissing & objectBit) == 0U
@@ -945,18 +969,18 @@ RuleFlowSummary summarizeRuleFlow(const Game& game, const Rule& rule) {
                     result.writeObjectsMissing |= objectBit;
                 }
 
-                if ((objectsSet & objectBit) == 0U) continue;
+                if ((movementWriteObjects & objectBit) == 0U) continue;
                 const uint8_t rhsMovement = sourceMovementLayerBits(
                     game,
                     replacement.movementsSet,
                     object.layer);
-                const uint8_t lhsMovement = (lhsPresent & objectBit) != 0U
+                const uint8_t lhsMovement = (lhsMatchedObjects & objectBit) != 0U
                     ? sourceMovementLayerBits(
                         game,
                         pattern.movementsPresent,
                         object.layer)
                     : 0U;
-                const uint8_t lhsMovementMissing = (lhsPresent & objectBit) != 0U
+                const uint8_t lhsMovementMissing = (lhsMatchedObjects & objectBit) != 0U
                     ? sourceMovementLayerBits(
                         game,
                         pattern.movementsMissing,
@@ -971,8 +995,14 @@ RuleFlowSummary summarizeRuleFlow(const Game& game, const Rule& rule) {
                         game,
                         replacement.movementsLayerMask,
                         object.layer));
+                /* For movement-only property writes, treat the full direction as
+                 * newly written even when the LHS already required it on a
+                 * sibling cell — chaining depends on that write. */
+                const uint8_t writtenMovement = writesMovementOnly
+                    ? rhsMovement
+                    : static_cast<uint8_t>(rhsMovement & ~lhsMovement);
                 result.writeMovementsPresent[static_cast<size_t>(object.id)] |=
-                    static_cast<uint8_t>(rhsMovement & ~lhsMovement);
+                    writtenMovement;
                 result.writeMovementsMissing[static_cast<size_t>(object.id)] |=
                     static_cast<uint8_t>(
                         movementClear & ~rhsMovement & ~lhsMovementMissing);
@@ -1599,6 +1629,45 @@ PackedPattern packPattern(
     return packed;
 }
 
+/* Interpreter patterns cannot evaluate full specialized layer-coupled terms.
+ * - Layers with no object gate fold into movements_set / movement_layer_mask.
+ * - Layers gated by objectMask go to objects_coupled + coupled_dir and are
+ *   applied only when that object is present. Folding gated layers onto empty
+ *   movement lanes is unsafe: resolve is iterative, so an object that arrives
+ *   mid-resolve can inherit a pre-seeded lane and move twice.
+ * Must not mutate PackedPattern used by specialized turn. */
+void foldLayerCoupledReplacementsForInterpreter(
+    const PackedPattern& pattern,
+    uint32_t* movementsSet,
+    uint32_t* movementLayerMask,
+    uint8_t* flags,
+    uint32_t* objectsCoupled,
+    uint8_t* coupledDir
+) {
+    for (const compiler::GbcSpecializedLayerCoupledTermEmit& coupled :
+        pattern.layerCoupledReplacementTerms) {
+        if (!coupled.hasReplacementMovementMask
+            || coupled.aggregateCaptureIndex >= 0) {
+            continue;
+        }
+        const uint32_t direction = coupled.replacementMovementMask & 0x1fU;
+        if (direction == 0U) continue;
+        for (const compiler::GbcSpecializedLayerCoupledLayerEmit& layer : coupled.layers) {
+            if (layer.layerIndex < 0 || layer.layerIndex >= 6) continue;
+            const uint8_t movementLayer = static_cast<uint8_t>(layer.layerIndex);
+            if (layer.objectMask != 0U) {
+                *objectsCoupled |= layer.objectMask;
+                *coupledDir = static_cast<uint8_t>(direction);
+                continue;
+            }
+            *movementsSet |= direction << (5U * movementLayer);
+            *movementLayerMask |= 0x1fU << (5U * movementLayer);
+            *flags = static_cast<uint8_t>(
+                *flags | PS_GBC_REPLACEMENT_CLEAR_MOVEMENT_LAYERS);
+        }
+    }
+}
+
 bool samePattern(const PackedPattern& left, const PackedPattern& right) {
     if (left.objectsPresent != right.objectsPresent
         || left.objectsMissing != right.objectsMissing
@@ -2037,6 +2106,10 @@ std::string emitHeader(
         << "    ps_gbc_generated_movement_mask movements_clear;\n"
         << "    ps_gbc_generated_movement_mask movements_set;\n"
         << "    ps_gbc_generated_movement_mask movement_layer_mask;\n"
+        << "    ps_gbc_generated_object_mask objects_any;\n"
+        << "    ps_gbc_generated_object_mask objects_any2;\n"
+        << "    ps_gbc_generated_object_mask objects_coupled;\n"
+        << "    uint8_t coupled_dir;\n"
         << "    uint8_t flags;\n"
         << "} ps_gbc_generated_pattern;\n\n"
         << "#define PS_GBC_GENERATED_PATTERN_REFERENCE(index) \\\n    {(uint16_t)((uint16_t)(index) \\\n        * (uint16_t)sizeof(ps_gbc_generated_pattern))}\n\n"
@@ -2048,6 +2121,8 @@ std::string emitHeader(
         << "typedef struct ps_gbc_generated_rule {\n"
         << "    ps_gbc_pattern_reference first_pattern;\n"
         << "    uint8_t pattern_count;\n"
+        << "    uint8_t row_count;\n"
+        << "    uint8_t row0_pattern_count;\n"
         << "    uint8_t direction;\n"
         << "    uint8_t commands;\n"
         << "#if PS_GBC_GENERATED_RULE_SOUND_COUNT != 0U\n"
@@ -2234,19 +2309,49 @@ std::string emitSource(
         << "static const ps_gbc_generated_pattern kPatterns[] = {\n";
     if (patterns.empty()) out << "    {0},\n";
     for (const PackedPattern& pattern : patterns) {
+        const uint32_t objectsAny =
+            pattern.anyObjectMasks.empty() ? 0U : pattern.anyObjectMasks[0];
+        const uint32_t objectsAny2 =
+            pattern.anyObjectMasks.size() > 1U ? pattern.anyObjectMasks[1] : 0U;
+        uint32_t movementsSet = pattern.movementsSet;
+        uint32_t movementLayerMask = pattern.movementLayerMask;
+        uint8_t flags = pattern.flags;
+        uint32_t objectsCoupled = 0U;
+        uint8_t coupledDir = 0U;
+        foldLayerCoupledReplacementsForInterpreter(
+            pattern,
+            &movementsSet,
+            &movementLayerMask,
+            &flags,
+            &objectsCoupled,
+            &coupledDir);
+        /* Interpreter patterns store at most two AND-ed any-object OR-groups.
+         * Specialized turn still receives the full anyObjectMasks vector. */
+        if (pattern.anyObjectMasks.size() > 2U) {
+            flags = static_cast<uint8_t>(flags | PS_GBC_PATTERN_NEVER_MATCH);
+        }
         out << "    {0x" << std::hex << pattern.objectsPresent << "U, 0x"
             << pattern.objectsMissing << "U, 0x" << pattern.objectsClear
             << "U, 0x" << pattern.objectsSet << "U, 0x"
             << pattern.movementsPresent << "U, 0x" << pattern.movementsMissing
             << "U, 0x" << pattern.movementsClear << "U, 0x"
-            << pattern.movementsSet << "U, 0x" << pattern.movementLayerMask
-            << "U, " << std::dec << static_cast<unsigned int>(pattern.flags) << "U},\n";
+            << movementsSet << "U, 0x" << movementLayerMask
+            << "U, 0x" << objectsAny << "U, 0x" << objectsAny2
+            << "U, 0x" << objectsCoupled << "U, "
+            << std::dec << static_cast<unsigned int>(coupledDir) << "U, "
+            << static_cast<unsigned int>(flags) << "U},\n";
     }
     out << "};\n\nstatic const ps_gbc_generated_rule kRules[] = {\n";
     if (rules.empty()) out << "    {0},\n";
     for (const PackedRule& rule : rules) {
+        const uint8_t rowCount = rule.rowCount == 0U ? 1U : rule.rowCount;
+        const uint8_t row0PatternCount = rowCount == 1U
+            ? rule.patternCount
+            : rule.rowPatternCounts[0];
         out << "    {PS_GBC_GENERATED_PATTERN_REFERENCE(" << rule.firstPattern << "U), "
             << static_cast<unsigned int>(rule.patternCount) << "U, "
+            << static_cast<unsigned int>(rowCount) << "U, "
+            << static_cast<unsigned int>(row0PatternCount) << "U, "
             << static_cast<unsigned int>(rule.direction) << "U, ";
         const uint8_t ruleMetadata = static_cast<uint8_t>(
             rule.commands & (PS_GBC_RULE_OBJECT_PRESENCE_PRECHECK

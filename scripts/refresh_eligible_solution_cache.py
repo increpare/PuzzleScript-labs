@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -53,10 +54,22 @@ def load_or_export(
     export_root: Path,
 ) -> Path:
     export_dir = export_root / slug
-    if (export_dir / "gbc_manifest.json").is_file() and (
-        export_dir / "generated_game.c"
-    ).is_file():
-        return export_dir
+    manifest_path = export_dir / "gbc_manifest.json"
+    generated_path = export_dir / "generated_game.c"
+    if manifest_path.is_file() and generated_path.is_file():
+        try:
+            cached = json.loads(manifest_path.read_text(encoding="utf-8"))
+            header = (
+                repository / "native" / "include" / "puzzlescript" / "gbc.h"
+            ).read_text(encoding="utf-8")
+            match = re.search(
+                r"#define\s+PS_GBC_GAME_ABI_VERSION\s+(\d+)", header
+            )
+            runtime_abi = int(match.group(1)) if match else None
+            if runtime_abi is None or int(cached.get("abi_version") or -1) == runtime_abi:
+                return export_dir
+        except (OSError, ValueError, TypeError, json.JSONDecodeError):
+            pass
     export_dir.mkdir(parents=True, exist_ok=True)
     proc = subprocess.run(
         [
@@ -198,6 +211,17 @@ def main() -> int:
                     flush=True,
                 )
 
+    if wanted:
+        # Slug-scoped refresh: merge updated boards into the existing manifest
+        # instead of dropping every other game.
+        merged = {
+            (str(entry["slug"]), int(entry["board_index"])): entry
+            for entry in entries
+            if str(entry.get("slug") or "") not in wanted
+        }
+        for entry in kept:
+            merged[(str(entry["slug"]), int(entry["board_index"]))] = entry
+        kept = list(merged.values())
     kept.sort(key=lambda item: (item["slug"], item["board_index"]))
     payload["entries"] = kept
     payload["counts"] = {

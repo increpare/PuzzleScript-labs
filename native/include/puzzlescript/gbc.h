@@ -59,7 +59,7 @@ extern "C" {
 #define PS_GBC_MAX_AUDIO_EVENTS 8
 #define PS_GBC_MAX_UNDO 4
 #define PS_GBC_MAX_BOARD_CELLS 90
-#define PS_GBC_GAME_ABI_VERSION 19
+#define PS_GBC_GAME_ABI_VERSION 22
 #define PS_GBC_RULE_GROUP_COUNT_MASK 0x1fffU
 #define PS_GBC_RULE_GROUP_INPUT_LAYOUT_MASK 0x6000U
 #define PS_GBC_RULE_GROUP_INPUT_QUARTET 0x2000U
@@ -160,6 +160,13 @@ typedef struct ps_gbc_pattern {
     uint32_t movements_clear;
     uint32_t movements_set;
     uint32_t movement_layer_mask;
+    /* OR-groups for property/aggregate matches (AND across groups). 0 = unused. */
+    uint32_t objects_any;
+    uint32_t objects_any2;
+    /* Objects that receive coupled_dir on their movement layers when present.
+     * Used for [moving Crate C] -> [moving Crate moving C] style rules. 0 = unused. */
+    uint32_t objects_coupled;
+    uint8_t coupled_dir;
     uint8_t flags;
 } ps_gbc_pattern;
 
@@ -173,6 +180,10 @@ typedef struct ps_gbc_pattern_reference {
 typedef struct ps_gbc_rule {
     ps_gbc_pattern_reference first_pattern;
     uint8_t pattern_count;
+    /* 1 = single linear row; 2 = independent rows (cartesian product). */
+    uint8_t row_count;
+    /* Patterns belonging to row 0 when row_count == 2; else == pattern_count. */
+    uint8_t row0_pattern_count;
     uint8_t direction;
     uint8_t commands;
     uint8_t first_sound;
