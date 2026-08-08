@@ -52,17 +52,41 @@ COMPACT_FACADE_CANARY_IMPLEMENTATION_BYTES = 349
 
 # Specialized turn diverges under SDCC/banked carts (host specialized is fine).
 # Omit generated specialized objects and keep the interpreter path in core/game.
-# Oversized interpreter games also strip precomposed tiles and split level-cell
-# arrays into a sibling ROM bank (see asset_bank on the cart entry).
+# Oversized interpreter games also strip precomposed tiles and split bulky
+# tables into a sibling ROM bank (see asset_bank / pattern_asset_bytes).
 SPECIALIZED_FORCE_INTERPRETER_SLUGS = frozenset({
     "slot-machine",
     "pipe-puffer",
     "yellow-box",
+    "head-skuller",
+    "unclean-residues",
+    "two-tone-tango",
+    "the-red-ring-of-immortality",
+    "match-maker",
 })
 INTERPRETER_SPLIT_LEVEL_CELLS_SLUGS = frozenset({
+    "slot-machine",
     "pipe-puffer",
     "yellow-box",
+    "head-skuller",
+    "unclean-residues",
+    "two-tone-tango",
+    "the-red-ring-of-immortality",
+    "match-maker",
 })
+# Pattern tables that still overflow after level-cell split (ABI growth).
+# Hydrated into WRAM on activate via pattern_asset_bytes.
+INTERPRETER_SPLIT_PATTERNS_SLUGS = frozenset({
+    "slot-machine",
+    "pipe-puffer",
+    "yellow-box",
+    "head-skuller",
+    "unclean-residues",
+    "the-red-ring-of-immortality",
+    "match-maker",
+})
+# Soft cap for split pattern tables (read via per-rule slice hook, not WRAM copy).
+PATTERN_ASSET_TABLE_MAX_BYTES = 8192
 
 
 @dataclass(frozen=True)
@@ -109,6 +133,7 @@ class CartIndexEntry:
     launcher_selected_art_bank: int
     launcher_card: LauncherCard
     asset_bank: int = 0
+    pattern_asset_bytes: int = 0
 
 
 @dataclass(frozen=True)
@@ -807,7 +832,8 @@ def emit_cart_source(entries: Sequence[CartIndexEntry]) -> str:
         f"{entry.launcher_selected_art_bank}U, "
         f"{entry.prefix}_ps_gbc_launcher_selected_art, "
         f"{entry.launcher_card.board_level_count + 2}U, "
-        f"{entry.asset_bank}U"
+        f"{entry.asset_bank}U, "
+        f"{entry.pattern_asset_bytes}U"
         "}"
         for entry in entries
     )
@@ -1051,12 +1077,56 @@ def strip_interpreter_precomposed(game_source: Path) -> None:
         "0, 0, 0, 0U,",
         text,
     )
+    # Message strings may contain escaped quotes (e.g. \"hydrogen\").
     text = re.sub(
-        r'(PS_GBC_LEVEL_MESSAGE, \d+U, \d+U, NULL, )"[^"]*"',
+        r'(PS_GBC_LEVEL_MESSAGE, \d+U, \d+U, NULL, )"(?:[^"\\]|\\.)*"',
         r"\1NULL",
         text,
     )
+    # Solution-replay carts do not need unique sprites; collapse pixels to one
+    # stub so oversized interpreter games can clear the 16K core+game gate.
+    pixel_defs = list(
+        re.finditer(
+            r"static const uint8_t (kObject\d+Pixels)\[\] = \{[^}]+\};\n",
+            text,
+        )
+    )
+    if pixel_defs:
+        for match in reversed(pixel_defs):
+            text = text[: match.start()] + text[match.end() :]
+        text = text.replace(
+            '#include "generated_game.h"\n',
+            '#include "generated_game.h"\n'
+            "static const uint8_t kStubObjectPixels[] = {0};\n",
+            1,
+        )
+        text = re.sub(r"\bkObject\d+Pixels\b", "kStubObjectPixels", text)
     game_source.write_text(text, encoding="utf-8")
+
+
+def _count_c_initializer_structs(body: str) -> int:
+    depth = 0
+    count = 0
+    for char in body:
+        if char == "{":
+            if depth == 0:
+                count += 1
+            depth += 1
+        elif char == "}":
+            depth -= 1
+    return count
+
+
+def _generated_pattern_bytes(game_header: Path) -> int:
+    match = re.search(
+        r"#define\s+PS_GBC_GENERATED_PATTERN_BYTES\s+(\d+)U",
+        game_header.read_text(encoding="utf-8"),
+    )
+    if match is None:
+        raise RuntimeError(
+            f"missing PS_GBC_GENERATED_PATTERN_BYTES in {game_header}"
+        )
+    return int(match.group(1))
 
 
 def split_interpreter_level_cells(
@@ -1073,22 +1143,24 @@ def split_interpreter_level_cells(
     text = game_source.read_text(encoding="utf-8")
     moved: list[str] = []
     originals: list[str] = []
+    # object_bytes_per_cell may be 1/2/4 → uint8/16/32 cell arrays.
     pattern = re.compile(
-        r"static const uint32_t (kLevel\d+Cells)\[\] = \{[^}]+\};"
+        r"static const (uint(?:8|16|32)_t) (kLevel\d+Cells)\[\] = \{[^}]+\};"
     )
 
     def replacer(match: re.Match[str]) -> str:
-        original = match.group(1)
+        cell_type = match.group(1)
+        original = match.group(2)
         namespaced = f"{prefix}_{original}"
         originals.append(original)
         definition = match.group(0).replace("static ", "", 1)
         definition = definition.replace(
-            f"const uint32_t {original}[",
-            f"const uint32_t {namespaced}[",
+            f"const {cell_type} {original}[",
+            f"const {cell_type} {namespaced}[",
             1,
         )
         moved.append(definition)
-        return f"extern const uint32_t {namespaced}[];"
+        return f"extern const {cell_type} {namespaced}[];"
 
     text, count = pattern.subn(replacer, text)
     if count == 0:
@@ -1109,6 +1181,76 @@ def split_interpreter_level_cells(
     )
     game_source.write_text(text, encoding="utf-8")
     return True
+
+
+def split_interpreter_patterns(
+    game_source: Path,
+    assets_source: Path,
+    game_header: Path,
+    *,
+    prefix: str,
+) -> int:
+    """Move kPatterns into the interpreter asset translation unit.
+
+    Returns the table size in bytes. Appends to assets_source when it already
+    holds split level-cell arrays.
+    """
+    text = game_source.read_text(encoding="utf-8")
+    match = re.search(
+        r"static const ps_gbc_generated_pattern kPatterns\[\] = \{(.*?)\};",
+        text,
+        flags=re.S,
+    )
+    if match is None:
+        raise RuntimeError(f"{game_source}: missing kPatterns to split")
+    pattern_stride = _generated_pattern_bytes(game_header)
+    pattern_count = _count_c_initializer_structs(match.group(1))
+    if pattern_count <= 0:
+        raise RuntimeError(f"{game_source}: kPatterns is empty")
+    pattern_bytes = pattern_count * pattern_stride
+    if pattern_bytes > PATTERN_ASSET_TABLE_MAX_BYTES:
+        raise RuntimeError(
+            f"{game_source}: pattern asset table is {pattern_bytes} bytes "
+            f"(limit {PATTERN_ASSET_TABLE_MAX_BYTES})"
+        )
+    namespaced = f"{prefix}_kPatterns"
+    definition = (
+        f"const ps_gbc_generated_pattern {namespaced}[] = {{"
+        f"{match.group(1)}}};"
+    )
+    text = (
+        text[: match.start()]
+        + f"extern const ps_gbc_generated_pattern {namespaced}[];"
+        + text[match.end() :]
+    )
+    text = re.sub(r"\bkPatterns\b", namespaced, text)
+    game_source.write_text(text, encoding="utf-8")
+
+    if assets_source.is_file():
+        existing = assets_source.read_text(encoding="utf-8")
+        if '#include "generated_game.h"' not in existing:
+            existing = existing.replace(
+                "#include <stdint.h>\n",
+                '#include <stdint.h>\n#include "generated_game.h"\n',
+                1,
+            )
+        assets_source.write_text(
+            existing.rstrip() + "\n" + definition + "\n",
+            encoding="utf-8",
+        )
+    else:
+        assets_source.write_text(
+            "/* Generated by build_gbc_cart for interpreter bank fit. */\n"
+            "#if defined(__SDCC)\n"
+            "#pragma bank 10\n"
+            "#endif\n"
+            "#include <stdint.h>\n"
+            '#include "generated_game.h"\n'
+            f"/* prefix={prefix} */\n"
+            f"{definition}\n",
+            encoding="utf-8",
+        )
+    return pattern_bytes
 
 
 def _read_specialized_sources(export_directory: Path) -> list[Path]:
@@ -1294,29 +1436,44 @@ def build_cart(
         specialized_sources = _read_specialized_sources(export_directory)
         force_interpreter = slug in SPECIALIZED_FORCE_INTERPRETER_SLUGS
         split_level_cells = slug in INTERPRETER_SPLIT_LEVEL_CELLS_SLUGS
+        split_patterns = slug in INTERPRETER_SPLIT_PATTERNS_SLUGS
+        pattern_asset_bytes = 0
         if force_interpreter:
             print(
                 f"  note {slug}: interpreter-only quarantine "
                 f"(specialized diverges on cart)",
                 flush=True,
             )
-        if force_interpreter and split_level_cells:
+        if force_interpreter and (split_level_cells or split_patterns):
             strip_interpreter_precomposed(game_source)
             cells_source = export_directory / "generated_level_cells.c"
-            if not split_interpreter_level_cells(
-                game_source,
-                cells_source,
-                prefix=prefix,
-            ):
-                raise RuntimeError(
-                    f"{slug}: expected level cell arrays to split for "
-                    "interpreter bank fit"
+            if split_level_cells:
+                if not split_interpreter_level_cells(
+                    game_source,
+                    cells_source,
+                    prefix=prefix,
+                ):
+                    raise RuntimeError(
+                        f"{slug}: expected level cell arrays to split for "
+                        "interpreter bank fit"
+                    )
+                print(
+                    f"  note {slug}: split level cells + stripped precomposed "
+                    f"for interpreter bank fit",
+                    flush=True,
                 )
-            print(
-                f"  note {slug}: split level cells + stripped precomposed "
-                f"for interpreter bank fit",
-                flush=True,
-            )
+            if split_patterns:
+                pattern_asset_bytes = split_interpreter_patterns(
+                    game_source,
+                    cells_source,
+                    export_directory / "generated_game.h",
+                    prefix=prefix,
+                )
+                print(
+                    f"  note {slug}: split patterns "
+                    f"({pattern_asset_bytes} bytes) for interpreter bank fit",
+                    flush=True,
+                )
         specialized_defines = (
             ()
             if force_interpreter
@@ -1354,7 +1511,7 @@ def build_cart(
             )
         )
 
-        if force_interpreter and split_level_cells:
+        if force_interpreter and (split_level_cells or split_patterns):
             cells_source = export_directory / "generated_level_cells.c"
             cells_object = objects_root / f"{prefix}_generated_level_cells.o"
             compile_source(
@@ -1425,6 +1582,7 @@ def build_cart(
             launcher_art_bank=game_bank,
             launcher_selected_art_bank=game_bank,
             launcher_card=_launcher_card_from_manifest(manifest),
+            pattern_asset_bytes=pattern_asset_bytes,
         )
         launcher_art = render_launcher_art(
             entry,
@@ -1578,6 +1736,7 @@ def build_cart(
             launcher_selected_art_bank
         )
         game_records[index]["asset_bank"] = asset_bank
+        game_records[index]["pattern_asset_bytes"] = entry.pattern_asset_bytes
 
     (generated_root / "generated_cart.h").write_text(
         emit_cart_header(entries),

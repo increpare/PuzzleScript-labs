@@ -10,6 +10,8 @@ static bool gHasActiveGame;
 static uint8_t gActiveAssetBank;
 
 ps_gbc_level_cells_read_fn ps_gbc_level_cells_read = NULL;
+ps_gbc_pattern_slice_read_fn ps_gbc_pattern_slice_read = NULL;
+uint8_t ps_gbc_pattern_slice_buf[PS_GBC_PATTERN_SLICE_MAX_BYTES];
 
 static uint8_t mbc5CurrentBank(void* context) NONBANKED {
     (void)context;
@@ -41,10 +43,25 @@ static bool activeAssetLevelCellsRead(
         byte_count);
 }
 
+static bool activeAssetPatternSliceRead(
+    const void* source,
+    void* destination,
+    uint16_t byte_count
+) NONBANKED {
+    if (gActiveAssetBank == 0U) return false;
+    return ps_gbc_bank_copy(
+        &kMbc5Access,
+        gActiveAssetBank,
+        source,
+        destination,
+        byte_count);
+}
+
 bool ps_gbc_activate_game(
     uint8_t descriptor_bank,
     const ps_gbc_game_descriptor* descriptor,
-    uint8_t asset_bank
+    uint8_t asset_bank,
+    uint16_t pattern_asset_bytes
 ) NONBANKED {
     ps_gbc_game_descriptor descriptor_copy;
     ps_gbc_game_view game_view_copy;
@@ -64,11 +81,17 @@ bool ps_gbc_activate_game(
             sizeof(game_view_copy))) {
         return false;
     }
+    if (pattern_asset_bytes != 0U
+        && (asset_bank == 0U || game_view_copy.patterns == NULL)) {
+        return false;
+    }
     gActiveDescriptor = descriptor_copy;
     gActiveGameView = game_view_copy;
     gActiveAssetBank = asset_bank;
     ps_gbc_level_cells_read =
         (asset_bank != 0U) ? activeAssetLevelCellsRead : NULL;
+    ps_gbc_pattern_slice_read =
+        (pattern_asset_bytes != 0U) ? activeAssetPatternSliceRead : NULL;
     gHasActiveGame = true;
     return true;
 }
@@ -77,6 +100,7 @@ void ps_gbc_deactivate_game(void) NONBANKED {
     gHasActiveGame = false;
     gActiveAssetBank = 0U;
     ps_gbc_level_cells_read = NULL;
+    ps_gbc_pattern_slice_read = NULL;
 }
 
 const ps_gbc_game_descriptor* ps_gbc_active_descriptor(void) NONBANKED {

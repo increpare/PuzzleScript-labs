@@ -32,7 +32,8 @@ Evidence from the 2026-08-06 eligible corpus sweep (3s solve timeout):
 ## Non-goals
 
 - Fixing the existing host GBC false-negatives in this change
-- Fixing cart “magic invalid” / telemetry failures in this change
+- Exhaustive cart specialized-vs-host parity (use `cart_quarantine` for known
+  SDCC gaps; launcher WRAM / interpreter bank-fit fixes are in-tree)
 - Replacing performance benches (`bench_gbc_*`); those remain separate
 - Solving every unsolved board during ordinary test runs
 
@@ -203,6 +204,17 @@ Seed from the 2026-08-06 verified fixtures where possible:
 
 ### Known cart quarantines
 
-None. `pipe-puffer` and `yellow-box` use cart interpreter-only builds with
-level-cell arrays in a sibling asset bank (see `SPECIALIZED_FORCE_INTERPRETER_SLUGS`
-/ `INTERPRETER_SPLIT_LEVEL_CELLS_SLUGS` in `scripts/build_gbc_cart.py`).
+- `sokobond-demake` boards 1, 3–13 (`cart_quarantine`): host GBC baseline wins;
+  cart specialized wins boards 0/2 only; cart interpreter loses all boards
+  (SDCC layer-coupled / object-gated gap). Boards 0 and 2 stay unquarantined.
+
+Cleared from quarantine by cart interpreter-only + bank splits: `match-maker`,
+`unclean-residues`, `two-tone-tango`, `the-red-ring-of-immortality`, plus earlier
+`head-skuller`.
+
+Interpreter-only cart games (sibling asset bank for level cells / patterns as
+needed): `slot-machine`, `pipe-puffer`, `yellow-box`, `head-skuller`,
+`unclean-residues`, `two-tone-tango`, `the-red-ring-of-immortality`,
+`match-maker` — see `SPECIALIZED_FORCE_INTERPRETER_SLUGS` /
+`INTERPRETER_SPLIT_*` in `scripts/build_gbc_cart.py`. Pattern tables use the
+per-rule slice hook (`pattern_asset_bytes` / `ps_gbc_pattern_slice_read`).

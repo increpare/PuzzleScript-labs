@@ -128,7 +128,6 @@ typedef struct LauncherCachedGame {
     const uint8_t* card_band;
     const uint8_t* selected_card_band;
     uint16_t palette[4];
-    uint8_t background_tile_2bpp[16];
     bool valid;
 } LauncherCachedGame;
 
@@ -804,10 +803,6 @@ static void refreshLauncherCache(void) {
             cached->palette,
             gLauncherCard.palette,
             sizeof(gLauncherCard.palette));
-        memcpy(
-            cached->background_tile_2bpp,
-            gLauncherCard.background_tile_2bpp,
-            sizeof(gLauncherCard.background_tile_2bpp));
         has_save = readLauncherProgress(
             index,
             entry.source_hash,

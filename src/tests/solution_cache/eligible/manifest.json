@@ -2526,7 +2526,8 @@
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
         "js_valid",
-        "host_known_good"
+        "host_known_good",
+        "cart_quarantine"
       ]
     },
     {
@@ -2552,7 +2553,8 @@
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
         "js_valid",
-        "host_known_good"
+        "host_known_good",
+        "cart_quarantine"
       ]
     },
     {
@@ -2565,7 +2567,8 @@
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
         "js_valid",
-        "host_known_good"
+        "host_known_good",
+        "cart_quarantine"
       ]
     },
     {
@@ -2578,7 +2581,8 @@
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
         "js_valid",
-        "host_known_good"
+        "host_known_good",
+        "cart_quarantine"
       ]
     },
     {
@@ -2591,7 +2595,8 @@
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
         "js_valid",
-        "host_known_good"
+        "host_known_good",
+        "cart_quarantine"
       ]
     },
     {
@@ -2604,7 +2609,8 @@
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
         "js_valid",
-        "host_known_good"
+        "host_known_good",
+        "cart_quarantine"
       ]
     },
     {
@@ -2617,7 +2623,8 @@
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
         "js_valid",
-        "host_known_good"
+        "host_known_good",
+        "cart_quarantine"
       ]
     },
     {
@@ -2630,7 +2637,8 @@
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
         "js_valid",
-        "host_known_good"
+        "host_known_good",
+        "cart_quarantine"
       ]
     },
     {
@@ -2643,7 +2651,8 @@
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
         "js_valid",
-        "host_known_good"
+        "host_known_good",
+        "cart_quarantine"
       ]
     },
     {
@@ -2656,7 +2665,8 @@
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
         "js_valid",
-        "host_known_good"
+        "host_known_good",
+        "cart_quarantine"
       ]
     },
     {
@@ -2669,7 +2679,8 @@
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
         "js_valid",
-        "host_known_good"
+        "host_known_good",
+        "cart_quarantine"
       ]
     },
     {
@@ -2682,7 +2693,8 @@
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
         "js_valid",
-        "host_known_good"
+        "host_known_good",
+        "cart_quarantine"
       ]
     },
     {
@@ -3649,5 +3661,11 @@
     }
   ],
   "format": "puzzlescript-eligible-solution-cache-v1",
-  "seeded_from": "build/gbc/eligible/solution-bench-3s-all-levels.json"
+  "seeded_from": "build/gbc/eligible/solution-bench-3s-all-levels.json",
+  "summary": {
+    "js_valid": 280,
+    "host_known_good": 280,
+    "cart_quarantine": 12,
+    "entries": 280
+  }
 }

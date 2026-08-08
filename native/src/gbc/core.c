@@ -650,14 +650,41 @@ static bool ps_gbc_patterns_match_at(
     return true;
 }
 
+static const ps_gbc_runtime_pattern* ps_gbc_rule_pattern_table(
+    const ps_gbc_session* session,
+    const ps_gbc_runtime_rule* rule
+) {
+    const uint8_t* source =
+        (const uint8_t*)session->game->patterns + rule->first_pattern.byte_offset;
+    const uint16_t bytes =
+        (uint16_t)rule->pattern_count * (uint16_t)sizeof(ps_gbc_runtime_pattern);
+#if defined(PS_GBC_FREESTANDING)
+    if (ps_gbc_pattern_slice_read != NULL) {
+        if (bytes == 0U) {
+            return (const ps_gbc_runtime_pattern*)source;
+        }
+        if (bytes > PS_GBC_PATTERN_SLICE_MAX_BYTES) return NULL;
+        if (!ps_gbc_pattern_slice_read(
+                source, ps_gbc_pattern_slice_buf, bytes)) {
+            return NULL;
+        }
+        return (const ps_gbc_runtime_pattern*)ps_gbc_pattern_slice_buf;
+    }
+#else
+    (void)bytes;
+#endif
+    return (const ps_gbc_runtime_pattern*)source;
+}
+
 static bool ps_gbc_rule_matches_at(
     const ps_gbc_session* session,
     const ps_gbc_runtime_rule* rule,
     uint8_t start,
     int8_t delta
 ) {
-    const ps_gbc_runtime_pattern* pattern = (const ps_gbc_runtime_pattern*)(
-        (const uint8_t*)session->game->patterns + rule->first_pattern.byte_offset);
+    const ps_gbc_runtime_pattern* pattern =
+        ps_gbc_rule_pattern_table(session, rule);
+    if (pattern == NULL) return false;
     return ps_gbc_patterns_match_at(
         session, pattern, rule->pattern_count, start, delta);
 }
@@ -730,8 +757,9 @@ static uint8_t ps_gbc_collect_matches(
     const ps_gbc_runtime_rule* rule,
     int8_t delta
 ) {
-    const ps_gbc_runtime_pattern* patterns = (const ps_gbc_runtime_pattern*)(
-        (const uint8_t*)session->game->patterns + rule->first_pattern.byte_offset);
+    const ps_gbc_runtime_pattern* patterns =
+        ps_gbc_rule_pattern_table(session, rule);
+    if (patterns == NULL) return 0U;
     return ps_gbc_collect_pattern_matches(
         session,
         patterns,
@@ -834,18 +862,16 @@ static bool ps_gbc_apply_rule(
     const ps_gbc_runtime_pattern* patterns;
     int8_t delta;
     bool changed = false;
+    patterns = ps_gbc_rule_pattern_table(session, rule);
+    if (patterns == NULL) return false;
 #if PS_GBC_HAS_OBJECT_PRESENCE_PRECHECK
     if ((rule->commands & PS_GBC_RULE_OBJECT_PRESENCE_PRECHECK) != 0U) {
-        const ps_gbc_runtime_pattern* first_pattern = (const ps_gbc_runtime_pattern*)(
-            (const uint8_t*)session->game->patterns + rule->first_pattern.byte_offset);
         const ps_gbc_presence_mask required_objects =
-            (ps_gbc_presence_mask)first_pattern->objects_present;
+            (ps_gbc_presence_mask)patterns->objects_present;
         if ((session->present_objects & required_objects)
             != required_objects) return false;
     }
 #endif
-    patterns = (const ps_gbc_runtime_pattern*)(
-        (const uint8_t*)session->game->patterns + rule->first_pattern.byte_offset);
     delta = ps_gbc_delta(session, rule->direction);
     if (rule->row_count >= 2U) {
         uint8_t row1_starts[PS_GBC_MAX_BOARD_CELLS];

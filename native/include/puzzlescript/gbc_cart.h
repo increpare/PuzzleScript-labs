@@ -21,6 +21,8 @@ typedef struct ps_gbc_cart_entry {
     uint8_t launcher_progress_variant_count;
     /* 0 => level cell arrays live in descriptor/game bank; else sibling bank. */
     uint8_t asset_bank;
+    /* 0 => patterns live in game bank; else byte size to hydrate from asset_bank. */
+    uint16_t pattern_asset_bytes;
 } ps_gbc_cart_entry;
 
 typedef struct ps_gbc_launcher_card {

@@ -85,6 +85,47 @@ def launcher_manifest(
 
 
 def main() -> int:
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        root = Path(temporary_directory)
+        game_source = root / "generated_game.c"
+        cells_source = root / "generated_level_cells.c"
+        game_source.write_text(
+            "static const uint16_t kLevel1Cells[] = {1U, 2U};\n"
+            "static const uint16_t kLevel3Cells[] = {3U};\n"
+            "const void* levels[] = {kLevel1Cells, kLevel3Cells};\n",
+            encoding="utf-8",
+        )
+        assert build_gbc_cart.split_interpreter_level_cells(
+            game_source,
+            cells_source,
+            prefix="g00",
+        )
+        game_text = game_source.read_text(encoding="utf-8")
+        cells_text = cells_source.read_text(encoding="utf-8")
+        assert "extern const uint16_t g00_kLevel1Cells[]" in game_text
+        assert "const uint16_t g00_kLevel1Cells[]" in cells_text
+        assert "uint32_t" not in cells_text
+    assert "head-skuller" in build_gbc_cart.SPECIALIZED_FORCE_INTERPRETER_SLUGS
+    assert "unclean-residues" in build_gbc_cart.SPECIALIZED_FORCE_INTERPRETER_SLUGS
+    assert "match-maker" in build_gbc_cart.SPECIALIZED_FORCE_INTERPRETER_SLUGS
+
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        root = Path(temporary_directory)
+        game_source = root / "generated_game.c"
+        game_source.write_text(
+            '#include "generated_game.h"\n'
+            "static const uint8_t kObject0Pixels[] = {1U, 2U};\n"
+            "static const uint8_t kObject1Pixels[] = {3U, 4U};\n"
+            '{PS_GBC_LEVEL_MESSAGE, 0U, 0U, NULL, "One \\"hydrogen\\" atom"};\n'
+            "const uint8_t* pixels[] = {kObject0Pixels, kObject1Pixels};\n",
+            encoding="utf-8",
+        )
+        build_gbc_cart.strip_interpreter_precomposed(game_source)
+        stripped = game_source.read_text(encoding="utf-8")
+        assert "hydrogen" not in stripped
+        assert "kStubObjectPixels" in stripped
+        assert "kObject0Pixels[]" not in stripped
+
     options = build_gbc_cart.parse_options(
         ["--gbdk-home", "toolchains/gbdk"]
     )
@@ -717,12 +758,12 @@ def main() -> int:
     assert (
         '{3U, &g00_ps_gbc_generated_descriptor, 0x12345678UL, '
         '"FIRST", 9U, g00_ps_gbc_launcher_art, 11U, '
-        'g00_ps_gbc_launcher_selected_art, 4U, 0U}'
+        'g00_ps_gbc_launcher_selected_art, 4U, 0U, 0U}'
     ) in cart_source
     assert (
         '{4U, &g01_ps_gbc_generated_descriptor, 0x90abcdefUL, '
         '"SECOND", 10U, g01_ps_gbc_launcher_art, 12U, '
-        'g01_ps_gbc_launcher_selected_art, 4U, 0U}'
+        'g01_ps_gbc_launcher_selected_art, 4U, 0U, 0U}'
     ) in cart_source
     assert "static const ps_gbc_launcher_card kLauncherCards" in cart_source
     assert "{1U, 2U, 3U, 4U}" in cart_source

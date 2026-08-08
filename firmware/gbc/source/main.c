@@ -1205,7 +1205,8 @@ void main(void) {
                     && ps_gbc_activate_game(
                         entry.descriptor_bank,
                         entry.descriptor,
-                        entry.asset_bank)) {
+                        entry.asset_bank,
+                        entry.pattern_asset_bytes)) {
                     gActiveGameIndex = launcher.selected;
                     clearSnapshotStorage();
 #if defined(PS_GBC_CART_AUTOTEST)
@@ -1250,6 +1251,7 @@ void main(void) {
     if (!ps_gbc_activate_game(
             PS_GBC_GENERATED_ROM_BANK,
             &ps_gbc_generated_descriptor,
+            0U,
             0U)) {
         for (;;) vsync();
     }
