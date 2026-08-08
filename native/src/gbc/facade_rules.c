@@ -354,7 +354,8 @@ static bool ps_gbc_facade_rules_apply_replacement(
             for (object_index = 0U;
                  object_index < session->game->object_count;
                  ++object_index) {
-                const uint32_t bit = 1U << object_index;
+                /* SDCC int is 16-bit: 1U << n is zero for n >= 16. */
+                const uint32_t bit = 1UL << object_index;
                 uint8_t movement_layer;
                 if ((present & bit) == 0U) continue;
                 movement_layer = session->game->objects[object_index].movement_layer;

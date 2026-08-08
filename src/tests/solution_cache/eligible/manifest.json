@@ -2526,8 +2526,7 @@
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
         "js_valid",
-        "host_known_good",
-        "cart_quarantine"
+        "host_known_good"
       ]
     },
     {
@@ -2553,8 +2552,7 @@
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
         "js_valid",
-        "host_known_good",
-        "cart_quarantine"
+        "host_known_good"
       ]
     },
     {
@@ -2567,8 +2565,7 @@
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
         "js_valid",
-        "host_known_good",
-        "cart_quarantine"
+        "host_known_good"
       ]
     },
     {
@@ -2581,8 +2578,7 @@
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
         "js_valid",
-        "host_known_good",
-        "cart_quarantine"
+        "host_known_good"
       ]
     },
     {
@@ -2595,8 +2591,7 @@
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
         "js_valid",
-        "host_known_good",
-        "cart_quarantine"
+        "host_known_good"
       ]
     },
     {
@@ -2609,8 +2604,7 @@
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
         "js_valid",
-        "host_known_good",
-        "cart_quarantine"
+        "host_known_good"
       ]
     },
     {
@@ -2623,8 +2617,7 @@
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
         "js_valid",
-        "host_known_good",
-        "cart_quarantine"
+        "host_known_good"
       ]
     },
     {
@@ -2637,8 +2630,7 @@
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
         "js_valid",
-        "host_known_good",
-        "cart_quarantine"
+        "host_known_good"
       ]
     },
     {
@@ -2651,8 +2643,7 @@
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
         "js_valid",
-        "host_known_good",
-        "cart_quarantine"
+        "host_known_good"
       ]
     },
     {
@@ -2665,8 +2656,7 @@
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
         "js_valid",
-        "host_known_good",
-        "cart_quarantine"
+        "host_known_good"
       ]
     },
     {
@@ -2679,8 +2669,7 @@
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
         "js_valid",
-        "host_known_good",
-        "cart_quarantine"
+        "host_known_good"
       ]
     },
     {
@@ -2693,8 +2682,7 @@
       "source_sha256": "9c7710353e908e42ecf878298054e2e3616d3e4d6a746c2e4fbd0119166382dd",
       "tags": [
         "js_valid",
-        "host_known_good",
-        "cart_quarantine"
+        "host_known_good"
       ]
     },
     {
@@ -3665,7 +3653,7 @@
   "summary": {
     "js_valid": 280,
     "host_known_good": 280,
-    "cart_quarantine": 12,
-    "entries": 280
+    "entries": 280,
+    "cart_quarantine": 0
   }
 }

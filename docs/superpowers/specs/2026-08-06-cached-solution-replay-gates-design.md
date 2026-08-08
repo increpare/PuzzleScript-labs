@@ -204,17 +204,16 @@ Seed from the 2026-08-06 verified fixtures where possible:
 
 ### Known cart quarantines
 
-- `sokobond-demake` boards 1, 3–13 (`cart_quarantine`): host GBC baseline wins;
-  cart specialized wins boards 0/2 only; cart interpreter loses all boards
-  (SDCC layer-coupled / object-gated gap). Boards 0 and 2 stay unquarantined.
+None currently. `cart_quarantine` count is 0.
 
-Cleared from quarantine by cart interpreter-only + bank splits: `match-maker`,
-`unclean-residues`, `two-tone-tango`, `the-red-ring-of-immortality`, plus earlier
-`head-skuller`.
+Sokobond cart misses were an SDCC 16-bit `int` trap: `1U << object_index` is
+zero for indices ≥ 16, breaking object-gated coupled movement. Fixed with
+`1UL <<` in the interpreter apply path; `sokobond-demake` is force-interpreter
+with level-cell/pattern splits like the other oversized interpreter carts.
 
 Interpreter-only cart games (sibling asset bank for level cells / patterns as
 needed): `slot-machine`, `pipe-puffer`, `yellow-box`, `head-skuller`,
 `unclean-residues`, `two-tone-tango`, `the-red-ring-of-immortality`,
-`match-maker` — see `SPECIALIZED_FORCE_INTERPRETER_SLUGS` /
+`match-maker`, `sokobond-demake` — see `SPECIALIZED_FORCE_INTERPRETER_SLUGS` /
 `INTERPRETER_SPLIT_*` in `scripts/build_gbc_cart.py`. Pattern tables use the
 per-rule slice hook (`pattern_asset_bytes` / `ps_gbc_pattern_slice_read`).
