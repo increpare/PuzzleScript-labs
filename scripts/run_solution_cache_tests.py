@@ -164,12 +164,6 @@ def main() -> int:
         action="store_true",
         help="only run host GBC replays",
     )
-    parser.add_argument(
-        "--thorough-host-policy",
-        choices=("strict", "quarantine"),
-        default="strict",
-        help="quarantine: js_valid-only host misses are reported, not fatal",
-    )
     parser.add_argument("--slug", action="append", default=[])
     args = parser.parse_args()
 
@@ -187,7 +181,6 @@ def main() -> int:
         return 1
 
     hard_failures: list[str] = []
-    quarantined: list[str] = []
 
     for entry in selected:
         errors = sc.validate_entry_against_source(repository, entry)
@@ -249,24 +242,15 @@ def main() -> int:
                     f"{entry['slug']} board={entry['board_index']} "
                     f"src={entry['source_level']}"
                 )
-                tags = entry.get("tags") or []
                 if won:
                     print(f"    ok {label}", flush=True)
                     continue
                 msg = f"host {label}: {detail or 'not won'}"
-                if (
-                    args.thorough_host_policy == "quarantine"
-                    and sc.TAG_HOST_KNOWN_GOOD not in tags
-                ):
-                    quarantined.append(msg)
-                    print(f"    quarantine {msg}", flush=True)
-                else:
-                    hard_failures.append(msg)
-                    print(f"    FAIL {msg}", flush=True)
+                hard_failures.append(msg)
+                print(f"    FAIL {msg}", flush=True)
 
     print(
-        f"solution_cache_tests: hard_failures={len(hard_failures)} "
-        f"quarantined={len(quarantined)}",
+        f"solution_cache_tests: hard_failures={len(hard_failures)}",
         flush=True,
     )
     return 1 if hard_failures else 0

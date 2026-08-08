@@ -62,19 +62,18 @@ run --headless --inputs-file`, libmGBA cart harness, CMake/CTest, Make.
 **Files:**
 - Create: `scripts/run_solution_cache_tests.py`
 
-- [ ] `--tag host_known_good` (default): replay C++ + host GBC; hard fail
-- [ ] `--tag js_valid --thorough-host-policy quarantine`: C++ hard fail; host
-      miss on non-`host_known_good` reported only
-- [ ] Verify default gate passes on seeded cache
+- [x] `--tag host_known_good` (default): replay C++ + host GBC; hard fail
+- [x] `--tag js_valid` (thorough): C++ + host hard fail (quarantine policy retired;
+      see `2026-08-08-strict-thorough-solution-cache-policy.md`)
+- [x] Verify default gate passes on seeded cache
 
 ### Task 4: Cart thorough runner
 
 **Files:**
 - Create: `scripts/run_gbc_cart_solution_cache_tests.py`
 
-- [ ] One benchmark cart build; replay every cached board via libmGBA
-- [ ] Hard fail on non-win (skip games without GBDK/libmGBA only if explicitly
-      allowed via env for local smoke — default is require)
+- [x] One benchmark cart build; replay every cached board via libmGBA
+- [x] Hard fail on any non-win
 
 ### Task 5: Wire Make/CTest
 

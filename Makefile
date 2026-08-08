@@ -550,8 +550,8 @@ help:
 	@echo "  make gbc_eligible_solutions_bench  Host solution-replay scoreboard for ELIGIBLE_GAMES"
 	@echo "                                     (cull oversized levels by default; GBC_CULL=0 to disable)"
 	@echo "  make solution_cache_tests          Replay cached host_known_good solutions (C++ + host GBC)"
-	@echo "  make solution_cache_tests_thorough Replay full js_valid cache (C++ hard, host quarantine)"
-	@echo "  make gbc_cart_solution_cache_tests Cart/libmGBA replay of every cached board"
+	@echo "  make solution_cache_tests_thorough Replay full js_valid cache (C++ + host; hard-fail)"
+	@echo "  make gbc_cart_solution_cache_tests Cart/libmGBA replay of every cached board (hard-fail)"
 	@echo "  make refresh_eligible_solution_cache  Reclassify/fill checked-in solution cache"
 	@echo "  make handheld_memory_audit         Measure per-game native peak RSS for handheld Track 0"
 	@echo "  make handheld_blockout_tests       Run card blockout + PCB mechanical export tests"
@@ -926,16 +926,14 @@ solution_cache_tests: $(PUZZLESCRIPT_CPP)
 		--repository . \
 		--cache-root "$(SOLUTION_CACHE_ROOT)" \
 		--export-dir "$(SOLUTION_CACHE_EXPORT_DIR)" \
-		--tag host_known_good \
-		--thorough-host-policy strict
+		--tag host_known_good
 
 solution_cache_tests_thorough: $(PUZZLESCRIPT_CPP)
 	PYTHONPATH=scripts python3 scripts/run_solution_cache_tests.py \
 		--repository . \
 		--cache-root "$(SOLUTION_CACHE_ROOT)" \
 		--export-dir "$(SOLUTION_CACHE_EXPORT_DIR)" \
-		--tag js_valid \
-		--thorough-host-policy quarantine
+		--tag js_valid
 
 gbc_cart_solution_cache_tests: $(PUZZLESCRIPT_CPP)
 	PYTHONPATH=scripts python3 scripts/run_gbc_cart_solution_cache_tests.py \

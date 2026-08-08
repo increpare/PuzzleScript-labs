@@ -189,11 +189,6 @@ def main() -> int:
                 tags = [sc.TAG_JS_VALID]
                 if host_won:
                     tags.append(sc.TAG_HOST_KNOWN_GOOD)
-                # Preserve maintainer cart quarantine across refresh/reclassify.
-                if entry is not None and sc.TAG_CART_QUARANTINE in (
-                    entry.get("tags") or []
-                ):
-                    tags.append(sc.TAG_CART_QUARANTINE)
                 kept.append(
                     {
                         "slug": slug,
@@ -229,9 +224,6 @@ def main() -> int:
         "js_valid": sum(1 for e in kept if sc.TAG_JS_VALID in e["tags"]),
         "host_known_good": sum(
             1 for e in kept if sc.TAG_HOST_KNOWN_GOOD in e["tags"]
-        ),
-        "cart_quarantine": sum(
-            1 for e in kept if sc.TAG_CART_QUARANTINE in e["tags"]
         ),
     }
     sc.save_manifest(manifest_file, payload)

@@ -1,7 +1,6 @@
 {
   "corpus": "eligible_gbc",
   "counts": {
-    "cart_quarantine": 0,
     "entries": 280,
     "host_known_good": 280,
     "js_valid": 280
@@ -3653,7 +3652,6 @@
   "summary": {
     "js_valid": 280,
     "host_known_good": 280,
-    "entries": 280,
-    "cart_quarantine": 0
+    "entries": 280
   }
 }

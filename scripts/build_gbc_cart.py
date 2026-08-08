@@ -1141,7 +1141,7 @@ def split_interpreter_level_cells(
     """Move kLevelNCells arrays into a sibling translation unit.
 
     Returns True when any arrays were moved. Symbols are prefixed so multiple
-    interpreter-quarantine games can link into one cart.
+    force-interpreter games can link into one cart.
     """
     text = game_source.read_text(encoding="utf-8")
     moved: list[str] = []
@@ -1443,7 +1443,7 @@ def build_cart(
         pattern_asset_bytes = 0
         if force_interpreter:
             print(
-                f"  note {slug}: interpreter-only quarantine "
+                f"  note {slug}: force-interpreter "
                 f"(specialized diverges on cart)",
                 flush=True,
             )
