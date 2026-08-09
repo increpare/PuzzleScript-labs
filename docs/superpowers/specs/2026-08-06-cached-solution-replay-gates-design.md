@@ -192,12 +192,11 @@ Seed from the 2026-08-06 verified fixtures where possible:
 
 Sokobond cart misses were an SDCC 16-bit `int` trap: `1U << object_index` is
 zero for indices ≥ 16, breaking object-gated coupled movement. Fixed with
-`1UL <<` in the interpreter apply path; `sokobond-demake` is force-interpreter
-with level-cell/pattern splits like the other oversized interpreter carts.
+`1UL <<` in the interpreter apply path.
 
 Interpreter-only cart games (sibling asset bank for level cells / patterns as
 needed): `head-skuller`, `unclean-residues`, `two-tone-tango`,
-`the-red-ring-of-immortality`, `match-maker`, `sokobond-demake` — see
+`the-red-ring-of-immortality`, `match-maker` — see
 `SPECIALIZED_FORCE_INTERPRETER_SLUGS` / `INTERPRETER_SPLIT_*` in
 `scripts/build_gbc_cart.py`. Pattern tables use the per-rule slice hook
 (`pattern_asset_bytes` / `ps_gbc_pattern_slice_read`).
@@ -205,5 +204,6 @@ needed): `head-skuller`, `unclean-residues`, `two-tone-tango`,
 `slot-machine`, `pipe-puffer`, and `yellow-box` returned to specialized after
 GBC mask literals were emitted as `UL` (SDCC 16-bit `~0xNNNU` was wiping
 object bits 16..31 on clear rules). Movement-lane clears use `0x1fUL <<`
-for the same reason. `sokobond-demake` stays interpreter-only: specialized
-still loses cached board 4 on host GBC (final `left`; orbitals/electrons).
+for the same reason. `sokobond-demake` returned to specialized after
+collect-all apply began re-checking `_matches_at` before each replacement
+(overlapping Late `[Orbital no Temps …]` matches must skip once Temps land).

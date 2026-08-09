@@ -8947,8 +8947,15 @@ void emitGbcSpecializedRuleFunction(
             // only when the board net-differs from turn start (JS again probe).
             out << "    changed = true;\n";
         }
+        // Re-check each collected match against the live board before apply.
+        // Matches are gathered up-front (interpreter collect-all), but later
+        // applications can invalidate earlier ones — e.g. sokobond Late Down
+        // [Orbital no Temps …|…] overlapping on one atom: the second match must
+        // see Temps from the first and skip (core.c ps_gbc_apply_rule).
         out << "    for (match_index = 0U; match_index < match_count; ++match_index) {\n"
             << "        const uint8_t start = session->match_cells[match_index];\n"
+            << "        if (!ps_gbc_specialized_rule_" << ruleIndex
+            << "_matches_at(session, start, delta)) continue;\n"
             << "        uint8_t cell = start;\n";
     }
     for (uint8_t patternIndex = 0; patternIndex < rule.patternCount; ++patternIndex) {

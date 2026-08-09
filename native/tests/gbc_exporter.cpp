@@ -383,6 +383,34 @@ static void test_specialized_movement_lane_clears_use_unsigned_long() {
     assertTrue(sawLaneClear, "sokobond specialized emits movement-lane clears");
 }
 
+static void test_specialized_rematch_before_apply() {
+    const std::filesystem::path root = PS_REPO_ROOT;
+    puzzlescript::gbc::ExportOptions options;
+    options.sourcePath =
+        root / "src" / "tests" / "good_games" / "sokobond demake.txt";
+    options.outputDirectory = root / "build" / "native"
+        / "gbc_exporter_test_output" / "rematch_before_apply";
+    options.cullOversizeLevels = true;
+    (void)puzzlescript::gbc::exportGame(options);
+    bool sawRematch = false;
+    for (const auto& entry :
+         std::filesystem::directory_iterator(options.outputDirectory)) {
+        if (!entry.is_regular_file()) continue;
+        const std::string name = entry.path().filename().string();
+        if (name.rfind("generated_specialized_turn", 0) != 0) continue;
+        if (entry.path().extension() != ".c") continue;
+        const std::string text = readFile(entry.path());
+        if (text.find("_matches_at(session, start, delta)) continue;")
+            != std::string::npos) {
+            sawRematch = true;
+            break;
+        }
+    }
+    assertTrue(
+        sawRematch,
+        "specialized collect-all apply must rematch before each replacement");
+}
+
 int main() {
     const std::filesystem::path root = PS_REPO_ROOT;
     const std::filesystem::path output =
@@ -1451,5 +1479,6 @@ int main() {
     test_text_staging_limit_rejects_long_source_strings();
     test_specialized_clear_masks_use_unsigned_long_suffix();
     test_specialized_movement_lane_clears_use_unsigned_long();
+    test_specialized_rematch_before_apply();
     return 0;
 }

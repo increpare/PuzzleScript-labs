@@ -58,15 +58,14 @@ COMPACT_FACADE_CANARY_IMPLEMENTATION_BYTES = 349
 #
 # Cleared after SDCC-safe `UL` mask literals in specialized codegen:
 # slot-machine, pipe-puffer, yellow-box (were ~0xNNNU high-bit wipes).
-# sokobond-demake board 4 still loses under specialized even on host GBC
-# (last left; orbital/electron consume) — keep interpreter until that is fixed.
+# Cleared after specialized rematch-before-apply: sokobond-demake (overlapping
+# Late [Orbital no Temps …] matches must skip once Temps are placed).
 SPECIALIZED_FORCE_INTERPRETER_SLUGS = frozenset({
     "head-skuller",
     "unclean-residues",
     "two-tone-tango",
     "the-red-ring-of-immortality",
     "match-maker",
-    "sokobond-demake",
 })
 INTERPRETER_SPLIT_LEVEL_CELLS_SLUGS = frozenset({
     "head-skuller",
@@ -74,7 +73,6 @@ INTERPRETER_SPLIT_LEVEL_CELLS_SLUGS = frozenset({
     "two-tone-tango",
     "the-red-ring-of-immortality",
     "match-maker",
-    "sokobond-demake",
 })
 # Pattern tables that still overflow after level-cell split (ABI growth).
 # Hydrated into WRAM on activate via pattern_asset_bytes.
@@ -83,7 +81,6 @@ INTERPRETER_SPLIT_PATTERNS_SLUGS = frozenset({
     "unclean-residues",
     "the-red-ring-of-immortality",
     "match-maker",
-    "sokobond-demake",
 })
 # Soft cap for split pattern tables (read via per-rule slice hook, not WRAM copy).
 PATTERN_ASSET_TABLE_MAX_BYTES = 8192
