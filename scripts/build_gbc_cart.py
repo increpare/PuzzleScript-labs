@@ -50,14 +50,17 @@ COMPACT_FACADE_CANARY_ALIASES = tuple(
 )
 COMPACT_FACADE_CANARY_IMPLEMENTATION_BYTES = 349
 
-# Specialized turn diverges under SDCC/banked carts (host specialized is fine).
-# Omit generated specialized objects and keep the interpreter path in core/game.
-# Oversized interpreter games also strip precomposed tiles and split bulky
-# tables into a sibling ROM bank (see asset_bank / pattern_asset_bytes).
+# Specialized turn still diverges under SDCC/banked carts for these games
+# (host specialized is fine). Omit generated specialized objects and keep the
+# interpreter path in core/game. Oversized interpreter games also strip
+# precomposed tiles and split bulky tables into a sibling ROM bank
+# (see asset_bank / pattern_asset_bytes).
+#
+# Cleared after SDCC-safe `UL` mask literals in specialized codegen:
+# slot-machine, pipe-puffer, yellow-box (were ~0xNNNU high-bit wipes).
+# sokobond-demake board 4 still loses under specialized even on host GBC
+# (last left; orbital/electron consume) — keep interpreter until that is fixed.
 SPECIALIZED_FORCE_INTERPRETER_SLUGS = frozenset({
-    "slot-machine",
-    "pipe-puffer",
-    "yellow-box",
     "head-skuller",
     "unclean-residues",
     "two-tone-tango",
@@ -66,9 +69,6 @@ SPECIALIZED_FORCE_INTERPRETER_SLUGS = frozenset({
     "sokobond-demake",
 })
 INTERPRETER_SPLIT_LEVEL_CELLS_SLUGS = frozenset({
-    "slot-machine",
-    "pipe-puffer",
-    "yellow-box",
     "head-skuller",
     "unclean-residues",
     "two-tone-tango",
@@ -79,9 +79,6 @@ INTERPRETER_SPLIT_LEVEL_CELLS_SLUGS = frozenset({
 # Pattern tables that still overflow after level-cell split (ABI growth).
 # Hydrated into WRAM on activate via pattern_asset_bytes.
 INTERPRETER_SPLIT_PATTERNS_SLUGS = frozenset({
-    "slot-machine",
-    "pipe-puffer",
-    "yellow-box",
     "head-skuller",
     "unclean-residues",
     "the-red-ring-of-immortality",

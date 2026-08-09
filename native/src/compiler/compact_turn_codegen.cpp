@@ -7058,7 +7058,9 @@ void emitCompactTurnAccessLayer(
 namespace {
 
 void emitGbcHexU32(std::ostream& out, uint32_t value) {
-    out << "0x" << std::hex << value << std::dec << "U";
+    // Use UL so SDCC (16-bit unsigned int) does not truncate complements like
+    // `~0x8U` to 0xFFF7 before zero-extending into a uint32_t cell mask.
+    out << "0x" << std::hex << value << std::dec << "UL";
 }
 
 uint8_t gbdCObjectBytesPerCell(int32_t objectCount) {
@@ -7393,7 +7395,8 @@ void emitGbdCLayerCoupledReplacementApply(
                 out << ") != 0U) layer_ok = false;\n";
             }
             out << indent << "    if (layer_ok) {\n"
-                << indent << "        " << nextMovementsVar << " &= ~(0x1fU << (5U * "
+                // UL: SDCC 16-bit `0x1fU << (5*lane)` truncates for lane>=3.
+                << indent << "        " << nextMovementsVar << " &= ~(0x1fUL << (5U * "
                 << movementLane << "U));\n";
             uint32_t replacementMask = term.replacementMovementMask & 0x1fU;
             if (term.aggregateCaptureIndex >= 0) {
@@ -7502,7 +7505,7 @@ void emitCompactInlineGbdCPatternApply(
             << static_cast<unsigned>(binding.propertyBindingIndex) << "] >= 0) {\n"
             << indent << "        const uint8_t property_lane = (uint8_t)property_capture_layers["
             << static_cast<unsigned>(binding.propertyBindingIndex) << "];\n"
-            << indent << "        " << nextMovementsVar << " &= ~(0x1fU << (5U * (uint32_t)property_lane));\n";
+            << indent << "        " << nextMovementsVar << " &= ~(0x1fUL << (5U * (uint32_t)property_lane));\n";
         if (binding.dirMode == 2) {
             out << indent << "        " << nextMovementsVar << " |= ((";
             emitGbcHexU32(out, binding.dirMask & 0x1fU);

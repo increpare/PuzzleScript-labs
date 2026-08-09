@@ -311,6 +311,78 @@ static void test_text_staging_limit_rejects_long_source_strings() {
     requireRejected("long_level_message", longMessage);
 }
 
+// SDCC's unsigned int is 16-bit: `~0x8U` becomes 0xFFF7 and zero-extends to
+// 0x0000FFF7 when applied to a uint32_t cell, wiping object bits 16..31.
+// Specialized clears must therefore emit unsigned-long mask literals.
+static void test_specialized_clear_masks_use_unsigned_long_suffix() {
+    const std::filesystem::path root = PS_REPO_ROOT;
+    puzzlescript::gbc::ExportOptions options;
+    options.sourcePath =
+        root / "src" / "tests" / "good_games" / "slot machine.txt";
+    options.outputDirectory = root / "build" / "native"
+        / "gbc_exporter_test_output" / "sdcc_safe_masks";
+    options.cullOversizeLevels = true;
+    (void)puzzlescript::gbc::exportGame(options);
+    assertTrue(
+        std::filesystem::exists(
+            options.outputDirectory / "generated_specialized_turn_rules_3.c"),
+        "slot-machine emits specialized rule packs");
+    bool sawSafeComplement = false;
+    for (const auto& entry :
+         std::filesystem::directory_iterator(options.outputDirectory)) {
+        if (!entry.is_regular_file()) continue;
+        const std::string name = entry.path().filename().string();
+        if (name.rfind("generated_specialized_turn", 0) != 0) continue;
+        if (entry.path().extension() != ".c") continue;
+        const std::string text = readFile(entry.path());
+        // Forbid 16-bit-unsafe complements (`& ~0xNNNU` / `&= ~0xNNNU`) without L.
+        for (const char* needle : {"& ~0x", "&= ~0x"}) {
+            std::string::size_type pos = 0;
+            while ((pos = text.find(needle, pos)) != std::string::npos) {
+                const std::string::size_type hex =
+                    pos + std::char_traits<char>::length(needle);
+                const std::string::size_type end =
+                    text.find_first_not_of("0123456789abcdefABCDEF", hex);
+                assertTrue(
+                    end != std::string::npos && end + 1 < text.size()
+                        && text[end] == 'U' && text[end + 1] == 'L',
+                    "specialized complement must use UL suffix near: "
+                        + text.substr(pos, 24));
+                sawSafeComplement = true;
+                pos = end + 2;
+            }
+        }
+    }
+    assertTrue(sawSafeComplement, "slot-machine specialized emits complements");
+}
+
+static void test_specialized_movement_lane_clears_use_unsigned_long() {
+    const std::filesystem::path root = PS_REPO_ROOT;
+    puzzlescript::gbc::ExportOptions options;
+    options.sourcePath =
+        root / "src" / "tests" / "good_games" / "sokobond demake.txt";
+    options.outputDirectory = root / "build" / "native"
+        / "gbc_exporter_test_output" / "sdcc_safe_movement_lanes";
+    options.cullOversizeLevels = true;
+    (void)puzzlescript::gbc::exportGame(options);
+    bool sawLaneClear = false;
+    for (const auto& entry :
+         std::filesystem::directory_iterator(options.outputDirectory)) {
+        if (!entry.is_regular_file()) continue;
+        const std::string name = entry.path().filename().string();
+        if (name.rfind("generated_specialized_turn", 0) != 0) continue;
+        if (entry.path().extension() != ".c") continue;
+        const std::string text = readFile(entry.path());
+        assertTrue(
+            text.find("~(0x1fU <<") == std::string::npos,
+            "movement-lane clear must not use 16-bit 0x1fU shift");
+        if (text.find("~(0x1fUL <<") != std::string::npos) {
+            sawLaneClear = true;
+        }
+    }
+    assertTrue(sawLaneClear, "sokobond specialized emits movement-lane clears");
+}
+
 int main() {
     const std::filesystem::path root = PS_REPO_ROOT;
     const std::filesystem::path output =
@@ -1377,5 +1449,7 @@ int main() {
     test_launcher_card_preserves_metadata_colors();
     test_generated_descriptor_namespaces_assets_and_core_dispatch();
     test_text_staging_limit_rejects_long_source_strings();
+    test_specialized_clear_masks_use_unsigned_long_suffix();
+    test_specialized_movement_lane_clears_use_unsigned_long();
     return 0;
 }

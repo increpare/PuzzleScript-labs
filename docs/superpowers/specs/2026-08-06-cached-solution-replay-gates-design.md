@@ -196,8 +196,14 @@ zero for indices ≥ 16, breaking object-gated coupled movement. Fixed with
 with level-cell/pattern splits like the other oversized interpreter carts.
 
 Interpreter-only cart games (sibling asset bank for level cells / patterns as
-needed): `slot-machine`, `pipe-puffer`, `yellow-box`, `head-skuller`,
-`unclean-residues`, `two-tone-tango`, `the-red-ring-of-immortality`,
-`match-maker`, `sokobond-demake` — see `SPECIALIZED_FORCE_INTERPRETER_SLUGS` /
-`INTERPRETER_SPLIT_*` in `scripts/build_gbc_cart.py`. Pattern tables use the
-per-rule slice hook (`pattern_asset_bytes` / `ps_gbc_pattern_slice_read`).
+needed): `head-skuller`, `unclean-residues`, `two-tone-tango`,
+`the-red-ring-of-immortality`, `match-maker`, `sokobond-demake` — see
+`SPECIALIZED_FORCE_INTERPRETER_SLUGS` / `INTERPRETER_SPLIT_*` in
+`scripts/build_gbc_cart.py`. Pattern tables use the per-rule slice hook
+(`pattern_asset_bytes` / `ps_gbc_pattern_slice_read`).
+
+`slot-machine`, `pipe-puffer`, and `yellow-box` returned to specialized after
+GBC mask literals were emitted as `UL` (SDCC 16-bit `~0xNNNU` was wiping
+object bits 16..31 on clear rules). Movement-lane clears use `0x1fUL <<`
+for the same reason. `sokobond-demake` stays interpreter-only: specialized
+still loses cached board 4 on host GBC (final `left`; orbitals/electrons).
