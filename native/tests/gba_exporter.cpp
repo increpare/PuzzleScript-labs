@@ -305,6 +305,9 @@ int main() {
             || darkTextSourceCpp.find("0x0000, 0x7fff") != std::string::npos,
         "LCD contrast forces black text even when authored text_color is dark");
 
+#if PS_MASK_WORD_BITS == 32
+    // These fixtures need enough objects/layers that a 64-bit host's mask layout
+    // no longer matches GBA's 32-bit packing; keep them on the 32-bit build.
     const std::filesystem::path shadedOutput = contrastOutput / "shaded-reds";
     puzzlescript::gba::ExportOptions shadedOptions = contrastOptions;
     shadedOptions.outputDirectory = shadedOutput;
@@ -326,6 +329,7 @@ int main() {
     require(paleTextSource.find("0x0, 0x7fff") != std::string::npos
             || paleTextSource.find("0x0000, 0x7fff") != std::string::npos,
         "LCD contrast forces black text on white clear for pale authored text_color");
+#endif
 
     const std::filesystem::path contrastTitleOutput = contrastOutput / "title";
     std::filesystem::create_directories(contrastTitleOutput);

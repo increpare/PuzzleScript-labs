@@ -1342,26 +1342,26 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
             }
             continue;
         }
+        // Mirror compiler.js processRuleString's `incellrow` flag: `->` only
+        // separates LHS/RHS when it is not currently inside a `[...]` cell row.
+        // That keeps legacy `[[ A ] -> [ B ]` working (the first `]` clears
+        // incellrow even if bracket nesting remains) while leaving
+        // `[ A ][ B ][ -> [ C ]` as an all-LHS match with no replacements —
+        // the ponies JumpVariableB1 typo case in testdata.js.
         auto arrowIt = tokens.end();
-        int32_t arrowSearchBracketDepth = 0;
+        bool arrowSearchInCellRow = false;
         for (auto it = tokens.begin(); it != tokens.end(); ++it) {
             if (*it == "[") {
-                ++arrowSearchBracketDepth;
+                arrowSearchInCellRow = true;
                 continue;
             }
             if (*it == "]") {
-                --arrowSearchBracketDepth;
+                arrowSearchInCellRow = false;
                 continue;
             }
-            if (*it == "->") {
-                // parser.js is tolerant of an accidental extra opening bracket
-                // before the LHS (`[[ A ] -> [ B ]`): the arrow still separates
-                // the rewrite, and the inner cells are kept. Treat a depth of
-                // one as top-level for that compatibility case.
-                if (arrowSearchBracketDepth <= 1) {
-                    arrowIt = it;
-                    break;
-                }
+            if (*it == "->" && !arrowSearchInCellRow) {
+                arrowIt = it;
+                break;
             }
         }
         if (std::find(tokens.begin(), tokens.end(), "->") == tokens.end()) {

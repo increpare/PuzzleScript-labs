@@ -1,0 +1,166 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "human_verified": false,
+  "ruleTag": [
+    {
+      "line": 26,
+      "text": "[ alpha ] -> sfx0",
+      "tags": {
+        "objects_required": ["Alpha"],
+        "objects_matched": ["Alpha"],
+        "object_absences_matched": [],
+        "movements_required": [],
+        "movements_matched": [],
+        "objects_written": [],
+        "objects_erased": [],
+        "movements_written": [],
+        "movements_removed": [],
+        "cosmetic": true
+      }
+    },
+    {
+      "line": 27,
+      "text": "[ alpha ] -> checkpoint",
+      "tags": {
+        "objects_required": ["Alpha"],
+        "objects_matched": ["Alpha"],
+        "object_absences_matched": [],
+        "movements_required": [],
+        "movements_matched": [],
+        "objects_written": [],
+        "objects_erased": [],
+        "movements_written": [],
+        "movements_removed": [],
+        "cosmetic": true
+      }
+    },
+    {
+      "line": 28,
+      "text": "[ alpha ] -> cancel",
+      "tags": {
+        "objects_required": ["Alpha"],
+        "objects_matched": ["Alpha"],
+        "object_absences_matched": [],
+        "movements_required": [],
+        "movements_matched": [],
+        "objects_written": [],
+        "objects_erased": [],
+        "movements_written": [],
+        "movements_removed": [],
+        "cosmetic": false
+      }
+    },
+    {
+      "line": 29,
+      "text": "[ alpha ] -> restart",
+      "tags": {
+        "objects_required": ["Alpha"],
+        "objects_matched": ["Alpha"],
+        "object_absences_matched": [],
+        "movements_required": [],
+        "movements_matched": [],
+        "objects_written": [],
+        "objects_erased": [],
+        "movements_written": [],
+        "movements_removed": [],
+        "cosmetic": false
+      }
+    },
+    {
+      "line": 30,
+      "text": "[ alpha ] -> win",
+      "tags": {
+        "objects_required": ["Alpha"],
+        "objects_matched": ["Alpha"],
+        "object_absences_matched": [],
+        "movements_required": [],
+        "movements_matched": [],
+        "objects_written": [],
+        "objects_erased": [],
+        "movements_written": [],
+        "movements_removed": [],
+        "cosmetic": false
+      }
+    },
+    {
+      "line": 31,
+      "text": "[ alpha ] -> again",
+      "tags": {
+        "objects_required": ["Alpha"],
+        "objects_matched": ["Alpha"],
+        "object_absences_matched": [],
+        "movements_required": [],
+        "movements_matched": [],
+        "objects_written": [],
+        "objects_erased": [],
+        "movements_written": [],
+        "movements_removed": [],
+        "cosmetic": false
+      }
+    },
+    {
+      "line": 32,
+      "text": "[ alpha ] -> message hello there",
+      "tags": {
+        "objects_required": ["Alpha"],
+        "objects_matched": ["Alpha"],
+        "object_absences_matched": [],
+        "movements_required": [],
+        "movements_matched": [],
+        "objects_written": [],
+        "objects_erased": [],
+        "movements_written": [],
+        "movements_removed": [],
+        "cosmetic": true
+      }
+    },
+    {
+      "line": 33,
+      "text": "[ alpha ] -> [ alpha ] sfx0",
+      "tags": {
+        "objects_required": ["Alpha"],
+        "objects_matched": ["Alpha"],
+        "object_absences_matched": [],
+        "movements_required": [],
+        "movements_matched": [],
+        "objects_written": [],
+        "objects_erased": [],
+        "movements_written": [],
+        "movements_removed": [],
+        "cosmetic": true
+      }
+    },
+    {
+      "line": 34,
+      "text": "[ right alpha ] -> [ right alpha ] sfx0",
+      "tags": {
+        "objects_required": ["Alpha"],
+        "objects_matched": ["Alpha"],
+        "object_absences_matched": [],
+        "movements_required": ["Alpha:right"],
+        "movements_matched": ["Alpha:right"],
+        "objects_written": [],
+        "objects_erased": [],
+        "movements_written": [],
+        "movements_removed": [],
+        "cosmetic": true
+      }
+    },
+    {
+      "line": 35,
+      "text": "[ no alpha ] -> [ no alpha ] sfx0",
+      "tags": {
+        "objects_required": [],
+        "objects_matched": [],
+        "object_absences_matched": ["Alpha"],
+        "movements_required": [],
+        "movements_matched": [],
+        "objects_written": [],
+        "objects_erased": [],
+        "movements_written": [],
+        "movements_removed": [],
+        "cosmetic": true
+      }
+    }
+  ]
+}

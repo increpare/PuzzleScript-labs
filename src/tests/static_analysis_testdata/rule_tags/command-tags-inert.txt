@@ -23,16 +23,16 @@ Alpha
 =====
 RULES
 =====
-[ Alpha ] -> sfx0
-[ Alpha ] -> checkpoint
-[ Alpha ] -> cancel
-[ Alpha ] -> restart
-[ Alpha ] -> win
-[ Alpha ] -> again
-[ Alpha ] -> message hello there
-[ Alpha ] -> [ Alpha ] sfx0
-[ right Alpha ] -> [ right Alpha ] sfx0
-[ no Alpha ] -> [ no Alpha ] sfx0
+[ alpha ] -> sfx0
+[ alpha ] -> checkpoint
+[ alpha ] -> cancel
+[ alpha ] -> restart
+[ alpha ] -> win
+[ alpha ] -> again
+[ alpha ] -> message hello there
+[ alpha ] -> [ alpha ] sfx0
+[ right alpha ] -> [ right alpha ] sfx0
+[ no alpha ] -> [ no alpha ] sfx0
 =============
 WINCONDITIONS
 =============

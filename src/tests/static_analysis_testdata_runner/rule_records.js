@@ -50,7 +50,13 @@ function renderRuleCommands(rule) {
 function renderRuleText(rule) {
     const lateMark = rule.late ? 'late ' : '';
     const prefix = ruleHasMultipleCells(rule) ? `${rule.direction} ` : '';
-    const body = `${lateMark}${prefix}${renderRuleSide(rule.lhs)} -> ${renderRuleSide(rule.rhs)}`;
+    const lhsText = renderRuleSide(rule.lhs);
+    const rhsText = renderRuleSide(rule.rhs);
+    // Command-only rules omit RHS brackets (`[ A ] -> sfx0`). Avoid a trailing
+    // space after `->` so the rendered form matches authored source.
+    const body = rhsText.length > 0
+        ? `${lateMark}${prefix}${lhsText} -> ${rhsText}`
+        : `${lateMark}${prefix}${lhsText} ->`;
     const suffix = renderRuleCommands(rule);
     return suffix.length > 0 ? `${body} ${suffix}` : body;
 }
@@ -69,15 +75,50 @@ function allRuleRecords(report, source) {
     return records;
 }
 
+// compiler.js removeRedundantRHSNegations strips verbatim `no X` from the RHS
+// when the same cell on the LHS already has `no X`. Keep those authored
+// identity-no spellings in fixtures (they matter for inert-command coverage);
+// treat that collapse as an allowed source↔canonical difference.
+function isRedundantRhsNegationCollapse(sourceText, canonicalText) {
+    if (typeof sourceText !== 'string' || typeof canonicalText !== 'string') return false;
+    const arrow = ' -> ';
+    const sourceArrow = sourceText.indexOf(arrow);
+    const canonicalArrow = canonicalText.indexOf(arrow);
+    if (sourceArrow < 0 || canonicalArrow < 0) return false;
+    if (sourceText.slice(0, sourceArrow) !== canonicalText.slice(0, canonicalArrow)) return false;
+
+    const sourceRhsAndCommands = sourceText.slice(sourceArrow + arrow.length);
+    const canonicalRhsAndCommands = canonicalText.slice(canonicalArrow + arrow.length);
+    const sourceCommands = sourceRhsAndCommands.replace(/^(\[[^\]]*\]\s*)+/, '');
+    const canonicalCommands = canonicalRhsAndCommands.replace(/^(\[[^\]]*\]\s*)+/, '');
+    if (sourceCommands !== canonicalCommands) return false;
+
+    const sourceRhs = sourceRhsAndCommands.slice(0, sourceRhsAndCommands.length - sourceCommands.length).trim();
+    const canonicalRhs = canonicalRhsAndCommands.slice(0, canonicalRhsAndCommands.length - canonicalCommands.length).trim();
+    if (canonicalRhs !== '[ ]') return false;
+
+    const lhs = sourceText.slice(0, sourceArrow);
+    // Every RHS cell must be a verbatim `no NAME` copy of the matching LHS cell.
+    const lhsCells = [...lhs.matchAll(/\[([^\]]*)\]/g)].map(match => match[1].trim());
+    const rhsCells = [...sourceRhs.matchAll(/\[([^\]]*)\]/g)].map(match => match[1].trim());
+    if (lhsCells.length === 0 || lhsCells.length !== rhsCells.length) return false;
+    for (let index = 0; index < lhsCells.length; index++) {
+        const absent = rhsCells[index].match(/^no\s+(\S+)$/);
+        if (!absent) return false;
+        if (lhsCells[index] !== `no ${absent[1]}`) return false;
+    }
+    return true;
+}
+
 function assertRuleRecordsIdempotent(filePath, records) {
     for (const record of records) {
-        if (record.text !== record.canonicalText) {
-            assert.fail([
-                `${filePath}: non-idempotent rule text at line ${record.line}`,
-                `  source:    ${record.text}`,
-                `  canonical: ${record.canonicalText}`,
-            ].join('\n'));
-        }
+        if (record.text === record.canonicalText) continue;
+        if (isRedundantRhsNegationCollapse(record.text, record.canonicalText)) continue;
+        assert.fail([
+            `${filePath}: non-idempotent rule text at line ${record.line}`,
+            `  source:    ${record.text}`,
+            `  canonical: ${record.canonicalText}`,
+        ].join('\n'));
     }
 }
 
