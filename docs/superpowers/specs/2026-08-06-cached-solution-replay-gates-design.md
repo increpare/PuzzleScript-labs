@@ -196,7 +196,7 @@ zero for indices ≥ 16, breaking object-gated coupled movement. Fixed with
 
 Interpreter-only cart games (sibling asset bank for level cells / patterns as
 needed): `head-skuller`, `unclean-residues`, `two-tone-tango`,
-`the-red-ring-of-immortality`, `match-maker` — see
+`the-red-ring-of-immortality`, `match-maker`, `sokobond-demake` — see
 `SPECIALIZED_FORCE_INTERPRETER_SLUGS` / `INTERPRETER_SPLIT_*` in
 `scripts/build_gbc_cart.py`. Pattern tables use the per-rule slice hook
 (`pattern_asset_bytes` / `ps_gbc_pattern_slice_read`).
@@ -204,6 +204,7 @@ needed): `head-skuller`, `unclean-residues`, `two-tone-tango`,
 `slot-machine`, `pipe-puffer`, and `yellow-box` returned to specialized after
 GBC mask literals were emitted as `UL` (SDCC 16-bit `~0xNNNU` was wiping
 object bits 16..31 on clear rules). Movement-lane clears use `0x1fUL <<`
-for the same reason. `sokobond-demake` returned to specialized after
-collect-all apply began re-checking `_matches_at` before each replacement
-(overlapping Late `[Orbital no Temps …]` matches must skip once Temps land).
+for the same reason. Host specialized wins `sokobond-demake` after collect-all
+apply re-checks `_matches_at` before each replacement, but cart/SDCC
+specialized still loses cached board 4 — keep that game interpreter-only on
+cart.

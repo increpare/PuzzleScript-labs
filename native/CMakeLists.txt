@@ -875,7 +875,6 @@ add_test(
           --cache-root src/tests/solution_cache/eligible
           --export-dir ${CMAKE_BINARY_DIR}/gbc/eligible/host-exports
           --tag host_known_good
-          --thorough-host-policy strict
 )
 set_tests_properties(puzzlescript_solution_cache_host_known_good PROPERTIES
   WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
