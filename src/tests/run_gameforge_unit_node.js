@@ -7,6 +7,7 @@ const {
   filterNearDupes,
 } = require('../../tools/gameforge/lib/levels');
 const { evaluatePublishGates } = require('../../tools/gameforge/lib/gates');
+const { selectCandidate } = require('../../tools/gameforge/lib/select');
 
 function testLoadSpecDefaults() {
   const spec = loadSpec({
@@ -137,6 +138,39 @@ function testTrivialFails() {
   assert.ok(report.failures.some((f) => /min_solution_length/.test(f)));
 }
 
+function testSelectFirstPassing() {
+  const calls = [];
+  const result = selectCandidate({
+    jobDir: '/tmp/job',
+    spec: loadSpec({ prompt: 'x', seeds: ['seeds/a.txt'], candidates: ['candidates/bad.txt', 'candidates/good.txt'], smoke_level_count: 1 }),
+    candidatePaths: ['/tmp/job/candidates/bad.txt', '/tmp/job/candidates/good.txt'],
+    seedPaths: ['/tmp/job/seeds/a.txt'],
+    compileFile: (p) => ({ ok: !p.endsWith('bad.txt'), errors: p.endsWith('bad.txt') ? ['boom'] : [] }),
+    smokeCheck: (p) => {
+      calls.push(p);
+      return { ok: true, reasons: [], winExercised: true };
+    },
+    copyFile: () => {},
+  });
+  assert.strictEqual(result.status, 'selected');
+  assert.ok(result.selectedPath.endsWith('good.txt'));
+  assert.strictEqual(calls.length, 1);
+}
+
+function testSafeModeSeed() {
+  const result = selectCandidate({
+    jobDir: '/tmp/job',
+    spec: loadSpec({ prompt: 'x', seeds: ['seeds/a.txt'], candidates: ['candidates/bad.txt'] }),
+    candidatePaths: ['/tmp/job/candidates/bad.txt'],
+    seedPaths: ['/tmp/job/seeds/a.txt'],
+    compileFile: (p) => ({ ok: p.includes('seeds'), errors: [] }),
+    smokeCheck: (p) => ({ ok: p.includes('seeds'), reasons: [], winExercised: true }),
+    copyFile: () => {},
+  });
+  assert.strictEqual(result.status, 'safe_mode');
+  assert.ok(result.selectedPath.includes('seeds'));
+}
+
 testLoadSpecDefaults();
 testRejectMissingPrompt();
 testDefaultBandsAreCopied();
@@ -144,4 +178,6 @@ testParseSolutionComment();
 testNearDupeFilter();
 testPublishable();
 testTrivialFails();
+testSelectFirstPassing();
+testSafeModeSeed();
 console.log('run_gameforge_unit_node: ok');
