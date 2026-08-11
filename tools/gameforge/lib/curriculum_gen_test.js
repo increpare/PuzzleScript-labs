@@ -16,5 +16,7 @@ assert(text.includes('dimensions:'), 'expected dimensions header');
 for (const band of DEFAULT_SPEC.bands) {
   assert(text.includes(`name: ${band.name}`), `expected band name ${band.name}`);
 }
+assert(text.includes('choose 1 [ no wall no player no crate ] [ no wall no player no target ] -> [ crate ] [ target ]'), 'tiny band uses choose 1');
+assert(text.includes('choose 1-2 [ no wall no player no crate ] [ no wall no player no target ] -> [ crate ] [ target ]'), 'larger bands use choose 1-2');
 
 console.log('ok - writeDefaultSokobanGenSpec emits band blocks');

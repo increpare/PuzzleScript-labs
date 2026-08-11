@@ -1,5 +1,12 @@
 'use strict';
 
+function crateTargetChooseRule(dimensions) {
+  const match = /^(\d+)x(\d+)$/.exec(dimensions || '');
+  const area = match ? Number(match[1]) * Number(match[2]) : 0;
+  const count = area <= 6 ? '1' : '1-2';
+  return `choose ${count} [ no wall no player no crate ] [ no wall no player no target ] -> [ crate ] [ target ]`;
+}
+
 function formatBandBlock(band, take, seed) {
   const lines = [
     `dimensions: ${band.dimensions}`,
@@ -12,7 +19,7 @@ function formatBandBlock(band, take, seed) {
   lines.push(
     '',
     'choose 1 [ no wall no crate ] -> [ player ]',
-    'choose 1-2 [ no wall no player no crate ] [ no wall no player no target ] -> [ crate ] [ target ]',
+    crateTargetChooseRule(band.dimensions),
   );
   return lines.join('\n');
 }
