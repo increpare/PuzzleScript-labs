@@ -1,0 +1,46 @@
+'use strict';
+
+const DEFAULT_SPEC = {
+  wall_clock_ms: 8 * 60 * 60 * 1000,
+  max_rule_candidates: 8,
+  max_rules_added: 3,
+  max_rules_removed: 3,
+  per_solve_timeout_ms: 2000,
+  min_solution_length: 5,
+  near_dupe_threshold: 0.92,
+  smoke_level_count: 1,
+  min_levels_per_band: 1,
+  generator_samples: 200,
+  generator_jobs: 'auto',
+  bands: [
+    { name: 'tiny', dimensions: '3x2' },
+    { name: 'small', dimensions: '4x3' },
+    { name: 'medium', dimensions: '5x4' },
+  ],
+};
+
+function loadSpec(raw) {
+  if (!raw || typeof raw !== 'object') {
+    throw new Error('spec must be an object');
+  }
+  if (typeof raw.prompt !== 'string' || !raw.prompt.trim()) {
+    throw new Error('spec.prompt is required');
+  }
+  if (!Array.isArray(raw.seeds) || raw.seeds.length === 0) {
+    throw new Error('spec.seeds must be a non-empty array');
+  }
+  if (!Array.isArray(raw.candidates)) {
+    throw new Error('spec.candidates must be an array (may be empty for safe-mode)');
+  }
+  const spec = Object.assign({}, DEFAULT_SPEC, raw, {
+    bands: Array.isArray(raw.bands) && raw.bands.length ? raw.bands : DEFAULT_SPEC.bands,
+  });
+  return spec;
+}
+
+function loadSpecFile(fs, filePath) {
+  const raw = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  return loadSpec(raw);
+}
+
+module.exports = { DEFAULT_SPEC, loadSpec, loadSpecFile };
