@@ -240,8 +240,13 @@ function main() {
   fs.mkdirSync(path.join(jobDir, 'selected'), { recursive: true });
 
   appendDesignLog(log, '## Select candidate');
+  if (spec.mechanic_intent) {
+    appendDesignLog(log, `mechanic_intent: ${spec.mechanic_intent}`);
+  }
+  appendDesignLog(log, `selection_policy: ${spec.selection_policy}; min_novelty_score: ${spec.min_novelty_score}; reject_vanilla_sokoban: ${spec.reject_vanilla_sokoban}; allow_safe_mode: ${spec.allow_safe_mode}`);
   const selectResult = selectCandidate({
     jobDir,
+    spec,
     candidatePaths,
     seedPaths,
     compileFile: (p) => compileFileNative(cppBin, p, spawnSync),
@@ -251,6 +256,7 @@ function main() {
       solverBin,
       spawnSync,
     }),
+    readFile: (p) => fs.readFileSync(p, 'utf8'),
     copyFile: (src, dest) => {
       fs.mkdirSync(path.dirname(dest), { recursive: true });
       fs.copyFileSync(src, dest);
@@ -261,14 +267,26 @@ function main() {
   if (selectResult.selectedPath) {
     appendDesignLog(log, `selected: ${relJobPath(jobDir, selectResult.selectedPath)}`);
   }
+  if (selectResult.noveltyScore != null) {
+    appendDesignLog(log, `selected noveltyScore: ${selectResult.noveltyScore}`);
+  }
   if (selectResult.rejections.length) {
     appendDesignLog(log, `rejections: ${selectResult.rejections.length}`);
+    for (const entry of selectResult.rejections) {
+      const why = (entry.reasons && entry.reasons.join('; '))
+        || (entry.errors && entry.errors.join('; '))
+        || entry.stage;
+      appendDesignLog(log, `- ${relJobPath(jobDir, entry.path)} [${entry.stage}] ${why}`);
+    }
   }
 
   if (selectResult.status === 'failed_mutate') {
     const report = {
       status: 'failed_mutate',
-      failures: ['select: no candidate or seed passed compile/smoke'],
+      failures: [
+        selectResult.reason
+          || 'select: no candidate passed compile/smoke/novelty (safe_mode disabled or seeds failed)',
+      ],
       gateResults: {},
       selected: null,
       candidateRejections: selectResult.rejections.map((entry) => ({
@@ -276,6 +294,8 @@ function main() {
         stage: entry.stage,
         errors: entry.errors,
         reasons: entry.reasons,
+        noveltyScore: entry.noveltyScore,
+        vanillaSokoban: entry.vanillaSokoban,
         source: entry.source,
       })),
       levelSummaries: [],

@@ -68,17 +68,33 @@ Default `min_levels_per_band`: **1**. Generator blocks use Sokoban-shaped `choos
 | `smoke_level_count` | 1 |
 | `generator_samples` | 200 |
 | `generator_jobs` | `"auto"` |
+| `selection_policy` | `"max_novelty"` |
+| `min_novelty_score` | `1` |
+| `reject_vanilla_sokoban` | `true` |
+| `allow_safe_mode` | `true` iff `candidates` is empty; else `false` |
+| `mechanic_intent` | **required** when `candidates` is non-empty |
+
+### Selection / novelty
+
+- Candidates must compile + smoke, then pass `evaluateCandidateMechanic` (not vanilla single-push Sokoban; novelty vs nearest seed ≥ `min_novelty_score`).
+- Among survivors, `max_novelty` picks the highest novelty score (not first-in-list).
+- Rejection reasons are written into `out/design_log.md` and `report.candidateRejections`.
 
 ## Example `spec.json`
 
 ```json
 {
   "prompt": "ice crates on a frozen lake",
-  "seeds": ["seeds/microban.txt"],
+  "mechanic_intent": "crates keep sliding after a push until they hit a wall or crate",
+  "seeds": ["seeds/sokoban_basic.txt"],
   "candidates": [
     "candidates/c0_ice_slide.txt",
     "candidates/c1_crack_tiles.txt"
   ],
+  "selection_policy": "max_novelty",
+  "min_novelty_score": 1,
+  "reject_vanilla_sokoban": true,
+  "allow_safe_mode": false,
   "wall_clock_ms": 28800000,
   "max_rule_candidates": 8,
   "max_rules_added": 3,

@@ -5,6 +5,18 @@ Date: 2026-08-11
 
 **Implementation plan:** `docs/superpowers/plans/2026-08-11-make-puzzlescript-game-skill.md`
 
+### Addendum 2026-08-11 — Mechanic novelty gate
+
+Production failure (`octopus_eggs` jobs): evening agents seeded only Sokoban corpus games and authored theme-only candidates; `selectCandidate` picked the first compile/smoke pass (vanilla push Sokoban). Overnight mining then amplified a paint-job.
+
+**Systematic fix (enforced in runner + skill):**
+
+- `spec.mechanic_intent` required when `candidates` is non-empty.
+- Default `selection_policy: max_novelty`, `reject_vanilla_sokoban: true`, `min_novelty_score: 1`.
+- `allow_safe_mode` defaults **false** when candidates exist (true only for empty-candidate remix jobs).
+- `tools/gameforge/lib/mechanic.js` fingerprints RULES+WINCONDITIONS; rejects single-push `all X on Y` Sokoban and near-identical seed mechanics.
+- Skill hard-rules forbid paint-jobs and all-Sokoban seed sets for non-Sokoban prompts.
+
 ## Summary
 
 A **project Cursor skill** plus a **durable overnight job runner** (“gameforge”) that turns a natural-language prompt into a **publish-bar PuzzleScript game** (`.txt`). The evening agent drafts a job package; the runner executes long compile/mutate/generate/solve/simplify loops without a live chat session; the morning agent triages a structured report and either accepts the game or proposes a narrow retry.

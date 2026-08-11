@@ -14,6 +14,7 @@ function testLoadSpecDefaults() {
     prompt: 'ice crates',
     seeds: ['src/demo/microban.txt'],
     candidates: ['candidates/c0.txt'],
+    mechanic_intent: 'crates slide on ice until they hit a wall',
   });
   assert.strictEqual(spec.min_solution_length, 5);
   assert.strictEqual(spec.near_dupe_threshold, 0.92);
@@ -21,6 +22,10 @@ function testLoadSpecDefaults() {
   assert.strictEqual(spec.min_levels_per_band, 1);
   assert.ok(spec.wall_clock_ms > 0);
   assert.deepStrictEqual(spec.bands.map((b) => b.name), ['tiny', 'small', 'medium']);
+  assert.strictEqual(spec.selection_policy, 'max_novelty');
+  assert.strictEqual(spec.reject_vanilla_sokoban, true);
+  assert.strictEqual(spec.allow_safe_mode, false);
+  assert.strictEqual(spec.min_novelty_score, 1);
 }
 
 function testRejectMissingPrompt() {
@@ -138,37 +143,133 @@ function testTrivialFails() {
   assert.ok(report.failures.some((f) => /min_solution_length/.test(f)));
 }
 
-function testSelectFirstPassing() {
-  const calls = [];
+const VANILLA_SOK = `
+=======
+RULES
+=======
+[ > Player | Crate ] -> [ > Player | > Crate ]
+==============
+WINCONDITIONS
+==============
+all Target on Crate
+=======
+LEVELS
+=======
+`;
+
+const SLIDE_SOK = `
+=======
+RULES
+=======
+[ > Player | Crate ] -> [ > Player | > Crate ]
+[ > Crate | no Wall ] -> [ | > Crate ]
+==============
+WINCONDITIONS
+==============
+all Target on Crate
+=======
+LEVELS
+=======
+`;
+
+const PULL_SOK = `
+=======
+RULES
+=======
+[ < Player | Crate ] -> [ < Player | < Crate ]
+==============
+WINCONDITIONS
+==============
+all Target on Crate
+=======
+LEVELS
+=======
+`;
+
+function testSelectPrefersNovelty() {
+  const files = {
+    '/tmp/job/seeds/a.txt': VANILLA_SOK,
+    '/tmp/job/candidates/paint.txt': VANILLA_SOK,
+    '/tmp/job/candidates/slide.txt': SLIDE_SOK,
+  };
   const result = selectCandidate({
     jobDir: '/tmp/job',
-    spec: loadSpec({ prompt: 'x', seeds: ['seeds/a.txt'], candidates: ['candidates/bad.txt', 'candidates/good.txt'], smoke_level_count: 1 }),
-    candidatePaths: ['/tmp/job/candidates/bad.txt', '/tmp/job/candidates/good.txt'],
+    spec: loadSpec({
+      prompt: 'x',
+      mechanic_intent: 'crates slide after push until blocked',
+      seeds: ['seeds/a.txt'],
+      candidates: ['candidates/paint.txt', 'candidates/slide.txt'],
+    }),
+    candidatePaths: ['/tmp/job/candidates/paint.txt', '/tmp/job/candidates/slide.txt'],
     seedPaths: ['/tmp/job/seeds/a.txt'],
-    compileFile: (p) => ({ ok: !p.endsWith('bad.txt'), errors: p.endsWith('bad.txt') ? ['boom'] : [] }),
-    smokeCheck: (p) => {
-      calls.push(p);
-      return { ok: true, reasons: [], winExercised: true };
-    },
+    compileFile: () => ({ ok: true, errors: [] }),
+    smokeCheck: () => ({ ok: true, reasons: [], winExercised: true }),
+    readFile: (p) => files[p],
     copyFile: () => {},
   });
   assert.strictEqual(result.status, 'selected');
-  assert.ok(result.selectedPath.endsWith('good.txt'));
-  assert.strictEqual(calls.length, 1);
+  assert.ok(result.selectedPath.endsWith('slide.txt'), `expected slide, got ${result.selectedPath}`);
+  assert.ok(result.rejections.some((r) => r.stage === 'novelty' && /paint/.test(r.path)));
 }
 
-function testSafeModeSeed() {
+function testRejectAllVanillaNoSafeMode() {
+  const files = {
+    '/tmp/job/seeds/a.txt': VANILLA_SOK,
+    '/tmp/job/candidates/paint.txt': VANILLA_SOK,
+  };
   const result = selectCandidate({
     jobDir: '/tmp/job',
-    spec: loadSpec({ prompt: 'x', seeds: ['seeds/a.txt'], candidates: ['candidates/bad.txt'] }),
-    candidatePaths: ['/tmp/job/candidates/bad.txt'],
+    spec: loadSpec({
+      prompt: 'x',
+      mechanic_intent: 'should fail — paint only',
+      seeds: ['seeds/a.txt'],
+      candidates: ['candidates/paint.txt'],
+    }),
+    candidatePaths: ['/tmp/job/candidates/paint.txt'],
     seedPaths: ['/tmp/job/seeds/a.txt'],
-    compileFile: (p) => ({ ok: p.includes('seeds'), errors: [] }),
-    smokeCheck: (p) => ({ ok: p.includes('seeds'), reasons: [], winExercised: true }),
+    compileFile: () => ({ ok: true, errors: [] }),
+    smokeCheck: () => ({ ok: true, reasons: [], winExercised: true }),
+    readFile: (p) => files[p],
+    copyFile: () => {},
+  });
+  assert.strictEqual(result.status, 'failed_mutate');
+  assert.strictEqual(result.reason, 'no_novel_candidate_safe_mode_disabled');
+}
+
+function testSafeModeWhenNoCandidates() {
+  const result = selectCandidate({
+    jobDir: '/tmp/job',
+    spec: loadSpec({ prompt: 'x', seeds: ['seeds/a.txt'], candidates: [] }),
+    candidatePaths: [],
+    seedPaths: ['/tmp/job/seeds/a.txt'],
+    compileFile: () => ({ ok: true, errors: [] }),
+    smokeCheck: () => ({ ok: true, reasons: [], winExercised: true }),
+    readFile: () => VANILLA_SOK,
     copyFile: () => {},
   });
   assert.strictEqual(result.status, 'safe_mode');
   assert.ok(result.selectedPath.includes('seeds'));
+}
+
+function testRequireMechanicIntent() {
+  assert.throws(
+    () => loadSpec({ prompt: 'x', seeds: ['a'], candidates: ['c0.txt'] }),
+    /mechanic_intent/,
+  );
+}
+
+function testIsVanillaAndNovelty() {
+  const {
+    isVanillaSokoban,
+    noveltyAgainstSeeds,
+  } = require('../../tools/gameforge/lib/mechanic');
+  assert.strictEqual(isVanillaSokoban(VANILLA_SOK), true);
+  assert.strictEqual(isVanillaSokoban(SLIDE_SOK), false);
+  assert.strictEqual(isVanillaSokoban(PULL_SOK), false);
+  const nov = noveltyAgainstSeeds(SLIDE_SOK, [{ path: 'seed', source: VANILLA_SOK }]);
+  assert.ok(nov.score >= 1, `expected novelty >= 1, got ${nov.score}`);
+  const paint = noveltyAgainstSeeds(VANILLA_SOK, [{ path: 'seed', source: VANILLA_SOK }]);
+  assert.strictEqual(paint.score, 0);
 }
 
 testLoadSpecDefaults();
@@ -178,6 +279,9 @@ testParseSolutionComment();
 testNearDupeFilter();
 testPublishable();
 testTrivialFails();
-testSelectFirstPassing();
-testSafeModeSeed();
+testIsVanillaAndNovelty();
+testRequireMechanicIntent();
+testSelectPrefersNovelty();
+testRejectAllVanillaNoSafeMode();
+testSafeModeWhenNoCandidates();
 console.log('run_gameforge_unit_node: ok');
