@@ -70,22 +70,30 @@ Default `min_levels_per_band`: **1**. Generator blocks use Sokoban-shaped `choos
 | `generator_jobs` | `"auto"` |
 | `selection_policy` | `"max_novelty"` |
 | `min_novelty_score` | `1` |
+| `min_structural_score` | `1` |
 | `reject_vanilla_sokoban` | `true` |
+| `reject_stock_sokoban_objects` | `true` |
+| `require_structural_delta` | `true` |
 | `allow_safe_mode` | `true` iff `candidates` is empty; else `false` |
 | `mechanic_intent` | **required** when `candidates` is non-empty |
 
-### Selection / novelty
+### Selection / novelty / structure
 
-- Candidates must compile + smoke, then pass `evaluateCandidateMechanic` (not vanilla single-push Sokoban; novelty vs nearest seed ≥ `min_novelty_score`).
-- Among survivors, `max_novelty` picks the highest novelty score (not first-in-list).
-- Rejection reasons are written into `out/design_log.md` and `report.candidateRejections`.
+Candidates must compile + smoke, then pass `evaluateCandidateMechanic`:
+
+- not vanilla single-push Sokoban
+- OBJECTS not limited to Background/Player/Wall/Crate/Target
+- structural delta vs nearest seed (new object names and/or changed COLLISIONLAYERS) ≥ `min_structural_score`
+- rule/win fingerprint novelty ≥ `min_novelty_score`
+
+Among survivors, `max_novelty` ranks by combined rule+structural score. Rejections go to `design_log.md` / `candidateRejections`.
 
 ## Example `spec.json`
 
 ```json
 {
   "prompt": "ice crates on a frozen lake",
-  "mechanic_intent": "crates keep sliding after a push until they hit a wall or crate",
+  "mechanic_intent": "IceBlock slides after push until Wall; Skater pushes; win all Pad on IceBlock",
   "seeds": ["seeds/sokoban_basic.txt"],
   "candidates": [
     "candidates/c0_ice_slide.txt",
@@ -93,7 +101,10 @@ Default `min_levels_per_band`: **1**. Generator blocks use Sokoban-shaped `choos
   ],
   "selection_policy": "max_novelty",
   "min_novelty_score": 1,
+  "min_structural_score": 1,
   "reject_vanilla_sokoban": true,
+  "reject_stock_sokoban_objects": true,
+  "require_structural_delta": true,
   "allow_safe_mode": false,
   "wall_clock_ms": 28800000,
   "max_rule_candidates": 8,

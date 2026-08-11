@@ -14,7 +14,10 @@ const DEFAULT_SPEC = {
   generator_jobs: 'auto',
   selection_policy: 'max_novelty',
   min_novelty_score: 1,
+  min_structural_score: 1,
   reject_vanilla_sokoban: true,
+  reject_stock_sokoban_objects: true,
+  require_structural_delta: true,
   // When candidates are provided, default false (set true only for intentional seed remix).
   allow_safe_mode: null,
   bands: [
@@ -41,7 +44,7 @@ function loadSpec(raw) {
     if (typeof raw.mechanic_intent !== 'string' || !raw.mechanic_intent.trim()) {
       throw new Error(
         'spec.mechanic_intent is required when candidates are provided '
-        + '(one sentence naming the non-cosmetic rule/win delta)',
+        + '(one sentence naming the rule/object/layer delta that fits the prompt)',
       );
     }
   }

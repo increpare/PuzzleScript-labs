@@ -24,8 +24,11 @@ function testLoadSpecDefaults() {
   assert.deepStrictEqual(spec.bands.map((b) => b.name), ['tiny', 'small', 'medium']);
   assert.strictEqual(spec.selection_policy, 'max_novelty');
   assert.strictEqual(spec.reject_vanilla_sokoban, true);
+  assert.strictEqual(spec.reject_stock_sokoban_objects, true);
+  assert.strictEqual(spec.require_structural_delta, true);
   assert.strictEqual(spec.allow_safe_mode, false);
   assert.strictEqual(spec.min_novelty_score, 1);
+  assert.strictEqual(spec.min_structural_score, 1);
 }
 
 function testRejectMissingPrompt() {
@@ -143,64 +146,94 @@ function testTrivialFails() {
   assert.ok(report.failures.some((f) => /min_solution_length/.test(f)));
 }
 
-const VANILLA_SOK = `
+function miniGame({ objects, layers, rules, win }) {
+  const objBlock = objects.map((name) => `${name}\nblack\n.....`).join('\n\n');
+  return `
+title t
+========
+OBJECTS
+========
+${objBlock}
 =======
+LEGEND
+=======
+. = Background
+=======
+SOUNDS
+=======
+================
+COLLISIONLAYERS
+================
+${layers}
+======
 RULES
-=======
-[ > Player | Crate ] -> [ > Player | > Crate ]
+======
+${rules}
 ==============
 WINCONDITIONS
 ==============
-all Target on Crate
+${win}
 =======
 LEVELS
 =======
+.
 `;
+}
 
-const SLIDE_SOK = `
-=======
-RULES
-=======
-[ > Player | Crate ] -> [ > Player | > Crate ]
-[ > Crate | no Wall ] -> [ | > Crate ]
-==============
-WINCONDITIONS
-==============
-all Target on Crate
-=======
-LEVELS
-=======
-`;
+const VANILLA_SOK = miniGame({
+  objects: ['Background', 'Player', 'Wall', 'Crate', 'Target'],
+  layers: 'Background\nTarget\nPlayer, Wall, Crate',
+  rules: '[ > Player | Crate ] -> [ > Player | > Crate ]',
+  win: 'all Target on Crate',
+});
 
-const PULL_SOK = `
-=======
-RULES
-=======
-[ < Player | Crate ] -> [ < Player | < Crate ]
-==============
-WINCONDITIONS
-==============
-all Target on Crate
-=======
-LEVELS
-=======
-`;
+// Rule change only, stock object names — must fail structural / stock-object gates.
+const SLIDE_STOCK = miniGame({
+  objects: ['Background', 'Player', 'Wall', 'Crate', 'Target'],
+  layers: 'Background\nTarget\nPlayer, Wall, Crate',
+  rules: '[ > Player | Crate ] -> [ > Player | > Crate ]\n[ > Crate | no Wall ] -> [ | > Crate ]',
+  win: 'all Target on Crate',
+});
+
+// Prompt-native objects + slide rule + layer tweak.
+const SLIDE_THEMED = miniGame({
+  objects: ['Background', 'Octopus', 'Reef', 'Shell', 'Nest'],
+  layers: 'Background\nNest\nOctopus, Reef, Shell',
+  rules: '[ > Octopus | Shell ] -> [ > Octopus | > Shell ]\n[ > Shell | no Reef ] -> [ | > Shell ]',
+  win: 'all Nest on Shell',
+});
+
+const PULL_THEMED = miniGame({
+  objects: ['Background', 'Octopus', 'Reef', 'Shell', 'Nest'],
+  layers: 'Background\nNest\nOctopus, Reef, Shell',
+  rules: '[ < Octopus | Shell ] -> [ < Octopus | < Shell ]',
+  win: 'all Nest on Shell',
+});
 
 function testSelectPrefersNovelty() {
   const files = {
     '/tmp/job/seeds/a.txt': VANILLA_SOK,
     '/tmp/job/candidates/paint.txt': VANILLA_SOK,
-    '/tmp/job/candidates/slide.txt': SLIDE_SOK,
+    '/tmp/job/candidates/slide_stock.txt': SLIDE_STOCK,
+    '/tmp/job/candidates/slide_themed.txt': SLIDE_THEMED,
   };
   const result = selectCandidate({
     jobDir: '/tmp/job',
     spec: loadSpec({
-      prompt: 'x',
-      mechanic_intent: 'crates slide after push until blocked',
+      prompt: 'octopus eggs',
+      mechanic_intent: 'shells slide on sand until they hit reef; cover nests',
       seeds: ['seeds/a.txt'],
-      candidates: ['candidates/paint.txt', 'candidates/slide.txt'],
+      candidates: [
+        'candidates/paint.txt',
+        'candidates/slide_stock.txt',
+        'candidates/slide_themed.txt',
+      ],
     }),
-    candidatePaths: ['/tmp/job/candidates/paint.txt', '/tmp/job/candidates/slide.txt'],
+    candidatePaths: [
+      '/tmp/job/candidates/paint.txt',
+      '/tmp/job/candidates/slide_stock.txt',
+      '/tmp/job/candidates/slide_themed.txt',
+    ],
     seedPaths: ['/tmp/job/seeds/a.txt'],
     compileFile: () => ({ ok: true, errors: [] }),
     smokeCheck: () => ({ ok: true, reasons: [], winExercised: true }),
@@ -208,8 +241,12 @@ function testSelectPrefersNovelty() {
     copyFile: () => {},
   });
   assert.strictEqual(result.status, 'selected');
-  assert.ok(result.selectedPath.endsWith('slide.txt'), `expected slide, got ${result.selectedPath}`);
+  assert.ok(
+    result.selectedPath.endsWith('slide_themed.txt'),
+    `expected slide_themed, got ${result.selectedPath}`,
+  );
   assert.ok(result.rejections.some((r) => r.stage === 'novelty' && /paint/.test(r.path)));
+  assert.ok(result.rejections.some((r) => r.stage === 'novelty' && /slide_stock/.test(r.path)));
 }
 
 function testRejectAllVanillaNoSafeMode() {
@@ -258,18 +295,29 @@ function testRequireMechanicIntent() {
   );
 }
 
-function testIsVanillaAndNovelty() {
+function testIsVanillaNoveltyAndStructure() {
   const {
     isVanillaSokoban,
+    isStockSokobanObjectSet,
     noveltyAgainstSeeds,
+    structuralDeltaAgainstSeeds,
+    evaluateCandidateMechanic,
   } = require('../../tools/gameforge/lib/mechanic');
   assert.strictEqual(isVanillaSokoban(VANILLA_SOK), true);
-  assert.strictEqual(isVanillaSokoban(SLIDE_SOK), false);
-  assert.strictEqual(isVanillaSokoban(PULL_SOK), false);
-  const nov = noveltyAgainstSeeds(SLIDE_SOK, [{ path: 'seed', source: VANILLA_SOK }]);
+  assert.strictEqual(isVanillaSokoban(SLIDE_STOCK), false);
+  assert.strictEqual(isStockSokobanObjectSet(VANILLA_SOK), true);
+  assert.strictEqual(isStockSokobanObjectSet(SLIDE_THEMED), false);
+  const nov = noveltyAgainstSeeds(SLIDE_THEMED, [{ path: 'seed', source: VANILLA_SOK }]);
   assert.ok(nov.score >= 1, `expected novelty >= 1, got ${nov.score}`);
-  const paint = noveltyAgainstSeeds(VANILLA_SOK, [{ path: 'seed', source: VANILLA_SOK }]);
-  assert.strictEqual(paint.score, 0);
+  const struct = structuralDeltaAgainstSeeds(SLIDE_THEMED, [{ path: 'seed', source: VANILLA_SOK }]);
+  assert.ok(struct.score >= 1, `expected structural >= 1, got ${struct.score}`);
+  assert.ok(struct.newObjects.includes('shell') || struct.newObjects.includes('octopus'));
+  const stockSlide = evaluateCandidateMechanic(SLIDE_STOCK, [{ path: 'seed', source: VANILLA_SOK }]);
+  assert.strictEqual(stockSlide.ok, false);
+  assert.ok(stockSlide.reasons.some((r) => /stock_sokoban_objects|structural_delta/.test(r)));
+  const themed = evaluateCandidateMechanic(SLIDE_THEMED, [{ path: 'seed', source: VANILLA_SOK }]);
+  assert.strictEqual(themed.ok, true, themed.reasons.join('; '));
+  assert.ok(PULL_THEMED.length > 0);
 }
 
 testLoadSpecDefaults();
@@ -279,7 +327,7 @@ testParseSolutionComment();
 testNearDupeFilter();
 testPublishable();
 testTrivialFails();
-testIsVanillaAndNovelty();
+testIsVanillaNoveltyAndStructure();
 testRequireMechanicIntent();
 testSelectPrefersNovelty();
 testRejectAllVanillaNoSafeMode();

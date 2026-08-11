@@ -62,6 +62,119 @@ function extractMechanic(source) {
   };
 }
 
+function looksLikeSpriteRow(line) {
+  const t = String(line || '').trim();
+  return t.length > 0 && /^[0-9.]+$/.test(t);
+}
+
+function looksLikeColorRow(line) {
+  const t = String(line || '').trim();
+  if (!t || looksLikeSpriteRow(t)) {
+    return false;
+  }
+  if (/#/.test(t)) {
+    return true;
+  }
+  // named palette colors, possibly multiple: "lightgreen green"
+  return /^[a-zA-Z]+(?:[ \t]+[a-zA-Z]+)*$/.test(t);
+}
+
+/** Object names declared in the OBJECTS section (name line followed by a color line). */
+function extractObjectNames(source) {
+  const body = sectionBody(source, 'objects');
+  const names = [];
+  const lines = body.split(/\r?\n/);
+  for (let i = 0; i < lines.length; i += 1) {
+    const trimmed = lines[i].trim();
+    if (!trimmed || trimmed.startsWith('(')) {
+      continue;
+    }
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(trimmed)) {
+      continue;
+    }
+    const next = lines[i + 1] ? lines[i + 1].trim() : '';
+    if (looksLikeColorRow(next)) {
+      names.push(trimmed);
+    }
+  }
+  return names;
+}
+
+function extractCollisionLayerLines(source) {
+  const body = sectionBody(source, 'collisionlayers');
+  return stripComments(body)
+    .split(/\r?\n/)
+    .map((l) => l.trim().toLowerCase().replace(/\s+/g, ' '))
+    .filter((l) => l.length > 0 && !/^=+$/.test(l));
+}
+
+const STOCK_SOKOBAN_OBJECTS = new Set([
+  'background',
+  'player',
+  'wall',
+  'crate',
+  'target',
+]);
+
+function isStockSokobanObjectSet(source) {
+  const names = extractObjectNames(source).map((n) => n.toLowerCase());
+  if (names.length === 0) {
+    return false;
+  }
+  return names.every((n) => STOCK_SOKOBAN_OBJECTS.has(n));
+}
+
+/**
+ * Structural delta vs nearest seed: new object names and/or collision-layer line changes.
+ */
+function structuralDeltaAgainstSeeds(candidateSource, seedEntries) {
+  const candObjects = new Set(extractObjectNames(candidateSource).map((n) => n.toLowerCase()));
+  const candLayers = new Set(extractCollisionLayerLines(candidateSource));
+  let best = {
+    score: Infinity,
+    nearestSeedPath: null,
+    newObjects: [],
+    layerChanges: 0,
+  };
+
+  const entries = seedEntries && seedEntries.length
+    ? seedEntries
+    : [{ path: null, source: '' }];
+
+  for (const entry of entries) {
+    const seedSource = typeof entry === 'string' ? entry : entry.source;
+    const seedPath = typeof entry === 'string' ? null : entry.path;
+    const seedObjects = new Set(extractObjectNames(seedSource).map((n) => n.toLowerCase()));
+    const seedLayers = new Set(extractCollisionLayerLines(seedSource));
+    const newObjects = [...candObjects].filter((n) => !seedObjects.has(n));
+    let layerChanges = 0;
+    for (const line of candLayers) {
+      if (!seedLayers.has(line)) {
+        layerChanges += 1;
+      }
+    }
+    for (const line of seedLayers) {
+      if (!candLayers.has(line)) {
+        layerChanges += 1;
+      }
+    }
+    const score = newObjects.length + (layerChanges > 0 ? 1 : 0);
+    if (score < best.score) {
+      best = {
+        score,
+        nearestSeedPath: seedPath,
+        newObjects,
+        layerChanges,
+      };
+    }
+  }
+  if (best.score === Infinity) {
+    best.score = candObjects.size;
+    best.newObjects = [...candObjects];
+  }
+  return best;
+}
+
 function mechanicTokens(normalized) {
   if (!normalized) {
     return [];
@@ -134,12 +247,25 @@ function noveltyAgainstSeeds(candidateSource, seedEntries) {
 
 function evaluateCandidateMechanic(candidateSource, seedEntries, options = {}) {
   const rejectVanilla = options.reject_vanilla_sokoban !== false;
+  const rejectStockObjects = options.reject_stock_sokoban_objects !== false;
   const minNovelty = options.min_novelty_score != null ? options.min_novelty_score : 1;
+  const requireStructural = options.require_structural_delta !== false;
+  const minStructural = options.min_structural_score != null ? options.min_structural_score : 1;
+
   const novelty = noveltyAgainstSeeds(candidateSource, seedEntries);
+  const structural = structuralDeltaAgainstSeeds(candidateSource, seedEntries);
   const vanilla = isVanillaSokoban(candidateSource);
+  const stockObjects = isStockSokobanObjectSet(candidateSource);
   const reasons = [];
+
   if (rejectVanilla && vanilla) {
     reasons.push('vanilla_sokoban: single push rule + all X on Y (paint-job rejected)');
+  }
+  if (rejectStockObjects && stockObjects) {
+    reasons.push(
+      'stock_sokoban_objects: OBJECTS is only Background/Player/Wall/Crate/Target — '
+      + 'invent prompt-native object names (and wire them through legend/layers/rules/win)',
+    );
   }
   if (novelty.score < minNovelty) {
     reasons.push(
@@ -147,20 +273,42 @@ function evaluateCandidateMechanic(candidateSource, seedEntries, options = {}) {
       + (novelty.nearestSeedPath ? ` (nearest ${novelty.nearestSeedPath})` : ''),
     );
   }
+  if (requireStructural && structural.score < minStructural) {
+    reasons.push(
+      `structural_delta: score ${structural.score} < min_structural_score ${minStructural} `
+      + '(need new OBJECTS and/or changed COLLISIONLAYERS vs nearest seed)'
+      + (structural.nearestSeedPath ? ` (nearest ${structural.nearestSeedPath})` : ''),
+    );
+  }
+
+  // Prefer candidates that both change rules and structure.
+  const combinedScore = novelty.score + structural.score * 2
+    + (stockObjects ? 0 : 1) + (vanilla ? 0 : 1);
+
   return {
     ok: reasons.length === 0,
     reasons,
     noveltyScore: novelty.score,
+    structuralScore: structural.score,
+    combinedScore,
+    newObjects: structural.newObjects,
+    layerChanges: structural.layerChanges,
     vanillaSokoban: vanilla,
-    nearestSeedPath: novelty.nearestSeedPath,
+    stockSokobanObjects: stockObjects,
+    nearestSeedPath: novelty.nearestSeedPath || structural.nearestSeedPath,
   };
 }
 
 module.exports = {
   sectionBody,
   extractMechanic,
+  extractObjectNames,
+  extractCollisionLayerLines,
   normalizeMechanicText,
   isVanillaSokoban,
+  isStockSokobanObjectSet,
   noveltyAgainstSeeds,
+  structuralDeltaAgainstSeeds,
   evaluateCandidateMechanic,
+  STOCK_SOKOBAN_OBJECTS,
 };

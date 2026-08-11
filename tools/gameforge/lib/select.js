@@ -46,7 +46,10 @@ function selectCandidate(deps) {
     : !(spec && Array.isArray(spec.candidates) && spec.candidates.length > 0);
   const mechanicOpts = {
     reject_vanilla_sokoban: !(spec && spec.reject_vanilla_sokoban === false),
+    reject_stock_sokoban_objects: !(spec && spec.reject_stock_sokoban_objects === false),
+    require_structural_delta: !(spec && spec.require_structural_delta === false),
     min_novelty_score: spec && spec.min_novelty_score != null ? spec.min_novelty_score : 1,
+    min_structural_score: spec && spec.min_structural_score != null ? spec.min_structural_score : 1,
   };
 
   const seedSources = (seedPaths || []).map((p) => ({
@@ -69,7 +72,10 @@ function selectCandidate(deps) {
         stage: 'novelty',
         reasons: mechanic.reasons,
         noveltyScore: mechanic.noveltyScore,
+        structuralScore: mechanic.structuralScore,
+        newObjects: mechanic.newObjects,
         vanillaSokoban: mechanic.vanillaSokoban,
+        stockSokobanObjects: mechanic.stockSokobanObjects,
         source: 'candidate',
       });
       continue;
@@ -77,6 +83,8 @@ function selectCandidate(deps) {
     viable.push({
       path: srcPath,
       noveltyScore: mechanic.noveltyScore,
+      structuralScore: mechanic.structuralScore,
+      combinedScore: mechanic.combinedScore,
       vanillaSokoban: mechanic.vanillaSokoban,
     });
   }
@@ -85,7 +93,9 @@ function selectCandidate(deps) {
     let chosen = viable[0];
     if (selectionPolicy === 'max_novelty') {
       for (const item of viable) {
-        if (item.noveltyScore > chosen.noveltyScore) {
+        if (item.combinedScore > chosen.combinedScore
+          || (item.combinedScore === chosen.combinedScore
+            && item.noveltyScore > chosen.noveltyScore)) {
           chosen = item;
         }
       }
@@ -97,6 +107,8 @@ function selectCandidate(deps) {
       selectedPath: chosen.path,
       rejections,
       noveltyScore: chosen.noveltyScore,
+      structuralScore: chosen.structuralScore,
+      combinedScore: chosen.combinedScore,
       viableCount: viable.length,
     };
   }

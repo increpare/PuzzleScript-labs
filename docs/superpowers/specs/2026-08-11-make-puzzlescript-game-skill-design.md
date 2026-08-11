@@ -16,6 +16,7 @@ Production failure (`octopus_eggs` jobs): evening agents seeded only Sokoban cor
 - `allow_safe_mode` defaults **false** when candidates exist (true only for empty-candidate remix jobs).
 - `tools/gameforge/lib/mechanic.js` fingerprints RULES+WINCONDITIONS; rejects single-push `all X on Y` Sokoban and near-identical seed mechanics.
 - Skill hard-rules forbid paint-jobs and all-Sokoban seed sets for non-Sokoban prompts.
+- Follow-up: also reject stock Sokoban OBJECTS sets and require object/layer structural delta vs seeds so evening agents must invent prompt-native objects/layers (not only extra rules on `Crate`/`Target`).
 
 ## Summary
 
