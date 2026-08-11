@@ -1819,7 +1819,17 @@ generator_benchmark: $(PUZZLESCRIPT_GENERATOR)
 gameforge_unit_tests:
 	$(NODE) src/tests/run_gameforge_unit_node.js
 
-gameforge: build_solver build_generator build_simplify
+.PHONY: ensure_gameforge_native_bins
+ensure_gameforge_native_bins:
+	@need_build=0; \
+	for bin in "$(PUZZLESCRIPT_CPP)" "$(PUZZLESCRIPT_SOLVER)" "$(PUZZLESCRIPT_GENERATOR)" "$(PUZZLESCRIPT_SIMPLIFY)"; do \
+		if [ ! -x "$$bin" ]; then need_build=1; fi; \
+	done; \
+	if [ "$$need_build" -eq 1 ]; then \
+		$(MAKE) build build_solver build_generator build_simplify; \
+	fi
+
+gameforge: ensure_gameforge_native_bins
 	@if [ -z "$(JOB)" ]; then echo "Usage: make gameforge JOB=build/gameforge/jobs/<id>"; exit 2; fi
 	$(NODE) tools/gameforge/run.js "$(JOB)" \
 	  --cpp $(PUZZLESCRIPT_CPP) \
@@ -1827,7 +1837,7 @@ gameforge: build_solver build_generator build_simplify
 	  --simplify $(PUZZLESCRIPT_SIMPLIFY) \
 	  --solver $(PUZZLESCRIPT_SOLVER)
 
-gameforge_smoke_tests: build_solver build_generator build_simplify
+gameforge_smoke_tests: ensure_gameforge_native_bins
 	$(NODE) src/tests/run_gameforge_smoke_node.js
 
 gameforge_tests: gameforge_unit_tests gameforge_smoke_tests

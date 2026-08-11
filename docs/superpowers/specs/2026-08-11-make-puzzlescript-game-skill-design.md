@@ -3,6 +3,8 @@
 Status: approved for spec review  
 Date: 2026-08-11  
 
+**Implementation plan:** `docs/superpowers/plans/2026-08-11-make-puzzlescript-game-skill.md`
+
 ## Summary
 
 A **project Cursor skill** plus a **durable overnight job runner** (“gameforge”) that turns a natural-language prompt into a **publish-bar PuzzleScript game** (`.txt`). The evening agent drafts a job package; the runner executes long compile/mutate/generate/solve/simplify loops without a live chat session; the morning agent triages a structured report and either accepts the game or proposes a narrow retry.
