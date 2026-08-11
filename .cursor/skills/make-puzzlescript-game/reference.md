@@ -9,6 +9,8 @@
 | `curriculum` | At least `min_levels_per_band` levels in each `spec.bands` entry |
 | `non_trivial` | Every solution length ≥ `min_solution_length` (default **5**) |
 | `anti_dupe` | No near-duplicate boards (same dimensions, cell agreement ≥ `near_dupe_threshold`, default **0.92**) |
+| `recipe_diversity` | Enough distinct non-empty glyph recipes (ignores `.` padding). Default need ≈ band count. Stops “same puzzle, bigger empty room”. |
+| `obstacles` | Enough levels contain obstacle glyphs (default `#`). Requires walls/reefs in `levels.spec.gen`. |
 | `win_exercised` | Solutions exercise win via play (not already-won start states) |
 | `theme_shell` | Title; author/prelude/message; legend covers level glyphs; sprites for all objects |
 | `design_log` | `out/design_log.md` present |

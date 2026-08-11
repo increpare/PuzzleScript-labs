@@ -91,6 +91,8 @@ function testPublishable() {
       ],
       min_levels_per_band: 1,
       min_solution_length: 5,
+      min_distinct_recipes: 2,
+      min_levels_with_obstacles: 2,
     }),
     compileOk: true,
     theme: {
@@ -105,7 +107,7 @@ function testPublishable() {
         band: 'tiny',
         width: 3,
         height: 2,
-        rows: ['###', '#P#'],
+        rows: ['###', '#P*'],
         solution: ['left', 'left', 'left', 'left', 'left'],
         solved: true,
         winExercised: true,
@@ -114,15 +116,59 @@ function testPublishable() {
         band: 'small',
         width: 4,
         height: 3,
-        rows: ['####', '#P.#', '####'],
+        rows: ['####', '#P.O', '#**#'],
         solution: ['right', 'right', 'right', 'right', 'right'],
         solved: true,
         winExercised: true,
       },
     ],
   });
-  assert.strictEqual(report.status, 'publishable');
+  assert.strictEqual(report.status, 'publishable', report.failures.join('; '));
   assert.deepStrictEqual(report.failures, []);
+}
+
+function testRecipeDiversityFailsPaddingOnly() {
+  const report = evaluatePublishGates({
+    spec: loadSpec({
+      prompt: 'x',
+      seeds: ['s'],
+      candidates: [],
+      bands: [
+        { name: 'small', dimensions: '4x3' },
+        { name: 'medium', dimensions: '5x4' },
+      ],
+      min_levels_per_band: 1,
+      min_solution_length: 5,
+      min_distinct_recipes: 2,
+      min_levels_with_obstacles: 0,
+    }),
+    compileOk: true,
+    theme: {
+      hasTitle: true,
+      hasAuthorOrPreludeOrMessage: true,
+      legendCoversLevelGlyphs: true,
+      spritesForAllObjects: true,
+    },
+    designLogPresent: true,
+    levels: [
+      {
+        band: 'small',
+        rows: ['..o.', '.*.*', '..po'],
+        solution: ['left', 'left', 'left', 'left', 'left'],
+        solved: true,
+        winExercised: true,
+      },
+      {
+        band: 'medium',
+        rows: ['..o..', '.....', '.*.*.', '..po.'],
+        solution: ['left', 'left', 'left', 'left', 'left'],
+        solved: true,
+        winExercised: true,
+      },
+    ],
+  });
+  assert.strictEqual(report.status, 'playable_incomplete');
+  assert.ok(report.failures.some((f) => /recipe_diversity/.test(f)));
 }
 
 function testTrivialFails() {
@@ -326,6 +372,7 @@ testDefaultBandsAreCopied();
 testParseSolutionComment();
 testNearDupeFilter();
 testPublishable();
+testRecipeDiversityFailsPaddingOnly();
 testTrivialFails();
 testIsVanillaNoveltyAndStructure();
 testRequireMechanicIntent();

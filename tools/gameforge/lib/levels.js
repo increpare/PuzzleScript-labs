@@ -174,9 +174,59 @@ function filterNearDupes(levels, threshold) {
   return kept;
 }
 
+/**
+ * Composition signature ignoring empty padding: counts of non-background glyphs.
+ * Levels that only grow empty space share a recipe.
+ */
+function levelRecipeSignature(level, backgroundGlyphs = ['.', ' ']) {
+  const bg = new Set(backgroundGlyphs);
+  const counts = Object.create(null);
+  const dims = levelDims(level);
+  for (const row of dims.rows) {
+    for (const ch of row) {
+      if (bg.has(ch)) {
+        continue;
+      }
+      counts[ch] = (counts[ch] || 0) + 1;
+    }
+  }
+  return Object.keys(counts)
+    .sort()
+    .map((ch) => `${ch}:${counts[ch]}`)
+    .join(',');
+}
+
+function distinctRecipeCount(levels, backgroundGlyphs) {
+  const seen = new Set();
+  for (const level of levels) {
+    seen.add(levelRecipeSignature(level, backgroundGlyphs));
+  }
+  return seen.size;
+}
+
+function levelHasObstacleGlyph(level, obstacleGlyphs = ['#']) {
+  const want = new Set(obstacleGlyphs);
+  for (const row of levelDims(level).rows) {
+    for (const ch of row) {
+      if (want.has(ch)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function countLevelsWithObstacles(levels, obstacleGlyphs) {
+  return levels.filter((level) => levelHasObstacleGlyph(level, obstacleGlyphs)).length;
+}
+
 module.exports = {
   parsePlayableLevels,
   levelDims,
   cellAgreement,
   filterNearDupes,
+  levelRecipeSignature,
+  distinctRecipeCount,
+  levelHasObstacleGlyph,
+  countLevelsWithObstacles,
 };

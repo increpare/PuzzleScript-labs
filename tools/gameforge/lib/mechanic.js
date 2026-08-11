@@ -281,9 +281,20 @@ function evaluateCandidateMechanic(candidateSource, seedEntries, options = {}) {
     );
   }
 
-  // Prefer candidates that both change rules and structure.
+  const rulesText = extractMechanic(candidateSource).rules || '';
+  const ruleLineCount = stripComments(rulesText)
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l.startsWith('[')).length;
+  const hasAction = /\baction\b/i.test(rulesText);
+  const hasLate = /^\s*late\b/im.test(rulesText);
+
+  // Prefer candidates that change rules+structure and add interactive depth.
   const combinedScore = novelty.score + structural.score * 2
-    + (stockObjects ? 0 : 1) + (vanilla ? 0 : 1);
+    + (stockObjects ? 0 : 1) + (vanilla ? 0 : 1)
+    + Math.min(3, ruleLineCount)
+    + (hasAction ? 2 : 0)
+    + (hasLate ? 1 : 0);
 
   return {
     ok: reasons.length === 0,
@@ -291,6 +302,9 @@ function evaluateCandidateMechanic(candidateSource, seedEntries, options = {}) {
     noveltyScore: novelty.score,
     structuralScore: structural.score,
     combinedScore,
+    ruleLineCount,
+    hasAction,
+    hasLate,
     newObjects: structural.newObjects,
     layerChanges: structural.layerChanges,
     vanillaSokoban: vanilla,

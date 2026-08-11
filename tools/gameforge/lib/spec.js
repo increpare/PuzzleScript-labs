@@ -8,6 +8,10 @@ const DEFAULT_SPEC = {
   per_solve_timeout_ms: 2000,
   min_solution_length: 5,
   near_dupe_threshold: 0.92,
+  min_distinct_recipes: null, // default: max(bandCount, min(levels, 3)) at gate time
+  min_levels_with_obstacles: null, // default: max(1, bandCount) at gate time
+  obstacle_glyphs: ['#'],
+  background_glyphs: ['.', ' '],
   smoke_level_count: 1,
   min_levels_per_band: 1,
   generator_samples: 200,

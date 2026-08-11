@@ -7,6 +7,14 @@ function crateTargetChooseRule(dimensions) {
   return `choose ${count} [ no wall no player no crate ] [ no wall no player no target ] -> [ crate ] [ target ]`;
 }
 
+function wallScatterRule(dimensions) {
+  const match = /^(\d+)x(\d+)$/.exec(dimensions || '');
+  const area = match ? Number(match[1]) * Number(match[2]) : 0;
+  // Tiny boards: light scatter; larger: denser reefs/walls so recipes differ by shape.
+  const prob = area <= 6 ? 0.15 : area <= 20 ? 0.22 : 0.28;
+  return `prob ${prob} [] -> [ wall ]`;
+}
+
 function formatBandBlock(band, take, seed) {
   const lines = [
     `dimensions: ${band.dimensions}`,
@@ -18,6 +26,7 @@ function formatBandBlock(band, take, seed) {
   }
   lines.push(
     '',
+    wallScatterRule(band.dimensions),
     'choose 1 [ no wall no crate ] -> [ player ]',
     crateTargetChooseRule(band.dimensions),
   );

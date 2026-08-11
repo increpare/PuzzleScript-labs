@@ -18,5 +18,6 @@ for (const band of DEFAULT_SPEC.bands) {
 }
 assert(text.includes('choose 1 [ no wall no player no crate ] [ no wall no player no target ] -> [ crate ] [ target ]'), 'tiny band uses choose 1');
 assert(text.includes('choose 1-2 [ no wall no player no crate ] [ no wall no player no target ] -> [ crate ] [ target ]'), 'larger bands use choose 1-2');
+assert(text.includes('prob ') && text.includes('-> [ wall ]'), 'expected wall scatter prob rule');
 
 console.log('ok - writeDefaultSokobanGenSpec emits band blocks');

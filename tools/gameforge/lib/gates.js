@@ -1,6 +1,10 @@
 'use strict';
 
-const { filterNearDupes } = require('./levels');
+const {
+  filterNearDupes,
+  distinctRecipeCount,
+  countLevelsWithObstacles,
+} = require('./levels');
 
 function evaluatePublishGates(input) {
   const spec = input.spec || {};
@@ -62,6 +66,32 @@ function evaluatePublishGates(input) {
   gateResults.anti_dupe = filtered.length === levels.length;
   if (!gateResults.anti_dupe) {
     failures.push('anti_dupe: near-duplicate levels detected');
+  }
+
+  // Same pushable/nest counts with only empty padding grown across bands.
+  const recipes = distinctRecipeCount(levels, spec.background_glyphs || ['.', ' ']);
+  const minRecipes = spec.min_distinct_recipes != null
+    ? spec.min_distinct_recipes
+    : Math.max(bands.length || 1, Math.min(levels.length, 3));
+  gateResults.recipe_diversity = levels.length === 0 ? false : recipes >= Math.min(minRecipes, levels.length);
+  if (!gateResults.recipe_diversity) {
+    failures.push(
+      `recipe_diversity: ${recipes} distinct non-empty glyph recipes, need >= ${Math.min(minRecipes, levels.length)} `
+      + '(levels that only change empty padding share one recipe)',
+    );
+  }
+
+  const obstacleGlyphs = spec.obstacle_glyphs || ['#'];
+  const withObstacles = countLevelsWithObstacles(levels, obstacleGlyphs);
+  const minObstacleLevels = spec.min_levels_with_obstacles != null
+    ? spec.min_levels_with_obstacles
+    : Math.min(levels.length, Math.max(1, bands.length || 1));
+  gateResults.obstacles = levels.length === 0 ? false : withObstacles >= Math.min(minObstacleLevels, levels.length);
+  if (!gateResults.obstacles) {
+    failures.push(
+      `obstacles: ${withObstacles} levels contain obstacle glyphs ${JSON.stringify(obstacleGlyphs)}, `
+      + `need >= ${Math.min(minObstacleLevels, levels.length)} (place walls/reefs in levels.spec.gen)`,
+    );
   }
 
   gateResults.win_exercised = levels.every((level) => level.winExercised === true);

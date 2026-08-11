@@ -31,9 +31,16 @@ Use this skill for prompt → overnight job → publish-gated `.txt` game. Creat
 3. **Author candidates from scratch-ish** — Start from a seed only as a template for file structure. Immediately replace OBJECTS / COLLISIONLAYERS / RULES / WIN / LEGEND for the prompt. Keep smoke levels tiny but exercise the *new* rule.
 4. **Match the generator** — `levels.spec.gen` `choose`/`prob` patterns must use the **same object names** as the selected candidate (e.g. `shell`/`nest`/`octopus`/`reef`, not `crate`/`target`/`player`/`wall` unless those are truly your names).
 5. **Seeds** — 1–3 from `src/demo`, `src/tests/solver_tests`, `src/tests/good_games` for kinship; avoid all-Sokoban sets for non-Sokoban prompts.
-6. **Compile while drafting** — `build/native/puzzlescript_cpp compile <candidate> --diagnostics`.
-7. **Gray-cube test** — If the puzzle is unchanged with gray cubes and the names Crate/Target, rewrite.
-8. **Launch** — `make gameforge JOB=build/gameforge/jobs/<id>`.
+6. **`levels.spec.gen` must create diverse boards** — Not “same 2 goals on a bigger empty pad”:
+   - Place **obstacles** (`prob … -> [ reef ]` / `wall`) every band.
+   - **Vary counts** across bands (1 nest vs 2–3; optional extra shells; different `choose` ranges).
+   - At least one band should force a different *recipe* (glyph multiset), not only dimensions.
+7. **Thematic gameplay, not ice-Sokoban with new nouns** — If the prompt has hunters / night / ink / magnets / time, put that in RULES (extra objects + interactions). A single slide+cover loop is the default trap; prefer the richer candidate when novelty ties.
+8. **Compile while drafting** — `build/native/puzzlescript_cpp compile <candidate> --diagnostics`.
+9. **Gray-cube test** — If the puzzle is unchanged with gray cubes and the names Crate/Target, rewrite.
+10. **Launch** — `make gameforge JOB=build/gameforge/jobs/<id>`.
+
+Publish gates also require `recipe_diversity` (distinct non-empty glyph recipes) and `obstacles` (levels containing `#` / configured obstacle glyphs). Empty-room curricula will not go `publishable`.
 
 ## Mutation caps
 
