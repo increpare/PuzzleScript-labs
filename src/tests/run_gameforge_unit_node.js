@@ -1,6 +1,11 @@
 'use strict';
 const assert = require('assert');
 const { loadSpec, DEFAULT_SPEC } = require('../../tools/gameforge/lib/spec');
+const {
+  parsePlayableLevels,
+  cellAgreement,
+  filterNearDupes,
+} = require('../../tools/gameforge/lib/levels');
 
 function testLoadSpecDefaults() {
   const spec = loadSpec({
@@ -35,7 +40,38 @@ function testDefaultBandsAreCopied() {
   assert.deepStrictEqual(DEFAULT_SPEC.bands.map((b) => b.name), beforeNames);
 }
 
+function testParseSolutionComment() {
+  const src = [
+    '=======',
+    'LEVELS',
+    '',
+    '(difficulty: 12)',
+    '(solution: UURRDDLL)',
+    '####',
+    '#P.#',
+    '#*C#',
+    '####',
+    '',
+  ].join('\n');
+  const levels = parsePlayableLevels(src);
+  assert.strictEqual(levels.length, 1);
+  assert.deepStrictEqual(levels[0].solution, ['up', 'up', 'right', 'right', 'down', 'down', 'left', 'left']);
+  assert.strictEqual(levels[0].rows.length, 4);
+}
+
+function testNearDupeFilter() {
+  const a = { width: 3, height: 2, rows: ['abc', 'def'] };
+  const b = { width: 3, height: 2, rows: ['abc', 'def'] };
+  const c = { width: 3, height: 2, rows: ['abx', 'def'] };
+  assert.strictEqual(cellAgreement(a, b), 1);
+  assert.ok(cellAgreement(a, c) < 1);
+  const kept = filterNearDupes([a, b, c], 0.92);
+  assert.strictEqual(kept.length, 2); // a kept, b dupe of a, c kept
+}
+
 testLoadSpecDefaults();
 testRejectMissingPrompt();
 testDefaultBandsAreCopied();
+testParseSolutionComment();
+testNearDupeFilter();
 console.log('run_gameforge_unit_node: ok');
