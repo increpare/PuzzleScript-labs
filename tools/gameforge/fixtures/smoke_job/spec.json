@@ -6,6 +6,8 @@
   "generator_samples": 30,
   "per_solve_timeout_ms": 500,
   "min_solution_length": 1,
+  "min_distinct_recipes": 1,
+  "min_levels_with_obstacles": 0,
   "bands": [
     { "name": "tiny", "dimensions": "3x2" }
   ],

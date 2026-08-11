@@ -3,6 +3,7 @@ take: 1
 name: tiny
 seed: 42
 
+prob 0.2 [] -> [ wall ]
 choose 1 [ no wall no crate ] -> [ player ]
 choose 1 [ no wall no player no crate ] [ no wall no player no target ] -> [ crate ] [ target ]
 ===
