@@ -1,6 +1,7 @@
 'use strict';
 
 const { evaluateCandidateMechanic } = require('./mechanic');
+const { evaluatePortfolioDiversity, classifyRuleKinds } = require('./rule_features');
 
 function tryCompileSmoke(srcPath, compileFile, smokeCheck, rejections, sourceTag) {
   const compileResult = compileFile(srcPath);
@@ -57,6 +58,33 @@ function selectCandidate(deps) {
     source: readFile ? readFile(p) : '',
   }));
 
+  const candidateSources = (candidatePaths || []).map((p) => ({
+    path: p,
+    source: readFile ? readFile(p) : '',
+  }));
+
+  if (candidateSources.length >= 2 && !(spec && spec.require_portfolio_diversity === false)) {
+    const portfolio = evaluatePortfolioDiversity(candidateSources, {
+      min_candidate_rule_kinds: spec && spec.min_candidate_rule_kinds != null
+        ? spec.min_candidate_rule_kinds
+        : 2,
+    });
+    if (!portfolio.ok) {
+      return {
+        status: 'failed_mutate',
+        rejections: [{
+          path: jobDir,
+          stage: 'portfolio',
+          reasons: portfolio.reasons,
+          kinds: portfolio.kinds,
+          source: 'portfolio',
+        }],
+        reason: 'portfolio_diversity',
+        portfolio,
+      };
+    }
+  }
+
   const viable = [];
 
   for (const srcPath of candidatePaths || []) {
@@ -80,12 +108,14 @@ function selectCandidate(deps) {
       });
       continue;
     }
+    const features = classifyRuleKinds(source);
     viable.push({
       path: srcPath,
       noveltyScore: mechanic.noveltyScore,
       structuralScore: mechanic.structuralScore,
       combinedScore: mechanic.combinedScore,
       vanillaSokoban: mechanic.vanillaSokoban,
+      kinds: features.kinds,
     });
   }
 

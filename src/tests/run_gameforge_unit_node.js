@@ -262,6 +262,7 @@ function testSelectPrefersNovelty() {
     '/tmp/job/candidates/paint.txt': VANILLA_SOK,
     '/tmp/job/candidates/slide_stock.txt': SLIDE_STOCK,
     '/tmp/job/candidates/slide_themed.txt': SLIDE_THEMED,
+    '/tmp/job/candidates/pull_themed.txt': PULL_THEMED,
   };
   const result = selectCandidate({
     jobDir: '/tmp/job',
@@ -273,12 +274,14 @@ function testSelectPrefersNovelty() {
         'candidates/paint.txt',
         'candidates/slide_stock.txt',
         'candidates/slide_themed.txt',
+        'candidates/pull_themed.txt',
       ],
     }),
     candidatePaths: [
       '/tmp/job/candidates/paint.txt',
       '/tmp/job/candidates/slide_stock.txt',
       '/tmp/job/candidates/slide_themed.txt',
+      '/tmp/job/candidates/pull_themed.txt',
     ],
     seedPaths: ['/tmp/job/seeds/a.txt'],
     compileFile: () => ({ ok: true, errors: [] }),
@@ -293,6 +296,136 @@ function testSelectPrefersNovelty() {
   );
   assert.ok(result.rejections.some((r) => r.stage === 'novelty' && /paint/.test(r.path)));
   assert.ok(result.rejections.some((r) => r.stage === 'novelty' && /slide_stock/.test(r.path)));
+}
+
+function testPortfolioRejectsUniformSlide() {
+  const slideB = miniGame({
+    objects: ['Background', 'Octopus', 'Reef', 'Shell', 'Nest'],
+    layers: 'Background\nNest\nOctopus, Reef, Shell',
+    rules: '[ > Octopus | Shell ] -> [ > Octopus | > Shell ]\n[ > Shell | no Nest ] -> [ | > Shell ]',
+    win: 'all Nest on Shell',
+  });
+  const files = {
+    '/tmp/job/seeds/a.txt': VANILLA_SOK,
+    '/tmp/job/candidates/a.txt': SLIDE_THEMED,
+    '/tmp/job/candidates/b.txt': slideB,
+  };
+  const result = selectCandidate({
+    jobDir: '/tmp/job',
+    spec: loadSpec({
+      prompt: 'octopus',
+      mechanic_intent: 'two slide variants only — should fail portfolio',
+      seeds: ['seeds/a.txt'],
+      candidates: ['candidates/a.txt', 'candidates/b.txt'],
+    }),
+    candidatePaths: ['/tmp/job/candidates/a.txt', '/tmp/job/candidates/b.txt'],
+    seedPaths: ['/tmp/job/seeds/a.txt'],
+    compileFile: () => ({ ok: true, errors: [] }),
+    smokeCheck: () => ({ ok: true, reasons: [], winExercised: true }),
+    readFile: (p) => files[p],
+    copyFile: () => {},
+  });
+  assert.strictEqual(result.status, 'failed_mutate');
+  assert.strictEqual(result.reason, 'portfolio_diversity');
+}
+
+function testGenLintCatchesEmptyRooms() {
+  const { lintGenSpec } = require('../../tools/gameforge/lib/gen_lint');
+  const bad = [
+    'dimensions: 4x3',
+    'name: small',
+    '',
+    'choose 1-2 [ no octopus ] -> [ shell ]',
+    'choose 1-2 [ no octopus ] -> [ nest ]',
+    '===',
+    'dimensions: 5x4',
+    'name: medium',
+    '',
+    'choose 1-2 [ no octopus ] -> [ shell ]',
+    'choose 1-2 [ no octopus ] -> [ nest ]',
+    '===',
+  ].join('\n');
+  const lint = lintGenSpec(bad, {
+    required_object_names: ['Octopus', 'Shell', 'Nest', 'Reef'],
+    obstacle_object_names: ['reef', 'wall'],
+  });
+  assert.strictEqual(lint.ok, false);
+  assert.ok(lint.reasons.some((r) => /obstacle/i.test(r)));
+  assert.ok(lint.reasons.some((r) => /same choose/i.test(r)));
+  assert.ok(lint.reasons.some((r) => /octopus/i.test(r)));
+  assert.ok(lint.reasons.some((r) => /reef/i.test(r)));
+}
+
+function testBandContractsGate() {
+  const report = evaluatePublishGates({
+    spec: loadSpec({
+      prompt: 'x',
+      seeds: ['s'],
+      candidates: [],
+      bands: [
+        { name: 'tiny', dimensions: '3x2' },
+        { name: 'small', dimensions: '4x3' },
+      ],
+      min_levels_per_band: 1,
+      min_solution_length: 5,
+      min_distinct_recipes: 1,
+      min_levels_with_obstacles: 0,
+      band_contracts: [
+        { name: 'tiny', min_obstacles: 0, min_glyph_counts: { '*': 1 } },
+        { name: 'small', min_obstacles: 1, min_glyph_counts: { O: 2 } },
+      ],
+    }),
+    compileOk: true,
+    theme: {
+      hasTitle: true,
+      hasAuthorOrPreludeOrMessage: true,
+      legendCoversLevelGlyphs: true,
+      spritesForAllObjects: true,
+    },
+    designLogPresent: true,
+    levels: [
+      {
+        band: 'tiny',
+        rows: ['***', '#P.'],
+        solution: ['left', 'left', 'left', 'left', 'left'],
+        solved: true,
+        winExercised: true,
+      },
+      {
+        band: 'small',
+        rows: ['....', '.PO.', '....'],
+        solution: ['left', 'left', 'left', 'left', 'left'],
+        solved: true,
+        winExercised: true,
+      },
+    ],
+  });
+  assert.strictEqual(report.status, 'playable_incomplete');
+  assert.ok(report.failures.some((f) => /band_contracts: band small/.test(f)));
+}
+
+function testNovelRuleExercise() {
+  const {
+    classifyRuleKinds,
+    solutionExercisesFeatures,
+  } = require('../../tools/gameforge/lib/rule_features');
+  const features = classifyRuleKinds(SLIDE_THEMED);
+  assert.ok(features.kinds.includes('slide'));
+  const short = solutionExercisesFeatures(features, ['left', 'right'], 2);
+  assert.strictEqual(short.ok, false);
+  const ok = solutionExercisesFeatures(features, ['left', 'right', 'up', 'down'], 4);
+  assert.strictEqual(ok.ok, true, ok.reasons.join('; '));
+  const actionGame = miniGame({
+    objects: ['Background', 'Hero', 'Wall', 'Gem', 'Pad'],
+    layers: 'Background\nPad\nHero, Wall, Gem',
+    rules: '[ Action Hero | Gem ] -> [ Hero | ]',
+    win: 'no Gem',
+  });
+  const actionFeatures = classifyRuleKinds(actionGame);
+  assert.ok(actionFeatures.hasAction);
+  const noAction = solutionExercisesFeatures(actionFeatures, ['left', 'left', 'left'], 3);
+  assert.strictEqual(noAction.ok, false);
+  assert.ok(noAction.reasons.some((r) => /action/i.test(r)));
 }
 
 function testRejectAllVanillaNoSafeMode() {
@@ -377,6 +510,10 @@ testTrivialFails();
 testIsVanillaNoveltyAndStructure();
 testRequireMechanicIntent();
 testSelectPrefersNovelty();
+testPortfolioRejectsUniformSlide();
+testGenLintCatchesEmptyRooms();
+testBandContractsGate();
+testNovelRuleExercise();
 testRejectAllVanillaNoSafeMode();
 testSafeModeWhenNoCandidates();
 console.log('run_gameforge_unit_node: ok');

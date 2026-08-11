@@ -22,6 +22,12 @@ const DEFAULT_SPEC = {
   reject_vanilla_sokoban: true,
   reject_stock_sokoban_objects: true,
   require_structural_delta: true,
+  require_portfolio_diversity: true,
+  min_candidate_rule_kinds: 2,
+  require_novel_rule_exercise: true,
+  require_gen_obstacles: true,
+  require_gen_varied_choose: true,
+  band_contracts: [],
   // When candidates are provided, default false (set true only for intentional seed remix).
   allow_safe_mode: null,
   bands: [

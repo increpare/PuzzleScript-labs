@@ -4,7 +4,85 @@ const {
   filterNearDupes,
   distinctRecipeCount,
   countLevelsWithObstacles,
+  levelDims,
+  levelRecipeSignature,
 } = require('./levels');
+
+function countGlyphs(level, glyphs) {
+  const want = new Set(glyphs);
+  let count = 0;
+  for (const row of levelDims(level).rows) {
+    for (const ch of row) {
+      if (want.has(ch)) {
+        count += 1;
+      }
+    }
+  }
+  return count;
+}
+
+function levelMeetsBandContract(level, contract, obstacleGlyphs) {
+  const minObstacles = contract.min_obstacles != null ? contract.min_obstacles : 0;
+  if (countGlyphs(level, obstacleGlyphs) < minObstacles) {
+    return false;
+  }
+  const minCounts = contract.min_glyph_counts || contract.min_counts || null;
+  if (minCounts && typeof minCounts === 'object') {
+    for (const [glyph, needed] of Object.entries(minCounts)) {
+      if (countGlyphs(level, [glyph]) < Number(needed)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+function evaluateBandContracts(levels, contracts, options = {}) {
+  const obstacleGlyphs = options.obstacle_glyphs || ['#'];
+  const backgroundGlyphs = options.background_glyphs || ['.', ' '];
+  const failures = [];
+  if (!Array.isArray(contracts) || contracts.length === 0) {
+    return { ok: true, failures };
+  }
+
+  for (const contract of contracts) {
+    if (!contract || !contract.name) {
+      failures.push('band_contracts: entry missing name');
+      continue;
+    }
+    const bandLevels = levels.filter((level) => level.band === contract.name);
+    const minLevels = contract.min_levels != null ? contract.min_levels : 1;
+    if (bandLevels.length < minLevels) {
+      failures.push(
+        `band_contracts: band ${contract.name} has ${bandLevels.length} levels, need >= ${minLevels}`,
+      );
+      continue;
+    }
+    const satisfying = bandLevels.filter((level) => (
+      levelMeetsBandContract(level, contract, obstacleGlyphs)
+    ));
+    if (satisfying.length < minLevels) {
+      failures.push(
+        `band_contracts: band ${contract.name} has ${satisfying.length} levels meeting `
+        + `min_obstacles/min_glyph_counts, need >= ${minLevels}`,
+      );
+    }
+    const minRecipes = contract.min_distinct_recipes;
+    if (minRecipes != null) {
+      const recipes = new Set(
+        bandLevels.map((level) => levelRecipeSignature(level, backgroundGlyphs)),
+      );
+      if (recipes.size < minRecipes) {
+        failures.push(
+          `band_contracts: band ${contract.name} has ${recipes.size} distinct recipes, `
+          + `need >= ${minRecipes}`,
+        );
+      }
+    }
+  }
+
+  return { ok: failures.length === 0, failures };
+}
 
 function evaluatePublishGates(input) {
   const spec = input.spec || {};
@@ -99,6 +177,20 @@ function evaluatePublishGates(input) {
     failures.push('win_exercised: every level must exercise win condition');
   }
 
+  const contracts = Array.isArray(spec.band_contracts) ? spec.band_contracts : [];
+  if (contracts.length > 0) {
+    const contractResult = evaluateBandContracts(levels, contracts, {
+      obstacle_glyphs: obstacleGlyphs,
+      background_glyphs: spec.background_glyphs || ['.', ' '],
+    });
+    gateResults.band_contracts = contractResult.ok;
+    if (!contractResult.ok) {
+      for (const reason of contractResult.failures) {
+        failures.push(reason);
+      }
+    }
+  }
+
   gateResults.theme_shell =
     theme.hasTitle === true
     && theme.hasAuthorOrPreludeOrMessage === true
@@ -129,4 +221,8 @@ function evaluatePublishGates(input) {
   return { status: 'failed_mutate', failures, gateResults };
 }
 
-module.exports = { evaluatePublishGates };
+module.exports = {
+  evaluatePublishGates,
+  evaluateBandContracts,
+  levelMeetsBandContract,
+};

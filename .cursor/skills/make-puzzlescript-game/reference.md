@@ -11,9 +11,18 @@
 | `anti_dupe` | No near-duplicate boards (same dimensions, cell agreement ≥ `near_dupe_threshold`, default **0.92**) |
 | `recipe_diversity` | Enough distinct non-empty glyph recipes (ignores `.` padding). Default need ≈ band count. Stops “same puzzle, bigger empty room”. |
 | `obstacles` | Enough levels contain obstacle glyphs (default `#`). Requires walls/reefs in `levels.spec.gen`. |
+| `band_contracts` | Optional. Per-band `min_obstacles` / `min_glyph_counts` / `min_distinct_recipes` from `spec.band_contracts`. |
 | `win_exercised` | Solutions exercise win via play (not already-won start states) |
 | `theme_shell` | Title; author/prelude/message; legend covers level glyphs; sprites for all objects |
 | `design_log` | `out/design_log.md` present |
+
+### Preflight / select (before overnight mining)
+
+| Check | Pass condition |
+|-------|----------------|
+| `portfolio_diversity` | With ≥2 candidates, ≥ `min_candidate_rule_kinds` (default **2**) distinct **non-push** kinds (`slide`, `pull`, `action`, `late_transform`, `field`, …) |
+| smoke `novel_rule` | Smoke solution uses Action if Action rules exist; enough length for slide/pull/late |
+| `gen_lint` | `levels.spec.gen` places obstacles, varies `choose` counts across bands, mentions selected-game object names |
 
 ## Report statuses
 
@@ -78,10 +87,15 @@ Default `min_levels_per_band`: **1**. Generator blocks use Sokoban-shaped `choos
 | `require_structural_delta` | `true` |
 | `allow_safe_mode` | `true` iff `candidates` is empty; else `false` |
 | `mechanic_intent` | **required** when `candidates` is non-empty |
+| `require_portfolio_diversity` | `true` |
+| `min_candidate_rule_kinds` | `2` |
+| `require_novel_rule_exercise` | `true` |
+| `require_gen_obstacles` / `require_gen_varied_choose` | `true` / `true` |
+| `band_contracts` | `[]` (optional per-band publish contracts) |
 
 ### Selection / novelty / structure
 
-Candidates must compile + smoke, then pass `evaluateCandidateMechanic`:
+Candidates must pass portfolio diversity (if ≥2), compile + smoke (incl. novel-rule exercise), then `evaluateCandidateMechanic`:
 
 - not vanilla single-push Sokoban
 - OBJECTS not limited to Background/Player/Wall/Crate/Target
@@ -89,6 +103,16 @@ Candidates must compile + smoke, then pass `evaluateCandidateMechanic`:
 - rule/win fingerprint novelty ≥ `min_novelty_score`
 
 Among survivors, `max_novelty` ranks by combined rule+structural score. Rejections go to `design_log.md` / `candidateRejections`.
+
+Example `band_contracts`:
+
+```json
+"band_contracts": [
+  { "name": "tiny", "min_obstacles": 0, "min_glyph_counts": { "*": 1, "O": 1 } },
+  { "name": "small", "min_obstacles": 1, "min_glyph_counts": { "*": 2, "O": 2 } },
+  { "name": "medium", "min_obstacles": 2, "min_glyph_counts": { "*": 2, "O": 2 }, "min_distinct_recipes": 1 }
+]
+```
 
 ## Example `spec.json`
 

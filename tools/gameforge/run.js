@@ -14,6 +14,7 @@ const { runSimplify } = require('./lib/simplify');
 const { writeDefaultSokobanGenSpec } = require('./lib/curriculum_gen');
 const { parsePlayableLevels, levelDims } = require('./lib/levels');
 const { evaluatePublishGates } = require('./lib/gates');
+const { lintGenSpec, requiredObjectsFromGame } = require('./lib/gen_lint');
 const {
   writeArtifacts,
   createDesignLog,
@@ -253,6 +254,7 @@ function main() {
     smokeCheck: (p) => smokeCheckJs(p, {
       smoke_level_count: spec.smoke_level_count,
       per_solve_timeout_ms: spec.per_solve_timeout_ms,
+      require_novel_rule_exercise: spec.require_novel_rule_exercise !== false,
       solverBin,
       spawnSync,
     }),
@@ -318,6 +320,43 @@ function main() {
     appendDesignLog(log, '## Write default levels.spec.gen');
     writeDefaultSokobanGenSpec(spec, genSpecPath, fs);
   }
+
+  appendDesignLog(log, '## Lint levels.spec.gen');
+  const selectedSource = fs.readFileSync(selectedGamePath, 'utf8');
+  const genLint = lintGenSpec(fs.readFileSync(genSpecPath, 'utf8'), {
+    required_object_names: requiredObjectsFromGame(selectedSource),
+    obstacle_object_names: spec.obstacle_object_names || ['wall', 'reef'],
+    require_obstacle_placement: spec.require_gen_obstacles !== false,
+    require_varied_choose_counts: spec.require_gen_varied_choose !== false,
+  });
+  if (!genLint.ok) {
+    appendDesignLog(log, `gen_lint failed: ${genLint.reasons.join('; ')}`);
+    const report = {
+      status: 'failed_mutate',
+      failures: genLint.reasons,
+      gateResults: { gen_lint: false },
+      selected: {
+        path: relJobPath(jobDir, selectResult.selectedPath),
+        mode: selectResult.status,
+      },
+      candidateRejections: selectResult.rejections.map((entry) => ({
+        path: relJobPath(jobDir, entry.path),
+        stage: entry.stage,
+        errors: entry.errors,
+        reasons: entry.reasons,
+        source: entry.source,
+      })),
+      levelSummaries: [],
+      timestamps: { startedAt, finishedAt: new Date().toISOString() },
+    };
+    writeArtifacts(jobDir, {
+      gameSource: selectedSource,
+      report,
+      designLogMarkdown: toMarkdown(log),
+    });
+    process.exit(2);
+  }
+  appendDesignLog(log, `gen_lint ok (blocks=${genLint.blockCount}, obstacles=${genLint.blocksWithObstacles})`);
 
   appendDesignLog(log, '## Generate levels');
   const generatedPath = path.join(runDir, 'generated_game.txt');

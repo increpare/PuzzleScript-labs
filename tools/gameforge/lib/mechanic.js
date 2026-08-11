@@ -318,6 +318,7 @@ module.exports = {
   extractMechanic,
   extractObjectNames,
   extractCollisionLayerLines,
+  stripComments,
   normalizeMechanicText,
   isVanillaSokoban,
   isStockSokobanObjectSet,

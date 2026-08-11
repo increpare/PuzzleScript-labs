@@ -1,6 +1,8 @@
 'use strict';
 
+const fs = require('fs');
 const { spawnSync: defaultSpawnSync } = require('child_process');
+const { classifyRuleKinds, solutionExercisesFeatures } = require('./rule_features');
 
 function parseSolverJson(stdout) {
   const text = String(stdout || '').trim();
@@ -94,9 +96,10 @@ function solveLevel(gamePath, levelIndex, options) {
     };
   }
 
+  const solution = Array.isArray(entry.solution) ? entry.solution : [];
   const solutionLength = entry.solution_length != null
     ? entry.solution_length
-    : (Array.isArray(entry.solution) ? entry.solution.length : 0);
+    : solution.length;
   if (solutionLength < 1) {
     return {
       ok: false,
@@ -104,19 +107,46 @@ function solveLevel(gamePath, levelIndex, options) {
     };
   }
 
-  return { ok: true, solutionLength };
+  return { ok: true, solutionLength, solution };
 }
 
 function smokeCheckJs(gamePath, options) {
   const smokeLevelCount = options.smoke_level_count != null ? options.smoke_level_count : 1;
+  const requireNovelExercise = options.require_novel_rule_exercise !== false;
   const reasons = [];
   let winExercised = true;
+
+  let features = null;
+  if (requireNovelExercise) {
+    try {
+      const source = options.gameSource != null
+        ? options.gameSource
+        : fs.readFileSync(gamePath, 'utf8');
+      features = classifyRuleKinds(source);
+    } catch (error) {
+      reasons.push(`novel_rule: could not read game for feature check (${error.message})`);
+      features = null;
+    }
+  }
 
   for (let levelIndex = 0; levelIndex < smokeLevelCount; levelIndex += 1) {
     const solveResult = solveLevel(gamePath, levelIndex, options);
     if (!solveResult.ok) {
       reasons.push(solveResult.reason);
       winExercised = false;
+      continue;
+    }
+    if (features && requireNovelExercise) {
+      const exercise = solutionExercisesFeatures(
+        features,
+        solveResult.solution,
+        solveResult.solutionLength,
+      );
+      if (!exercise.ok) {
+        for (const reason of exercise.reasons) {
+          reasons.push(`level ${levelIndex}: ${reason}`);
+        }
+      }
     }
   }
 
@@ -127,4 +157,4 @@ function smokeCheckJs(gamePath, options) {
   };
 }
 
-module.exports = { smokeCheckJs };
+module.exports = { smokeCheckJs, solveLevel };

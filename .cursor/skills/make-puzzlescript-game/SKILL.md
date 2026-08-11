@@ -35,12 +35,16 @@ Use this skill for prompt → overnight job → publish-gated `.txt` game. Creat
    - Place **obstacles** (`prob … -> [ reef ]` / `wall`) every band.
    - **Vary counts** across bands (1 nest vs 2–3; optional extra shells; different `choose` ranges).
    - At least one band should force a different *recipe* (glyph multiset), not only dimensions.
-7. **Thematic gameplay, not ice-Sokoban with new nouns** — If the prompt has hunters / night / ink / magnets / time, put that in RULES (extra objects + interactions). A single slide+cover loop is the default trap; prefer the richer candidate when novelty ties.
-8. **Compile while drafting** — `build/native/puzzlescript_cpp compile <candidate> --diagnostics`.
-9. **Gray-cube test** — If the puzzle is unchanged with gray cubes and the names Crate/Target, rewrite.
-10. **Launch** — `make gameforge JOB=build/gameforge/jobs/<id>`.
+   - Runner **preflight-lints** `.gen` (obstacles, varied `choose`, object-name alignment) and aborts before mining if it fails.
+7. **Candidate portfolio diversity** — With 2+ candidates, cover **≥2 non-push rule kinds** (e.g. `slide` + `pull`, or `action` + `late_transform`). Four slide clones → `failed_mutate` / `portfolio_diversity`.
+8. **Smoke must exercise the twist** — Candidate LEVELS solutions must use Action when Action rules exist, and need enough length for slide/pull/late (not a 2-step walk onto a nest).
+9. **Band contracts (recommended)** — Optional `band_contracts` in `spec.json` (per-band `min_obstacles`, `min_glyph_counts`) so publish gates reject empty padding upgrades.
+10. **Thematic gameplay, not ice-Sokoban with new nouns** — If the prompt has hunters / night / ink / magnets / time, put that in RULES. A single slide+cover loop is the default trap.
+11. **Compile while drafting** — `build/native/puzzlescript_cpp compile <candidate> --diagnostics`.
+12. **Gray-cube test** — If the puzzle is unchanged with gray cubes and the names Crate/Target, rewrite.
+13. **Launch** — `make gameforge JOB=build/gameforge/jobs/<id>`.
 
-Publish gates also require `recipe_diversity` (distinct non-empty glyph recipes) and `obstacles` (levels containing `#` / configured obstacle glyphs). Empty-room curricula will not go `publishable`.
+Publish gates also require `recipe_diversity`, `obstacles`, and optional `band_contracts`. Empty-room curricula will not go `publishable`.
 
 ## Mutation caps
 
