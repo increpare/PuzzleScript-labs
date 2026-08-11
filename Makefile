@@ -18,7 +18,7 @@
 .PHONY: help build build_32 build_solver build_generator build_simplify handheld_report handheld_memory_audit handheld_blockout_tests handheld_pcb_export handheld_card_preview handheld_card_easyeda_handoff handheld_card_schematic_tests handheld_card_kicad handheld_devkit_input_kicad locality_survey handheld_p4_probe_build handheld_p4_probe_flash handheld_p4_probe_monitor handheld_p4_probe_capture handheld_p4_probe_summarize handheld_p4_probe_check_log pocket_card_electronics_tests pocket_card_kicad pocket_card_kicad_check pocket_card_pcb_exports pocket_card_case pocket_card_case_shells pocket_card_engineer_export pocket_card_engineer_check pocket_card_engineer_accept pocket_card_legacy_pcb_rebuild pocket_card_legacy_schematic_tests pocket_card_contract_tests pocket_card_fixture pocket_card_probe_build pocket_card_probe_flash pocket_card_probe_monitor pocket_card_probe_capture pocket_card_probe_summarize pocket_card_probe_check_log pocket_card_probe_check_map generator remix simplify solver run ctest tests all_tests_thorough js_parity_tests tests_js static_analysis_tests static_analysis_runtime_contracts static_analysis_performance_tests static_analysis_explorer static_analysis_fuzz static_analysis_consistency_giant static_analysis_corpus_audit_giant canonicalization_fuzz canonicalizer_giant_corpus compile_exception_corpus compile_exception_corpus_nodupes fuzz_corpus_batch fuzz_corpus_batch_giant fuzz_corpus_batch_single fuzz_corpus_batch_parallel simulation_tests_js simulation_tests_js_profile simulation_tests_js_profile_breakdown compilation_tests_js performance_testpage \
 	simulation_tests_cpp compilation_tests_cpp simulation_tests compilation_tests simulation_corpus_interpreter_benchmark simulation_corpus_compiled_rulegroups_benchmark simulation_corpus_compiled_compact_benchmark simulation_corpus_perf_report simulation_corpus_perf_report_quick \
 	simulation_tests_cpp_32 compilation_tests_cpp_32 \
-	solver_tests_cpp solver_tests_js solver_tests solver_timeout_curve solver-time-curve-single-game solver-time-curve-single-game-hda-compiled solver_timeout_curve_replot solver_js_coverage_cpp solver_smoke_tests native_runtime_counters_tests solver_search_mode_tests solver_determinism_tests solver_parity_smoke solver_portfolio_regression_tests native_static_analysis_parity_tests native_static_analysis_native_parity_tests native_static_analysis_fallback_parity_tests native_static_analysis_fallback_soundness_tests solver_compact_parity_smoke solver_compact_parity solver_benchmark solver_mine_pippable solver_focus_mine solver_focus_manifest_check solver_focus_benchmark solver_focus_compare solver_focus_compact_compare solver_focus_compact_codegen_compare solver_corpus_manifest solver_corpus_compact_codegen_compare solver_focus_perf_report solver_focus_compact_perf_report solver_focus_compact_codegen_perf_report solver_benchmark_targets solver_instrumentation_pack solver_instrumentation_analysis solver_instrumentation_analysis_tests js_static_optimization_comparison_solver_smoke js_static_optimization_comparison_solver_focus solver_canonical_replay solver_canonical_replay_long canonical_roundtrip_replay static_optimizer_page generator_smoke_tests generator_benchmark \
+	solver_tests_cpp solver_tests_js solver_tests solver_timeout_curve solver-time-curve-single-game solver-time-curve-single-game-hda-compiled solver_timeout_curve_replot solver_js_coverage_cpp solver_smoke_tests native_runtime_counters_tests solver_search_mode_tests solver_determinism_tests solver_parity_smoke solver_portfolio_regression_tests native_static_analysis_parity_tests native_static_analysis_native_parity_tests native_static_analysis_fallback_parity_tests native_static_analysis_fallback_soundness_tests solver_compact_parity_smoke solver_compact_parity solver_benchmark solver_mine_pippable solver_focus_mine solver_focus_manifest_check solver_focus_benchmark solver_focus_compare solver_focus_compact_compare solver_focus_compact_codegen_compare solver_corpus_manifest solver_corpus_compact_codegen_compare solver_focus_perf_report solver_focus_compact_perf_report solver_focus_compact_codegen_perf_report solver_benchmark_targets solver_instrumentation_pack solver_instrumentation_analysis solver_instrumentation_analysis_tests js_static_optimization_comparison_solver_smoke js_static_optimization_comparison_solver_focus solver_canonical_replay solver_canonical_replay_long canonical_roundtrip_replay static_optimizer_page generator_smoke_tests generator_benchmark gameforge gameforge_unit_tests gameforge_smoke_tests gameforge_tests \
 	simulation_tests_cpp_js_parity simulation_tests_cpp_js_parity_64 simulation_tests_cpp_js_parity_32 compilation_tests_cpp_direct \
 	compiled_rules_simulation_suite_coverage compiled_rules_coverage_shape_smoke specialized_full_turn_dispatch_smoke compiled_tick_dispatch_smoke compact_turn_oracle_smoke compact_turn_simulation_tests compact_turn_coverage compact_turn_codegen_coverage compact_turn_native_parity compact_turn_codegen_bringup compact_turn_codegen_solver_parity compact_turn_codegen_regression_tests compact_turn_codegen_dirty_shape compact_turn_perf_regression compact_turn_codegen_solver_command_api compact_turn_codegen_frontier compact_turn_codegen_testdata_one compact_tick_oracle_smoke compact_tick_simulation_tests compact_tick_coverage \
 	compact_turn_codegen_selected_tests compact_turn_codegen_simulation_tests \
@@ -647,6 +647,10 @@ help:
 	@echo "                                     Run full testdata.js corpus in compact compiler mode"
 	@echo "  make generator_smoke_tests         Run native generator smoke tests"
 	@echo "  make generator_benchmark           Run fixed-seed generator preset benchmark"
+	@echo "  make gameforge JOB=...             Run overnight gameforge job (needs build/native bins)"
+	@echo "  make gameforge_unit_tests          Run gameforge schema/gate unit tests"
+	@echo "  make gameforge_smoke_tests         Run gameforge end-to-end smoke (needs native bins)"
+	@echo "  make gameforge_tests               Run gameforge unit + smoke tests"
 	@echo "  make performance_testpage          Build single-run HTML/JSON/MD performance report"
 	@echo "  make performance_testpage PERFORMANCE_TESTPAGE_QUICK=true"
 	@echo "                                     Build a shorter smoke-sized performance report"
@@ -1811,6 +1815,22 @@ generator_smoke_tests: $(GENERATOR_TARGET_PREREQ)
 
 generator_benchmark: $(PUZZLESCRIPT_GENERATOR)
 	$(NODE) src/tests/run_generator_benchmark.js $(PUZZLESCRIPT_GENERATOR) $(GENERATOR_BENCH_GAME) --presets-dir $(GENERATOR_BENCH_PRESETS_DIR) --samples $(GENERATOR_BENCH_SAMPLES) --runs $(GENERATOR_BENCH_RUNS) --jobs $(GENERATOR_BENCH_JOBS) --seed $(GENERATOR_BENCH_SEED) --solver-timeout-ms $(GENERATOR_BENCH_SOLVER_TIMEOUT_MS) --solver-strategy $(GENERATOR_BENCH_SOLVER_STRATEGY) --top-k $(GENERATOR_BENCH_TOP_K) --out $(GENERATOR_BENCH_OUT)
+
+gameforge_unit_tests:
+	$(NODE) src/tests/run_gameforge_unit_node.js
+
+gameforge: build_solver build_generator build_simplify
+	@if [ -z "$(JOB)" ]; then echo "Usage: make gameforge JOB=build/gameforge/jobs/<id>"; exit 2; fi
+	$(NODE) tools/gameforge/run.js "$(JOB)" \
+	  --cpp $(PUZZLESCRIPT_CPP) \
+	  --generator $(PUZZLESCRIPT_GENERATOR) \
+	  --simplify $(PUZZLESCRIPT_SIMPLIFY) \
+	  --solver $(PUZZLESCRIPT_SOLVER)
+
+gameforge_smoke_tests: build_solver build_generator build_simplify
+	$(NODE) src/tests/run_gameforge_smoke_node.js
+
+gameforge_tests: gameforge_unit_tests gameforge_smoke_tests
 
 solver_tests_cpp: $(SOLVER_TARGET_PREREQ)
 	@if [ "$(SPECIALIZE)" = "true" ]; then \

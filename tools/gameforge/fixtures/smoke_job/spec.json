@@ -1,0 +1,13 @@
+{
+  "prompt": "smoke microban",
+  "seeds": ["seeds/microban_snip.txt"],
+  "candidates": [],
+  "wall_clock_ms": 15000,
+  "generator_samples": 30,
+  "per_solve_timeout_ms": 500,
+  "min_solution_length": 1,
+  "bands": [
+    { "name": "tiny", "dimensions": "3x2" }
+  ],
+  "min_levels_per_band": 1
+}
