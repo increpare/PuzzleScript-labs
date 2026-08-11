@@ -33,7 +33,9 @@ function loadSpec(raw) {
     throw new Error('spec.candidates must be an array (may be empty for safe-mode)');
   }
   const spec = Object.assign({}, DEFAULT_SPEC, raw, {
-    bands: Array.isArray(raw.bands) && raw.bands.length ? raw.bands : DEFAULT_SPEC.bands,
+    bands: Array.isArray(raw.bands) && raw.bands.length
+      ? raw.bands
+      : DEFAULT_SPEC.bands.map((b) => Object.assign({}, b)),
   });
   return spec;
 }

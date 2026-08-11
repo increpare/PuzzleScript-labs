@@ -1,6 +1,5 @@
 'use strict';
 const assert = require('assert');
-const path = require('path');
 const { loadSpec, DEFAULT_SPEC } = require('../../tools/gameforge/lib/spec');
 
 function testLoadSpecDefaults() {
@@ -21,6 +20,22 @@ function testRejectMissingPrompt() {
   assert.throws(() => loadSpec({ seeds: ['a.txt'] }), /prompt/);
 }
 
+function testDefaultBandsAreCopied() {
+  const beforeLength = DEFAULT_SPEC.bands.length;
+  const beforeNames = DEFAULT_SPEC.bands.map((b) => b.name);
+  const spec = loadSpec({
+    prompt: 'ice crates',
+    seeds: ['a.txt'],
+    candidates: [],
+  });
+  assert.notStrictEqual(spec.bands, DEFAULT_SPEC.bands);
+  spec.bands.push({ name: 'huge', dimensions: '10x10' });
+  spec.bands[0].name = 'mutated';
+  assert.strictEqual(DEFAULT_SPEC.bands.length, beforeLength);
+  assert.deepStrictEqual(DEFAULT_SPEC.bands.map((b) => b.name), beforeNames);
+}
+
 testLoadSpecDefaults();
 testRejectMissingPrompt();
+testDefaultBandsAreCopied();
 console.log('run_gameforge_unit_node: ok');
