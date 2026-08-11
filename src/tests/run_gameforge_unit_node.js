@@ -6,6 +6,7 @@ const {
   cellAgreement,
   filterNearDupes,
 } = require('../../tools/gameforge/lib/levels');
+const { evaluatePublishGates } = require('../../tools/gameforge/lib/gates');
 
 function testLoadSpecDefaults() {
   const spec = loadSpec({
@@ -69,9 +70,78 @@ function testNearDupeFilter() {
   assert.strictEqual(kept.length, 2); // a kept, b dupe of a, c kept
 }
 
+function testPublishable() {
+  const report = evaluatePublishGates({
+    spec: loadSpec({
+      prompt: 'x',
+      seeds: ['s'],
+      candidates: [],
+      bands: [
+        { name: 'tiny', dimensions: '3x2' },
+        { name: 'small', dimensions: '4x3' },
+      ],
+      min_levels_per_band: 1,
+      min_solution_length: 5,
+    }),
+    compileOk: true,
+    theme: {
+      hasTitle: true,
+      hasAuthorOrPreludeOrMessage: true,
+      legendCoversLevelGlyphs: true,
+      spritesForAllObjects: true,
+    },
+    designLogPresent: true,
+    levels: [
+      {
+        band: 'tiny',
+        width: 3,
+        height: 2,
+        rows: ['###', '#P#'],
+        solution: ['left', 'left', 'left', 'left', 'left'],
+        solved: true,
+        winExercised: true,
+      },
+      {
+        band: 'small',
+        width: 4,
+        height: 3,
+        rows: ['####', '#P.#', '####'],
+        solution: ['right', 'right', 'right', 'right', 'right'],
+        solved: true,
+        winExercised: true,
+      },
+    ],
+  });
+  assert.strictEqual(report.status, 'publishable');
+  assert.deepStrictEqual(report.failures, []);
+}
+
+function testTrivialFails() {
+  const report = evaluatePublishGates({
+    spec: loadSpec({ prompt: 'x', seeds: ['s'], candidates: [], min_solution_length: 5,
+      bands: [{ name: 'tiny', dimensions: '3x2' }] }),
+    compileOk: true,
+    theme: {
+      hasTitle: true,
+      hasAuthorOrPreludeOrMessage: true,
+      legendCoversLevelGlyphs: true,
+      spritesForAllObjects: true,
+    },
+    designLogPresent: true,
+    levels: [{
+      band: 'tiny', width: 3, height: 2, rows: ['###', '#P#'],
+      solution: ['left'], solved: true, winExercised: true,
+    }],
+  });
+  assert.strictEqual(report.status, 'playable_incomplete');
+  assert.ok(report.failures.some((f) => /min_solution_length/.test(f)));
+}
+
 testLoadSpecDefaults();
 testRejectMissingPrompt();
 testDefaultBandsAreCopied();
 testParseSolutionComment();
 testNearDupeFilter();
+testPublishable();
+testTrivialFails();
 console.log('run_gameforge_unit_node: ok');
