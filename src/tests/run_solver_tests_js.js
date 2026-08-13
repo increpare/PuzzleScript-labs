@@ -3458,6 +3458,24 @@ function settleAgain(stepProfile = null) {
     return pass;
 }
 
+// Player/oracle-style drain for level-start `again` left by run_rules_on_level_start.
+// Uses the again-probe path (processInput(-1)), not skipAgainProbe, so the root
+// search node matches the settled board native Drain / desktop play expose.
+function drainStartupAgainForSolver(stepProfile = null) {
+    let pass = 0;
+    for (; pass < 500 && againing; pass++) {
+        againing = false;
+        if (SOLVER_AGAIN_PROFILE && stepProfile) {
+            stepProfile.process_input_calls++;
+        }
+        processInput(-1);
+    }
+    if (SOLVER_AGAIN_PROFILE && stepProfile) {
+        stepProfile.again_passes += pass;
+    }
+    return pass;
+}
+
 //PUZZLESCRIPT_SOLVER_NOOP_PROBE=1: measure (without acting on it) how a
 //candidate E1 no-op predicate would perform. For each direction step, check
 //whether every player's move-target cell is occupied by a non-background
@@ -3566,7 +3584,14 @@ function replaySolutionOnCurrentCompiledState(game, levelIndex, solution) {
         }
         activePlayerPositionsCache = null;
         loadLevelFromState(state, levelIndex, solverLevelSeed(game, levelIndex));
-        if (textMode || titleScreen || (state.levels[levelIndex] && state.levels[levelIndex].message !== undefined)) {
+        drainStartupAgainForSolver();
+        if (state.levels[levelIndex] && state.levels[levelIndex].message !== undefined && curlevel === levelIndex) {
+            return { status: 'skipped_message', steps: 0 };
+        }
+        if (curlevel !== levelIndex || titleScreen) {
+            return { status: 'solved', steps: 0 };
+        }
+        if (textMode) {
             return { status: 'skipped_message', steps: 0 };
         }
         for (let index = 0; index < solution.length; index++) {
@@ -3954,8 +3979,20 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
     activePlayerPositionsCache = null;
     const loadStart = performance.now();
     loadLevelFromState(state, levelIndex, seed);
+    drainStartupAgainForSolver();
     result.load_ms = performance.now() - loadStart;
-    if (textMode || titleScreen || (state.levels[levelIndex] && state.levels[levelIndex].message !== undefined)) {
+    if (state.levels[levelIndex] && state.levels[levelIndex].message !== undefined && curlevel === levelIndex) {
+        result.status = 'skipped_message';
+        return result;
+    }
+    // Startup rules + drained again may complete the level with no player input.
+    if (curlevel !== levelIndex || titleScreen) {
+        result.status = 'solved';
+        result.solution = [];
+        result.elapsed_ms = performance.now() - loadStart;
+        return result;
+    }
+    if (textMode) {
         result.status = 'skipped_message';
         return result;
     }
@@ -5718,6 +5755,7 @@ module.exports = {
     runCorpus,
     totals,
     compileGameFile,
+    drainStartupAgainForSolver,
     replaySolutionOnCurrentCompiledState,
     replaySolutionOnGameFile,
     __solverSearchInternals: {

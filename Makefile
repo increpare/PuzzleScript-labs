@@ -1348,6 +1348,7 @@ tests_js:
 	$(NODE) src/tests/solver_novelty_node.js
 	$(NODE) src/tests/solver_push_space_node.js
 	$(NODE) src/tests/solver_random_replay_node.js
+	$(NODE) src/tests/solver_startup_again_drain_node.js
 	$(NODE) src/tests/compare_solver_timeout_curve_json_node.js
 
 static_analysis_tests:
