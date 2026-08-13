@@ -40,8 +40,54 @@ function generateSpriteMatrix(dat) {
     return result;
 }
 
+function spriteMatrixIs5x5(spritematrix) {
+    if (spritematrix.length !== 5) {
+        return false;
+    }
+    for (let i = 0; i < 5; i++) {
+        if (spritematrix[i].length !== 5) {
+            return false;
+        }
+    }
+    return true;
+}
+
 let debugMode;
 let colorPalette;
+
+//substitutes synonyms and splices in same-kind references in each entry of dict
+//(properties expand properties, aggregates expand aggregates); a cross-kind
+//reference (in conflictingDict) is an error.  Returns whether anything changed.
+function expandLegendDictEntries(dict, synonymsDict, conflictingDict, kindName, conflictingKindName) {
+    let modified = false;
+    const dict_keys = Object.keys(dict);
+    const dict_keys_l = dict_keys.length;
+    for (let k_i = 0; k_i < dict_keys_l; k_i++) {
+        const n = dict_keys[k_i];
+        let values = dict[n];
+        for (let i = 0; i < values.length; i++) {
+            let value = values[i];
+            if (value in synonymsDict) {
+                values[i] = synonymsDict[value];
+                modified = true;
+            } else if (value in dict) {
+                values.splice(i, 1);
+                let newvalues = dict[value];
+                for (let j = 0; j < newvalues.length; j++) {
+                    let newvalue = newvalues[j];
+                    if (!values.includes(newvalue)) {
+                        values.push(newvalue);
+                    }
+                }
+                modified = true;
+            }
+            if (value in conflictingDict) {
+                logError('Trying to define ' + kindName + ' "' + n.toUpperCase() + '" in terms of ' + conflictingKindName + ' "' + value.toUpperCase() + '".');
+            }
+        }
+    }
+    return modified;
+}
 
 function generateExtraMembers(state) {
 
@@ -159,7 +205,7 @@ function generateExtraMembers(state) {
                 [0, 0, 0, 0, 0]
             ];
         } else {
-            if (o.spritematrix.length !== 5 || o.spritematrix[0].length !== 5 || o.spritematrix[1].length !== 5 || o.spritematrix[2].length !== 5 || o.spritematrix[3].length !== 5 || o.spritematrix[4].length !== 5) {
+            if (!spriteMatrixIs5x5(o.spritematrix)) {
                 logWarning("Sprite graphics must be 5 wide and 5 high exactly.", o.lineNumber);
             }
             o.spritematrix = generateSpriteMatrix(o.spritematrix);
@@ -183,7 +229,7 @@ function generateExtraMembers(state) {
             let dat = state.legend_synonyms[i];
             let key = dat[0];
             let val = dat[1];
-            if ((!(key in glyphDict) || (glyphDict[key] === undefined)) && (glyphDict[val] !== undefined)) {
+            if ((glyphDict[key] === undefined) && (glyphDict[val] !== undefined)) {
                 added = true;
                 glyphDict[key] = glyphDict[val];
                 glyphOrder.push([dat.lineNumber, key]);
@@ -273,7 +319,31 @@ function generateExtraMembers(state) {
     }
     state.synonymsDict = synonymsDict;
 
-    resolveDictionaryCrossReferences(synonymsDict, propertiesDict, aggregatesDict);
+    let modified = true;
+    while (modified) {
+        modified = false;
+
+        const synonymsDict_keys = Object.keys(synonymsDict);
+        const synonymsDict_keys_l = synonymsDict_keys.length;   
+        for (let k_i = 0; k_i < synonymsDict_keys_l; k_i++) {
+            const n = synonymsDict_keys[k_i];
+            let value = synonymsDict[n];
+            if (value in propertiesDict) {
+                delete synonymsDict[n];
+                propertiesDict[n] = propertiesDict[value];
+                modified = true;
+            } else if (value in aggregatesDict) {
+                delete aggregatesDict[n];
+                aggregatesDict[n] = aggregatesDict[value];
+                modified = true;
+            } else if (value in synonymsDict) {
+                synonymsDict[n] = synonymsDict[value];
+            }            
+        }
+
+        modified = expandLegendDictEntries(propertiesDict, synonymsDict, aggregatesDict, "property", "aggregate") || modified;
+        modified = expandLegendDictEntries(aggregatesDict, synonymsDict, propertiesDict, "aggregate", "property") || modified;
+    }
 
     /* determine which properties specify objects all on one layer */
     state.propertiesSingleLayer = {};
@@ -306,89 +376,7 @@ function generateExtraMembers(state) {
         logError('You need to have some objects defined');
     }
 
-    resolveBackgroundObject(state);
-}
-
-function resolveDictionaryCrossReferences(synonymsDict, propertiesDict, aggregatesDict) {
-    let modified = true;
-    while (modified) {
-        modified = false;
-
-        const synonymsDict_keys = Object.keys(synonymsDict);
-        const synonymsDict_keys_l = synonymsDict_keys.length;
-        for (let k_i = 0; k_i < synonymsDict_keys_l; k_i++) {
-            const n = synonymsDict_keys[k_i];
-            let value = synonymsDict[n];
-            if (value in propertiesDict) {
-                delete synonymsDict[n];
-                propertiesDict[n] = propertiesDict[value];
-                modified = true;
-            } else if (value in aggregatesDict) {
-                delete aggregatesDict[n];
-                aggregatesDict[n] = aggregatesDict[value];
-                modified = true;
-            } else if (value in synonymsDict) {
-                synonymsDict[n] = synonymsDict[value];
-            }
-        }
-
-        const propertiesDict_keys = Object.keys(propertiesDict);
-        const propertiesDict_keys_l = propertiesDict_keys.length;
-        for (let k_i = 0; k_i < propertiesDict_keys_l; k_i++) {
-            const n = propertiesDict_keys[k_i];
-            let values = propertiesDict[n];
-            for (let i = 0; i < values.length; i++) {
-                let value = values[i];
-                if (value in synonymsDict) {
-                    values[i] = synonymsDict[value];
-                    modified = true;
-                } else if (value in propertiesDict) {
-                    values.splice(i, 1);
-                    let newvalues = propertiesDict[value];
-                    for (let j = 0; j < newvalues.length; j++) {
-                        let newvalue = newvalues[j];
-                        if (values.indexOf(newvalue) === -1) {
-                            values.push(newvalue);
-                        }
-                    }
-                    modified = true;
-                }
-                if (value in aggregatesDict) {
-                    logError('Trying to define property "' + n.toUpperCase() + '" in terms of aggregate "' + value.toUpperCase() + '".');
-                }
-            }
-        }
-
-        const aggregatesDict_keys = Object.keys(aggregatesDict);
-        const aggregatesDict_keys_l = aggregatesDict_keys.length;
-        for (let k_i = 0; k_i < aggregatesDict_keys_l; k_i++) {
-            const n = aggregatesDict_keys[k_i];
-            let values = aggregatesDict[n];
-            for (let i = 0; i < values.length; i++) {
-                let value = values[i];
-                if (value in synonymsDict) {
-                    values[i] = synonymsDict[value];
-                    modified = true;
-                } else if (value in aggregatesDict) {
-                    values.splice(i, 1);
-                    let newvalues = aggregatesDict[value];
-                    for (let j = 0; j < newvalues.length; j++) {
-                        let newvalue = newvalues[j];
-                        if (values.indexOf(newvalue) === -1) {
-                            values.push(newvalue);
-                        }
-                    }
-                    modified = true;
-                }
-                if (value in propertiesDict) {
-                    logError('Trying to define aggregate "' + n.toUpperCase() + '" in terms of property "' + value.toUpperCase() + '".');
-                }
-            }
-        }
-    }
-}
-
-function resolveBackgroundObject(state) {
+    //set default background object
     let backgroundid;
     let backgroundlayer;
     if (state.objects.background === undefined) {
@@ -447,6 +435,7 @@ function levelFromString(state, level) {
     let o = new Level(level[0], level[1].length, level.length - 1, state.collisionLayers.length, null);
     o.objects = new Int32Array(o.width * o.height * STRIDE_OBJ);
 
+    // A level typically reuses few distinct glyphs, so build each glyph's bitvec on demand.
     let glyphMaskCache = {};
     for (let i = 0; i < o.width; i++) {
         for (let j = 0; j < o.height; j++) {
@@ -459,7 +448,6 @@ function levelFromString(state, level) {
             let maskint = glyphMaskCache[ch];
             if (maskint === undefined) {
                 let mask = state.glyphDict[ch];
-
                 if (mask === undefined) {
                     if (state.propertiesDict[ch] === undefined) {
                         logError('Error, symbol "' + ch + '", used in map, not found.', level[0] + j);
@@ -524,30 +512,31 @@ function levelsToArray(state) {
     state.levels = processedLevels;
 }
 
+function cellRowHasRelativeDir(cellRow) {
+    for (let j = 0; j < cellRow.length; j++) {
+        let cell = cellRow[j];
+        for (let k = 0; k < cell.length; k += 2) {
+            if (relativeDirections_set.has(cell[k])) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 function directionalRule(rule) {
     for (let i = 0; i < rule.lhs.length; i++) {
         let cellRow = rule.lhs[i];
         if (cellRow.length > 1) {
             return true;
         }
-        for (let j = 0; j < cellRow.length; j++) {
-            let cell = cellRow[j];
-            for (let k = 0; k < cell.length; k += 2) {
-                if (relativeDirections_set.has(cell[k])) {
-                    return true;
-                }
-            }
+        if (cellRowHasRelativeDir(cellRow)) {
+            return true;
         }
     }
     for (let i = 0; i < rule.rhs.length; i++) {
-        let cellRow = rule.rhs[i];
-        for (let j = 0; j < cellRow.length; j++) {
-            let cell = cellRow[j];
-            for (let k = 0; k < cell.length; k += 2) {
-                if (relativeDirections_set.has(cell[k])) {
-                    return true;
-                }
-            }
+        if (cellRowHasRelativeDir(rule.rhs[i])) {
+            return true;
         }
     }
     return false;
@@ -598,7 +587,7 @@ function processRuleString(rule, state, curRules) {
     let lineNumber = rule[1];
     let origLine = rule[2];
 
-    if (String(origLine).indexOf('(') >= 0 && String(line).indexOf('->') === -1) {
+    if (String(origLine).includes('(') && !String(line).includes('->')) {
         logError("You can't have comments inside rules, sorry. In PuzzleScript, '(' starts a comment, so everything after the first '(' on this line was ignored before your rule was parsed.", lineNumber);
         return null;
     }
@@ -653,7 +642,7 @@ function processRuleString(rule, state, curRules) {
         }
     }
 
-    if (tokens.indexOf('->') === -1) {
+    if (!tokens.includes('->')) {
         logError("A rule has to have an arrow in it.  There's no arrow here! Consider reading up about rules - you're clearly doing something weird", lineNumber);
     }
 
@@ -784,7 +773,7 @@ function processRuleString(rule, state, curRules) {
                         } else {
                             rhs = true;
                         }
-                    } else if (state.namesSet.has(token)) {
+                    } else if (state.names.has(token)) {
                         if (!incellrow) {
                             logWarning("Invalid token " + token.toUpperCase() + ". Object names should only be used within cells (square brackets).", lineNumber);
                         } else {
@@ -793,11 +782,9 @@ function processRuleString(rule, state, curRules) {
                             for (let j = 0; j < curcell.length; j += 2) {
                                 if (curcell[j + 1] === token) {
                                     if (curcell[j] === 'no' && incomingModifier === 'no') {
-                                        //"no X ... no X" is redundant but not contradictory - the cell
-                                        //means the same thing with the duplicate removed
-                                        logWarning(`You're specifying "no ${token}" more than once in a single cell. That's redundant (but harmless) - you can remove one.`, lineNumber);
+                                        logWarning(`I notice that you have NO ${token.toUpperCase()} more than once in a single cell. That's redundant innit.`, lineNumber);
                                     } else {
-                                        logError(`You cannot specify the same object more than once in a single cell (in this case ${token} occurs multiple times).`, lineNumber);
+                                        logError(`You cannot specify the same object more than once in a single cell (in this case ${token.toUpperCase()} occurs multiple times).`, lineNumber);
                                         if (token in state.propertiesDict){
                                             logWarningNoLine(`( However, noticing that you're committing this crime with <i>properties</i>, and not being able to help but acknowledge that you <i>may</i> be trying to do something esoteric and <i>clever</i> with the property inference system,  I might be brought to suggest that you consider this: you can have multiple equivalent properties with different names. )`);
                                         }
@@ -1108,13 +1095,184 @@ function trimSuperfluousLHSNegations(state, rule){
 }
 
 function checkSuperfluousCoincidences(state,rules){
-	const rules_l = rules.length;
-	for (let i=0;i<rules_l;i++){
-		let rule = rules[i];
-		checkRHSConflicts(state, rule);
-		removeRedundantRHSNegations(rule);
-		trimSuperfluousLHSNegations(state, rule);
-	}
+
+    /*
+First, let's check for 'X no X' on the RHS.
+    */
+// check that that we don't have an object on one layer required, and at the same time
+// 'no X' where x is also on that layer - it's   "no wall" and player in the same cell - for then "no wall" is
+// superfluous.
+// for each rule
+
+    //first, find a list of layers where we *know* something has to be
+    let required_layers = new BitVec(Math.ceil(LAYER_COUNT/32)|0);
+    let required_objects = new BitVec(STRIDE_OBJ);
+    let objects_present_mask = new BitVec(STRIDE_OBJ);
+    let no_object_layer_mask = new BitVec(Math.ceil(LAYER_COUNT/32)|0);
+
+    const rules_l = rules.length;
+    for (let i=0;i<rules_l;i++){
+        let rule = rules[i];
+
+        // First do a RHS check - you shouldn't have something amounting to
+        // X no X on the RHS. (even if the engine does it internally a lot later)
+        const rhs_len = rule.rhs.length;
+        for (let j=0;j<rhs_len;j++){
+            let rhs_group = rule.rhs[j];
+            const rhs_group_len = rhs_group.length;
+            for (let k=0;k<rhs_group_len;k++){
+                let cell = rhs_group[k];
+                let objects_present = [];
+                objects_present_mask.setZero();
+                for (let l=0;l<cell.length;l+=2){
+                    let item = cell[l];
+                    if (!item.startsWith("no")){
+                        let no_name = cell[l+1];
+                        //properties (single-layer or not) are deliberately not added to the present mask
+                        if (state.objects.hasOwnProperty(no_name)){
+                            objects_present.push(no_name);
+                            objects_present_mask.ibitset(state.objects[no_name].id);
+                        }
+                    }
+                }
+                //for each 'no' object
+                for (let l=0;l<cell.length;l+=2){
+                    let item = cell[l];
+                    if (item.startsWith("no")){
+                        let no_name = cell[l+1];
+                        let no_name_mask = state.objectMasks[no_name];
+
+                        //if no_name overlaps with any objects_present, then we have a problem.
+                        if (no_name_mask.anyBitsInCommon(objects_present_mask)){
+                            logError(`You have specified that there should be NO ${no_name.toUpperCase()} but there is also a requirement that ${objects_present.join(", ").toUpperCase()} be here.  This is a mistake right?`, rule.lineNumber);
+                        }
+                    }
+                }
+
+            }
+        }
+
+        //secondly, for all 'no X' on the LHS, can remove any corresponding verbatim 'no X' on the RHS.
+        for (let j=0;j<rhs_len;j++){
+            let rhs_group = rule.rhs[j];
+            const rhs_group_len = rhs_group.length;
+            for (let k=0;k<rhs_group_len;k++){
+                let cell = rhs_group[k];
+                for (let l=0;l<cell.length;l+=2){
+                    let item = cell[l];
+                    if (item.startsWith("no")){
+                        let no_name = cell[l+1];
+                        //look for a 'no X' on the LHS in the same position
+                        const lhs_cell = rule.lhs[j][k];
+                        for (let m=0;m<lhs_cell.length;m+=2){
+                            if (lhs_cell[m].startsWith("no") && lhs_cell[m+1] === no_name){
+                                //we have a match - remove the 'no X' from the LHS
+                                cell.splice(l,2);
+                                break;
+                            }
+                        }
+
+                    }
+                }
+            }
+        }
+    
+
+
+        // thirdly, trim unnecessary 'no X's on the LHS - e.g. [ player no wall ]
+
+        const lhs_len = rule.lhs.length;
+        for (let j=0;j<lhs_len;j++){
+            let lhs_group = rule.lhs[j];
+            const lhs_group_len = lhs_group.length; 
+            for (let k=0;k<lhs_group_len;k++){
+                let cell = lhs_group[k];
+                // cell is an array of pairs - it looks like:
+                // ["", "player", "no", "wall", "", "target"]
+
+                required_layers.setZero();
+                required_objects.setZero();
+
+                let occupier={};
+                for (let l=0;l<cell.length;l+=2){
+                    let entity_modifier = cell[l];
+                    if (entity_modifier==="no"){
+                        continue;
+                    }
+                    let entity_name = cell[l+1]
+                    //if it's a single-layer property
+                    if (state.propertiesSingleLayer.hasOwnProperty(entity_name)){
+                        let layer = state.propertiesSingleLayer[entity_name];
+                        required_layers.ibitset(layer);
+                        let property_obs = state.propertiesDict[entity_name];
+                        const property_obs_len = property_obs.length;
+                        for (let m=0;m<property_obs_len;m++){
+                            const object_name = property_obs[m];
+                            const object_data = state.objects[object_name];
+                            required_objects.ibitset(object_data.id);
+                        }
+                        occupier[layer]=entity_name;
+                    } else if (state.objects.hasOwnProperty(entity_name)){
+                        let layer = state.objects[entity_name].layer;
+                        let ob_id = state.objects[entity_name].id;
+                        required_layers.ibitset(layer);
+                        required_objects.ibitset(ob_id);
+                        occupier[layer]=entity_name;
+                    } else if (state.aggregatesDict.hasOwnProperty(entity_name)){
+                        let aggregate_obs = state.aggregatesDict[entity_name];
+                        for (let m=0;m<aggregate_obs.length;m++){
+                            let object_info = state.objects[aggregate_obs[m]];
+                            let layer = object_info.layer;
+                            let ob_id = object_info.id;
+                            required_layers.ibitset(layer);
+                            required_objects.ibitset(ob_id);
+                            occupier[layer]=entity_name;
+                        }
+                    }
+                }
+
+                
+                //find all objects qualified by 'no'
+                for (let l=0;l<cell.length;l+=2){
+                    let item = cell[l];
+                    if (item.startsWith("no")){
+                        let no_name = cell[l+1]
+                        let remove = false;
+                        if (!state.objectMasks.hasOwnProperty(no_name)){
+                            continue;//error, should have been caught earlier - e.g. You cannot use 'no' to exclude the aggregate objec
+                        }
+                        let no_object_mask = state.objectMasks[no_name];
+                        no_object_layer_mask.setZero();
+                        for (let m=0;m<state.layerMasks.length;m++){
+                            if (state.layerMasks[m].anyBitsInCommon(no_object_mask)){
+                                no_object_layer_mask.ibitset(m);
+                            }
+                        }                        
+
+                        const object_layers_disjoint = !no_object_mask.anyBitsInCommon(required_objects);
+                        const no_object_covered_by_required_layers = no_object_layer_mask.bitsSetInArray(required_layers.data);      
+
+                        if (no_object_covered_by_required_layers && object_layers_disjoint){
+
+                            const obs_present = [];
+                            const layers_present = [];
+                            for (let m=0;m<state.layerMasks.length;m++){
+                                if (occupier[m]){
+                                    obs_present.push(occupier[m]);
+                                    layers_present.push(m);
+                                }
+                            }
+                            logWarning(`You have specified that there should be NO ${no_name.toUpperCase()} but there is also a requirement that ${obs_present.join(", ").toUpperCase()} be there, which collectively occupies the same layers (Layers ${layers_present.map(l=>l+1).join(", ")}), so you can leave this out.`, rule.lineNumber);
+                            cell.splice(l,2);
+                            l-=2;
+                        }
+                    }
+                }                
+            }
+        }
+    }
+
+
 }
 
 function rulesToArray(state) {
@@ -1175,6 +1333,7 @@ function rulesToArray(state) {
         let rule = rules[i];
         let ruledirs = rule.directions;
         for (let j = 0; j < ruledirs.length; j++) {
+            //processRuleString already expanded direction aggregates, so dir is always concrete here
             let dir = ruledirs[j];
             let modifiedrule = deepCloneRule(rule);
             modifiedrule.direction = dir;
@@ -2233,6 +2392,17 @@ function getCoalescingPlan(state, rule, ambiguousProperties) {
     return { skippable: {}, hasRewriteTerm: false };
 }
 
+//entries are flat arrays, so a per-entry slice is a deep-enough copy
+function cloneReplacementDict(src) {
+    const result = {};
+    const keys = Object.keys(src);
+    const keys_l = keys.length;
+    for (let k_i = 0; k_i < keys_l; k_i++) {
+        const key = keys[k_i];
+        result[key] = src[key].slice();
+    }
+    return result;
+}
 
 function concretizePropertyRule(state, rule, lineNumber) {
 
@@ -2247,7 +2417,7 @@ function concretizePropertyRule(state, rule, lineNumber) {
             let properties_r = getPropertiesFromCell(state, row_r[k]);
             for (let prop_n = 0; prop_n < properties_r.length; prop_n++) {
                 let property = properties_r[prop_n];
-                if (properties_l.indexOf(property) === -1) {
+                if (!properties_l.includes(property)) {
                     ambiguousProperties[property] = true;
                 }
             }
@@ -2306,16 +2476,7 @@ function concretizePropertyRule(state, rule, lineNumber) {
                         for (let l = 0; l < aliases.length; l++) {
                             let concreteType = aliases[l];
                             let newrule = deepCloneRule(cur_rule);
-                            newrule.propertyReplacement = {};
-                            if (cur_rule.propertyReplacement){
-                                const cur_rule_propertyReplacement_keys = Object.keys(cur_rule.propertyReplacement);
-                                const cur_rule_propertyReplacement_keys_l = cur_rule_propertyReplacement_keys.length;
-                                for (let k_i = 0; k_i < cur_rule_propertyReplacement_keys_l; k_i++) {
-                                    const prop = cur_rule_propertyReplacement_keys[k_i];
-                                    const propDat = cur_rule.propertyReplacement[prop];
-                                    newrule.propertyReplacement[prop] = [propDat[0], propDat[1]];                                
-                                }
-                            }
+                            newrule.propertyReplacement = cur_rule.propertyReplacement ? cloneReplacementDict(cur_rule.propertyReplacement) : {};
 
                             concretizePropertyInCell(newrule.lhs[j][k], property, concreteType);
                             if (newrule.rhs.length > 0) {
@@ -2360,8 +2521,7 @@ function concretizePropertyRule(state, rule, lineNumber) {
                 for (let j = 0; j < cur_rule.rhs.length; j++) {
                     let cellRow_rhs = cur_rule.rhs[j];
                     for (let k = 0; k < cellRow_rhs.length; k++) {
-                        let cell = cellRow_rhs[k];
-                        concretizePropertyInCell(cell, property, concreteType);
+                        concretizePropertyInCell(cellRow_rhs[k], property, concreteType);
                     }
                 }
             }
@@ -2449,7 +2609,7 @@ function makeSpawnedObjectsStationary(state, rule, lineNumber) {
                     continue;
                 }
                 let name = cell[l + 1];
-                if (name in state.propertiesDict || objects_l.indexOf(name) >= 0) {
+                if (name in state.propertiesDict || objects_l.includes(name)) {
                     continue;
                 }
                 let spawnedObject = state.objects[name];
@@ -2457,7 +2617,7 @@ function makeSpawnedObjectsStationary(state, rule, lineNumber) {
                     continue;
                 }
                 let r_layer = spawnedObject.layer;
-                if (layers.indexOf(r_layer) === -1) {
+                if (!layers.includes(r_layer)) {
                     cell[l] = 'stationary';
                 }
             }
@@ -2503,28 +2663,8 @@ function concretizeMovingRule(state, rule, lineNumber) {
                             let newrule = deepCloneRule(cur_rule);
 
                             //deep copy replacements
-                            newrule.movingReplacement = {};
-
-                            if(cur_rule.movingReplacement){
-                                const cur_rule_movingReplacement_keys = Object.keys(cur_rule.movingReplacement);
-                                const cur_rule_movingReplacement_keys_l = cur_rule_movingReplacement_keys.length;
-                                for (let k_i = 0; k_i < cur_rule_movingReplacement_keys_l; k_i++) {
-                                    const moveTerm = cur_rule_movingReplacement_keys[k_i];
-                                    let moveDat = cur_rule.movingReplacement[moveTerm];
-                                    newrule.movingReplacement[moveTerm] = [moveDat[0], moveDat[1], moveDat[2], moveDat[3], moveDat[4], moveDat[5]];                            
-                                }
-                            }
-
-                            newrule.aggregateDirReplacement = {};
-                            if (cur_rule.aggregateDirReplacement){
-                                const cur_rule_aggregateDirReplacement_keys = Object.keys(cur_rule.aggregateDirReplacement);
-                                const cur_rule_aggregateDirReplacement_keys_l = cur_rule_aggregateDirReplacement_keys.length;
-                                for (let k_i = 0; k_i < cur_rule_aggregateDirReplacement_keys_l; k_i++) {
-                                    const moveTerm = cur_rule_aggregateDirReplacement_keys[k_i];
-                                    let moveDat = cur_rule.aggregateDirReplacement[moveTerm];
-                                    newrule.aggregateDirReplacement[moveTerm] = [moveDat[0], moveDat[1], moveDat[2]];                            
-                                }
-                            }
+                            newrule.movingReplacement = cur_rule.movingReplacement ? cloneReplacementDict(cur_rule.movingReplacement) : {};
+                            newrule.aggregateDirReplacement = cur_rule.aggregateDirReplacement ? cloneReplacementDict(cur_rule.aggregateDirReplacement) : {};
 
                             concretizeMovingInCell(newrule.lhs[j][k], ambiguous_dir, cand_name, concreteDirection);
                             if (newrule.rhs.length > 0) {
@@ -2568,26 +2708,23 @@ function concretizeMovingRule(state, rule, lineNumber) {
         //for each property replacement in that rule
 
         const cur_rule_movingReplacement_keys = Object.keys(cur_rule.movingReplacement);
-        if (cur_rule.movingReplacement){
-            const cur_rule_movingReplacement_keys_l = cur_rule_movingReplacement_keys.length;
-            for (let k_i = 0; k_i < cur_rule_movingReplacement_keys_l; k_i++) {
-                const moveTerm = cur_rule_movingReplacement_keys[k_i];
-                let replacementInfo = cur_rule.movingReplacement[moveTerm];
-                let concreteMovement = replacementInfo[0];
-                let occurrenceCount = replacementInfo[1];
-                let ambiguousMovement = replacementInfo[2];
-                let ambiguousMovement_attachedObject = replacementInfo[3];
+        const cur_rule_movingReplacement_keys_l = cur_rule_movingReplacement_keys.length;
+        for (let k_i = 0; k_i < cur_rule_movingReplacement_keys_l; k_i++) {
+            const moveTerm = cur_rule_movingReplacement_keys[k_i];
+            let replacementInfo = cur_rule.movingReplacement[moveTerm];
+            let concreteMovement = replacementInfo[0];
+            let occurrenceCount = replacementInfo[1];
+            let ambiguousMovement = replacementInfo[2];
+            let ambiguousMovement_attachedObject = replacementInfo[3];
 
-                if (occurrenceCount === 1) {
-                    //do the replacement
-                    for (let j = 0; j < cur_rule.rhs.length; j++) {
-                        let cellRow_rhs = cur_rule.rhs[j];
-                        for (let k = 0; k < cellRow_rhs.length; k++) {
-                            let cell = cellRow_rhs[k];
-                            concretizeMovingInCell(cell, ambiguousMovement, ambiguousMovement_attachedObject, concreteMovement);
-                        }
+            if (occurrenceCount === 1) {
+                //do the replacement
+                for (let j = 0; j < cur_rule.rhs.length; j++) {
+                    let cellRow_rhs = cur_rule.rhs[j];
+                    for (let k = 0; k < cellRow_rhs.length; k++) {
+                        concretizeMovingInCell(cellRow_rhs[k], ambiguousMovement, ambiguousMovement_attachedObject, concreteMovement);
                     }
-                }        
+                }
             }
         }
 
@@ -2780,27 +2917,18 @@ function absolutifyRuleCell(forward, cell) {
         }
     }
 }
-/*
-    direction mask
-    UP parseInt('%1', 2);
-    DOWN parseInt('0', 2);
-    LEFT parseInt('0', 2);
-    RIGHT parseInt('0', 2);
-    ?  parseInt('', 2);
-
-*/
 
 const dirMasks = {
-    'up': parseInt('00001', 2),
-    'down': parseInt('00010', 2),
-    'left': parseInt('00100', 2),
-    'right': parseInt('01000', 2),
-    'moving': parseInt('01111', 2),
-    'no': parseInt('00011', 2),
-    'randomdir': parseInt('00101', 2),
-    'random': parseInt('10010', 2),
-    'action': parseInt('10000', 2),
-    '': parseInt('00000', 2)
+    'up': 0b00001,
+    'down': 0b00010,
+    'left': 0b00100,
+    'right': 0b01000,
+    'moving': 0b01111,
+    'no': 0b00011,
+    'randomdir': 0b00101,
+    'random': 0b10010,
+    'action': 0b10000,
+    '': 0b00000
 };
 
 function dirToMovementMasks(dir) {
@@ -3094,7 +3222,7 @@ function rulesToMask(state) {
 
                         state.rules.splice(ruleIndex, 1);
                         ruleIndex--;
-                        continue;
+                        continue outerloop;
                     }
                 }
 
@@ -4105,7 +4233,6 @@ function arrangeRulesByGroupNumber(state) {
 function generateRigidGroupList(state) {
     let rigidGroupIndex_to_GroupIndex = [];
     let groupIndex_to_RigidGroupIndex = [];
-    let groupNumber_to_GroupIndex = [];
     let groupNumber_to_RigidGroupIndex = [];
     let rigidGroups = [];
     for (let i = 0; i < state.rules.length; i++) {
@@ -4120,7 +4247,6 @@ function generateRigidGroupList(state) {
         rigidGroups[i] = rigidFound;
         if (rigidFound) {
             let groupNumber = ruleset[0].groupNumber;
-            groupNumber_to_GroupIndex[groupNumber] = i;
             let rigid_group_index = rigidGroupIndex_to_GroupIndex.length;
             groupIndex_to_RigidGroupIndex[i] = rigid_group_index;
             groupNumber_to_RigidGroupIndex[groupNumber] = rigid_group_index;
@@ -4138,22 +4264,11 @@ function generateRigidGroupList(state) {
     state.groupIndex_to_RigidGroupIndex = groupIndex_to_RigidGroupIndex;
 }
 
-function legendContainsName(legendArray, name) {
-    if (legendArray === undefined) return false;
-    for (let i = 0; i < legendArray.length; i++) {
-        if (legendArray[i][0] === name) return true;
-    }
-    return false;
-}
-
 function isObjectDefined(state, name) {
-    return name in state.objects ||
+    return wordAlreadyDeclared(state, name) !== null ||
         (state.aggregatesDict !== undefined && (name in state.aggregatesDict)) ||
         (state.propertiesDict !== undefined && (name in state.propertiesDict)) ||
-        (state.synonymsDict !== undefined && (name in state.synonymsDict)) ||
-        legendContainsName(state.legend_aggregates, name) ||
-        legendContainsName(state.legend_properties, name) ||
-        legendContainsName(state.legend_synonyms, name);
+        (state.synonymsDict !== undefined && (name in state.synonymsDict));
 }
 
 function getMaskFromName(state, name) {
@@ -4303,7 +4418,8 @@ function checkObjectsAreLayered(state) {
 }
 
 function isInt(value) {
-    return !isNaN(value) && (function (x) { return (x | 0) === x; })(parseFloat(value))
+    const x = parseFloat(value);
+    return !isNaN(value) && (x | 0) === x;
 }
 
 function twiddleMetaData(state) {
@@ -4521,11 +4637,9 @@ function printRules(state) {
             // we should skip past them
             // (e.g. https://www.puzzlescript.net/editor.html?hack=7e521a3c8d22f5dc5643ad5852f6cd22)
             if (loopIndex + 1 < state.loops.length) {
-                let nextLoop = state.loops[loopIndex + 1];
                 let loopEnd = state.loops[loopIndex + 2];
                 while (loopIndex + 1 < state.loops.length && loopEnd[0] < rule.lineNumber) {
                     loopIndex += 2;
-                    nextLoop = state.loops[loopIndex + 1];
                     loopEnd = state.loops[loopIndex + 2];
                 }
             }
@@ -4664,14 +4778,14 @@ function generateLoopPoints(state) {
 }
 
 let soundDirectionIndicatorMasks = {
-    'up': parseInt('00001', 2),
-    'down': parseInt('00010', 2),
-    'left': parseInt('00100', 2),
-    'right': parseInt('01000', 2),
-    'horizontal': parseInt('01100', 2),
-    'vertical': parseInt('00011', 2),
-    'orthogonal': parseInt('01111', 2),
-    '___action____': parseInt('10000', 2)
+    'up': 0b00001,
+    'down': 0b00010,
+    'left': 0b00100,
+    'right': 0b01000,
+    'horizontal': 0b01100,
+    'vertical': 0b00011,
+    'orthogonal': 0b01111,
+    '___action____': 0b10000
 };
 
 function generateSoundData(state) {
@@ -4955,7 +5069,7 @@ function loadFile(str) {
     ensureNameMembershipSets(state);
     levelsToArray(state);
     rulesToArray(state);
-    if (state.invalid > 0) {
+    if (state.invalid) {
         return null;
     }
 
@@ -5011,8 +5125,8 @@ function loadFile(str) {
 
 
 function addSpecializedFunctions(state) {
-    const OBJECT_SIZE = Math.ceil(state.objectCount / 32);
-    const MOVEMENT_SIZE = Math.ceil(state.collisionLayers.length / 5);
+    const OBJECT_SIZE = state.STRIDE_OBJ;
+    const MOVEMENT_SIZE = state.STRIDE_MOV;
     state.moveEntitiesAtIndex = generate_moveEntitiesAtIndex(OBJECT_SIZE, MOVEMENT_SIZE);
     state.calculateRowColMasks = generate_calculateRowColMasks(OBJECT_SIZE, MOVEMENT_SIZE);
     state.resolveMovements = generate_resolveMovements(OBJECT_SIZE, MOVEMENT_SIZE,state);
@@ -5074,19 +5188,13 @@ function compile(command, text, randomseed) {
 
 
     if (errorCount > 0) {
-        if (IDE === false) {
-            if (state === null) {
-                consoleError('<span class="systemMessage">Errors detected during compilation; I can\'t salvage anything playable from it.  If this is an older game, and you think it just broke because of recent changes in the puzzlescript engine, please consider dropping an email to analytic@gmail.com with a link to the game and I\'ll try make sure it\'s back working ASAP.</span>');
-            } else {
-                consoleError('<span class="systemMessage">Errors detected during compilation; the game may not work correctly. If this is an older game, and you think it just broke because of recent changes in the puzzlescript engine, please consider dropping an email to analytic@gmail.com with a link to the game and I\'ll try make sure it\'s back working ASAP.</span>');
-            }
-        } else {
-            if (state === null) {
-                consoleError('<span class="systemMessage">Errors detected during compilation; I can\'t salvage anything playable from it.</span>');
-            } else {
-                consoleError('<span class="systemMessage">Errors detected during compilation; the game may not work correctly.</span>');
-            }
-        }
+        const summary = state === null
+            ? 'Errors detected during compilation; I can\'t salvage anything playable from it.'
+            : 'Errors detected during compilation; the game may not work correctly.';
+        const advice = IDE === false
+            ? '  If this is an older game, and you think it just broke because of recent changes in the puzzlescript engine, please consider dropping an email to analytic@gmail.com with a link to the game and I\'ll try make sure it\'s back working ASAP.'
+            : '';
+        consoleError('<span class="systemMessage">' + summary + advice + '</span>');
         if (errorCount > MAX_ERRORS) {
             return;
         }
@@ -5115,6 +5223,9 @@ function compile(command, text, randomseed) {
 
     if (state !== null) {//otherwise error
         setGameState(state, command, randomseed);
+        if (IDE) {
+            updateFocusBorderColour(state.bgcolor);
+        }
     }
 
     clearInputHistory();
@@ -5145,19 +5256,19 @@ function manage_compilation_caches() {
     }
 
     // CACHE_CELLPATTERN_MATCHFUNCTION is a Map, so use .size and .clear()
-    if (CACHE_CELLPATTERN_MATCHFUNCTION.size > 10000) {
+    if (CACHE_CELLPATTERN_MATCHFUNCTION.size > 100000) {
         CACHE_CELLPATTERN_MATCHFUNCTION.clear();
     }
 
-    evictObjCacheIfOversized(CACHE_MOVEENTITIESATINDEX, 200);
-    evictObjCacheIfOversized(CACHE_CALCULATEROWCOLMASKS, 200);
-    evictObjCacheIfOversized(CACHE_RULE_CELLROWMATCHESFUNCTION, 1000);
-    evictObjCacheIfOversized(CACHE_CELLPATTERN_REPLACEFUNCTION, 200);
-    evictObjCacheIfOversized(CACHE_MATCHCELLROW, 200);
-    evictObjCacheIfOversized(CACHE_MATCHCELLROWWILDCARD, 200);
-    evictObjCacheIfOversized(CACHE_RULE_APPLYAT, 200);
-    evictObjCacheIfOversized(CACHE_RESOLVEMOVEMENTS, 200);
-    evictObjCacheIfOversized(CACHE_RULE_FINDMATCHES, 200);
+    evictObjCacheIfOversized(CACHE_MOVEENTITIESATINDEX, 5000);
+    evictObjCacheIfOversized(CACHE_CALCULATEROWCOLMASKS, 5000);
+    evictObjCacheIfOversized(CACHE_RULE_CELLROWMATCHESFUNCTION, 100000);
+    evictObjCacheIfOversized(CACHE_CELLPATTERN_REPLACEFUNCTION, 50000);
+    evictObjCacheIfOversized(CACHE_MATCHCELLROW, 5000);
+    evictObjCacheIfOversized(CACHE_MATCHCELLROWWILDCARD, 5000);
+    evictObjCacheIfOversized(CACHE_RULE_APPLYAT, 5000);
+    evictObjCacheIfOversized(CACHE_RESOLVEMOVEMENTS, 5000);
+    evictObjCacheIfOversized(CACHE_RULE_FINDMATCHES, 5000);
 }
 
 

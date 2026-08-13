@@ -6412,7 +6412,7 @@ function FastBase64_Encode(src) {
   var dst = '';
   var i = 0;
   while (len > 2) {
-    var n = (src[i] << 16) | (src[i + 1] << 8) | src[i + 2];
+    n = (src[i] << 16) | (src[i + 1] << 8) | src[i + 2];
     dst += FastBase64_encLookup[n >> 12] + FastBase64_encLookup[n & 0xFFF];
     len -= 3;
     i += 3;
@@ -8847,12 +8847,35 @@ function showContinueOptionOnTitleScreen() {
 	return (curlevel > 0 || curlevelTarget !== null) && (curlevel in state.levels);
 }
 
+function hasLoadedGame() {
+	return state !== introstate && state.levels.length > 0;
+}
+
+function gameCanvasCanReceiveInput() {
+	return !IDE || (canvas !== null && hasLoadedGame());
+}
+
+function setGameCanvasFocusable(focusable) {
+	if (!IDE || canvas === null) {
+		return;
+	}
+	if (focusable) {
+		canvas.setAttribute("tabindex", "-1");
+	} else {
+		canvas.blur();
+		canvas.removeAttribute("tabindex");
+		lastDownTarget = null;
+		keybuffer = [];
+	}
+}
+
 function unloadGame() {
 	if (levelEditorOpened){
 		printLevel();
 	}
 	levelEditorOpened = false;
 	state = introstate;
+	setGameCanvasFocusable(hasLoadedGame());
 	level = new Level(0, 5, 5, 2, null);
 	level.objects = new Int32Array(0);
 	generateTitleScreen();
@@ -9043,7 +9066,7 @@ function generateTitleScreen() {
 	for (let i=0;i<layout_rows.menu_options.length;i++){
 
 		let cur_row = layout_rows.menu_options[i];
-		if (cur_row.indexOf('---') !== -1){
+		if (cur_row.includes('---')){
 			selection_row = titleImage.length;
 		}
 
@@ -9502,6 +9525,7 @@ function setGameState(_state, command, randomseed) {
 	RandomGen = new RNG(randomseed);
 
 	state = _state;
+	setGameCanvasFocusable(hasLoadedGame());
 
 	if (command[0] !== "rebuild") {
 		backups = [];
@@ -10175,7 +10199,7 @@ function repositionEntitiesOnLayer(positionIndex, layer, dirMask) {
 		if (objectMask.anyBitsInCommon(sourceMask)) {
 			let movementMask = level.getMovements(positionIndex);
 			let directionMask = o.directionMask;
-			if (movementMask.anyBitsInCommon(directionMask) && seedsToPlay_CanMove.indexOf(o.seed) === -1) {
+			if (movementMask.anyBitsInCommon(directionMask) && !seedsToPlay_CanMove.includes(o.seed)) {
 				seedsToPlay_CanMove.push(o.seed);
 			}
 		}
@@ -10760,6 +10784,7 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 		return FALSE_FUNCTION;
 	}
 
+	const rigidGroupIndex = rule.rigid ? (state.groupNumber_to_RigidGroupIndex[rule.groupNumber] + 1) : 0;
 	const hasCoupledReplacements = this.replacement.layerCoupledMovementReplacements.length > 0;
 	const hasInferredAggregateBindings = this.replacement.inferredAggregateBindings.length > 0;
 	const hasInferredPropertyBindings = this.replacement.inferredPropertyBindings.length > 0;
@@ -10810,8 +10835,8 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 			+ (hasInferredAggregateBindings ? ",a" : "")
 			+ (hasInferredPropertyBindings ? ",p" : "")
 			+ (hasInferredPropertySources ? ",s" : "")
-			+ ",lc" + LAYER_COUNT
-			+ (rule.rigid ? ",rg" + (state.groupNumber_to_RigidGroupIndex[rule.groupNumber] | 0) : "");
+			+ ",lc" + level.layerCount
+			+ (rule.rigid ? ",rg" + rigidGroupIndex : "");
 	}
 	if (key in CACHE_CELLPATTERN_REPLACEFUNCTION) {
 		return CACHE_CELLPATTERN_REPLACEFUNCTION[key];
@@ -11039,7 +11064,7 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 		let curRigidMovementAppliedMask;
 		let rigidchange=false;		
 		${IF_LAZY(rule.rigid,()=>`
-			const rigidGroupIndex = ${state.groupNumber_to_RigidGroupIndex[rule.groupNumber]+1};
+			const rigidGroupIndex = ${rigidGroupIndex};
 			const rigidMask = new BitVec(${STRIDE_MOV});
 			${FOR(0,level.layerCount,layer=>`
 				${ISHIFTOR("rigidMask", "rigidGroupIndex", layer * 5)}
@@ -11059,7 +11084,7 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 		`)}
 		
 		if (${EQUALS("oldCellMask", "curCellMask", OBJECT_SIZE)} 
-			&& ${MOVEMENT_WORDS_EQUAL("oldMovement", "curMovementMask", MOVEMENT_SIZE)}
+			&& ${MOVEMENT_WORDS_EQUAL("oldMovement", "curMovementMask", MOVEMENT_SIZE)} 
 			&& !rigidchange) { 
 			//nothing changed
 			return false;
@@ -11606,8 +11631,8 @@ Rule.prototype.queueCommands = function () {
 	}
 
 	//commandQueue is an array of strings, message.commands is an array of array of strings (For messagetext parameter), so I search through them differently
-	let preexisting_cancel = level.commandQueue.indexOf("cancel") >= 0;
-	let preexisting_restart = level.commandQueue.indexOf("restart") >= 0;
+	let preexisting_cancel = level.commandQueue.includes("cancel");
+	let preexisting_restart = level.commandQueue.includes("restart");
 
 	let currule_cancel = false;
 	let currule_restart = false;
@@ -11640,7 +11665,7 @@ Rule.prototype.queueCommands = function () {
 	for (let i = 0; i < this.commands.length; i++) {
 		const command = this.commands[i];
 		let already = false;
-		if (level.commandQueue.indexOf(command[0]) >= 0) {
+		if (level.commandQueue.includes(command[0])) {
 			continue;
 		}
 		level.commandQueue.push(command[0]);
@@ -11738,6 +11763,60 @@ function applyRandomRuleGroup(level, ruleGroup) {
 let _lastGroupWriteObjects = null;
 let _lastGroupWriteMovements = null;
 
+const WAKE_PRUNE_COUNTER_FIELDS = [
+    'apply_rule_group_calls',
+    'apply_rule_group_loops',
+    'rule_checks',
+    'certified_rule_checks',
+    'uncertified_rule_checks',
+    'movement_zero_checks',
+    'certified_movement_overlap_checks',
+    'certified_movement_overlap_hits',
+    'object_overlap_checks',
+    'object_overlap_hits',
+    'try_apply_calls',
+    'certified_try_apply_calls',
+    'rule_changes',
+    'certified_rule_changes',
+    'skips',
+    'certified_skips',
+    'skip_loop_breaks',
+    'try_fail_loop_breaks',
+    'certified_write_updates',
+    'uncertified_write_updates',
+];
+let _wakePruneCounters = null;
+
+function createWakePruneCounterRecord() {
+    const counters = {};
+    for (let i = 0; i < WAKE_PRUNE_COUNTER_FIELDS.length; i++) {
+        counters[WAKE_PRUNE_COUNTER_FIELDS[i]] = 0;
+    }
+    return counters;
+}
+
+function wakePruneCountersEnabled() {
+    return typeof process !== 'undefined' && process.env
+        && process.env.PUZZLESCRIPT_WAKE_PRUNE_COUNTERS === '1';
+}
+
+function resetWakePruneCounters() {
+    _wakePruneCounters = createWakePruneCounterRecord();
+    return _wakePruneCounters;
+}
+
+function getWakePruneCounters() {
+    if (_wakePruneCounters === null) {
+        resetWakePruneCounters();
+    }
+    const snapshot = {};
+    for (let i = 0; i < WAKE_PRUNE_COUNTER_FIELDS.length; i++) {
+        const field = WAKE_PRUNE_COUNTER_FIELDS[i];
+        snapshot[field] = _wakePruneCounters[field] || 0;
+    }
+    return snapshot;
+}
+
 function inputSpecializedRuleGroup(ruleGroup) {
     return inputSpecializationActive
         && ruleGroup.inputSpecializationUseful === true
@@ -11829,35 +11908,110 @@ function applyRuleGroup(ruleGroup) {
 
     _lastGroupWriteObjects.setZero();
     _lastGroupWriteMovements.setZero();
+    const CERTIFIED_WAKE_PRUNE = typeof process !== 'undefined' && process.env
+        && process.env.PUZZLESCRIPT_CERTIFIED_WAKE_PRUNE === '1';
+    const wakePruneCounters = wakePruneCountersEnabled() ? (_wakePruneCounters || resetWakePruneCounters()) : null;
+    if (wakePruneCounters) {
+        wakePruneCounters.apply_rule_group_calls++;
+    }
 
     while (madeChangeThisLoop && loopcount++ < MAX_LOOP_COUNT) {
         madeChangeThisLoop = false;
         nextObjects.setZero();
         nextMovements.setZero();
         let consecutiveFailures = 0;
+        if (wakePruneCounters) {
+            wakePruneCounters.apply_rule_group_loops++;
+        }
 
         for (let ruleIndex = 0; ruleIndex < GROUP_LENGTH; ruleIndex++) {
             const rule = activeRuleGroup[ruleIndex];
             const PRUNE_INNER_LOOP = !(typeof process !== 'undefined' && process.env
                 && process.env.PUZZLESCRIPT_INCREMENTAL_PRUNE === '0');
-            if (PRUNE_INNER_LOOP
-                && !rule.forceAlwaysRun
-                && rule.readMovements.iszero()
-                && !rule.readObjects.anyBitsInCommon(priorObjects)) {
+            const useCertifiedWakeMasks = CERTIFIED_WAKE_PRUNE
+                && rule.hasCertifiedWakePruneMasks === true
+                && rule.certifiedReadMovements
+                && rule.certifiedWriteMovements;
+            const readMovements = useCertifiedWakeMasks ? rule.certifiedReadMovements : rule.readMovements;
+            let readMovementsCannotWake;
+            if (wakePruneCounters) {
+                wakePruneCounters.rule_checks++;
+                if (useCertifiedWakeMasks) {
+                    wakePruneCounters.certified_rule_checks++;
+                    wakePruneCounters.certified_movement_overlap_checks++;
+                    const movementWake = readMovements.anyBitsInCommon(priorMovements);
+                    if (movementWake) {
+                        wakePruneCounters.certified_movement_overlap_hits++;
+                    }
+                    readMovementsCannotWake = !movementWake;
+                } else {
+                    wakePruneCounters.uncertified_rule_checks++;
+                    wakePruneCounters.movement_zero_checks++;
+                    readMovementsCannotWake = readMovements.iszero();
+                }
+            } else {
+                readMovementsCannotWake = useCertifiedWakeMasks
+                    ? !readMovements.anyBitsInCommon(priorMovements)
+                    : readMovements.iszero();
+            }
+            let skipRule = false;
+            if (PRUNE_INNER_LOOP && !rule.forceAlwaysRun && readMovementsCannotWake) {
+                const objectWake = rule.readObjects.anyBitsInCommon(priorObjects);
+                if (wakePruneCounters) {
+                    wakePruneCounters.object_overlap_checks++;
+                    if (objectWake) {
+                        wakePruneCounters.object_overlap_hits++;
+                    }
+                }
+                skipRule = !objectWake;
+            }
+            if (skipRule) {
+                if (wakePruneCounters) {
+                    wakePruneCounters.skips++;
+                    if (useCertifiedWakeMasks) {
+                        wakePruneCounters.certified_skips++;
+                    }
+                }
                 consecutiveFailures++;
-                if (consecutiveFailures === GROUP_LENGTH) break;
+                if (consecutiveFailures === GROUP_LENGTH) {
+                    if (wakePruneCounters) {
+                        wakePruneCounters.skip_loop_breaks++;
+                    }
+                    break;
+                }
                 continue;
+            }
+            if (wakePruneCounters) {
+                wakePruneCounters.try_apply_calls++;
+                if (useCertifiedWakeMasks) {
+                    wakePruneCounters.certified_try_apply_calls++;
+                }
             }
             if (rule.tryApply(level)) {
                 madeChangeThisLoop = true;
                 consecutiveFailures = 0;
+                const writeMovements = useCertifiedWakeMasks ? rule.certifiedWriteMovements : rule.writeMovements;
+                if (wakePruneCounters) {
+                    wakePruneCounters.rule_changes++;
+                    if (useCertifiedWakeMasks) {
+                        wakePruneCounters.certified_rule_changes++;
+                        wakePruneCounters.certified_write_updates++;
+                    } else {
+                        wakePruneCounters.uncertified_write_updates++;
+                    }
+                }
                 nextObjects.ior(rule.writeObjects);
-                nextMovements.ior(rule.writeMovements);
+                nextMovements.ior(writeMovements);
                 _lastGroupWriteObjects.ior(rule.writeObjects);
-                _lastGroupWriteMovements.ior(rule.writeMovements);
+                _lastGroupWriteMovements.ior(writeMovements);
             } else {
                 consecutiveFailures++;
-                if (consecutiveFailures === GROUP_LENGTH) break;
+                if (consecutiveFailures === GROUP_LENGTH) {
+                    if (wakePruneCounters) {
+                        wakePruneCounters.try_fail_loop_breaks++;
+                    }
+                    break;
+                }
             }
         }
 
@@ -12017,12 +12171,12 @@ function generate_resolveMovements(OBJECT_SIZE, MOVEMENT_SIZE,state) {
 					for (let j=0;j<state.sfx_MovementFailureMasks.length;j++) {
 						let o = state.sfx_MovementFailureMasks[j];
 						let objectMask = o.objectMask;
-
-						if (${ANY_BITS_IN_COMMON("cellMask", "objectMask", OBJECT_SIZE)}
-						&& ${ANY_BITS_IN_COMMON("o.directionMask","movementMask", MOVEMENT_SIZE)}
-						&& seedsToPlay_CantMove.indexOf(o.seed)===-1) {
-							seedsToPlay_CantMove.push(o.seed);
-						}
+			
+						if (${ANY_BITS_IN_COMMON("cellMask", "objectMask", OBJECT_SIZE)} 
+						&& ${ANY_BITS_IN_COMMON("o.directionMask","movementMask", MOVEMENT_SIZE)} 
+					&& !seedsToPlay_CantMove.includes(o.seed)) {
+						seedsToPlay_CantMove.push(o.seed);
+					}
 					}
 				`)}
 
@@ -12082,19 +12236,19 @@ function processInput(dir, dontDoWin, dontModify, skipAgainProbe) {
 	if (dir >= 0) {
 		switch (dir) {
 			case 0: // up
-				dir = parseInt('00001', 2);
+				dir = 0b00001;
 				break;
 			case 1: // left
-				dir = parseInt('00100', 2);
+				dir = 0b00100;
 				break;
 			case 2: // down
-				dir = parseInt('00010', 2);
+				dir = 0b00010;
 				break;
 			case 3: // right
-				dir = parseInt('01000', 2);
+				dir = 0b01000;
 				break;
 			case 4: // action
-				dir = parseInt('10000', 2);
+				dir = 0b10000;
 				break;
 		}
 		playerPositions = startMovement(dir);
@@ -12173,12 +12327,12 @@ function processInput(dir, dontDoWin, dontModify, skipAgainProbe) {
 				ts += bannedLineNumbers.map(ln => `<a onclick="jumpToLine(${ln});" href="javascript:void(0);">${ln}</a>`).join(", ");
 				consolePrint(`Rigid movement application failed in rule-Group starting from ${ts}, and will be disabled in resimulation. Rolling back...`);
 			}
-				level.objects = new Int32Array(startState.objects);
-				level.movements = new Int32Array(startState.movements);
-				level.rigidGroupIndexMask = startState.rigidGroupIndexMask.concat([]);
-				level.rigidMovementAppliedMask = startState.rigidMovementAppliedMask.concat([]);
-				level.commandQueue = startState.commandQueue.concat([]);
-				level.commandQueueSourceRules = startState.commandQueueSourceRules.concat([]);
+				level.objects.set(startState.objects);
+				level.movements.set(startState.movements);
+				level.rigidGroupIndexMask = startState.rigidGroupIndexMask.slice();
+				level.rigidMovementAppliedMask = startState.rigidMovementAppliedMask.slice();
+				level.commandQueue = startState.commandQueue.slice();
+				level.commandQueueSourceRules = startState.commandQueueSourceRules.slice();
 				if (level.solverZobristRecompute) {
 					level.solverZobristRecompute();
 				}
@@ -12431,7 +12585,7 @@ function checkWin(dontDoWin, solverFastPath) {
 		dontDoWin = true;
 	}
 
-	if (level.commandQueue.indexOf('win') >= 0) {
+	if (level.commandQueue.includes('win')) {
 		if (runrulesonlevelstart_phase) {
 			consolePrint("Win Condition Satisfied (However this is in the run_rules_on_level_start rule pass, so I'm going to ignore it for you.  Why would you want to complete a level before it's already started?!)");
 		} else {
@@ -12693,8 +12847,40 @@ for post-launch credits, check out activty on github.com/increpare/PuzzleScript
 
 
 const MAX_ERRORS_FOR_REAL = 100;
-const TOKEN_MESSAGE = -4;
-const TOKEN_NO_PARAMS = -1;
+
+//hoisted out of the tokenizer so they're not re-allocated per token
+const reg_whitespace_equals_line = /^[\p{Z}\s=]*$/u;
+const reg_objectname_midline = /[^\p{Z}\s\()]+[\p{Z}\s]*/u;
+const reg_legend_lhs_name = /[^=\p{Z}\s\(]*(\p{Z}\s)*/u;
+const reg_equals_sign = /=/u;
+const reg_whitespace_only = /[\p{Z}\s]*/u;
+const reg_rule_arrow = /[\p{Z}\s]*->[\p{Z}\s]*/u;
+const reg_rule_part = /[^\[\|\]\p{Z}\s]*/u;
+const reg_single_word = /[\p{Z}\s]*[\p{L}\p{N}_]+[\p{Z}\s]*/u;
+const reg_message_verb = /[\p{Z}\s]*message\b[\p{Z}\s]*/u;
+const reg_message_verb_nospace = /[\p{Z}\s]*message[\p{Z}\s]*/u;
+const reg_hexcolor = /#[0-9a-fA-F]+/;
+const metadata_with_value = ['title', 'author', 'homepage', 'background_color', 'text_color', 'key_repeat_interval', 'realtime_interval', 'again_interval', 'flickscreen', 'zoomscreen', 'color_palette', 'youtube'];
+const metadata_no_value = ['run_rules_on_level_start', 'norepeat_action', 'require_player_movement', 'debug', 'verbose_logging', 'throttle_movement', 'noundo', 'noaction', 'norestart', 'scanline'];
+const metadata_with_value_set = new Set(metadata_with_value);
+const metadata_no_value_set = new Set(metadata_no_value);
+const reg_ascii_lower_word = /^[a-z0-9_]+$/;
+const reg_non_ascii = /[^\x00-\x7F]/;
+
+function ensureNameMembershipSets(state) {
+    if (!(state.names instanceof Set)) {
+        state.names = new Set(Array.isArray(state.names) ? state.names : []);
+    }
+    if (!(state.abbrevNames instanceof Set)) {
+        state.abbrevNames = new Set(Array.isArray(state.abbrevNames) ? state.abbrevNames : []);
+    }
+    if (!(state.namesSet instanceof Set)) {
+        state.namesSet = new Set(state.names);
+    }
+    if (!(state.abbrevNamesSet instanceof Set)) {
+        state.abbrevNamesSet = new Set(state.abbrevNames);
+    }
+}
 
 let compiling = false;
 let errorStrings = [];//also stores warning strings
@@ -12720,105 +12906,67 @@ function buildErrorHtml(lineNumber, str, className) {
     return '<a onclick="jumpToLine(' + ln + ');"  href="javascript:void(0);"><span class="errorTextLineNumber"> line ' + ln + '</span></a> : ' + '<span class="' + c + '">' + str + '</span>';
 }
 
-function logErrorCacheable(str, lineNumber, urgent) {
+function logIssue(str, lineNumber, urgent, className, countsAsError, printUrgent, cacheUrgent) {
     if (compiling || urgent) {
-        if (lineNumber === undefined) {
-            return logErrorNoLine(str, urgent);
-        }
-        const errorString = buildErrorHtml(lineNumber, str, 'errorText');
-        //unlike logError, duplicates are dropped even for urgent messages - "cacheable"
-        //callers are per-turn loop-guard diagnostics that would otherwise grow
-        //errorStrings by one copy per turn until TooManyErrors() aborts the session
-        //(urgent here only means "show during play, not just while compiling").
-        if (errorStrings.indexOf(errorString) >= 0) {
+        const errorString = buildErrorHtml(lineNumber, str, className);
+        if (errorStrings.includes(errorString) && (!urgent || cacheUrgent)) {
             //do nothing, duplicate error
         } else {
-            consolePrint(errorString);
+            consolePrint(errorString, printUrgent);
             errorStrings.push(errorString);
-            errorCount++;
+            if (countsAsError) {
+                errorCount++;
+            }
             if (errorStrings.length > MAX_ERRORS_FOR_REAL) {
                 TooManyErrors();
             }
         }
     }
+}
+
+function logErrorCacheable(str, lineNumber, urgent) {
+    if (lineNumber === undefined) {
+        return logErrorNoLine(str, urgent);
+    }
+    // Cacheable errors are often emitted by per-turn loop guards. Repeated urgent
+    // copies would otherwise exhaust MAX_ERRORS_FOR_REAL during play.
+    logIssue(str, lineNumber, urgent, 'errorText', true, false, true);
 }
 
 function logError(str, lineNumber, urgent) {
-    if (compiling || urgent) {
-        if (lineNumber === undefined) {
-            return logErrorNoLine(str, urgent);
-        }
-        const errorString = buildErrorHtml(lineNumber, str, 'errorText')
-        if (errorStrings.indexOf(errorString) >= 0 && !urgent) {
-            //do nothing, duplicate error
-        } else {
-            consolePrint(errorString, true);
-            errorStrings.push(errorString);
-            errorCount++;
-            if (errorStrings.length > MAX_ERRORS_FOR_REAL) {
-                TooManyErrors();
-            }
-        }
+    if (lineNumber === undefined) {
+        return logErrorNoLine(str, urgent);
     }
+    logIssue(str, lineNumber, urgent, 'errorText', true, true);
 }
 
 function logWarning(str, lineNumber, urgent) {
-    if (compiling || urgent) {
-        if (lineNumber === undefined) {
-            return logWarningNoLine(str, urgent);
-        }
-        const errorString = buildErrorHtml(lineNumber, str, 'warningText');
-        if (errorStrings.indexOf(errorString) >= 0 && !urgent) {
-            //do nothing, duplicate error
-        } else {
-            consolePrint(errorString, true);
-            errorStrings.push(errorString);
-            if (errorStrings.length > MAX_ERRORS_FOR_REAL) {
-                TooManyErrors();
-            }
-        }
+    if (lineNumber === undefined) {
+        return logWarningNoLine(str, urgent);
     }
+    logIssue(str, lineNumber, urgent, 'warningText', false, true);
 }
 
 function logWarningNoLine(str, urgent) {
-    if (compiling || urgent) {
-        const errorString = '<span class="warningText">' + str + '</span>';
-        if (errorStrings.indexOf(errorString) >= 0 && !urgent) {
-            //do nothing, duplicate error
-        } else {
-            consolePrint(errorString, true);
-            errorStrings.push(errorString);
-            errorCount++;
-            if (errorStrings.length > MAX_ERRORS_FOR_REAL) {
-                TooManyErrors();
-            }
-        }
-    }
+    // countsAsError: arguably a bug (warnings incrementing errorCount), but test expectations depend on it
+    logIssue(str, undefined, urgent, 'warningText', true, true);
 }
 
-
 function logErrorNoLine(str, urgent) {
-    if (compiling || urgent) {
-        const errorString = '<span class="errorText">' + str + '</span>';
-        if (errorStrings.indexOf(errorString) >= 0 && !urgent) {
-            //do nothing, duplicate error
-        } else {
-            consolePrint(errorString, true);
-            errorStrings.push(errorString);
-            errorCount++;
-            if (errorStrings.length > MAX_ERRORS_FOR_REAL) {
-                TooManyErrors();
-            }
+    logIssue(str, undefined, urgent, 'errorText', true, true);
+}
+
+function pushNewBlankLevel(state) {
+    if (state.section === 'levels') {
+        if (state.levels[state.levels.length - 1].length > 0) {
+            state.levels.push([]);
         }
     }
 }
 
 function blankLineHandle(state) {
-    if (state.section === 'levels') {
-        if (state.levels[state.levels.length - 1].length > 0) {
-            state.levels.push([]);
-        }
-    } else if (state.section === 'objects') {
+    pushNewBlankLevel(state);
+    if (state.section === 'objects') {
         state.objects_section = 0;
     }
 }
@@ -12851,81 +12999,70 @@ function wordAlreadyDeclared(state, n) {
     return null;
 }
 
+//looks up what the legend knows about a name, following synonym chains.
+//returns [{type: ]'object'/'aggregate'/'property'/'undeclared', name, entry}, where
+//name is the (lowercased) end of the synonym chain and entry is the matched
+//legend entry for aggregates/properties.
+function lookupLegendName(state, n) {
+    n = n.toLowerCase();
+    if (n in state.objects) {
+        return { type: 'object', name: n };
+    }
+    for (let i = 0; i < state.legend_synonyms.length; i++) {
+        let a = state.legend_synonyms[i];
+        if (a[0] === n) {
+            return lookupLegendName(state, a[1]);
+        }
+    }
+    for (let i = 0; i < state.legend_aggregates.length; i++) {
+        let a = state.legend_aggregates[i];
+        if (a[0] === n) {
+            return { type: 'aggregate', name: n, entry: a };
+        }
+    }
+    for (let i = 0; i < state.legend_properties.length; i++) {
+        let a = state.legend_properties[i];
+        if (a[0] === n) {
+            return { type: 'property', name: n, entry: a };
+        }
+    }
+    return { type: 'undeclared', name: n };
+}
 
-//for IE support
-if (typeof Object.assign !== 'function') {
-    (function () {
-        Object.assign = function (target) {
-            'use strict';
-            // We must check against these specific cases.
-            if (target === undefined || target === null) {
-                throw new TypeError('Cannot convert undefined or null to object');
-            }
-
-            let output = Object(target);
-            for (let index = 1; index < arguments.length; index++) {
-                let source = arguments[index];
-                if (source !== undefined && source !== null) {
-                    for (let nextKey in source) {
-                        if (source.hasOwnProperty(nextKey)) {
-                            output[nextKey] = source[nextKey];
-                        }
-                    }
-                }
-            }
-            return output;
-        };
-    })();
+//flattens a property entry to objects, skipping self-references
+//(an error for those is emitted elsewhere - cf 'You can't define object' / #789)
+function flattenPropertyEntry(n, a, substitutor) {
+    let result = [];
+    for (let j = 1; j < a.length; j++) {
+        if (a[j] !== n) {
+            result.push(...substitutor(a[j]));
+        }
+    }
+    return result;
 }
 
 
-const reg_ascii_lower_word = /^[a-z0-9_]+$/;
-const reg_non_ascii = /[^\x00-\x7F]/;
 
-const metadata_with_value_set = new Set(['title', 'author', 'homepage', 'background_color', 'text_color', 'key_repeat_interval', 'realtime_interval', 'again_interval', 'flickscreen', 'zoomscreen', 'color_palette', 'youtube']);
-const metadata_no_value_set = new Set(['run_rules_on_level_start', 'norepeat_action', 'require_player_movement', 'debug', 'verbose_logging', 'throttle_movement', 'noundo', 'noaction', 'norestart', 'scanline']);
-
-function ensureNameMembershipSets(state) {
-    if (!state.namesSet) {
-        state.namesSet = new Set(Array.isArray(state.names) ? state.names : []);
+//syntax-highlighting token class for a named colour, or null if it's not one
+function colorNameToken(candcol) {
+    if (candcol in colorPalettes.arnecolors) {
+        return 'COLOR COLOR-' + candcol.toUpperCase();
+    } else if (candcol === "transparent") {
+        return 'COLOR FADECOLOR';
     }
-    if (!state.abbrevNamesSet) {
-        state.abbrevNamesSet = new Set(Array.isArray(state.abbrevNames) ? state.abbrevNames : []);
-    }
+    return null;
 }
 
 let codeMirrorFn = function () {
-    'use strict';
-
-    function checkNameDefined(state, candname) {
-        const key = candname.toLowerCase();
-        if (state.objects[key] !== undefined) {
-            return;
-        }
-        for (let i = 0; i < state.legend_synonyms.length; i++) {
-            let entry = state.legend_synonyms[i];
-            if (entry[0] === candname) {
-                return;
-            }
-        }
-        for (let i = 0; i < state.legend_aggregates.length; i++) {
-            let entry = state.legend_aggregates[i];
-            if (entry[0] === candname) {
-                return;
-            }
-        }
-        for (let i = 0; i < state.legend_properties.length; i++) {
-            let entry = state.legend_properties[i];
-            if (entry[0] === candname) {
-                return;
-            }
-        }
-
-        logError(`You're talking about ${candname.toUpperCase()} but it's not defined anywhere.`, state.lineNumber);
-    }
 
     function isAsciiWordCharCode(c) {
         return (c >= 97 && c <= 122) || (c >= 48 && c <= 57) || c === 95 || (c >= 65 && c <= 90);
+    }
+
+    function checkNameDefined(state, candname) {
+        if (wordAlreadyDeclared(state, candname) === null) {
+            logError(`You're talking about ${candname.toUpperCase()} but it's not defined anywhere.`, state.lineNumber);
+        }
     }
 
     function registerOriginalCaseName(state, candname, mixedCase, lineNumber) {
@@ -12934,9 +13071,7 @@ let codeMirrorFn = function () {
             return str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
         }
 
-        //fast path: for a plain-ASCII-word name in a plain-ASCII line (the overwhelmingly
-        //common case), an indexOf scan with word-boundary checks gives the same result as
-        //the \b regex below without compiling a RegExp per declared name
+        // Avoid compiling a RegExp for the overwhelmingly common plain-ASCII case.
         if (reg_ascii_lower_word.test(candname) && !reg_non_ascii.test(mixedCase)) {
             const lowerLine = mixedCase.toLowerCase();
             let idx = lowerLine.indexOf(candname);
@@ -13038,37 +13173,25 @@ let codeMirrorFn = function () {
             } else if (splits[3] === 'and') {
                 //AGGREGATE
                 let substitutor = function (n) {
-                    n = n.toLowerCase();
-                    if (n in state.objects) {
-                        return [n];
-                    }
-                    for (let i = 0; i < state.legend_synonyms.length; i++) {
-                        let a = state.legend_synonyms[i];
-                        if (a[0] === n) {
-                            return substitutor(a[1]);
-                        }
-                    }
-                    for (let i = 0; i < state.legend_aggregates.length; i++) {
-                        let a = state.legend_aggregates[i];
-                        if (a[0] === n) {
-                            return [].concat.apply([], a.slice(1).map(substitutor));
-                        }
-                    }
-                    for (let i = 0; i < state.legend_properties.length; i++) {
-                        let a = state.legend_properties[i];
-                        if (a[0] === n) {
+                    const found = lookupLegendName(state, n);
+                    switch (found.type) {
+                        case 'object':
+                            return [found.name];
+                        case 'aggregate':
+                            return found.entry.slice(1).map(substitutor).flat();
+                        case 'property':
                             logError("Cannot define an aggregate (using 'and') in terms of properties (something that uses 'or').", state.lineNumber);
                             ok = false;
-                            return [n];
-                        }
+                            return [found.name];
+                        default:
+                            //seems like this shouldn't be reachable?
+                            return [found.name];
                     }
-                    //seems like this shouldn't be reachable?
-                    return [n];
                 };
 
-                let newlegend = [splits[0]].concat(substitutor(splits[2])).concat(substitutor(splits[4]));
+                let newlegend = [splits[0], ...substitutor(splits[2]), ...substitutor(splits[4])];
                 for (let i = 6; i < splits.length; i += 2) {
-                    newlegend = newlegend.concat(substitutor(splits[i]));
+                    newlegend.push(...substitutor(splits[i]));
                 }
                 newlegend.lineNumber = state.lineNumber;
 
@@ -13079,41 +13202,19 @@ let codeMirrorFn = function () {
                 let malformed = false;
 
                 let substitutor = function (n) {
-
-                    n = n.toLowerCase();
-                    if (n in state.objects) {
-                        return [n];
-                    }
-
-                    for (let i = 0; i < state.legend_synonyms.length; i++) {
-                        let a = state.legend_synonyms[i];
-                        if (a[0] === n) {
-                            return substitutor(a[1]);
-                        }
-                    }
-                    for (let i = 0; i < state.legend_aggregates.length; i++) {
-                        let a = state.legend_aggregates[i];
-                        if (a[0] === n) {
-                            logError(`Cannot define a property (something defined in terms of 'or') in terms of an aggregate (something that uses 'and').  In this case, you can't define "${splits[0]}" in terms of "${n}".`, state.lineNumber);
+                    const found = lookupLegendName(state, n);
+                    switch (found.type) {
+                        case 'object':
+                            return [found.name];
+                        case 'aggregate':
+                            logError(`Cannot define a property (something defined in terms of 'or') in terms of an aggregate (something that uses 'and').  In this case, you can't define "${splits[0]}" in terms of "${found.name}".`, state.lineNumber);
                             malformed = true;
                             return [];
-                        }
+                        case 'property':
+                            return flattenPropertyEntry(found.name, found.entry, substitutor);
+                        default:
+                            return [found.name];
                     }
-                    for (let i = 0; i < state.legend_properties.length; i++) {
-                        let a = state.legend_properties[i];
-                        if (a[0] === n) {
-                            let result = [];
-                            for (let j = 1; j < a.length; j++) {
-                                if (a[j] === n) {
-                                    //error here superfluous, also detected elsewhere (cf 'You can't define object' / #789)
-                                } else {
-                                    result = result.concat(substitutor(a[j]));
-                                }
-                            }
-                            return result;
-                        }
-                    }
-                    return [n];
                 };
 
                 for (let i = 5; i < splits.length; i += 2) {
@@ -13123,7 +13224,7 @@ let codeMirrorFn = function () {
                     }
                 }
                 if (!malformed) {
-                    let newlegend = [splits[0]].concat(substitutor(splits[2])).concat(substitutor(splits[4]));
+                    let newlegend = [splits[0], ...substitutor(splits[2]), ...substitutor(splits[4])];
                     for (let i = 6; i < splits.length; i += 2) {
                         newlegend.push(splits[i].toLowerCase());
                     }
@@ -13147,11 +13248,8 @@ let codeMirrorFn = function () {
             return;
         }
         //if last entry in array is 'ERROR', do nothing
-        if (state.current_line_wip_array[state.current_line_wip_array.length - 1] === 'ERROR') {
-
-        } else {
-            //take the first component from each pair in the array
-            let soundrow = state.current_line_wip_array;//.map(function(a){return a[0];});
+        if (state.current_line_wip_array[state.current_line_wip_array.length - 1] !== 'ERROR') {
+            let soundrow = state.current_line_wip_array;
             soundrow.push(state.lineNumber);
             state.sounds.push(soundrow);
         }
@@ -13172,828 +13270,6 @@ let codeMirrorFn = function () {
 
     //  let keywordRegex = new RegExp("\\b(("+cons.join(")|(")+"))$", 'i');
 
-    let fullSpriteMatrix = [
-        '00000',
-        '00000',
-        '00000',
-        '00000',
-        '00000'
-    ];
-
-    function parseObjectsToken(stream, state, sol, mixedCase) {
-        let tryParseName = function () {
-            //LOOK FOR NAME
-            let match_name = sol ? stream.match(reg_name, true) : stream.match(/[^\p{Z}\s\()]+[\p{Z}\s]*/u, true);
-            if (match_name == null) {
-                stream.match(reg_notcommentstart, true);
-                if (stream.pos > 0) {
-                    logWarning('Unknown junk in object section (possibly: sprites have to be 5 pixels wide and 5 pixels high exactly. Or maybe: the main names for objects have to be words containing only the letters a-z0.9 - if you want to call them something like ",", do it in the legend section).', state.lineNumber);
-                }
-                return 'ERROR';
-            } else {
-                let candname = match_name[0].trim();
-                if (state.objects[candname] !== undefined) {
-                    logError('Object "' + candname.toUpperCase() + '" defined multiple times.', state.lineNumber);
-                    return 'ERROR';
-                }
-                for (let i = 0; i < state.legend_synonyms.length; i++) {
-                    let entry = state.legend_synonyms[i];
-                    if (entry[0] === candname) {
-                        logError('Name "' + candname.toUpperCase() + '" already in use.', state.lineNumber);
-                    }
-                }
-                if (keyword_array_set.has(candname)) {
-                    logWarning('You named an object "' + candname.toUpperCase() + '", but this is a keyword. Don\'t do that!', state.lineNumber);
-                }
-
-                if (sol) {
-                    state.objects_candname = candname;
-                    registerOriginalCaseName(state, candname, mixedCase, state.lineNumber);
-                    state.objects[state.objects_candname] = {
-                        lineNumber: state.lineNumber,
-                        colors: [],
-                        spritematrix: []
-                    };
-
-                } else {
-                    //set up alias
-                    registerOriginalCaseName(state, candname, mixedCase, state.lineNumber);
-                    let synonym = [candname, state.objects_candname];
-                    synonym.lineNumber = state.lineNumber;
-                    state.legend_synonyms.push(synonym);
-                }
-                state.objects_section = 1;
-                return 'NAME';
-            }
-        };
-
-        if (sol && state.objects_section === 2) {
-            state.objects_section = 3;
-        }
-
-        if (sol && state.objects_section === 1) {
-            state.objects_section = 2;
-        }
-
-        switch (state.objects_section) {
-            case 0:
-            case 1:
-                {
-                    state.objects_spritematrix = [];
-                    return tryParseName();
-                }
-            case 2:
-                {
-                    //LOOK FOR COLOR
-                    state.tokenIndex = 0;
-
-                    let match_color = stream.match(reg_color, true);
-                    if (match_color == null) {
-                        let str = stream.match(reg_name, true) || stream.match(reg_notcommentstart, true);
-                        logError('Was looking for color for object ' + state.objects_candname.toUpperCase() + ', got "' + str + '" instead.', state.lineNumber);
-                        return null;
-                    } else {
-                        if (state.objects[state.objects_candname].colors === undefined) {
-                            state.objects[state.objects_candname].colors = [match_color[0].trim()];
-                        } else {
-                            state.objects[state.objects_candname].colors.push(match_color[0].trim());
-                        }
-
-                        let candcol = match_color[0].trim().toLowerCase();
-                        if (candcol in colorPalettes.arnecolors) {
-                            return 'COLOR COLOR-' + candcol.toUpperCase();
-                        } else if (candcol === "transparent") {
-                            return 'COLOR FADECOLOR';
-                        } else {
-                            return 'MULTICOLOR' + match_color[0];
-                        }
-                    }
-                }
-            case 3:
-                {
-                    let ch = stream.eat(/[.\d]/);
-                    let spritematrix = state.objects_spritematrix;
-                    if (ch === undefined) {
-                        if (spritematrix.length === 0) {
-                            return tryParseName();
-                        }
-                        logError('Unknown junk in spritematrix for object ' + state.objects_candname.toUpperCase() + '.', state.lineNumber);
-                        stream.match(reg_notcommentstart, true);
-                        return null;
-                    }
-
-                    if (sol) {
-                        spritematrix.push('');
-                    }
-
-                    let o = state.objects[state.objects_candname];
-
-                    spritematrix[spritematrix.length - 1] += ch;
-                    if (spritematrix[spritematrix.length - 1].length > 5) {
-                        logWarning('Sprites must be 5 wide and 5 high.', state.lineNumber);
-                        stream.match(reg_notcommentstart, true);
-                        return null;
-                    }
-                    o.spritematrix = state.objects_spritematrix;
-                    if (spritematrix.length === 5 && spritematrix[spritematrix.length - 1].length === 5) {
-                        state.objects_section = 0;
-                    }
-
-                    if (ch !== '.') {
-                        let n = parseInt(ch);
-                        if (n >= o.colors.length) {
-                            logError("Trying to access color number " + n + " from the color palette of sprite " + state.objects_candname.toUpperCase() + ", but there are only " + o.colors.length + " defined in it.", state.lineNumber);
-                            return 'ERROR';
-                        }
-                        return 'COLOR BOLDCOLOR COLOR-' + o.colors[n].toUpperCase();
-                    }
-                    return 'COLOR FADECOLOR';
-                }
-            default:
-                {
-                    console.error("EEK shouldn't get here.");
-                    return null;
-                }
-        }
-    }
-
-    function parseLegendToken(stream, state, sol, mixedCase) {
-        let resultToken = "";
-        let match_name = null;
-        if (state.tokenIndex === 0) {
-            match_name = stream.match(/[^=\p{Z}\s\(]*(\p{Z}\s)*/u, true);
-            let new_name = match_name[0].trim();
-
-            if (wordAlreadyDeclared(state, new_name)) {
-                resultToken = 'ERROR';
-            } else {
-                resultToken = 'NAME';
-            }
-
-            //if name already declared, we have a problem
-            state.tokenIndex++;
-        } else if (state.tokenIndex === 1) {
-            match_name = stream.match(/=/u, true);
-            if (match_name === null || match_name[0].trim() !== "=") {
-                logError(`In the legend, define new items using the equals symbol - declarations must look like "A = B", "A = B or C [ or D ...]", "A = B and C [ and D ...]".`, state.lineNumber);
-                stream.match(reg_notcommentstart, true);
-                resultToken = 'ERROR';
-                match_name = ["ERROR"];//just to reduce the chance of crashes
-            }
-            stream.match(/[\p{Z}\s]*/u, true);
-            state.tokenIndex++;
-            resultToken = 'ASSIGNMENT';
-        } else if (state.tokenIndex >= 3 && ((state.tokenIndex % 2) === 1)) {
-            //matches AND/OR
-            match_name = stream.match(reg_name, true);
-            if (match_name === null) {
-                logError("Something bad's happening in the LEGEND", state.lineNumber);
-                let match = stream.match(reg_notcommentstart, true);
-                resultToken = 'ERROR';
-            } else {
-                let candname = match_name[0].trim();
-                if (candname === "and" || candname === "or") {
-                    resultToken = 'LOGICWORD';
-                    if (state.tokenIndex >= 5) {
-                        if (candname !== state.current_line_wip_array[3]) {
-                            logError("Hey! You can't go mixing ANDs and ORs in a single legend entry.", state.lineNumber);
-                            resultToken = 'ERROR';
-                        }
-                    }
-                } else {
-                    logError(`Expected and 'AND' or an 'OR' here, but got ${candname.toUpperCase()} instead. In the legend, define new items using the equals symbol - declarations must look like 'A = B' or 'A = B and C' or 'A = B or C'.`, state.lineNumber);
-                    resultToken = 'ERROR';
-                }
-            }
-            state.tokenIndex++;
-        }
-        else {
-            match_name = stream.match(reg_name, true);
-            if (match_name === null) {
-                logError("Something bad's happening in the LEGEND", state.lineNumber);
-                let match = stream.match(reg_notcommentstart, true);
-                resultToken = 'ERROR';
-            } else {
-                let candname = match_name[0].trim();
-                if (wordAlreadyDeclared(state, candname)) {
-                    resultToken = 'NAME';
-                } else {
-                    resultToken = 'ERROR';
-                }
-                state.tokenIndex++;
-
-            }
-        }
-
-        if (match_name !== null) {
-            state.current_line_wip_array.push(match_name[0].trim());
-        }
-
-        if (stream.eol()) {
-            processLegendLine(state, mixedCase);
-        }
-
-        return resultToken;
-    }
-
-    function parseSoundsToken(stream, state, sol, mixedCase) {
-        /*
-        SOUND DEFINITION:
-            SOUNDEVENT ~ INT (Sound events take precedence if there's name overlap)
-            OBJECT_NAME
-                NONDIRECTIONAL_VERB ~ INT
-                DIRECTIONAL_VERB
-                    INT
-                    DIR+ ~ INT
-        */
-        let tokentype = "";
-
-        if (state.current_line_wip_array.length > 0 && state.current_line_wip_array[state.current_line_wip_array.length - 1] === 'ERROR') {
-            // match=stream.match(reg_notcommentstart, true);
-            //if there was an error earlier on the line just try to do greedy matching here
-            let match = null;
-
-            //events
-            if (match === null) {
-                match = stream.match(reg_soundevents, true);
-                if (match !== null) {
-                    tokentype = 'SOUNDEVENT';
-                }
-            }
-
-            //verbs
-            if (match === null) {
-                match = stream.match(reg_soundverbs, true);
-                if (match !== null) {
-                    tokentype = 'SOUNDVERB';
-                }
-            }
-            //directions
-            if (match === null) {
-                match = stream.match(reg_sounddirectionindicators, true);
-                if (match !== null) {
-                    tokentype = 'DIRECTION';
-                }
-            }
-
-            //sound seeds
-            if (match === null) {
-                let match = stream.match(reg_soundseed, true);
-                if (match !== null) {
-                    tokentype = 'SOUND';
-                }
-            }
-
-            //objects
-            if (match === null) {
-                match = stream.match(reg_name, true);
-                if (match !== null) {
-                    if (wordAlreadyDeclared(state, match[0].trim())) {
-                        tokentype = 'NAME';
-                    } else {
-                        tokentype = 'ERROR';
-                    }
-                }
-            }
-
-            //error
-            if (match === null) {
-                match = errorFallbackMatchToken(stream);
-                tokentype = 'ERROR';
-            }
-
-
-        } else if (state.current_line_wip_array.length === 0) {
-            //can be OBJECT_NAME or SOUNDEVENT
-            let match = stream.match(reg_soundevents, true);
-            if (match == null) {
-                match = stream.match(reg_name, true);
-                if (match == null) {
-                    tokentype = 'ERROR';
-                    match = errorFallbackMatchToken(stream);
-                    state.current_line_wip_array.push("ERROR");
-                    logWarning("Was expecting a sound event (like SFX3, or ENDLEVEL) or an object name, but didn't find either.", state.lineNumber);
-                } else {
-                    let matched_name = match[0].trim();
-                    if (!wordAlreadyDeclared(state, matched_name)) {
-                        tokentype = 'ERROR';
-                        state.current_line_wip_array.push("ERROR");
-                        logError(`unexpected sound token "${matched_name}".`, state.lineNumber);
-                    } else {
-                        tokentype = 'NAME';
-                        state.current_line_wip_array.push([matched_name, tokentype]);
-                        state.tokenIndex++;
-                    }
-                }
-            } else {
-                tokentype = 'SOUNDEVENT';
-                state.current_line_wip_array.push([match[0].trim(), tokentype]);
-                state.tokenIndex++;
-            }
-
-        } else if (state.current_line_wip_array.length === 1) {
-            let is_soundevent = state.current_line_wip_array[0][1] === 'SOUNDEVENT';
-
-            if (is_soundevent) {
-                let match = stream.match(reg_soundseed, true);
-                if (match !== null) {
-                    tokentype = 'SOUND';
-                    state.current_line_wip_array.push([match[0].trim(), tokentype]);
-                    state.tokenIndex++;
-                } else {
-                    match = errorFallbackMatchToken(stream);
-                    logError("Was expecting a sound seed here (a number like 123123, like you generate by pressing the buttons above the console panel), but found something else.", state.lineNumber);
-                    tokentype = 'ERROR';
-                    state.current_line_wip_array.push("ERROR");
-                }
-            } else {
-                //[0] is object name
-                //it's a sound verb
-                let match = stream.match(reg_soundverbs, true);
-                if (match !== null) {
-                    tokentype = 'SOUNDVERB';
-                    state.current_line_wip_array.push([match[0].trim(), tokentype]);
-                    state.tokenIndex++;
-                } else {
-                    match = errorFallbackMatchToken(stream);
-                    logError("Was expecting a soundverb here (MOVE, DESTROY, CANTMOVE, or the like), but found something else.", state.lineNumber);
-                    tokentype = 'ERROR';
-                    state.current_line_wip_array.push("ERROR");
-                }
-
-            }
-        } else {
-            let is_soundevent = state.current_line_wip_array[0][1] === 'SOUNDEVENT';
-            if (is_soundevent) {
-                let match = errorFallbackMatchToken(stream);
-                logError(`I wasn't expecting anything after the sound declaration ${state.current_line_wip_array[state.current_line_wip_array.length - 1][0].toUpperCase()} on this line, so I don't know what to do with "${match[0].trim().toUpperCase()}" here.`, state.lineNumber);
-                tokentype = 'ERROR';
-                state.current_line_wip_array.push("ERROR");
-            } else {
-                //if there's a seed on the right, any additional content is superfluous
-                let is_seedonright = state.current_line_wip_array[state.current_line_wip_array.length - 1][1] === 'SOUND';
-                if (is_seedonright) {
-                    let match = errorFallbackMatchToken(stream);
-                    logError(`I wasn't expecting anything after the sound declaration ${state.current_line_wip_array[state.current_line_wip_array.length - 1][0].toUpperCase()} on this line, so I don't know what to do with "${match[0].trim().toUpperCase()}" here.`, state.lineNumber);
-                    tokentype = 'ERROR';
-                    state.current_line_wip_array.push("ERROR");
-                } else {
-                    let directional_verb = soundverbs_directional.indexOf(state.current_line_wip_array[1][0]) >= 0;
-                    if (directional_verb) {
-                        //match seed or direction
-                        let is_direction = stream.match(reg_sounddirectionindicators, true);
-                        if (is_direction !== null) {
-                            tokentype = 'DIRECTION';
-                            state.current_line_wip_array.push([is_direction[0].trim(), tokentype]);
-                            state.tokenIndex++;
-                        } else {
-                            let is_seed = stream.match(reg_soundseed, true);
-                            if (is_seed !== null) {
-                                tokentype = 'SOUND';
-                                state.current_line_wip_array.push([is_seed[0].trim(), tokentype]);
-                                state.tokenIndex++;
-                            } else {
-                                let match = errorFallbackMatchToken(stream);
-                                //depending on whether the verb is directional or not, we log different errors
-                                logError(`Ah I was expecting direction or a sound seed here after ${state.current_line_wip_array[state.current_line_wip_array.length - 1][0].toUpperCase()}, but I don't know what to make of "${match[0].trim().toUpperCase()}".`, state.lineNumber);
-                                tokentype = 'ERROR';
-                                state.current_line_wip_array.push("ERROR");
-                            }
-                        }
-                    } else {
-                        //only match seed
-                        let is_seed = stream.match(reg_soundseed, true);
-                        if (is_seed !== null) {
-                            tokentype = 'SOUND';
-                            state.current_line_wip_array.push([is_seed[0].trim(), tokentype]);
-                            state.tokenIndex++;
-                        } else {
-                            let match = errorFallbackMatchToken(stream);
-                            //depending on whether the verb is directional or not, we log different errors
-                            logError(`Ah I was expecting a sound seed here after ${state.current_line_wip_array[state.current_line_wip_array.length - 1][0].toUpperCase()}, but I don't know what to make of "${match[0].trim().toUpperCase()}".`, state.lineNumber);
-                            tokentype = 'ERROR';
-                            state.current_line_wip_array.push("ERROR");
-                        }
-                    }
-                }
-            }
-        }
-
-        if (stream.eol()) {
-            processSoundsLine(state);
-        }
-
-        return tokentype;
-    }
-
-    function parseCollisionLayersToken(stream, state, sol, mixedCase) {
-        if (sol) {
-            //create new collision layer
-            state.collisionLayers.push([]);
-            //empty current_line_wip_array
-            state.current_line_wip_array = [];
-            state.tokenIndex = 0;
-        }
-
-        let match_name = stream.match(reg_name, true);
-        if (match_name === null) {
-            //then strip spaces and commas
-            let prepos = stream.pos;
-            stream.match(reg_csv_separators, true);
-            if (stream.pos === prepos) {
-                logError("error detected - unexpected character " + stream.peek(), state.lineNumber);
-                stream.next();
-            }
-            return null;
-        } else {
-            //have a name: let's see if it's valid
-            let candname = match_name[0].trim();
-
-            let substitutor = function (n) {
-                n = n.toLowerCase();
-                if (n in state.objects) {
-                    return [n];
-                }
-
-
-                for (let i = 0; i < state.legend_synonyms.length; i++) {
-                    let a = state.legend_synonyms[i];
-                    if (a[0] === n) {
-                        return substitutor(a[1]);
-                    }
-                }
-
-                for (let i = 0; i < state.legend_aggregates.length; i++) {
-                    let a = state.legend_aggregates[i];
-                    if (a[0] === n) {
-                        logError('"' + n + '" is an aggregate (defined using "and"), and cannot be added to a single layer because its constituent objects must be able to coexist.', state.lineNumber);
-                        return [];
-                    }
-                }
-                for (let i = 0; i < state.legend_properties.length; i++) {
-                    let a = state.legend_properties[i];
-                    if (a[0] === n) {
-                        let result = [];
-                        for (let j = 1; j < a.length; j++) {
-                            if (a[j] === n) {
-                                //error here superfluous, also detected elsewhere (cf 'You can't define object' / #789)
-                            } else {
-                                result = result.concat(substitutor(a[j]));
-                            }
-                        }
-                        return result;
-                    }
-                }
-                logError('Cannot add "' + candname.toUpperCase() + '" to a collision layer; it has not been declared.', state.lineNumber);
-                return [];
-            };
-            if (candname === 'background') {
-                if (state.collisionLayers.length > 0 && state.collisionLayers[state.collisionLayers.length - 1].length > 0) {
-                    logError("Background must be in a layer by itself.", state.lineNumber);
-                }
-                state.tokenIndex = 1;
-            } else if (state.tokenIndex !== 0) {
-                logError("Background must be in a layer by itself.", state.lineNumber);
-            }
-
-            let ar = substitutor(candname);
-
-            if (state.collisionLayers.length === 0) {
-                //pre-empted by other messages
-                logError("no layers found.", state.lineNumber);
-                return 'ERROR';
-            }
-
-            let foundOthers = [];
-            let foundSelves = [];
-            for (let i = 0; i < ar.length; i++) {
-                let tcandname = ar[i];
-                for (let j = 0; j <= state.collisionLayers.length - 1; j++) {
-                    let clj = state.collisionLayers[j];
-                    if (clj.indexOf(tcandname) >= 0) {
-                        if (j !== state.collisionLayers.length - 1) {
-                            foundOthers.push(j);
-                        } else {
-                            foundSelves.push(j);
-                        }
-                    }
-                }
-            }
-            if (foundOthers.length > 0) {
-                let warningStr = 'Object "' + candname.toUpperCase() + '" included in multiple collision layers ( layers ';
-                for (let i = 0; i < foundOthers.length; i++) {
-                    warningStr += "#" + (foundOthers[i] + 1) + ", ";
-                }
-                warningStr += "#" + state.collisionLayers.length;
-                logWarning(warningStr + ' ). You should fix this!', state.lineNumber);
-            }
-
-            if (state.current_line_wip_array.indexOf(candname) >= 0) {
-                let warningStr = 'Object "' + candname.toUpperCase() + '" included explicitly multiple times in the same layer. Don\'t do that innit.';
-                logWarning(warningStr, state.lineNumber);
-            }
-            state.current_line_wip_array.push(candname);
-
-            state.collisionLayers[state.collisionLayers.length - 1] = state.collisionLayers[state.collisionLayers.length - 1].concat(ar);
-            if (ar.length > 0) {
-                return 'NAME';
-            } else {
-                return 'ERROR';
-            }
-        }
-    }
-
-    function parseRulesToken(stream, state, sol, mixedCase, ch) {
-        if (sol) {
-            let rule = reg_notcommentstart.exec(stream.string)[0];
-            state.rules.push([rule, state.lineNumber, mixedCase]);
-            state.tokenIndex = 0;//in rules, records whether bracket has been found or not
-            state.inside_cell = false;
-            state.arrow_passed = false;
-            state.bracket_balance = 0;
-            state.rule_prelude = true;
-        }
-
-        if (state.tokenIndex === TOKEN_MESSAGE) {
-            stream.skipToEnd();
-            return 'MESSAGE';
-        }
-        if (stream.match(/[\p{Z}\s]*->[\p{Z}\s]*/u, true)) {
-            state.arrow_passed = true;
-            return 'ARROW';
-        }
-        if (ch === '[' || ch === '|' || ch === ']' || ch === '+') {
-            if (ch === '[') {
-                state.inside_cell = true;
-                state.rule_prelude = false;
-            } else if (ch === ']') {
-                state.inside_cell = false;
-                //used to detect if we've reached the final ']'
-                if (state.arrow_passed) {
-                    state.bracket_balance--;
-                } else {
-                    state.bracket_balance++;
-                }
-            }
-
-            if (ch !== '+') {
-                state.tokenIndex = 1;
-            }
-            stream.next();
-            stream.match(/[\p{Z}\s]*/u, true);
-            return 'BRACKET';
-        } else {
-            let m = stream.match(/[^\[\|\]\p{Z}\s]*/u, true)[0].trim();
-
-            if (state.tokenIndex === 0 && reg_loopmarker.exec(m)) {
-                return 'BRACKET';
-            } else if (state.tokenIndex === 0 && reg_ruledirectionindicators.exec(m)) {
-                stream.match(/[\p{Z}\s]*/u, true);
-                return 'DIRECTION';
-            } else if (state.tokenIndex === 1 && reg_directions.exec(m)) {
-                stream.match(/[\p{Z}\s]*/u, true);
-                return 'DIRECTION';
-            } else {
-                if (state.namesSet.has(m)) {
-                    if (sol) {
-                        logError('Objects cannot appear outside of square brackets in rules, only directions can.', state.lineNumber);
-                        return 'ERROR';
-                    } else {
-                        stream.match(/[\p{Z}\s]*/u, true);
-                        return 'NAME';
-                    }
-                } else if (m === '...') {
-                    return 'DIRECTION';
-                } else if (m === 'rigid') {
-                    return 'DIRECTION';
-                } else if (m === 'random') {
-                    return 'DIRECTION';
-                } else if (commandwords_set.has(m)) {
-                    if (m === 'message') {
-                        state.tokenIndex = TOKEN_MESSAGE;
-                    }
-                    return 'COMMAND';
-                } else {
-                    logError('Name "' + m + '", referred to in a rule, does not exist.', state.lineNumber);
-                    return 'ERROR';
-                }
-            }
-        }
-    }
-
-    function parseWinConditionsToken(stream, state, sol, mixedCase) {
-        if (sol) {
-            let tokenized = reg_notcommentstart.exec(stream.string);
-            let splitted = tokenized[0].split(/[\p{Z}\s]/u);
-            let filtered = splitted.filter(function (v) { return v !== '' });
-            filtered.push(state.lineNumber);
-
-            state.winconditions.push(filtered);
-            state.tokenIndex = TOKEN_NO_PARAMS;
-        }
-        state.tokenIndex++;
-
-        let match = stream.match(/[\p{Z}\s]*[\p{L}\p{N}_]+[\p{Z}\s]*/u);
-        if (match === null) {
-            logError('incorrect format of win condition.', state.lineNumber);
-            stream.match(reg_notcommentstart, true);
-            return 'ERROR';
-
-        } else {
-            let candword = match[0].trim();
-            if (state.tokenIndex === 0) {
-                if (reg_winconditionquantifiers.exec(candword)) {
-                    return 'LOGICWORD';
-                }
-                else {
-                    logError('Expecting the start of a win condition ("ALL","SOME","NO") but got "' + candword.toUpperCase() + "'.", state.lineNumber);
-                    return 'ERROR';
-                }
-            }
-            else if (state.tokenIndex === 2) {
-                if (candword !== 'on') {
-                    logError('Expecting the word "ON" but got "' + candword.toUpperCase() + "\".", state.lineNumber);
-                    return 'ERROR';
-                } else {
-                    return 'LOGICWORD';
-                }
-            }
-            else if (state.tokenIndex === 1 || state.tokenIndex === 3) {
-                if (!state.namesSet.has(candword)) {
-                    logError('Error in win condition: "' + candword.toUpperCase() + '" is not a valid object name.', state.lineNumber);
-                    return 'ERROR';
-                } else {
-                    return 'NAME';
-                }
-            } else {
-                logError("Error in win condition: I don't know what to do with " + candword.toUpperCase() + ".", state.lineNumber);
-                return 'ERROR';
-            }
-        }
-    }
-
-    function parseLevelsToken(stream, state, sol, mixedCase) {
-        if (sol) {
-            if (stream.match(/[\p{Z}\s]*message\b[\p{Z}\s]*/u, true)) {
-                state.tokenIndex = TOKEN_MESSAGE;
-                let newdat = ['\n', mixedCase.slice(stream.pos).trim(), state.lineNumber];
-                if (state.levels[state.levels.length - 1].length === 0) {
-                    state.levels.splice(state.levels.length - 1, 0, newdat);
-                } else {
-                    state.levels.push(newdat);
-                }
-                return 'MESSAGE_VERB';//a duplicate of the previous section as a legacy thing for #589
-            } else if (stream.match(/[\p{Z}\s]*message[\p{Z}\s]*/u, true)) {//duplicating previous section because of #589
-                logWarning("You probably meant to put a space after 'message' innit.  That's ok, I'll still interpret it as a message, but you probably want to put a space there.", state.lineNumber);
-                state.tokenIndex = TOKEN_MESSAGE;
-                let newdat = ['\n', mixedCase.slice(stream.pos).trim(), state.lineNumber];
-                if (state.levels[state.levels.length - 1].length === 0) {
-                    state.levels.splice(state.levels.length - 1, 0, newdat);
-                } else {
-                    //don't seem to ever reach this.
-                    state.levels.push(newdat);
-                }
-                return 'MESSAGE_VERB';
-            } else {
-                let matches = stream.match(reg_notcommentstart, false);
-                if (matches === null || matches.length === 0) {
-                    //not sure if it's possible to get here.
-                    logError("Detected a comment where I was expecting a level. Oh gosh; if this is to do with you using '(' as a character in the legend, please don't do that ^^", state.lineNumber);
-                    state.commentLevel++;
-                    stream.skipToEnd();
-                    return 'comment';
-                } else {
-                    let line = matches[0].trim();
-                    state.tokenIndex = 2;
-                    let lastlevel = state.levels[state.levels.length - 1];
-                    if (lastlevel[0] === '\n') {
-                        state.levels.push([state.lineNumber, line]);
-                    } else {
-                        if (lastlevel.length === 0) {
-                            lastlevel.push(state.lineNumber);
-                        }
-                        lastlevel.push(line);
-
-                        if (lastlevel.length > 1) {
-                            if (line.length !== lastlevel[1].length) {
-                                logWarning("Maps must be rectangular, yo (In a level, the length of each row must be the same).", state.lineNumber);
-                            }
-                        }
-                    }
-                }
-            }
-        } else {
-            if (state.tokenIndex === TOKEN_MESSAGE) {
-                stream.skipToEnd();
-                return 'MESSAGE';
-            }
-        }
-
-        if (state.tokenIndex === 2 && !stream.eol()) {
-            let ch = stream.peek();
-            stream.next();
-            if (state.abbrevNamesSet.has(ch)) {
-                return 'LEVEL';
-            } else {
-                logError('Key "' + ch.toUpperCase() + '" not found. Do you need to add it to the legend, or define a new object?', state.lineNumber);
-                return 'ERROR';
-            }
-        }
-    }
-
-    function parsePreambleToken(stream, state, sol, mixedCase) {
-        if (sol || state.sol_after_comment) {
-            state.tokenIndex = 0;
-        }
-        if (state.tokenIndex === 0) {
-            let match = stream.match(/[\p{Z}\s]*[\p{L}\p{N}_]+[\p{Z}\s]*/u);
-            if (match !== null) {
-                let token = match[0].trim();
-                if (sol) {
-                    if (metadata_with_value_set.has(token)) {
-
-                        if (token === 'author' || token === 'homepage' || token === 'title') {
-                            stream.string = mixedCase;
-                        }
-
-                        if (token === "youtube") {
-                            logWarning("Unfortunately, YouTube support hasn't been working properly for a long time - it was always a hack and it hasn't gotten less hacky over time, so I can no longer pretend to support it.", state.lineNumber);
-                        }
-
-                        let m2 = stream.match(reg_notcommentstart, false);
-
-                        if (m2 !== null) {
-                            state.metadata.push(token);
-                            state.metadata.push(m2[0].trim());
-                            if (token in state.metadata_lines) {
-                                let otherline = state.metadata_lines[token];
-                                logWarning(`You've already defined a ${token.toUpperCase()} in the prelude on line <a onclick="jumpToLine(${otherline});" href="javascript:void(0);">${otherline}</a>.`, state.lineNumber);
-                            }
-                            state.metadata_lines[token] = state.lineNumber;
-                        } else {
-                            logError('MetaData "' + token + '" needs a value.', state.lineNumber);
-                        }
-                        state.tokenIndex = 1;
-                        return 'METADATA';
-                    } else if (metadata_no_value_set.has(token)) {
-                        state.metadata.push(token);
-                        state.metadata.push("true");
-                        state.tokenIndex = TOKEN_NO_PARAMS;
-
-
-                        let m2 = stream.match(reg_notcommentstart, false);
-
-                        if (m2 !== null) {
-                            let extra = m2[0].trim();
-                            logWarning('MetaData ' + token.toUpperCase() + ' doesn\'t take any parameters, but you went and gave it "' + extra + '".', state.lineNumber);
-                        }
-
-                        return 'METADATA';
-                    } else {
-                        logError('Unrecognised stuff in the prelude.', state.lineNumber);
-                        return 'ERROR';
-                    }
-                } else if (state.tokenIndex === TOKEN_NO_PARAMS) {
-                    //no idea how to get here. covered with a similar error message above.
-                    logError('MetaData "' + token + '" has no parameters.', state.lineNumber);
-                    return 'ERROR';
-                }
-                return 'METADATA';
-            } else {
-                //garbage found
-                logError(`Unrecognised stuff "${stream.string}" in the prelude.`, state.lineNumber);
-                stream.next();
-                return null;
-            }
-        } else {
-            stream.match(reg_notcommentstart, true);
-            state.tokenIndex++;
-
-            let key = state.metadata[state.metadata.length - 2];
-            let val = state.metadata[state.metadata.length - 1];
-
-            if (state.tokenIndex > 2) {
-                logWarning("Error: you can't embed comments in metadata values. Anything after the comment will be ignored.", state.lineNumber);
-                return 'ERROR';
-            }
-            if (key === "background_color" || key === "text_color") {
-                let candcol = val.trim().toLowerCase();
-                if (candcol in colorPalettes.arnecolors) {
-                    return 'COLOR COLOR-' + candcol.toUpperCase();
-                } else if (candcol === "transparent") {
-                    return 'COLOR FADECOLOR';
-                } else if ((candcol.length === 4) || (candcol.length === 7)) {
-                    let color = candcol.match(/#[0-9a-fA-F]+/);
-                    if (color !== null) {
-                        return 'MULTICOLOR' + color[0];
-                    }
-                }
-
-            }
-            return "METADATATEXT";
-        }
-    }
-
     return {
         wordChars: "puzzle",
         copyState: function (state) {
@@ -14002,16 +13278,16 @@ let codeMirrorFn = function () {
                 if (state.objects.hasOwnProperty(i)) {
                     let o = state.objects[i];
                     objectsCopy[i] = {
-                        colors: o.colors.concat([]),
+                        colors: o.colors.slice(),
                         lineNumber: o.lineNumber,
-                        spritematrix: o.spritematrix.concat([])
+                        spritematrix: o.spritematrix.slice()
                     }
                 }
             }
 
             let collisionLayersCopy = [];
             for (let i = 0; i < state.collisionLayers.length; i++) {
-                collisionLayersCopy.push(state.collisionLayers[i].concat([]));
+                collisionLayersCopy.push(state.collisionLayers[i].slice());
             }
 
             let legend_synonymsCopy = [];
@@ -14023,25 +13299,25 @@ let codeMirrorFn = function () {
             let rulesCopy = [];
 
             for (let i = 0; i < state.legend_synonyms.length; i++) {
-                legend_synonymsCopy.push(state.legend_synonyms[i].concat([]));
+                legend_synonymsCopy.push(state.legend_synonyms[i].slice());
             }
             for (let i = 0; i < state.legend_aggregates.length; i++) {
-                legend_aggregatesCopy.push(state.legend_aggregates[i].concat([]));
+                legend_aggregatesCopy.push(state.legend_aggregates[i].slice());
             }
             for (let i = 0; i < state.legend_properties.length; i++) {
-                legend_propertiesCopy.push(state.legend_properties[i].concat([]));
+                legend_propertiesCopy.push(state.legend_properties[i].slice());
             }
             for (let i = 0; i < state.sounds.length; i++) {
-                soundsCopy.push(state.sounds[i].concat([]));
+                soundsCopy.push(state.sounds[i].slice());
             }
             for (let i = 0; i < state.levels.length; i++) {
-                levelsCopy.push(state.levels[i].concat([]));
+                levelsCopy.push(state.levels[i].slice());
             }
             for (let i = 0; i < state.winconditions.length; i++) {
-                winConditionsCopy.push(state.winconditions[i].concat([]));
+                winConditionsCopy.push(state.winconditions[i].slice());
             }
             for (let i = 0; i < state.rules.length; i++) {
-                rulesCopy.push(state.rules[i].concat([]));
+                rulesCopy.push(state.rules[i].slice());
             }
 
             let original_case_namesCopy = Object.assign({}, state.original_case_names);
@@ -14055,7 +13331,7 @@ let codeMirrorFn = function () {
 
                 commentLevel: state.commentLevel,
                 section: state.section,
-                visitedSections: state.visitedSections.concat([]),
+                visitedSections: state.visitedSections.slice(),
 
                 line_should_end: state.line_should_end,
                 line_should_end_because: state.line_should_end_because,
@@ -14068,10 +13344,10 @@ let codeMirrorFn = function () {
 
                 objects_candname: state.objects_candname,
                 objects_section: state.objects_section,
-                objects_spritematrix: state.objects_spritematrix.concat([]),
+                objects_spritematrix: state.objects_spritematrix.slice(),
 
                 tokenIndex: state.tokenIndex,
-                current_line_wip_array: state.current_line_wip_array.concat([]),
+                current_line_wip_array: state.current_line_wip_array.slice(),
 
                 legend_synonyms: legend_synonymsCopy,
                 legend_aggregates: legend_aggregatesCopy,
@@ -14081,18 +13357,18 @@ let codeMirrorFn = function () {
 
                 rules: rulesCopy,
 
-                names: state.names.concat([]),
-                namesSet: state.namesSet ? new Set(state.namesSet) : new Set(Array.isArray(state.names) ? state.names : []),
+                names: new Set(state.names),
+                namesSet: state.namesSet ? new Set(state.namesSet) : new Set(state.names),
 
                 winconditions: winConditionsCopy,
 
                 original_case_names: original_case_namesCopy,
                 original_line_numbers: original_line_numbersCopy,
 
-                abbrevNames: state.abbrevNames.concat([]),
-                abbrevNamesSet: state.abbrevNamesSet ? new Set(state.abbrevNamesSet) : new Set(Array.isArray(state.abbrevNames) ? state.abbrevNames : []),
+                abbrevNames: new Set(state.abbrevNames),
+                abbrevNamesSet: state.abbrevNamesSet ? new Set(state.abbrevNamesSet) : new Set(state.abbrevNames),
 
-                metadata: state.metadata.concat([]),
+                metadata: state.metadata.slice(),
                 metadata_lines: Object.assign({}, state.metadata_lines),
 
                 levels: levelsCopy,
@@ -14104,11 +13380,7 @@ let codeMirrorFn = function () {
             return nstate;
         },
         blankLine: function (state) {
-            if (state.section === 'levels') {
-                if (state.levels[state.levels.length - 1].length > 0) {
-                    state.levels.push([]);
-                }
-            }
+            pushNewBlankLevel(state);
         },
         token: function (stream, state) {
             let mixedCase = stream.string;
@@ -14135,7 +13407,8 @@ let codeMirrorFn = function () {
 
             //NESTED COMMENTS
             let ch = stream.peek();
-            if (ch === '(' && state.tokenIndex !== TOKEN_MESSAGE) {                stream.next();
+            if (ch === '(' && state.tokenIndex !== -4) { // tokenIndex -4 indicates message command
+                stream.next();
                 state.commentLevel++;
             } else if (ch === ')') {
                 stream.next();
@@ -14200,8 +13473,7 @@ let codeMirrorFn = function () {
             let shouldmatchequals = true;
             if (sol && state.section === "levels") {
                 let linestring = stream.string.substring(stream.pos);
-                const reg_matchall_whitespace_equals = /^[\p{Z}\s=]*$/u;
-                if (!reg_matchall_whitespace_equals.test(linestring)) {
+                if (!reg_whitespace_equals_line.test(linestring)) {
                     shouldmatchequals = false;
                 }
             }
@@ -14218,7 +13490,7 @@ let codeMirrorFn = function () {
                 if (sol && sectionNameMatches) {
 
                     state.section = sectionNameMatches[0].trim();
-                    if (state.visitedSections.indexOf(state.section) >= 0) {
+                    if (state.visitedSections.includes(state.section)) {
                         logError('cannot duplicate sections (you tried to duplicate \"' + state.section.toUpperCase() + '").', state.lineNumber);
                     }
                     state.line_should_end = true;
@@ -14230,54 +13502,38 @@ let codeMirrorFn = function () {
                         if (state.visitedSections.length > 1) {
                             logError('section "' + state.section.toUpperCase() + '" must be the first section', state.lineNumber);
                         }
-                    } else if (state.visitedSections.indexOf(sectionNames[sectionIndex - 1]) === -1) {
-                        if (sectionIndex === -1) {
-                            //honestly not sure how I could get here.
-                            logError('no such section as "' + state.section.toUpperCase() + '".', state.lineNumber);
-                        } else {
-                            logError('section "' + state.section.toUpperCase() + '" is out of order, must follow  "' + sectionNames[sectionIndex - 1].toUpperCase() + '" (or it could be that the section "' + sectionNames[sectionIndex - 1].toUpperCase() + `"is just missing totally.  You have to include all section headings, even if the section itself is empty).`, state.lineNumber);
-                        }
+                    } else if (!state.visitedSections.includes(sectionNames[sectionIndex - 1])) {
+                        logError('section "' + state.section.toUpperCase() + '" is out of order, must follow  "' + sectionNames[sectionIndex - 1].toUpperCase() + '" (or it could be that the section "' + sectionNames[sectionIndex - 1].toUpperCase() + `"is just missing totally.  You have to include all section headings, even if the section itself is empty).`, state.lineNumber);
                     }
 
                     if (state.section === 'sounds') {
-                        //populate names from rules
+                        //populate names from objects and legends
                         for (let n in state.objects) {
                             if (state.objects.hasOwnProperty(n)) {
-                                state.names.push(n);
+                                state.names.add(n);
                             }
                         }
-                        //populate names from legends
-                        for (let i = 0; i < state.legend_synonyms.length; i++) {
-                            state.names.push(state.legend_synonyms[i][0]);
+                        for (const legendArray of [state.legend_synonyms, state.legend_aggregates, state.legend_properties]) {
+                            for (let i = 0; i < legendArray.length; i++) {
+                                state.names.add(legendArray[i][0]);
+                            }
                         }
-                        for (let i = 0; i < state.legend_aggregates.length; i++) {
-                            state.names.push(state.legend_aggregates[i][0]);
-                        }
-                        for (let i = 0; i < state.legend_properties.length; i++) {
-                            state.names.push(state.legend_properties[i][0]);
-                        }
-                        //names doesn't grow after this point - mirror it in a Set for O(1) membership tests
                         state.namesSet = new Set(state.names);
                     }
                     else if (state.section === 'levels') {
-                        //populate character abbreviations
+                        //populate character abbreviations (properties are ambiguous, so they're not included)
                         for (let n in state.objects) {
                             if (state.objects.hasOwnProperty(n) && n.length === 1) {
-                                state.abbrevNames.push(n);
+                                state.abbrevNames.add(n);
                             }
                         }
-
-                        for (let i = 0; i < state.legend_synonyms.length; i++) {
-                            if (state.legend_synonyms[i][0].length === 1) {
-                                state.abbrevNames.push(state.legend_synonyms[i][0]);
+                        for (const legendArray of [state.legend_synonyms, state.legend_aggregates]) {
+                            for (let i = 0; i < legendArray.length; i++) {
+                                if (legendArray[i][0].length === 1) {
+                                    state.abbrevNames.add(legendArray[i][0]);
+                                }
                             }
                         }
-                        for (let i = 0; i < state.legend_aggregates.length; i++) {
-                            if (state.legend_aggregates[i][0].length === 1) {
-                                state.abbrevNames.push(state.legend_aggregates[i][0]);
-                            }
-                        }
-                        //abbrevNames doesn't grow after this point - mirror it in a Set for O(1) membership tests
                         state.abbrevNamesSet = new Set(state.abbrevNames);
                     }
                     return 'HEADER';
@@ -14299,26 +13555,787 @@ let codeMirrorFn = function () {
             //if can't set matrix, try to parse name
             //if color is not set, try to parse color
             switch (state.section) {
-                case 'objects':       return parseObjectsToken(stream, state, sol, mixedCase);
-                case 'legend':        return parseLegendToken(stream, state, sol, mixedCase);
-                case 'sounds':        return parseSoundsToken(stream, state, sol, mixedCase);
-                case 'collisionlayers': return parseCollisionLayersToken(stream, state, sol, mixedCase);
-                case 'rules':         return parseRulesToken(stream, state, sol, mixedCase, ch);
-                case 'winconditions': return parseWinConditionsToken(stream, state, sol, mixedCase);
-                case 'levels':        return parseLevelsToken(stream, state, sol, mixedCase);
-                default:              return parsePreambleToken(stream, state, sol, mixedCase);
+                case 'objects':
+                    {
+                        let tryParseName = function () {
+                            //LOOK FOR NAME
+                            let match_name = sol ? stream.match(reg_name, true) : stream.match(reg_objectname_midline, true);
+                            if (match_name == null) {
+                                stream.match(reg_notcommentstart, true);
+                                if (stream.pos > 0) {
+                                    logWarning('Unknown junk in object section (possibly: sprites have to be 5 pixels wide and 5 pixels high exactly. Or maybe: the main names for objects have to be words containing only the letters a-z0.9 - if you want to call them something like ",", do it in the legend section).', state.lineNumber);
+                                }
+                                return 'ERROR';
+                            } else {
+                                let candname = match_name[0].trim();
+                                if (state.objects[candname] !== undefined) {
+                                    logError('Object "' + candname.toUpperCase() + '" defined multiple times.', state.lineNumber);
+                                    return 'ERROR';
+                                }
+                                for (let i = 0; i < state.legend_synonyms.length; i++) {
+                                    let entry = state.legend_synonyms[i];
+                                    if (entry[0] === candname) {
+                                        logError('Name "' + candname.toUpperCase() + '" already in use.', state.lineNumber);
+                                    }
+                                }
+                                if (keyword_array_set.has(candname)) {
+                                    logWarning('You named an object "' + candname.toUpperCase() + '", but this is a keyword. Don\'t do that!', state.lineNumber);
+                                }
+
+                                if (sol) {
+                                    state.objects_candname = candname;
+                                    registerOriginalCaseName(state, candname, mixedCase, state.lineNumber);
+                                    state.objects[state.objects_candname] = {
+                                        lineNumber: state.lineNumber,
+                                        colors: [],
+                                        spritematrix: []
+                                    };
+
+                                } else {
+                                    //set up alias
+                                    registerOriginalCaseName(state, candname, mixedCase, state.lineNumber);
+                                    let synonym = [candname, state.objects_candname];
+                                    synonym.lineNumber = state.lineNumber;
+                                    state.legend_synonyms.push(synonym);
+                                }
+                                state.objects_section = 1;
+                                return 'NAME';
+                            }
+                        };
+
+                        if (sol && state.objects_section === 2) {
+                            state.objects_section = 3;
+                        }
+
+                        if (sol && state.objects_section === 1) {
+                            state.objects_section = 2;
+                        }
+
+                        switch (state.objects_section) {
+                            case 0:
+                            case 1:
+                                {
+                                    state.objects_spritematrix = [];
+                                    return tryParseName();
+                                }
+                            case 2:
+                                {
+                                    //LOOK FOR COLOR
+                                    state.tokenIndex = 0;
+
+                                    let match_color = stream.match(reg_color, true);
+                                    if (match_color == null) {
+                                        let str = stream.match(reg_name, true) || stream.match(reg_notcommentstart, true);
+                                        logError('Was looking for color for object ' + state.objects_candname.toUpperCase() + ', got "' + str + '" instead.', state.lineNumber);
+                                        return null;
+                                    } else {
+                                        if (state.objects[state.objects_candname].colors === undefined) {
+                                            state.objects[state.objects_candname].colors = [match_color[0].trim()];
+                                        } else {
+                                            state.objects[state.objects_candname].colors.push(match_color[0].trim());
+                                        }
+
+                                        let candcol = match_color[0].trim().toLowerCase();
+                                        return colorNameToken(candcol) || ('MULTICOLOR' + match_color[0]);
+                                    }
+                                }
+                            case 3:
+                                {
+                                    let ch = stream.eat(/[.\d]/);
+                                    let spritematrix = state.objects_spritematrix;
+                                    if (ch === undefined) {
+                                        if (spritematrix.length === 0) {
+                                            return tryParseName();
+                                        }
+                                        logError('Unknown junk in spritematrix for object ' + state.objects_candname.toUpperCase() + '.', state.lineNumber);
+                                        stream.match(reg_notcommentstart, true);
+                                        return null;
+                                    }
+
+                                    if (sol) {
+                                        spritematrix.push('');
+                                    }
+
+                                    let o = state.objects[state.objects_candname];
+
+                                    spritematrix[spritematrix.length - 1] += ch;
+                                    if (spritematrix[spritematrix.length - 1].length > 5) {
+                                        logWarning('Sprites must be 5 wide and 5 high.', state.lineNumber);
+                                        stream.match(reg_notcommentstart, true);
+                                        return null;
+                                    }
+                                    o.spritematrix = state.objects_spritematrix;
+                                    if (spritematrix.length === 5 && spritematrix[spritematrix.length - 1].length === 5) {
+                                        state.objects_section = 0;
+                                    }
+
+                                    if (ch !== '.') {
+                                        let n = parseInt(ch);
+                                        if (n >= o.colors.length) {
+                                            logError("Trying to access color number " + n + " from the color palette of sprite " + state.objects_candname.toUpperCase() + ", but there are only " + o.colors.length + " defined in it.", state.lineNumber);
+                                            return 'ERROR';
+                                        }
+                                        return 'COLOR BOLDCOLOR COLOR-' + o.colors[n].toUpperCase();
+                                    }
+                                    return 'COLOR FADECOLOR';
+                                }
+                            default:
+                                {
+                                    console.error("EEK shouldn't get here.");
+                                }
+                        }
+                        break;
+                    }
+                case 'legend':
+                    {
+                        let resultToken = "";
+                        let match_name = null;
+                        if (state.tokenIndex === 0) {
+                            match_name = stream.match(reg_legend_lhs_name, true);
+                            let new_name = match_name[0].trim();
+
+                            if (wordAlreadyDeclared(state, new_name)) {
+                                resultToken = 'ERROR';
+                            } else {
+                                resultToken = 'NAME';
+                            }
+
+                            //if name already declared, we have a problem                            
+                            state.tokenIndex++;
+                        } else if (state.tokenIndex === 1) {
+                            match_name = stream.match(reg_equals_sign, true);
+                            if (match_name === null || match_name[0].trim() !== "=") {
+                                logError(`In the legend, define new items using the equals symbol - declarations must look like "A = B", "A = B or C [ or D ...]", "A = B and C [ and D ...]".`, state.lineNumber);
+                                stream.match(reg_notcommentstart, true);
+                                match_name = ["ERROR"];//just to reduce the chance of crashes
+                            }
+                            stream.match(reg_whitespace_only, true);
+                            state.tokenIndex++;
+                            resultToken = 'ASSIGNMENT';
+                        } else if (state.tokenIndex >= 3 && ((state.tokenIndex % 2) === 1)) {
+                            //matches AND/OR
+                            match_name = stream.match(reg_name, true);
+                            if (match_name === null) {
+                                logError("Something bad's happening in the LEGEND", state.lineNumber);
+                                let match = stream.match(reg_notcommentstart, true);
+                                resultToken = 'ERROR';
+                            } else {
+                                let candname = match_name[0].trim();
+                                if (candname === "and" || candname === "or") {
+                                    resultToken = 'LOGICWORD';
+                                    if (state.tokenIndex >= 5) {
+                                        if (candname !== state.current_line_wip_array[3]) {
+                                            logError("Hey! You can't go mixing ANDs and ORs in a single legend entry.", state.lineNumber);
+                                            resultToken = 'ERROR';
+                                        }
+                                    }
+                                } else {
+                                    logError(`Expected and 'AND' or an 'OR' here, but got ${candname.toUpperCase()} instead. In the legend, define new items using the equals symbol - declarations must look like 'A = B' or 'A = B and C' or 'A = B or C'.`, state.lineNumber);
+                                    resultToken = 'ERROR';
+                                    // match_name=["and"];//just to reduce the chance of crashes
+                                }
+                            }
+                            state.tokenIndex++;
+                        }
+                        else {
+                            match_name = stream.match(reg_name, true);
+                            if (match_name === null) {
+                                logError("Something bad's happening in the LEGEND", state.lineNumber);
+                                let match = stream.match(reg_notcommentstart, true);
+                                resultToken = 'ERROR';
+                            } else {
+                                let candname = match_name[0].trim();
+                                if (wordAlreadyDeclared(state, candname)) {
+                                    resultToken = 'NAME';
+                                } else {
+                                    resultToken = 'ERROR';
+                                }
+                                state.tokenIndex++;
+
+                            }
+                        }
+
+                        if (match_name !== null) {
+                            state.current_line_wip_array.push(match_name[0].trim());
+                        }
+
+                        if (stream.eol()) {
+                            processLegendLine(state, mixedCase);
+                        }
+
+                        return resultToken;
+                    }
+                case 'sounds':
+                    {
+                        /*
+                        SOUND DEFINITION:
+                            SOUNDEVENT ~ INT (Sound events take precedence if there's name overlap)
+                            OBJECT_NAME
+                                NONDIRECTIONAL_VERB ~ INT
+                                DIRECTIONAL_VERB
+                                    INT
+                                    DIR+ ~ INT
+                        */
+                        let tokentype = "";
+
+                        if (state.current_line_wip_array.length > 0 && state.current_line_wip_array[state.current_line_wip_array.length - 1] === 'ERROR') {
+                            // match=stream.match(reg_notcommentstart, true);
+                            //if there was an error earlier on the line just try to do greedy matching here
+
+                            //events
+                            let match = stream.match(reg_soundevents, true);
+                            if (match !== null) {
+                                tokentype = 'SOUNDEVENT';
+                            }
+
+                            //verbs
+                            if (match === null) {
+                                match = stream.match(reg_soundverbs, true);
+                                if (match !== null) {
+                                    tokentype = 'SOUNDVERB';
+                                }
+                            }
+                            //directions
+                            if (match === null) {
+                                match = stream.match(reg_sounddirectionindicators, true);
+                                if (match !== null) {
+                                    tokentype = 'DIRECTION';
+                                }
+                            }
+
+                            //sound seeds
+                            if (match === null) {
+                                let match = stream.match(reg_soundseed, true);
+                                if (match !== null) {
+                                    tokentype = 'SOUND';
+                                }
+                            }
+
+                            //objects
+                            if (match === null) {
+                                match = stream.match(reg_name, true);
+                                if (match !== null) {
+                                    if (wordAlreadyDeclared(state, match[0].trim())) {
+                                        tokentype = 'NAME';
+                                    } else {
+                                        tokentype = 'ERROR';
+                                    }
+                                }
+                            }
+
+                            //error
+                            if (match === null) {
+                                match = errorFallbackMatchToken(stream);
+                                tokentype = 'ERROR';
+                            }
+
+
+                        } else if (state.current_line_wip_array.length === 0) {
+                            //can be OBJECT_NAME or SOUNDEVENT
+                            let match = stream.match(reg_soundevents, true);
+                            if (match == null) {
+                                match = stream.match(reg_name, true);
+                                if (match == null) {
+                                    tokentype = 'ERROR';
+                                    match = errorFallbackMatchToken(stream);
+                                    state.current_line_wip_array.push("ERROR");
+                                    logWarning("Was expecting a sound event (like SFX3, or ENDLEVEL) or an object name, but didn't find either.", state.lineNumber);
+                                } else {
+                                    let matched_name = match[0].trim();
+                                    if (!wordAlreadyDeclared(state, matched_name)) {
+                                        tokentype = 'ERROR';
+                                        state.current_line_wip_array.push("ERROR");
+                                        logError(`unexpected sound token "${matched_name}".`, state.lineNumber);
+                                    } else {
+                                        tokentype = 'NAME';
+                                        state.current_line_wip_array.push([matched_name, tokentype]);
+                                        state.tokenIndex++;
+                                    }
+                                }
+                            } else {
+                                tokentype = 'SOUNDEVENT';
+                                state.current_line_wip_array.push([match[0].trim(), tokentype]);
+                                state.tokenIndex++;
+                            }
+
+                        } else if (state.current_line_wip_array.length === 1) {
+                            let is_soundevent = state.current_line_wip_array[0][1] === 'SOUNDEVENT';
+
+                            if (is_soundevent) {
+                                let match = stream.match(reg_soundseed, true);
+                                if (match !== null) {
+                                    tokentype = 'SOUND';
+                                    state.current_line_wip_array.push([match[0].trim(), tokentype]);
+                                    state.tokenIndex++;
+                                } else {
+                                    match = errorFallbackMatchToken(stream);
+                                    logError("Was expecting a sound seed here (a number like 123123, like you generate by pressing the buttons above the console panel), but found something else.", state.lineNumber);
+                                    tokentype = 'ERROR';
+                                    state.current_line_wip_array.push("ERROR");
+                                }
+                            } else {
+                                //[0] is object name
+                                //it's a sound verb
+                                let match = stream.match(reg_soundverbs, true);
+                                if (match !== null) {
+                                    tokentype = 'SOUNDVERB';
+                                    state.current_line_wip_array.push([match[0].trim(), tokentype]);
+                                    state.tokenIndex++;
+                                } else {
+                                    match = errorFallbackMatchToken(stream);
+                                    logError("Was expecting a soundverb here (MOVE, DESTROY, CANTMOVE, or the like), but found something else.", state.lineNumber);
+                                    tokentype = 'ERROR';
+                                    state.current_line_wip_array.push("ERROR");
+                                }
+
+                            }
+                        } else {
+                            let is_soundevent = state.current_line_wip_array[0][1] === 'SOUNDEVENT';
+                            if (is_soundevent) {
+                                let match = errorFallbackMatchToken(stream);
+                                logError(`I wasn't expecting anything after the sound declaration ${state.current_line_wip_array[state.current_line_wip_array.length - 1][0].toUpperCase()} on this line, so I don't know what to do with "${match[0].trim().toUpperCase()}" here.`, state.lineNumber);
+                                tokentype = 'ERROR';
+                                state.current_line_wip_array.push("ERROR");
+                            } else {
+                                //if there's a seed on the right, any additional content is superfluous
+                                let is_seedonright = state.current_line_wip_array[state.current_line_wip_array.length - 1][1] === 'SOUND';
+                                if (is_seedonright) {
+                                    let match = errorFallbackMatchToken(stream);
+                                    logError(`I wasn't expecting anything after the sound declaration ${state.current_line_wip_array[state.current_line_wip_array.length - 1][0].toUpperCase()} on this line, so I don't know what to do with "${match[0].trim().toUpperCase()}" here.`, state.lineNumber);
+                                    tokentype = 'ERROR';
+                                    state.current_line_wip_array.push("ERROR");
+                                } else {
+                                    let directional_verb = soundverbs_directional.includes(state.current_line_wip_array[1][0]);
+                                    if (directional_verb) {
+                                        //match seed or direction                          
+                                        let is_direction = stream.match(reg_sounddirectionindicators, true);
+                                        if (is_direction !== null) {
+                                            tokentype = 'DIRECTION';
+                                            state.current_line_wip_array.push([is_direction[0].trim(), tokentype]);
+                                            state.tokenIndex++;
+                                        } else {
+                                            let is_seed = stream.match(reg_soundseed, true);
+                                            if (is_seed !== null) {
+                                                tokentype = 'SOUND';
+                                                state.current_line_wip_array.push([is_seed[0].trim(), tokentype]);
+                                                state.tokenIndex++;
+                                            } else {
+                                                let match = errorFallbackMatchToken(stream);
+                                                //depending on whether the verb is directional or not, we log different errors
+                                                logError(`Ah I was expecting direction or a sound seed here after ${state.current_line_wip_array[state.current_line_wip_array.length - 1][0].toUpperCase()}, but I don't know what to make of "${match[0].trim().toUpperCase()}".`, state.lineNumber);
+                                                tokentype = 'ERROR';
+                                                state.current_line_wip_array.push("ERROR");
+                                            }
+                                        }
+                                    } else {
+                                        //only match seed
+                                        let is_seed = stream.match(reg_soundseed, true);
+                                        if (is_seed !== null) {
+                                            tokentype = 'SOUND';
+                                            state.current_line_wip_array.push([is_seed[0].trim(), tokentype]);
+                                            state.tokenIndex++;
+                                        } else {
+                                            let match = errorFallbackMatchToken(stream);
+                                            //depending on whether the verb is directional or not, we log different errors
+                                            logError(`Ah I was expecting a sound seed here after ${state.current_line_wip_array[state.current_line_wip_array.length - 1][0].toUpperCase()}, but I don't know what to make of "${match[0].trim().toUpperCase()}".`, state.lineNumber);
+                                            tokentype = 'ERROR';
+                                            state.current_line_wip_array.push("ERROR");
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if (stream.eol()) {
+                            processSoundsLine(state);
+                        }
+
+                        return tokentype;
+                    }
+                case 'collisionlayers':
+                    {
+                        if (sol) {
+                            //create new collision layer
+                            state.collisionLayers.push([]);
+                            //empty current_line_wip_array
+                            state.current_line_wip_array = [];
+                            state.tokenIndex = 0;
+                        }
+
+                        let match_name = stream.match(reg_name, true);
+                        if (match_name === null) {
+                            //then strip spaces and commas
+                            let prepos = stream.pos;
+                            stream.match(reg_csv_separators, true);
+                            if (stream.pos === prepos) {
+                                logError("error detected - unexpected character " + stream.peek(), state.lineNumber);
+                                stream.next();
+                            }
+                            return null;
+                        } else {
+                            //have a name: let's see if it's valid
+                            let candname = match_name[0].trim();
+
+                            let substitutor = function (n) {
+                                const found = lookupLegendName(state, n);
+                                switch (found.type) {
+                                    case 'object':
+                                        return [found.name];
+                                    case 'aggregate':
+                                        logError('"' + found.name + '" is an aggregate (defined using "and"), and cannot be added to a single layer because its constituent objects must be able to coexist.', state.lineNumber);
+                                        return [];
+                                    case 'property':
+                                        return flattenPropertyEntry(found.name, found.entry, substitutor);
+                                    default:
+                                        logError('Cannot add "' + candname.toUpperCase() + '" to a collision layer; it has not been declared.', state.lineNumber);
+                                        return [];
+                                }
+                            };
+                            if (candname === 'background') {
+                                if (state.collisionLayers.length > 0 && state.collisionLayers[state.collisionLayers.length - 1].length > 0) {
+                                    logError("Background must be in a layer by itself.", state.lineNumber);
+                                }
+                                state.tokenIndex = 1;
+                            } else if (state.tokenIndex !== 0) {
+                                logError("Background must be in a layer by itself.", state.lineNumber);
+                            }
+
+                            let ar = substitutor(candname);
+
+                            if (state.collisionLayers.length === 0) {
+                                //pre-empted by other messages
+                                logError("no layers found.", state.lineNumber);
+                                return 'ERROR';
+                            }
+
+                            let foundOthers = [];
+                            let foundSelves = [];
+                            for (let i = 0; i < ar.length; i++) {
+                                let tcandname = ar[i];
+                                for (let j = 0; j <= state.collisionLayers.length - 1; j++) {
+                                    let clj = state.collisionLayers[j];
+                                    if (clj.includes(tcandname)) {
+                                        if (j !== state.collisionLayers.length - 1) {
+                                            foundOthers.push(j);
+                                        } else {
+                                            foundSelves.push(j);
+                                        }
+                                    }
+                                }
+                            }
+                            if (foundOthers.length > 0) {
+                                let warningStr = 'Object "' + candname.toUpperCase() + '" included in multiple collision layers ( layers ';
+                                for (let i = 0; i < foundOthers.length; i++) {
+                                    warningStr += "#" + (foundOthers[i] + 1) + ", ";
+                                }
+                                warningStr += "#" + state.collisionLayers.length;
+                                logWarning(warningStr + ' ). You should fix this!', state.lineNumber);
+                            }
+
+                            if (state.current_line_wip_array.includes(candname)) {
+                                let warningStr = 'Object "' + candname.toUpperCase() + '" included explicitly multiple times in the same layer. Don\'t do that innit.';
+                                logWarning(warningStr, state.lineNumber);
+                            }
+                            state.current_line_wip_array.push(candname);
+
+                            state.collisionLayers[state.collisionLayers.length - 1].push(...ar);
+                            if (ar.length > 0) {
+                                return 'NAME';
+                            } else {
+                                return 'ERROR';
+                            }
+                        }
+                        break;
+                    }
+                case 'rules':
+                    {
+                        if (sol) {
+                            let rule = reg_notcommentstart.exec(stream.string)[0];
+                            state.rules.push([rule, state.lineNumber, mixedCase]);
+                            state.tokenIndex = 0;//in rules, records whether bracket has been found or not
+                            state.inside_cell = false;
+                            state.arrow_passed = false;
+                            state.bracket_balance = 0;
+                            state.rule_prelude = true;
+                        }
+
+                        if (state.tokenIndex === -4) {
+                            stream.skipToEnd();
+                            return 'MESSAGE';
+                        }
+                        if (stream.match(reg_rule_arrow, true)) {
+                            state.arrow_passed = true;
+                            return 'ARROW';
+                        }
+                        if (ch === '[' || ch === '|' || ch === ']' || ch === '+') {
+                            if (ch === '[') {
+                                state.inside_cell = true;
+                                state.rule_prelude = false;
+                            } else if (ch === ']') {
+                                state.inside_cell = false;
+                                //used to detect if we've reached the final ']'
+                                if (state.arrow_passed) {
+                                    state.bracket_balance--;
+                                } else {
+                                    state.bracket_balance++;
+                                }
+                            }
+
+                            if (ch !== '+') {
+                                state.tokenIndex = 1;
+                            }
+                            stream.next();
+                            stream.match(reg_whitespace_only, true);
+                            return 'BRACKET';
+                        } else {
+                            let m = stream.match(reg_rule_part, true)[0].trim();
+
+                            if (state.tokenIndex === 0 && reg_loopmarker.exec(m)) {
+                                return 'BRACKET';
+                            } else if (state.tokenIndex === 0 && reg_ruledirectionindicators.exec(m)) {
+                                stream.match(reg_whitespace_only, true);
+                                return 'DIRECTION';
+                            } else if (state.tokenIndex === 1 && reg_directions.exec(m)) {
+                                stream.match(reg_whitespace_only, true);
+                                return 'DIRECTION';
+                            } else {
+                                if (state.names.has(m)) {
+                                    if (sol) {
+                                        logError('Objects cannot appear outside of square brackets in rules, only directions can.', state.lineNumber);
+                                        return 'ERROR';
+                                    } else {
+                                        stream.match(reg_whitespace_only, true);
+                                        return 'NAME';
+                                    }
+                                } else if (m === '...') {
+                                    return 'DIRECTION';
+                                } else if (m === 'rigid') {
+                                    return 'DIRECTION';
+                                } else if (m === 'random') {
+                                    return 'DIRECTION';
+                                } else if (commandwords_set.has(m)) {
+                                    if (m === 'message') {
+                                        state.tokenIndex = -4;
+                                    }
+                                    return 'COMMAND';
+                                } else {
+                                    logError('Name "' + m + '", referred to in a rule, does not exist.', state.lineNumber);
+                                    return 'ERROR';
+                                }
+                            }
+                        }
+
+                        break;
+                    }
+                case 'winconditions':
+                    {
+                        if (sol) {
+                            let tokenized = reg_notcommentstart.exec(stream.string);
+                            let splitted = tokenized[0].split(/[\p{Z}\s]/u);
+                            let filtered = splitted.filter(function (v) { return v !== '' });
+                            filtered.push(state.lineNumber);
+
+                            state.winconditions.push(filtered);
+                            state.tokenIndex = -1;
+                        }
+                        state.tokenIndex++;
+
+                        let match = stream.match(reg_single_word);
+                        if (match === null) {
+                            logError('incorrect format of win condition.', state.lineNumber);
+                            stream.match(reg_notcommentstart, true);
+                            return 'ERROR';
+
+                        } else {
+                            let candword = match[0].trim();
+                            if (state.tokenIndex === 0) {
+                                if (reg_winconditionquantifiers.exec(candword)) {
+                                    return 'LOGICWORD';
+                                }
+                                else {
+                                    logError('Expecting the start of a win condition ("ALL","SOME","NO") but got "' + candword.toUpperCase() + "'.", state.lineNumber);
+                                    return 'ERROR';
+                                }
+                            }
+                            else if (state.tokenIndex === 2) {
+                                if (candword !== 'on') {
+                                    logError('Expecting the word "ON" but got "' + candword.toUpperCase() + "\".", state.lineNumber);
+                                    return 'ERROR';
+                                } else {
+                                    return 'LOGICWORD';
+                                }
+                            }
+                            else if (state.tokenIndex === 1 || state.tokenIndex === 3) {
+                                if (!state.names.has(candword)) {
+                                    logError('Error in win condition: "' + candword.toUpperCase() + '" is not a valid object name.', state.lineNumber);
+                                    return 'ERROR';
+                                } else {
+                                    return 'NAME';
+                                }
+                            } else {
+                                logError("Error in win condition: I don't know what to do with " + candword.toUpperCase() + ".", state.lineNumber);
+                                return 'ERROR';
+                            }
+                        }
+                        break;
+                    }
+                case 'levels':
+                    {
+                        if (sol) {
+                            let message_match = stream.match(reg_message_verb, true);
+                            if (message_match === null && stream.match(reg_message_verb_nospace, true)) {//tolerate a missing space after 'message' as a legacy thing for #589
+                                logWarning("You probably meant to put a space after 'message' innit.  That's ok, I'll still interpret it as a message, but you probably want to put a space there.", state.lineNumber);
+                                message_match = true;
+                            }
+                            if (message_match) {
+                                state.tokenIndex = -4;//-4/2 = message/level
+                                let newdat = ['\n', mixedCase.slice(stream.pos).trim(), state.lineNumber];
+                                if (state.levels[state.levels.length - 1].length === 0) {
+                                    state.levels.splice(state.levels.length - 1, 0, newdat);
+                                } else {
+                                    state.levels.push(newdat);
+                                }
+                                return 'MESSAGE_VERB';
+                            } else {
+                                let matches = stream.match(reg_notcommentstart, false);
+                                if (matches === null || matches.length === 0) {
+                                    //not sure if it's possible to get here.
+                                    logError("Detected a comment where I was expecting a level. Oh gosh; if this is to do with you using '(' as a character in the legend, please don't do that ^^", state.lineNumber);
+                                    state.commentLevel++;
+                                    stream.skipToEnd();
+                                    return 'comment';
+                                } else {
+                                    let line = matches[0].trim();
+                                    state.tokenIndex = 2;
+                                    let lastlevel = state.levels[state.levels.length - 1];
+                                    if (lastlevel[0] === '\n') {
+                                        state.levels.push([state.lineNumber, line]);
+                                    } else {
+                                        if (lastlevel.length === 0) {
+                                            lastlevel.push(state.lineNumber);
+                                        }
+                                        lastlevel.push(line);
+
+                                        if (lastlevel.length > 1) {
+                                            if (line.length !== lastlevel[1].length) {
+                                                logWarning("Maps must be rectangular, yo (In a level, the length of each row must be the same).", state.lineNumber);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            if (state.tokenIndex === -4) {
+                                stream.skipToEnd();
+                                return 'MESSAGE';
+                            }
+                        }
+
+                        if (state.tokenIndex === 2 && !stream.eol()) {
+                            let ch = stream.peek();
+                            stream.next();
+                            if (state.abbrevNames.has(ch)) {
+                                return 'LEVEL';
+                            } else {
+                                logError('Key "' + ch.toUpperCase() + '" not found. Do you need to add it to the legend, or define a new object?', state.lineNumber);
+                                return 'ERROR';
+                            }
+                        }
+                        break;
+                    }
+
+                default://if you're in the preamble
+                    {
+                        if (sol || state.sol_after_comment) {
+                            state.tokenIndex = 0;
+                        }
+                        if (state.tokenIndex === 0) {
+                            let match = stream.match(reg_single_word);
+                            if (match !== null) {
+                                let token = match[0].trim();
+                                if (sol) {
+                                    if (metadata_with_value_set.has(token)) {
+
+                                        if (token === 'author' || token === 'homepage' || token === 'title') {
+                                            stream.string = mixedCase;
+                                        }
+
+                                        if (token === "youtube") {
+                                            logWarning("Unfortunately, YouTube support hasn't been working properly for a long time - it was always a hack and it hasn't gotten less hacky over time, so I can no longer pretend to support it.", state.lineNumber);
+                                        }
+
+                                        let m2 = stream.match(reg_notcommentstart, false);
+
+                                        if (m2 !== null) {
+                                            state.metadata.push(token);
+                                            state.metadata.push(m2[0].trim());
+                                            if (token in state.metadata_lines) {
+                                                let otherline = state.metadata_lines[token];
+                                                logWarning(`You've already defined a ${token.toUpperCase()} in the prelude on line <a onclick="jumpToLine(${otherline});" href="javascript:void(0);">${otherline}</a>.`, state.lineNumber);
+                                            }
+                                            state.metadata_lines[token] = state.lineNumber;
+                                        } else {
+                                            logError('MetaData "' + token + '" needs a value.', state.lineNumber);
+                                        }
+                                        state.tokenIndex = 1;
+                                        return 'METADATA';
+                                    } else if (metadata_no_value_set.has(token)) {
+                                        state.metadata.push(token);
+                                        state.metadata.push("true");
+                                        state.tokenIndex = -1;
+
+
+                                        let m2 = stream.match(reg_notcommentstart, false);
+
+                                        if (m2 !== null) {
+                                            let extra = m2[0].trim();
+                                            logWarning('MetaData ' + token.toUpperCase() + ' doesn\'t take any parameters, but you went and gave it "' + extra + '".', state.lineNumber);
+                                        }
+
+                                        return 'METADATA';
+                                    } else {
+                                        logError('Unrecognised stuff in the prelude.', state.lineNumber);
+                                        return 'ERROR';
+                                    }
+                                }
+                                return 'METADATA';
+                            } else {
+                                //garbage found
+                                logError(`Unrecognised stuff "${stream.string}" in the prelude.`, state.lineNumber);
+                            }
+                        } else {
+                            stream.match(reg_notcommentstart, true);
+                            state.tokenIndex++;
+
+                            let key = state.metadata[state.metadata.length - 2];
+                            let val = state.metadata[state.metadata.length - 1];
+
+                            if (state.tokenIndex > 2) {
+                                logWarning("Error: you can't embed comments in metadata values. Anything after the comment will be ignored.", state.lineNumber);
+                                return 'ERROR';
+                            }
+                            if (key === "background_color" || key === "text_color") {
+                                let candcol = val.trim().toLowerCase();
+                                const namedColorToken = colorNameToken(candcol);
+                                if (namedColorToken !== null) {
+                                    return namedColorToken;
+                                } else if ((candcol.length === 4) || (candcol.length === 7)) {
+                                    let color = candcol.match(reg_hexcolor);
+                                    if (color !== null) {
+                                        return 'MULTICOLOR' + color[0];
+                                    }
+                                }
+
+                            }
+                            return "METADATATEXT";
+                        }
+                        break;
+                    }
             }
 
 
-            if (stream.eol()) {
-                //don't know how to reach this.
-                return null;
-            }
-
-            if (!stream.eol()) {
-                stream.next();
-                return null;
-            }
+            stream.next();
+            return null;
         },
         startState: function () {
             return {
@@ -14363,7 +14380,7 @@ let codeMirrorFn = function () {
                 sounds: [],
                 rules: [],
 
-                names: [],
+                names: new Set(),
                 namesSet: new Set(),
 
                 winconditions: [],
@@ -14373,7 +14390,7 @@ let codeMirrorFn = function () {
                 original_case_names: {},
                 original_line_numbers: {},
 
-                abbrevNames: [],
+                abbrevNames: new Set(),
                 abbrevNamesSet: new Set(),
 
                 levels: [[]],
@@ -14428,8 +14445,54 @@ function generateSpriteMatrix(dat) {
     return result;
 }
 
+function spriteMatrixIs5x5(spritematrix) {
+    if (spritematrix.length !== 5) {
+        return false;
+    }
+    for (let i = 0; i < 5; i++) {
+        if (spritematrix[i].length !== 5) {
+            return false;
+        }
+    }
+    return true;
+}
+
 let debugMode;
 let colorPalette;
+
+//substitutes synonyms and splices in same-kind references in each entry of dict
+//(properties expand properties, aggregates expand aggregates); a cross-kind
+//reference (in conflictingDict) is an error.  Returns whether anything changed.
+function expandLegendDictEntries(dict, synonymsDict, conflictingDict, kindName, conflictingKindName) {
+    let modified = false;
+    const dict_keys = Object.keys(dict);
+    const dict_keys_l = dict_keys.length;
+    for (let k_i = 0; k_i < dict_keys_l; k_i++) {
+        const n = dict_keys[k_i];
+        let values = dict[n];
+        for (let i = 0; i < values.length; i++) {
+            let value = values[i];
+            if (value in synonymsDict) {
+                values[i] = synonymsDict[value];
+                modified = true;
+            } else if (value in dict) {
+                values.splice(i, 1);
+                let newvalues = dict[value];
+                for (let j = 0; j < newvalues.length; j++) {
+                    let newvalue = newvalues[j];
+                    if (!values.includes(newvalue)) {
+                        values.push(newvalue);
+                    }
+                }
+                modified = true;
+            }
+            if (value in conflictingDict) {
+                logError('Trying to define ' + kindName + ' "' + n.toUpperCase() + '" in terms of ' + conflictingKindName + ' "' + value.toUpperCase() + '".');
+            }
+        }
+    }
+    return modified;
+}
 
 function generateExtraMembers(state) {
 
@@ -14547,7 +14610,7 @@ function generateExtraMembers(state) {
                 [0, 0, 0, 0, 0]
             ];
         } else {
-            if (o.spritematrix.length !== 5 || o.spritematrix[0].length !== 5 || o.spritematrix[1].length !== 5 || o.spritematrix[2].length !== 5 || o.spritematrix[3].length !== 5 || o.spritematrix[4].length !== 5) {
+            if (!spriteMatrixIs5x5(o.spritematrix)) {
                 logWarning("Sprite graphics must be 5 wide and 5 high exactly.", o.lineNumber);
             }
             o.spritematrix = generateSpriteMatrix(o.spritematrix);
@@ -14571,7 +14634,7 @@ function generateExtraMembers(state) {
             let dat = state.legend_synonyms[i];
             let key = dat[0];
             let val = dat[1];
-            if ((!(key in glyphDict) || (glyphDict[key] === undefined)) && (glyphDict[val] !== undefined)) {
+            if ((glyphDict[key] === undefined) && (glyphDict[val] !== undefined)) {
                 added = true;
                 glyphDict[key] = glyphDict[val];
                 glyphOrder.push([dat.lineNumber, key]);
@@ -14661,7 +14724,31 @@ function generateExtraMembers(state) {
     }
     state.synonymsDict = synonymsDict;
 
-    resolveDictionaryCrossReferences(synonymsDict, propertiesDict, aggregatesDict);
+    let modified = true;
+    while (modified) {
+        modified = false;
+
+        const synonymsDict_keys = Object.keys(synonymsDict);
+        const synonymsDict_keys_l = synonymsDict_keys.length;   
+        for (let k_i = 0; k_i < synonymsDict_keys_l; k_i++) {
+            const n = synonymsDict_keys[k_i];
+            let value = synonymsDict[n];
+            if (value in propertiesDict) {
+                delete synonymsDict[n];
+                propertiesDict[n] = propertiesDict[value];
+                modified = true;
+            } else if (value in aggregatesDict) {
+                delete aggregatesDict[n];
+                aggregatesDict[n] = aggregatesDict[value];
+                modified = true;
+            } else if (value in synonymsDict) {
+                synonymsDict[n] = synonymsDict[value];
+            }            
+        }
+
+        modified = expandLegendDictEntries(propertiesDict, synonymsDict, aggregatesDict, "property", "aggregate") || modified;
+        modified = expandLegendDictEntries(aggregatesDict, synonymsDict, propertiesDict, "aggregate", "property") || modified;
+    }
 
     /* determine which properties specify objects all on one layer */
     state.propertiesSingleLayer = {};
@@ -14694,89 +14781,7 @@ function generateExtraMembers(state) {
         logError('You need to have some objects defined');
     }
 
-    resolveBackgroundObject(state);
-}
-
-function resolveDictionaryCrossReferences(synonymsDict, propertiesDict, aggregatesDict) {
-    let modified = true;
-    while (modified) {
-        modified = false;
-
-        const synonymsDict_keys = Object.keys(synonymsDict);
-        const synonymsDict_keys_l = synonymsDict_keys.length;
-        for (let k_i = 0; k_i < synonymsDict_keys_l; k_i++) {
-            const n = synonymsDict_keys[k_i];
-            let value = synonymsDict[n];
-            if (value in propertiesDict) {
-                delete synonymsDict[n];
-                propertiesDict[n] = propertiesDict[value];
-                modified = true;
-            } else if (value in aggregatesDict) {
-                delete aggregatesDict[n];
-                aggregatesDict[n] = aggregatesDict[value];
-                modified = true;
-            } else if (value in synonymsDict) {
-                synonymsDict[n] = synonymsDict[value];
-            }
-        }
-
-        const propertiesDict_keys = Object.keys(propertiesDict);
-        const propertiesDict_keys_l = propertiesDict_keys.length;
-        for (let k_i = 0; k_i < propertiesDict_keys_l; k_i++) {
-            const n = propertiesDict_keys[k_i];
-            let values = propertiesDict[n];
-            for (let i = 0; i < values.length; i++) {
-                let value = values[i];
-                if (value in synonymsDict) {
-                    values[i] = synonymsDict[value];
-                    modified = true;
-                } else if (value in propertiesDict) {
-                    values.splice(i, 1);
-                    let newvalues = propertiesDict[value];
-                    for (let j = 0; j < newvalues.length; j++) {
-                        let newvalue = newvalues[j];
-                        if (values.indexOf(newvalue) === -1) {
-                            values.push(newvalue);
-                        }
-                    }
-                    modified = true;
-                }
-                if (value in aggregatesDict) {
-                    logError('Trying to define property "' + n.toUpperCase() + '" in terms of aggregate "' + value.toUpperCase() + '".');
-                }
-            }
-        }
-
-        const aggregatesDict_keys = Object.keys(aggregatesDict);
-        const aggregatesDict_keys_l = aggregatesDict_keys.length;
-        for (let k_i = 0; k_i < aggregatesDict_keys_l; k_i++) {
-            const n = aggregatesDict_keys[k_i];
-            let values = aggregatesDict[n];
-            for (let i = 0; i < values.length; i++) {
-                let value = values[i];
-                if (value in synonymsDict) {
-                    values[i] = synonymsDict[value];
-                    modified = true;
-                } else if (value in aggregatesDict) {
-                    values.splice(i, 1);
-                    let newvalues = aggregatesDict[value];
-                    for (let j = 0; j < newvalues.length; j++) {
-                        let newvalue = newvalues[j];
-                        if (values.indexOf(newvalue) === -1) {
-                            values.push(newvalue);
-                        }
-                    }
-                    modified = true;
-                }
-                if (value in propertiesDict) {
-                    logError('Trying to define aggregate "' + n.toUpperCase() + '" in terms of property "' + value.toUpperCase() + '".');
-                }
-            }
-        }
-    }
-}
-
-function resolveBackgroundObject(state) {
+    //set default background object
     let backgroundid;
     let backgroundlayer;
     if (state.objects.background === undefined) {
@@ -14835,6 +14840,7 @@ function levelFromString(state, level) {
     let o = new Level(level[0], level[1].length, level.length - 1, state.collisionLayers.length, null);
     o.objects = new Int32Array(o.width * o.height * STRIDE_OBJ);
 
+    // A level typically reuses few distinct glyphs, so build each glyph's bitvec on demand.
     let glyphMaskCache = {};
     for (let i = 0; i < o.width; i++) {
         for (let j = 0; j < o.height; j++) {
@@ -14847,7 +14853,6 @@ function levelFromString(state, level) {
             let maskint = glyphMaskCache[ch];
             if (maskint === undefined) {
                 let mask = state.glyphDict[ch];
-
                 if (mask === undefined) {
                     if (state.propertiesDict[ch] === undefined) {
                         logError('Error, symbol "' + ch + '", used in map, not found.', level[0] + j);
@@ -14912,30 +14917,31 @@ function levelsToArray(state) {
     state.levels = processedLevels;
 }
 
+function cellRowHasRelativeDir(cellRow) {
+    for (let j = 0; j < cellRow.length; j++) {
+        let cell = cellRow[j];
+        for (let k = 0; k < cell.length; k += 2) {
+            if (relativeDirections_set.has(cell[k])) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 function directionalRule(rule) {
     for (let i = 0; i < rule.lhs.length; i++) {
         let cellRow = rule.lhs[i];
         if (cellRow.length > 1) {
             return true;
         }
-        for (let j = 0; j < cellRow.length; j++) {
-            let cell = cellRow[j];
-            for (let k = 0; k < cell.length; k += 2) {
-                if (relativeDirections_set.has(cell[k])) {
-                    return true;
-                }
-            }
+        if (cellRowHasRelativeDir(cellRow)) {
+            return true;
         }
     }
     for (let i = 0; i < rule.rhs.length; i++) {
-        let cellRow = rule.rhs[i];
-        for (let j = 0; j < cellRow.length; j++) {
-            let cell = cellRow[j];
-            for (let k = 0; k < cell.length; k += 2) {
-                if (relativeDirections_set.has(cell[k])) {
-                    return true;
-                }
-            }
+        if (cellRowHasRelativeDir(rule.rhs[i])) {
+            return true;
         }
     }
     return false;
@@ -14986,7 +14992,7 @@ function processRuleString(rule, state, curRules) {
     let lineNumber = rule[1];
     let origLine = rule[2];
 
-    if (String(origLine).indexOf('(') >= 0 && String(line).indexOf('->') === -1) {
+    if (String(origLine).includes('(') && !String(line).includes('->')) {
         logError("You can't have comments inside rules, sorry. In PuzzleScript, '(' starts a comment, so everything after the first '(' on this line was ignored before your rule was parsed.", lineNumber);
         return null;
     }
@@ -15041,7 +15047,7 @@ function processRuleString(rule, state, curRules) {
         }
     }
 
-    if (tokens.indexOf('->') === -1) {
+    if (!tokens.includes('->')) {
         logError("A rule has to have an arrow in it.  There's no arrow here! Consider reading up about rules - you're clearly doing something weird", lineNumber);
     }
 
@@ -15172,7 +15178,7 @@ function processRuleString(rule, state, curRules) {
                         } else {
                             rhs = true;
                         }
-                    } else if (state.namesSet.has(token)) {
+                    } else if (state.names.has(token)) {
                         if (!incellrow) {
                             logWarning("Invalid token " + token.toUpperCase() + ". Object names should only be used within cells (square brackets).", lineNumber);
                         } else {
@@ -15181,11 +15187,9 @@ function processRuleString(rule, state, curRules) {
                             for (let j = 0; j < curcell.length; j += 2) {
                                 if (curcell[j + 1] === token) {
                                     if (curcell[j] === 'no' && incomingModifier === 'no') {
-                                        //"no X ... no X" is redundant but not contradictory - the cell
-                                        //means the same thing with the duplicate removed
-                                        logWarning(`You're specifying "no ${token}" more than once in a single cell. That's redundant (but harmless) - you can remove one.`, lineNumber);
+                                        logWarning(`I notice that you have NO ${token.toUpperCase()} more than once in a single cell. That's redundant innit.`, lineNumber);
                                     } else {
-                                        logError(`You cannot specify the same object more than once in a single cell (in this case ${token} occurs multiple times).`, lineNumber);
+                                        logError(`You cannot specify the same object more than once in a single cell (in this case ${token.toUpperCase()} occurs multiple times).`, lineNumber);
                                         if (token in state.propertiesDict){
                                             logWarningNoLine(`( However, noticing that you're committing this crime with <i>properties</i>, and not being able to help but acknowledge that you <i>may</i> be trying to do something esoteric and <i>clever</i> with the property inference system,  I might be brought to suggest that you consider this: you can have multiple equivalent properties with different names. )`);
                                         }
@@ -15496,13 +15500,184 @@ function trimSuperfluousLHSNegations(state, rule){
 }
 
 function checkSuperfluousCoincidences(state,rules){
-	const rules_l = rules.length;
-	for (let i=0;i<rules_l;i++){
-		let rule = rules[i];
-		checkRHSConflicts(state, rule);
-		removeRedundantRHSNegations(rule);
-		trimSuperfluousLHSNegations(state, rule);
-	}
+
+    /*
+First, let's check for 'X no X' on the RHS.
+    */
+// check that that we don't have an object on one layer required, and at the same time
+// 'no X' where x is also on that layer - it's   "no wall" and player in the same cell - for then "no wall" is
+// superfluous.
+// for each rule
+
+    //first, find a list of layers where we *know* something has to be
+    let required_layers = new BitVec(Math.ceil(LAYER_COUNT/32)|0);
+    let required_objects = new BitVec(STRIDE_OBJ);
+    let objects_present_mask = new BitVec(STRIDE_OBJ);
+    let no_object_layer_mask = new BitVec(Math.ceil(LAYER_COUNT/32)|0);
+
+    const rules_l = rules.length;
+    for (let i=0;i<rules_l;i++){
+        let rule = rules[i];
+
+        // First do a RHS check - you shouldn't have something amounting to
+        // X no X on the RHS. (even if the engine does it internally a lot later)
+        const rhs_len = rule.rhs.length;
+        for (let j=0;j<rhs_len;j++){
+            let rhs_group = rule.rhs[j];
+            const rhs_group_len = rhs_group.length;
+            for (let k=0;k<rhs_group_len;k++){
+                let cell = rhs_group[k];
+                let objects_present = [];
+                objects_present_mask.setZero();
+                for (let l=0;l<cell.length;l+=2){
+                    let item = cell[l];
+                    if (!item.startsWith("no")){
+                        let no_name = cell[l+1];
+                        //properties (single-layer or not) are deliberately not added to the present mask
+                        if (state.objects.hasOwnProperty(no_name)){
+                            objects_present.push(no_name);
+                            objects_present_mask.ibitset(state.objects[no_name].id);
+                        }
+                    }
+                }
+                //for each 'no' object
+                for (let l=0;l<cell.length;l+=2){
+                    let item = cell[l];
+                    if (item.startsWith("no")){
+                        let no_name = cell[l+1];
+                        let no_name_mask = state.objectMasks[no_name];
+
+                        //if no_name overlaps with any objects_present, then we have a problem.
+                        if (no_name_mask.anyBitsInCommon(objects_present_mask)){
+                            logError(`You have specified that there should be NO ${no_name.toUpperCase()} but there is also a requirement that ${objects_present.join(", ").toUpperCase()} be here.  This is a mistake right?`, rule.lineNumber);
+                        }
+                    }
+                }
+
+            }
+        }
+
+        //secondly, for all 'no X' on the LHS, can remove any corresponding verbatim 'no X' on the RHS.
+        for (let j=0;j<rhs_len;j++){
+            let rhs_group = rule.rhs[j];
+            const rhs_group_len = rhs_group.length;
+            for (let k=0;k<rhs_group_len;k++){
+                let cell = rhs_group[k];
+                for (let l=0;l<cell.length;l+=2){
+                    let item = cell[l];
+                    if (item.startsWith("no")){
+                        let no_name = cell[l+1];
+                        //look for a 'no X' on the LHS in the same position
+                        const lhs_cell = rule.lhs[j][k];
+                        for (let m=0;m<lhs_cell.length;m+=2){
+                            if (lhs_cell[m].startsWith("no") && lhs_cell[m+1] === no_name){
+                                //we have a match - remove the 'no X' from the LHS
+                                cell.splice(l,2);
+                                break;
+                            }
+                        }
+
+                    }
+                }
+            }
+        }
+    
+
+
+        // thirdly, trim unnecessary 'no X's on the LHS - e.g. [ player no wall ]
+
+        const lhs_len = rule.lhs.length;
+        for (let j=0;j<lhs_len;j++){
+            let lhs_group = rule.lhs[j];
+            const lhs_group_len = lhs_group.length; 
+            for (let k=0;k<lhs_group_len;k++){
+                let cell = lhs_group[k];
+                // cell is an array of pairs - it looks like:
+                // ["", "player", "no", "wall", "", "target"]
+
+                required_layers.setZero();
+                required_objects.setZero();
+
+                let occupier={};
+                for (let l=0;l<cell.length;l+=2){
+                    let entity_modifier = cell[l];
+                    if (entity_modifier==="no"){
+                        continue;
+                    }
+                    let entity_name = cell[l+1]
+                    //if it's a single-layer property
+                    if (state.propertiesSingleLayer.hasOwnProperty(entity_name)){
+                        let layer = state.propertiesSingleLayer[entity_name];
+                        required_layers.ibitset(layer);
+                        let property_obs = state.propertiesDict[entity_name];
+                        const property_obs_len = property_obs.length;
+                        for (let m=0;m<property_obs_len;m++){
+                            const object_name = property_obs[m];
+                            const object_data = state.objects[object_name];
+                            required_objects.ibitset(object_data.id);
+                        }
+                        occupier[layer]=entity_name;
+                    } else if (state.objects.hasOwnProperty(entity_name)){
+                        let layer = state.objects[entity_name].layer;
+                        let ob_id = state.objects[entity_name].id;
+                        required_layers.ibitset(layer);
+                        required_objects.ibitset(ob_id);
+                        occupier[layer]=entity_name;
+                    } else if (state.aggregatesDict.hasOwnProperty(entity_name)){
+                        let aggregate_obs = state.aggregatesDict[entity_name];
+                        for (let m=0;m<aggregate_obs.length;m++){
+                            let object_info = state.objects[aggregate_obs[m]];
+                            let layer = object_info.layer;
+                            let ob_id = object_info.id;
+                            required_layers.ibitset(layer);
+                            required_objects.ibitset(ob_id);
+                            occupier[layer]=entity_name;
+                        }
+                    }
+                }
+
+                
+                //find all objects qualified by 'no'
+                for (let l=0;l<cell.length;l+=2){
+                    let item = cell[l];
+                    if (item.startsWith("no")){
+                        let no_name = cell[l+1]
+                        let remove = false;
+                        if (!state.objectMasks.hasOwnProperty(no_name)){
+                            continue;//error, should have been caught earlier - e.g. You cannot use 'no' to exclude the aggregate objec
+                        }
+                        let no_object_mask = state.objectMasks[no_name];
+                        no_object_layer_mask.setZero();
+                        for (let m=0;m<state.layerMasks.length;m++){
+                            if (state.layerMasks[m].anyBitsInCommon(no_object_mask)){
+                                no_object_layer_mask.ibitset(m);
+                            }
+                        }                        
+
+                        const object_layers_disjoint = !no_object_mask.anyBitsInCommon(required_objects);
+                        const no_object_covered_by_required_layers = no_object_layer_mask.bitsSetInArray(required_layers.data);      
+
+                        if (no_object_covered_by_required_layers && object_layers_disjoint){
+
+                            const obs_present = [];
+                            const layers_present = [];
+                            for (let m=0;m<state.layerMasks.length;m++){
+                                if (occupier[m]){
+                                    obs_present.push(occupier[m]);
+                                    layers_present.push(m);
+                                }
+                            }
+                            logWarning(`You have specified that there should be NO ${no_name.toUpperCase()} but there is also a requirement that ${obs_present.join(", ").toUpperCase()} be there, which collectively occupies the same layers (Layers ${layers_present.map(l=>l+1).join(", ")}), so you can leave this out.`, rule.lineNumber);
+                            cell.splice(l,2);
+                            l-=2;
+                        }
+                    }
+                }                
+            }
+        }
+    }
+
+
 }
 
 function rulesToArray(state) {
@@ -15563,6 +15738,7 @@ function rulesToArray(state) {
         let rule = rules[i];
         let ruledirs = rule.directions;
         for (let j = 0; j < ruledirs.length; j++) {
+            //processRuleString already expanded direction aggregates, so dir is always concrete here
             let dir = ruledirs[j];
             let modifiedrule = deepCloneRule(rule);
             modifiedrule.direction = dir;
@@ -16621,6 +16797,17 @@ function getCoalescingPlan(state, rule, ambiguousProperties) {
     return { skippable: {}, hasRewriteTerm: false };
 }
 
+//entries are flat arrays, so a per-entry slice is a deep-enough copy
+function cloneReplacementDict(src) {
+    const result = {};
+    const keys = Object.keys(src);
+    const keys_l = keys.length;
+    for (let k_i = 0; k_i < keys_l; k_i++) {
+        const key = keys[k_i];
+        result[key] = src[key].slice();
+    }
+    return result;
+}
 
 function concretizePropertyRule(state, rule, lineNumber) {
 
@@ -16635,7 +16822,7 @@ function concretizePropertyRule(state, rule, lineNumber) {
             let properties_r = getPropertiesFromCell(state, row_r[k]);
             for (let prop_n = 0; prop_n < properties_r.length; prop_n++) {
                 let property = properties_r[prop_n];
-                if (properties_l.indexOf(property) === -1) {
+                if (!properties_l.includes(property)) {
                     ambiguousProperties[property] = true;
                 }
             }
@@ -16694,16 +16881,7 @@ function concretizePropertyRule(state, rule, lineNumber) {
                         for (let l = 0; l < aliases.length; l++) {
                             let concreteType = aliases[l];
                             let newrule = deepCloneRule(cur_rule);
-                            newrule.propertyReplacement = {};
-                            if (cur_rule.propertyReplacement){
-                                const cur_rule_propertyReplacement_keys = Object.keys(cur_rule.propertyReplacement);
-                                const cur_rule_propertyReplacement_keys_l = cur_rule_propertyReplacement_keys.length;
-                                for (let k_i = 0; k_i < cur_rule_propertyReplacement_keys_l; k_i++) {
-                                    const prop = cur_rule_propertyReplacement_keys[k_i];
-                                    const propDat = cur_rule.propertyReplacement[prop];
-                                    newrule.propertyReplacement[prop] = [propDat[0], propDat[1]];                                
-                                }
-                            }
+                            newrule.propertyReplacement = cur_rule.propertyReplacement ? cloneReplacementDict(cur_rule.propertyReplacement) : {};
 
                             concretizePropertyInCell(newrule.lhs[j][k], property, concreteType);
                             if (newrule.rhs.length > 0) {
@@ -16748,8 +16926,7 @@ function concretizePropertyRule(state, rule, lineNumber) {
                 for (let j = 0; j < cur_rule.rhs.length; j++) {
                     let cellRow_rhs = cur_rule.rhs[j];
                     for (let k = 0; k < cellRow_rhs.length; k++) {
-                        let cell = cellRow_rhs[k];
-                        concretizePropertyInCell(cell, property, concreteType);
+                        concretizePropertyInCell(cellRow_rhs[k], property, concreteType);
                     }
                 }
             }
@@ -16837,7 +17014,7 @@ function makeSpawnedObjectsStationary(state, rule, lineNumber) {
                     continue;
                 }
                 let name = cell[l + 1];
-                if (name in state.propertiesDict || objects_l.indexOf(name) >= 0) {
+                if (name in state.propertiesDict || objects_l.includes(name)) {
                     continue;
                 }
                 let spawnedObject = state.objects[name];
@@ -16845,7 +17022,7 @@ function makeSpawnedObjectsStationary(state, rule, lineNumber) {
                     continue;
                 }
                 let r_layer = spawnedObject.layer;
-                if (layers.indexOf(r_layer) === -1) {
+                if (!layers.includes(r_layer)) {
                     cell[l] = 'stationary';
                 }
             }
@@ -16891,28 +17068,8 @@ function concretizeMovingRule(state, rule, lineNumber) {
                             let newrule = deepCloneRule(cur_rule);
 
                             //deep copy replacements
-                            newrule.movingReplacement = {};
-
-                            if(cur_rule.movingReplacement){
-                                const cur_rule_movingReplacement_keys = Object.keys(cur_rule.movingReplacement);
-                                const cur_rule_movingReplacement_keys_l = cur_rule_movingReplacement_keys.length;
-                                for (let k_i = 0; k_i < cur_rule_movingReplacement_keys_l; k_i++) {
-                                    const moveTerm = cur_rule_movingReplacement_keys[k_i];
-                                    let moveDat = cur_rule.movingReplacement[moveTerm];
-                                    newrule.movingReplacement[moveTerm] = [moveDat[0], moveDat[1], moveDat[2], moveDat[3], moveDat[4], moveDat[5]];                            
-                                }
-                            }
-
-                            newrule.aggregateDirReplacement = {};
-                            if (cur_rule.aggregateDirReplacement){
-                                const cur_rule_aggregateDirReplacement_keys = Object.keys(cur_rule.aggregateDirReplacement);
-                                const cur_rule_aggregateDirReplacement_keys_l = cur_rule_aggregateDirReplacement_keys.length;
-                                for (let k_i = 0; k_i < cur_rule_aggregateDirReplacement_keys_l; k_i++) {
-                                    const moveTerm = cur_rule_aggregateDirReplacement_keys[k_i];
-                                    let moveDat = cur_rule.aggregateDirReplacement[moveTerm];
-                                    newrule.aggregateDirReplacement[moveTerm] = [moveDat[0], moveDat[1], moveDat[2]];                            
-                                }
-                            }
+                            newrule.movingReplacement = cur_rule.movingReplacement ? cloneReplacementDict(cur_rule.movingReplacement) : {};
+                            newrule.aggregateDirReplacement = cur_rule.aggregateDirReplacement ? cloneReplacementDict(cur_rule.aggregateDirReplacement) : {};
 
                             concretizeMovingInCell(newrule.lhs[j][k], ambiguous_dir, cand_name, concreteDirection);
                             if (newrule.rhs.length > 0) {
@@ -16956,26 +17113,23 @@ function concretizeMovingRule(state, rule, lineNumber) {
         //for each property replacement in that rule
 
         const cur_rule_movingReplacement_keys = Object.keys(cur_rule.movingReplacement);
-        if (cur_rule.movingReplacement){
-            const cur_rule_movingReplacement_keys_l = cur_rule_movingReplacement_keys.length;
-            for (let k_i = 0; k_i < cur_rule_movingReplacement_keys_l; k_i++) {
-                const moveTerm = cur_rule_movingReplacement_keys[k_i];
-                let replacementInfo = cur_rule.movingReplacement[moveTerm];
-                let concreteMovement = replacementInfo[0];
-                let occurrenceCount = replacementInfo[1];
-                let ambiguousMovement = replacementInfo[2];
-                let ambiguousMovement_attachedObject = replacementInfo[3];
+        const cur_rule_movingReplacement_keys_l = cur_rule_movingReplacement_keys.length;
+        for (let k_i = 0; k_i < cur_rule_movingReplacement_keys_l; k_i++) {
+            const moveTerm = cur_rule_movingReplacement_keys[k_i];
+            let replacementInfo = cur_rule.movingReplacement[moveTerm];
+            let concreteMovement = replacementInfo[0];
+            let occurrenceCount = replacementInfo[1];
+            let ambiguousMovement = replacementInfo[2];
+            let ambiguousMovement_attachedObject = replacementInfo[3];
 
-                if (occurrenceCount === 1) {
-                    //do the replacement
-                    for (let j = 0; j < cur_rule.rhs.length; j++) {
-                        let cellRow_rhs = cur_rule.rhs[j];
-                        for (let k = 0; k < cellRow_rhs.length; k++) {
-                            let cell = cellRow_rhs[k];
-                            concretizeMovingInCell(cell, ambiguousMovement, ambiguousMovement_attachedObject, concreteMovement);
-                        }
+            if (occurrenceCount === 1) {
+                //do the replacement
+                for (let j = 0; j < cur_rule.rhs.length; j++) {
+                    let cellRow_rhs = cur_rule.rhs[j];
+                    for (let k = 0; k < cellRow_rhs.length; k++) {
+                        concretizeMovingInCell(cellRow_rhs[k], ambiguousMovement, ambiguousMovement_attachedObject, concreteMovement);
                     }
-                }        
+                }
             }
         }
 
@@ -17168,27 +17322,18 @@ function absolutifyRuleCell(forward, cell) {
         }
     }
 }
-/*
-    direction mask
-    UP parseInt('%1', 2);
-    DOWN parseInt('0', 2);
-    LEFT parseInt('0', 2);
-    RIGHT parseInt('0', 2);
-    ?  parseInt('', 2);
-
-*/
 
 const dirMasks = {
-    'up': parseInt('00001', 2),
-    'down': parseInt('00010', 2),
-    'left': parseInt('00100', 2),
-    'right': parseInt('01000', 2),
-    'moving': parseInt('01111', 2),
-    'no': parseInt('00011', 2),
-    'randomdir': parseInt('00101', 2),
-    'random': parseInt('10010', 2),
-    'action': parseInt('10000', 2),
-    '': parseInt('00000', 2)
+    'up': 0b00001,
+    'down': 0b00010,
+    'left': 0b00100,
+    'right': 0b01000,
+    'moving': 0b01111,
+    'no': 0b00011,
+    'randomdir': 0b00101,
+    'random': 0b10010,
+    'action': 0b10000,
+    '': 0b00000
 };
 
 function dirToMovementMasks(dir) {
@@ -17482,7 +17627,7 @@ function rulesToMask(state) {
 
                         state.rules.splice(ruleIndex, 1);
                         ruleIndex--;
-                        continue;
+                        continue outerloop;
                     }
                 }
 
@@ -18493,7 +18638,6 @@ function arrangeRulesByGroupNumber(state) {
 function generateRigidGroupList(state) {
     let rigidGroupIndex_to_GroupIndex = [];
     let groupIndex_to_RigidGroupIndex = [];
-    let groupNumber_to_GroupIndex = [];
     let groupNumber_to_RigidGroupIndex = [];
     let rigidGroups = [];
     for (let i = 0; i < state.rules.length; i++) {
@@ -18508,7 +18652,6 @@ function generateRigidGroupList(state) {
         rigidGroups[i] = rigidFound;
         if (rigidFound) {
             let groupNumber = ruleset[0].groupNumber;
-            groupNumber_to_GroupIndex[groupNumber] = i;
             let rigid_group_index = rigidGroupIndex_to_GroupIndex.length;
             groupIndex_to_RigidGroupIndex[i] = rigid_group_index;
             groupNumber_to_RigidGroupIndex[groupNumber] = rigid_group_index;
@@ -18526,22 +18669,11 @@ function generateRigidGroupList(state) {
     state.groupIndex_to_RigidGroupIndex = groupIndex_to_RigidGroupIndex;
 }
 
-function legendContainsName(legendArray, name) {
-    if (legendArray === undefined) return false;
-    for (let i = 0; i < legendArray.length; i++) {
-        if (legendArray[i][0] === name) return true;
-    }
-    return false;
-}
-
 function isObjectDefined(state, name) {
-    return name in state.objects ||
+    return wordAlreadyDeclared(state, name) !== null ||
         (state.aggregatesDict !== undefined && (name in state.aggregatesDict)) ||
         (state.propertiesDict !== undefined && (name in state.propertiesDict)) ||
-        (state.synonymsDict !== undefined && (name in state.synonymsDict)) ||
-        legendContainsName(state.legend_aggregates, name) ||
-        legendContainsName(state.legend_properties, name) ||
-        legendContainsName(state.legend_synonyms, name);
+        (state.synonymsDict !== undefined && (name in state.synonymsDict));
 }
 
 function getMaskFromName(state, name) {
@@ -18691,7 +18823,8 @@ function checkObjectsAreLayered(state) {
 }
 
 function isInt(value) {
-    return !isNaN(value) && (function (x) { return (x | 0) === x; })(parseFloat(value))
+    const x = parseFloat(value);
+    return !isNaN(value) && (x | 0) === x;
 }
 
 function twiddleMetaData(state) {
@@ -18909,11 +19042,9 @@ function printRules(state) {
             // we should skip past them
             // (e.g. https://www.puzzlescript.net/editor.html?hack=7e521a3c8d22f5dc5643ad5852f6cd22)
             if (loopIndex + 1 < state.loops.length) {
-                let nextLoop = state.loops[loopIndex + 1];
                 let loopEnd = state.loops[loopIndex + 2];
                 while (loopIndex + 1 < state.loops.length && loopEnd[0] < rule.lineNumber) {
                     loopIndex += 2;
-                    nextLoop = state.loops[loopIndex + 1];
                     loopEnd = state.loops[loopIndex + 2];
                 }
             }
@@ -19052,14 +19183,14 @@ function generateLoopPoints(state) {
 }
 
 let soundDirectionIndicatorMasks = {
-    'up': parseInt('00001', 2),
-    'down': parseInt('00010', 2),
-    'left': parseInt('00100', 2),
-    'right': parseInt('01000', 2),
-    'horizontal': parseInt('01100', 2),
-    'vertical': parseInt('00011', 2),
-    'orthogonal': parseInt('01111', 2),
-    '___action____': parseInt('10000', 2)
+    'up': 0b00001,
+    'down': 0b00010,
+    'left': 0b00100,
+    'right': 0b01000,
+    'horizontal': 0b01100,
+    'vertical': 0b00011,
+    'orthogonal': 0b01111,
+    '___action____': 0b10000
 };
 
 function generateSoundData(state) {
@@ -19343,7 +19474,7 @@ function loadFile(str) {
     ensureNameMembershipSets(state);
     levelsToArray(state);
     rulesToArray(state);
-    if (state.invalid > 0) {
+    if (state.invalid) {
         return null;
     }
 
@@ -19399,8 +19530,8 @@ function loadFile(str) {
 
 
 function addSpecializedFunctions(state) {
-    const OBJECT_SIZE = Math.ceil(state.objectCount / 32);
-    const MOVEMENT_SIZE = Math.ceil(state.collisionLayers.length / 5);
+    const OBJECT_SIZE = state.STRIDE_OBJ;
+    const MOVEMENT_SIZE = state.STRIDE_MOV;
     state.moveEntitiesAtIndex = generate_moveEntitiesAtIndex(OBJECT_SIZE, MOVEMENT_SIZE);
     state.calculateRowColMasks = generate_calculateRowColMasks(OBJECT_SIZE, MOVEMENT_SIZE);
     state.resolveMovements = generate_resolveMovements(OBJECT_SIZE, MOVEMENT_SIZE,state);
@@ -19462,19 +19593,13 @@ function compile(command, text, randomseed) {
 
 
     if (errorCount > 0) {
-        if (IDE === false) {
-            if (state === null) {
-                consoleError('<span class="systemMessage">Errors detected during compilation; I can\'t salvage anything playable from it.  If this is an older game, and you think it just broke because of recent changes in the puzzlescript engine, please consider dropping an email to analytic@gmail.com with a link to the game and I\'ll try make sure it\'s back working ASAP.</span>');
-            } else {
-                consoleError('<span class="systemMessage">Errors detected during compilation; the game may not work correctly. If this is an older game, and you think it just broke because of recent changes in the puzzlescript engine, please consider dropping an email to analytic@gmail.com with a link to the game and I\'ll try make sure it\'s back working ASAP.</span>');
-            }
-        } else {
-            if (state === null) {
-                consoleError('<span class="systemMessage">Errors detected during compilation; I can\'t salvage anything playable from it.</span>');
-            } else {
-                consoleError('<span class="systemMessage">Errors detected during compilation; the game may not work correctly.</span>');
-            }
-        }
+        const summary = state === null
+            ? 'Errors detected during compilation; I can\'t salvage anything playable from it.'
+            : 'Errors detected during compilation; the game may not work correctly.';
+        const advice = IDE === false
+            ? '  If this is an older game, and you think it just broke because of recent changes in the puzzlescript engine, please consider dropping an email to analytic@gmail.com with a link to the game and I\'ll try make sure it\'s back working ASAP.'
+            : '';
+        consoleError('<span class="systemMessage">' + summary + advice + '</span>');
         if (errorCount > MAX_ERRORS) {
             return;
         }
@@ -19503,6 +19628,9 @@ function compile(command, text, randomseed) {
 
     if (state !== null) {//otherwise error
         setGameState(state, command, randomseed);
+        if (IDE) {
+            updateFocusBorderColour(state.bgcolor);
+        }
     }
 
     clearInputHistory();
@@ -19533,19 +19661,19 @@ function manage_compilation_caches() {
     }
 
     // CACHE_CELLPATTERN_MATCHFUNCTION is a Map, so use .size and .clear()
-    if (CACHE_CELLPATTERN_MATCHFUNCTION.size > 10000) {
+    if (CACHE_CELLPATTERN_MATCHFUNCTION.size > 100000) {
         CACHE_CELLPATTERN_MATCHFUNCTION.clear();
     }
 
-    evictObjCacheIfOversized(CACHE_MOVEENTITIESATINDEX, 200);
-    evictObjCacheIfOversized(CACHE_CALCULATEROWCOLMASKS, 200);
-    evictObjCacheIfOversized(CACHE_RULE_CELLROWMATCHESFUNCTION, 1000);
-    evictObjCacheIfOversized(CACHE_CELLPATTERN_REPLACEFUNCTION, 200);
-    evictObjCacheIfOversized(CACHE_MATCHCELLROW, 200);
-    evictObjCacheIfOversized(CACHE_MATCHCELLROWWILDCARD, 200);
-    evictObjCacheIfOversized(CACHE_RULE_APPLYAT, 200);
-    evictObjCacheIfOversized(CACHE_RESOLVEMOVEMENTS, 200);
-    evictObjCacheIfOversized(CACHE_RULE_FINDMATCHES, 200);
+    evictObjCacheIfOversized(CACHE_MOVEENTITIESATINDEX, 5000);
+    evictObjCacheIfOversized(CACHE_CALCULATEROWCOLMASKS, 5000);
+    evictObjCacheIfOversized(CACHE_RULE_CELLROWMATCHESFUNCTION, 100000);
+    evictObjCacheIfOversized(CACHE_CELLPATTERN_REPLACEFUNCTION, 50000);
+    evictObjCacheIfOversized(CACHE_MATCHCELLROW, 5000);
+    evictObjCacheIfOversized(CACHE_MATCHCELLROWWILDCARD, 5000);
+    evictObjCacheIfOversized(CACHE_RULE_APPLYAT, 5000);
+    evictObjCacheIfOversized(CACHE_RESOLVEMOVEMENTS, 5000);
+    evictObjCacheIfOversized(CACHE_RULE_FINDMATCHES, 5000);
 }
 
 
@@ -19895,6 +20023,11 @@ function levelEditorRightClick(event, click) {
 
 let anyEditsSinceMouseDown = false;
 
+function isGameCanvasTarget(target) {
+	return target === canvas ||
+		(target !== null && target !== undefined && target.className === "tapFocusIndicator");
+}
+
 function onMouseDown(event) {
 
 	if (event.handled) {
@@ -19912,11 +20045,18 @@ function onMouseDown(event) {
 		lmb = false;
 		rmb = true;
 	}
+	const gameCanvasTarget = isGameCanvasTarget(event.target);
+	if (gameCanvasTarget && !gameCanvasCanReceiveInput()) {
+		lastDownTarget = null;
+		keybuffer = [];
+		event.handled = true;
+		return;
+	}
 
 	if (lmb) {
 		lastDownTarget = event.target;
 		keybuffer = [];
-		if (event.target === canvas || event.target.className === "tapFocusIndicator") {
+		if (gameCanvasTarget) {
 			setMouseCoord(event);
 			dragging = true;
 			rightdragging = false;
@@ -19929,7 +20069,7 @@ function onMouseDown(event) {
 		rightdragging = false;
 		event.handled = true;
 	} else if (rmb) {
-		if (event.target === canvas || event.target.className === "tapFocusIndicator") {
+		if (gameCanvasTarget) {
 			setMouseCoord(event);
 			dragging = false;
 			rightdragging = true;
@@ -19980,12 +20120,22 @@ function onKeyDown(event) {
 		toggleMute();
 	}
 
+	const gameCanvasHasInput = gameCanvasCanReceiveInput() &&
+		isGameCanvasTarget(lastDownTarget);
+
+	if (IDE && event.keyCode === 9 && gameCanvasHasInput) {//tab
+		editor.focus();
+		lastDownTarget = editor.getInputField();
+		prevent(event);
+		return;
+	}
+
 
 	if (keybuffer.indexOf(event.keyCode) >= 0) {
 		return;
 	}
 
-	if (lastDownTarget === canvas || (window.Mobile && (lastDownTarget === window.Mobile.focusIndicator))) {
+	if (gameCanvasHasInput) {
 		if (keybuffer.indexOf(event.keyCode) === -1) {
 			if (event && ((event.ctrlKey&&event.keyCode!==90) || event.metaKey)) {
 			} else {
@@ -20008,8 +20158,6 @@ function onKeyDown(event) {
 			saveClick();
 			prevent(event);
 		} else if (event.keyCode === 13 && (event.ctrlKey || event.metaKey)) {//ctrl+enter
-			canvas.focus();
-			editor.display.input.blur();
 			if (event.shiftKey) {
 				runClick();
 			} else {

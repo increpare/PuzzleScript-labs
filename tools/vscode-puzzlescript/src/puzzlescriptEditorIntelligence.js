@@ -12,6 +12,7 @@ const SOURCE_FILES = [
     'js/globalVariables.js',
     'js/debug.js',
     'js/codemirror/stringstream.js',
+    'js/colorhelpers.js',
     'js/colors.js',
     'js/parser.js',
     'js/compiler.js',
