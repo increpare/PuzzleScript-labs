@@ -42,7 +42,7 @@ const sourceFiles = [
     'js/storagewrapper.js', 'js/bitvec.js', 'js/level.js', 'js/languageConstants.js',
     'js/globalVariables.js', 'js/debug.js', 'js/plugin_header_on.js', 'js/font.js',
     'js/rng.js', 'js/riffwave.js', 'js/sfxr.js', 'js/codemirror/stringstream.js',
-    'js/colors.js', 'js/engine.js', 'js/parser.js', 'js/compiler.js', 'js/soundbar.js',
+    'js/colorhelpers.js', 'js/colors.js', 'js/engine.js', 'js/parser.js', 'js/compiler.js', 'js/soundbar.js',
 ];
 let allCode = '';
 for (const file of sourceFiles) {

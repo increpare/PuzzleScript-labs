@@ -96,12 +96,35 @@ function showContinueOptionOnTitleScreen() {
 	return (curlevel > 0 || curlevelTarget !== null) && (curlevel in state.levels);
 }
 
+function hasLoadedGame() {
+	return state !== introstate && state.levels.length > 0;
+}
+
+function gameCanvasCanReceiveInput() {
+	return !IDE || (canvas !== null && hasLoadedGame());
+}
+
+function setGameCanvasFocusable(focusable) {
+	if (!IDE || canvas === null) {
+		return;
+	}
+	if (focusable) {
+		canvas.setAttribute("tabindex", "-1");
+	} else {
+		canvas.blur();
+		canvas.removeAttribute("tabindex");
+		lastDownTarget = null;
+		keybuffer = [];
+	}
+}
+
 function unloadGame() {
 	if (levelEditorOpened){
 		printLevel();
 	}
 	levelEditorOpened = false;
 	state = introstate;
+	setGameCanvasFocusable(hasLoadedGame());
 	level = new Level(0, 5, 5, 2, null);
 	level.objects = new Int32Array(0);
 	generateTitleScreen();
@@ -292,7 +315,7 @@ function generateTitleScreen() {
 	for (let i=0;i<layout_rows.menu_options.length;i++){
 
 		let cur_row = layout_rows.menu_options[i];
-		if (cur_row.indexOf('---') !== -1){
+		if (cur_row.includes('---')){
 			selection_row = titleImage.length;
 		}
 
@@ -751,6 +774,7 @@ function setGameState(_state, command, randomseed) {
 	RandomGen = new RNG(randomseed);
 
 	state = _state;
+	setGameCanvasFocusable(hasLoadedGame());
 
 	if (command[0] !== "rebuild") {
 		backups = [];
@@ -1424,7 +1448,7 @@ function repositionEntitiesOnLayer(positionIndex, layer, dirMask) {
 		if (objectMask.anyBitsInCommon(sourceMask)) {
 			let movementMask = level.getMovements(positionIndex);
 			let directionMask = o.directionMask;
-			if (movementMask.anyBitsInCommon(directionMask) && seedsToPlay_CanMove.indexOf(o.seed) === -1) {
+			if (movementMask.anyBitsInCommon(directionMask) && !seedsToPlay_CanMove.includes(o.seed)) {
 				seedsToPlay_CanMove.push(o.seed);
 			}
 		}
@@ -2009,6 +2033,7 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 		return FALSE_FUNCTION;
 	}
 
+	const rigidGroupIndex = rule.rigid ? (state.groupNumber_to_RigidGroupIndex[rule.groupNumber] + 1) : 0;
 	const hasCoupledReplacements = this.replacement.layerCoupledMovementReplacements.length > 0;
 	const hasInferredAggregateBindings = this.replacement.inferredAggregateBindings.length > 0;
 	const hasInferredPropertyBindings = this.replacement.inferredPropertyBindings.length > 0;
@@ -2059,8 +2084,8 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 			+ (hasInferredAggregateBindings ? ",a" : "")
 			+ (hasInferredPropertyBindings ? ",p" : "")
 			+ (hasInferredPropertySources ? ",s" : "")
-			+ ",lc" + LAYER_COUNT
-			+ (rule.rigid ? ",rg" + (state.groupNumber_to_RigidGroupIndex[rule.groupNumber] | 0) : "");
+			+ ",lc" + level.layerCount
+			+ (rule.rigid ? ",rg" + rigidGroupIndex : "");
 	}
 	if (key in CACHE_CELLPATTERN_REPLACEFUNCTION) {
 		return CACHE_CELLPATTERN_REPLACEFUNCTION[key];
@@ -2288,7 +2313,7 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 		let curRigidMovementAppliedMask;
 		let rigidchange=false;		
 		${IF_LAZY(rule.rigid,()=>`
-			const rigidGroupIndex = ${state.groupNumber_to_RigidGroupIndex[rule.groupNumber]+1};
+			const rigidGroupIndex = ${rigidGroupIndex};
 			const rigidMask = new BitVec(${STRIDE_MOV});
 			${FOR(0,level.layerCount,layer=>`
 				${ISHIFTOR("rigidMask", "rigidGroupIndex", layer * 5)}
@@ -2855,8 +2880,8 @@ Rule.prototype.queueCommands = function () {
 	}
 
 	//commandQueue is an array of strings, message.commands is an array of array of strings (For messagetext parameter), so I search through them differently
-	let preexisting_cancel = level.commandQueue.indexOf("cancel") >= 0;
-	let preexisting_restart = level.commandQueue.indexOf("restart") >= 0;
+	let preexisting_cancel = level.commandQueue.includes("cancel");
+	let preexisting_restart = level.commandQueue.includes("restart");
 
 	let currule_cancel = false;
 	let currule_restart = false;
@@ -2889,7 +2914,7 @@ Rule.prototype.queueCommands = function () {
 	for (let i = 0; i < this.commands.length; i++) {
 		const command = this.commands[i];
 		let already = false;
-		if (level.commandQueue.indexOf(command[0]) >= 0) {
+		if (level.commandQueue.includes(command[0])) {
 			continue;
 		}
 		level.commandQueue.push(command[0]);
@@ -3398,9 +3423,9 @@ function generate_resolveMovements(OBJECT_SIZE, MOVEMENT_SIZE,state) {
 			
 						if (${ANY_BITS_IN_COMMON("cellMask", "objectMask", OBJECT_SIZE)} 
 						&& ${ANY_BITS_IN_COMMON("o.directionMask","movementMask", MOVEMENT_SIZE)} 
-						&& seedsToPlay_CantMove.indexOf(o.seed)===-1) {
-							seedsToPlay_CantMove.push(o.seed);
-						}
+					&& !seedsToPlay_CantMove.includes(o.seed)) {
+						seedsToPlay_CantMove.push(o.seed);
+					}
 					}
 				`)}
 
@@ -3460,19 +3485,19 @@ function processInput(dir, dontDoWin, dontModify, skipAgainProbe) {
 	if (dir >= 0) {
 		switch (dir) {
 			case 0: // up
-				dir = parseInt('00001', 2);
+				dir = 0b00001;
 				break;
 			case 1: // left
-				dir = parseInt('00100', 2);
+				dir = 0b00100;
 				break;
 			case 2: // down
-				dir = parseInt('00010', 2);
+				dir = 0b00010;
 				break;
 			case 3: // right
-				dir = parseInt('01000', 2);
+				dir = 0b01000;
 				break;
 			case 4: // action
-				dir = parseInt('10000', 2);
+				dir = 0b10000;
 				break;
 		}
 		playerPositions = startMovement(dir);
@@ -3551,12 +3576,12 @@ function processInput(dir, dontDoWin, dontModify, skipAgainProbe) {
 				ts += bannedLineNumbers.map(ln => `<a onclick="jumpToLine(${ln});" href="javascript:void(0);">${ln}</a>`).join(", ");
 				consolePrint(`Rigid movement application failed in rule-Group starting from ${ts}, and will be disabled in resimulation. Rolling back...`);
 			}
-				level.objects = new Int32Array(startState.objects);
-				level.movements = new Int32Array(startState.movements);
-				level.rigidGroupIndexMask = startState.rigidGroupIndexMask.concat([]);
-				level.rigidMovementAppliedMask = startState.rigidMovementAppliedMask.concat([]);
-				level.commandQueue = startState.commandQueue.concat([]);
-				level.commandQueueSourceRules = startState.commandQueueSourceRules.concat([]);
+				level.objects.set(startState.objects);
+				level.movements.set(startState.movements);
+				level.rigidGroupIndexMask = startState.rigidGroupIndexMask.slice();
+				level.rigidMovementAppliedMask = startState.rigidMovementAppliedMask.slice();
+				level.commandQueue = startState.commandQueue.slice();
+				level.commandQueueSourceRules = startState.commandQueueSourceRules.slice();
 				if (level.solverZobristRecompute) {
 					level.solverZobristRecompute();
 				}
@@ -3809,7 +3834,7 @@ function checkWin(dontDoWin, solverFastPath) {
 		dontDoWin = true;
 	}
 
-	if (level.commandQueue.indexOf('win') >= 0) {
+	if (level.commandQueue.includes('win')) {
 		if (runrulesonlevelstart_phase) {
 			consolePrint("Win Condition Satisfied (However this is in the run_rules_on_level_start rule pass, so I'm going to ignore it for you.  Why would you want to complete a level before it's already started?!)");
 		} else {
