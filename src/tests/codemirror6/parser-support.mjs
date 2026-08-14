@@ -13,6 +13,7 @@ const parserSourceFiles = [
 ]
 
 let factoryPromise
+let autocompleteFactoryPromise
 
 async function parserFactory() {
   if (!factoryPromise) {
@@ -38,6 +39,100 @@ export async function createParserHarness() {
   const factory = await parserFactory()
   const result = factory((message, urgent) => diagnostics.push({message, urgent: !!urgent}), () => {})
   return {...result, diagnostics}
+}
+
+export async function createAutocompleteHarness() {
+  if (!autocompleteFactoryPromise) {
+    autocompleteFactoryPromise = Promise.all([
+      ...parserSourceFiles.slice(0, -1).map(file => readFile(path.join(root, file), "utf8")),
+      readFile(path.join(root, "src/js/codemirror/rule-transform.js"), "utf8"),
+      readFile(path.join(root, "src/js/parser.js"), "utf8"),
+      readFile(path.join(root, "src/js/compiler.js"), "utf8"),
+      readFile(path.join(root, "src/js/puzzlescript-autocomplete.js"), "utf8").catch(error => {
+        if (error.code === "ENOENT") return ""
+        throw error
+      }),
+      readFile(path.join(root, "src/js/codemirror/anyword-hint.js"), "utf8")
+    ]).then(parts => {
+      const anyword = parts.pop()
+      const autocomplete = parts.pop()
+      const sources = parts.join("\n")
+      return new Function(
+        "consolePrint",
+        "jumpToLine",
+        `${sources}
+var window = {};
+var registeredHint = null;
+CodeMirror.Pos = (line, ch) => ({line, ch});
+CodeMirror.registerHelper = (kind, name, helper) => { if (kind === "hint" && name === "anyword") registeredHint = helper };
+${autocomplete}
+var PuzzleScriptAutocomplete = window.PuzzleScriptAutocomplete;
+${anyword}
+return {
+  parser: new codeMirrorFn(),
+  StringStream: CodeMirror.StringStream,
+  hint: registeredHint,
+  autocomplete: PuzzleScriptAutocomplete
+};`
+      )
+    })
+  }
+  const factory = await autocompleteFactoryPromise
+  return factory(() => {}, () => {})
+}
+
+export function cm5TokenAt(source, cursor, parser, LocalStringStream) {
+  const lines = source.split("\n")
+  const state = parser.startState(2)
+
+  function readLocalToken(stream) {
+    stream.start = stream.pos
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const type = parser.token(stream, state)
+      if (stream.pos > stream.start) return type
+    }
+    throw new Error("PuzzleScript parser failed to advance its stream")
+  }
+
+  for (let lineNumber = 0; lineNumber < cursor.line; lineNumber++) {
+    const stream = new LocalStringStream(lines[lineNumber] || "", 4)
+    if (stream.eol()) parser.blankLine(state, 2)
+    else while (!stream.eol()) readLocalToken(stream)
+  }
+
+  const stream = new LocalStringStream(lines[cursor.line] || "", 4)
+  let type = null
+  while (stream.pos < cursor.ch && !stream.eol()) type = readLocalToken(stream)
+  return {
+    start: stream.start,
+    end: stream.pos,
+    string: stream.current(),
+    type: type || null,
+    state
+  }
+}
+
+export function runCm5AutocompleteCase(fixture, harness) {
+  const lines = fixture.source.split("\n")
+  const token = cm5TokenAt(fixture.source, fixture.cursor, harness.parser, harness.StringStream)
+  let tokenReads = 0
+  const editor = {
+    getCursor: () => fixture.cursor,
+    getLine: line => lines[line],
+    getTokenAt() {
+      tokenReads++
+      return token
+    }
+  }
+  const result = harness.hint(editor, {})
+  return {
+    result: {
+      from: result.from,
+      to: result.to,
+      list: result.list.map(({text, extra, tag}) => ({text, extra, tag}))
+    },
+    tokenReads
+  }
 }
 
 function readToken(token, stream, state) {
