@@ -80,7 +80,10 @@ test("replace operations, malformed regexps, and zero-width regexps are safe and
   await openSearch(page)
   await setQuery(page, "alpha")
   await page.locator('.cm-search input[name="replace"]').fill("omega")
+  await page.locator('.cm-search button[name="next"]').click()
   await page.locator('.cm-search button[name="replace"]').click()
+  await expect.poll(() => page.evaluate(() =>
+    document.getElementById("code").editorreference.getValue())).toBe("omega alpha ALPHA")
   await page.locator('.cm-search button[name="replaceAll"]').click()
   await expect.poll(() => page.evaluate(() =>
     document.getElementById("code").editorreference.getValue())).toBe("omega omega omega")

@@ -21157,9 +21157,36 @@
   function presentationClasses(style) {
     return style.startsWith("MULTICOLOR#") ? ["cm-COLOR"] : classesForStyle(style);
   }
-  function buildTokenDecorations(view) {
-    const visibleEnd = Math.max(...view.visibleRanges.map((range) => range.to));
-    if (view.state.field(exactPrefix) < visibleEnd || !syntaxTreeAvailable(view.state, visibleEnd)) return Decoration.none;
+  function visibleRanges(view) {
+    return view.visibleRanges.map((range) => ({ from: range.from, to: range.to }));
+  }
+  function visibleEnd(view) {
+    return view.visibleRanges.reduce((end, range) => Math.max(end, range.to), 0);
+  }
+  function exactTreeAvailable(view) {
+    const end = visibleEnd(view);
+    return view.state.field(exactPrefix) >= end && syntaxTreeAvailable(view.state, end);
+  }
+  function cachedPresentation(name2, cache) {
+    let presentation = cache.get(name2);
+    if (presentation) return presentation;
+    const style = decodeStyleToken(name2);
+    const classes = presentationClasses(style);
+    const dynamicHex = dynamicHexForStyle(style);
+    const mark = { class: classes.join(" ") };
+    if (dynamicHex) mark.attributes = { style: styleFromHexCode(dynamicHex) };
+    presentation = {
+      style,
+      classes,
+      dynamicHex,
+      decoration: Decoration.mark(mark)
+    };
+    cache.set(name2, presentation);
+    return presentation;
+  }
+  function buildTokenDecorations(view, cache = /* @__PURE__ */ new Map()) {
+    const end = visibleEnd(view);
+    if (view.state.field(exactPrefix) < end || !syntaxTreeAvailable(view.state, end)) return Decoration.none;
     const decorations2 = [];
     const seen = /* @__PURE__ */ new Set();
     const tree = syntaxTree(view.state);
@@ -21172,31 +21199,134 @@
           const key = `${node.from}:${node.to}:${node.name}`;
           if (seen.has(key)) return;
           seen.add(key);
-          const style = decodeStyleToken(node.name);
-          const mark = { class: presentationClasses(style).join(" ") };
-          const dynamicHex = dynamicHexForStyle(style);
-          if (dynamicHex) mark.attributes = { style: styleFromHexCode(dynamicHex) };
-          decorations2.push(Decoration.mark(mark).range(node.from, node.to));
+          const presentation = cachedPresentation(node.name, cache);
+          decorations2.push(presentation.decoration.range(node.from, node.to));
         }
       });
     }
     return Decoration.set(decorations2, true);
   }
-  function updateTokenDecorations(update, previous) {
-    const visibleEnd = Math.max(...update.view.visibleRanges.map((range) => range.to));
-    if (update.view.state.field(exactPrefix) >= visibleEnd && syntaxTreeAvailable(update.view.state, visibleEnd)) {
-      return buildTokenDecorations(update.view);
-    }
-    return update.docChanged ? previous.map(update.changes) : previous;
+  function mappedVisibleRanges(ranges, changes) {
+    return ranges.map((range) => {
+      const from = changes.mapPos(range.from, 1);
+      const to = changes.mapPos(range.to, -1);
+      return from <= to ? { from, to } : { from: to, to };
+    });
   }
-  var tokenPresentationPlugin = ViewPlugin.fromClass(class {
+  function rangesCover(coveredRanges, requestedRanges) {
+    const covered = coveredRanges.slice().sort((left, right) => left.from - right.from || left.to - right.to);
+    return requestedRanges.every((requested) => {
+      if (requested.from === requested.to) return true;
+      let position = requested.from;
+      for (const range of covered) {
+        if (range.to <= position) continue;
+        if (range.from > position) return false;
+        position = Math.max(position, range.to);
+        if (position >= requested.to) return true;
+      }
+      return false;
+    });
+  }
+  function updateReconfigured(update) {
+    return Boolean(update.reconfigured) || (update.transactions ?? []).some((transaction) => transaction.reconfigured);
+  }
+  function defaultContext(update, previous) {
+    return {
+      cache: /* @__PURE__ */ new Map(),
+      coveredRanges: visibleRanges(update.view),
+      exactPrefix: update.view.state.field(exactPrefix),
+      hasExactSet: previous !== Decoration.none,
+      needsRebuild: false,
+      viewportNeedsRebuild: false
+    };
+  }
+  function updateTokenDecorations(update, previous, suppliedContext) {
+    const context = suppliedContext ?? defaultContext(update, previous);
+    const prefix2 = update.view.state.field(exactPrefix);
+    if (update.docChanged) {
+      const mapped = previous.map(update.changes);
+      if (suppliedContext) {
+        context.coveredRanges = mappedVisibleRanges(context.coveredRanges, update.changes);
+        if (update.viewportMoved) {
+          context.viewportNeedsRebuild = !rangesCover(
+            context.coveredRanges,
+            visibleRanges(update.view)
+          );
+        }
+      }
+      context.exactPrefix = prefix2;
+      if (updateReconfigured(update)) context.needsRebuild = true;
+      return mapped;
+    }
+    const requestedRanges = visibleRanges(update.view);
+    const end = visibleEnd(update.view);
+    const exactPrefixCovered = prefix2 > context.exactPrefix && context.exactPrefix < end && prefix2 >= end;
+    const uncoveredText = Boolean(update.viewportMoved) && !rangesCover(context.coveredRanges, requestedRanges);
+    if (update.viewportMoved) context.viewportNeedsRebuild = uncoveredText;
+    context.needsRebuild ||= !context.hasExactSet || exactPrefixCovered || updateReconfigured(update);
+    context.exactPrefix = prefix2;
+    if (!context.needsRebuild && !context.viewportNeedsRebuild || !exactTreeAvailable(update.view)) return previous;
+    const decorations2 = buildTokenDecorations(update.view, context.cache);
+    context.coveredRanges = requestedRanges;
+    context.hasExactSet = true;
+    context.needsRebuild = false;
+    context.viewportNeedsRebuild = false;
+    return decorations2;
+  }
+  var TokenPresentationPlugin = class {
     constructor(view) {
-      this.decorations = buildTokenDecorations(view);
+      this.view = view;
+      this.pendingFollowup = null;
+      this.destroyed = false;
+      this.presentation = {
+        cache: /* @__PURE__ */ new Map(),
+        coveredRanges: [],
+        exactPrefix: view.state.field(exactPrefix),
+        hasExactSet: false,
+        needsRebuild: false,
+        viewportNeedsRebuild: false
+      };
+      if (exactTreeAvailable(view)) {
+        this.decorations = buildTokenDecorations(view, this.presentation.cache);
+        this.presentation.coveredRanges = visibleRanges(view);
+        this.presentation.hasExactSet = true;
+      } else {
+        this.decorations = Decoration.none;
+      }
     }
     update(update) {
-      this.decorations = updateTokenDecorations(update, this.decorations);
+      this.view = update.view;
+      this.decorations = updateTokenDecorations(
+        update,
+        this.decorations,
+        this.presentation
+      );
+      if (updateReconfigured(update)) this.cancelFollowup();
+      if (!this.presentation.needsRebuild && !this.presentation.viewportNeedsRebuild) {
+        this.cancelFollowup();
+      } else if (update.docChanged && exactTreeAvailable(update.view)) {
+        this.scheduleFollowup();
+      }
     }
-  }, {
+    scheduleFollowup() {
+      if (this.destroyed || this.pendingFollowup !== null) return;
+      this.pendingFollowup = globalThis.setTimeout(() => {
+        this.pendingFollowup = null;
+        if (this.destroyed || !this.presentation.needsRebuild && !this.presentation.viewportNeedsRebuild || !exactTreeAvailable(this.view)) return;
+        this.view.dispatch({});
+      }, 0);
+    }
+    cancelFollowup() {
+      if (this.pendingFollowup === null) return;
+      globalThis.clearTimeout(this.pendingFollowup);
+      this.pendingFollowup = null;
+    }
+    destroy() {
+      this.destroyed = true;
+      this.cancelFollowup();
+    }
+  };
+  var tokenPresentationPlugin = ViewPlugin.fromClass(TokenPresentationPlugin, {
     decorations: (value) => value.decorations
   });
   function tokenPresentation() {
