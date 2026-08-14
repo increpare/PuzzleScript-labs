@@ -21041,12 +21041,19 @@
     }
     return Decoration.set(decorations2, true);
   }
+  function updateTokenDecorations(update, previous) {
+    const visibleEnd = Math.max(...update.view.visibleRanges.map((range) => range.to));
+    if (update.view.state.field(exactPrefix) >= visibleEnd) {
+      return buildTokenDecorations(update.view);
+    }
+    return update.docChanged ? previous.map(update.changes) : previous;
+  }
   var tokenPresentationPlugin = ViewPlugin.fromClass(class {
     constructor(view) {
       this.decorations = buildTokenDecorations(view);
     }
     update(update) {
-      this.decorations = buildTokenDecorations(update.view);
+      this.decorations = updateTokenDecorations(update, this.decorations);
     }
   }, {
     decorations: (value) => value.decorations

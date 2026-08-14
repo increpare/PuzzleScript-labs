@@ -12,7 +12,8 @@ import {
   buildTokenDecorations,
   classesForStyle,
   dynamicHexForStyle,
-  presentationClasses
+  presentationClasses,
+  updateTokenDecorations
 } from "../../js/codemirror6/token-presentation.js"
 import {createParserHarness} from "./parser-support.mjs"
 
@@ -70,4 +71,32 @@ test("token decorations come from decoded tree nodes and preserve dynamic-colour
   assert.ok(spriteColour)
   assert.match(spriteColour.class, /cm-COLOR-#FF00AA/)
   assert.match(spriteColour.attributes.style, /^color:/)
+})
+
+test("document edits retain mapped exact decorations until the replacement tree is exact", async () => {
+  const harness = await createParserHarness()
+  const language = createPuzzleScriptLanguage(harness.parser)
+  let state = EditorState.create({
+    doc: "OBJECTS\nPlayer\n#Ff00aA\n00000\n",
+    extensions: [language, exactPrefix]
+  })
+  assert.ok(ensureSyntaxTree(state, state.doc.length, 1_000))
+  state = state.update({effects: setExactPrefix.of(state.doc.length)}).state
+
+  const visibleRanges = [{from: 0, to: state.doc.length}]
+  const previous = buildTokenDecorations({state, visibleRanges})
+  const transaction = state.update({changes: {from: 15, insert: "x"}})
+  assert.equal(transaction.state.field(exactPrefix), 0)
+
+  const retained = updateTokenDecorations({
+    view: {
+      state: transaction.state,
+      visibleRanges: [{from: 0, to: transaction.state.doc.length}]
+    },
+    docChanged: true,
+    changes: transaction.changes
+  }, previous)
+
+  assert.notStrictEqual(retained, Decoration.none)
+  assert.ok(collectMarks(retained).length > 0)
 })
