@@ -122,13 +122,26 @@
       rect.right > rootRect.left && rect.left < rootRect.right
   }
 
-  function distantRenderingIsExact() {
+  function distantRenderingIsExact(targetLine) {
     const cm6 = document.querySelector(".cm-editor")
     const root = cm6 || document.querySelector(".CodeMirror")
     if (!root) return false
-    const rootRect = root.getBoundingClientRect()
+    const scroller = document.querySelector(".CodeMirror-scroll,.cm-scroller")
+    if (!scroller) return false
+    const viewportRect = scroller.getBoundingClientRect()
     const visible = selector => Array.from(root.querySelectorAll(selector))
-      .filter(element => intersectsViewport(element, rootRect))
+      .filter(element => intersectsViewport(element, viewportRect))
+    const requestedLineNumber = String(targetLine + 1)
+    const requestedLine = visible(
+      ".cm-lineNumbers .cm-gutterElement,.CodeMirror-linenumber"
+    ).find(element => element.textContent.trim() === requestedLineNumber)
+    if (!requestedLine) return false
+    const lineRect = requestedLine.getBoundingClientRect()
+    const cursorOnRequestedLine = visible(".cm-cursor,.CodeMirror-cursor").some(element => {
+      const cursorRect = element.getBoundingClientRect()
+      return cursorRect.bottom > lineRect.top && cursorRect.top < lineRect.bottom
+    })
+    if (!cursorOnRequestedLine) return false
     if (visible(".cm-LEVEL").length === 0) return false
     return !cm6 || visible(".cm-METADATA,.cm-ERROR").length === 0
   }
@@ -192,7 +205,11 @@
       const start = performance.now()
       replaceDocument(editor, inputs.largeSource)
       revealLine(editor, inputs.distantLine, inputs.distantColumn || 0)
-      await waitFor(distantRenderingIsExact, "exact distant LEVEL rendering", 10_000)
+      await waitFor(
+        () => distantRenderingIsExact(inputs.distantLine),
+        "exact distant LEVEL rendering",
+        10_000
+      )
       await waitForDomStability()
       return performance.now() - start
     },

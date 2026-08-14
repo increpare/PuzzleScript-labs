@@ -104,6 +104,22 @@ function summarize(values) {
   }
 }
 
+function validateSummary(summary, label) {
+  if (!summary || !Array.isArray(summary.samples) || summary.samples.length === 0 ||
+      summary.samples.some(value => !Number.isFinite(value))) {
+    throw new Error(`${label}.samples contains a non-finite result`)
+  }
+  for (const field of ["median", "p95", "min", "max"]) {
+    if (!Number.isFinite(summary[field])) throw new Error(`${label}.${field} is not finite`)
+  }
+}
+
+export function validateHeapResults(heap) {
+  if (!heap || heap.supported !== true) throw new Error("Chrome heap results must be supported")
+  validateSummary(heap.initial, "heap.initial")
+  validateSummary(heap.large, "heap.large")
+}
+
 async function waitForChromeEditor(page, surface) {
   const selector = surface === "cm5" ? ".CodeMirror" : ".cm-editor"
   await page.waitForSelector(selector, {state: "visible", timeout: 30_000})
@@ -111,7 +127,7 @@ async function waitForChromeEditor(page, surface) {
   if (!mounted) throw new Error("Expected editor adapter is missing")
 }
 
-async function collectChromeHeap(browser, url, surface, inputs) {
+export async function collectChromeHeap(browser, url, surface, inputs) {
   const initial = []
   const large = []
   for (let index = 0; index < SAMPLE_COUNT; index += 1) {
@@ -135,11 +151,17 @@ async function collectChromeHeap(browser, url, surface, inputs) {
       await page.close()
     }
   }
-  return {supported: true, unit: "MiB", initial: summarize(initial), large: summarize(large)}
+  const result = {supported: true, unit: "MiB", initial: summarize(initial), large: summarize(large)}
+  validateHeapResults(result)
+  return result
+}
+
+export function launchInstalledChrome(chromiumImplementation = chromium) {
+  return chromiumImplementation.launch({channel: "chrome"})
 }
 
 async function runChrome(options, harnessSource, inputs) {
-  const browser = await chromium.launch({channel: "chrome"})
+  const browser = await launchInstalledChrome()
   try {
     const page = await browser.newPage({viewport: {width: 1280, height: 900}})
     const pageErrors = []
@@ -231,45 +253,55 @@ async function waitForSafariEditor(sessionId, surface) {
   throw new Error("Expected Safari editor root or adapter is missing")
 }
 
-async function runSafari(options, harnessSource, inputs) {
-  const {driver, sessionId, capabilities} = await connectSafari()
+export async function withSafariSessionLifecycle(connect, deleteSession, operation) {
+  const connection = await connect()
   try {
-    await webdriverRequest(`/session/${sessionId}/timeouts`, "POST", {script: 600_000})
-    await webdriverRequest(`/session/${sessionId}/window/rect`, "POST", {width: 1280, height: 900})
-    await webdriverRequest(`/session/${sessionId}/url`, "POST", {url: surfaceUrl(options)})
-    await waitForSafariEditor(sessionId, options.surface)
-    await safariExecute(sessionId, [
-      "window.__puzzleScriptPerformanceErrors = [];",
-      "window.addEventListener('error', event => window.__puzzleScriptPerformanceErrors.push(String(event.error || event.message)));",
-      "(0, eval)(arguments[0]);",
-      "return true;"
-    ].join("\n"), [harnessSource])
-    const result = await safariExecute(sessionId, [
-      "const done = arguments[arguments.length - 1];",
-      "Promise.resolve(window.PuzzleScriptPerformance.runAll(arguments[0]))",
-      "  .then(value => done({value}))",
-      "  .catch(error => done({error: String(error && (error.stack || error.message) || error)}));"
-    ].join("\n"), [inputs], true)
-    if (result.error) throw new Error(result.error)
-    assertFiniteResults(result.value)
-    const environment = await safariExecute(sessionId,
-      "return {visibilityState: document.visibilityState, pageErrors: window.__puzzleScriptPerformanceErrors.slice()}"
-    )
-    if (environment.visibilityState !== "visible") throw new Error("Safari benchmark page is backgrounded")
-    if (environment.pageErrors.length) throw new Error(`Safari page errors: ${environment.pageErrors.join("; ")}`)
-    return {
-      browser: {name: "safari", version: capabilities.browserVersion || "unknown"},
-      environment,
-      ...result.value,
-      heap: {supported: false, reason: "SafariDriver does not expose repeatable JavaScript heap usage"}
-    }
+    return await operation(connection)
   } finally {
     try {
-      await webdriverRequest(`/session/${sessionId}`, "DELETE")
+      await deleteSession(connection.sessionId)
     } finally {
-      if (driver) driver.kill("SIGTERM")
+      if (connection.driver) connection.driver.kill("SIGTERM")
     }
   }
+}
+
+async function runSafari(options, harnessSource, inputs) {
+  return withSafariSessionLifecycle(
+    connectSafari,
+    sessionId => webdriverRequest(`/session/${sessionId}`, "DELETE"),
+    async ({sessionId, capabilities}) => {
+      await webdriverRequest(`/session/${sessionId}/timeouts`, "POST", {script: 600_000})
+      await webdriverRequest(`/session/${sessionId}/window/rect`, "POST", {width: 1280, height: 900})
+      await webdriverRequest(`/session/${sessionId}/url`, "POST", {url: surfaceUrl(options)})
+      await waitForSafariEditor(sessionId, options.surface)
+      await safariExecute(sessionId, [
+        "window.__puzzleScriptPerformanceErrors = [];",
+        "window.addEventListener('error', event => window.__puzzleScriptPerformanceErrors.push(String(event.error || event.message)));",
+        "(0, eval)(arguments[0]);",
+        "return true;"
+      ].join("\n"), [harnessSource])
+      const result = await safariExecute(sessionId, [
+        "const done = arguments[arguments.length - 1];",
+        "Promise.resolve(window.PuzzleScriptPerformance.runAll(arguments[0]))",
+        "  .then(value => done({value}))",
+        "  .catch(error => done({error: String(error && (error.stack || error.message) || error)}));"
+      ].join("\n"), [inputs], true)
+      if (result.error) throw new Error(result.error)
+      assertFiniteResults(result.value)
+      const environment = await safariExecute(sessionId,
+        "return {visibilityState: document.visibilityState, pageErrors: window.__puzzleScriptPerformanceErrors.slice()}"
+      )
+      if (environment.visibilityState !== "visible") throw new Error("Safari benchmark page is backgrounded")
+      if (environment.pageErrors.length) throw new Error(`Safari page errors: ${environment.pageErrors.join("; ")}`)
+      return {
+        browser: {name: "safari", version: capabilities.browserVersion || "unknown"},
+        environment,
+        ...result.value,
+        heap: {supported: false, reason: "SafariDriver does not expose repeatable JavaScript heap usage"}
+      }
+    }
+  )
 }
 
 async function main() {

@@ -8,7 +8,23 @@ const inputPath = path.join(root, "src/editor.html")
 const outputDirectory = path.join(root, "src/tests/codemirror6/generated")
 const outputPath = path.join(outputDirectory, "cm5-editor.html")
 
-const cm5Scripts = [
+const cm5ScriptWhitelist = [
+  "js/Blob.js",
+  "js/FileSaver.js",
+  "js/jsgif/LZWEncoder.js",
+  "js/jsgif/NeuQuant.js",
+  "js/jsgif/GIFEncoder.js",
+  "js/storagewrapper.js",
+  "js/debug.js",
+  "js/bitvec.js",
+  "js/level.js",
+  "js/languageConstants.js",
+  "js/globalVariables.js",
+  "js/font.js",
+  "js/rng.js",
+  "js/riffwave.js",
+  "js/sfxr.js",
+  "js/colorhelpers.js",
   "js/codemirror/codemirror.js",
   "js/codemirror/panel.js",
   "js/codemirror/active-line.js",
@@ -17,64 +33,47 @@ const cm5Scripts = [
   "js/codemirror/search.js",
   "js/codemirror/match-highlighter.js",
   "js/codemirror/show-hint.js",
+  "js/codemirror/rule-transform.js",
+  "js/puzzlescript-autocomplete.js",
   "js/codemirror/anyword-hint.js",
-  "js/codemirror/comment.js"
-]
-
-const removedScripts = [
-  ...cm5Scripts,
-  "js/puzzlescript-stream.js",
-  "js/codemirror6.bundle.js",
+  "js/codemirror/comment.js",
+  "js/colors.js",
+  "js/graphics.js",
+  "js/mobile.js",
+  "js/inputoutput.js",
+  "js/console.js",
+  "js/buildStandalone.js",
+  "js/engine.js",
+  "js/parser.js",
+  "js/github.js",
+  "js/imagepaste.js",
+  "js/editor-api.js",
   "js/editor-cm5.js",
-  "js/editor-cm6.js"
+  "js/editor.js",
+  "js/compiler.js",
+  "js/soundbar.js",
+  "js/toolbar.js",
+  "js/layout.js",
+  "js/addlisteners.js",
+  "js/addlisteners_editor.js",
+  "js/makegif.js"
 ]
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-}
-
-function removeScript(source, script) {
-  return source.replace(new RegExp(
-    `\\s*<script\\s+src=["']${escapeRegExp(script)}["']\\s*><\\/script>`,
-    "gi"
-  ), "")
-}
 
 export function transformCM5ComparisonHtml(input) {
   let output = input
     .replace(/\s*<base\s+href=["'][^"']*["']\s*\/?>/gi, "")
     .replace(/\s*<link\s+rel=["']stylesheet["']\s+href=["']css\/editor-cm6\.css["']\s*\/?>/gi, "")
 
-  for (const script of removedScripts) output = removeScript(output, script)
+  output = output.replace(/\s*<script\s+src=["'][^"']+["']\s*><\/script>/gi, "")
 
   output = output.replace(/<head>/i, '<head>\n<base href="../../../">')
 
-  const ruleTransform = '<script src="js/codemirror/rule-transform.js"></script>'
-  if (!output.includes(ruleTransform)) {
-    throw new Error("CM5 comparison source is missing js/codemirror/rule-transform.js")
-  }
-  const sharedAutocomplete = '<script src="js/puzzlescript-autocomplete.js"></script>'
-  if (!output.includes(sharedAutocomplete)) {
-    throw new Error("CM5 comparison source is missing js/puzzlescript-autocomplete.js")
-  }
-  const beforeAutocomplete = cm5Scripts.slice(0, 8)
+  const scriptMarker = "<!--___SCRIPTINSERT___-->"
+  if (!output.includes(scriptMarker)) throw new Error("CM5 comparison source is missing script marker")
+  const scripts = cm5ScriptWhitelist
     .map(script => `<script src="${script}"></script>`)
     .join("\n")
-  const afterAutocomplete = cm5Scripts.slice(8)
-    .map(script => `<script src="${script}"></script>`)
-    .join("\n")
-  output = output.replace(ruleTransform, [beforeAutocomplete, ruleTransform].join("\n"))
-  output = output.replace(sharedAutocomplete, [
-    sharedAutocomplete,
-    afterAutocomplete
-  ].join("\n"))
-
-  const sharedEditor = '<script src="js/editor.js"></script>'
-  if (!output.includes(sharedEditor)) throw new Error("CM5 comparison source is missing js/editor.js")
-  output = output.replace(sharedEditor, [
-    '<script src="js/editor-cm5.js"></script>',
-    sharedEditor
-  ].join("\n"))
+  output = output.replace(scriptMarker, `${scriptMarker}\n${scripts}`)
 
   return output
 }

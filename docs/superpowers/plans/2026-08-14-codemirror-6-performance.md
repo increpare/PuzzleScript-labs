@@ -80,7 +80,7 @@ Expected: FAIL because `build-performance-pages.mjs` does not exist.
 
 - [ ] **Step 2: Generate an isolated frozen-CM5 comparison page**
 
-Implement `transformCM5ComparisonHtml(input)` as an explicit allowlist transformation, parallel to `build-candidate-page.mjs` but in a separate file. It must add `<base href="../../../">`, remove CM6-only CSS/scripts, inject the existing CM5 plugin list in its captured order, and write `src/tests/codemirror6/generated/cm5-editor.html`.
+Implement `transformCM5ComparisonHtml(input)` as an explicit whitelist transformation, parallel to `build-candidate-page.mjs` but in a separate file. It must add `<base href="../../../">`, remove CM6-only CSS/scripts, inject the existing CM5 plugin list in its captured order, and write `src/tests/codemirror6/generated/cm5-editor.html`.
 
 Extend `browser-global-setup.mjs`:
 
