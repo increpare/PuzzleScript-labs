@@ -13,6 +13,10 @@ import {
   togglePuzzleScriptOverwrite
 } from "./commands.js"
 import {createCM6EditorDriver} from "./editor-adapter.js"
+import {
+  puzzleScriptInteractions,
+  puzzleScriptTokenAtPosition
+} from "./interactions.js"
 import {createPuzzleScriptLanguage} from "./stream-language.js"
 import {
   forceCaseInsensitive,
@@ -33,9 +37,11 @@ window.PuzzleScriptCM6 = Object.freeze({
   puzzleScriptCompletionSource,
   puzzleScriptCommandExtensions,
   puzzleScriptCoreKeymap,
+  puzzleScriptInteractions,
   puzzleScriptKeymap,
   puzzleScriptSearch,
   puzzleScriptSearchKeymap,
+  puzzleScriptTokenAtPosition,
   createPuzzleScriptLanguage,
   buildTokenDecorations,
   forceCaseInsensitive,

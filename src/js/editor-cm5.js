@@ -96,7 +96,7 @@ window.PuzzleScriptEditorDriver = Object.freeze({
         const editor = PuzzleScriptEditorAPI.createPuzzleScriptEditor(
             PuzzleScriptEditorAPI.createCM5EditorDriver(cmEditor)
         );
-        installImagePasteHandler(editor);
+        installImagePasteHandler(cmEditor.getWrapperElement(), editor);
         return editor;
     }
 });

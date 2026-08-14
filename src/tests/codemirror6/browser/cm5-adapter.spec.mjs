@@ -100,7 +100,7 @@ test("image paste still enters through the narrow editor operations", async ({pa
     Object.defineProperty(event, "clipboardData", {
       value: {items: [{type: "image/png", getAsFile: () => ({})}]}
     })
-    editor.getInputElement().dispatchEvent(event)
+    document.querySelector(".CodeMirror").dispatchEvent(event)
   })
 
   await expect.poll(() => page.evaluate(() => document.getElementById("code").editorreference.getValue()))
