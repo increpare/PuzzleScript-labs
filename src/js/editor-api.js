@@ -4,6 +4,8 @@
     function createPuzzleScriptEditor(driver) {
         return Object.freeze({
             getValue: () => driver.getValue(),
+            markClean: () => driver.markClean(),
+            isDirty: () => driver.isDirty(),
             setValue: text => driver.setValue(text),
             clearHistory: () => driver.clearHistory(),
             focus: () => driver.focus(),
@@ -16,9 +18,26 @@
         });
     }
 
-    function createCM5EditorDriver(cm) {
+    function createCM5EditorDriver(cm, onDirtyChange) {
+        let cleanDocument = cm.getValue();
+        let dirty = false;
         return {
             getValue: () => cm.getValue(),
+            markClean() {
+                cleanDocument = cm.getValue();
+                if (dirty) {
+                    dirty = false;
+                    onDirtyChange(false);
+                }
+            },
+            isDirty: () => dirty,
+            documentChanged() {
+                const next = cm.getValue() !== cleanDocument;
+                if (next !== dirty) {
+                    dirty = next;
+                    onDirtyChange(next);
+                }
+            },
             setValue: text => cm.setValue(text),
             clearHistory: () => cm.clearHistory(),
             focus: () => cm.focus(),

@@ -67,7 +67,11 @@ window.PuzzleScriptEditorDriver = Object.freeze({
             }
         });
         cmEditor.setOption("theme", "midnight");
-        cmEditor.on("change", () => options.callbacks.onChange(cmEditor.getValue()));
+        const driver = PuzzleScriptEditorAPI.createCM5EditorDriver(
+            cmEditor,
+            options.callbacks.onDirtyChange
+        );
+        cmEditor.on("change", () => driver.documentChanged());
         cmEditor.on("keyup", (instance, event) => {
             const keyCode = String(event.keyCode || event.which);
             if (!options.autocomplete.excludedKeyCodes[keyCode])
@@ -93,9 +97,7 @@ window.PuzzleScriptEditorDriver = Object.freeze({
             prevent(event);
         });
 
-        const editor = PuzzleScriptEditorAPI.createPuzzleScriptEditor(
-            PuzzleScriptEditorAPI.createCM5EditorDriver(cmEditor)
-        );
+        const editor = PuzzleScriptEditorAPI.createPuzzleScriptEditor(driver);
         installImagePasteHandler(cmEditor.getWrapperElement(), editor);
         return editor;
     }

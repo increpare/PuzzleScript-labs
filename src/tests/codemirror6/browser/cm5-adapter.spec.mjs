@@ -70,7 +70,8 @@ test("the narrow adapter preserves CM5 value, selection, history, focus, and nav
   expect(result).toEqual({
     keys: [
       "blur", "clearHistory", "focus", "getInputElement", "getLastLine",
-      "getValue", "replaceSelection", "scrollToLine", "setCursor", "setValue"
+      "getValue", "isDirty", "markClean", "replaceSelection", "scrollToLine",
+      "setCursor", "setValue"
     ],
     leakedDoc: undefined,
     leakedDisplay: undefined,

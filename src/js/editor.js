@@ -2,7 +2,6 @@
 
 let code = document.getElementById('code');
 let _editorDirty = false;
-let _editorCleanState = "";
 
 let fileToOpen=getParameterByName("demo");
 if (fileToOpen!==null&&fileToOpen.length>0) {
@@ -33,7 +32,7 @@ let editor = PuzzleScriptEditorDriver.create({
 	textarea: code,
 	autocomplete: PuzzleScriptAutocomplete,
 	callbacks: {
-		onChange: checkEditorDirty,
+		onDirtyChange: setEditorDirty,
 		onSourceDrop: loadDroppedSource,
 		onSound: seed => playSound(seed, true),
 		onLevel: line => compile(["levelline", line])
@@ -41,33 +40,21 @@ let editor = PuzzleScriptEditorDriver.create({
 	imagePaste: {imageBlobToObjectText}
 });
 code.editorreference = editor;
-_editorCleanState = editor.getValue();
+editor.markClean();
 
-function checkEditorDirty() {
+function setEditorDirty(dirty) {
+	if (_editorDirty === dirty) {
+		return;
+	}
+	_editorDirty = dirty;
 	let saveLink = document.getElementById('saveClickLink');
-
-	if (_editorCleanState !== editor.getValue()) {
-		_editorDirty = true;
-		if(saveLink) {
-			saveLink.innerHTML = 'SAVE*';
-		}
-	} else {
-		_editorDirty = false;
-		if(saveLink) {
-			saveLink.innerHTML = 'SAVE';
-		}
+	if(saveLink) {
+		saveLink.innerHTML = dirty ? 'SAVE*' : 'SAVE';
 	}
 }
 
 function setEditorClean() {
-	_editorCleanState = editor.getValue();
-	if (_editorDirty===true) {
-		let saveLink = document.getElementById('saveClickLink');
-		if(saveLink) {
-			saveLink.innerHTML = 'SAVE';
-		}
-		_editorDirty = false;
-	}
+	editor.markClean();
 }
 
 

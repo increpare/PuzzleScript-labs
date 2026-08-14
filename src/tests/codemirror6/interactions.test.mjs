@@ -90,7 +90,8 @@ test("interaction dispatch invokes only the intended callback", () => {
 
 test("dirty-state notification runs only for document changes", () => {
   const calls = []
+  const doc = {toString() { throw new Error("must not stringify") }}
   notifyPuzzleScriptChange({docChanged: false, state: {doc: "ignored"}}, value => calls.push(value))
-  notifyPuzzleScriptChange({docChanged: true, state: {doc: {toString: () => "source"}}}, value => calls.push(value))
-  assert.deepEqual(calls, ["source"])
+  notifyPuzzleScriptChange({docChanged: true, state: {doc}}, value => calls.push(value))
+  assert.deepEqual(calls, [doc])
 })

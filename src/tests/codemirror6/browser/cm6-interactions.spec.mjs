@@ -30,6 +30,78 @@ async function openCandidate(page) {
     !!document.getElementById("code")?.editorreference)
 }
 
+async function installGetValueSpy(page) {
+  await page.addInitScript(() => {
+    let api
+    Object.defineProperty(window, "PuzzleScriptEditorAPI", {
+      configurable: true,
+      get: () => api,
+      set(value) {
+        api = Object.freeze({
+          ...value,
+          createPuzzleScriptEditor(driver) {
+            const editor = value.createPuzzleScriptEditor(driver)
+            const getValue = editor.getValue
+            return Object.freeze({
+              ...editor,
+              getValue(...args) {
+                window.__getValueCalls++
+                return getValue(...args)
+              }
+            })
+          }
+        })
+      }
+    })
+    window.__getValueCalls = 0
+  })
+}
+
+test("dirty state follows mark clean, typing, undo, and redo without reading source", async ({page}) => {
+  await installGetValueSpy(page)
+  await openCandidate(page)
+
+  await expect(page.locator("#saveClickLink")).toHaveText("SAVE")
+  expect(await page.evaluate(() =>
+    document.getElementById("code").editorreference.isDirty())).toBe(false)
+
+  await page.evaluate(() =>
+    document.getElementById("code").editorreference.setValue("title clean state"))
+  await expect(page.locator("#saveClickLink")).toHaveText("SAVE*")
+  expect(await page.evaluate(() =>
+    document.getElementById("code").editorreference.isDirty())).toBe(true)
+
+  await page.evaluate(() => document.getElementById("code").editorreference.markClean())
+  await expect(page.locator("#saveClickLink")).toHaveText("SAVE")
+  expect(await page.evaluate(() =>
+    document.getElementById("code").editorreference.isDirty())).toBe(false)
+
+  await page.evaluate(() => {
+    const editor = document.getElementById("code").editorreference
+    editor.setCursor(0, 999)
+    window.__getValueCalls = 0
+    editor.focus()
+  })
+  await page.keyboard.type("!")
+  await expect(page.locator("#saveClickLink")).toHaveText("SAVE*")
+  expect(await page.evaluate(() =>
+    document.getElementById("code").editorreference.isDirty())).toBe(true)
+  expect(await page.evaluate(() => window.__getValueCalls)).toBe(0)
+
+  const modifier = process.platform === "darwin" ? "Meta" : "Control"
+  await page.keyboard.press(`${modifier}+z`)
+  await expect(page.locator("#saveClickLink")).toHaveText("SAVE")
+  expect(await page.evaluate(() =>
+    document.getElementById("code").editorreference.isDirty())).toBe(false)
+  expect(await page.evaluate(() => window.__getValueCalls)).toBe(0)
+
+  await page.keyboard.press(`${modifier}+Shift+z`)
+  await expect(page.locator("#saveClickLink")).toHaveText("SAVE*")
+  expect(await page.evaluate(() =>
+    document.getElementById("code").editorreference.isDirty())).toBe(true)
+  expect(await page.evaluate(() => window.__getValueCalls)).toBe(0)
+})
+
 test("only exact SOUND and modified LEVEL tokens dispatch application callbacks", async ({page}) => {
   await openCandidate(page)
   await page.evaluate(source => {

@@ -47,8 +47,8 @@ export function dispatchPuzzleScriptInteraction(action, callbacks) {
   return true
 }
 
-export function notifyPuzzleScriptChange(update, onChange) {
-  if (update.docChanged) onChange(update.state.doc.toString())
+export function notifyPuzzleScriptChange(update, onDocumentChange) {
+  if (update.docChanged) onDocumentChange(update.state.doc)
 }
 
 function reportError(prefix, error) {
@@ -57,9 +57,9 @@ function reportError(prefix, error) {
   else console.error(message)
 }
 
-export function puzzleScriptInteractions({callbacks}) {
+export function puzzleScriptInteractions({callbacks, onDocumentChange}) {
   const onUpdate = EditorView.updateListener.of(update =>
-    notifyPuzzleScriptChange(update, callbacks.onChange))
+    notifyPuzzleScriptChange(update, onDocumentChange))
 
   const handlers = EditorView.domEventHandlers({
     mousedown(event, view) {

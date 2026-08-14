@@ -1,6 +1,28 @@
 import {EditorSelection, EditorState} from "@codemirror/state"
 import {EditorView} from "@codemirror/view"
 
+export function createCleanDocumentTracker(initialDocument, equals, onDirtyChange) {
+  let cleanDocument = initialDocument
+  let dirty = false
+  return Object.freeze({
+    documentChanged(document) {
+      const next = !equals(document, cleanDocument)
+      if (next !== dirty) {
+        dirty = next
+        onDirtyChange(next)
+      }
+    },
+    markClean(document) {
+      cleanDocument = document
+      if (dirty) {
+        dirty = false
+        onDirtyChange(false)
+      }
+    },
+    isDirty: () => dirty
+  })
+}
+
 export function clipPosition(state, line, column) {
   const lineNumber = Math.max(1, Math.min(state.doc.lines, Number(line) + 1 || 1))
   const documentLine = state.doc.line(lineNumber)
@@ -8,9 +30,12 @@ export function clipPosition(state, line, column) {
   return documentLine.from + clippedColumn
 }
 
-export function createCM6EditorDriver(view, extensions) {
+export function createCM6EditorDriver(view, extensions, cleanDocumentTracker) {
   return Object.freeze({
     getValue: () => view.state.doc.toString(),
+
+    markClean: () => cleanDocumentTracker.markClean(view.state.doc),
+    isDirty: () => cleanDocumentTracker.isDirty(),
 
     setValue(text) {
       view.dispatch({

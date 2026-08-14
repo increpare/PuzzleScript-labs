@@ -19755,15 +19755,38 @@
   ]);
 
   // src/js/codemirror6/editor-adapter.js
+  function createCleanDocumentTracker(initialDocument, equals, onDirtyChange) {
+    let cleanDocument = initialDocument;
+    let dirty = false;
+    return Object.freeze({
+      documentChanged(document2) {
+        const next = !equals(document2, cleanDocument);
+        if (next !== dirty) {
+          dirty = next;
+          onDirtyChange(next);
+        }
+      },
+      markClean(document2) {
+        cleanDocument = document2;
+        if (dirty) {
+          dirty = false;
+          onDirtyChange(false);
+        }
+      },
+      isDirty: () => dirty
+    });
+  }
   function clipPosition(state, line, column) {
     const lineNumber = Math.max(1, Math.min(state.doc.lines, Number(line) + 1 || 1));
     const documentLine = state.doc.line(lineNumber);
     const clippedColumn = Math.max(0, Math.min(documentLine.length, Number(column) || 0));
     return documentLine.from + clippedColumn;
   }
-  function createCM6EditorDriver(view, extensions) {
+  function createCM6EditorDriver(view, extensions, cleanDocumentTracker) {
     return Object.freeze({
       getValue: () => view.state.doc.toString(),
+      markClean: () => cleanDocumentTracker.markClean(view.state.doc),
+      isDirty: () => cleanDocumentTracker.isDirty(),
       setValue(text) {
         view.dispatch({
           changes: { from: 0, to: view.state.doc.length, insert: String(text) },
@@ -19839,16 +19862,16 @@
     else return false;
     return true;
   }
-  function notifyPuzzleScriptChange(update, onChange) {
-    if (update.docChanged) onChange(update.state.doc.toString());
+  function notifyPuzzleScriptChange(update, onDocumentChange) {
+    if (update.docChanged) onDocumentChange(update.state.doc);
   }
   function reportError(prefix2, error) {
     const message = prefix2 + (error && error.message ? error.message : String(error));
     if (typeof globalThis.consoleError === "function") globalThis.consoleError(message);
     else console.error(message);
   }
-  function puzzleScriptInteractions({ callbacks }) {
-    const onUpdate = EditorView.updateListener.of((update) => notifyPuzzleScriptChange(update, callbacks.onChange));
+  function puzzleScriptInteractions({ callbacks, onDocumentChange }) {
+    const onUpdate = EditorView.updateListener.of((update) => notifyPuzzleScriptChange(update, onDocumentChange));
     const handlers2 = EditorView.domEventHandlers({
       mousedown(event, view) {
         const position = view.posAtCoords({ x: event.clientX, y: event.clientY });
@@ -21065,6 +21088,12 @@
   // src/js/codemirror6/index.js
   function createEditor(options) {
     const language2 = createPuzzleScriptLanguage(options.parser);
+    const initialDocument = Text.of(options.textarea.value.split(/\r\n?|\n/));
+    const cleanDocumentTracker = createCleanDocumentTracker(
+      initialDocument,
+      (left, right) => left.eq(right),
+      options.callbacks.onDirtyChange
+    );
     const isWebKit = /AppleWebKit\//.test(navigator.userAgent) && !/(?:Chrome|Chromium|Edg)\//.test(navigator.userAgent);
     const extensions = [
       lineNumbers(),
@@ -21088,7 +21117,11 @@
         excludedKeyCodes: options.autocomplete.excludedKeyCodes
       }),
       puzzleScriptSearch(),
-      puzzleScriptInteractions({ language: language2, callbacks: options.callbacks }),
+      puzzleScriptInteractions({
+        language: language2,
+        callbacks: options.callbacks,
+        onDocumentChange: cleanDocumentTracker.documentChanged
+      }),
       puzzleScriptCommandExtensions,
       keymap.of([
         ...puzzleScriptCompletionKeymap,
@@ -21097,9 +21130,9 @@
         ...puzzleScriptCoreKeymap
       ])
     ];
-    const state = EditorState.create({ doc: options.textarea.value, extensions });
+    const state = EditorState.create({ doc: initialDocument, extensions });
     const view = new EditorView({ state, parent: options.parent });
-    const driver = createCM6EditorDriver(view, extensions);
+    const driver = createCM6EditorDriver(view, extensions, cleanDocumentTracker);
     const editor = globalThis.PuzzleScriptEditorAPI.createPuzzleScriptEditor(driver);
     globalThis.installImagePasteHandler(
       view.dom,

@@ -1,5 +1,5 @@
 import {history} from "@codemirror/commands"
-import {EditorState} from "@codemirror/state"
+import {EditorState, Text} from "@codemirror/state"
 import {
   EditorView,
   drawSelection,
@@ -19,7 +19,10 @@ import {
   puzzleScriptCoreKeymap,
   puzzleScriptKeymap
 } from "./commands.js"
-import {createCM6EditorDriver} from "./editor-adapter.js"
+import {
+  createCleanDocumentTracker,
+  createCM6EditorDriver
+} from "./editor-adapter.js"
 import {exactPrefixExtensions} from "./exact-prefix.js"
 import {puzzleScriptInteractions} from "./interactions.js"
 import {
@@ -31,6 +34,12 @@ import {tokenPresentation} from "./token-presentation.js"
 
 function createEditor(options) {
   const language = createPuzzleScriptLanguage(options.parser)
+  const initialDocument = Text.of(options.textarea.value.split(/\r\n?|\n/))
+  const cleanDocumentTracker = createCleanDocumentTracker(
+    initialDocument,
+    (left, right) => left.eq(right),
+    options.callbacks.onDirtyChange
+  )
   const isWebKit = /AppleWebKit\//.test(navigator.userAgent) &&
     !/(?:Chrome|Chromium|Edg)\//.test(navigator.userAgent)
   const extensions = [
@@ -55,7 +64,11 @@ function createEditor(options) {
       excludedKeyCodes: options.autocomplete.excludedKeyCodes
     }),
     puzzleScriptSearch(),
-    puzzleScriptInteractions({language, callbacks: options.callbacks}),
+    puzzleScriptInteractions({
+      language,
+      callbacks: options.callbacks,
+      onDocumentChange: cleanDocumentTracker.documentChanged
+    }),
     puzzleScriptCommandExtensions,
     keymap.of([
       ...puzzleScriptCompletionKeymap,
@@ -64,9 +77,9 @@ function createEditor(options) {
       ...puzzleScriptCoreKeymap
     ])
   ]
-  const state = EditorState.create({doc: options.textarea.value, extensions})
+  const state = EditorState.create({doc: initialDocument, extensions})
   const view = new EditorView({state, parent: options.parent})
-  const driver = createCM6EditorDriver(view, extensions)
+  const driver = createCM6EditorDriver(view, extensions, cleanDocumentTracker)
   const editor = globalThis.PuzzleScriptEditorAPI.createPuzzleScriptEditor(driver)
   globalThis.installImagePasteHandler(
     view.dom,

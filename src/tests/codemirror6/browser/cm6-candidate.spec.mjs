@@ -23,7 +23,8 @@ test("the test-only page contains one CM6 editor and preserves the application s
   await expect(page.locator("#gameCanvas")).toBeVisible()
   expect(await page.evaluate(() => Object.keys(document.getElementById("code").editorreference).sort())).toEqual([
     "blur", "clearHistory", "focus", "getInputElement", "getLastLine",
-    "getValue", "replaceSelection", "scrollToLine", "setCursor", "setValue"
+    "getValue", "isDirty", "markClean", "replaceSelection", "scrollToLine",
+    "setCursor", "setValue"
   ])
 })
 
