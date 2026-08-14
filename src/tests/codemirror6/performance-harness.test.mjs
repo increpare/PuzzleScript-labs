@@ -128,7 +128,12 @@ function performanceInputs() {
     largeSource: "OBJECTS\nPlayer\nred\n.....\n.....\n.....\n.....\n.....\n\nLEVELS\nP\n",
     distantLine: 10,
     distantColumn: 0,
-    completion: {source: "RULES\nr", cursor: {line: 1, column: 1}, key: "i"}
+    completion: {
+      source: "RULES\nr",
+      cursor: {line: 1, column: 1},
+      key: "i",
+      expectedLabels: ["right", "rigid"]
+    }
   }
 }
 
@@ -136,10 +141,16 @@ function createHarnessContext({
   visibleLine = 10,
   lineTop = 10,
   levelTop = lineTop,
-  cursorTop = lineTop
+  cursorTop = lineTop,
+  insertTextAccepted = true,
+  completionReady = true,
+  completionLabelSets = [["right", "rigid"]],
+  notifyMutations = true,
+  immediateWaitTimeout = false
 } = {}) {
   const calls = []
   const classes = new Set()
+  const mutationObservers = new Set()
   let currentValue = ""
   const input = {dispatchEvent(event) { calls.push(["event", event.type, event.key]) }}
   const editor = {
@@ -169,7 +180,14 @@ function createHarnessContext({
       return []
     }
   }
-  const completion = {getBoundingClientRect: () => rect(10, 20)}
+  const completions = completionLabelSets.map(labels => ({
+    getBoundingClientRect: () => completionReady ? rect(10, 20) : rect(10, 10),
+    querySelector: () => completionReady && labels.length > 0 ? {} : null,
+    querySelectorAll: selector => completionReady &&
+      selector === ".CodeMirror-hint,.cm-completionLabel"
+      ? labels.map(textContent => ({textContent}))
+      : []
+  }))
   const textarea = {editorreference: editor}
   const document = {
     body: {
@@ -189,25 +207,59 @@ function createHarnessContext({
       return null
     },
     querySelectorAll(selector) {
-      return selector === ".CodeMirror-hints,.cm-tooltip-autocomplete" ? [completion] : []
+      return selector === ".CodeMirror-hints,.cm-tooltip-autocomplete" ? completions : []
+    },
+    execCommand(command, _showUi, value) {
+      calls.push(["execCommand", command, value])
+      if (command !== "insertText" || !insertTextAccepted) return false
+      currentValue += value
+      if (notifyMutations) {
+        for (const observer of [...mutationObservers]) observer.callback([])
+      }
+      return true
     }
   }
   let clock = 0
+  let fakeTimerId = 0
   const context = vm.createContext({
     document,
     getComputedStyle: () => ({visibility: "visible", display: "block"}),
     KeyboardEvent: class {
       constructor(type, options) { this.type = type; Object.assign(this, options) }
     },
-    MutationObserver: class { observe() {}; disconnect() {} },
+    MutationObserver: class {
+      constructor(callback) { this.callback = callback }
+      observe() {
+        calls.push(["observer", "observe"])
+        mutationObservers.add(this)
+      }
+      disconnect() {
+        calls.push(["observer", "disconnect"])
+        mutationObservers.delete(this)
+      }
+    },
     navigator: {platform: "MacIntel"},
     performance: {now: () => ++clock},
-    requestAnimationFrame: callback => callback(),
-    setTimeout,
-    clearTimeout,
+    requestAnimationFrame: callback => { calls.push(["frame"]); callback() },
+    setTimeout: (callback, delay, ...args) => {
+      if (immediateWaitTimeout && delay === 5_000) {
+        const id = --fakeTimerId
+        queueMicrotask(() => callback(...args))
+        return id
+      }
+      return setTimeout(callback, delay, ...args)
+    },
+    clearTimeout: id => { if (id >= 0) clearTimeout(id) },
     window: {scrollTo() { calls.push(["scrollTo"]) }}
   })
-  return {context, calls, classes, editor, scroller}
+  return {
+    context,
+    calls,
+    classes,
+    editor,
+    scroller,
+    get activeObservers() { return mutationObservers.size }
+  }
 }
 
 async function loadHarness(context) {
@@ -329,6 +381,83 @@ test("performance harness runs exactly seven scenarios with 5 warmups and 20 res
   assert.equal(fixture.classes.has("dark-theme"), true)
   assert.equal(fixture.scroller.scrollLeft, 0)
   assert.equal(fixture.scroller.scrollTop, 0)
+})
+
+test("autocomplete performance uses native focused typing instead of an adapter edit", async () => {
+  const fixture = createHarnessContext()
+  const api = await loadHarness(fixture.context)
+  const inputs = performanceInputs()
+
+  await api.runScenario("autocompleteVisible", inputs)
+
+  const typing = fixture.calls.filter(call =>
+    call[0] === "execCommand" || (call[0] === "event" && call[2] === inputs.completion.key)
+  )
+  assert.deepEqual(typing, [
+    ["event", "keydown", "i"],
+    ["execCommand", "insertText", "i"],
+    ["event", "keyup", "i"]
+  ])
+  assert.equal(fixture.calls.some(call => call[0] === "replaceSelection"), false)
+  assert.equal(fixture.editor.getValue(), "RULES\nri")
+  const keydown = fixture.calls.findIndex(call => call[0] === "event" && call[1] === "keydown" && call[2] === "i")
+  const insertion = fixture.calls.findIndex(call => call[0] === "execCommand")
+  const beforeKeydown = fixture.calls.slice(0, keydown)
+  const observed = beforeKeydown.findLastIndex(call => call[0] === "observer" && call[1] === "observe")
+  const disconnected = beforeKeydown.findLastIndex(call => call[0] === "observer" && call[1] === "disconnect")
+  assert.ok(observed > disconnected, "autocomplete readiness must be actively observed before keydown")
+  assert.equal(fixture.calls.slice(keydown, insertion).some(call => call[0] === "frame"), false)
+  assert.equal(fixture.activeObservers, 0)
+})
+
+test("autocomplete performance readiness disconnects on input error and timeout", async t => {
+  await t.test("input error", async () => {
+    const fixture = createHarnessContext({insertTextAccepted: false})
+    const api = await loadHarness(fixture.context)
+    await assert.rejects(
+      api.runScenario("autocompleteVisible", performanceInputs()),
+      /browser rejected native insertText/
+    )
+    assert.equal(fixture.activeObservers, 0)
+  })
+
+  await t.test("timeout", async () => {
+    const fixture = createHarnessContext({
+      completionReady: false,
+      notifyMutations: false,
+      immediateWaitTimeout: true
+    })
+    const api = await loadHarness(fixture.context)
+    await assert.rejects(
+      api.runScenario("autocompleteVisible", performanceInputs()),
+      /Timed out waiting for native autocomplete document and visible popup/
+    )
+    assert.equal(fixture.activeObservers, 0)
+  })
+
+  await t.test("wrong option order", async () => {
+    const fixture = createHarnessContext({
+      completionLabelSets: [["rigid", "right"]],
+      immediateWaitTimeout: true
+    })
+    const api = await loadHarness(fixture.context)
+    await assert.rejects(
+      api.runScenario("autocompleteVisible", performanceInputs()),
+      /Timed out waiting for native autocomplete document and visible popup/
+    )
+    assert.equal(fixture.activeObservers, 0)
+  })
+})
+
+test("autocomplete performance accepts the exact expected popup among unrelated visible tooltips", async () => {
+  const fixture = createHarnessContext({
+    completionLabelSets: [["unrelated"], ["right", "rigid"]]
+  })
+  const api = await loadHarness(fixture.context)
+
+  await api.runScenario("autocompleteVisible", performanceInputs())
+
+  assert.equal(fixture.activeObservers, 0)
 })
 
 test("distant exactness rejects a no-op reveal with an unrelated visible LEVEL", async () => {

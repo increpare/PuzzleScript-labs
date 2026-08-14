@@ -19,7 +19,7 @@ function inputs() {
     largeSource,
     distantLine: largeSource.slice(0, distantPosition).split("\n").length - 1,
     distantColumn: 39,
-    completion: {source: completionSource, cursor: cursorAtEnd(completionSource), key: "i"}
+    completion: {source: completionSource, cursor: cursorAtEnd(completionSource), key: "i", expectedLabels: ["right", "rigid"]}
   }
 }
 

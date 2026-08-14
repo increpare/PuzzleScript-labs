@@ -131,15 +131,47 @@
   }
 
   /*
-   * This remains a separate semantic poll for autocomplete, whose popup may be
-   * rendered outside the editor root. Settled editor scenarios use measureSettled.
+   * This remains a separate semantic wait for autocomplete, whose popup may be
+   * rendered outside the editor root. Observe DOM readiness directly so the
+   * latency result isn't quantized to the display's animation-frame interval.
    */
-  async function waitFor(predicate, description, timeout = 5_000) {
-    const deadline = performance.now() + timeout
-    while (!predicate()) {
-      if (performance.now() >= deadline) throw new Error(`Timed out waiting for ${description}`)
-      await nextFrame()
-    }
+  function waitFor(predicate, description, operation, timeout = 5_000) {
+    return new Promise((resolve, reject) => {
+      let settled = false
+      let timeoutId
+      const finish = error => {
+        if (settled) return
+        settled = true
+        observer.disconnect()
+        clearTimeout(timeoutId)
+        if (error) reject(error)
+        else resolve()
+      }
+      const check = () => {
+        try {
+          if (predicate()) finish()
+        } catch (error) {
+          finish(error)
+        }
+      }
+      const observer = new MutationObserver(check)
+      observer.observe(document.body, {
+        attributes: true,
+        characterData: true,
+        childList: true,
+        subtree: true
+      })
+      timeoutId = setTimeout(() => {
+        finish(new Error(`Timed out waiting for ${description}`))
+      }, timeout)
+      try {
+        operation()
+      } catch (error) {
+        finish(error)
+        return
+      }
+      check()
+    })
   }
 
   function getEditor() {
@@ -179,12 +211,19 @@
     return {line: lines.length - 1, column: lines[lines.length - 1].length}
   }
 
-  function completionVisible() {
+  function completionVisible(expectedLabels) {
     return Array.from(document.querySelectorAll(".CodeMirror-hints,.cm-tooltip-autocomplete"))
       .some(element => {
         const rect = element.getBoundingClientRect()
         const style = getComputedStyle(element)
-        return rect.width > 0 && rect.height > 0 && style.visibility !== "hidden" && style.display !== "none"
+        if (rect.width <= 0 || rect.height <= 0 || style.visibility === "hidden" ||
+            style.display === "none") return false
+        const labels = Array.from(
+          element.querySelectorAll(".CodeMirror-hint,.cm-completionLabel"),
+          option => option.textContent.trim()
+        )
+        return labels.length === expectedLabels.length &&
+          labels.every((label, index) => label === expectedLabels[index])
       })
   }
 
@@ -226,7 +265,10 @@
     if (!inputs || typeof inputs.representativeSource !== "string" ||
         typeof inputs.largeSource !== "string" ||
         !inputs.completion || typeof inputs.completion.source !== "string" ||
-        typeof inputs.completion.key !== "string") {
+        typeof inputs.completion.key !== "string" ||
+        !Array.isArray(inputs.completion.expectedLabels) ||
+        inputs.completion.expectedLabels.length === 0 ||
+        inputs.completion.expectedLabels.some(label => typeof label !== "string")) {
       throw new TypeError("Performance sources are required")
     }
     if (!Number.isInteger(inputs.distantLine) || inputs.distantLine < 0) {
@@ -258,11 +300,25 @@
     async autocompleteVisible(editor, inputs) {
       const completion = inputs.completion
       await restore(editor, completion.source, completion.cursor)
-      const start = performance.now()
-      editor.replaceSelection(completion.key)
-      dispatchKey(editorInput(editor), "keyup", completion.key, `Key${completion.key.toUpperCase()}`,
-        completion.key.toUpperCase().charCodeAt(0))
-      await waitFor(completionVisible, "autocomplete popup")
+      const input = editorInput(editor)
+      const keyCode = completion.key.toUpperCase().charCodeAt(0)
+      const expectedSource = completion.source + completion.key
+      let start
+      await waitFor(
+        () => sourceIsExact(editor, expectedSource) && completionVisible(completion.expectedLabels),
+        "native autocomplete document and visible popup",
+        () => {
+          start = performance.now()
+          dispatchKey(input, "keydown", completion.key, `Key${completion.key.toUpperCase()}`, keyCode)
+          let inserted = false
+          try {
+            inserted = document.execCommand("insertText", false, completion.key)
+          } finally {
+            dispatchKey(input, "keyup", completion.key, `Key${completion.key.toUpperCase()}`, keyCode)
+          }
+          if (!inserted) throw new Error("The browser rejected native insertText for autocomplete")
+        }
+      )
       return performance.now() - start
     },
 

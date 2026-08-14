@@ -101,7 +101,12 @@ function harnessInputs() {
     largeSource,
     distantLine: largeSource.slice(0, distantPosition).split("\n").length - 1,
     distantColumn: 39,
-    completion: {source, cursor: cursorAtEnd(source), key}
+    completion: {
+      source,
+      cursor: cursorAtEnd(source),
+      key,
+      expectedLabels: completionCase.expected.list.map(item => item.text)
+    }
   }
 }
 

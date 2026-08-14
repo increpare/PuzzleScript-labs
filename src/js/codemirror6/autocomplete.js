@@ -9,7 +9,7 @@ import {
   startCompletion
 } from "@codemirror/autocomplete"
 import {syntaxTreeAvailable} from "@codemirror/language"
-import {EditorView} from "@codemirror/view"
+import {EditorView, ViewPlugin} from "@codemirror/view"
 
 import {ensureExactPrefix, exactPrefix} from "./exact-prefix.js"
 import {getTokenAtPosition} from "./stream-state.js"
@@ -24,8 +24,9 @@ function stateWithExactPrefix(context) {
     syntaxTreeAvailable(state, context.pos) ? state : null
 }
 
-export function puzzleScriptCompletionSource({language, complete}) {
+export function puzzleScriptCompletionSource({language, complete, allows = () => true}) {
   return async context => {
+    if (!allows(context.state.doc)) return null
     const state = stateWithExactPrefix(context)
     if (!state) return null
 
@@ -105,10 +106,115 @@ export const puzzleScriptCompletionKeymap = Object.freeze([
   {mac: "Ctrl-n", run: moveDown}
 ])
 
+export function createPuzzleScriptAutocompleteActivationCleanup(
+  activation,
+  defer = callback => queueMicrotask(callback)
+) {
+  let generation = 0
+  return Object.freeze({
+    create() {
+      const ownGeneration = ++generation
+      return {
+        destroy() {
+          defer(() => {
+            if (generation === ownGeneration) activation.destroy()
+          })
+        }
+      }
+    }
+  })
+}
+
+export function createPuzzleScriptAutocompleteActivationController({
+  excludedKeyCodes,
+  start = startCompletion,
+  schedule = callback => setTimeout(callback, 0),
+  cancel = timer => clearTimeout(timer)
+}) {
+  let keydown = null
+  let allowedDocument = null
+  let fallbackPending = false
+  let fallbackTimer = null
+  let destroyed = false
+
+  function cancelFallback() {
+    fallbackPending = false
+    if (fallbackTimer == null) return
+    cancel(fallbackTimer)
+    fallbackTimer = null
+  }
+
+  function scheduleFallback(view) {
+    if (destroyed || fallbackTimer != null) return
+    fallbackTimer = schedule(() => {
+      fallbackTimer = null
+      if (!destroyed) start(view)
+    })
+  }
+
+  const controller = {
+    keydown(event) {
+      if (destroyed) return
+      keydown = {code: String(event.keyCode || event.which)}
+    },
+
+    observeTransactions(transactions, document) {
+      if (destroyed) return
+      for (const transaction of transactions) {
+        if (!transaction.docChanged) continue
+        allowedDocument = null
+        if (transaction.isUserEvent("input.type")) {
+          cancelFallback()
+          const code = keydown && keydown.code
+          if (!Object.prototype.hasOwnProperty.call(excludedKeyCodes, code)) {
+            allowedDocument = transaction.newDoc
+          }
+        } else if (transaction.isUserEvent("input.paste") ||
+                   transaction.isUserEvent("delete.backward") ||
+                   transaction.isUserEvent("delete.forward") ||
+                   transaction.isUserEvent("delete.cut")) {
+          allowedDocument = transaction.newDoc
+          fallbackPending = true
+        }
+      }
+      if (allowedDocument !== document) allowedDocument = null
+    },
+
+    keyup(event, view) {
+      if (destroyed) return false
+      if (fallbackPending) {
+        fallbackPending = false
+        scheduleFallback(view)
+      }
+      if (!event) return false
+
+      const code = String(event.keyCode || event.which)
+      if (keydown && keydown.code === code) keydown = null
+      return false
+    },
+
+    allows(document) {
+      return !destroyed && document === allowedDocument
+    },
+
+    destroy() {
+      if (destroyed) return
+      destroyed = true
+      keydown = null
+      allowedDocument = null
+      cancelFallback()
+    }
+  }
+  return Object.freeze(controller)
+}
+
 export function puzzleScriptAutocomplete({language, complete, excludedKeyCodes}) {
-  const source = puzzleScriptCompletionSource({language, complete})
+  const activation = createPuzzleScriptAutocompleteActivationController({excludedKeyCodes})
+  const cleanup = createPuzzleScriptAutocompleteActivationCleanup(activation)
+  const source = puzzleScriptCompletionSource({language, complete, allows: activation.allows})
   const completion = autocompletion({
-    activateOnTyping: false,
+    activateOnTyping: true,
+    activateOnTypingDelay: 0,
     defaultKeymap: false,
     interactionDelay: 0,
     maxRenderedOptions: Number.MAX_SAFE_INTEGER,
@@ -116,11 +222,19 @@ export function puzzleScriptAutocomplete({language, complete, excludedKeyCodes})
     override: [source],
     addToOptions: [{render: renderPuzzleScriptOption, position: 40}]
   })
-  const activateOnKeyRelease = EditorView.domEventHandlers({
-    keyup(event, view) {
-      if (!Object.prototype.hasOwnProperty.call(excludedKeyCodes, event.keyCode)) startCompletion(view)
+  const activationHandlers = EditorView.domEventHandlers({
+    keydown(event) {
+      activation.keydown(event)
       return false
+    },
+    keyup(event, view) {
+      return activation.keyup(event, view)
     }
   })
-  return [completion, activateOnKeyRelease]
+  const observeActivation = EditorView.updateListener.of(update => {
+    activation.observeTransactions(update.transactions, update.state.doc)
+    activation.keyup(null, update.view)
+  })
+  const destroyActivation = ViewPlugin.define(() => cleanup.create())
+  return [completion, activationHandlers, observeActivation, destroyActivation]
 }

@@ -9,11 +9,7 @@ const afterViewportLine = distantLevelLine + 200
 const undoKey = process.platform === "darwin" ? "Meta+z" : "Control+z"
 const redoKey = process.platform === "darwin" ? "Shift+Meta+z" : "Shift+Control+z"
 
-async function showDistantAutocomplete(
-  page,
-  levelLine = distantLevelLine,
-  completionLine = autocompleteLine
-) {
+async function showDistantRendering(page, levelLine = distantLevelLine) {
   await page.evaluate(({levelLine}) => {
     const editor = document.getElementById("code").editorreference
     editor.setCursor(levelLine, 40)
@@ -21,10 +17,22 @@ async function showDistantAutocomplete(
   }, {levelLine})
   await expect(page.locator(".cm-LEVEL").last()).toBeVisible()
   await expect(page.locator(".cm-METADATA, .cm-ERROR")).toHaveCount(0)
+}
+
+async function showDistantAutocomplete(
+  page,
+  levelLine = distantLevelLine,
+  completionLine = autocompleteLine
+) {
+  await showDistantRendering(page, levelLine)
   await page.evaluate(({completionLine}) => {
     document.getElementById("code").editorreference.setCursor(completionLine, 3)
   }, {completionLine})
-  await page.keyboard.press("Control+Space")
+  await page.keyboard.press("Backspace")
+  await expect(page.locator(".cm-tooltip-autocomplete")).toBeVisible()
+  await expect(page.locator(".cm-completionLabel").first()).toContainText("message")
+  await page.keyboard.press("Escape")
+  await page.keyboard.type("s")
   await expect(page.locator(".cm-tooltip-autocomplete")).toBeVisible()
   await expect(page.locator(".cm-completionLabel").first()).toContainText("message")
   await page.keyboard.press("Escape")
@@ -44,6 +52,8 @@ test("distant rendering and autocomplete wait for exact StreamLanguage state", a
     editor.focus()
   }, {source: editableLargeSource, line: distantLevelLine})
   await showDistantAutocomplete(page)
+  expect(await page.evaluate(() => document.getElementById("code").editorreference.getValue()))
+    .toBe(editableLargeSource)
 
   // Edit after the distant viewport, then exercise exact undo and redo paths.
   await page.evaluate(({line}) => {
@@ -51,9 +61,9 @@ test("distant rendering and autocomplete wait for exact StreamLanguage state", a
     editor.setCursor(line, 0)
     editor.replaceSelection("( suffix edit )\n")
   }, {line: afterViewportLine})
-  await showDistantAutocomplete(page, distantLevelLine, autocompleteLine + 1)
+  await showDistantRendering(page, distantLevelLine)
   await page.keyboard.press(undoKey)
-  await showDistantAutocomplete(page)
+  await showDistantRendering(page)
   await page.keyboard.press(redoKey)
   await showDistantAutocomplete(page, distantLevelLine, autocompleteLine + 1)
 
@@ -64,9 +74,9 @@ test("distant rendering and autocomplete wait for exact StreamLanguage state", a
     editor.setCursor(0, 0)
     editor.replaceSelection(`${longLine}\n`)
   }, "x".repeat(10_001))
-  await showDistantAutocomplete(page, distantLevelLine + 1, autocompleteLine + 2)
+  await showDistantRendering(page, distantLevelLine + 1)
   await page.keyboard.press(undoKey)
-  await showDistantAutocomplete(page, distantLevelLine, autocompleteLine + 1)
+  await showDistantRendering(page, distantLevelLine)
   await page.keyboard.press(redoKey)
   await showDistantAutocomplete(page, distantLevelLine + 1, autocompleteLine + 2)
 })
