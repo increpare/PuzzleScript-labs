@@ -5,6 +5,7 @@ bin/
 src - Kopie
 
 node_modules/
+src/tests/codemirror6/test-results/
 .worktrees/
 .claude/worktrees/happy-mestorf/
 

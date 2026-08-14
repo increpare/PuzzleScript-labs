@@ -1,0 +1,3346 @@
+{
+  "pc": {
+    "platform": "pc",
+    "raw": {
+      "basic": {
+        "Left": "goCharLeft",
+        "Right": "goCharRight",
+        "Up": "goLineUp",
+        "Down": "goLineDown",
+        "End": "goLineEnd",
+        "Home": "goLineStartSmart",
+        "PageUp": "goPageUp",
+        "PageDown": "goPageDown",
+        "Delete": "delCharAfter",
+        "Backspace": "delCharBefore",
+        "Shift-Backspace": "delCharBefore",
+        "Tab": "defaultTab",
+        "Shift-Tab": "indentAuto",
+        "Enter": "newlineAndIndent",
+        "Insert": "toggleOverwrite",
+        "Esc": "singleSelection"
+      },
+      "pcDefault": {
+        "Ctrl-A": "selectAll",
+        "Ctrl-D": "deleteLine",
+        "Ctrl-Z": "undo",
+        "Shift-Ctrl-Z": "redo",
+        "Ctrl-Y": "redo",
+        "Ctrl-Home": "goDocStart",
+        "Ctrl-End": "goDocEnd",
+        "Ctrl-Up": "goLineUp",
+        "Ctrl-Down": "goLineDown",
+        "Ctrl-Left": "goGroupLeft",
+        "Ctrl-Right": "goGroupRight",
+        "Alt-Left": "goLineStart",
+        "Alt-Right": "goLineEnd",
+        "Ctrl-Backspace": "delGroupBefore",
+        "Ctrl-Delete": "delGroupAfter",
+        "Ctrl-S": "save",
+        "Ctrl-F": "find",
+        "Ctrl-G": "findNext",
+        "Shift-Ctrl-G": "findPrev",
+        "Shift-Ctrl-R": "replaceAll",
+        "Ctrl-[": "indentLess",
+        "Ctrl-]": "indentMore",
+        "Ctrl-U": "undoSelection",
+        "Shift-Ctrl-U": "redoSelection",
+        "Alt-U": "redoSelection"
+      },
+      "macDefault": {
+        "Cmd-A": "selectAll",
+        "Cmd-D": "deleteLine",
+        "Cmd-Z": "undo",
+        "Shift-Cmd-Z": "redo",
+        "Cmd-Y": "redo",
+        "Cmd-Home": "goDocStart",
+        "Cmd-Up": "goDocStart",
+        "Cmd-End": "goDocEnd",
+        "Cmd-Down": "goDocEnd",
+        "Alt-Left": "goGroupLeft",
+        "Alt-Right": "goGroupRight",
+        "Cmd-Left": "goLineLeft",
+        "Cmd-Right": "goLineRight",
+        "Alt-Backspace": "delGroupBefore",
+        "Ctrl-Alt-Backspace": "delGroupAfter",
+        "Alt-Delete": "delGroupAfter",
+        "Cmd-S": "save",
+        "Cmd-F": "find",
+        "Cmd-G": "findNext",
+        "Shift-Cmd-G": "findPrev",
+        "Shift-Cmd-Alt-F": "replaceAll",
+        "Cmd-[": "indentLess",
+        "Cmd-]": "indentMore",
+        "Cmd-Backspace": "delWrappedLineLeft",
+        "Cmd-Delete": "delWrappedLineRight",
+        "Cmd-U": "undoSelection",
+        "Shift-Cmd-U": "redoSelection",
+        "Ctrl-Up": "goDocStart",
+        "Ctrl-Down": "goDocEnd"
+      },
+      "emacsy": {
+        "Ctrl-F": "goCharRight",
+        "Ctrl-B": "goCharLeft",
+        "Ctrl-P": "goLineUp",
+        "Ctrl-N": "goLineDown",
+        "Ctrl-A": "goLineStart",
+        "Ctrl-E": "goLineEnd",
+        "Ctrl-V": "goPageDown",
+        "Shift-Ctrl-V": "goPageUp",
+        "Ctrl-D": "delCharAfter",
+        "Ctrl-H": "delCharBefore",
+        "Alt-Backspace": "delWordBefore",
+        "Ctrl-K": "killLine",
+        "Ctrl-T": "transposeChars",
+        "Ctrl-O": "openLine"
+      },
+      "extra": {
+        "Ctrl-/": "toggleComment",
+        "Cmd-/": "toggleComment",
+        "Esc": "function:clearSearch",
+        "Shift-Ctrl-Up": "swapLineUp",
+        "Shift-Ctrl-Down": "swapLineDown"
+      },
+      "popup": {
+        "Up": "function:Up",
+        "Down": "function:Down",
+        "PageUp": "function:PageUp",
+        "PageDown": "function:PageDown",
+        "Home": "function:Home",
+        "End": "function:End",
+        "Enter": "function:pick",
+        "Tab": "function:pick",
+        "Esc": "function:close"
+      }
+    },
+    "effective": {
+      "Ctrl-/": "toggleComment",
+      "Cmd-/": "toggleComment",
+      "Esc": "function:clearSearch",
+      "Shift-Ctrl-Up": "swapLineUp",
+      "Shift-Ctrl-Down": "swapLineDown",
+      "Ctrl-A": "selectAll",
+      "Ctrl-D": "deleteLine",
+      "Ctrl-Z": "undo",
+      "Shift-Ctrl-Z": "redo",
+      "Ctrl-Y": "redo",
+      "Ctrl-Home": "goDocStart",
+      "Ctrl-End": "goDocEnd",
+      "Ctrl-Up": "goLineUp",
+      "Ctrl-Down": "goLineDown",
+      "Ctrl-Left": "goGroupLeft",
+      "Ctrl-Right": "goGroupRight",
+      "Alt-Left": "goLineStart",
+      "Alt-Right": "goLineEnd",
+      "Ctrl-Backspace": "delGroupBefore",
+      "Ctrl-Delete": "delGroupAfter",
+      "Ctrl-F": "find",
+      "Ctrl-G": "findNext",
+      "Shift-Ctrl-G": "findPrev",
+      "Shift-Ctrl-R": "replaceAll",
+      "Ctrl-[": "indentLess",
+      "Ctrl-]": "indentMore",
+      "Ctrl-U": "undoSelection",
+      "Shift-Ctrl-U": "redoSelection",
+      "Alt-U": "redoSelection",
+      "Left": "goCharLeft",
+      "Right": "goCharRight",
+      "Up": "goLineUp",
+      "Down": "goLineDown",
+      "End": "goLineEnd",
+      "Home": "goLineStartSmart",
+      "PageUp": "goPageUp",
+      "PageDown": "goPageDown",
+      "Delete": "delCharAfter",
+      "Backspace": "delCharBefore",
+      "Shift-Backspace": "delCharBefore",
+      "Tab": "defaultTab",
+      "Shift-Tab": "indentAuto",
+      "Enter": "newlineAndIndent",
+      "Insert": "toggleOverwrite"
+    },
+    "effectiveBindingNames": [
+      "Ctrl-/",
+      "Cmd-/",
+      "Esc",
+      "Shift-Ctrl-Up",
+      "Shift-Ctrl-Down",
+      "Ctrl-A",
+      "Ctrl-D",
+      "Ctrl-Z",
+      "Shift-Ctrl-Z",
+      "Ctrl-Y",
+      "Ctrl-Home",
+      "Ctrl-End",
+      "Ctrl-Up",
+      "Ctrl-Down",
+      "Ctrl-Left",
+      "Ctrl-Right",
+      "Alt-Left",
+      "Alt-Right",
+      "Ctrl-Backspace",
+      "Ctrl-Delete",
+      "Ctrl-F",
+      "Ctrl-G",
+      "Shift-Ctrl-G",
+      "Shift-Ctrl-R",
+      "Ctrl-[",
+      "Ctrl-]",
+      "Ctrl-U",
+      "Shift-Ctrl-U",
+      "Alt-U",
+      "Left",
+      "Right",
+      "Up",
+      "Down",
+      "End",
+      "Home",
+      "PageUp",
+      "PageDown",
+      "Delete",
+      "Backspace",
+      "Shift-Backspace",
+      "Tab",
+      "Shift-Tab",
+      "Enter",
+      "Insert"
+    ],
+    "popupBindingNames": [
+      "Up",
+      "Down",
+      "PageUp",
+      "PageDown",
+      "Home",
+      "End",
+      "Enter",
+      "Tab",
+      "Esc"
+    ],
+    "outcomes": {
+      "Ctrl-/": {
+        "value": "  alpha beta\n( second line )\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 8,
+              "sticky": null
+            },
+            "head": {
+              "line": 1,
+              "ch": 8,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Cmd-/": {
+        "value": "  alpha beta\n( second line )\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 8,
+              "sticky": null
+            },
+            "head": {
+              "line": 1,
+              "ch": 8,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Esc": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 6
+            },
+            "head": {
+              "line": 1,
+              "ch": 6
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Shift-Ctrl-Up": {
+        "value": "second line\n  alpha beta\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 6,
+              "sticky": null
+            },
+            "head": {
+              "line": 0,
+              "ch": 6,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Shift-Ctrl-Down": {
+        "value": "  alpha beta\nthird line\nsecond line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 2,
+              "ch": 6,
+              "sticky": null
+            },
+            "head": {
+              "line": 2,
+              "ch": 6,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Ctrl-A": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 0,
+              "sticky": null
+            },
+            "head": {
+              "line": 2,
+              "ch": 10,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Ctrl-D": {
+        "value": "  alpha beta\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 0,
+              "sticky": null
+            },
+            "head": {
+              "line": 1,
+              "ch": 0,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Ctrl-Z": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 6
+            },
+            "head": {
+              "line": 1,
+              "ch": 6
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Shift-Ctrl-Z": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 6
+            },
+            "head": {
+              "line": 1,
+              "ch": 6
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Ctrl-Y": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 6
+            },
+            "head": {
+              "line": 1,
+              "ch": 6
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Ctrl-Home": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 0,
+              "sticky": null
+            },
+            "head": {
+              "line": 0,
+              "ch": 0,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Ctrl-End": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 2,
+              "ch": 10,
+              "sticky": null
+            },
+            "head": {
+              "line": 2,
+              "ch": 10,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Ctrl-Up": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 6,
+              "sticky": "after",
+              "xRel": 0
+            },
+            "head": {
+              "line": 0,
+              "ch": 6,
+              "sticky": "after",
+              "xRel": 0
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Ctrl-Down": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 2,
+              "ch": 6,
+              "sticky": "after",
+              "xRel": 0
+            },
+            "head": {
+              "line": 2,
+              "ch": 6,
+              "sticky": "after",
+              "xRel": 0
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Ctrl-Left": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 0,
+              "sticky": "after"
+            },
+            "head": {
+              "line": 1,
+              "ch": 0,
+              "sticky": "after"
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Ctrl-Right": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 11,
+              "sticky": "before"
+            },
+            "head": {
+              "line": 1,
+              "ch": 11,
+              "sticky": "before"
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Alt-Left": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 0,
+              "sticky": "after"
+            },
+            "head": {
+              "line": 1,
+              "ch": 0,
+              "sticky": "after"
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Alt-Right": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 11,
+              "sticky": "before"
+            },
+            "head": {
+              "line": 1,
+              "ch": 11,
+              "sticky": "before"
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Ctrl-Backspace": {
+        "value": "  alpha beta\n line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 0,
+              "sticky": null
+            },
+            "head": {
+              "line": 1,
+              "ch": 0,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Ctrl-Delete": {
+        "value": "  alpha beta\nsecond\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 6
+            },
+            "head": {
+              "line": 1,
+              "ch": 6
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Ctrl-F": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 6
+            },
+            "head": {
+              "line": 1,
+              "ch": 6
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Ctrl-G": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 6
+            },
+            "head": {
+              "line": 1,
+              "ch": 6
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Shift-Ctrl-G": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 6
+            },
+            "head": {
+              "line": 1,
+              "ch": 6
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Shift-Ctrl-R": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 6
+            },
+            "head": {
+              "line": 1,
+              "ch": 6
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Ctrl-[": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 6
+            },
+            "head": {
+              "line": 1,
+              "ch": 6
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Ctrl-]": {
+        "value": "  alpha beta\n  second line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 8,
+              "sticky": null
+            },
+            "head": {
+              "line": 1,
+              "ch": 8,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Ctrl-U": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 6
+            },
+            "head": {
+              "line": 1,
+              "ch": 6
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Shift-Ctrl-U": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 6
+            },
+            "head": {
+              "line": 1,
+              "ch": 6
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Alt-U": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 6
+            },
+            "head": {
+              "line": 1,
+              "ch": 6
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Left": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 5,
+              "sticky": "after"
+            },
+            "head": {
+              "line": 1,
+              "ch": 5,
+              "sticky": "after"
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Right": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 7,
+              "sticky": "before"
+            },
+            "head": {
+              "line": 1,
+              "ch": 7,
+              "sticky": "before"
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Up": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 6,
+              "sticky": "after",
+              "xRel": 0
+            },
+            "head": {
+              "line": 0,
+              "ch": 6,
+              "sticky": "after",
+              "xRel": 0
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Down": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 2,
+              "ch": 6,
+              "sticky": "after",
+              "xRel": 0
+            },
+            "head": {
+              "line": 2,
+              "ch": 6,
+              "sticky": "after",
+              "xRel": 0
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "End": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 11,
+              "sticky": "before"
+            },
+            "head": {
+              "line": 1,
+              "ch": 11,
+              "sticky": "before"
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Home": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 0,
+              "sticky": "after"
+            },
+            "head": {
+              "line": 1,
+              "ch": 0,
+              "sticky": "after"
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "PageUp": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 0,
+              "sticky": null,
+              "xRel": -1,
+              "outside": -1,
+              "hitSide": true
+            },
+            "head": {
+              "line": 0,
+              "ch": 0,
+              "sticky": null,
+              "xRel": -1,
+              "outside": -1,
+              "hitSide": true
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "PageDown": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 2,
+              "ch": 10,
+              "sticky": null,
+              "xRel": 1,
+              "outside": 1,
+              "hitSide": true
+            },
+            "head": {
+              "line": 2,
+              "ch": 10,
+              "sticky": null,
+              "xRel": 1,
+              "outside": 1,
+              "hitSide": true
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Delete": {
+        "value": "  alpha beta\nsecondline\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 6
+            },
+            "head": {
+              "line": 1,
+              "ch": 6
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Backspace": {
+        "value": "  alpha beta\nsecon line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 5,
+              "sticky": null
+            },
+            "head": {
+              "line": 1,
+              "ch": 5,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Shift-Backspace": {
+        "value": "  alpha beta\nsecon line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 5,
+              "sticky": null
+            },
+            "head": {
+              "line": 1,
+              "ch": 5,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Tab": {
+        "value": "  alpha beta\nsecond\t line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 7,
+              "sticky": null
+            },
+            "head": {
+              "line": 1,
+              "ch": 7,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Shift-Tab": {
+        "value": "  alpha beta\n  second line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 8,
+              "sticky": null
+            },
+            "head": {
+              "line": 1,
+              "ch": 8,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Enter": {
+        "value": "  alpha beta\nsecond\nline\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 2,
+              "ch": 0,
+              "sticky": null
+            },
+            "head": {
+              "line": 2,
+              "ch": 0,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Insert": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 6
+            },
+            "head": {
+              "line": 1,
+              "ch": 6
+            }
+          }
+        ],
+        "overwrite": true,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      }
+    },
+    "popupOutcomes": {
+      "Up": {
+        "value": "tit",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 3
+            },
+            "head": {
+              "line": 0,
+              "ch": 3
+            }
+          }
+        ],
+        "overwrite": true,
+        "searchOpen": false,
+        "completionOpen": true,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Down": {
+        "value": "tit",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 3
+            },
+            "head": {
+              "line": 0,
+              "ch": 3
+            }
+          }
+        ],
+        "overwrite": true,
+        "searchOpen": false,
+        "completionOpen": true,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "PageUp": {
+        "value": "tit",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 3
+            },
+            "head": {
+              "line": 0,
+              "ch": 3
+            }
+          }
+        ],
+        "overwrite": true,
+        "searchOpen": false,
+        "completionOpen": true,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "PageDown": {
+        "value": "tit",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 3
+            },
+            "head": {
+              "line": 0,
+              "ch": 3
+            }
+          }
+        ],
+        "overwrite": true,
+        "searchOpen": false,
+        "completionOpen": true,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Home": {
+        "value": "tit",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 3
+            },
+            "head": {
+              "line": 0,
+              "ch": 3
+            }
+          }
+        ],
+        "overwrite": true,
+        "searchOpen": false,
+        "completionOpen": true,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "End": {
+        "value": "tit",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 3
+            },
+            "head": {
+              "line": 0,
+              "ch": 3
+            }
+          }
+        ],
+        "overwrite": true,
+        "searchOpen": false,
+        "completionOpen": true,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Enter": {
+        "value": "title",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 5,
+              "sticky": null
+            },
+            "head": {
+              "line": 0,
+              "ch": 5,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": true,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Tab": {
+        "value": "title",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 5,
+              "sticky": null
+            },
+            "head": {
+              "line": 0,
+              "ch": 5,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": true,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Esc": {
+        "value": "tit",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 3
+            },
+            "head": {
+              "line": 0,
+              "ch": 3
+            }
+          }
+        ],
+        "overwrite": true,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      }
+    },
+    "applicationOutcomes": {
+      "save": {
+        "callbacks": {
+          "save": 1,
+          "rebuild": 0,
+          "run": 0,
+          "dump": 0,
+          "gif": 0
+        },
+        "value": "alpha\nbeta"
+      },
+      "rebuild": {
+        "callbacks": {
+          "save": 0,
+          "rebuild": 1,
+          "run": 0,
+          "dump": 0,
+          "gif": 0
+        },
+        "value": "alpha\nbeta"
+      },
+      "run": {
+        "callbacks": {
+          "save": 0,
+          "rebuild": 0,
+          "run": 1,
+          "dump": 0,
+          "gif": 0
+        },
+        "value": "alpha\nbeta"
+      },
+      "dump": {
+        "callbacks": {
+          "save": 0,
+          "rebuild": 0,
+          "run": 0,
+          "dump": 1,
+          "gif": 0
+        },
+        "value": "alpha\nbeta"
+      },
+      "gif": {
+        "callbacks": {
+          "save": 0,
+          "rebuild": 0,
+          "run": 0,
+          "dump": 0,
+          "gif": 1
+        },
+        "value": "alpha\nbeta"
+      }
+    }
+  },
+  "mac": {
+    "platform": "mac",
+    "raw": {
+      "basic": {
+        "Left": "goCharLeft",
+        "Right": "goCharRight",
+        "Up": "goLineUp",
+        "Down": "goLineDown",
+        "End": "goLineEnd",
+        "Home": "goLineStartSmart",
+        "PageUp": "goPageUp",
+        "PageDown": "goPageDown",
+        "Delete": "delCharAfter",
+        "Backspace": "delCharBefore",
+        "Shift-Backspace": "delCharBefore",
+        "Tab": "defaultTab",
+        "Shift-Tab": "indentAuto",
+        "Enter": "newlineAndIndent",
+        "Insert": "toggleOverwrite",
+        "Esc": "singleSelection"
+      },
+      "pcDefault": {
+        "Ctrl-A": "selectAll",
+        "Ctrl-D": "deleteLine",
+        "Ctrl-Z": "undo",
+        "Shift-Ctrl-Z": "redo",
+        "Ctrl-Y": "redo",
+        "Ctrl-Home": "goDocStart",
+        "Ctrl-End": "goDocEnd",
+        "Ctrl-Up": "goLineUp",
+        "Ctrl-Down": "goLineDown",
+        "Ctrl-Left": "goGroupLeft",
+        "Ctrl-Right": "goGroupRight",
+        "Alt-Left": "goLineStart",
+        "Alt-Right": "goLineEnd",
+        "Ctrl-Backspace": "delGroupBefore",
+        "Ctrl-Delete": "delGroupAfter",
+        "Ctrl-S": "save",
+        "Ctrl-F": "find",
+        "Ctrl-G": "findNext",
+        "Shift-Ctrl-G": "findPrev",
+        "Shift-Ctrl-R": "replaceAll",
+        "Ctrl-[": "indentLess",
+        "Ctrl-]": "indentMore",
+        "Ctrl-U": "undoSelection",
+        "Shift-Ctrl-U": "redoSelection",
+        "Alt-U": "redoSelection"
+      },
+      "macDefault": {
+        "Cmd-A": "selectAll",
+        "Cmd-D": "deleteLine",
+        "Cmd-Z": "undo",
+        "Shift-Cmd-Z": "redo",
+        "Cmd-Y": "redo",
+        "Cmd-Home": "goDocStart",
+        "Cmd-Up": "goDocStart",
+        "Cmd-End": "goDocEnd",
+        "Cmd-Down": "goDocEnd",
+        "Alt-Left": "goGroupLeft",
+        "Alt-Right": "goGroupRight",
+        "Cmd-Left": "goLineLeft",
+        "Cmd-Right": "goLineRight",
+        "Alt-Backspace": "delGroupBefore",
+        "Ctrl-Alt-Backspace": "delGroupAfter",
+        "Alt-Delete": "delGroupAfter",
+        "Cmd-S": "save",
+        "Cmd-F": "find",
+        "Cmd-G": "findNext",
+        "Shift-Cmd-G": "findPrev",
+        "Shift-Cmd-Alt-F": "replaceAll",
+        "Cmd-[": "indentLess",
+        "Cmd-]": "indentMore",
+        "Cmd-Backspace": "delWrappedLineLeft",
+        "Cmd-Delete": "delWrappedLineRight",
+        "Cmd-U": "undoSelection",
+        "Shift-Cmd-U": "redoSelection",
+        "Ctrl-Up": "goDocStart",
+        "Ctrl-Down": "goDocEnd"
+      },
+      "emacsy": {
+        "Ctrl-F": "goCharRight",
+        "Ctrl-B": "goCharLeft",
+        "Ctrl-P": "goLineUp",
+        "Ctrl-N": "goLineDown",
+        "Ctrl-A": "goLineStart",
+        "Ctrl-E": "goLineEnd",
+        "Ctrl-V": "goPageDown",
+        "Shift-Ctrl-V": "goPageUp",
+        "Ctrl-D": "delCharAfter",
+        "Ctrl-H": "delCharBefore",
+        "Alt-Backspace": "delWordBefore",
+        "Ctrl-K": "killLine",
+        "Ctrl-T": "transposeChars",
+        "Ctrl-O": "openLine"
+      },
+      "extra": {
+        "Ctrl-/": "toggleComment",
+        "Cmd-/": "toggleComment",
+        "Esc": "function:clearSearch",
+        "Shift-Ctrl-Up": "swapLineUp",
+        "Shift-Ctrl-Down": "swapLineDown"
+      },
+      "popup": {
+        "Up": "function:Up",
+        "Down": "function:Down",
+        "PageUp": "function:PageUp",
+        "PageDown": "function:PageDown",
+        "Home": "function:Home",
+        "End": "function:End",
+        "Enter": "function:pick",
+        "Tab": "function:pick",
+        "Esc": "function:close",
+        "Ctrl-P": "function:anonymous",
+        "Ctrl-N": "function:anonymous"
+      }
+    },
+    "effective": {
+      "Ctrl-/": "toggleComment",
+      "Cmd-/": "toggleComment",
+      "Esc": "function:clearSearch",
+      "Shift-Ctrl-Up": "swapLineUp",
+      "Shift-Ctrl-Down": "swapLineDown",
+      "Cmd-A": "selectAll",
+      "Cmd-D": "deleteLine",
+      "Cmd-Z": "undo",
+      "Shift-Cmd-Z": "redo",
+      "Cmd-Y": "redo",
+      "Cmd-Home": "goDocStart",
+      "Cmd-Up": "goDocStart",
+      "Cmd-End": "goDocEnd",
+      "Cmd-Down": "goDocEnd",
+      "Alt-Left": "goGroupLeft",
+      "Alt-Right": "goGroupRight",
+      "Cmd-Left": "goLineLeft",
+      "Cmd-Right": "goLineRight",
+      "Alt-Backspace": "delGroupBefore",
+      "Ctrl-Alt-Backspace": "delGroupAfter",
+      "Alt-Delete": "delGroupAfter",
+      "Cmd-F": "find",
+      "Cmd-G": "findNext",
+      "Shift-Cmd-G": "findPrev",
+      "Shift-Cmd-Alt-F": "replaceAll",
+      "Cmd-[": "indentLess",
+      "Cmd-]": "indentMore",
+      "Cmd-Backspace": "delWrappedLineLeft",
+      "Cmd-Delete": "delWrappedLineRight",
+      "Cmd-U": "undoSelection",
+      "Shift-Cmd-U": "redoSelection",
+      "Ctrl-Up": "goDocStart",
+      "Ctrl-Down": "goDocEnd",
+      "Left": "goCharLeft",
+      "Right": "goCharRight",
+      "Up": "goLineUp",
+      "Down": "goLineDown",
+      "End": "goLineEnd",
+      "Home": "goLineStartSmart",
+      "PageUp": "goPageUp",
+      "PageDown": "goPageDown",
+      "Delete": "delCharAfter",
+      "Backspace": "delCharBefore",
+      "Shift-Backspace": "delCharBefore",
+      "Tab": "defaultTab",
+      "Shift-Tab": "indentAuto",
+      "Enter": "newlineAndIndent",
+      "Insert": "toggleOverwrite",
+      "Ctrl-F": "goCharRight",
+      "Ctrl-B": "goCharLeft",
+      "Ctrl-P": "goLineUp",
+      "Ctrl-N": "goLineDown",
+      "Ctrl-A": "goLineStart",
+      "Ctrl-E": "goLineEnd",
+      "Ctrl-V": "goPageDown",
+      "Shift-Ctrl-V": "goPageUp",
+      "Ctrl-D": "delCharAfter",
+      "Ctrl-H": "delCharBefore",
+      "Ctrl-K": "killLine",
+      "Ctrl-T": "transposeChars",
+      "Ctrl-O": "openLine"
+    },
+    "effectiveBindingNames": [
+      "Ctrl-/",
+      "Cmd-/",
+      "Esc",
+      "Shift-Ctrl-Up",
+      "Shift-Ctrl-Down",
+      "Cmd-A",
+      "Cmd-D",
+      "Cmd-Z",
+      "Shift-Cmd-Z",
+      "Cmd-Y",
+      "Cmd-Home",
+      "Cmd-Up",
+      "Cmd-End",
+      "Cmd-Down",
+      "Alt-Left",
+      "Alt-Right",
+      "Cmd-Left",
+      "Cmd-Right",
+      "Alt-Backspace",
+      "Ctrl-Alt-Backspace",
+      "Alt-Delete",
+      "Cmd-F",
+      "Cmd-G",
+      "Shift-Cmd-G",
+      "Shift-Cmd-Alt-F",
+      "Cmd-[",
+      "Cmd-]",
+      "Cmd-Backspace",
+      "Cmd-Delete",
+      "Cmd-U",
+      "Shift-Cmd-U",
+      "Ctrl-Up",
+      "Ctrl-Down",
+      "Left",
+      "Right",
+      "Up",
+      "Down",
+      "End",
+      "Home",
+      "PageUp",
+      "PageDown",
+      "Delete",
+      "Backspace",
+      "Shift-Backspace",
+      "Tab",
+      "Shift-Tab",
+      "Enter",
+      "Insert",
+      "Ctrl-F",
+      "Ctrl-B",
+      "Ctrl-P",
+      "Ctrl-N",
+      "Ctrl-A",
+      "Ctrl-E",
+      "Ctrl-V",
+      "Shift-Ctrl-V",
+      "Ctrl-D",
+      "Ctrl-H",
+      "Ctrl-K",
+      "Ctrl-T",
+      "Ctrl-O"
+    ],
+    "popupBindingNames": [
+      "Up",
+      "Down",
+      "PageUp",
+      "PageDown",
+      "Home",
+      "End",
+      "Enter",
+      "Tab",
+      "Esc",
+      "Ctrl-P",
+      "Ctrl-N"
+    ],
+    "outcomes": {
+      "Ctrl-/": {
+        "value": "  alpha beta\n( second line )\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 8,
+              "sticky": null
+            },
+            "head": {
+              "line": 1,
+              "ch": 8,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Cmd-/": {
+        "value": "  alpha beta\n( second line )\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 8,
+              "sticky": null
+            },
+            "head": {
+              "line": 1,
+              "ch": 8,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Esc": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 6
+            },
+            "head": {
+              "line": 1,
+              "ch": 6
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Shift-Ctrl-Up": {
+        "value": "second line\n  alpha beta\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 6,
+              "sticky": null
+            },
+            "head": {
+              "line": 0,
+              "ch": 6,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Shift-Ctrl-Down": {
+        "value": "  alpha beta\nthird line\nsecond line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 2,
+              "ch": 6,
+              "sticky": null
+            },
+            "head": {
+              "line": 2,
+              "ch": 6,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Cmd-A": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 0,
+              "sticky": null
+            },
+            "head": {
+              "line": 2,
+              "ch": 10,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Cmd-D": {
+        "value": "  alpha beta\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 0,
+              "sticky": null
+            },
+            "head": {
+              "line": 1,
+              "ch": 0,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Cmd-Z": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 6
+            },
+            "head": {
+              "line": 1,
+              "ch": 6
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Shift-Cmd-Z": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 6
+            },
+            "head": {
+              "line": 1,
+              "ch": 6
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Cmd-Y": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 6
+            },
+            "head": {
+              "line": 1,
+              "ch": 6
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Cmd-Home": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 0,
+              "sticky": null
+            },
+            "head": {
+              "line": 0,
+              "ch": 0,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Cmd-Up": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 0,
+              "sticky": null
+            },
+            "head": {
+              "line": 0,
+              "ch": 0,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Cmd-End": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 2,
+              "ch": 10,
+              "sticky": null
+            },
+            "head": {
+              "line": 2,
+              "ch": 10,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Cmd-Down": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 2,
+              "ch": 10,
+              "sticky": null
+            },
+            "head": {
+              "line": 2,
+              "ch": 10,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Alt-Left": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 0,
+              "sticky": "after"
+            },
+            "head": {
+              "line": 1,
+              "ch": 0,
+              "sticky": "after"
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Alt-Right": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 11,
+              "sticky": "before"
+            },
+            "head": {
+              "line": 1,
+              "ch": 11,
+              "sticky": "before"
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Cmd-Left": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 0,
+              "sticky": "after",
+              "xRel": -4
+            },
+            "head": {
+              "line": 1,
+              "ch": 0,
+              "sticky": "after",
+              "xRel": -4
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Cmd-Right": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 11,
+              "sticky": "before",
+              "xRel": 681.375
+            },
+            "head": {
+              "line": 1,
+              "ch": 11,
+              "sticky": "before",
+              "xRel": 681.375
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Alt-Backspace": {
+        "value": "  alpha beta\n line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 0,
+              "sticky": null
+            },
+            "head": {
+              "line": 1,
+              "ch": 0,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Ctrl-Alt-Backspace": {
+        "value": "  alpha beta\nsecond\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 6
+            },
+            "head": {
+              "line": 1,
+              "ch": 6
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Alt-Delete": {
+        "value": "  alpha beta\nsecond\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 6
+            },
+            "head": {
+              "line": 1,
+              "ch": 6
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Cmd-F": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 6
+            },
+            "head": {
+              "line": 1,
+              "ch": 6
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Cmd-G": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 6
+            },
+            "head": {
+              "line": 1,
+              "ch": 6
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Shift-Cmd-G": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 6
+            },
+            "head": {
+              "line": 1,
+              "ch": 6
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Shift-Cmd-Alt-F": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 6
+            },
+            "head": {
+              "line": 1,
+              "ch": 6
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Cmd-[": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 6
+            },
+            "head": {
+              "line": 1,
+              "ch": 6
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Cmd-]": {
+        "value": "  alpha beta\n  second line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 8,
+              "sticky": null
+            },
+            "head": {
+              "line": 1,
+              "ch": 8,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Cmd-Backspace": {
+        "value": "  alpha beta\n line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 0,
+              "sticky": null
+            },
+            "head": {
+              "line": 1,
+              "ch": 0,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Cmd-Delete": {
+        "value": "  alpha beta\nsecond\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 6
+            },
+            "head": {
+              "line": 1,
+              "ch": 6
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Cmd-U": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 6
+            },
+            "head": {
+              "line": 1,
+              "ch": 6
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Shift-Cmd-U": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 6
+            },
+            "head": {
+              "line": 1,
+              "ch": 6
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Ctrl-Up": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 0,
+              "sticky": null
+            },
+            "head": {
+              "line": 0,
+              "ch": 0,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Ctrl-Down": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 2,
+              "ch": 10,
+              "sticky": null
+            },
+            "head": {
+              "line": 2,
+              "ch": 10,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Left": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 5,
+              "sticky": "after"
+            },
+            "head": {
+              "line": 1,
+              "ch": 5,
+              "sticky": "after"
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Right": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 7,
+              "sticky": "before"
+            },
+            "head": {
+              "line": 1,
+              "ch": 7,
+              "sticky": "before"
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Up": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 6,
+              "sticky": "after",
+              "xRel": 0
+            },
+            "head": {
+              "line": 0,
+              "ch": 6,
+              "sticky": "after",
+              "xRel": 0
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Down": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 2,
+              "ch": 6,
+              "sticky": "after",
+              "xRel": 0
+            },
+            "head": {
+              "line": 2,
+              "ch": 6,
+              "sticky": "after",
+              "xRel": 0
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "End": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 11,
+              "sticky": "before"
+            },
+            "head": {
+              "line": 1,
+              "ch": 11,
+              "sticky": "before"
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Home": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 0,
+              "sticky": "after"
+            },
+            "head": {
+              "line": 1,
+              "ch": 0,
+              "sticky": "after"
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "PageUp": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 0,
+              "sticky": null,
+              "xRel": -1,
+              "outside": -1,
+              "hitSide": true
+            },
+            "head": {
+              "line": 0,
+              "ch": 0,
+              "sticky": null,
+              "xRel": -1,
+              "outside": -1,
+              "hitSide": true
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "PageDown": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 2,
+              "ch": 10,
+              "sticky": null,
+              "xRel": 1,
+              "outside": 1,
+              "hitSide": true
+            },
+            "head": {
+              "line": 2,
+              "ch": 10,
+              "sticky": null,
+              "xRel": 1,
+              "outside": 1,
+              "hitSide": true
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Delete": {
+        "value": "  alpha beta\nsecondline\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 6
+            },
+            "head": {
+              "line": 1,
+              "ch": 6
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Backspace": {
+        "value": "  alpha beta\nsecon line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 5,
+              "sticky": null
+            },
+            "head": {
+              "line": 1,
+              "ch": 5,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Shift-Backspace": {
+        "value": "  alpha beta\nsecon line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 5,
+              "sticky": null
+            },
+            "head": {
+              "line": 1,
+              "ch": 5,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Tab": {
+        "value": "  alpha beta\nsecond\t line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 7,
+              "sticky": null
+            },
+            "head": {
+              "line": 1,
+              "ch": 7,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Shift-Tab": {
+        "value": "  alpha beta\n  second line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 8,
+              "sticky": null
+            },
+            "head": {
+              "line": 1,
+              "ch": 8,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Enter": {
+        "value": "  alpha beta\nsecond\nline\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 2,
+              "ch": 0,
+              "sticky": null
+            },
+            "head": {
+              "line": 2,
+              "ch": 0,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": false,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Insert": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 6
+            },
+            "head": {
+              "line": 1,
+              "ch": 6
+            }
+          }
+        ],
+        "overwrite": true,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Ctrl-F": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 7,
+              "sticky": "before"
+            },
+            "head": {
+              "line": 1,
+              "ch": 7,
+              "sticky": "before"
+            }
+          }
+        ],
+        "overwrite": true,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Ctrl-B": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 5,
+              "sticky": "after"
+            },
+            "head": {
+              "line": 1,
+              "ch": 5,
+              "sticky": "after"
+            }
+          }
+        ],
+        "overwrite": true,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Ctrl-P": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 6,
+              "sticky": "after",
+              "xRel": 0
+            },
+            "head": {
+              "line": 0,
+              "ch": 6,
+              "sticky": "after",
+              "xRel": 0
+            }
+          }
+        ],
+        "overwrite": true,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Ctrl-N": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 2,
+              "ch": 6,
+              "sticky": "after",
+              "xRel": 0
+            },
+            "head": {
+              "line": 2,
+              "ch": 6,
+              "sticky": "after",
+              "xRel": 0
+            }
+          }
+        ],
+        "overwrite": true,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Ctrl-A": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 0,
+              "sticky": "after"
+            },
+            "head": {
+              "line": 1,
+              "ch": 0,
+              "sticky": "after"
+            }
+          }
+        ],
+        "overwrite": true,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Ctrl-E": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 11,
+              "sticky": "before"
+            },
+            "head": {
+              "line": 1,
+              "ch": 11,
+              "sticky": "before"
+            }
+          }
+        ],
+        "overwrite": true,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Ctrl-V": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 2,
+              "ch": 10,
+              "sticky": null,
+              "xRel": 1,
+              "outside": 1,
+              "hitSide": true
+            },
+            "head": {
+              "line": 2,
+              "ch": 10,
+              "sticky": null,
+              "xRel": 1,
+              "outside": 1,
+              "hitSide": true
+            }
+          }
+        ],
+        "overwrite": true,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Shift-Ctrl-V": {
+        "value": "  alpha beta\nsecond line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 0,
+              "sticky": null,
+              "xRel": -1,
+              "outside": -1,
+              "hitSide": true
+            },
+            "head": {
+              "line": 0,
+              "ch": 0,
+              "sticky": null,
+              "xRel": -1,
+              "outside": -1,
+              "hitSide": true
+            }
+          }
+        ],
+        "overwrite": true,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Ctrl-D": {
+        "value": "  alpha beta\nsecondline\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 6
+            },
+            "head": {
+              "line": 1,
+              "ch": 6
+            }
+          }
+        ],
+        "overwrite": true,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Ctrl-H": {
+        "value": "  alpha beta\nsecon line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 5,
+              "sticky": null
+            },
+            "head": {
+              "line": 1,
+              "ch": 5,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": true,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Ctrl-K": {
+        "value": "  alpha beta\nsecond\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 6
+            },
+            "head": {
+              "line": 1,
+              "ch": 6
+            }
+          }
+        ],
+        "overwrite": true,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Ctrl-T": {
+        "value": "  alpha beta\nsecon dline\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 7,
+              "sticky": null
+            },
+            "head": {
+              "line": 1,
+              "ch": 7,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": true,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Ctrl-O": {
+        "value": "  alpha beta\nsecond\n line\nthird line",
+        "selections": [
+          {
+            "anchor": {
+              "line": 1,
+              "ch": 6,
+              "sticky": null
+            },
+            "head": {
+              "line": 1,
+              "ch": 6,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": true,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      }
+    },
+    "popupOutcomes": {
+      "Up": {
+        "value": "tit",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 3
+            },
+            "head": {
+              "line": 0,
+              "ch": 3
+            }
+          }
+        ],
+        "overwrite": true,
+        "searchOpen": false,
+        "completionOpen": true,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Down": {
+        "value": "tit",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 3
+            },
+            "head": {
+              "line": 0,
+              "ch": 3
+            }
+          }
+        ],
+        "overwrite": true,
+        "searchOpen": false,
+        "completionOpen": true,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "PageUp": {
+        "value": "tit",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 3
+            },
+            "head": {
+              "line": 0,
+              "ch": 3
+            }
+          }
+        ],
+        "overwrite": true,
+        "searchOpen": false,
+        "completionOpen": true,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "PageDown": {
+        "value": "tit",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 3
+            },
+            "head": {
+              "line": 0,
+              "ch": 3
+            }
+          }
+        ],
+        "overwrite": true,
+        "searchOpen": false,
+        "completionOpen": true,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Home": {
+        "value": "tit",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 3
+            },
+            "head": {
+              "line": 0,
+              "ch": 3
+            }
+          }
+        ],
+        "overwrite": true,
+        "searchOpen": false,
+        "completionOpen": true,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "End": {
+        "value": "tit",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 3
+            },
+            "head": {
+              "line": 0,
+              "ch": 3
+            }
+          }
+        ],
+        "overwrite": true,
+        "searchOpen": false,
+        "completionOpen": true,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Enter": {
+        "value": "title",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 5,
+              "sticky": null
+            },
+            "head": {
+              "line": 0,
+              "ch": 5,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": true,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Tab": {
+        "value": "title",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 5,
+              "sticky": null
+            },
+            "head": {
+              "line": 0,
+              "ch": 5,
+              "sticky": null
+            }
+          }
+        ],
+        "overwrite": true,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Esc": {
+        "value": "tit",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 3
+            },
+            "head": {
+              "line": 0,
+              "ch": 3
+            }
+          }
+        ],
+        "overwrite": true,
+        "searchOpen": false,
+        "completionOpen": false,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Ctrl-P": {
+        "value": "tit",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 3
+            },
+            "head": {
+              "line": 0,
+              "ch": 3
+            }
+          }
+        ],
+        "overwrite": true,
+        "searchOpen": false,
+        "completionOpen": true,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      },
+      "Ctrl-N": {
+        "value": "tit",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 3
+            },
+            "head": {
+              "line": 0,
+              "ch": 3
+            }
+          }
+        ],
+        "overwrite": true,
+        "searchOpen": false,
+        "completionOpen": true,
+        "defaultPrevented": true,
+        "propagationStopped": false
+      }
+    },
+    "applicationOutcomes": {
+      "save": {
+        "callbacks": {
+          "save": 1,
+          "rebuild": 0,
+          "run": 0,
+          "dump": 0,
+          "gif": 0
+        },
+        "value": "alpha\nbeta"
+      },
+      "rebuild": {
+        "callbacks": {
+          "save": 0,
+          "rebuild": 1,
+          "run": 0,
+          "dump": 0,
+          "gif": 0
+        },
+        "value": "alpha\nbeta"
+      },
+      "run": {
+        "callbacks": {
+          "save": 0,
+          "rebuild": 0,
+          "run": 1,
+          "dump": 0,
+          "gif": 0
+        },
+        "value": "alpha\nbeta"
+      },
+      "dump": {
+        "callbacks": {
+          "save": 0,
+          "rebuild": 0,
+          "run": 0,
+          "dump": 1,
+          "gif": 0
+        },
+        "value": "alpha\nbeta"
+      },
+      "gif": {
+        "callbacks": {
+          "save": 0,
+          "rebuild": 0,
+          "run": 0,
+          "dump": 0,
+          "gif": 1
+        },
+        "value": "alpha\nbeta"
+      },
+      "ctrl-save": {
+        "callbacks": {
+          "save": 1,
+          "rebuild": 0,
+          "run": 0,
+          "dump": 0,
+          "gif": 0
+        },
+        "value": "alpha\nbeta"
+      },
+      "ctrl-rebuild": {
+        "callbacks": {
+          "save": 0,
+          "rebuild": 1,
+          "run": 0,
+          "dump": 0,
+          "gif": 0
+        },
+        "value": "alpha\nbeta"
+      },
+      "ctrl-run": {
+        "callbacks": {
+          "save": 0,
+          "rebuild": 0,
+          "run": 1,
+          "dump": 0,
+          "gif": 0
+        },
+        "value": "alpha\nbeta"
+      },
+      "ctrl-dump": {
+        "callbacks": {
+          "save": 0,
+          "rebuild": 0,
+          "run": 0,
+          "dump": 1,
+          "gif": 0
+        },
+        "value": "alpha\nbeta"
+      },
+      "ctrl-gif": {
+        "callbacks": {
+          "save": 0,
+          "rebuild": 0,
+          "run": 0,
+          "dump": 0,
+          "gif": 1
+        },
+        "value": "al\nbeta"
+      }
+    }
+  }
+}
