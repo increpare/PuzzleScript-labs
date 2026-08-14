@@ -142,7 +142,11 @@
       return cursorRect.bottom > lineRect.top && cursorRect.top < lineRect.bottom
     })
     if (!cursorOnRequestedLine) return false
-    if (visible(".cm-LEVEL").length === 0) return false
+    const levelOnRequestedLine = visible(".cm-LEVEL").some(element => {
+      const levelRect = element.getBoundingClientRect()
+      return levelRect.bottom > lineRect.top && levelRect.top < lineRect.bottom
+    })
+    if (!levelOnRequestedLine) return false
     return !cm6 || visible(".cm-METADATA,.cm-ERROR").length === 0
   }
 

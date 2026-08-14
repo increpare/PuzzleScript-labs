@@ -64,7 +64,7 @@ export function transformCM5ComparisonHtml(input) {
     .replace(/\s*<base\s+href=["'][^"']*["']\s*\/?>/gi, "")
     .replace(/\s*<link\s+rel=["']stylesheet["']\s+href=["']css\/editor-cm6\.css["']\s*\/?>/gi, "")
 
-  output = output.replace(/\s*<script\s+src=["'][^"']+["']\s*><\/script>/gi, "")
+  output = output.replace(/\s*<script\b(?=[^>]*\ssrc\s*=)[^>]*>[\s\S]*?<\/script\s*>/gi, "")
 
   output = output.replace(/<head>/i, '<head>\n<base href="../../../">')
 

@@ -84,7 +84,12 @@ function performanceInputs() {
   }
 }
 
-function createHarnessContext({visibleLine = 10, levelTop = 10, cursorTop = levelTop} = {}) {
+function createHarnessContext({
+  visibleLine = 10,
+  lineTop = 10,
+  levelTop = lineTop,
+  cursorTop = lineTop
+} = {}) {
   const calls = []
   const classes = new Set()
   const input = {dispatchEvent(event) { calls.push(["event", event.type, event.key]) }}
@@ -102,7 +107,7 @@ function createHarnessContext({visibleLine = 10, levelTop = 10, cursorTop = leve
   const scroller = {scrollLeft: 5, scrollTop: 0, scrollHeight: 46_904, clientHeight: 100,
     getBoundingClientRect: () => rect(0, 100)}
   const level = {textContent: "P", getBoundingClientRect: () => rect(levelTop, levelTop + 10)}
-  const gutter = {textContent: String(visibleLine + 1), getBoundingClientRect: () => rect(levelTop, levelTop + 10)}
+  const gutter = {textContent: String(visibleLine + 1), getBoundingClientRect: () => rect(lineTop, lineTop + 10)}
   const cursor = {getBoundingClientRect: () => rect(cursorTop, cursorTop + 10)}
   const root = {
     getBoundingClientRect: () => rect(0, 200),
@@ -197,12 +202,18 @@ test("CM5 comparison generation is exact and idempotent from active CM6 markup",
 test("CM5 comparison scripts are reconstructed exclusively from the historical whitelist", () => {
   const input = editorHtml.replace("</body>", [
     '<script src="js/future-cm6-private.js"></script>',
+    '<script defer src="js/future-cm6-defer-first.js"></script>',
+    "<script src='js/future-cm6-src-first.js' defer></script>",
+    '<script type="text/javascript" src = "js/future-cm6-spaced.js" async></script>',
     "</body>"
   ].join("\n"))
   const output = transformCM5ComparisonHtml(input)
 
   assert.deepEqual(scriptSources(output), cm5ScriptWhitelist)
   assert.equal(output.includes("future-cm6-private.js"), false)
+  assert.equal(output.includes("future-cm6-defer-first.js"), false)
+  assert.equal(output.includes("future-cm6-src-first.js"), false)
+  assert.equal(output.includes("future-cm6-spaced.js"), false)
   assert.equal(output.includes("puzzlescript-stream.js"), false)
   assert.equal(output.includes("codemirror6.bundle.js"), false)
 })
@@ -267,6 +278,15 @@ test("distant exactness rejects a no-op reveal with an unrelated visible LEVEL",
 
 test("distant exactness requires the visible cursor to be on the requested line", async () => {
   const fixture = createHarnessContext({visibleLine: 10, levelTop: 10, cursorTop: 70})
+  const api = await loadHarness(fixture.context)
+  await assert.rejects(
+    api.runScenario("loadDistantJumpExact", performanceInputs()),
+    /Timed out waiting for exact distant LEVEL rendering/
+  )
+})
+
+test("distant exactness rejects a target line whose visible LEVEL belongs to a neighbor", async () => {
+  const fixture = createHarnessContext({visibleLine: 10, lineTop: 10, cursorTop: 10, levelTop: 30})
   const api = await loadHarness(fixture.context)
   await assert.rejects(
     api.runScenario("loadDistantJumpExact", performanceInputs()),
