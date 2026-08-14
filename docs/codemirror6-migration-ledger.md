@@ -4,7 +4,7 @@ This ledger classifies every PuzzleScript-specific marker in the vendored CodeMi
 
 | CM5 modification or owned integration | Existing location | CM6 replacement | Verification | Status |
 | --- | --- | --- | --- | --- |
-| Dynamic hex colours | `src/js/codemirror/codemirror.js:72` | parser-token decoration using the existing contrast algorithm | `token-presentation.test.mjs` plus dynamic-colour screenshot | baseline captured |
+| Dynamic hex colours | `src/js/codemirror/codemirror.js:72` | parser-token decoration using the existing contrast algorithm | `token-presentation.test.mjs` plus dynamic-colour screenshot | implemented; browser/visual verification pending |
 | Historical 29px gutter | `src/js/codemirror/codemirror.js:4403` | scoped CM6 gutter CSS | per-browser geometry JSON plus screenshot | baseline captured |
 | Search/replace shortcut changes | `src/js/codemirror/codemirror.js:6827`, `:6845` | explicit PuzzleScript CM6 search keymap | shortcut JSON plus search browser test | baseline captured |
 | Mouse-created multi-selection disabled | `src/js/codemirror/codemirror.js:7505` | single-selection state/config | pointer browser test | baseline captured |

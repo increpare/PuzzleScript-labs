@@ -14255,6 +14255,21 @@
     let field = state.field(Language.state, false);
     return field ? field.tree : Tree.empty;
   }
+  function ensureSyntaxTree(state, upto, timeout = 50) {
+    var _a2;
+    let parse = (_a2 = state.field(Language.state, false)) === null || _a2 === void 0 ? void 0 : _a2.context;
+    if (!parse)
+      return null;
+    let oldVieport = parse.viewport;
+    parse.updateViewport({ from: 0, to: upto });
+    let result = parse.isDone(upto) || parse.work(timeout, upto) ? parse.tree : null;
+    parse.updateViewport(oldVieport);
+    return result;
+  }
+  function syntaxTreeAvailable(state, upto = state.doc.length) {
+    var _a2;
+    return ((_a2 = state.field(Language.state, false)) === null || _a2 === void 0 ? void 0 : _a2.context.isDone(upto)) || false;
+  }
   var DocInput = class {
     /**
     Create an input object for the given document.
@@ -15328,6 +15343,14 @@
     }
     return encoded;
   }
+  function decodeStyleToken(name2) {
+    if (!name2.startsWith(prefix) || (name2.length - prefix.length) % 4) return null;
+    let style = "";
+    for (let i2 = prefix.length; i2 < name2.length; i2 += 4) {
+      style += String.fromCharCode(parseInt(name2.slice(i2, i2 + 4), 16));
+    }
+    return style;
+  }
   function isStyleToken(name2) {
     return name2.startsWith(prefix);
   }
@@ -15383,9 +15406,218 @@
     return StreamLanguage.define(wrapPuzzleScriptParser(parser));
   }
 
+  // src/js/codemirror6/dynamic-colors.js
+  var MINIMUM_COLOR_CONTRAST_RATIO = 2.361;
+  function parseHexColor(hexColor) {
+    hexColor = hexColor.trim();
+    if (!/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(hexColor)) {
+      return null;
+    }
+    if (hexColor.length === 4) {
+      return [
+        parseInt(hexColor.charAt(1), 16) * 17,
+        parseInt(hexColor.charAt(2), 16) * 17,
+        parseInt(hexColor.charAt(3), 16) * 17
+      ];
+    }
+    return [
+      parseInt(hexColor.slice(1, 3), 16),
+      parseInt(hexColor.slice(3, 5), 16),
+      parseInt(hexColor.slice(5, 7), 16)
+    ];
+  }
+  function relativeLuminance(rgb) {
+    const channels = rgb.map((channel) => {
+      channel /= 255;
+      return channel <= 0.03928 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4);
+    });
+    return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+  }
+  function contrastRatio(firstColor, secondColor) {
+    const firstLuminance = relativeLuminance(firstColor);
+    const secondLuminance = relativeLuminance(secondColor);
+    const lighter = Math.max(firstLuminance, secondLuminance);
+    const darker = Math.min(firstLuminance, secondLuminance);
+    return (lighter + 0.05) / (darker + 0.05);
+  }
+  var colorCache = {};
+  function styleFromHexCode(hexCode) {
+    var editorBackground = parseHexColor("#0F192A");
+    function rgbToHsl(rgb) {
+      var r2 = rgb[0], g = rgb[1], b = rgb[2];
+      r2 /= 255, g /= 255, b /= 255;
+      var max = Math.max(r2, g, b), min = Math.min(r2, g, b);
+      var h, s, l = (max + min) / 2;
+      if (max == min) {
+        h = s = 0;
+      } else {
+        var d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+          case r2:
+            h = (g - b) / d + (g < b ? 6 : 0);
+            break;
+          case g:
+            h = (b - r2) / d + 2;
+            break;
+          case b:
+            h = (r2 - g) / d + 4;
+            break;
+        }
+        h /= 6;
+      }
+      return [h, s, l];
+    }
+    function hslToRgb(hsl2) {
+      var h = hsl2[0], s = hsl2[1], l = hsl2[2];
+      var r2, g, b;
+      if (s == 0) {
+        r2 = g = b = l;
+      } else {
+        let hue2rgb = function(p2, q2, t2) {
+          if (t2 < 0) t2 += 1;
+          if (t2 > 1) t2 -= 1;
+          if (t2 < 1 / 6) return p2 + (q2 - p2) * 6 * t2;
+          if (t2 < 1 / 2) return q2;
+          if (t2 < 2 / 3) return p2 + (q2 - p2) * (2 / 3 - t2) * 6;
+          return p2;
+        };
+        var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        var p = 2 * l - q;
+        r2 = hue2rgb(p, q, h + 1 / 3);
+        g = hue2rgb(p, q, h);
+        b = hue2rgb(p, q, h - 1 / 3);
+      }
+      return [r2 * 255, g * 255, b * 255];
+    }
+    var colorString = hexCode;
+    var style;
+    if (colorCache[colorString]) {
+      style = colorCache[colorString];
+    } else {
+      var col = parseHexColor(colorString);
+      if (col) {
+        var r = contrastRatio(col, editorBackground);
+        if (r < MINIMUM_COLOR_CONTRAST_RATIO) {
+          var hsl = rgbToHsl(col);
+          do {
+            hsl[2] += 0.01;
+            r = contrastRatio(hslToRgb(hsl), editorBackground);
+          } while (r < MINIMUM_COLOR_CONTRAST_RATIO);
+          style = "color: hsl(" + ~~(hsl[0] * 360) + "," + ~~(hsl[1] * 100) + "%," + ~~(hsl[2] * 100) + "%)";
+        } else {
+          style = "color:" + colorString;
+        }
+      }
+      colorCache[colorString] = style;
+    }
+    return style;
+  }
+
+  // src/js/codemirror6/exact-prefix.js
+  var setExactPrefix = StateEffect.define();
+  var exactPrefix = StateField.define({
+    create: () => 0,
+    update(value, transaction) {
+      if (transaction.docChanged) value = 0;
+      for (const effect of transaction.effects) {
+        if (effect.is(setExactPrefix)) value = Math.max(value, effect.value);
+      }
+      return value;
+    }
+  });
+  function ensureExactPrefix(view, upto, timeout = 50) {
+    const target = Math.min(Math.max(0, upto), view.state.doc.length);
+    const tree = ensureSyntaxTree(view.state, target, timeout);
+    if (!tree || !syntaxTreeAvailable(view.state, target)) return false;
+    view.dispatch({ effects: setExactPrefix.of(target) });
+    return true;
+  }
+  function requestIdle2(callback) {
+    if (typeof globalThis.requestIdleCallback === "function") {
+      return { kind: "idle", handle: globalThis.requestIdleCallback(callback) };
+    }
+    return { kind: "timeout", handle: globalThis.setTimeout(callback, 0) };
+  }
+  function cancelIdle(pending) {
+    if (!pending) return;
+    if (pending.kind === "idle" && typeof globalThis.cancelIdleCallback === "function") {
+      globalThis.cancelIdleCallback(pending.handle);
+    } else {
+      globalThis.clearTimeout(pending.handle);
+    }
+  }
+  var ExactPrefixScheduler = class {
+    constructor(view) {
+      this.view = view;
+      this.pending = null;
+      this.destroyed = false;
+      this.schedule();
+    }
+    schedule() {
+      if (this.destroyed || this.pending) return;
+      this.pending = requestIdle2(() => {
+        this.pending = null;
+        if (this.destroyed) return;
+        if (!ensureExactPrefix(this.view, this.view.viewport.to, 25)) this.schedule();
+      });
+    }
+    update(update) {
+      this.view = update.view;
+      if (update.docChanged || update.viewportChanged) this.schedule();
+    }
+    destroy() {
+      this.destroyed = true;
+      cancelIdle(this.pending);
+      this.pending = null;
+    }
+  };
+  var exactPrefixScheduler = ViewPlugin.fromClass(ExactPrefixScheduler);
+
+  // src/js/codemirror6/token-presentation.js
+  function classesForStyle(style) {
+    return style.split(/\s+/).filter(Boolean).map((name2) => "cm-" + name2);
+  }
+  function dynamicHexForStyle(style) {
+    const match = style.match(/(?:^MULTICOLOR|(?:^|\s)COLOR-)(#[0-9a-fA-F]{3,8})(?:\s|$)/);
+    return match ? match[1] : null;
+  }
+  function presentationClasses(style) {
+    return style.startsWith("MULTICOLOR#") ? ["cm-COLOR"] : classesForStyle(style);
+  }
+  function buildTokenDecorations(view) {
+    const visibleEnd = Math.max(...view.visibleRanges.map((range) => range.to));
+    if (view.state.field(exactPrefix) < visibleEnd) return Decoration.none;
+    const decorations2 = [];
+    const seen = /* @__PURE__ */ new Set();
+    const tree = syntaxTree(view.state);
+    for (const visible of view.visibleRanges) {
+      tree.iterate({
+        from: visible.from,
+        to: visible.to,
+        enter(node) {
+          if (!isStyleToken(node.name)) return;
+          const key = `${node.from}:${node.to}:${node.name}`;
+          if (seen.has(key)) return;
+          seen.add(key);
+          const style = decodeStyleToken(node.name);
+          const mark = { class: presentationClasses(style).join(" ") };
+          const dynamicHex = dynamicHexForStyle(style);
+          if (dynamicHex) mark.attributes = { style: styleFromHexCode(dynamicHex) };
+          decorations2.push(Decoration.mark(mark).range(node.from, node.to));
+        }
+      });
+    }
+    return Decoration.set(decorations2, true);
+  }
+
   // src/js/codemirror6/index.js
   function createEditor() {
     throw new Error("PuzzleScript CM6 editor has not been assembled yet");
   }
-  window.PuzzleScriptCM6 = Object.freeze({ createEditor, createPuzzleScriptLanguage });
+  window.PuzzleScriptCM6 = Object.freeze({
+    createEditor,
+    createPuzzleScriptLanguage,
+    buildTokenDecorations
+  });
 })();
