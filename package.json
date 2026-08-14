@@ -3,6 +3,8 @@
   "scripts": {
     "build:codemirror": "node build-codemirror6.js",
     "check:codemirror": "node build-codemirror6.js --check",
+    "perf:codemirror:chrome": "node src/tests/codemirror6/performance/run-installed-browser.mjs --browser chrome",
+    "perf:codemirror:safari": "node src/tests/codemirror6/performance/run-installed-browser.mjs --browser safari",
     "test:codemirror": "node --test src/tests/codemirror6/*.test.mjs",
     "test:codemirror-browser": "playwright test --config src/tests/codemirror6/playwright.config.mjs --project=chromium --project=firefox --project=webkit"
   },
