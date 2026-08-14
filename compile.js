@@ -215,7 +215,7 @@ ncp("./src", "./bin/", function (err) {
                 "./src/js/rng.js",
                 "./src/js/riffwave.js",
                 "./src/js/sfxr.js",
-                "./src/js/codemirror/stringstream.js",
+                "./src/js/puzzlescript-stream.js",
                 "./src/js/colors.js",
                 "./src/js/graphics.js",
                 "./src/js/engine.js",

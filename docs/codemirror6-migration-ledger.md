@@ -11,6 +11,6 @@ This ledger classifies every PuzzleScript-specific marker in the vendored CodeMi
 | Per-line `( line )` comments | `src/js/codemirror/comment.js:63`, `:88` | CM6 state command | command unit test | baseline captured |
 | CM6-style combined search panel backport | `src/js/codemirror/search.js:4` | stock `@codemirror/search` panel | search browser test plus screenshot | baseline captured |
 | PuzzleScript semantic autocomplete | `src/js/codemirror/anyword-hint.js:24` and helper body | PuzzleScript-owned pure completion function plus CM6 source | golden and browser autocomplete tests | baseline captured |
-| Lightweight non-editor stream provenance | `src/js/codemirror/stringstream.js:3` | `src/js/puzzlescript-stream.js` | StringStream comparison plus engine suite | pending |
+| Lightweight non-editor stream provenance | `src/js/codemirror/stringstream.js:3` | `src/js/puzzlescript-stream.js` | StringStream comparison plus engine suite | verified: official/local stream parity and 750/750 engine tests |
 
 The `anyword-hint.js:24` match is example homepage text rather than a CM5 core modification, but the surrounding helper is a PuzzleScript-owned critical integration and is therefore retained in the ledger. The `stringstream.js:3` match is provenance rather than an editor customization; it is tracked because the file must move out of the deleted CM5 directory without changing parser behaviour.

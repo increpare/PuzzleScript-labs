@@ -7531,9 +7531,9 @@ function unMuteAudio() {
 }
 </script>
 <script>
-// Minimal CodeMirror stub + StringStream for player (play.html), standalone export (standalone.html), and tests.
-// Loaded instead of full codemirror.js so the compiler can tokenize without the editor. Do not remove.
-// from https://github.com/Auroriax/PuzzleScript/commit/463e8069218dbde0901627e8dac124d2856eb394
+// Minimal CodeMirror-compatible StringStream used by the PuzzleScript parser
+// in the player, standalone export, compiler tests, and non-editor builds.
+// This is parser infrastructure and does not provide a CodeMirror editor.
 function CodeMirror(place, options) {};
 
 CodeMirror.defineMode = function(name, mode) {};

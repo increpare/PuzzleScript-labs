@@ -111,7 +111,7 @@ const sourceFiles = [
     'js/rng.js',
     'js/riffwave.js',
     'js/sfxr.js',
-    'js/codemirror/stringstream.js',
+    'js/puzzlescript-stream.js',
     'js/colorhelpers.js',
     'js/colors.js',
     'js/engine.js',
