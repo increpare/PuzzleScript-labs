@@ -1,5 +1,5 @@
 import {syntaxTree} from "@codemirror/language"
-import {Decoration} from "@codemirror/view"
+import {Decoration, ViewPlugin} from "@codemirror/view"
 
 import {styleFromHexCode} from "./dynamic-colors.js"
 import {exactPrefix} from "./exact-prefix.js"
@@ -44,4 +44,20 @@ export function buildTokenDecorations(view) {
     })
   }
   return Decoration.set(decorations, true)
+}
+
+const tokenPresentationPlugin = ViewPlugin.fromClass(class {
+  constructor(view) {
+    this.decorations = buildTokenDecorations(view)
+  }
+
+  update(update) {
+    this.decorations = buildTokenDecorations(update.view)
+  }
+}, {
+  decorations: value => value.decorations
+})
+
+export function tokenPresentation() {
+  return tokenPresentationPlugin
 }

@@ -1,5 +1,5 @@
 const prelude = `OBJECTS
-Player
+Player P
 red
 .....
 .....

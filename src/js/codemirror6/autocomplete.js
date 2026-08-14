@@ -8,8 +8,7 @@ import {
   setSelectedCompletion,
   startCompletion
 } from "@codemirror/autocomplete"
-import {Prec} from "@codemirror/state"
-import {EditorView, keymap} from "@codemirror/view"
+import {EditorView} from "@codemirror/view"
 
 import {ensureExactPrefix, exactPrefix} from "./exact-prefix.js"
 import {getTokenAtPosition} from "./stream-state.js"
@@ -120,5 +119,5 @@ export function puzzleScriptAutocomplete({language, complete, excludedKeyCodes})
       return false
     }
   })
-  return [completion, Prec.highest(keymap.of(puzzleScriptCompletionKeymap)), activateOnKeyRelease]
+  return [completion, activateOnKeyRelease]
 }

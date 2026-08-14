@@ -6,6 +6,7 @@ src - Kopie
 
 node_modules/
 src/tests/codemirror6/test-results/
+src/tests/codemirror6/generated/
 .worktrees/
 .claude/worktrees/happy-mestorf/
 

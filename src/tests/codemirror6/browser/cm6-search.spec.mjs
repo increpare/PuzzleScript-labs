@@ -25,7 +25,8 @@ async function openSearch(page) {
 
 async function setQuery(page, value) {
   const input = page.locator('.cm-search [name="search"]')
-  await input.fill(value)
+  await input.fill("")
+  await input.pressSequentially(value)
   await expect(page.locator(".cm-searchMatch")).not.toHaveCount(0)
   await expect(page.locator('.cm-search [name="case"]')).not.toBeChecked()
 }
@@ -41,6 +42,7 @@ test("stock search remains case-insensitive for literal, regexp, selection, navi
   await page.locator('.cm-search [name="word"]').uncheck()
 
   const selected = page.locator(".cm-searchMatch-selected")
+  await page.locator('.cm-search button[name="next"]').click()
   await expect(selected).toHaveCount(1)
   const first = await selected.boundingBox()
   await page.locator('.cm-search button[name="next"]').click()
@@ -77,7 +79,7 @@ test("replace operations, malformed regexps, and zero-width regexps are safe and
   await openCandidate(page, "Alpha alpha ALPHA")
   await openSearch(page)
   await setQuery(page, "alpha")
-  await page.locator('.cm-search [name="replace"]').fill("omega")
+  await page.locator('.cm-search input[name="replace"]').fill("omega")
   await page.locator('.cm-search button[name="replace"]').click()
   await page.locator('.cm-search button[name="replaceAll"]').click()
   await expect.poll(() => page.evaluate(() =>
@@ -86,7 +88,7 @@ test("replace operations, malformed regexps, and zero-width regexps are safe and
   await page.evaluate(() => document.getElementById("code").editorreference.setValue("aaa"))
   await page.locator('.cm-search [name="re"]').check()
   await page.locator('.cm-search [name="search"]').fill("[")
-  await page.locator('.cm-search [name="replace"]').fill("broken")
+  await page.locator('.cm-search input[name="replace"]').fill("broken")
   await page.locator('.cm-search button[name="replaceAll"]').click()
   expect(await page.evaluate(() => document.getElementById("code").editorreference.getValue())).toBe("aaa")
 
