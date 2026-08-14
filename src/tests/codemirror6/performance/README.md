@@ -32,6 +32,15 @@ also records 20 fresh-page heap samples after garbage collection for initial
 mount and the 129,721-character source. Safari intentionally makes no automated
 heap claim because WebDriver exposes no equivalent repeatable heap measurement.
 
+Settled scenarios observe the editor root before starting the measured mutation,
+require scenario-specific semantic readiness, then confirm 100 ms of DOM quiet
+across two animation frames. A 10-second hard timeout prevents hung captures and
+reports readiness, the last relevant mutation, and elapsed time. The quiet
+confirmation window is awaited but excluded from the reported duration; the
+metric ends at the later of semantic readiness or the last relevant mutation.
+Large-file key timing restores and verifies the full 129,721-character source at
+the stable visible line-0 cursor and viewport before each measured key.
+
 [`reference-medians.json`](reference-medians.json) is the immutable historical
 record from the approved performance design. New captures belong in
 `baselines/`; do not overwrite the reference values with fresh measurements.

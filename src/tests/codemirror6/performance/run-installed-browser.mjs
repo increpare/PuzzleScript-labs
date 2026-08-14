@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-import {spawn} from "node:child_process"
-import {mkdir, readFile, writeFile} from "node:fs/promises"
+import {randomUUID} from "node:crypto"
+import {mkdir, readFile, rename, rm, writeFile} from "node:fs/promises"
 import path from "node:path"
 import {fileURLToPath, pathToFileURL} from "node:url"
 
@@ -11,11 +11,35 @@ import {buildPerformancePages} from "../build-performance-pages.mjs"
 import {autocompleteCases} from "../fixtures/autocomplete-cases.js"
 import {distantPosition, largeSource} from "../fixtures/large-source.js"
 import {representativeSource} from "../browser/helpers.mjs"
+import {
+  connectSafari,
+  safariExecute,
+  WEBDRIVER_SCRIPT_TIMEOUT_MS,
+  webdriverRequest,
+  withSafariSessionLifecycle
+} from "./safari-webdriver.mjs"
+
+export {
+  connectSafari,
+  safariExecute,
+  terminateOwnedDriver,
+  webdriverRequest,
+  withSafariSessionLifecycle
+} from "./safari-webdriver.mjs"
 
 const directory = path.dirname(fileURLToPath(import.meta.url))
 const harnessPath = path.join(directory, "harness.js")
-const SAFARIDRIVER = "http://127.0.0.1:4444"
+const WARMUP_COUNT = 5
 const SAMPLE_COUNT = 20
+const SCENARIO_NAMES = Object.freeze([
+  "keyToNextPaint",
+  "autocompleteVisible",
+  "hundredApiEdits",
+  "replaceDocumentSync",
+  "replaceDocumentSettled",
+  "loadDistantJumpExact",
+  "cursorFocusSearchSettled"
+])
 
 function usageError(message) {
   return new Error(`${message}\nUsage: --browser chrome|safari --surface cm5|cm6 ` +
@@ -81,17 +105,6 @@ function harnessInputs() {
   }
 }
 
-function assertFiniteResults(result) {
-  for (const [name, summary] of Object.entries(result.summaries || {})) {
-    for (const field of ["median", "p95", "min", "max"]) {
-      if (!Number.isFinite(summary[field])) throw new Error(`${name}.${field} is not finite`)
-    }
-    if (!Array.isArray(summary.samples) || summary.samples.some(value => !Number.isFinite(value))) {
-      throw new Error(`${name}.samples contains a non-finite result`)
-    }
-  }
-}
-
 function summarize(values) {
   const samples = values.slice().sort((left, right) => left - right)
   const midpoint = Math.floor(samples.length / 2)
@@ -105,12 +118,21 @@ function summarize(values) {
 }
 
 function validateSummary(summary, label) {
-  if (!summary || !Array.isArray(summary.samples) || summary.samples.length === 0 ||
+  if (!summary || !Array.isArray(summary.samples) || summary.samples.length !== SAMPLE_COUNT ||
       summary.samples.some(value => !Number.isFinite(value))) {
-    throw new Error(`${label}.samples contains a non-finite result`)
+    throw new Error(`${label}.samples must contain exactly ${SAMPLE_COUNT} finite results`)
   }
   for (const field of ["median", "p95", "min", "max"]) {
     if (!Number.isFinite(summary[field])) throw new Error(`${label}.${field} is not finite`)
+  }
+  const expected = summarize(summary.samples)
+  for (const field of ["median", "p95", "min", "max"]) {
+    if (summary[field] !== expected[field]) {
+      throw new Error(`${label}.${field} is inconsistent with its samples`)
+    }
+  }
+  if (summary.samples.some((value, index) => index > 0 && summary.samples[index - 1] > value)) {
+    throw new Error(`${label}.samples must be sorted`)
   }
 }
 
@@ -120,6 +142,53 @@ export function validateHeapResults(heap) {
   validateSummary(heap.large, "heap.large")
 }
 
+export function validateBenchmarkResults(result) {
+  if (result?.warmups !== WARMUP_COUNT) throw new Error(`warmups must equal ${WARMUP_COUNT}`)
+  if (result.samples !== SAMPLE_COUNT) throw new Error(`samples must equal ${SAMPLE_COUNT}`)
+
+  const inputs = harnessInputs()
+  const expectedLengths = {
+    representative: inputs.representativeSource.length,
+    completion: inputs.completion.source.length + inputs.completion.key.length,
+    large: inputs.largeSource.length
+  }
+  for (const [name, expected] of Object.entries(expectedLengths)) {
+    if (result.sourceLengths?.[name] !== expected) {
+      throw new Error(`sourceLengths.${name} must equal ${expected}`)
+    }
+  }
+
+  const names = Object.keys(result.summaries || {}).sort()
+  const expectedNames = [...SCENARIO_NAMES].sort()
+  if (JSON.stringify(names) !== JSON.stringify(expectedNames)) {
+    throw new Error(`scenario keys must be exactly: ${SCENARIO_NAMES.join(", ")}`)
+  }
+  for (const name of SCENARIO_NAMES) validateSummary(result.summaries[name], name)
+
+  if (result.heap?.supported === true) validateHeapResults(result.heap)
+  else if (result.heap?.supported !== false) throw new Error("heap.supported must be a boolean")
+}
+
+export async function writeJsonAtomically(outputPath, value, overrides = {}) {
+  const fileSystem = {mkdir, writeFile, rename, rm, ...overrides}
+  const destination = path.resolve(outputPath)
+  const outputDirectory = path.dirname(destination)
+  const temporaryPath = path.join(
+    outputDirectory,
+    `.${path.basename(destination)}.${process.pid}.${randomUUID()}.tmp`
+  )
+  await fileSystem.mkdir(outputDirectory, {recursive: true})
+  try {
+    await fileSystem.writeFile(temporaryPath, JSON.stringify(value, null, 2) + "\n")
+    await fileSystem.rename(temporaryPath, destination)
+  } catch (error) {
+    try {
+      await fileSystem.rm(temporaryPath, {force: true})
+    } catch {}
+    throw error
+  }
+}
+
 async function waitForChromeEditor(page, surface) {
   const selector = surface === "cm5" ? ".CodeMirror" : ".cm-editor"
   await page.waitForSelector(selector, {state: "visible", timeout: 30_000})
@@ -127,23 +196,42 @@ async function waitForChromeEditor(page, surface) {
   if (!mounted) throw new Error("Expected editor adapter is missing")
 }
 
-export async function collectChromeHeap(browser, url, surface, inputs) {
+function throwPageErrors(pageErrors, label) {
+  if (pageErrors.length) throw new Error(`${label} page errors: ${pageErrors.join("; ")}`)
+}
+
+async function runHeapSettleScenario(page, name, inputs) {
+  await page.evaluate(
+    ({name, inputs}) => window.PuzzleScriptPerformance.runScenario(name, inputs),
+    {name, inputs}
+  )
+}
+
+export async function collectChromeHeap(browser, url, surface, inputs, suppliedHarnessSource) {
+  const heapHarnessSource = suppliedHarnessSource ?? await readFile(harnessPath, "utf8")
   const initial = []
   const large = []
   for (let index = 0; index < SAMPLE_COUNT; index += 1) {
     const page = await browser.newPage({viewport: {width: 1280, height: 900}})
+    const pageErrors = []
+    page.on("pageerror", error => pageErrors.push(String(error)))
     try {
       await page.goto(url, {waitUntil: "networkidle"})
       await waitForChromeEditor(page, surface)
+      throwPageErrors(pageErrors, `Chrome heap sample ${index + 1}`)
+      await page.addScriptTag({content: heapHarnessSource})
+      await runHeapSettleScenario(page, "replaceDocumentSettled", {
+        ...inputs,
+        representativeSource: "",
+        largeSource: ""
+      })
+      throwPageErrors(pageErrors, `Chrome initial heap sample ${index + 1}`)
       const session = await page.context().newCDPSession(page)
       await session.send("HeapProfiler.collectGarbage")
       const initialUsage = await session.send("Runtime.getHeapUsage")
       initial.push(initialUsage.usedSize / 1024 / 1024)
-      await page.evaluate(source => {
-        const editor = document.querySelector("#code").editorreference
-        ;(editor.replaceDocument || editor.setValue).call(editor, source)
-        return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
-      }, inputs.largeSource)
+      await runHeapSettleScenario(page, "loadDistantJumpExact", inputs)
+      throwPageErrors(pageErrors, `Chrome large heap sample ${index + 1}`)
       await session.send("HeapProfiler.collectGarbage")
       const largeUsage = await session.send("Runtime.getHeapUsage")
       large.push(largeUsage.usedSize / 1024 / 1024)
@@ -171,74 +259,15 @@ async function runChrome(options, harnessSource, inputs) {
     await page.addScriptTag({content: harnessSource})
     const result = await page.evaluate(inputs => window.PuzzleScriptPerformance.runAll(inputs), inputs)
     const environment = await page.evaluate(() => ({visibilityState: document.visibilityState}))
-    assertFiniteResults(result)
     if (environment.visibilityState !== "visible") throw new Error("Chrome benchmark page is backgrounded")
     if (pageErrors.length) throw new Error(`Chrome page errors: ${pageErrors.join("; ")}`)
     const version = browser.version()
     await page.close()
-    const heap = await collectChromeHeap(browser, surfaceUrl(options), options.surface, inputs)
+    const heap = await collectChromeHeap(browser, surfaceUrl(options), options.surface, inputs, harnessSource)
     return {browser: {name: "chrome", version}, environment: {...environment, pageErrors}, ...result, heap}
   } finally {
     await browser.close()
   }
-}
-
-async function webdriverRequest(pathname, method = "GET", body) {
-  const response = await fetch(SAFARIDRIVER + pathname, {
-    method,
-    headers: body === undefined ? undefined : {"content-type": "application/json"},
-    body: body === undefined ? undefined : JSON.stringify(body),
-    signal: AbortSignal.timeout(30_000)
-  })
-  const payload = await response.json()
-  if (!response.ok || payload.value?.error) {
-    throw new Error(payload.value?.message || `SafariDriver ${method} ${pathname} failed (${response.status})`)
-  }
-  return payload.value
-}
-
-async function waitForSafariDriver(process) {
-  const deadline = Date.now() + 20_000
-  let lastError
-  while (Date.now() < deadline) {
-    if (process.exitCode !== null) throw new Error(`safaridriver exited with ${process.exitCode}`)
-    try {
-      await webdriverRequest("/status")
-      return
-    } catch (error) {
-      lastError = error
-      await new Promise(resolve => setTimeout(resolve, 200))
-    }
-  }
-  throw new Error(`safaridriver did not become ready: ${lastError}`)
-}
-
-async function connectSafari() {
-  let driver = null
-  try {
-    await webdriverRequest("/status")
-  } catch {
-    driver = spawn("safaridriver", ["-p", "4444"], {stdio: ["ignore", "pipe", "pipe"]})
-    await waitForSafariDriver(driver)
-  }
-
-  try {
-    const value = await webdriverRequest("/session", "POST", {
-      capabilities: {alwaysMatch: {browserName: "safari"}}
-    })
-    return {driver, sessionId: value.sessionId, capabilities: value.capabilities || {}}
-  } catch (error) {
-    if (driver) driver.kill("SIGTERM")
-    throw error
-  }
-}
-
-async function safariExecute(sessionId, script, args = [], async = false) {
-  return webdriverRequest(
-    `/session/${sessionId}/execute/${async ? "async" : "sync"}`,
-    "POST",
-    {script, args}
-  )
 }
 
 async function waitForSafariEditor(sessionId, surface) {
@@ -253,25 +282,12 @@ async function waitForSafariEditor(sessionId, surface) {
   throw new Error("Expected Safari editor root or adapter is missing")
 }
 
-export async function withSafariSessionLifecycle(connect, deleteSession, operation) {
-  const connection = await connect()
-  try {
-    return await operation(connection)
-  } finally {
-    try {
-      await deleteSession(connection.sessionId)
-    } finally {
-      if (connection.driver) connection.driver.kill("SIGTERM")
-    }
-  }
-}
-
 async function runSafari(options, harnessSource, inputs) {
   return withSafariSessionLifecycle(
     connectSafari,
     sessionId => webdriverRequest(`/session/${sessionId}`, "DELETE"),
     async ({sessionId, capabilities}) => {
-      await webdriverRequest(`/session/${sessionId}/timeouts`, "POST", {script: 600_000})
+      await webdriverRequest(`/session/${sessionId}/timeouts`, "POST", {script: WEBDRIVER_SCRIPT_TIMEOUT_MS})
       await webdriverRequest(`/session/${sessionId}/window/rect`, "POST", {width: 1280, height: 900})
       await webdriverRequest(`/session/${sessionId}/url`, "POST", {url: surfaceUrl(options)})
       await waitForSafariEditor(sessionId, options.surface)
@@ -288,7 +304,6 @@ async function runSafari(options, harnessSource, inputs) {
         "  .catch(error => done({error: String(error && (error.stack || error.message) || error)}));"
       ].join("\n"), [inputs], true)
       if (result.error) throw new Error(result.error)
-      assertFiniteResults(result.value)
       const environment = await safariExecute(sessionId,
         "return {visibilityState: document.visibilityState, pageErrors: window.__puzzleScriptPerformanceErrors.slice()}"
       )
@@ -312,14 +327,14 @@ async function main() {
   const measurements = options.browser === "chrome"
     ? await runChrome(options, harnessSource, inputs)
     : await runSafari(options, harnessSource, inputs)
+  validateBenchmarkResults(measurements)
   const output = {
     capturedAt: new Date().toISOString(),
     surface: options.surface,
     url: surfaceUrl(options),
     ...measurements
   }
-  await mkdir(path.dirname(path.resolve(options.output)), {recursive: true})
-  await writeFile(options.output, JSON.stringify(output, null, 2) + "\n")
+  await writeJsonAtomically(options.output, output)
   console.log(`Wrote ${options.output}`)
 }
 

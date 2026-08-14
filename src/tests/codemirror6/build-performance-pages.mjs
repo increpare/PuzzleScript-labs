@@ -62,7 +62,7 @@ const cm5ScriptWhitelist = [
 export function transformCM5ComparisonHtml(input) {
   let output = input
     .replace(/\s*<base\s+href=["'][^"']*["']\s*\/?>/gi, "")
-    .replace(/\s*<link\s+rel=["']stylesheet["']\s+href=["']css\/editor-cm6\.css["']\s*\/?>/gi, "")
+    .replace(/\s*<link\b(?=[^>]*\bhref\s*=\s*["']css\/editor-cm6\.css["'])[^>]*\/?>/gi, "")
 
   output = output.replace(/\s*<script\b(?=[^>]*\ssrc\s*=)[^>]*>[\s\S]*?<\/script\s*>/gi, "")
 

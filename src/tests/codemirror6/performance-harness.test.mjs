@@ -1,15 +1,23 @@
 import assert from "node:assert/strict"
-import {readFile} from "node:fs/promises"
+import {mkdtemp, readFile, readdir, rm, writeFile} from "node:fs/promises"
+import {tmpdir} from "node:os"
+import path from "node:path"
 import {test} from "node:test"
+import {EventEmitter} from "node:events"
 import vm from "node:vm"
 
 import {transformCM5ComparisonHtml} from "./build-performance-pages.mjs"
 import {
   collectChromeHeap,
+  connectSafari,
   launchInstalledChrome,
   parseArguments,
+  safariExecute,
   surfaceUrl,
+  terminateOwnedDriver,
+  validateBenchmarkResults,
   validateHeapResults,
+  writeJsonAtomically,
   withSafariSessionLifecycle
 } from "./performance/run-installed-browser.mjs"
 
@@ -70,6 +78,33 @@ const cm5ScriptWhitelist = [
   "js/makegif.js"
 ]
 
+const performanceScenarioNames = [
+  "keyToNextPaint",
+  "autocompleteVisible",
+  "hundredApiEdits",
+  "replaceDocumentSync",
+  "replaceDocumentSettled",
+  "loadDistantJumpExact",
+  "cursorFocusSearchSettled"
+]
+
+function validSummary() {
+  const samples = Array.from({length: 20}, (_, index) => index + 1)
+  return {samples, median: 10.5, p95: 19, min: 1, max: 20}
+}
+
+function validBenchmarkResults({heapSupported = true} = {}) {
+  return {
+    warmups: 5,
+    samples: 20,
+    sourceLengths: {representative: 448, completion: 432, large: 129_721},
+    summaries: Object.fromEntries(performanceScenarioNames.map(name => [name, validSummary()])),
+    heap: heapSupported
+      ? {supported: true, unit: "MiB", initial: validSummary(), large: validSummary()}
+      : {supported: false, reason: "unavailable"}
+  }
+}
+
 function scriptSources(source) {
   return Array.from(source.matchAll(/<script\s+src=["']([^"']+)["']\s*><\/script>/gi), match => match[1])
 }
@@ -92,15 +127,17 @@ function createHarnessContext({
 } = {}) {
   const calls = []
   const classes = new Set()
+  let currentValue = ""
   const input = {dispatchEvent(event) { calls.push(["event", event.type, event.key]) }}
   const editor = {
-    setValue(value) { calls.push(["setValue", value]) },
+    getValue() { return currentValue },
+    setValue(value) { currentValue = value; calls.push(["setValue", value]) },
     clearHistory() { calls.push(["clearHistory"]) },
     setCursor(line, column) { calls.push(["setCursor", line, column]) },
     revealLine(line, options) { calls.push(["revealLine", line, options]) },
     focus() { calls.push(["focus"]) },
     blur() { calls.push(["blur"]) },
-    replaceSelection(value) { calls.push(["replaceSelection", value]) },
+    replaceSelection(value) { currentValue += value; calls.push(["replaceSelection", value]) },
     getInputElement() { return input }
   }
   const rect = (top, bottom) => ({top, bottom, left: 0, right: 100, width: 100, height: bottom - top})
@@ -153,6 +190,8 @@ function createHarnessContext({
     navigator: {platform: "MacIntel"},
     performance: {now: () => ++clock},
     requestAnimationFrame: callback => callback(),
+    setTimeout,
+    clearTimeout,
     window: {scrollTo() { calls.push(["scrollTo"]) }}
   })
   return {context, calls, classes, editor, scroller}
@@ -216,6 +255,20 @@ test("CM5 comparison scripts are reconstructed exclusively from the historical w
   assert.equal(output.includes("future-cm6-spaced.js"), false)
   assert.equal(output.includes("puzzlescript-stream.js"), false)
   assert.equal(output.includes("codemirror6.bundle.js"), false)
+})
+
+test("CM5 comparison removes CM6 stylesheet tags independent of attribute order", () => {
+  const input = editorHtml.replace("</head>", [
+    '<link data-owner="cm6" href="css/editor-cm6.css" rel="stylesheet" media="screen">',
+    "<link href='css/editor-cm6.css' disabled rel='stylesheet'>",
+    "</head>"
+  ].join("\n"))
+  const output = transformCM5ComparisonHtml(input)
+
+  assert.equal(output.includes("data-owner=\"cm6\""), false)
+  assert.equal(output.includes("disabled rel='stylesheet'"), false)
+  assert.equal(output.includes("css/editor-cm6.css"), false)
+  assert.equal(count(output, 'href="css/codemirror.css"'), 1)
 })
 
 test("performance harness exposes only its frozen API and summarizes a sorted copy", async () => {
@@ -320,37 +373,108 @@ test("installed-browser arguments require a complete explicit destination", () =
   ]), /chrome\|safari/)
 })
 
+test("benchmark validation enforces the exact baseline contract", () => {
+  assert.doesNotThrow(() => validateBenchmarkResults(validBenchmarkResults()))
+  assert.doesNotThrow(() => validateBenchmarkResults(validBenchmarkResults({heapSupported: false})))
+
+  for (const [label, mutate] of [
+    ["warmups", result => { result.warmups = 4 }],
+    ["samples", result => { result.samples = 19 }],
+    ["sourceLengths.large", result => { result.sourceLengths.large -= 1 }],
+    ["scenario keys", result => { result.summaries.extra = validSummary() }],
+    ["keyToNextPaint\\.samples", result => { result.summaries.keyToNextPaint.samples.pop() }],
+    ["keyToNextPaint\\.median", result => { result.summaries.keyToNextPaint.median = 10 }],
+    ["heap\\.large\\.samples", result => { result.heap.large.samples.pop() }]
+  ]) {
+    const result = validBenchmarkResults()
+    mutate(result)
+    assert.throws(() => validateBenchmarkResults(result), new RegExp(label))
+  }
+})
+
+test("benchmark output uses a sibling temporary file and preserves the old file on interruption", async t => {
+  const directory = await mkdtemp(path.join(tmpdir(), "puzzlescript-performance-"))
+  t.after(() => rm(directory, {recursive: true, force: true}))
+  const outputPath = path.join(directory, "baseline.json")
+  await writeFile(outputPath, "old\n")
+
+  await assert.rejects(writeJsonAtomically(outputPath, {fresh: true}, {
+    async writeFile(temporaryPath, contents) {
+      assert.equal(path.dirname(temporaryPath), directory)
+      assert.notEqual(temporaryPath, outputPath)
+      await writeFile(temporaryPath, contents)
+      throw new Error("interrupted write")
+    }
+  }), /interrupted write/)
+
+  assert.equal(await readFile(outputPath, "utf8"), "old\n")
+  assert.deepEqual(await readdir(directory), ["baseline.json"])
+
+  await writeJsonAtomically(outputPath, {fresh: true})
+  assert.deepEqual(JSON.parse(await readFile(outputPath, "utf8")), {fresh: true})
+})
+
 test("Chrome heap validation rejects nonfinite samples and summaries", () => {
-  const summary = values => ({samples: values, median: values[0], p95: values[0], min: values[0], max: values[0]})
+  const summary = value => ({samples: Array(20).fill(value), median: value, p95: value, min: value, max: value})
   assert.doesNotThrow(() => validateHeapResults({
     supported: true,
-    initial: summary([2.5]),
-    large: summary([5.5])
+    initial: summary(2.5),
+    large: summary(5.5)
   }))
   assert.throws(() => validateHeapResults({
     supported: true,
-    initial: summary([Number.NaN]),
-    large: summary([5.5])
+    initial: summary(Number.NaN),
+    large: summary(5.5)
   }), /heap\.initial\.samples/)
   assert.throws(() => validateHeapResults({
     supported: true,
-    initial: {...summary([2.5]), p95: Number.POSITIVE_INFINITY},
-    large: summary([5.5])
+    initial: {...summary(2.5), p95: Number.POSITIVE_INFINITY},
+    large: summary(5.5)
   }), /heap\.initial\.p95/)
 })
 
 test("Chrome heap collection uses a fresh page and CDP garbage collection for every sample", async () => {
-  const calls = {pages: 0, closed: 0, garbageCollections: 0, heapUsage: 0}
+  const calls = {
+    pages: 0,
+    closed: 0,
+    garbageCollections: 0,
+    heapUsage: 0,
+    harnessScripts: 0,
+    initialSettles: 0,
+    largeSettles: 0
+  }
   const browser = {
     async newPage(options) {
       calls.pages += 1
       assert.deepEqual(options, {viewport: {width: 1280, height: 900}})
+      let pageErrorHandler
+      let navigated = false
       return {
-        async goto() {},
+        on(event, handler) {
+          assert.equal(navigated, false)
+          assert.equal(event, "pageerror")
+          pageErrorHandler = handler
+        },
+        async goto() {
+          assert.equal(typeof pageErrorHandler, "function")
+          navigated = true
+        },
         async waitForSelector() {},
+        async addScriptTag({content}) {
+          assert.equal(content, "/* harness */")
+          calls.harnessScripts += 1
+        },
         async evaluate(callback, argument) {
           if (argument === undefined) return true
-          return callback.toString().includes("requestAnimationFrame") ? undefined : true
+          if (argument.name === "replaceDocumentSettled") {
+            assert.equal(argument.inputs.largeSource, "")
+            calls.initialSettles += 1
+          } else if (argument.name === "loadDistantJumpExact") {
+            assert.equal(argument.inputs.largeSource.length, 129_721)
+            calls.largeSettles += 1
+          } else {
+            throw new Error(`Unexpected heap evaluation: ${JSON.stringify(argument)}`)
+          }
         },
         context() {
           return {
@@ -373,11 +497,43 @@ test("Chrome heap collection uses a fresh page and CDP garbage collection for ev
   }
 
   const heap = await collectChromeHeap(browser, "http://example.test/editor.html", "cm6", {
+    ...performanceInputs(),
     largeSource: "x".repeat(129_721)
+  }, "/* harness */")
+  assert.deepEqual(calls, {
+    pages: 20,
+    closed: 20,
+    garbageCollections: 40,
+    heapUsage: 40,
+    harnessScripts: 20,
+    initialSettles: 20,
+    largeSettles: 20
   })
-  assert.deepEqual(calls, {pages: 20, closed: 20, garbageCollections: 40, heapUsage: 40})
   assert.equal(heap.initial.samples.length, 20)
   assert.equal(heap.large.samples.length, 20)
+})
+
+test("Chrome heap rejects a page error attached before navigation and still closes the sample", async () => {
+  const order = []
+  const browser = {
+    async newPage() {
+      let pageErrorHandler
+      return {
+        on(event, handler) { order.push(`on:${event}`); pageErrorHandler = handler },
+        async goto() { order.push("goto"); pageErrorHandler(new Error("parser exploded")) },
+        async waitForSelector() {},
+        async evaluate() { return true },
+        async addScriptTag() {},
+        async close() { order.push("close") }
+      }
+    }
+  }
+
+  await assert.rejects(collectChromeHeap(browser, "http://example.test/editor.html", "cm6", {
+    ...performanceInputs(),
+    largeSource: "x".repeat(129_721)
+  }, "/* harness */"), /parser exploded/)
+  assert.deepEqual(order, ["on:pageerror", "goto", "close"])
 })
 
 test("Chrome runner launches the installed Chrome channel", async () => {
@@ -401,7 +557,8 @@ test("Safari lifecycle always deletes sessions and stops only a driver it starte
   await assert.rejects(withSafariSessionLifecycle(
     async () => ({driver: ownedDriver, sessionId: "owned"}),
     async sessionId => { deleted.push(sessionId) },
-    async () => { throw new Error("benchmark failed") }
+    async () => { throw new Error("benchmark failed") },
+    async driver => { driver.kill("SIGTERM") }
   ), /benchmark failed/)
   const result = await withSafariSessionLifecycle(
     async () => ({driver: null, sessionId: "existing"}),
@@ -412,4 +569,70 @@ test("Safari lifecycle always deletes sessions and stops only a driver it starte
   assert.equal(result, "existing")
   assert.deepEqual(deleted, ["owned", "existing"])
   assert.deepEqual(stopped, ["SIGTERM"])
+})
+
+test("Safari async benchmark requests outlive the configured script timeout", async () => {
+  const calls = []
+  const request = async (...args) => { calls.push(args); return true }
+
+  await safariExecute("session", "return true", [], false, request)
+  await safariExecute("session", "done()", [], true, request)
+
+  assert.equal(calls[0][3], 30_000)
+  assert.equal(calls[1][3], 610_000)
+})
+
+test("Safari connection terminates an owned driver when readiness fails", async () => {
+  const stopped = []
+  const driver = {exitCode: null}
+
+  await assert.rejects(connectSafari({
+    async request(pathname) {
+      if (pathname === "/status") throw new Error("no existing driver")
+      throw new Error(`unexpected request ${pathname}`)
+    },
+    spawnDriver() { return driver },
+    async waitForDriver() { throw new Error("readiness failed") },
+    async stopDriver(value) { stopped.push(value) }
+  }), /readiness failed/)
+
+  assert.deepEqual(stopped, [driver])
+})
+
+test("Safari cleanup aggregates deletion failure with the primary error and stops its driver", async () => {
+  const stopped = []
+  const primary = new Error("benchmark failed")
+  const deletion = new Error("delete failed")
+  const driver = {}
+
+  await assert.rejects(withSafariSessionLifecycle(
+    async () => ({driver, sessionId: "owned"}),
+    async () => { throw deletion },
+    async () => { throw primary },
+    async value => { stopped.push(value) }
+  ), error => {
+    assert.equal(error instanceof AggregateError, true)
+    assert.deepEqual(error.errors, [primary, deletion])
+    assert.equal(error.cause, primary)
+    return true
+  })
+  assert.deepEqual(stopped, [driver])
+})
+
+test("owned Safari driver termination escalates from TERM to KILL and awaits exit", async () => {
+  const driver = new EventEmitter()
+  const signals = []
+  driver.exitCode = null
+  driver.signalCode = null
+  driver.kill = signal => {
+    signals.push(signal)
+    if (signal === "SIGKILL") queueMicrotask(() => {
+      driver.signalCode = signal
+      driver.emit("exit", null, signal)
+    })
+    return true
+  }
+
+  await terminateOwnedDriver(driver, {termTimeout: 1, killTimeout: 100})
+  assert.deepEqual(signals, ["SIGTERM", "SIGKILL"])
 })

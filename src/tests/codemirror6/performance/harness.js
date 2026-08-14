@@ -3,6 +3,11 @@
 
   const WARMUPS = 5
   const SAMPLES = 20
+  // Quiet confirmation catches timer/idle/highlighter DOM work without adding its
+  // fixed tail to reported durations. The timeout is a hard anti-hang boundary.
+  const SETTLE_QUIET_MS = 100
+  const SETTLE_CONFIRMATION_FRAMES = 2
+  const SETTLE_TIMEOUT_MS = 10_000
   const scenarioNames = Object.freeze([
     "keyToNextPaint",
     "autocompleteVisible",
@@ -23,32 +28,117 @@
     return new Promise(resolve => requestAnimationFrame(resolve))
   }
 
-  async function waitFor(predicate, description, timeout = 5_000) {
-    const deadline = performance.now() + timeout
-    while (!predicate()) {
-      if (performance.now() >= deadline) throw new Error(`Timed out waiting for ${description}`)
-      await nextFrame()
-    }
+  function editorRoot() {
+    const root = document.querySelector(".cm-editor") || document.querySelector(".CodeMirror")
+    if (!root) throw new Error("PuzzleScript editor root is unavailable")
+    return root
   }
 
-  async function waitForDomStability() {
-    let changed = true
-    const observer = new MutationObserver(() => { changed = true })
-    observer.observe(document.documentElement, {
+  function sourceIsExact(editor, source) {
+    return typeof editor.getValue === "function" && editor.getValue() === source
+  }
+
+  async function measureSettled(description, operation, readiness, timeout = SETTLE_TIMEOUT_MS) {
+    const root = editorRoot()
+    const startedAt = performance.now()
+    let lastMutationAt = startedAt
+    let lastMutation = "none observed"
+    let semanticReadyAt = null
+    let latestReadiness = false
+    let finished = false
+    let timeoutId
+    const observer = new MutationObserver(records => {
+      lastMutationAt = performance.now()
+      const record = records[records.length - 1]
+      lastMutation = record
+        ? `${record.type}:${record.target && record.target.nodeName || "unknown"}`
+        : "observer callback"
+    })
+    observer.observe(root, {
       attributes: true,
       characterData: true,
       childList: true,
       subtree: true
     })
+
+    const timeoutError = () => {
+      const elapsed = performance.now() - startedAt
+      return new Error(
+        `Timed out waiting for ${description} to settle: readiness=${latestReadiness}; ` +
+        `lastMutation=${lastMutation}@${Math.max(0, lastMutationAt - startedAt).toFixed(1)}ms; ` +
+        `elapsed=${elapsed.toFixed(1)}ms`
+      )
+    }
+
     try {
-      let stableFrames = 0
-      while (stableFrames < 2) {
-        changed = false
-        await nextFrame()
-        stableFrames = changed ? 0 : stableFrames + 1
-      }
+      const hardTimeout = new Promise((resolve, reject) => {
+        timeoutId = setTimeout(() => {
+          finished = true
+          reject(timeoutError())
+        }, timeout)
+      })
+      operation()
+      const settle = (async () => {
+        let quietFrames = 0
+        while (!finished) {
+          const now = performance.now()
+          latestReadiness = Boolean(readiness())
+          semanticReadyAt = latestReadiness ? (semanticReadyAt === null ? now : semanticReadyAt) : null
+          quietFrames = latestReadiness && now - lastMutationAt >= SETTLE_QUIET_MS
+            ? quietFrames + 1
+            : 0
+          if (quietFrames >= SETTLE_CONFIRMATION_FRAMES) {
+            return Math.max(semanticReadyAt, lastMutationAt) - startedAt
+          }
+          if (now - startedAt >= timeout) throw timeoutError()
+          await nextFrame()
+        }
+        throw timeoutError()
+      })()
+      return await Promise.race([settle, hardTimeout])
     } finally {
+      finished = true
+      clearTimeout(timeoutId)
       observer.disconnect()
+    }
+  }
+
+  async function restore(editor, source, cursor, {fixedViewport = false} = {}) {
+    const scroller = document.querySelector(".CodeMirror-scroll,.cm-scroller")
+    await measureSettled(
+      `restoring ${source.length}-character source`,
+      () => {
+        closeTransientUi(editor)
+        document.body.style.colorScheme = "dark"
+        document.body.classList.remove("light-theme")
+        document.body.classList.add("dark-theme")
+        replaceDocument(editor, source)
+        editor.clearHistory()
+        revealLine(editor, cursor.line, cursor.column)
+        editor.focus()
+        if (fixedViewport && scroller) {
+          scroller.scrollLeft = 0
+          scroller.scrollTop = 0
+        }
+        window.scrollTo(0, 0)
+      },
+      () => sourceIsExact(editor, source) && (!fixedViewport || !scroller ||
+        (scroller.scrollLeft === 0 && scroller.scrollTop === 0))
+    )
+    if (!sourceIsExact(editor, source)) {
+      throw new Error(`Restored source mismatch: expected ${source.length} characters`)
+    }
+  }
+
+  /*
+   * This remains a separate semantic poll for autocomplete, whose popup may be
+   * rendered outside the editor root. Settled editor scenarios use measureSettled.
+   */
+  async function waitFor(predicate, description, timeout = 5_000) {
+    const deadline = performance.now() + timeout
+    while (!predicate()) {
+      if (performance.now() >= deadline) throw new Error(`Timed out waiting for ${description}`)
+      await nextFrame()
     }
   }
 
@@ -82,24 +172,6 @@
     const input = editorInput(editor)
     dispatchKey(input, "keydown", "Escape", "Escape", 27)
     dispatchKey(input, "keyup", "Escape", "Escape", 27)
-  }
-
-  async function restore(editor, source, cursor) {
-    closeTransientUi(editor)
-    document.body.style.colorScheme = "dark"
-    document.body.classList.remove("light-theme")
-    document.body.classList.add("dark-theme")
-    replaceDocument(editor, source)
-    editor.clearHistory()
-    revealLine(editor, cursor.line, cursor.column)
-    editor.focus()
-    const scroller = document.querySelector(".CodeMirror-scroll,.cm-scroller")
-    if (scroller) {
-      scroller.scrollLeft = 0
-      scroller.scrollTop = 0
-    }
-    window.scrollTo(0, 0)
-    await waitForDomStability()
   }
 
   function cursorAtEnd(source) {
@@ -164,7 +236,7 @@
 
   const scenarios = {
     async keyToNextPaint(editor, inputs) {
-      await restore(editor, inputs.representativeSource, cursorAtEnd(inputs.representativeSource))
+      await restore(editor, inputs.largeSource, {line: 0, column: 0}, {fixedViewport: true})
       const start = performance.now()
       editor.replaceSelection(" ")
       await nextFrame()
@@ -198,42 +270,41 @@
 
     async replaceDocumentSettled(editor, inputs) {
       await restore(editor, inputs.representativeSource, {line: 0, column: 0})
-      const start = performance.now()
-      replaceDocument(editor, inputs.largeSource)
-      await waitForDomStability()
-      return performance.now() - start
+      return measureSettled(
+        "replaceDocumentSettled",
+        () => replaceDocument(editor, inputs.largeSource),
+        () => sourceIsExact(editor, inputs.largeSource)
+      )
     },
 
     async loadDistantJumpExact(editor, inputs) {
       await restore(editor, inputs.representativeSource, {line: 0, column: 0})
-      const start = performance.now()
-      replaceDocument(editor, inputs.largeSource)
-      revealLine(editor, inputs.distantLine, inputs.distantColumn || 0)
-      await waitFor(
-        () => distantRenderingIsExact(inputs.distantLine),
+      return measureSettled(
         "exact distant LEVEL rendering",
+        () => {
+          replaceDocument(editor, inputs.largeSource)
+          revealLine(editor, inputs.distantLine, inputs.distantColumn || 0)
+        },
+        () => distantRenderingIsExact(inputs.distantLine),
         10_000
       )
-      await waitForDomStability()
-      return performance.now() - start
     },
 
     async cursorFocusSearchSettled(editor, inputs) {
       await restore(editor, inputs.representativeSource, {line: 0, column: 0})
       const input = editorInput(editor)
-      const start = performance.now()
-      editor.blur()
-      revealLine(editor, 2, 0)
-      editor.focus()
       const apple = /Mac|iPhone|iPad|iPod/.test(navigator.platform)
-      dispatchKey(input, "keydown", "f", "KeyF", 70, apple ? {metaKey: true} : {ctrlKey: true})
-      dispatchKey(input, "keyup", "f", "KeyF", 70, apple ? {metaKey: true} : {ctrlKey: true})
-      await waitFor(
-        () => document.querySelector(".CodeMirror-search-panel,.cm-search"),
-        "search panel"
+      return measureSettled(
+        "cursorFocusSearchSettled",
+        () => {
+          editor.blur()
+          revealLine(editor, 2, 0)
+          editor.focus()
+          dispatchKey(input, "keydown", "f", "KeyF", 70, apple ? {metaKey: true} : {ctrlKey: true})
+          dispatchKey(input, "keyup", "f", "KeyF", 70, apple ? {metaKey: true} : {ctrlKey: true})
+        },
+        () => Boolean(document.querySelector(".CodeMirror-search-panel,.cm-search"))
       )
-      await waitForDomStability()
-      return performance.now() - start
     }
   }
 
