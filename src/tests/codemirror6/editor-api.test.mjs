@@ -2,6 +2,11 @@ import assert from "node:assert/strict"
 import {readFile} from "node:fs/promises"
 import {test} from "node:test"
 
+import {history, undo} from "@codemirror/commands"
+import {EditorSelection, EditorState} from "@codemirror/state"
+
+import {createCM6EditorDriver} from "../../js/codemirror6/editor-adapter.js"
+
 const apiPath = new URL("../../js/editor-api.js", import.meta.url)
 
 async function loadAPI() {
@@ -83,4 +88,59 @@ test("the CM5 driver translates the narrow operations without exposing CM5", asy
     ["replaceSelection", "text"], ["setCursor", 7, 3],
     ["scrollIntoView", {line: 11, ch: 0}]
   ])
+})
+
+test("the CM6 driver preserves the captured CM5 adapter behaviour", () => {
+  const calls = []
+  const extensions = [history()]
+  const contentDOM = {
+    blur: () => calls.push(["blur"])
+  }
+  const view = {
+    state: EditorState.create({doc: "initial", extensions}),
+    contentDOM,
+    dispatch: null,
+    focus: () => calls.push(["focus"]),
+    setState(state) {
+      calls.push(["setState"])
+      this.state = state
+    }
+  }
+  view.dispatch = (...specs) => {
+    view.state = view.state.update(...specs).state
+  }
+
+  const driver = createCM6EditorDriver(view, extensions)
+  assert.deepEqual(Object.keys(driver).sort(), [
+    "blur", "clearHistory", "focus", "getInputElement", "getLastLine",
+    "getValue", "replaceSelection", "scrollToLine", "setCursor", "setValue"
+  ])
+  assert.equal(driver.view, undefined)
+
+  driver.setValue("alpha\nbeta")
+  assert.equal(driver.getValue(), "alpha\nbeta")
+  assert.deepEqual(view.state.selection.main, EditorSelection.cursor(0))
+
+  driver.setCursor(99, 99)
+  assert.equal(view.state.selection.main.head, view.state.doc.length)
+  driver.setCursor(-99, -99)
+  assert.equal(view.state.selection.main.head, 0)
+
+  view.dispatch({selection: {anchor: 0, head: view.state.doc.length}})
+  driver.replaceSelection("replacement")
+  assert.equal(driver.getValue(), "replacement")
+  assert.equal(view.state.selection.main.head, 11)
+
+  driver.setValue("fresh")
+  driver.clearHistory()
+  assert.equal(undo(view), false)
+  assert.equal(driver.getValue(), "fresh")
+
+  driver.setValue("one\ntwo\nthree")
+  assert.equal(driver.getLastLine(), 2)
+  driver.scrollToLine(99)
+  driver.focus()
+  driver.blur()
+  assert.equal(driver.getInputElement(), contentDOM)
+  assert.deepEqual(calls, [["setState"], ["focus"], ["blur"]])
 })

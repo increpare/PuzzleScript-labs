@@ -79,7 +79,7 @@ test("the CM6 source refuses unavailable exact state instead of guessing", async
 
 test("the completion keymap contains only the captured CM5 popup bindings", () => {
   assert.deepEqual(
-    puzzleScriptCompletionKeymap.map(binding => binding.key),
+    puzzleScriptCompletionKeymap.map(binding => binding.key || binding.mac),
     ["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", "Enter", "Tab", "Escape", "Ctrl-p", "Ctrl-n"]
   )
   assert.equal(puzzleScriptCompletionKeymap.some(binding => binding.key === "Ctrl-Space"), false)

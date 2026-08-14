@@ -99,8 +99,8 @@ export const puzzleScriptCompletionKeymap = Object.freeze([
   {key: "Enter", run: acceptCompletion},
   {key: "Tab", run: acceptCompletion},
   {key: "Escape", run: closeCompletion},
-  {key: "Ctrl-p", run: moveUp},
-  {key: "Ctrl-n", run: moveDown}
+  {mac: "Ctrl-p", run: moveUp},
+  {mac: "Ctrl-n", run: moveDown}
 ])
 
 export function puzzleScriptAutocomplete({language, complete, excludedKeyCodes}) {
