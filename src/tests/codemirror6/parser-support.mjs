@@ -20,7 +20,14 @@ async function parserFactory() {
       .then(sources => new Function(
         "consolePrint",
         "jumpToLine",
-        sources.join("\n") + "\nreturn {parser: new codeMirrorFn(), StringStream: CodeMirror.StringStream};"
+        sources.join("\n") + `
+return {
+  parser: new codeMirrorFn(),
+  StringStream: CodeMirror.StringStream,
+  getErrorState: () => ({errorStrings: errorStrings.slice(), errorCount}),
+  resetErrors: resetParserErrorState,
+  setCompiling: value => { compiling = value }
+};`
       ))
   }
   return factoryPromise
