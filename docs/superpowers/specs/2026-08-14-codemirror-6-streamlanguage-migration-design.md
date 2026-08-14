@@ -116,12 +116,16 @@ The lightweight `StringStream` currently used by the player, standalone export, 
 A small language module will:
 
 1. Instantiate `codeMirrorFn` once for the CM6 language.
-2. Supply that object to `StreamLanguage.define`.
+2. Supply a mechanical wrapper around that object to `StreamLanguage.define`; the wrapper delegates language decisions to `codeMirrorFn` and may only adapt state storage, token metadata, and CM5-compatible long-line handling.
 3. Add CM6 language data such as PuzzleScript word characters and the completion source.
 4. Register all parser-returned token names, including dynamic colour forms, so StreamLanguage preserves them in its flat token tree.
 5. Expose exact token and copied-state queries through a narrow PuzzleScript API.
 
 The bridge may copy and advance `codeMirrorFn` state. It may not recognize PuzzleScript syntax independently.
+
+Set `mergeTokens: false` so CM6 does not combine adjacent parser tokens that CM5 kept distinct. Token metadata passed to StreamLanguage must be a lossless, collision-free encoding of the exact style string returned by `codeMirrorFn`; presentation decodes that metadata rather than inferring styles from source text.
+
+CM5 and StreamLanguage both use a 10,000-character highlighting cutoff, but their state behaviour is not identical. Current CM5 restores the pre-line mode state after displaying such a line, whereas stock StreamLanguage can retain a partially parsed state. The mechanical wrapper must preserve current CM5 behaviour: show only the token coverage CM5 would show and carry the equivalent restored state to the following line. A line longer than 10,000 characters is a mandatory equivalence fixture. This adaptation contains no PuzzleScript grammar logic.
 
 The internal access to `StreamLanguage.stateAfter` and `StreamLanguage.streamParser` is isolated in one compatibility file. CM6 package versions are exact pins, and focused contract tests must fail if those members or their semantics change. The implementation should include a source comment linking to the pinned upstream [`stream-parser.ts`](https://code.haverbeke.berlin/codemirror/language/src/branch/main/src/stream-parser.ts).
 
@@ -157,6 +161,8 @@ That calculation will be extracted from CM5 helper registration into a PuzzleScr
 The state bridge finds the nearest valid StreamLanguage checkpoint, calls the parser's own `copyState`, and advances the same parser only across the remaining text to the cursor. Suggestions are converted to native CM6 completion objects without changing their text, case, ordering, annotations, replacement range, rendering metadata, directional transformations, or filtering.
 
 Autocomplete continues to open after the same eligible key releases with the equivalent of `completeSingle: false`. It remains suppressed for empty words and comments. If exact state is not ready, it must defer/retry rather than synthesize suggestions from raw document text.
+
+Editor-side state queries must preserve the current parser error-cache behaviour. They must not reset global diagnostic state, multiply visible errors merely because CM6 requested another parse, or change the ordering/text of errors produced by an explicit compile.
 
 ### 6. Native CM6 features
 
@@ -199,6 +205,8 @@ The underlying `EditorView`, transactions, extensions, and DOM remain private to
 Use the stock `@codemirror/search` extension, state, commands, match highlighting, replacement logic, and panel. Configure the panel at the top and case sensitivity off.
 
 PuzzleScript requires search to remain always case-insensitive, including regular-expression search. The standard match-case control will therefore be hidden or disabled in an accessible way so it cannot enable case-sensitive queries. Regex, whole-word, next, previous, replace, replace-all, close, selection-as-query, wrapping, and existing platform shortcuts remain available.
+
+The invariant applies to search state as well as the visible control: every query created through the panel or PuzzleScript key bindings must have `caseSensitive: false`. If the stock panel can still produce a case-sensitive query after its control is disabled, a narrow query-state guard must rewrite that flag without replacing the standard search engine or panel.
 
 PuzzleScript changes to search are limited to configuration, keymap selection, the case-sensitivity enforcement, and scoped CSS. The current CM5 backport is removed with the other CM5 addons.
 
@@ -291,9 +299,9 @@ Normal development, deployment, and release builds load the committed bundle dir
 Implementation proceeds in ordered commits:
 
 1. Add exact dependencies, build scripts, source modules, generated bundle, and low-level contracts while CM5 remains active.
-2. Add CM6 feature extensions, adapter, and parity CSS without changing the production editor selection.
-3. Make one explicit branch-only switch from CM5 to CM6. Do not add a runtime toggle.
-4. Correct parity issues and run all verification with dormant CM5 files still available for direct comparison.
+2. Add CM6 feature extensions, adapter, parity CSS, and a test-only CM6 harness without changing the active product editor.
+3. Correct candidate parity issues and run direct CM5-versus-CM6 verification through separate builds/harness pages, not a production runtime toggle.
+4. After candidate parity passes, make one explicit branch-only product switch from CM5 to CM6, then repeat the full verification suite with the CM5 files dormant. Do not add a runtime toggle.
 5. Remove unused CM5 editor core, addons, and obsolete CSS in the final migration commit only after every gate passes.
 
 The pre-switch commit is a clean operational rollback point. The dormant-CM5 phase also allows direct A/B builds from adjacent commits without shipping a toggle. If the migration is merged and later reverted, the switch and removal commits remain separable and reviewable.
@@ -306,9 +314,11 @@ Immediately before removal, repeat a case-insensitive search for `puzzlescript` 
 
 - Token spans and returned style names match on representative complete, incomplete, mixed-case, commented, and malformed sources.
 - `startState`, `copyState`, and `blankLine` transitions match.
+- Lines on both sides of the 10,000-character CM5 highlighting cutoff preserve CM5 token coverage and following-line state.
 - Parser states used by autocomplete contain equivalent semantic data.
 - Dynamic named and hex-colour token identities survive StreamLanguage adaptation.
 - Existing compiler output and parser error-message tests remain unchanged.
+- Repeated editor parsing and autocomplete queries do not multiply or reorder user-visible parser messages.
 
 ### Autocomplete
 
@@ -360,4 +370,3 @@ Failure of any hard parser, autocomplete, interaction, layout, build, or browser
 - Update editor credits from the vendored CM5 description to the CM6 packages actually used.
 - Keep the migration ledger with the change so future maintainers can see where every local CM5 modification went.
 - Treat CM6 dependency upgrades as explicit maintenance changes that run the full parser-state bridge and parity test suite; they are not routine unattended version bumps.
-
