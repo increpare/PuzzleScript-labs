@@ -10,6 +10,10 @@ const bundlePath = path.join(root, "src/js/codemirror6.bundle.js")
 const mapPath = bundlePath + ".map"
 const check = process.argv.includes("--check")
 
+function normalizeJavaScript(contents) {
+  return Buffer.from(Buffer.from(contents).toString("utf8").replace(/[ \t]+$/gm, ""))
+}
+
 async function build() {
   const result = await esbuild.build({
     absWorkingDir: root,
@@ -24,7 +28,7 @@ async function build() {
     write: false,
     legalComments: "eof"
   })
-  const js = result.outputFiles.find(file => file.path === bundlePath).contents
+  const js = normalizeJavaScript(result.outputFiles.find(file => file.path === bundlePath).contents)
   const map = result.outputFiles.find(file => file.path === mapPath).contents
   if (check) {
     if (!fs.existsSync(bundlePath) || !fs.existsSync(mapPath) ||
