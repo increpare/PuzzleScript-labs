@@ -4,7 +4,7 @@
     "build:codemirror": "node build-codemirror6.js",
     "check:codemirror": "node build-codemirror6.js --check",
     "test:codemirror": "node --test src/tests/codemirror6/*.test.mjs",
-    "test:codemirror-browser": "playwright test --config src/tests/codemirror6/playwright.config.mjs"
+    "test:codemirror-browser": "playwright test --config src/tests/codemirror6/playwright.config.mjs --project=chromium --project=firefox --project=webkit"
   },
   "dependencies": {
     "@codemirror/autocomplete": "6.20.3",

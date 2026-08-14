@@ -21,6 +21,7 @@ export default defineConfig({
   projects: [
     {name: "chromium", use: {...devices["Desktop Chrome"], viewport, deviceScaleFactor: 1}},
     {name: "firefox", use: {...devices["Desktop Firefox"], viewport, deviceScaleFactor: 1}},
-    {name: "webkit", use: {...devices["Desktop Safari"], viewport, deviceScaleFactor: 1}}
+    {name: "webkit", use: {...devices["Desktop Safari"], viewport, deviceScaleFactor: 1}},
+    {name: "edge", use: {...devices["Desktop Edge"], channel: "msedge", viewport, deviceScaleFactor: 1}}
   ]
 })
