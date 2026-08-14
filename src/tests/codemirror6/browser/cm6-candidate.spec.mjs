@@ -49,8 +49,9 @@ test("the narrow adapter, compile path, navigation, autocomplete, comments, and 
   await page.evaluate(() => jumpToLine(30))
   await expect(page.locator(".cm-activeLine")).toContainText("line 30")
 
-  await setSource(page, "ti", 0, 2)
-  await page.keyboard.type("t")
+  await setSource(page, "")
+  await page.keyboard.type("tit")
+  expect(await page.evaluate(() => document.getElementById("code").editorreference.getValue())).toBe("tit")
   await expect(page.locator(".cm-tooltip-autocomplete")).toBeVisible()
   await expect(page.locator(".cm-completionLabel").first()).toContainText("title")
   await page.keyboard.press("Enter")

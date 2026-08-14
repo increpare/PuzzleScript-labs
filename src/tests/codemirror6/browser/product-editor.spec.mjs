@@ -34,8 +34,9 @@ test("the active product preserves the critical editor smoke path", async ({page
   await page.locator("#runClickLink").click()
   expect(await page.evaluate(() => window.__productCompileCalls)).toEqual([["restart"]])
 
-  await setSource(page, "ti", 0, 2)
-  await page.keyboard.type("t")
+  await setSource(page, "")
+  await page.keyboard.type("tit")
+  expect(await page.evaluate(() => document.getElementById("code").editorreference.getValue())).toBe("tit")
   await expect(page.locator(".cm-tooltip-autocomplete")).toBeVisible()
   await expect(page.locator(".cm-completionLabel").first()).toHaveText("title")
   await page.keyboard.press("Enter")
