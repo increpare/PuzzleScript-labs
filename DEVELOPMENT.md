@@ -20,6 +20,14 @@ npm install
 
 This installs the packages listed in `package.json`.
 
+### CodeMirror 6 bundle
+
+The editor loads the committed `src/js/codemirror6.bundle.js`; running PuzzleScript does not require npm or a CDN. After changing files under `src/js/codemirror6/` or the pinned CM6 dependencies, run `npm run build:codemirror` and commit both the bundle and source map. CI/review should run `npm run check:codemirror`.
+
+The new CodeMirror and Lezer dependencies are exact pins because `src/js/codemirror6/stream-state.js` reads the `stateAfter` and `streamParser` checkpoints stored by the pinned `StreamLanguage` implementation. Treat dependency changes as explicit migrations: inspect the upstream stream-parser source, update the contract if necessary, and run `npm run test:codemirror`, `node src/tests/run_tests_node.js`, and `npm run test:codemirror-browser` before committing regenerated output. Do not apply unattended version-range upgrades to these packages.
+
+PuzzleScript's `codeMirrorFn` remains the single language parser. CodeMirror 6 consumes it through `StreamLanguage`; do not replace it with a separate Lezer grammar.
+
 Then you should be able to compile the site (outputted to the `./bin/` directory) with 
 
 ```
