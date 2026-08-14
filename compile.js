@@ -23,6 +23,7 @@ const { minify } = require("terser");
 const { Compress } = require('gzipper');
 const htmlminify = require('html-minifier-terser').minify;
 const glob = require("glob")
+const { removeLocalScriptTags } = require("./build-html");
 
 //print all paths to all modules above
 let lines = fs.readFileSync(".build/buildnumber.txt", encoding = 'utf-8');
@@ -170,6 +171,7 @@ ncp("./src", "./bin/", function (err) {
                 "./src/js/riffwave.js",
                 "./src/js/sfxr.js",
                 "./src/js/colorhelpers.js",
+                "./src/js/puzzlescript-stream.js",
                 "./src/js/codemirror6.bundle.js",
                 "./src/js/codemirror/rule-transform.js",
                 "./src/js/puzzlescript-autocomplete.js",
@@ -235,7 +237,7 @@ ncp("./src", "./bin/", function (err) {
             console.log("compilation done");
 
             let editor = fs.readFileSync("./bin/editor.html", encoding = 'utf8');
-            editor = editor.replace(/<script src="js\/[A-Za-z0-9_\/-]*\.js"><\/script>/g, "");
+            editor = removeLocalScriptTags(editor);
             editor = editor.replace(/<!--___SCRIPTINSERT___-->/g, '<script src="js\/scripts_compiled.js"><\/script>');
             editor = editor.replace(/<link rel="stylesheet" href="[A-Za-z0-9_\/-]*\.css">/g, '');
             editor = editor.replace(/<!--CSSREPLACE-->/g, '<link rel="stylesheet" href="css\/combined.css">');
@@ -245,7 +247,7 @@ ncp("./src", "./bin/", function (err) {
             fs.writeFileSync("./bin/editor.html", editor, encoding = 'utf8');
 
             let player = fs.readFileSync("./bin/play.html", encoding = 'utf8');
-            player = player.replace(/<script src="js\/[A-Za-z0-9_\/-]*\.js"><\/script>/g, "");
+            player = removeLocalScriptTags(player);
             player = player.replace(/<!--___SCRIPTINSERT___-->/g, '<script src="js\/scripts_play_compiled.js"><\/script>');
             fs.writeFileSync("./bin/play.html", player, encoding = 'utf8');
 
@@ -267,7 +269,7 @@ ncp("./src", "./bin/", function (err) {
                 });
 
             //then bin one:
-            standalone_raw = standalone_raw.replace(/<script src="js\/[A-Za-z0-9_\/-]*\.js"><\/script>/g, "");
+            standalone_raw = removeLocalScriptTags(standalone_raw);
             standalone_raw = standalone_raw.replace(/<!--___SCRIPTINSERT___-->/g, '<script src="js\/scripts_play_compiled.js"><\/script>');
             webResourceInliner.html({
                 fileContent: standalone_raw,

@@ -10,8 +10,8 @@ import {
 
 test.skip(({browserName}) => browserName !== "chromium", "pixel baseline is pinned to Chromium")
 
-async function openCandidate(page) {
-  await page.goto("/tests/codemirror6/generated/editor.html")
+async function openEditor(page, path) {
+  await page.goto(path)
   await page.waitForFunction(() => !!document.querySelector(".cm-editor") &&
     !!document.getElementById("code")?.editorreference)
   await page.evaluate(() => document.fonts && document.fonts.ready)
@@ -40,39 +40,44 @@ async function compare(page, theme, surface, fullPage = false) {
   }
 }
 
-for (const theme of ["light", "dark"]) {
-  test(`CM6 ${theme} surfaces match the frozen CM5 pixels`, async ({page}) => {
-    await openCandidate(page)
-    await setTheme(page, theme)
+for (const target of [
+  {name: "candidate", path: "/tests/codemirror6/generated/editor.html"},
+  {name: "product", path: "/editor.html"},
+]) {
+  for (const theme of ["light", "dark"]) {
+    test(`CM6 ${target.name} ${theme} surfaces match the frozen CM5 pixels`, async ({page}) => {
+      await openEditor(page, target.path)
+      await setTheme(page, theme)
 
-    await setSource(page, "")
-    await compare(page, theme, "empty")
+      await setSource(page, "")
+      await compare(page, theme, "empty")
 
-    await setSource(page, representativeSource, 52, 1)
-    await compare(page, theme, "full-page", true)
-    await compare(page, theme, "representative-syntax")
-    await compare(page, theme, "active-line-gutter")
+      await setSource(page, representativeSource, 52, 1)
+      await compare(page, theme, "full-page", true)
+      await compare(page, theme, "representative-syntax")
+      await compare(page, theme, "active-line-gutter")
 
-    await setSource(page, wrappedSource, 0, 300)
-    await compare(page, theme, "wrapped")
+      await setSource(page, wrappedSource, 0, 300)
+      await compare(page, theme, "wrapped")
 
-    await setSource(page, "tit", 0, 3)
-    await page.keyboard.type("l")
-    await expect(page.locator(".cm-tooltip-autocomplete")).toBeVisible()
-    await compare(page, theme, "autocomplete")
-    await page.keyboard.press("Escape")
+      await setSource(page, "")
+      await page.keyboard.type("titl")
+      await expect(page.locator(".cm-tooltip-autocomplete")).toBeVisible()
+      await compare(page, theme, "autocomplete")
+      await page.keyboard.press("Escape")
 
-    await setSource(page, "Alpha alpha ALPHA", 0, 0)
-    await page.keyboard.press(process.platform === "darwin" ? "Meta+f" : "Control+f")
-    await expect(page.locator(".cm-search")).toBeVisible()
-    const search = page.locator('.cm-search input[name="search"]')
-    await search.fill("")
-    await search.pressSequentially("alpha")
-    await expect(page.locator(".cm-searchMatch")).toHaveCount(3)
-    await compare(page, theme, "search-replace")
-    await page.keyboard.press("Escape")
+      await setSource(page, "Alpha alpha ALPHA", 0, 0)
+      await page.keyboard.press(process.platform === "darwin" ? "Meta+f" : "Control+f")
+      await expect(page.locator(".cm-search")).toBeVisible()
+      const search = page.locator('.cm-search input[name="search"]')
+      await search.fill("")
+      await search.pressSequentially("alpha")
+      await expect(page.locator(".cm-searchMatch")).toHaveCount(3)
+      await compare(page, theme, "search-replace")
+      await page.keyboard.press("Escape")
 
-    await setSource(page, dynamicColourSource, 2, 4)
-    await compare(page, theme, "dynamic-colours")
-  })
+      await setSource(page, dynamicColourSource, 2, 4)
+      await compare(page, theme, "dynamic-colours")
+    })
+  }
 }

@@ -1,4 +1,7 @@
 import {expect, test} from "@playwright/test"
+import {readFile} from "node:fs/promises"
+
+const validDemo = await readFile(new URL("../../../demo/actiontest.txt", import.meta.url), "utf8")
 
 async function openProduct(page) {
   await page.goto("/editor.html")
@@ -49,4 +52,46 @@ test("the active product preserves the critical editor smoke path", async ({page
   await page.keyboard.press(process.platform === "darwin" ? "Meta+f" : "Control+f")
   await expect(page.locator(".cm-search")).toBeVisible()
   await expect(page.locator('.cm-search [name="case"]')).toBeDisabled()
+})
+
+test("wrapped product editor does not reserve a horizontal scrollbar", async ({page}) => {
+  await openProduct(page)
+  await setSource(page, `title ${"wrap ".repeat(500)}`)
+  await page.evaluate(() => new Promise(resolve =>
+    requestAnimationFrame(() => requestAnimationFrame(resolve))))
+
+  const scroller = await page.locator(".cm-scroller").evaluate(element => ({
+    overflowX: getComputedStyle(element).overflowX,
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+  }))
+  expect(scroller.overflowX).toBe("auto")
+  expect(scroller.scrollWidth).toBeLessThanOrEqual(scroller.clientWidth)
+})
+
+test("the active product compiles and exports a known-valid game", async ({page}) => {
+  const pageErrors = []
+  page.on("pageerror", error => pageErrors.push(error.message))
+  await openProduct(page)
+  await setSource(page, validDemo)
+
+  await page.locator("#runClickLink").click()
+  await expect(page.locator("#consoletextarea")).toContainText("Successful Compilation")
+  await expect(page).toHaveTitle(/Simple Action Example/)
+
+  await page.evaluate(() => {
+    window.__exportedStandalone = null
+    window.saveAs = (payload, type, name) => {
+      window.__exportedStandalone = {payload, type, name}
+    }
+  })
+  await page.locator("#exportClickLink").click()
+  await page.waitForFunction(() => !!window.__exportedStandalone)
+  const exported = await page.evaluate(() => window.__exportedStandalone)
+
+  expect(exported.name).toBe("Simple Action Example.html")
+  expect(exported.payload).toContain("Simple Action Example")
+  expect(exported.payload).not.toContain("PuzzleScriptCM6")
+  expect(exported.payload).not.toContain("cm-editor")
+  expect(pageErrors).toEqual([])
 })

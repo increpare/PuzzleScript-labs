@@ -20,7 +20,7 @@
 }
 
 .puzzlescript-editor .cm-scroller {
-  overflow: scroll;
+  overflow: auto;
   font-family: inherit;
   line-height: inherit;
 }
