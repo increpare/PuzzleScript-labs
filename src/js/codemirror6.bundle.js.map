@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["codemirror6/index.js"],
+  "sourcesContent": ["function createEditor() {\n  throw new Error(\"PuzzleScript CM6 editor has not been assembled yet\")\n}\n\nwindow.PuzzleScriptCM6 = Object.freeze({createEditor})\n"],
+  "mappings": ";;AAAA,WAAS,eAAe;AACtB,UAAM,IAAI,MAAM,oDAAoD;AAAA,EACtE;AAEA,SAAO,kBAAkB,OAAO,OAAO,EAAC,aAAY,CAAC;",
+  "names": []
+}

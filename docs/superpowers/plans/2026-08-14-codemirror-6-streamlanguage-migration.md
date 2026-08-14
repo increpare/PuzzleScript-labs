@@ -89,7 +89,7 @@ Keep modules focused. In particular, do not merge `stream-state.js` into the edi
 
 - [ ] **Step 1: Add exact package versions and scripts**
 
-Add this `scripts` object and add the listed packages without `^` or `~`. Preserve all current dependencies.
+Set the local, non-published package name to `puzzlescript`, add this `scripts` object, and add the listed packages without `^` or `~`. Preserve all current dependencies.
 
 ```json
 {
@@ -123,7 +123,7 @@ Run these separately:
 
 Expected: `package-lock.json` changes and every newly added top-level version is exact.
 
-Run: `node -e 'const lock=require("./package-lock.json"); if(lock.name!=="PuzzleScript") process.exit(1)'`
+Run: `node -e 'const lock=require("./package-lock.json"); if(lock.name!=="puzzlescript") process.exit(1)'`
 
 Expected: exit 0. Running npm from a worktree must not rename the lockfile package to the worktree directory name.
 
