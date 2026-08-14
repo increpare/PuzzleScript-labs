@@ -37,7 +37,8 @@ async function mountFakeEditor(page, mode) {
     const content = document.querySelector("#editor-content")
     const scroller = document.querySelector(".cm-scroller")
     const state = {source: "", cursor: {line: 0, column: 0}}
-    window.__performanceFixture = {mode, expectedLargeLength, state}
+    const editorMutations = {setValue: 0, clearHistory: 0, setCursor: 0, focus: 0, blur: 0, replaceSelection: 0}
+    window.__performanceFixture = {mode, expectedLargeLength, state, editorMutations}
 
     const mutateLater = () => {
       requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => {
@@ -55,6 +56,7 @@ async function mountFakeEditor(page, mode) {
     textarea.editorreference = {
       getValue() { return state.source },
       setValue(value) {
+        editorMutations.setValue += 1
         state.source = value
         content.textContent = value.slice(0, 16)
         if (mode === "async-scroll") {
@@ -66,11 +68,12 @@ async function mountFakeEditor(page, mode) {
           if (mode === "perpetual") mutateForever()
         }
       },
-      clearHistory() {},
-      setCursor(line, column) { state.cursor = {line, column} },
-      focus() { textarea.focus() },
-      blur() { textarea.blur() },
+      clearHistory() { editorMutations.clearHistory += 1 },
+      setCursor(line, column) { editorMutations.setCursor += 1; state.cursor = {line, column} },
+      focus() { editorMutations.focus += 1; textarea.focus() },
+      blur() { editorMutations.blur += 1; textarea.blur() },
       replaceSelection(value) {
+        editorMutations.replaceSelection += 1
         window.__performanceFixture.typingSnapshot = {
           beforeLength: state.source.length,
           cursor: {...state.cursor},
@@ -144,4 +147,33 @@ test("restore allows the editor to reveal a requested cursor asynchronously", as
 
   expect(result.duration).toBeGreaterThanOrEqual(0)
   expect(result.scrollTop).toBe(50)
+})
+
+test("current-mount settling observes bounded readiness without mutating editor state", async ({page}) => {
+  await mountFakeEditor(page, "plain")
+  const result = await page.evaluate(async benchmarkInputs => {
+    const fixture = window.__performanceFixture
+    fixture.state.source = "already mounted"
+    document.querySelector("#editor-content").textContent = fixture.state.source
+    const wallStart = performance.now()
+    const duration = await window.PuzzleScriptPerformance.runScenario("currentMountSettled", benchmarkInputs)
+    return {
+      duration,
+      wallDuration: performance.now() - wallStart,
+      source: fixture.state.source,
+      editorMutations: fixture.editorMutations
+    }
+  }, inputs())
+
+  expect(result.duration).toBeGreaterThanOrEqual(0)
+  expect(result.wallDuration).toBeGreaterThanOrEqual(100)
+  expect(result.source).toBe("already mounted")
+  expect(result.editorMutations).toEqual({
+    setValue: 0,
+    clearHistory: 0,
+    setCursor: 0,
+    focus: 0,
+    blur: 0,
+    replaceSelection: 0
+  })
 })

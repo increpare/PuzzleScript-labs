@@ -7,6 +7,7 @@ import {EventEmitter} from "node:events"
 import vm from "node:vm"
 
 import {transformCM5ComparisonHtml} from "./build-performance-pages.mjs"
+import performanceSettleConfig from "./performance-settle.config.mjs"
 import {
   collectChromeHeap,
   connectSafari,
@@ -93,16 +94,28 @@ function validSummary() {
   return {samples, median: 10.5, p95: 19, min: 1, max: 20}
 }
 
-function validBenchmarkResults({heapSupported = true} = {}) {
+function validBenchmarkResults({browser = "chrome", surface = "cm6"} = {}) {
+  const url = surface === "cm5"
+    ? "http://127.0.0.1:4173/tests/codemirror6/generated/cm5-editor.html"
+    : "http://127.0.0.1:4173/editor.html"
   return {
+    capturedAt: "2026-08-14T12:00:00.000Z",
+    surface,
+    url,
+    browser: {name: browser, version: "1.2.3"},
+    environment: {visibilityState: "visible", pageErrors: []},
     warmups: 5,
     samples: 20,
     sourceLengths: {representative: 448, completion: 432, large: 129_721},
     summaries: Object.fromEntries(performanceScenarioNames.map(name => [name, validSummary()])),
-    heap: heapSupported
+    heap: browser === "chrome"
       ? {supported: true, unit: "MiB", initial: validSummary(), large: validSummary()}
-      : {supported: false, reason: "unavailable"}
+      : {supported: false, reason: "SafariDriver does not expose repeatable JavaScript heap usage"}
   }
+}
+
+function validationOptions(result) {
+  return {browser: result.browser.name, surface: result.surface, url: result.url}
 }
 
 function scriptSources(source) {
@@ -373,9 +386,17 @@ test("installed-browser arguments require a complete explicit destination", () =
   ]), /chrome\|safari/)
 })
 
+test("focused settle config matches only the intended browser contract", () => {
+  assert.equal(performanceSettleConfig.testMatch, "performance-settle.spec.mjs")
+  assert.equal(performanceSettleConfig.projects.length, 1)
+  assert.equal(performanceSettleConfig.projects[0].name, "chromium")
+})
+
 test("benchmark validation enforces the exact baseline contract", () => {
-  assert.doesNotThrow(() => validateBenchmarkResults(validBenchmarkResults()))
-  assert.doesNotThrow(() => validateBenchmarkResults(validBenchmarkResults({heapSupported: false})))
+  const chrome = validBenchmarkResults()
+  const safari = validBenchmarkResults({browser: "safari", surface: "cm5"})
+  assert.doesNotThrow(() => validateBenchmarkResults(chrome, validationOptions(chrome)))
+  assert.doesNotThrow(() => validateBenchmarkResults(safari, validationOptions(safari)))
 
   for (const [label, mutate] of [
     ["warmups", result => { result.warmups = 4 }],
@@ -384,11 +405,41 @@ test("benchmark validation enforces the exact baseline contract", () => {
     ["scenario keys", result => { result.summaries.extra = validSummary() }],
     ["keyToNextPaint\\.samples", result => { result.summaries.keyToNextPaint.samples.pop() }],
     ["keyToNextPaint\\.median", result => { result.summaries.keyToNextPaint.median = 10 }],
-    ["heap\\.large\\.samples", result => { result.heap.large.samples.pop() }]
+    ["heap\\.large\\.samples", result => { result.heap.large.samples.pop() }],
+    ["browser keys", result => { result.browser.extra = true }],
+    ["browser\\.name", result => { result.browser.name = "safari" }],
+    ["environment\\.pageErrors", result => { result.environment.pageErrors.push("boom") }],
+    ["heap\\.unit", result => { result.heap.unit = "bytes" }],
+    ["top-level keys", result => { result.extra = true }]
   ]) {
     const result = validBenchmarkResults()
     mutate(result)
-    assert.throws(() => validateBenchmarkResults(result), new RegExp(label))
+    assert.throws(() => validateBenchmarkResults(result, {
+      browser: "chrome",
+      surface: "cm6",
+      url: "http://127.0.0.1:4173/editor.html"
+    }), new RegExp(label))
+  }
+
+  safari.heap.reason = ""
+  assert.throws(() => validateBenchmarkResults(safari, validationOptions(safari)), /heap\.reason/)
+})
+
+test("every checked performance baseline satisfies the explicit final-output schema", async () => {
+  for (const [filename, browser, surface] of [
+    ["cm5-chrome.json", "chrome", "cm5"],
+    ["pre-cm6-chrome.json", "chrome", "cm6"],
+    ["cm5-safari.json", "safari", "cm5"],
+    ["pre-cm6-safari.json", "safari", "cm6"]
+  ]) {
+    const result = JSON.parse(await readFile(new URL(`performance/baselines/${filename}`, import.meta.url)))
+    assert.doesNotThrow(() => validateBenchmarkResults(result, {
+      browser,
+      surface,
+      url: surface === "cm5"
+        ? "http://127.0.0.1:4173/tests/codemirror6/generated/cm5-editor.html"
+        : "http://127.0.0.1:4173/editor.html"
+    }), filename)
   }
 })
 
@@ -440,7 +491,7 @@ test("Chrome heap collection uses a fresh page and CDP garbage collection for ev
     garbageCollections: 0,
     heapUsage: 0,
     harnessScripts: 0,
-    initialSettles: 0,
+    currentMountSettles: 0,
     largeSettles: 0
   }
   const browser = {
@@ -466,9 +517,9 @@ test("Chrome heap collection uses a fresh page and CDP garbage collection for ev
         },
         async evaluate(callback, argument) {
           if (argument === undefined) return true
-          if (argument.name === "replaceDocumentSettled") {
-            assert.equal(argument.inputs.largeSource, "")
-            calls.initialSettles += 1
+          if (argument.name === "currentMountSettled") {
+            assert.equal(argument.inputs.largeSource.length, 129_721)
+            calls.currentMountSettles += 1
           } else if (argument.name === "loadDistantJumpExact") {
             assert.equal(argument.inputs.largeSource.length, 129_721)
             calls.largeSettles += 1
@@ -506,7 +557,7 @@ test("Chrome heap collection uses a fresh page and CDP garbage collection for ev
     garbageCollections: 40,
     heapUsage: 40,
     harnessScripts: 20,
-    initialSettles: 20,
+    currentMountSettles: 20,
     largeSettles: 20
   })
   assert.equal(heap.initial.samples.length, 20)

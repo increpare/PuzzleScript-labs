@@ -31,6 +31,8 @@ The runner performs 5 warmups and stores 20 samples for each scenario. Chrome
 also records 20 fresh-page heap samples after garbage collection for initial
 mount and the 129,721-character source. Safari intentionally makes no automated
 heap claim because WebDriver exposes no equivalent repeatable heap measurement.
+Initial heap settling observes the already-mounted editor without changing its
+source, history, cursor, focus, selection, or scroll state.
 
 Settled scenarios observe the editor root before starting the measured mutation,
 require scenario-specific semantic readiness, then confirm 100 ms of DOM quiet
@@ -40,6 +42,13 @@ confirmation window is awaited but excluded from the reported duration; the
 metric ends at the later of semantic readiness or the last relevant mutation.
 Large-file key timing restores and verifies the full 129,721-character source at
 the stable visible line-0 cursor and viewport before each measured key.
+
+CM5 can produce a small number of long-tail settled samples. Repeated installed
+Chrome diagnostics showed that these samples end at a delayed
+`.CodeMirror-hscrollbar` style update issued 29–72 ms after the measured document
+replacement or search operation. Restore had already completed its quiet window,
+and no autocomplete/search work crossed the scenario boundary. The tail is
+therefore retained as genuine deferred CM5 layout work; captures never filter it.
 
 [`reference-medians.json`](reference-medians.json) is the immutable historical
 record from the approved performance design. New captures belong in

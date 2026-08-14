@@ -235,6 +235,18 @@
   }
 
   const scenarios = {
+    async currentMountSettled(editor) {
+      if (typeof editor.getValue !== "function") {
+        throw new Error("PuzzleScript editor source is unavailable")
+      }
+      const mountedSource = editor.getValue()
+      return measureSettled(
+        "currentMountSettled",
+        () => {},
+        () => sourceIsExact(editor, mountedSource)
+      )
+    },
+
     async keyToNextPaint(editor, inputs) {
       await restore(editor, inputs.largeSource, {line: 0, column: 0}, {fixedViewport: true})
       const start = performance.now()

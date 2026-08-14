@@ -117,7 +117,16 @@ function summarize(values) {
   }
 }
 
+function validateKeys(value, expectedKeys, label) {
+  const actualKeys = value && typeof value === "object" ? Object.keys(value).sort() : []
+  const expected = [...expectedKeys].sort()
+  if (JSON.stringify(actualKeys) !== JSON.stringify(expected)) {
+    throw new Error(`${label} keys must be exactly: ${expectedKeys.join(", ")}`)
+  }
+}
+
 function validateSummary(summary, label) {
+  validateKeys(summary, ["samples", "median", "p95", "min", "max"], label)
   if (!summary || !Array.isArray(summary.samples) || summary.samples.length !== SAMPLE_COUNT ||
       summary.samples.some(value => !Number.isFinite(value))) {
     throw new Error(`${label}.samples must contain exactly ${SAMPLE_COUNT} finite results`)
@@ -142,7 +151,47 @@ export function validateHeapResults(heap) {
   validateSummary(heap.large, "heap.large")
 }
 
-export function validateBenchmarkResults(result) {
+export function validateBenchmarkResults(result, expected) {
+  validateKeys(result, [
+    "capturedAt",
+    "surface",
+    "url",
+    "browser",
+    "environment",
+    "warmups",
+    "samples",
+    "sourceLengths",
+    "summaries",
+    "heap"
+  ], "top-level")
+  if (!expected || !["chrome", "safari"].includes(expected.browser) ||
+      !["cm5", "cm6"].includes(expected.surface) || typeof expected.url !== "string") {
+    throw new Error("Expected browser, surface, and URL are required for result validation")
+  }
+  if (typeof result.capturedAt !== "string" || !Number.isFinite(Date.parse(result.capturedAt))) {
+    throw new Error("capturedAt must be a valid timestamp")
+  }
+  if (result.surface !== expected.surface) {
+    throw new Error(`surface must equal ${expected.surface}`)
+  }
+  if (result.url !== expected.url) throw new Error(`url must equal ${expected.url}`)
+
+  validateKeys(result.browser, ["name", "version"], "browser")
+  if (result.browser.name !== expected.browser) {
+    throw new Error(`browser.name must equal ${expected.browser}`)
+  }
+  if (typeof result.browser.version !== "string" || result.browser.version.length === 0) {
+    throw new Error("browser.version must be a non-empty string")
+  }
+
+  validateKeys(result.environment, ["visibilityState", "pageErrors"], "environment")
+  if (result.environment.visibilityState !== "visible") {
+    throw new Error("environment.visibilityState must equal visible")
+  }
+  if (!Array.isArray(result.environment.pageErrors) || result.environment.pageErrors.length !== 0) {
+    throw new Error("environment.pageErrors must be an empty array")
+  }
+
   if (result?.warmups !== WARMUP_COUNT) throw new Error(`warmups must equal ${WARMUP_COUNT}`)
   if (result.samples !== SAMPLE_COUNT) throw new Error(`samples must equal ${SAMPLE_COUNT}`)
 
@@ -152,6 +201,7 @@ export function validateBenchmarkResults(result) {
     completion: inputs.completion.source.length + inputs.completion.key.length,
     large: inputs.largeSource.length
   }
+  validateKeys(result.sourceLengths, Object.keys(expectedLengths), "sourceLengths")
   for (const [name, expected] of Object.entries(expectedLengths)) {
     if (result.sourceLengths?.[name] !== expected) {
       throw new Error(`sourceLengths.${name} must equal ${expected}`)
@@ -165,8 +215,17 @@ export function validateBenchmarkResults(result) {
   }
   for (const name of SCENARIO_NAMES) validateSummary(result.summaries[name], name)
 
-  if (result.heap?.supported === true) validateHeapResults(result.heap)
-  else if (result.heap?.supported !== false) throw new Error("heap.supported must be a boolean")
+  if (expected.browser === "chrome") {
+    validateKeys(result.heap, ["supported", "unit", "initial", "large"], "heap")
+    if (result.heap.unit !== "MiB") throw new Error("heap.unit must equal MiB")
+    validateHeapResults(result.heap)
+  } else {
+    validateKeys(result.heap, ["supported", "reason"], "heap")
+    if (result.heap.supported !== false) throw new Error("Safari heap.supported must be false")
+    if (typeof result.heap.reason !== "string" || result.heap.reason.length === 0) {
+      throw new Error("heap.reason must be a non-empty string")
+    }
+  }
 }
 
 export async function writeJsonAtomically(outputPath, value, overrides = {}) {
@@ -220,11 +279,7 @@ export async function collectChromeHeap(browser, url, surface, inputs, suppliedH
       await waitForChromeEditor(page, surface)
       throwPageErrors(pageErrors, `Chrome heap sample ${index + 1}`)
       await page.addScriptTag({content: heapHarnessSource})
-      await runHeapSettleScenario(page, "replaceDocumentSettled", {
-        ...inputs,
-        representativeSource: "",
-        largeSource: ""
-      })
+      await runHeapSettleScenario(page, "currentMountSettled", inputs)
       throwPageErrors(pageErrors, `Chrome initial heap sample ${index + 1}`)
       const session = await page.context().newCDPSession(page)
       await session.send("HeapProfiler.collectGarbage")
@@ -327,13 +382,17 @@ async function main() {
   const measurements = options.browser === "chrome"
     ? await runChrome(options, harnessSource, inputs)
     : await runSafari(options, harnessSource, inputs)
-  validateBenchmarkResults(measurements)
   const output = {
     capturedAt: new Date().toISOString(),
     surface: options.surface,
     url: surfaceUrl(options),
     ...measurements
   }
+  validateBenchmarkResults(output, {
+    browser: options.browser,
+    surface: options.surface,
+    url: surfaceUrl(options)
+  })
   await writeJsonAtomically(options.output, output)
   console.log(`Wrote ${options.output}`)
 }
