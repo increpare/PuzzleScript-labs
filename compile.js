@@ -189,6 +189,8 @@ ncp("./src", "./bin/", function (err) {
                 "./src/js/parser.js",
                 "./src/js/github.js",
                 "./src/js/imagepaste.js",
+                "./src/js/editor-api.js",
+                "./src/js/editor-cm5.js",
                 "./src/js/editor.js",
                 "./src/js/compiler.js",
                 "./src/js/console.js",

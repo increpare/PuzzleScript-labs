@@ -5,7 +5,7 @@ function runClick() {
 	compile(["restart"]);
 	if (gameCanvasCanReceiveInput()) {
 		canvas.focus();
-		editor.display.input.blur();
+		editor.blur();
 	}
 }
 
@@ -348,7 +348,7 @@ function rebuildClick() {
 	compile(["rebuild"]);
 	if (gameCanvasCanReceiveInput()) {
 		canvas.focus();
-		editor.display.input.blur();
+		editor.blur();
 	}
 }
 

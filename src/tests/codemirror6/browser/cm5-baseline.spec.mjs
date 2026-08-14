@@ -103,7 +103,7 @@ test("capture immutable CM5 visual and geometry baseline", async ({page}, testIn
 
 async function captureShortcutData(page, platform) {
   return page.evaluate(platform => {
-    const cm = document.getElementById("code").editorreference
+    const cm = document.querySelector(".CodeMirror").CodeMirror
 
     function label(binding) {
       return typeof binding === "string" ? binding : `function:${binding.name || "anonymous"}`
@@ -258,7 +258,7 @@ async function captureApplicationShortcuts(page, platform) {
   const results = {}
   for (const [name, shortcut] of presses) {
     await page.evaluate(() => {
-      const cm = document.getElementById("code").editorreference
+      const cm = document.querySelector(".CodeMirror").CodeMirror
       cm.setValue("alpha\nbeta")
       cm.clearHistory()
       cm.setCursor({line: 0, ch: 2})

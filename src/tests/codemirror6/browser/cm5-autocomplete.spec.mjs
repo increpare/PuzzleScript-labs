@@ -10,7 +10,7 @@ test("the extracted candidate generator preserves CM5 completion behaviour", asy
   })
 
   const result = await page.evaluate(() => {
-    const cm = document.getElementById("code").editorreference
+    const cm = document.querySelector(".CodeMirror").CodeMirror
     cm.setValue("tit")
     cm.setCursor({line: 0, ch: 3})
     cm.focus()

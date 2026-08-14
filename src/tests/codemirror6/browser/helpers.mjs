@@ -77,7 +77,7 @@ export const wrappedSource = `title ${"wrap ".repeat(180)}\n`
 
 export async function setEditorSource(page, source, cursor = {line: 0, ch: 0}) {
   await page.evaluate(({source, cursor}) => {
-    const cm = document.getElementById("code").editorreference
+    const cm = document.querySelector(".CodeMirror").CodeMirror
     cm.setValue(source)
     cm.clearHistory()
     cm.setCursor(cursor)
@@ -125,7 +125,7 @@ export async function editorMeasurements(page) {
       paddingLeft: style.paddingLeft,
       paddingRight: style.paddingRight,
       tabSize: style.tabSize,
-      editorTabSize: document.getElementById("code").editorreference.getOption("tabSize")
+      editorTabSize: document.querySelector(".CodeMirror").CodeMirror.getOption("tabSize")
     }
   })
 }

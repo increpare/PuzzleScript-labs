@@ -207,7 +207,7 @@ Mobile.debugDot = function (event) {
         this.setFocusIndicatorVisibility(this.isFocused);
 
         canvas.focus();
-        editor.display.input.blur();
+        editor.blur();
     };
 
     proto.isTouchInsideFocusElement = function (event) {

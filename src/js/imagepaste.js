@@ -167,7 +167,7 @@ function imageBlobToObjectText(blob, editor) {
  * prevent default paste, convert image to 5x5 object text, and insert at cursor.
  */
 function installImagePasteHandler(editor) {
-	const wrapper = editor.getWrapperElement();
+	const wrapper = editor.getInputElement();
 	wrapper.addEventListener('paste', function (e) {
 		const items = e.clipboardData && e.clipboardData.items;
 		if (!items) return;

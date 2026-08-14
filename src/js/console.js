@@ -7,7 +7,7 @@ function jumpToLine(i) {
     let editor = code.editorreference;
 
     // editor.getLineHandle does not help as it does not return the reference of line.
-    let ll = editor.doc.lastLine();
+    let ll = editor.getLastLine();
     let low=i-1-10;    
     let high=i-1+10;    
     let mid=i-1;
@@ -21,9 +21,9 @@ function jumpToLine(i) {
     	mid=ll;
     }
 
-    editor.scrollIntoView(low);
-    editor.scrollIntoView(high);
-    editor.scrollIntoView(mid);
+    editor.scrollToLine(low);
+    editor.scrollToLine(high);
+    editor.scrollToLine(mid);
     editor.setCursor(mid, 0);
 }
 
