@@ -31,6 +31,8 @@ import {tokenPresentation} from "./token-presentation.js"
 
 function createEditor(options) {
   const language = createPuzzleScriptLanguage(options.parser)
+  const isWebKit = /AppleWebKit\//.test(navigator.userAgent) &&
+    !/(?:Chrome|Chromium|Edg)\//.test(navigator.userAgent)
   const extensions = [
     lineNumbers(),
     highlightActiveLineGutter(),
@@ -38,7 +40,9 @@ function createEditor(options) {
     drawSelection(),
     dropCursor(),
     highlightActiveLine(),
-    EditorView.editorAttributes.of({class: "puzzlescript-editor"}),
+    EditorView.editorAttributes.of({
+      class: "puzzlescript-editor" + (isWebKit ? " puzzlescript-editor-webkit" : "")
+    }),
     EditorState.tabSize.of(4),
     EditorState.allowMultipleSelections.of(false),
     EditorView.lineWrapping,

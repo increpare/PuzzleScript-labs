@@ -20773,6 +20773,10 @@
   ];
 
   // src/js/codemirror6/search.js
+  var puzzleScriptSearchPhrases = EditorState.phrases.of({
+    regexp: "regex",
+    "by word": "whole word"
+  });
   function forceCaseInsensitive(query) {
     if (!query.caseSensitive) return query;
     return new SearchQuery({
@@ -20836,6 +20840,7 @@
   ]);
   function puzzleScriptSearch() {
     return [
+      puzzleScriptSearchPhrases,
       search({ top: true, caseSensitive: false, regexp: false, wholeWord: false }),
       caseInsensitiveSearchGuard
     ];
@@ -21053,6 +21058,7 @@
   // src/js/codemirror6/index.js
   function createEditor(options) {
     const language2 = createPuzzleScriptLanguage(options.parser);
+    const isWebKit = /AppleWebKit\//.test(navigator.userAgent) && !/(?:Chrome|Chromium|Edg)\//.test(navigator.userAgent);
     const extensions = [
       lineNumbers(),
       highlightActiveLineGutter(),
@@ -21060,7 +21066,9 @@
       drawSelection(),
       dropCursor(),
       highlightActiveLine(),
-      EditorView.editorAttributes.of({ class: "puzzlescript-editor" }),
+      EditorView.editorAttributes.of({
+        class: "puzzlescript-editor" + (isWebKit ? " puzzlescript-editor-webkit" : "")
+      }),
       EditorState.tabSize.of(4),
       EditorState.allowMultipleSelections.of(false),
       EditorView.lineWrapping,

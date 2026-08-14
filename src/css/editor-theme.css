@@ -1,0 +1,85 @@
+/* PuzzleScript token presentation shared by CM5's and CM6's class names. */
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-COLOR {}
+
+.light-theme :is(.cm-s-midnight, .puzzlescript-editor) span.cm-BOLDCOLOR {
+  font-weight: normal;
+}
+
+.light-theme :is(.cm-s-midnight, .puzzlescript-editor) span.cm-COLOR-YELLOW,
+.light-theme :is(.cm-s-midnight, .puzzlescript-editor) span.cm-FADECOLOR,
+.light-theme :is(.cm-s-midnight, .puzzlescript-editor) span.cm-COLOR-TRANSPARENT,
+.light-theme :is(.cm-s-midnight, .puzzlescript-editor) span.cm-COLOR-WHITE,
+.dark-theme :is(.cm-s-midnight, .puzzlescript-editor) span.cm-BOLDCOLOR,
+.dark-theme :is(.cm-s-midnight, .puzzlescript-editor) span.cm-HEADER,
+.dark-theme :is(.cm-s-midnight, .puzzlescript-editor) span.cm-COMMAND,
+.dark-theme :is(.cm-s-midnight, .puzzlescript-editor) span.cm-MESSAGE_VERB,
+.dark-theme :is(.cm-s-midnight, .puzzlescript-editor) span.cm-METADATA {
+  font-weight: bold;
+}
+
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-FADECOLOR,
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-COLOR-TRANSPARENT { color: light-dark(rgb(199, 199, 199), #777777); }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-COLOR-BLACK { color: light-dark(black, #555555); }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-COLOR-WHITE { color: light-dark(#dedede, #FFFFFF); }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-COLOR-GREY,
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-COLOR-GRAY { color: #9D9D9D; }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-COLOR-DARKGREY,
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-COLOR-DARKGRAY { color: #6D6D6D; }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-COLOR-LIGHTGREY,
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-COLOR-LIGHTGRAY { color: light-dark(rgb(171, 171, 171), #c1c1c1); }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-COLOR-RED { color: #BE2633; }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-COLOR-DARKRED { color: #732930; }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-COLOR-LIGHTRED { color: #e06f8b; }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-COLOR-BROWN { color: light-dark(#ba7f41, #A46422); }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-COLOR-DARKBROWN { color: light-dark(#9a5f11, #493C2B); }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-COLOR-LIGHTBROWN { color: #EEB62F; }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-COLOR-ORANGE { color: light-dark(#ff7700, #EB8931); }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-COLOR-YELLOW { color: light-dark(#ffce00, #F7E26B); }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-COLOR-GREEN { color: #44891A; }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-COLOR-DARKGREEN { color: #2F484E; }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-COLOR-LIGHTGREEN { color: #A3CE27; }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-COLOR-BLUE { color: #31A2F2; }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-COLOR-DARKBLUE { color: #005784; }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-COLOR-LIGHTBLUE { color: #B2DCEF; }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-COLOR-PURPLE { color: #580780; }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-COLOR-PINK { color: #E06F8B; }
+
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-NAME,
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-IDENTIFIER { color: #1DC116; }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-IDENTIFIER { font-weight: bold; }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-HEADER,
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-COMMAND,
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-MESSAGE_VERB,
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-METADATA,
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-header,
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-atom { color: light-dark(#7b47db, #AE81FF); }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-EQUALSBIT { color: #808080; }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-SPRITEMATRIX,
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-MATRIX { color: yellow; font-style: italic; }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-ERROR { color: light-dark(red, white); }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-ASSIGNMENT { color: light-dark(#7c699e, #AE81FF); }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-LOGICWORD { color: light-dark(rgb(185, 95, 219), #AE81FF); }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-BRACKET,
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-bracket { color: light-dark(rgb(81, 112, 231), #D1EDFF); }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-EXTENDED_AUTOCOMPLETE { color: light-dark(#164, #428BDD); font-weight: bold; }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-ARROW { color: #C11D16; }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-DIRECTION { color: #C11DC1; }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-MESSAGE { color: orange; font-style: italic; }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-METADATATEXT { color: light-dark(rgb(255, 127, 0), orange); font-style: italic; }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-SOUND { color: orange; cursor: pointer; text-decoration: underline; }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-SOUNDVERB,
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-SOUNDEVENT { color: #AE81FF; }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-LEVEL { color: light-dark(rgb(17, 99, 93), #AAAAAA); }
+
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-comment { color: #428BDD; font-style: italic; }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-number { color: #D1EDFF; }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-property,
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-attribute { color: #A6E22E; }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-keyword { color: #E83737; }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-string { color: #1DC116; }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-variable,
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-variable-2 { color: #FFAA3E; }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-def { color: #4DD; }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-error { color: #F8F8F0; background: #F92672; }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-tag { color: #449; }
+:is(.cm-s-midnight, .puzzlescript-editor) span.cm-link { color: #AE81FF; }

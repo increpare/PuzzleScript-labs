@@ -8,6 +8,11 @@ const inputPath = path.join(root, "src/editor.html")
 const outputDirectory = path.join(root, "src/tests/codemirror6/generated")
 const outputPath = path.join(outputDirectory, "editor.html")
 
+const candidateStyles = [
+  "css/editor-cm6.css",
+  "css/editor-theme.css"
+]
+
 const removedScripts = [
   "js/codemirror/codemirror.js",
   "js/codemirror/panel.js",
@@ -30,6 +35,13 @@ function escapeRegExp(value) {
 
 export function transformCandidateHtml(input) {
   let output = input.replace(/\s*<base\s+href=["'][^"']*["']\s*\/?>/gi, "")
+  for (const stylesheet of candidateStyles) {
+    const pattern = new RegExp(
+      `\\s*<link\\s+rel=["']stylesheet["']\\s+href=["']${escapeRegExp(stylesheet)}["']\\s*\\/?>`,
+      "gi"
+    )
+    output = output.replace(pattern, "")
+  }
   for (const script of removedScripts) {
     const pattern = new RegExp(
       `\\s*<script\\s+src=["']${escapeRegExp(script)}["']\\s*><\\/script>`,
@@ -38,7 +50,11 @@ export function transformCandidateHtml(input) {
     output = output.replace(pattern, "")
   }
 
-  output = output.replace(/<head>/i, '<head>\n<base href="../../../">')
+  output = output.replace(/<head>/i, [
+    "<head>",
+    '<base href="../../../">',
+    ...candidateStyles.map(stylesheet => `<link rel="stylesheet" href="${stylesheet}">`)
+  ].join("\n"))
   const sharedEditor = '<script src="js/editor.js"></script>'
   const candidateScripts = [
     '<script src="js/codemirror6.bundle.js"></script>',

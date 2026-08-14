@@ -24,6 +24,8 @@ test("candidate generation is exact and idempotent for pre- and post-cutover mar
     assert.equal(count(output, '<base href="../../../">'), 1)
     assert.equal(count(output, 'src="js/codemirror6.bundle.js"'), 1)
     assert.equal(count(output, 'src="js/editor-cm6.js"'), 1)
+    assert.equal(count(output, 'href="css/editor-cm6.css"'), 1)
+    assert.equal(count(output, 'href="css/editor-theme.css"'), 1)
     assert.equal(count(output, 'src="js/editor.js"'), 1)
     assert.equal(count(output, 'src="js/editor-cm5.js"'), 0)
     assert.match(output, /js\/codemirror\/rule-transform\.js/)

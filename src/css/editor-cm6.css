@@ -1,0 +1,253 @@
+/* CodeMirror 6 layout. Keep every editor rule under PuzzleScript's root class. */
+.puzzlescript-editor-host {
+  width: 100%;
+  height: 100%;
+}
+
+.puzzlescript-editor.cm-editor {
+  width: 100%;
+  height: 100%;
+  color: light-dark(#848484, #D1EDFF);
+  background-color: light-dark(#ffffff, #0F192A);
+  font-family: 'Consolas', 'Lucida Console', monospace;
+  font-size: 16px;
+  line-height: 1;
+  direction: ltr;
+}
+
+.puzzlescript-editor.cm-focused {
+  outline: none;
+}
+
+.puzzlescript-editor .cm-scroller {
+  overflow: scroll;
+  font-family: inherit;
+  line-height: inherit;
+}
+
+.puzzlescript-editor .cm-content {
+  padding: 4px 0;
+  caret-color: light-dark(#164, #F8F8F0);
+  tab-size: 8 !important;
+}
+
+.puzzlescript-editor .cm-line {
+  padding: 0 4px;
+}
+
+.puzzlescript-editor .cm-gutters {
+  border-right: 1px solid currentColor;
+  background: light-dark(#f5f5f5, #0F192A);
+  color: light-dark(#848484, #D1EDFF);
+  white-space: nowrap;
+}
+
+.puzzlescript-editor .cm-lineNumbers {
+  color: #999999;
+}
+
+.puzzlescript-editor .cm-lineNumbers .cm-gutterElement {
+  box-sizing: content-box;
+  min-width: 20px;
+  padding: 0 3px 0 5px;
+  text-align: right;
+}
+
+.puzzlescript-editor .cm-activeLine {
+  background-color: light-dark(#e8f2ff, #203040);
+}
+
+.puzzlescript-editor .cm-activeLineGutter {
+  background: light-dark(#c1c3d1, #19315b);
+}
+
+.puzzlescript-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground,
+.puzzlescript-editor .cm-selectionBackground,
+.puzzlescript-editor .cm-content ::selection {
+  background-color: light-dark(#a8ffa8, #314D67);
+}
+
+.puzzlescript-editor .cm-searchMatch {
+  background-color: light-dark(rgba(210, 88, 88, 0.4), rgba(255, 255, 0, .4));
+  outline: none;
+}
+
+.puzzlescript-editor .cm-searchMatch.cm-searchMatch-selected {
+  background-color: light-dark(#314D67, #ffffff);
+}
+
+.puzzlescript-editor .cm-cursor,
+.puzzlescript-editor .cm-dropCursor {
+  height: 16px !important;
+  margin-left: 0;
+  border-left-width: 1px;
+  border-left-color: light-dark(#164, #F8F8F0);
+  transform: translateY(1px);
+}
+
+/* The CM6 search implementation stays stock; only its presentation changes. */
+.puzzlescript-editor .cm-panels-top {
+  box-sizing: border-box;
+  border-bottom: 2px solid light-dark(#999999, #555555);
+  color: light-dark(#848484, #D1EDFF);
+  background: light-dark(#f4f4f4, #0F192A);
+  font-family: 'Consolas', 'Lucida Console', monospace;
+  font-size: inherit;
+  line-height: 1;
+}
+
+.puzzlescript-editor .cm-panel.cm-search {
+  position: relative;
+  box-sizing: border-box;
+  padding: 2px 6px 4px;
+  font: inherit;
+}
+
+.puzzlescript-editor .cm-search::after {
+  content: "";
+  display: block;
+  clear: both;
+}
+
+.puzzlescript-editor .cm-search input,
+.puzzlescript-editor .cm-search button,
+.puzzlescript-editor .cm-search label {
+  margin: .2em .6em .2em 0;
+}
+
+.puzzlescript-editor .cm-search input:focus {
+  outline: none;
+}
+
+.puzzlescript-editor .cm-search input[type=checkbox] {
+  width: auto;
+  margin-right: .2em;
+}
+
+.puzzlescript-editor .cm-search label {
+  font: inherit !important;
+  white-space: pre;
+}
+
+/* PuzzleScript's CM5 panel had no case or select-all controls. Keep the
+   stock CM6 nodes, but exclude them from the preserved panel layout. */
+.puzzlescript-editor .cm-search button[name=select] {
+  display: none;
+}
+
+.puzzlescript-editor .cm-search button[name=prev] {
+  margin-right: 180px;
+}
+
+.puzzlescript-editor .cm-search .cm-textfield {
+  vertical-align: middle;
+  box-sizing: border-box;
+  width: 20em;
+  border: 1px solid currentColor;
+  padding: .2em .5em;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+}
+
+.puzzlescript-editor .cm-search button:not([name=close]) {
+  -webkit-appearance: none;
+  appearance: none;
+  vertical-align: middle;
+  padding: .2em 1em;
+  border: 1px solid currentColor;
+  border-radius: 0;
+  color: light-dark(#f75500, #e06f8b);
+  background: transparent;
+  font: inherit;
+}
+
+.puzzlescript-editor .cm-search button:not([name=close]):hover {
+  color: #203040;
+  background: light-dark(#f75500, #e06f8b);
+}
+
+.puzzlescript-editor .cm-search button:not([name=close]):active {
+  color: #203040;
+  border-color: light-dark(#d94b00, #c95973);
+  background: light-dark(#d94b00, #c95973);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, .45);
+}
+
+.puzzlescript-editor .cm-search button:focus {
+  outline: 1px solid light-dark(#000000, #ffffff);
+  outline-offset: 2px;
+}
+
+.puzzlescript-editor .cm-search button[name=close] {
+  -webkit-appearance: none;
+  appearance: none;
+  position: static !important;
+  float: right;
+  border: 0;
+  padding: 0;
+  margin: 0 !important;
+  color: light-dark(#f75500, #e06f8b);
+  background: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-size: 150% !important;
+  line-height: 1 !important;
+  transform: translateY(5px);
+}
+
+.puzzlescript-editor .cm-search button[name=close]:focus {
+  outline-offset: -1px;
+}
+
+/* Reproduce the old hint geometry while retaining CM6's completion behavior. */
+.puzzlescript-editor .cm-tooltip-autocomplete {
+  overflow: hidden;
+  margin: -1px 0 0;
+  padding: 2px;
+  border: 1px solid light-dark(#000000, silver);
+  border-radius: 3px;
+  background: light-dark(#ffffff, #0F192A);
+  box-shadow: 2px 3px 5px rgba(0, 0, 0, .2);
+  font-family: monospace;
+  font-size: 11.7px;
+  line-height: 17.55px;
+}
+
+.puzzlescript-editor .cm-tooltip-autocomplete > ul {
+  width: auto;
+  min-width: 0 !important;
+  height: auto !important;
+  max-height: 20em;
+  font-family: inherit;
+}
+
+.puzzlescript-editor .cm-tooltip-autocomplete > ul > li {
+  height: auto;
+  margin: 0;
+  padding: 0 4px !important;
+  border-radius: 2px;
+  color: light-dark(#c38a06, #FFC540);
+  line-height: 17.55px !important;
+}
+
+.puzzlescript-editor .cm-tooltip-autocomplete > ul > li[aria-selected] {
+  color: light-dark(rgb(233, 105, 0), orange);
+  background: light-dark(#e8f2ff, #3f5883);
+}
+
+.puzzlescript-editor .cm-completionIcon,
+.puzzlescript-editor .cm-completionMatchedText,
+.puzzlescript-editor .cm-completionLabel {
+  display: none !important;
+}
+
+@-moz-document url-prefix() {
+  .puzzlescript-editor .cm-tooltip-autocomplete {
+    margin-top: -1.5px;
+  }
+}
+
+.puzzlescript-editor-webkit .cm-tooltip-autocomplete {
+  margin-top: -1.3125px;
+}

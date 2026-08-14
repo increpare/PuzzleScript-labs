@@ -10,6 +10,7 @@ export default defineConfig({
   globalSetup: "./browser-global-setup.mjs",
   timeout: 30_000,
   expect: {timeout: 5_000},
+  snapshotPathTemplate: "{testDir}/../baselines/cm5/{projectName}-{arg}{ext}",
   use: {baseURL: "http://127.0.0.1:4173", viewport},
   webServer: {
     command: "python3 -m http.server 4173 --directory src",

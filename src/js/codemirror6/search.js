@@ -9,7 +9,13 @@ import {
   search,
   setSearchQuery
 } from "@codemirror/search"
+import {EditorState} from "@codemirror/state"
 import {ViewPlugin} from "@codemirror/view"
+
+const puzzleScriptSearchPhrases = EditorState.phrases.of({
+  regexp: "regex",
+  "by word": "whole word"
+})
 
 export function forceCaseInsensitive(query) {
   if (!query.caseSensitive) return query
@@ -82,6 +88,7 @@ export const puzzleScriptSearchKeymap = Object.freeze([
 
 export function puzzleScriptSearch() {
   return [
+    puzzleScriptSearchPhrases,
     search({top: true, caseSensitive: false, regexp: false, wholeWord: false}),
     caseInsensitiveSearchGuard
   ]
