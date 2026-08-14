@@ -1,3 +1,8 @@
+import {
+  puzzleScriptAutocomplete,
+  puzzleScriptCompletionKeymap,
+  puzzleScriptCompletionSource
+} from "./autocomplete.js"
 import {createPuzzleScriptLanguage} from "./stream-language.js"
 import {buildTokenDecorations} from "./token-presentation.js"
 
@@ -7,6 +12,9 @@ function createEditor() {
 
 window.PuzzleScriptCM6 = Object.freeze({
   createEditor,
+  puzzleScriptAutocomplete,
+  puzzleScriptCompletionKeymap,
+  puzzleScriptCompletionSource,
   createPuzzleScriptLanguage,
   buildTokenDecorations
 })

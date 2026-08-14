@@ -1,1628 +1,4 @@
 (() => {
-  // node_modules/@lezer/common/dist/index.js
-  var DefaultBufferLength = 1024;
-  var nextPropID = 0;
-  var Range = class {
-    constructor(from, to) {
-      this.from = from;
-      this.to = to;
-    }
-  };
-  var NodeProp = class {
-    /**
-    Create a new node prop type.
-    */
-    constructor(config = {}) {
-      this.id = nextPropID++;
-      this.perNode = !!config.perNode;
-      this.deserialize = config.deserialize || (() => {
-        throw new Error("This node type doesn't define a deserialize function");
-      });
-      this.combine = config.combine || null;
-    }
-    /**
-    This is meant to be used with
-    [`NodeSet.extend`](#common.NodeSet.extend) or
-    [`LRParser.configure`](#lr.ParserConfig.props) to compute
-    prop values for each node type in the set. Takes a [match
-    object](#common.NodeType^match) or function that returns undefined
-    if the node type doesn't get this prop, and the prop's value if
-    it does.
-    */
-    add(match) {
-      if (this.perNode)
-        throw new RangeError("Can't add per-node props to node types");
-      if (typeof match != "function")
-        match = NodeType.match(match);
-      return (type) => {
-        let result = match(type);
-        return result === void 0 ? null : [this, result];
-      };
-    }
-  };
-  NodeProp.closedBy = new NodeProp({ deserialize: (str) => str.split(" ") });
-  NodeProp.openedBy = new NodeProp({ deserialize: (str) => str.split(" ") });
-  NodeProp.group = new NodeProp({ deserialize: (str) => str.split(" ") });
-  NodeProp.isolate = new NodeProp({ deserialize: (value) => {
-    if (value && value != "rtl" && value != "ltr" && value != "auto")
-      throw new RangeError("Invalid value for isolate: " + value);
-    return value || "auto";
-  } });
-  NodeProp.contextHash = new NodeProp({ perNode: true });
-  NodeProp.lookAhead = new NodeProp({ perNode: true });
-  NodeProp.mounted = new NodeProp({ perNode: true });
-  var MountedTree = class {
-    constructor(tree, overlay, parser, bracketed = false) {
-      this.tree = tree;
-      this.overlay = overlay;
-      this.parser = parser;
-      this.bracketed = bracketed;
-    }
-    /**
-    @internal
-    */
-    static get(tree) {
-      return tree && tree.props && tree.props[NodeProp.mounted.id];
-    }
-  };
-  var noProps = /* @__PURE__ */ Object.create(null);
-  var NodeType = class _NodeType {
-    /**
-    @internal
-    */
-    constructor(name2, props, id, flags = 0) {
-      this.name = name2;
-      this.props = props;
-      this.id = id;
-      this.flags = flags;
-    }
-    /**
-    Define a node type.
-    */
-    static define(spec) {
-      let props = spec.props && spec.props.length ? /* @__PURE__ */ Object.create(null) : noProps;
-      let flags = (spec.top ? 1 : 0) | (spec.skipped ? 2 : 0) | (spec.error ? 4 : 0) | (spec.name == null ? 8 : 0);
-      let type = new _NodeType(spec.name || "", props, spec.id, flags);
-      if (spec.props)
-        for (let src of spec.props) {
-          if (!Array.isArray(src))
-            src = src(type);
-          if (src) {
-            if (src[0].perNode)
-              throw new RangeError("Can't store a per-node prop on a node type");
-            props[src[0].id] = src[1];
-          }
-        }
-      return type;
-    }
-    /**
-    Retrieves a node prop for this type. Will return `undefined` if
-    the prop isn't present on this node.
-    */
-    prop(prop) {
-      return this.props[prop.id];
-    }
-    /**
-    True when this is the top node of a grammar.
-    */
-    get isTop() {
-      return (this.flags & 1) > 0;
-    }
-    /**
-    True when this node is produced by a skip rule.
-    */
-    get isSkipped() {
-      return (this.flags & 2) > 0;
-    }
-    /**
-    Indicates whether this is an error node.
-    */
-    get isError() {
-      return (this.flags & 4) > 0;
-    }
-    /**
-    When true, this node type doesn't correspond to a user-declared
-    named node, for example because it is used to cache repetition.
-    */
-    get isAnonymous() {
-      return (this.flags & 8) > 0;
-    }
-    /**
-    Returns true when this node's name or one of its
-    [groups](#common.NodeProp^group) matches the given string.
-    */
-    is(name2) {
-      if (typeof name2 == "string") {
-        if (this.name == name2)
-          return true;
-        let group = this.prop(NodeProp.group);
-        return group ? group.indexOf(name2) > -1 : false;
-      }
-      return this.id == name2;
-    }
-    /**
-    Create a function from node types to arbitrary values by
-    specifying an object whose property names are node or
-    [group](#common.NodeProp^group) names. Often useful with
-    [`NodeProp.add`](#common.NodeProp.add). You can put multiple
-    names, separated by spaces, in a single property name to map
-    multiple node names to a single value.
-    */
-    static match(map) {
-      let direct = /* @__PURE__ */ Object.create(null);
-      for (let prop in map)
-        for (let name2 of prop.split(" "))
-          direct[name2] = map[prop];
-      return (node) => {
-        for (let groups = node.prop(NodeProp.group), i2 = -1; i2 < (groups ? groups.length : 0); i2++) {
-          let found = direct[i2 < 0 ? node.name : groups[i2]];
-          if (found)
-            return found;
-        }
-      };
-    }
-  };
-  NodeType.none = new NodeType(
-    "",
-    /* @__PURE__ */ Object.create(null),
-    0,
-    8
-    /* NodeFlag.Anonymous */
-  );
-  var NodeSet = class _NodeSet {
-    /**
-    Create a set with the given types. The `id` property of each
-    type should correspond to its position within the array.
-    */
-    constructor(types2) {
-      this.types = types2;
-      for (let i2 = 0; i2 < types2.length; i2++)
-        if (types2[i2].id != i2)
-          throw new RangeError("Node type ids should correspond to array positions when creating a node set");
-    }
-    /**
-    Create a copy of this set with some node properties added. The
-    arguments to this method can be created with
-    [`NodeProp.add`](#common.NodeProp.add).
-    */
-    extend(...props) {
-      let newTypes = [];
-      for (let type of this.types) {
-        let newProps = null;
-        for (let source of props) {
-          let add = source(type);
-          if (add) {
-            if (!newProps)
-              newProps = Object.assign({}, type.props);
-            let value = add[1], prop = add[0];
-            if (prop.combine && prop.id in newProps)
-              value = prop.combine(newProps[prop.id], value);
-            newProps[prop.id] = value;
-          }
-        }
-        newTypes.push(newProps ? new NodeType(type.name, newProps, type.id, type.flags) : type);
-      }
-      return new _NodeSet(newTypes);
-    }
-  };
-  var CachedNode = /* @__PURE__ */ new WeakMap();
-  var CachedInnerNode = /* @__PURE__ */ new WeakMap();
-  var IterMode;
-  (function(IterMode2) {
-    IterMode2[IterMode2["ExcludeBuffers"] = 1] = "ExcludeBuffers";
-    IterMode2[IterMode2["IncludeAnonymous"] = 2] = "IncludeAnonymous";
-    IterMode2[IterMode2["IgnoreMounts"] = 4] = "IgnoreMounts";
-    IterMode2[IterMode2["IgnoreOverlays"] = 8] = "IgnoreOverlays";
-    IterMode2[IterMode2["EnterBracketed"] = 16] = "EnterBracketed";
-  })(IterMode || (IterMode = {}));
-  var Tree = class _Tree {
-    /**
-    Construct a new tree. See also [`Tree.build`](#common.Tree^build).
-    */
-    constructor(type, children, positions, length, props) {
-      this.type = type;
-      this.children = children;
-      this.positions = positions;
-      this.length = length;
-      this.props = null;
-      if (props && props.length) {
-        this.props = /* @__PURE__ */ Object.create(null);
-        for (let [prop, value] of props)
-          this.props[typeof prop == "number" ? prop : prop.id] = value;
-      }
-    }
-    /**
-    @internal
-    */
-    toString() {
-      let mounted = MountedTree.get(this);
-      if (mounted && !mounted.overlay)
-        return mounted.tree.toString();
-      let children = "";
-      for (let ch of this.children) {
-        let str = ch.toString();
-        if (str) {
-          if (children)
-            children += ",";
-          children += str;
-        }
-      }
-      return !this.type.name ? children : (/\W/.test(this.type.name) && !this.type.isError ? JSON.stringify(this.type.name) : this.type.name) + (children.length ? "(" + children + ")" : "");
-    }
-    /**
-    Get a [tree cursor](#common.TreeCursor) positioned at the top of
-    the tree. Mode can be used to [control](#common.IterMode) which
-    nodes the cursor visits.
-    */
-    cursor(mode = 0) {
-      return new TreeCursor(this.topNode, mode);
-    }
-    /**
-    Get a [tree cursor](#common.TreeCursor) pointing into this tree
-    at the given position and side (see
-    [`moveTo`](#common.TreeCursor.moveTo).
-    */
-    cursorAt(pos, side = 0, mode = 0) {
-      let scope = CachedNode.get(this) || this.topNode;
-      let cursor = new TreeCursor(scope);
-      cursor.moveTo(pos, side);
-      CachedNode.set(this, cursor._tree);
-      return cursor;
-    }
-    /**
-    Get a [syntax node](#common.SyntaxNode) object for the top of the
-    tree.
-    */
-    get topNode() {
-      return new TreeNode(this, 0, 0, null);
-    }
-    /**
-    Get the [syntax node](#common.SyntaxNode) at the given position.
-    If `side` is -1, this will move into nodes that end at the
-    position. If 1, it'll move into nodes that start at the
-    position. With 0, it'll only enter nodes that cover the position
-    from both sides.
-
-    Note that this will not enter
-    [overlays](#common.MountedTree.overlay), and you often want
-    [`resolveInner`](#common.Tree.resolveInner) instead.
-    */
-    resolve(pos, side = 0) {
-      let node = resolveNode(CachedNode.get(this) || this.topNode, pos, side, false);
-      CachedNode.set(this, node);
-      return node;
-    }
-    /**
-    Like [`resolve`](#common.Tree.resolve), but will enter
-    [overlaid](#common.MountedTree.overlay) nodes, producing a syntax node
-    pointing into the innermost overlaid tree at the given position
-    (with parent links going through all parent structure, including
-    the host trees).
-    */
-    resolveInner(pos, side = 0) {
-      let node = resolveNode(CachedInnerNode.get(this) || this.topNode, pos, side, true);
-      CachedInnerNode.set(this, node);
-      return node;
-    }
-    /**
-    In some situations, it can be useful to iterate through all
-    nodes around a position, including those in overlays that don't
-    directly cover the position. This method gives you an iterator
-    that will produce all nodes, from small to big, around the given
-    position.
-    */
-    resolveStack(pos, side = 0) {
-      return stackIterator(this, pos, side);
-    }
-    /**
-    Iterate over the tree and its children, calling `enter` for any
-    node that touches the `from`/`to` region (if given) before
-    running over such a node's children, and `leave` (if given) when
-    leaving the node. When `enter` returns `false`, that node will
-    not have its children iterated over (or `leave` called).
-    */
-    iterate(spec) {
-      let { enter, leave, from = 0, to = this.length } = spec;
-      let mode = spec.mode || 0, anon = (mode & IterMode.IncludeAnonymous) > 0;
-      for (let c = this.cursor(mode | IterMode.IncludeAnonymous); ; ) {
-        let entered = false;
-        if (c.from <= to && c.to >= from && (!anon && c.type.isAnonymous || enter(c) !== false)) {
-          if (c.firstChild())
-            continue;
-          entered = true;
-        }
-        for (; ; ) {
-          if (entered && leave && (anon || !c.type.isAnonymous))
-            leave(c);
-          if (c.nextSibling())
-            break;
-          if (!c.parent())
-            return;
-          entered = true;
-        }
-      }
-    }
-    /**
-    Get the value of the given [node prop](#common.NodeProp) for this
-    node. Works with both per-node and per-type props.
-    */
-    prop(prop) {
-      return !prop.perNode ? this.type.prop(prop) : this.props ? this.props[prop.id] : void 0;
-    }
-    /**
-    Returns the node's [per-node props](#common.NodeProp.perNode) in a
-    format that can be passed to the [`Tree`](#common.Tree)
-    constructor.
-    */
-    get propValues() {
-      let result = [];
-      if (this.props)
-        for (let id in this.props)
-          result.push([+id, this.props[id]]);
-      return result;
-    }
-    /**
-    Balance the direct children of this tree, producing a copy of
-    which may have children grouped into subtrees with type
-    [`NodeType.none`](#common.NodeType^none).
-    */
-    balance(config = {}) {
-      return this.children.length <= 8 ? this : balanceRange(NodeType.none, this.children, this.positions, 0, this.children.length, 0, this.length, (children, positions, length) => new _Tree(this.type, children, positions, length, this.propValues), config.makeTree || ((children, positions, length) => new _Tree(NodeType.none, children, positions, length)));
-    }
-    /**
-    Build a tree from a postfix-ordered buffer of node information,
-    or a cursor over such a buffer.
-    */
-    static build(data) {
-      return buildTree(data);
-    }
-  };
-  Tree.empty = new Tree(NodeType.none, [], [], 0);
-  var FlatBufferCursor = class _FlatBufferCursor {
-    constructor(buffer, index) {
-      this.buffer = buffer;
-      this.index = index;
-    }
-    get id() {
-      return this.buffer[this.index - 4];
-    }
-    get start() {
-      return this.buffer[this.index - 3];
-    }
-    get end() {
-      return this.buffer[this.index - 2];
-    }
-    get size() {
-      return this.buffer[this.index - 1];
-    }
-    get pos() {
-      return this.index;
-    }
-    next() {
-      this.index -= 4;
-    }
-    fork() {
-      return new _FlatBufferCursor(this.buffer, this.index);
-    }
-  };
-  var TreeBuffer = class _TreeBuffer {
-    /**
-    Create a tree buffer.
-    */
-    constructor(buffer, length, set) {
-      this.buffer = buffer;
-      this.length = length;
-      this.set = set;
-    }
-    /**
-    @internal
-    */
-    get type() {
-      return NodeType.none;
-    }
-    /**
-    @internal
-    */
-    toString() {
-      let result = [];
-      for (let index = 0; index < this.buffer.length; ) {
-        result.push(this.childString(index));
-        index = this.buffer[index + 3];
-      }
-      return result.join(",");
-    }
-    /**
-    @internal
-    */
-    childString(index) {
-      let id = this.buffer[index], endIndex = this.buffer[index + 3];
-      let type = this.set.types[id], result = type.name;
-      if (/\W/.test(result) && !type.isError)
-        result = JSON.stringify(result);
-      index += 4;
-      if (endIndex == index)
-        return result;
-      let children = [];
-      while (index < endIndex) {
-        children.push(this.childString(index));
-        index = this.buffer[index + 3];
-      }
-      return result + "(" + children.join(",") + ")";
-    }
-    /**
-    @internal
-    */
-    findChild(startIndex, endIndex, dir, pos, side) {
-      let { buffer } = this, pick = -1;
-      for (let i2 = startIndex; i2 != endIndex; i2 = buffer[i2 + 3]) {
-        if (checkSide(side, pos, buffer[i2 + 1], buffer[i2 + 2])) {
-          pick = i2;
-          if (dir > 0)
-            break;
-        }
-      }
-      return pick;
-    }
-    /**
-    @internal
-    */
-    slice(startI, endI, from) {
-      let b = this.buffer;
-      let copy = new Uint16Array(endI - startI), len = 0;
-      for (let i2 = startI, j = 0; i2 < endI; ) {
-        copy[j++] = b[i2++];
-        copy[j++] = b[i2++] - from;
-        let to = copy[j++] = b[i2++] - from;
-        copy[j++] = b[i2++] - startI;
-        len = Math.max(len, to);
-      }
-      return new _TreeBuffer(copy, len, this.set);
-    }
-  };
-  function checkSide(side, pos, from, to) {
-    switch (side) {
-      case -2:
-        return from < pos;
-      case -1:
-        return to >= pos && from < pos;
-      case 0:
-        return from < pos && to > pos;
-      case 1:
-        return from <= pos && to > pos;
-      case 2:
-        return to > pos;
-      case 4:
-        return true;
-    }
-  }
-  function resolveNode(node, pos, side, overlays) {
-    var _a2;
-    while (node.from == node.to || (side < 1 ? node.from >= pos : node.from > pos) || (side > -1 ? node.to <= pos : node.to < pos)) {
-      let parent = !overlays && node instanceof TreeNode && node.index < 0 ? null : node.parent;
-      if (!parent)
-        return node;
-      node = parent;
-    }
-    let mode = overlays ? 0 : IterMode.IgnoreOverlays;
-    if (overlays)
-      for (let scan = node, parent = scan.parent; parent; scan = parent, parent = scan.parent) {
-        if (scan instanceof TreeNode && scan.index < 0 && ((_a2 = parent.enter(pos, side, mode)) === null || _a2 === void 0 ? void 0 : _a2.from) != scan.from)
-          node = parent;
-      }
-    for (; ; ) {
-      let inner = node.enter(pos, side, mode);
-      if (!inner)
-        return node;
-      node = inner;
-    }
-  }
-  var BaseNode = class {
-    cursor(mode = 0) {
-      return new TreeCursor(this, mode);
-    }
-    getChild(type, before = null, after = null) {
-      let r = getChildren(this, type, before, after);
-      return r.length ? r[0] : null;
-    }
-    getChildren(type, before = null, after = null) {
-      return getChildren(this, type, before, after);
-    }
-    resolve(pos, side = 0) {
-      return resolveNode(this, pos, side, false);
-    }
-    resolveInner(pos, side = 0) {
-      return resolveNode(this, pos, side, true);
-    }
-    matchContext(context) {
-      return matchNodeContext(this.parent, context);
-    }
-    enterUnfinishedNodesBefore(pos) {
-      let scan = this.childBefore(pos), node = this;
-      while (scan) {
-        let last = scan.lastChild;
-        if (!last || last.to != scan.to)
-          break;
-        if (last.type.isError && last.from == last.to) {
-          node = scan;
-          scan = last.prevSibling;
-        } else {
-          scan = last;
-        }
-      }
-      return node;
-    }
-    get node() {
-      return this;
-    }
-    get next() {
-      return this.parent;
-    }
-  };
-  var TreeNode = class _TreeNode extends BaseNode {
-    constructor(_tree, from, index, _parent) {
-      super();
-      this._tree = _tree;
-      this.from = from;
-      this.index = index;
-      this._parent = _parent;
-    }
-    get type() {
-      return this._tree.type;
-    }
-    get name() {
-      return this._tree.type.name;
-    }
-    get to() {
-      return this.from + this._tree.length;
-    }
-    nextChild(i2, dir, pos, side, mode = 0) {
-      for (let parent = this; ; ) {
-        for (let { children, positions } = parent._tree, e = dir > 0 ? children.length : -1; i2 != e; i2 += dir) {
-          let next = children[i2], start = positions[i2] + parent.from, mounted;
-          if (!(mode & IterMode.EnterBracketed && next instanceof Tree && (mounted = MountedTree.get(next)) && !mounted.overlay && mounted.bracketed && pos >= start && pos <= start + next.length) && !checkSide(side, pos, start, start + next.length))
-            continue;
-          if (next instanceof TreeBuffer) {
-            if (mode & IterMode.ExcludeBuffers)
-              continue;
-            let index = next.findChild(0, next.buffer.length, dir, pos - start, side);
-            if (index > -1)
-              return new BufferNode(new BufferContext(parent, next, i2, start), null, index);
-          } else if (mode & IterMode.IncludeAnonymous || (!next.type.isAnonymous || hasChild(next))) {
-            let mounted2;
-            if (!(mode & IterMode.IgnoreMounts) && (mounted2 = MountedTree.get(next)) && !mounted2.overlay)
-              return new _TreeNode(mounted2.tree, start, i2, parent);
-            let inner = new _TreeNode(next, start, i2, parent);
-            return mode & IterMode.IncludeAnonymous || !inner.type.isAnonymous ? inner : inner.nextChild(dir < 0 ? next.children.length - 1 : 0, dir, pos, side, mode);
-          }
-        }
-        if (mode & IterMode.IncludeAnonymous || !parent.type.isAnonymous)
-          return null;
-        if (parent.index >= 0)
-          i2 = parent.index + dir;
-        else
-          i2 = dir < 0 ? -1 : parent._parent._tree.children.length;
-        parent = parent._parent;
-        if (!parent)
-          return null;
-      }
-    }
-    get firstChild() {
-      return this.nextChild(
-        0,
-        1,
-        0,
-        4
-        /* Side.DontCare */
-      );
-    }
-    get lastChild() {
-      return this.nextChild(
-        this._tree.children.length - 1,
-        -1,
-        0,
-        4
-        /* Side.DontCare */
-      );
-    }
-    childAfter(pos) {
-      return this.nextChild(
-        0,
-        1,
-        pos,
-        2
-        /* Side.After */
-      );
-    }
-    childBefore(pos) {
-      return this.nextChild(
-        this._tree.children.length - 1,
-        -1,
-        pos,
-        -2
-        /* Side.Before */
-      );
-    }
-    prop(prop) {
-      return this._tree.prop(prop);
-    }
-    enter(pos, side, mode = 0) {
-      let mounted;
-      if (!(mode & IterMode.IgnoreOverlays) && (mounted = MountedTree.get(this._tree)) && mounted.overlay) {
-        let rPos = pos - this.from, enterBracketed = mode & IterMode.EnterBracketed && mounted.bracketed;
-        for (let { from, to } of mounted.overlay) {
-          if ((side > 0 || enterBracketed ? from <= rPos : from < rPos) && (side < 0 || enterBracketed ? to >= rPos : to > rPos))
-            return new _TreeNode(mounted.tree, mounted.overlay[0].from + this.from, -1, this);
-        }
-      }
-      return this.nextChild(0, 1, pos, side, mode);
-    }
-    nextSignificantParent() {
-      let val = this;
-      while (val.type.isAnonymous && val._parent)
-        val = val._parent;
-      return val;
-    }
-    get parent() {
-      return this._parent ? this._parent.nextSignificantParent() : null;
-    }
-    get nextSibling() {
-      return this._parent && this.index >= 0 ? this._parent.nextChild(
-        this.index + 1,
-        1,
-        0,
-        4
-        /* Side.DontCare */
-      ) : null;
-    }
-    get prevSibling() {
-      return this._parent && this.index >= 0 ? this._parent.nextChild(
-        this.index - 1,
-        -1,
-        0,
-        4
-        /* Side.DontCare */
-      ) : null;
-    }
-    get tree() {
-      return this._tree;
-    }
-    toTree() {
-      return this._tree;
-    }
-    /**
-    @internal
-    */
-    toString() {
-      return this._tree.toString();
-    }
-  };
-  function getChildren(node, type, before, after) {
-    let cur = node.cursor(), result = [];
-    if (!cur.firstChild())
-      return result;
-    if (before != null)
-      for (let found = false; !found; ) {
-        found = cur.type.is(before);
-        if (!cur.nextSibling())
-          return result;
-      }
-    for (; ; ) {
-      if (after != null && cur.type.is(after))
-        return result;
-      if (cur.type.is(type))
-        result.push(cur.node);
-      if (!cur.nextSibling())
-        return after == null ? result : [];
-    }
-  }
-  function matchNodeContext(node, context, i2 = context.length - 1) {
-    for (let p = node; i2 >= 0; p = p.parent) {
-      if (!p)
-        return false;
-      if (!p.type.isAnonymous) {
-        if (context[i2] && context[i2] != p.name)
-          return false;
-        i2--;
-      }
-    }
-    return true;
-  }
-  var BufferContext = class {
-    constructor(parent, buffer, index, start) {
-      this.parent = parent;
-      this.buffer = buffer;
-      this.index = index;
-      this.start = start;
-    }
-  };
-  var BufferNode = class _BufferNode extends BaseNode {
-    get name() {
-      return this.type.name;
-    }
-    get from() {
-      return this.context.start + this.context.buffer.buffer[this.index + 1];
-    }
-    get to() {
-      return this.context.start + this.context.buffer.buffer[this.index + 2];
-    }
-    constructor(context, _parent, index) {
-      super();
-      this.context = context;
-      this._parent = _parent;
-      this.index = index;
-      this.type = context.buffer.set.types[context.buffer.buffer[index]];
-    }
-    child(dir, pos, side) {
-      let { buffer } = this.context;
-      let index = buffer.findChild(this.index + 4, buffer.buffer[this.index + 3], dir, pos - this.context.start, side);
-      return index < 0 ? null : new _BufferNode(this.context, this, index);
-    }
-    get firstChild() {
-      return this.child(
-        1,
-        0,
-        4
-        /* Side.DontCare */
-      );
-    }
-    get lastChild() {
-      return this.child(
-        -1,
-        0,
-        4
-        /* Side.DontCare */
-      );
-    }
-    childAfter(pos) {
-      return this.child(
-        1,
-        pos,
-        2
-        /* Side.After */
-      );
-    }
-    childBefore(pos) {
-      return this.child(
-        -1,
-        pos,
-        -2
-        /* Side.Before */
-      );
-    }
-    prop(prop) {
-      return this.type.prop(prop);
-    }
-    enter(pos, side, mode = 0) {
-      if (mode & IterMode.ExcludeBuffers)
-        return null;
-      let { buffer } = this.context;
-      let index = buffer.findChild(this.index + 4, buffer.buffer[this.index + 3], side > 0 ? 1 : -1, pos - this.context.start, side);
-      return index < 0 ? null : new _BufferNode(this.context, this, index);
-    }
-    get parent() {
-      return this._parent || this.context.parent.nextSignificantParent();
-    }
-    externalSibling(dir) {
-      return this._parent ? null : this.context.parent.nextChild(
-        this.context.index + dir,
-        dir,
-        0,
-        4
-        /* Side.DontCare */
-      );
-    }
-    get nextSibling() {
-      let { buffer } = this.context;
-      let after = buffer.buffer[this.index + 3];
-      if (after < (this._parent ? buffer.buffer[this._parent.index + 3] : buffer.buffer.length))
-        return new _BufferNode(this.context, this._parent, after);
-      return this.externalSibling(1);
-    }
-    get prevSibling() {
-      let { buffer } = this.context;
-      let parentStart = this._parent ? this._parent.index + 4 : 0;
-      if (this.index == parentStart)
-        return this.externalSibling(-1);
-      return new _BufferNode(this.context, this._parent, buffer.findChild(
-        parentStart,
-        this.index,
-        -1,
-        0,
-        4
-        /* Side.DontCare */
-      ));
-    }
-    get tree() {
-      return null;
-    }
-    toTree() {
-      let children = [], positions = [];
-      let { buffer } = this.context;
-      let startI = this.index + 4, endI = buffer.buffer[this.index + 3];
-      if (endI > startI) {
-        let from = buffer.buffer[this.index + 1];
-        children.push(buffer.slice(startI, endI, from));
-        positions.push(0);
-      }
-      return new Tree(this.type, children, positions, this.to - this.from);
-    }
-    /**
-    @internal
-    */
-    toString() {
-      return this.context.buffer.childString(this.index);
-    }
-  };
-  function iterStack(heads) {
-    if (!heads.length)
-      return null;
-    let pick = 0, picked = heads[0];
-    for (let i2 = 1; i2 < heads.length; i2++) {
-      let node = heads[i2];
-      if (node.from > picked.from || node.to < picked.to) {
-        picked = node;
-        pick = i2;
-      }
-    }
-    let next = picked instanceof TreeNode && picked.index < 0 ? null : picked.parent;
-    let newHeads = heads.slice();
-    if (next)
-      newHeads[pick] = next;
-    else
-      newHeads.splice(pick, 1);
-    return new StackIterator(newHeads, picked);
-  }
-  var StackIterator = class {
-    constructor(heads, node) {
-      this.heads = heads;
-      this.node = node;
-    }
-    get next() {
-      return iterStack(this.heads);
-    }
-  };
-  function stackIterator(tree, pos, side) {
-    let inner = tree.resolveInner(pos, side), layers = null;
-    for (let scan = inner instanceof TreeNode ? inner : inner.context.parent; scan; scan = scan.parent) {
-      if (scan.index < 0) {
-        let parent = scan.parent;
-        (layers || (layers = [inner])).push(parent.resolve(pos, side));
-        scan = parent;
-      } else {
-        let mount = MountedTree.get(scan.tree);
-        if (mount && mount.overlay && mount.overlay[0].from <= pos && mount.overlay[mount.overlay.length - 1].to >= pos) {
-          let root = new TreeNode(mount.tree, mount.overlay[0].from + scan.from, -1, scan);
-          (layers || (layers = [inner])).push(resolveNode(root, pos, side, false));
-        }
-      }
-    }
-    return layers ? iterStack(layers) : inner;
-  }
-  var TreeCursor = class {
-    /**
-    Shorthand for `.type.name`.
-    */
-    get name() {
-      return this.type.name;
-    }
-    /**
-    @internal
-    */
-    constructor(node, mode = 0) {
-      this.buffer = null;
-      this.stack = [];
-      this.index = 0;
-      this.bufferNode = null;
-      this.mode = mode & ~IterMode.EnterBracketed;
-      if (node instanceof TreeNode) {
-        this.yieldNode(node);
-      } else {
-        this._tree = node.context.parent;
-        this.buffer = node.context;
-        for (let n = node._parent; n; n = n._parent)
-          this.stack.unshift(n.index);
-        this.bufferNode = node;
-        this.yieldBuf(node.index);
-      }
-    }
-    yieldNode(node) {
-      if (!node)
-        return false;
-      this._tree = node;
-      this.type = node.type;
-      this.from = node.from;
-      this.to = node.to;
-      return true;
-    }
-    yieldBuf(index, type) {
-      this.index = index;
-      let { start, buffer } = this.buffer;
-      this.type = type || buffer.set.types[buffer.buffer[index]];
-      this.from = start + buffer.buffer[index + 1];
-      this.to = start + buffer.buffer[index + 2];
-      return true;
-    }
-    /**
-    @internal
-    */
-    yield(node) {
-      if (!node)
-        return false;
-      if (node instanceof TreeNode) {
-        this.buffer = null;
-        return this.yieldNode(node);
-      }
-      this.buffer = node.context;
-      return this.yieldBuf(node.index, node.type);
-    }
-    /**
-    @internal
-    */
-    toString() {
-      return this.buffer ? this.buffer.buffer.childString(this.index) : this._tree.toString();
-    }
-    /**
-    @internal
-    */
-    enterChild(dir, pos, side) {
-      if (!this.buffer)
-        return this.yield(this._tree.nextChild(dir < 0 ? this._tree._tree.children.length - 1 : 0, dir, pos, side, this.mode));
-      let { buffer } = this.buffer;
-      let index = buffer.findChild(this.index + 4, buffer.buffer[this.index + 3], dir, pos - this.buffer.start, side);
-      if (index < 0)
-        return false;
-      this.stack.push(this.index);
-      return this.yieldBuf(index);
-    }
-    /**
-    Move the cursor to this node's first child. When this returns
-    false, the node has no child, and the cursor has not been moved.
-    */
-    firstChild() {
-      return this.enterChild(
-        1,
-        0,
-        4
-        /* Side.DontCare */
-      );
-    }
-    /**
-    Move the cursor to this node's last child.
-    */
-    lastChild() {
-      return this.enterChild(
-        -1,
-        0,
-        4
-        /* Side.DontCare */
-      );
-    }
-    /**
-    Move the cursor to the first child that ends after `pos`.
-    */
-    childAfter(pos) {
-      return this.enterChild(
-        1,
-        pos,
-        2
-        /* Side.After */
-      );
-    }
-    /**
-    Move to the last child that starts before `pos`.
-    */
-    childBefore(pos) {
-      return this.enterChild(
-        -1,
-        pos,
-        -2
-        /* Side.Before */
-      );
-    }
-    /**
-    Move the cursor to the child around `pos`. If side is -1 the
-    child may end at that position, when 1 it may start there. This
-    will also enter [overlaid](#common.MountedTree.overlay)
-    [mounted](#common.NodeProp^mounted) trees unless `overlays` is
-    set to false.
-    */
-    enter(pos, side, mode = this.mode) {
-      if (!this.buffer)
-        return this.yield(this._tree.enter(pos, side, mode));
-      return mode & IterMode.ExcludeBuffers ? false : this.enterChild(1, pos, side);
-    }
-    /**
-    Move to the node's parent node, if this isn't the top node.
-    */
-    parent() {
-      if (!this.buffer)
-        return this.yieldNode(this.mode & IterMode.IncludeAnonymous ? this._tree._parent : this._tree.parent);
-      if (this.stack.length)
-        return this.yieldBuf(this.stack.pop());
-      let parent = this.mode & IterMode.IncludeAnonymous ? this.buffer.parent : this.buffer.parent.nextSignificantParent();
-      this.buffer = null;
-      return this.yieldNode(parent);
-    }
-    /**
-    @internal
-    */
-    sibling(dir) {
-      if (!this.buffer)
-        return !this._tree._parent ? false : this.yield(this._tree.index < 0 ? null : this._tree._parent.nextChild(this._tree.index + dir, dir, 0, 4, this.mode));
-      let { buffer } = this.buffer, d = this.stack.length - 1;
-      if (dir < 0) {
-        let parentStart = d < 0 ? 0 : this.stack[d] + 4;
-        if (this.index != parentStart)
-          return this.yieldBuf(buffer.findChild(
-            parentStart,
-            this.index,
-            -1,
-            0,
-            4
-            /* Side.DontCare */
-          ));
-      } else {
-        let after = buffer.buffer[this.index + 3];
-        if (after < (d < 0 ? buffer.buffer.length : buffer.buffer[this.stack[d] + 3]))
-          return this.yieldBuf(after);
-      }
-      return d < 0 ? this.yield(this.buffer.parent.nextChild(this.buffer.index + dir, dir, 0, 4, this.mode)) : false;
-    }
-    /**
-    Move to this node's next sibling, if any.
-    */
-    nextSibling() {
-      return this.sibling(1);
-    }
-    /**
-    Move to this node's previous sibling, if any.
-    */
-    prevSibling() {
-      return this.sibling(-1);
-    }
-    atLastNode(dir) {
-      let index, parent, { buffer } = this;
-      if (buffer) {
-        if (dir > 0) {
-          if (this.index < buffer.buffer.buffer.length)
-            return false;
-        } else {
-          for (let i2 = 0; i2 < this.index; i2++)
-            if (buffer.buffer.buffer[i2 + 3] < this.index)
-              return false;
-        }
-        ({ index, parent } = buffer);
-      } else {
-        ({ index, _parent: parent } = this._tree);
-      }
-      for (; parent; { index, _parent: parent } = parent) {
-        if (index > -1)
-          for (let i2 = index + dir, e = dir < 0 ? -1 : parent._tree.children.length; i2 != e; i2 += dir) {
-            let child = parent._tree.children[i2];
-            if (this.mode & IterMode.IncludeAnonymous || child instanceof TreeBuffer || !child.type.isAnonymous || hasChild(child))
-              return false;
-          }
-      }
-      return true;
-    }
-    move(dir, enter) {
-      if (enter && this.enterChild(
-        dir,
-        0,
-        4
-        /* Side.DontCare */
-      ))
-        return true;
-      for (; ; ) {
-        if (this.sibling(dir))
-          return true;
-        if (this.atLastNode(dir) || !this.parent())
-          return false;
-      }
-    }
-    /**
-    Move to the next node in a
-    [pre-order](https://en.wikipedia.org/wiki/Tree_traversal#Pre-order,_NLR)
-    traversal, going from a node to its first child or, if the
-    current node is empty or `enter` is false, its next sibling or
-    the next sibling of the first parent node that has one.
-    */
-    next(enter = true) {
-      return this.move(1, enter);
-    }
-    /**
-    Move to the next node in a last-to-first pre-order traversal. A
-    node is followed by its last child or, if it has none, its
-    previous sibling or the previous sibling of the first parent
-    node that has one.
-    */
-    prev(enter = true) {
-      return this.move(-1, enter);
-    }
-    /**
-    Move the cursor to the innermost node that covers `pos`. If
-    `side` is -1, it will enter nodes that end at `pos`. If it is 1,
-    it will enter nodes that start at `pos`.
-    */
-    moveTo(pos, side = 0) {
-      while (this.from == this.to || (side < 1 ? this.from >= pos : this.from > pos) || (side > -1 ? this.to <= pos : this.to < pos))
-        if (!this.parent())
-          break;
-      while (this.enterChild(1, pos, side)) {
-      }
-      return this;
-    }
-    /**
-    Get a [syntax node](#common.SyntaxNode) at the cursor's current
-    position.
-    */
-    get node() {
-      if (!this.buffer)
-        return this._tree;
-      let cache = this.bufferNode, result = null, depth = 0;
-      if (cache && cache.context == this.buffer) {
-        scan: for (let index = this.index, d = this.stack.length; d >= 0; ) {
-          for (let c = cache; c; c = c._parent)
-            if (c.index == index) {
-              if (index == this.index)
-                return c;
-              result = c;
-              depth = d + 1;
-              break scan;
-            }
-          index = this.stack[--d];
-        }
-      }
-      for (let i2 = depth; i2 < this.stack.length; i2++)
-        result = new BufferNode(this.buffer, result, this.stack[i2]);
-      return this.bufferNode = new BufferNode(this.buffer, result, this.index);
-    }
-    /**
-    Get the [tree](#common.Tree) that represents the current node, if
-    any. Will return null when the node is in a [tree
-    buffer](#common.TreeBuffer).
-    */
-    get tree() {
-      return this.buffer ? null : this._tree._tree;
-    }
-    /**
-    Iterate over the current node and all its descendants, calling
-    `enter` when entering a node and `leave`, if given, when leaving
-    one. When `enter` returns `false`, any children of that node are
-    skipped, and `leave` isn't called for it.
-    */
-    iterate(enter, leave) {
-      for (let depth = 0; ; ) {
-        let mustLeave = false;
-        if (this.type.isAnonymous || enter(this) !== false) {
-          if (this.firstChild()) {
-            depth++;
-            continue;
-          }
-          if (!this.type.isAnonymous)
-            mustLeave = true;
-        }
-        for (; ; ) {
-          if (mustLeave && leave)
-            leave(this);
-          mustLeave = this.type.isAnonymous;
-          if (!depth)
-            return;
-          if (this.nextSibling())
-            break;
-          this.parent();
-          depth--;
-          mustLeave = true;
-        }
-      }
-    }
-    /**
-    Test whether the current node matches a given context—a sequence
-    of direct parent node names. Empty strings in the context array
-    are treated as wildcards.
-    */
-    matchContext(context) {
-      if (!this.buffer)
-        return matchNodeContext(this.node.parent, context);
-      let { buffer } = this.buffer, { types: types2 } = buffer.set;
-      for (let i2 = context.length - 1, d = this.stack.length - 1; i2 >= 0; d--) {
-        if (d < 0)
-          return matchNodeContext(this._tree, context, i2);
-        let type = types2[buffer.buffer[this.stack[d]]];
-        if (!type.isAnonymous) {
-          if (context[i2] && context[i2] != type.name)
-            return false;
-          i2--;
-        }
-      }
-      return true;
-    }
-  };
-  function hasChild(tree) {
-    return tree.children.some((ch) => ch instanceof TreeBuffer || !ch.type.isAnonymous || hasChild(ch));
-  }
-  function buildTree(data) {
-    var _a2;
-    let { buffer, nodeSet: nodeSet2, maxBufferLength = DefaultBufferLength, reused = [], minRepeatType = nodeSet2.types.length } = data;
-    let cursor = Array.isArray(buffer) ? new FlatBufferCursor(buffer, buffer.length) : buffer;
-    let types2 = nodeSet2.types;
-    let contextHash = 0, lookAhead = 0;
-    function takeNode(parentStart, minPos, children2, positions2, inRepeat, depth) {
-      let { id, start, end, size } = cursor;
-      let lookAheadAtStart = lookAhead, contextAtStart = contextHash;
-      if (size < 0) {
-        cursor.next();
-        if (size == -1) {
-          let node2 = reused[id];
-          children2.push(node2);
-          positions2.push(start - parentStart);
-          return;
-        } else if (size == -3) {
-          contextHash = id;
-          return;
-        } else if (size == -4) {
-          lookAhead = id;
-          return;
-        } else {
-          throw new RangeError(`Unrecognized record size: ${size}`);
-        }
-      }
-      let type = types2[id], node, buffer2;
-      let startPos = start - parentStart;
-      if (end - start <= maxBufferLength && (buffer2 = findBufferSize(cursor.pos - minPos, inRepeat))) {
-        let data2 = new Uint16Array(buffer2.size - buffer2.skip);
-        let endPos = cursor.pos - buffer2.size, index = data2.length;
-        while (cursor.pos > endPos)
-          index = copyToBuffer(buffer2.start, data2, index);
-        node = new TreeBuffer(data2, end - buffer2.start, nodeSet2);
-        startPos = buffer2.start - parentStart;
-      } else {
-        let endPos = cursor.pos - size;
-        cursor.next();
-        let localChildren = [], localPositions = [];
-        let localInRepeat = id >= minRepeatType ? id : -1;
-        let lastGroup = 0, lastEnd = end;
-        while (cursor.pos > endPos) {
-          if (localInRepeat >= 0 && cursor.id == localInRepeat && cursor.size >= 0) {
-            if (cursor.end <= lastEnd - maxBufferLength) {
-              makeRepeatLeaf(localChildren, localPositions, start, lastGroup, cursor.end, lastEnd, localInRepeat, lookAheadAtStart, contextAtStart);
-              lastGroup = localChildren.length;
-              lastEnd = cursor.end;
-            }
-            cursor.next();
-          } else if (depth > 2500) {
-            takeFlatNode(start, endPos, localChildren, localPositions);
-          } else {
-            takeNode(start, endPos, localChildren, localPositions, localInRepeat, depth + 1);
-          }
-        }
-        if (localInRepeat >= 0 && lastGroup > 0 && lastGroup < localChildren.length)
-          makeRepeatLeaf(localChildren, localPositions, start, lastGroup, start, lastEnd, localInRepeat, lookAheadAtStart, contextAtStart);
-        localChildren.reverse();
-        localPositions.reverse();
-        if (localInRepeat > -1 && lastGroup > 0) {
-          let make = makeBalanced(type, contextAtStart);
-          node = balanceRange(type, localChildren, localPositions, 0, localChildren.length, 0, end - start, make, make);
-        } else {
-          node = makeTree(type, localChildren, localPositions, end - start, lookAheadAtStart - end, contextAtStart);
-        }
-      }
-      children2.push(node);
-      positions2.push(startPos);
-    }
-    function takeFlatNode(parentStart, minPos, children2, positions2) {
-      let nodes = [];
-      let nodeCount = 0, stopAt = -1;
-      while (cursor.pos > minPos) {
-        let { id, start, end, size } = cursor;
-        if (size > 4) {
-          cursor.next();
-        } else if (stopAt > -1 && start < stopAt) {
-          break;
-        } else {
-          if (stopAt < 0)
-            stopAt = end - maxBufferLength;
-          nodes.push(id, start, end);
-          nodeCount++;
-          cursor.next();
-        }
-      }
-      if (nodeCount) {
-        let buffer2 = new Uint16Array(nodeCount * 4);
-        let start = nodes[nodes.length - 2];
-        for (let i2 = nodes.length - 3, j = 0; i2 >= 0; i2 -= 3) {
-          buffer2[j++] = nodes[i2];
-          buffer2[j++] = nodes[i2 + 1] - start;
-          buffer2[j++] = nodes[i2 + 2] - start;
-          buffer2[j++] = j;
-        }
-        children2.push(new TreeBuffer(buffer2, nodes[2] - start, nodeSet2));
-        positions2.push(start - parentStart);
-      }
-    }
-    function makeBalanced(type, contextHash2) {
-      return (children2, positions2, length2) => {
-        let lookAhead2 = 0, lastI = children2.length - 1, last, lookAheadProp;
-        if (lastI >= 0 && (last = children2[lastI]) instanceof Tree) {
-          if (!lastI && last.type == type && last.length == length2)
-            return last;
-          if (lookAheadProp = last.prop(NodeProp.lookAhead))
-            lookAhead2 = positions2[lastI] + last.length + lookAheadProp;
-        }
-        return makeTree(type, children2, positions2, length2, lookAhead2, contextHash2);
-      };
-    }
-    function makeRepeatLeaf(children2, positions2, base2, i2, from, to, type, lookAhead2, contextHash2) {
-      let localChildren = [], localPositions = [];
-      while (children2.length > i2) {
-        localChildren.push(children2.pop());
-        localPositions.push(positions2.pop() + base2 - from);
-      }
-      children2.push(makeTree(nodeSet2.types[type], localChildren, localPositions, to - from, lookAhead2 - to, contextHash2));
-      positions2.push(from - base2);
-    }
-    function makeTree(type, children2, positions2, length2, lookAhead2, contextHash2, props) {
-      if (contextHash2) {
-        let pair = [NodeProp.contextHash, contextHash2];
-        props = props ? [pair].concat(props) : [pair];
-      }
-      if (lookAhead2 > 25) {
-        let pair = [NodeProp.lookAhead, lookAhead2];
-        props = props ? [pair].concat(props) : [pair];
-      }
-      return new Tree(type, children2, positions2, length2, props);
-    }
-    function findBufferSize(maxSize, inRepeat) {
-      let fork = cursor.fork();
-      let size = 0, start = 0, skip = 0, minStart = fork.end - maxBufferLength;
-      let result = { size: 0, start: 0, skip: 0 };
-      scan: for (let minPos = fork.pos - maxSize; fork.pos > minPos; ) {
-        let nodeSize2 = fork.size;
-        if (fork.id == inRepeat && nodeSize2 >= 0) {
-          result.size = size;
-          result.start = start;
-          result.skip = skip;
-          skip += 4;
-          size += 4;
-          fork.next();
-          continue;
-        }
-        let startPos = fork.pos - nodeSize2;
-        if (nodeSize2 < 0 || startPos < minPos || fork.start < minStart)
-          break;
-        let localSkipped = fork.id >= minRepeatType ? 4 : 0;
-        let nodeStart = fork.start;
-        fork.next();
-        while (fork.pos > startPos) {
-          if (fork.size < 0) {
-            if (fork.size == -3 || fork.size == -4)
-              localSkipped += 4;
-            else
-              break scan;
-          } else if (fork.id >= minRepeatType) {
-            localSkipped += 4;
-          }
-          fork.next();
-        }
-        start = nodeStart;
-        size += nodeSize2;
-        skip += localSkipped;
-      }
-      if (inRepeat < 0 || size == maxSize) {
-        result.size = size;
-        result.start = start;
-        result.skip = skip;
-      }
-      return result.size > 4 ? result : void 0;
-    }
-    function copyToBuffer(bufferStart, buffer2, index) {
-      let { id, start, end, size } = cursor;
-      cursor.next();
-      if (size >= 0 && id < minRepeatType) {
-        let startIndex = index;
-        if (size > 4) {
-          let endPos = cursor.pos - (size - 4);
-          while (cursor.pos > endPos)
-            index = copyToBuffer(bufferStart, buffer2, index);
-        }
-        buffer2[--index] = startIndex;
-        buffer2[--index] = end - bufferStart;
-        buffer2[--index] = start - bufferStart;
-        buffer2[--index] = id;
-      } else if (size == -3) {
-        contextHash = id;
-      } else if (size == -4) {
-        lookAhead = id;
-      }
-      return index;
-    }
-    let children = [], positions = [];
-    while (cursor.pos > 0)
-      takeNode(data.start || 0, data.bufferStart || 0, children, positions, -1, 0);
-    let length = (_a2 = data.length) !== null && _a2 !== void 0 ? _a2 : children.length ? positions[0] + children[0].length : 0;
-    return new Tree(types2[data.topID], children.reverse(), positions.reverse(), length);
-  }
-  var nodeSizeCache = /* @__PURE__ */ new WeakMap();
-  function nodeSize(balanceType, node) {
-    if (!balanceType.isAnonymous || node instanceof TreeBuffer || node.type != balanceType)
-      return 1;
-    let size = nodeSizeCache.get(node);
-    if (size == null) {
-      size = 1;
-      for (let child of node.children) {
-        if (child.type != balanceType || !(child instanceof Tree)) {
-          size = 1;
-          break;
-        }
-        size += nodeSize(balanceType, child);
-      }
-      nodeSizeCache.set(node, size);
-    }
-    return size;
-  }
-  function balanceRange(balanceType, children, positions, from, to, start, length, mkTop, mkTree) {
-    let total = 0;
-    for (let i2 = from; i2 < to; i2++)
-      total += nodeSize(balanceType, children[i2]);
-    let maxChild = Math.ceil(
-      total * 1.5 / 8
-      /* Balance.BranchFactor */
-    );
-    let localChildren = [], localPositions = [];
-    function divide(children2, positions2, from2, to2, offset) {
-      for (let i2 = from2; i2 < to2; ) {
-        let groupFrom = i2, groupStart = positions2[i2], groupSize = nodeSize(balanceType, children2[i2]);
-        i2++;
-        for (; i2 < to2; i2++) {
-          let nextSize = nodeSize(balanceType, children2[i2]);
-          if (groupSize + nextSize >= maxChild)
-            break;
-          groupSize += nextSize;
-        }
-        if (i2 == groupFrom + 1) {
-          if (groupSize > maxChild) {
-            let only = children2[groupFrom];
-            divide(only.children, only.positions, 0, only.children.length, positions2[groupFrom] + offset);
-            continue;
-          }
-          localChildren.push(children2[groupFrom]);
-        } else {
-          let length2 = positions2[i2 - 1] + children2[i2 - 1].length - groupStart;
-          localChildren.push(balanceRange(balanceType, children2, positions2, groupFrom, i2, groupStart, length2, null, mkTree));
-        }
-        localPositions.push(groupStart + offset - start);
-      }
-    }
-    divide(children, positions, from, to, 0);
-    return (mkTop || mkTree)(localChildren, localPositions, length);
-  }
-  var TreeFragment = class _TreeFragment {
-    /**
-    Construct a tree fragment. You'll usually want to use
-    [`addTree`](#common.TreeFragment^addTree) and
-    [`applyChanges`](#common.TreeFragment^applyChanges) instead of
-    calling this directly.
-    */
-    constructor(from, to, tree, offset, openStart = false, openEnd = false) {
-      this.from = from;
-      this.to = to;
-      this.tree = tree;
-      this.offset = offset;
-      this.open = (openStart ? 1 : 0) | (openEnd ? 2 : 0);
-    }
-    /**
-    Whether the start of the fragment represents the start of a
-    parse, or the end of a change. (In the second case, it may not
-    be safe to reuse some nodes at the start, depending on the
-    parsing algorithm.)
-    */
-    get openStart() {
-      return (this.open & 1) > 0;
-    }
-    /**
-    Whether the end of the fragment represents the end of a
-    full-document parse, or the start of a change.
-    */
-    get openEnd() {
-      return (this.open & 2) > 0;
-    }
-    /**
-    Create a set of fragments from a freshly parsed tree, or update
-    an existing set of fragments by replacing the ones that overlap
-    with a tree with content from the new tree. When `partial` is
-    true, the parse is treated as incomplete, and the resulting
-    fragment has [`openEnd`](#common.TreeFragment.openEnd) set to
-    true.
-    */
-    static addTree(tree, fragments = [], partial = false) {
-      let result = [new _TreeFragment(0, tree.length, tree, 0, false, partial)];
-      for (let f of fragments)
-        if (f.to > tree.length)
-          result.push(f);
-      return result;
-    }
-    /**
-    Apply a set of edits to an array of fragments, removing or
-    splitting fragments as necessary to remove edited ranges, and
-    adjusting offsets for fragments that moved.
-    */
-    static applyChanges(fragments, changes, minGap = 128) {
-      if (!changes.length)
-        return fragments;
-      let result = [];
-      let fI = 1, nextF = fragments.length ? fragments[0] : null;
-      for (let cI = 0, pos = 0, off = 0; ; cI++) {
-        let nextC = cI < changes.length ? changes[cI] : null;
-        let nextPos = nextC ? nextC.fromA : 1e9;
-        if (nextPos - pos >= minGap)
-          while (nextF && nextF.from < nextPos) {
-            let cut = nextF;
-            if (pos >= cut.from || nextPos <= cut.to || off) {
-              let fFrom = Math.max(cut.from, pos) - off, fTo = Math.min(cut.to, nextPos) - off;
-              cut = fFrom >= fTo ? null : new _TreeFragment(fFrom, fTo, cut.tree, cut.offset + off, cI > 0, !!nextC);
-            }
-            if (cut)
-              result.push(cut);
-            if (nextF.to > nextPos)
-              break;
-            nextF = fI < fragments.length ? fragments[fI++] : null;
-          }
-        if (!nextC)
-          break;
-        pos = nextC.toA;
-        off = nextC.toA - nextC.toB;
-      }
-      return result;
-    }
-  };
-  var Parser = class {
-    /**
-    Start a parse, returning a [partial parse](#common.PartialParse)
-    object. [`fragments`](#common.TreeFragment) can be passed in to
-    make the parse incremental.
-
-    By default, the entire input is parsed. You can pass `ranges`,
-    which should be a sorted array of non-empty, non-overlapping
-    ranges, to parse only those ranges. The tree returned in that
-    case will start at `ranges[0].from`.
-    */
-    startParse(input, fragments, ranges) {
-      if (typeof input == "string")
-        input = new StringInput(input);
-      ranges = !ranges ? [new Range(0, input.length)] : ranges.length ? ranges.map((r) => new Range(r.from, r.to)) : [new Range(0, 0)];
-      return this.createParse(input, fragments || [], ranges);
-    }
-    /**
-    Run a full parse, returning the resulting tree.
-    */
-    parse(input, fragments, ranges) {
-      let parse = this.startParse(input, fragments, ranges);
-      for (; ; ) {
-        let done = parse.advance();
-        if (done)
-          return done;
-      }
-    }
-  };
-  var StringInput = class {
-    constructor(string2) {
-      this.string = string2;
-    }
-    get length() {
-      return this.string.length;
-    }
-    chunk(from) {
-      return this.string.slice(from);
-    }
-    get lineChunks() {
-      return false;
-    }
-    read(from, to) {
-      return this.string.slice(from, to);
-    }
-  };
-  var stoppedInner = new NodeProp({ perNode: true });
-
   // node_modules/@marijn/find-cluster-break/src/index.js
   var rangeFrom = [];
   var rangeTo = [];
@@ -2250,6 +626,30 @@
   }
   function findClusterBreak2(str, pos, forward = true, includeExtending = true) {
     return findClusterBreak(str, pos, forward, includeExtending);
+  }
+  function surrogateLow2(ch) {
+    return ch >= 56320 && ch < 57344;
+  }
+  function surrogateHigh2(ch) {
+    return ch >= 55296 && ch < 56320;
+  }
+  function codePointAt2(str, pos) {
+    let code0 = str.charCodeAt(pos);
+    if (!surrogateHigh2(code0) || pos + 1 == str.length)
+      return code0;
+    let code1 = str.charCodeAt(pos + 1);
+    if (!surrogateLow2(code1))
+      return code0;
+    return (code0 - 55296 << 10) + (code1 - 56320) + 65536;
+  }
+  function fromCodePoint(code2) {
+    if (code2 <= 65535)
+      return String.fromCharCode(code2);
+    code2 -= 65536;
+    return String.fromCharCode((code2 >> 10) + 55296, (code2 & 1023) + 56320);
+  }
+  function codePointSize2(code2) {
+    return code2 < 65536 ? 1 : 2;
   }
   var DefaultSplit = /\r\n?|\n/;
   var MapMode = /* @__PURE__ */ (function(MapMode2) {
@@ -3656,13 +2056,13 @@
   StateEffect.reconfigure = /* @__PURE__ */ StateEffect.define();
   StateEffect.appendConfig = /* @__PURE__ */ StateEffect.define();
   var Transaction = class _Transaction {
-    constructor(startState, changes, selection, effects, annotations, scrollIntoView2) {
+    constructor(startState, changes, selection, effects, annotations, scrollIntoView3) {
       this.startState = startState;
       this.changes = changes;
       this.selection = selection;
       this.effects = effects;
       this.annotations = annotations;
-      this.scrollIntoView = scrollIntoView2;
+      this.scrollIntoView = scrollIntoView3;
       this._doc = null;
       this._state = null;
       if (selection)
@@ -3673,8 +2073,8 @@
     /**
     @internal
     */
-    static create(startState, changes, selection, effects, annotations, scrollIntoView2) {
-      return new _Transaction(startState, changes, selection, effects, annotations, scrollIntoView2);
+    static create(startState, changes, selection, effects, annotations, scrollIntoView3) {
+      return new _Transaction(startState, changes, selection, effects, annotations, scrollIntoView3);
     }
     /**
     The new document produced by the transaction. Contrary to
@@ -4230,6 +2630,24 @@
   EditorState.transactionFilter = transactionFilter;
   EditorState.transactionExtender = transactionExtender;
   Compartment.reconfigure = /* @__PURE__ */ StateEffect.define();
+  function combineConfig(configs, defaults, combine = {}) {
+    let result = {};
+    for (let config of configs)
+      for (let key of Object.keys(config)) {
+        let value = config[key], current = result[key];
+        if (current === void 0)
+          result[key] = value;
+        else if (current === value || value === void 0) ;
+        else if (Object.hasOwnProperty.call(combine, key))
+          result[key] = combine[key](current, value);
+        else
+          throw new Error("Config merge conflict for field " + key);
+      }
+    for (let key in defaults)
+      if (result[key] === void 0)
+        result[key] = defaults[key];
+    return result;
+  }
   var RangeValue = class {
     /**
     Compare this value with another value. Used when comparing
@@ -4245,7 +2663,7 @@
     Create a [range](https://codemirror.net/6/docs/ref/#state.Range) with this value.
     */
     range(from, to = from) {
-      return Range2.create(from, to, this);
+      return Range.create(from, to, this);
     }
   };
   RangeValue.prototype.startSide = RangeValue.prototype.endSide = 0;
@@ -4254,7 +2672,7 @@
   function cmpVal(a, b) {
     return a == b || a.constructor == b.constructor && a.eq(b);
   }
-  var Range2 = class _Range {
+  var Range = class _Range {
     constructor(from, to, value) {
       this.from = from;
       this.to = to;
@@ -4390,21 +2808,21 @@
         add = add.slice().sort(cmpRange);
       if (this.isEmpty)
         return add.length ? _RangeSet.of(add) : this;
-      let cur = new LayerCursor(this, null, -1).goto(0), i2 = 0, spill = [];
+      let cur2 = new LayerCursor(this, null, -1).goto(0), i2 = 0, spill = [];
       let builder = new RangeSetBuilder();
-      while (cur.value || i2 < add.length) {
-        if (i2 < add.length && (cur.from - add[i2].from || cur.startSide - add[i2].value.startSide) >= 0) {
+      while (cur2.value || i2 < add.length) {
+        if (i2 < add.length && (cur2.from - add[i2].from || cur2.startSide - add[i2].value.startSide) >= 0) {
           let range = add[i2++];
           if (!builder.addInner(range.from, range.to, range.value))
             spill.push(range);
-        } else if (cur.rangeIndex == 1 && cur.chunkIndex < this.chunk.length && (i2 == add.length || this.chunkEnd(cur.chunkIndex) < add[i2].from) && (!filter || filterFrom > this.chunkEnd(cur.chunkIndex) || filterTo < this.chunkPos[cur.chunkIndex]) && builder.addChunk(this.chunkPos[cur.chunkIndex], this.chunk[cur.chunkIndex])) {
-          cur.nextChunk();
+        } else if (cur2.rangeIndex == 1 && cur2.chunkIndex < this.chunk.length && (i2 == add.length || this.chunkEnd(cur2.chunkIndex) < add[i2].from) && (!filter || filterFrom > this.chunkEnd(cur2.chunkIndex) || filterTo < this.chunkPos[cur2.chunkIndex]) && builder.addChunk(this.chunkPos[cur2.chunkIndex], this.chunk[cur2.chunkIndex])) {
+          cur2.nextChunk();
         } else {
-          if (!filter || filterFrom > cur.to || filterTo < cur.from || filter(cur.from, cur.to, cur.value)) {
-            if (!builder.addInner(cur.from, cur.to, cur.value))
-              spill.push(Range2.create(cur.from, cur.to, cur.value));
+          if (!filter || filterFrom > cur2.to || filterTo < cur2.from || filter(cur2.from, cur2.to, cur2.value)) {
+            if (!builder.addInner(cur2.from, cur2.to, cur2.value))
+              spill.push(Range.create(cur2.from, cur2.to, cur2.value));
           }
-          cur.next();
+          cur2.next();
         }
       }
       return builder.finishInner(this.nextLayer.isEmpty && !spill.length ? _RangeSet.empty : this.nextLayer.update({ add: spill, filter, filterFrom, filterTo }));
@@ -4545,7 +2963,7 @@
     */
     static of(ranges, sort = false) {
       let build = new RangeSetBuilder();
-      for (let range of ranges instanceof Range2 ? [ranges] : sort ? lazySort(ranges) : ranges)
+      for (let range of ranges instanceof Range ? [ranges] : sort ? lazySort(ranges) : ranges)
         build.add(range.from, range.to, range.value);
       return build.finish();
     }
@@ -4567,10 +2985,10 @@
   function lazySort(ranges) {
     if (ranges.length > 1)
       for (let prev = ranges[0], i2 = 1; i2 < ranges.length; i2++) {
-        let cur = ranges[i2];
-        if (cmpRange(prev, cur) > 0)
+        let cur2 = ranges[i2];
+        if (cmpRange(prev, cur2) > 0)
           return ranges.slice().sort(cmpRange);
-        prev = cur;
+        prev = cur2;
       }
     return ranges;
   }
@@ -4771,9 +3189,9 @@
     static from(sets, skip = null, minPoint = -1) {
       let heap = [];
       for (let i2 = 0; i2 < sets.length; i2++) {
-        for (let cur = sets[i2]; !cur.isEmpty; cur = cur.nextLayer) {
-          if (cur.maxPoint >= minPoint)
-            heap.push(new LayerCursor(cur, skip, minPoint, i2));
+        for (let cur2 = sets[i2]; !cur2.isEmpty; cur2 = cur2.nextLayer) {
+          if (cur2.maxPoint >= minPoint)
+            heap.push(new LayerCursor(cur2, skip, minPoint, i2));
         }
       }
       return heap.length == 1 ? heap[0] : new _HeapCursor(heap);
@@ -4782,16 +3200,16 @@
       return this.value ? this.value.startSide : 0;
     }
     goto(pos, side = -1e9) {
-      for (let cur of this.heap)
-        cur.goto(pos, side);
+      for (let cur2 of this.heap)
+        cur2.goto(pos, side);
       for (let i2 = this.heap.length >> 1; i2 >= 0; i2--)
         heapBubble(this.heap, i2);
       this.next();
       return this;
     }
     forward(pos, side) {
-      for (let cur of this.heap)
-        cur.forward(pos, side);
+      for (let cur2 of this.heap)
+        cur2.forward(pos, side);
       for (let i2 = this.heap.length >> 1; i2 >= 0; i2--)
         heapBubble(this.heap, i2);
       if ((this.to - pos || this.value.endSide - side) < 0)
@@ -4815,7 +3233,7 @@
     }
   };
   function heapBubble(heap, index) {
-    for (let cur = heap[index]; ; ) {
+    for (let cur2 = heap[index]; ; ) {
       let childIndex = (index << 1) + 1;
       if (childIndex >= heap.length)
         break;
@@ -4824,9 +3242,9 @@
         child = heap[childIndex + 1];
         childIndex++;
       }
-      if (cur.compare(child) < 0)
+      if (cur2.compare(child) < 0)
         break;
-      heap[childIndex] = cur;
+      heap[childIndex] = cur2;
       heap[index] = child;
       index = childIndex;
     }
@@ -5241,6 +3659,17 @@
   var i;
   for (code in base) if (!shift.hasOwnProperty(code)) shift[code] = base[code];
   var code;
+  function keyName(event) {
+    var ignoreKey = mac && event.metaKey && event.shiftKey && !event.ctrlKey && !event.altKey || ie && event.shiftKey && event.key && event.key.length == 1 || event.key == "Unidentified";
+    var name2 = !ignoreKey && event.key || (event.shiftKey ? shift : base)[event.keyCode] || event.key || "Unidentified";
+    if (name2 == "Esc") name2 = "Escape";
+    if (name2 == "Del") name2 = "Delete";
+    if (name2 == "Left") name2 = "ArrowLeft";
+    if (name2 == "Up") name2 = "ArrowUp";
+    if (name2 == "Right") name2 = "ArrowRight";
+    if (name2 == "Down") name2 = "ArrowDown";
+    return name2;
+  }
 
   // node_modules/@codemirror/view/dist/index.js
   var nav = typeof navigator != "undefined" ? navigator : { userAgent: "", vendor: "", platform: "" };
@@ -5713,26 +4142,26 @@
   }
   function scrollRectIntoView(dom, rect, side, x, y, xMargin, yMargin, ltr) {
     let doc2 = dom.ownerDocument, win = doc2.defaultView || window;
-    for (let cur = dom, stop = false; cur && !stop; ) {
-      if (cur.nodeType == 1) {
-        let bounding, top2 = cur == doc2.body;
+    for (let cur2 = dom, stop = false; cur2 && !stop; ) {
+      if (cur2.nodeType == 1) {
+        let bounding, top2 = cur2 == doc2.body;
         let scaleX = 1, scaleY = 1;
         if (top2) {
           bounding = windowRect(win);
         } else {
-          if (/^(fixed|sticky)$/.test(getComputedStyle(cur).position))
+          if (/^(fixed|sticky)$/.test(getComputedStyle(cur2).position))
             stop = true;
-          if (cur.scrollHeight <= cur.clientHeight && cur.scrollWidth <= cur.clientWidth) {
-            cur = cur.assignedSlot || cur.parentNode;
+          if (cur2.scrollHeight <= cur2.clientHeight && cur2.scrollWidth <= cur2.clientWidth) {
+            cur2 = cur2.assignedSlot || cur2.parentNode;
             continue;
           }
-          let rect2 = cur.getBoundingClientRect();
-          ({ scaleX, scaleY } = getScale(cur, rect2));
+          let rect2 = cur2.getBoundingClientRect();
+          ({ scaleX, scaleY } = getScale(cur2, rect2));
           bounding = {
             left: rect2.left,
-            right: rect2.left + cur.clientWidth * scaleX,
+            right: rect2.left + cur2.clientWidth * scaleX,
             top: rect2.top,
-            bottom: rect2.top + cur.clientHeight * scaleY
+            bottom: rect2.top + cur2.clientHeight * scaleY
           };
         }
         let moveX = 0, moveY = 0;
@@ -5771,14 +4200,14 @@
           } else {
             let movedX = 0, movedY = 0;
             if (moveY) {
-              let start = cur.scrollTop;
-              cur.scrollTop += moveY / scaleY;
-              movedY = (cur.scrollTop - start) * scaleY;
+              let start = cur2.scrollTop;
+              cur2.scrollTop += moveY / scaleY;
+              movedY = (cur2.scrollTop - start) * scaleY;
             }
             if (moveX) {
-              let start = cur.scrollLeft;
-              cur.scrollLeft += moveX / scaleX;
-              movedX = (cur.scrollLeft - start) * scaleX;
+              let start = cur2.scrollLeft;
+              cur2.scrollLeft += moveX / scaleX;
+              movedX = (cur2.scrollLeft - start) * scaleX;
             }
             rect = {
               left: rect.left - movedX,
@@ -5801,9 +4230,9 @@
             top: Math.max(rect.top, bounding.top),
             bottom: Math.min(rect.bottom, bounding.bottom)
           };
-        cur = cur.assignedSlot || cur.parentNode;
-      } else if (cur.nodeType == 11) {
-        cur = cur.host;
+        cur2 = cur2.assignedSlot || cur2.parentNode;
+      } else if (cur2.nodeType == 11) {
+        cur2 = cur2.host;
       } else {
         break;
       }
@@ -5811,17 +4240,17 @@
   }
   function scrollableParents(dom, getX = true) {
     let doc2 = dom.ownerDocument, x = null, y = null;
-    for (let cur = dom.parentNode; cur; ) {
-      if (cur == doc2.body || (!getX || x) && y) {
+    for (let cur2 = dom.parentNode; cur2; ) {
+      if (cur2 == doc2.body || (!getX || x) && y) {
         break;
-      } else if (cur.nodeType == 1) {
-        if (!y && cur.scrollHeight > cur.clientHeight)
-          y = cur;
-        if (getX && !x && cur.scrollWidth > cur.clientWidth)
-          x = cur;
-        cur = cur.assignedSlot || cur.parentNode;
-      } else if (cur.nodeType == 11) {
-        cur = cur.host;
+      } else if (cur2.nodeType == 1) {
+        if (!y && cur2.scrollHeight > cur2.clientHeight)
+          y = cur2;
+        if (getX && !x && cur2.scrollWidth > cur2.clientWidth)
+          x = cur2;
+        cur2 = cur2.assignedSlot || cur2.parentNode;
+      } else if (cur2.nodeType == 11) {
+        cur2 = cur2.host;
       } else {
         break;
       }
@@ -5851,9 +4280,9 @@
   };
   function getScrollStack(target) {
     let stack = [];
-    for (let cur = target; cur; cur = cur.nodeType == 11 ? cur.host : cur.parentNode) {
-      if (cur.nodeType == 1)
-        stack.push({ node: cur, left: cur.scrollLeft, top: cur.scrollTop });
+    for (let cur2 = target; cur2; cur2 = cur2.nodeType == 11 ? cur2.host : cur2.parentNode) {
+      if (cur2.nodeType == 1)
+        stack.push({ node: cur2, left: cur2.scrollLeft, top: cur2.scrollTop });
     }
     return stack;
   }
@@ -6138,13 +4567,13 @@
           let embed = type == outerType;
           context = embed ? 0 : 1;
           for (let sJ = sI - 3; sJ >= 0; sJ -= 3) {
-            let cur = BracketStack[sJ + 2];
-            if (cur & 2)
+            let cur2 = BracketStack[sJ + 2];
+            if (cur2 & 2)
               break;
             if (embed) {
               BracketStack[sJ + 2] |= 2;
             } else {
-              if (cur & 4)
+              if (cur2 & 4)
                 break;
               BracketStack[sJ + 2] |= 4;
             }
@@ -6875,19 +5304,19 @@
       }
     }
     blockTiles(f) {
-      for (let stack = [], cur = this, i2 = 0, pos = 0; ; ) {
-        if (i2 == cur.children.length) {
+      for (let stack = [], cur2 = this, i2 = 0, pos = 0; ; ) {
+        if (i2 == cur2.children.length) {
           if (!stack.length)
             return;
-          cur = cur.parent;
-          if (cur.breakAfter)
+          cur2 = cur2.parent;
+          if (cur2.breakAfter)
             pos++;
           i2 = stack.pop();
         } else {
-          let next = cur.children[i2++];
+          let next = cur2.children[i2++];
           if (next instanceof BlockWrapperTile) {
             stack.push(i2);
-            cur = next;
+            cur2 = next;
             i2 = 0;
           } else {
             let end = pos + next.length;
@@ -7438,10 +5867,10 @@
       for (let i2 = this.wrappers.length - 1; i2 >= 0; i2--)
         if (this.wrappers[i2].to < this.pos)
           this.wrappers.splice(i2, 1);
-      for (let cur = this.blockWrappers; cur.value && cur.from <= this.pos; cur.next())
-        if (cur.to >= this.pos) {
-          let rank = cur.rank * 102 + cur.value.rank;
-          let wrap = new OpenWrapper(cur.from, cur.to, cur.value, rank), i2 = this.wrappers.length;
+      for (let cur2 = this.blockWrappers; cur2.value && cur2.from <= this.pos; cur2.next())
+        if (cur2.to >= this.pos) {
+          let rank = cur2.rank * 102 + cur2.value.rank;
+          let wrap = new OpenWrapper(cur2.from, cur2.to, cur2.value, rank), i2 = this.wrappers.length;
           while (i2 > 0 && (this.wrappers[i2 - 1].rank - wrap.rank || this.wrappers[i2 - 1].to - wrap.to) < 0)
             i2--;
           this.wrappers.splice(i2, 0, wrap);
@@ -8525,8 +6954,8 @@
     return comp.changes;
   }
   function inUneditable(node, inside) {
-    for (let cur = node; cur && cur != inside; cur = cur.assignedSlot || cur.parentNode) {
-      if (cur.nodeType == 1 && cur.contentEditable == "false") {
+    for (let cur2 = node; cur2 && cur2 != inside; cur2 = cur2.assignedSlot || cur2.parentNode) {
+      if (cur2.nodeType == 1 && cur2.contentEditable == "false") {
         return true;
       }
     }
@@ -8644,11 +7073,11 @@
   function moveByChar(view, start, forward, by) {
     let line = view.state.doc.lineAt(start.head), spans = view.bidiSpans(line);
     let direction = view.textDirectionAt(line.from);
-    for (let cur = start, check = null; ; ) {
-      let next = moveVisually(line, spans, direction, cur, forward), char = movedOver;
+    for (let cur2 = start, check = null; ; ) {
+      let next = moveVisually(line, spans, direction, cur2, forward), char = movedOver;
       if (!next) {
         if (line.number == (forward ? view.state.doc.lines : 1))
-          return cur;
+          return cur2;
         char = "\n";
         line = view.state.doc.line(line.number + (forward ? 1 : -1));
         spans = view.bidiSpans(line);
@@ -8659,9 +7088,9 @@
           return next;
         check = by(char);
       } else if (!check(char)) {
-        return cur;
+        return cur2;
       }
-      cur = next;
+      cur2 = next;
     }
   }
   function byGroup(view, pos, start) {
@@ -8961,20 +7390,20 @@
       if (!start)
         return this;
       let parent = start.parentNode;
-      for (let cur = start; ; ) {
-        this.findPointBefore(parent, cur);
+      for (let cur2 = start; ; ) {
+        this.findPointBefore(parent, cur2);
         let oldLen = this.text.length;
-        this.readNode(cur);
-        let tile = Tile.get(cur), next = cur.nextSibling;
+        this.readNode(cur2);
+        let tile = Tile.get(cur2), next = cur2.nextSibling;
         if (next == end) {
           if ((tile === null || tile === void 0 ? void 0 : tile.breakAfter) && !next && parent != this.view.contentDOM)
             this.lineBreak();
           break;
         }
         let nextTile = Tile.get(next);
-        if ((tile && nextTile ? tile.breakAfter : (tile ? tile.breakAfter : isBlockElement(cur)) || isBlockElement(next) && (cur.nodeName != "BR" || (tile === null || tile === void 0 ? void 0 : tile.isWidget())) && this.text.length > oldLen) && !isEmptyToEnd(next, end))
+        if ((tile && nextTile ? tile.breakAfter : (tile ? tile.breakAfter : isBlockElement(cur2)) || isBlockElement(next) && (cur2.nodeName != "BR" || (tile === null || tile === void 0 ? void 0 : tile.isWidget())) && this.text.length > oldLen) && !isEmptyToEnd(next, end))
           this.lineBreak();
-        cur = next;
+        cur2 = next;
       }
       this.findPointBefore(parent, end);
       return this;
@@ -9194,15 +7623,15 @@
     if (change) {
       return applyDOMChangeInner(view, change, newSel, lastKey);
     } else if (newSel && !sameSelPos(newSel, sel)) {
-      let scrollIntoView2 = false, userEvent = "select";
+      let scrollIntoView3 = false, userEvent = "select";
       if (view.inputState.lastSelectionTime > Date.now() - 50) {
         if (view.inputState.lastSelectionOrigin == "select")
-          scrollIntoView2 = true;
+          scrollIntoView3 = true;
         userEvent = view.inputState.lastSelectionOrigin;
         if (userEvent == "select.pointer")
           newSel = skipAtomsForSelection(state.facet(atomicRanges).map((f) => f(view)), newSel);
       }
-      view.dispatch({ selection: newSel, scrollIntoView: scrollIntoView2, userEvent });
+      view.dispatch({ selection: newSel, scrollIntoView: scrollIntoView3, userEvent });
       return true;
     } else {
       return false;
@@ -9828,16 +8257,16 @@
         }
       },
       get(event2, extend, multiple) {
-        let cur = view.posAndSideAtCoords({ x: event2.clientX, y: event2.clientY }, false), removed;
-        let range = rangeForClick(view, cur.pos, cur.assoc, type);
-        if (start.pos != cur.pos && !extend) {
+        let cur2 = view.posAndSideAtCoords({ x: event2.clientX, y: event2.clientY }, false), removed;
+        let range = rangeForClick(view, cur2.pos, cur2.assoc, type);
+        if (start.pos != cur2.pos && !extend) {
           let startRange = rangeForClick(view, start.pos, start.assoc, type);
           let from = Math.min(startRange.from, range.from), to = Math.max(startRange.to, range.to);
           range = from < range.from ? EditorSelection.range(from, to, range.assoc) : EditorSelection.range(to, from, range.assoc);
         }
         if (extend)
           return startSel.replaceRange(startSel.main.extend(range.from, range.to, range.assoc));
-        else if (multiple && type == 1 && startSel.ranges.length > 1 && (removed = removeRangeAround(startSel, cur.pos)))
+        else if (multiple && type == 1 && startSel.ranges.length > 1 && (removed = removeRangeAround(startSel, cur2.pos)))
           return removed;
         else if (multiple)
           return startSel.addRange(range);
@@ -13412,6 +11841,192 @@
     return base2;
   }
   var currentPlatform = browser.mac ? "mac" : browser.windows ? "win" : browser.linux ? "linux" : "key";
+  function normalizeKeyName(name2, platform) {
+    const parts = name2.split(/-(?!$)/);
+    let result = parts[parts.length - 1];
+    if (result == "Space")
+      result = " ";
+    let alt, ctrl, shift2, meta2;
+    for (let i2 = 0; i2 < parts.length - 1; ++i2) {
+      const mod = parts[i2];
+      if (/^(cmd|meta|m)$/i.test(mod))
+        meta2 = true;
+      else if (/^a(lt)?$/i.test(mod))
+        alt = true;
+      else if (/^(c|ctrl|control)$/i.test(mod))
+        ctrl = true;
+      else if (/^s(hift)?$/i.test(mod))
+        shift2 = true;
+      else if (/^mod$/i.test(mod)) {
+        if (platform == "mac")
+          meta2 = true;
+        else
+          ctrl = true;
+      } else
+        throw new Error("Unrecognized modifier name: " + mod);
+    }
+    if (alt)
+      result = "Alt-" + result;
+    if (ctrl)
+      result = "Ctrl-" + result;
+    if (meta2)
+      result = "Meta-" + result;
+    if (shift2)
+      result = "Shift-" + result;
+    return result;
+  }
+  function modifiers(name2, event, shift2) {
+    if (event.altKey)
+      name2 = "Alt-" + name2;
+    if (event.ctrlKey)
+      name2 = "Ctrl-" + name2;
+    if (event.metaKey)
+      name2 = "Meta-" + name2;
+    if (shift2 !== false && event.shiftKey)
+      name2 = "Shift-" + name2;
+    return name2;
+  }
+  var handleKeyEvents = /* @__PURE__ */ Prec.default(/* @__PURE__ */ EditorView.domEventHandlers({
+    keydown(event, view) {
+      return runHandlers(getKeymap(view.state), event, view, "editor");
+    }
+  }));
+  var keymap = /* @__PURE__ */ Facet.define({ enables: handleKeyEvents });
+  var Keymaps = /* @__PURE__ */ new WeakMap();
+  function getKeymap(state) {
+    let bindings = state.facet(keymap);
+    let map = Keymaps.get(bindings);
+    if (!map)
+      Keymaps.set(bindings, map = buildKeymap(bindings.reduce((a, b) => a.concat(b), [])));
+    return map;
+  }
+  var storedPrefix = null;
+  var PrefixTimeout = 4e3;
+  function buildKeymap(bindings, platform = currentPlatform) {
+    let bound = /* @__PURE__ */ Object.create(null);
+    let isPrefix = /* @__PURE__ */ Object.create(null);
+    let checkPrefix = (name2, is) => {
+      let current = isPrefix[name2];
+      if (current == null)
+        isPrefix[name2] = is;
+      else if (current != is)
+        throw new Error("Key binding " + name2 + " is used both as a regular binding and as a multi-stroke prefix");
+    };
+    let add = (scope, key, command, preventDefault, stopPropagation) => {
+      var _a2, _b;
+      let scopeObj = bound[scope] || (bound[scope] = /* @__PURE__ */ Object.create(null));
+      let parts = key.split(/ (?!$)/).map((k) => normalizeKeyName(k, platform));
+      for (let i2 = 1; i2 < parts.length; i2++) {
+        let prefix2 = parts.slice(0, i2).join(" ");
+        checkPrefix(prefix2, true);
+        if (!scopeObj[prefix2])
+          scopeObj[prefix2] = {
+            preventDefault: true,
+            stopPropagation: false,
+            run: [(view) => {
+              let ourObj = storedPrefix = { view, prefix: prefix2, scope };
+              setTimeout(() => {
+                if (storedPrefix == ourObj)
+                  storedPrefix = null;
+              }, PrefixTimeout);
+              return true;
+            }]
+          };
+      }
+      let full = parts.join(" ");
+      checkPrefix(full, false);
+      let binding = scopeObj[full] || (scopeObj[full] = {
+        preventDefault: false,
+        stopPropagation: false,
+        run: ((_b = (_a2 = scopeObj._any) === null || _a2 === void 0 ? void 0 : _a2.run) === null || _b === void 0 ? void 0 : _b.slice()) || []
+      });
+      if (command)
+        binding.run.push(command);
+      if (preventDefault)
+        binding.preventDefault = true;
+      if (stopPropagation)
+        binding.stopPropagation = true;
+    };
+    for (let b of bindings) {
+      let scopes = b.scope ? b.scope.split(" ") : ["editor"];
+      if (b.any)
+        for (let scope of scopes) {
+          let scopeObj = bound[scope] || (bound[scope] = /* @__PURE__ */ Object.create(null));
+          if (!scopeObj._any)
+            scopeObj._any = { preventDefault: false, stopPropagation: false, run: [] };
+          let { any } = b;
+          for (let key in scopeObj)
+            scopeObj[key].run.push((view) => any(view, currentKeyEvent));
+        }
+      let name2 = b[platform] || b.key;
+      if (!name2)
+        continue;
+      for (let scope of scopes) {
+        add(scope, name2, b.run, b.preventDefault, b.stopPropagation);
+        if (b.shift)
+          add(scope, "Shift-" + name2, b.shift, b.preventDefault, b.stopPropagation);
+      }
+    }
+    return bound;
+  }
+  var currentKeyEvent = null;
+  function runHandlers(map, event, view, scope) {
+    currentKeyEvent = event;
+    let name2 = keyName(event);
+    let charCode = codePointAt2(name2, 0), isChar = codePointSize2(charCode) == name2.length && name2 != " ";
+    let prefix2 = "", handled = false, prevented = false, stopPropagation = false;
+    if (storedPrefix && storedPrefix.view == view && storedPrefix.scope == scope) {
+      prefix2 = storedPrefix.prefix + " ";
+      if (modifierCodes.indexOf(event.keyCode) < 0) {
+        prevented = true;
+        storedPrefix = null;
+      }
+    }
+    let ran = /* @__PURE__ */ new Set();
+    let runFor = (binding) => {
+      if (binding) {
+        for (let cmd of binding.run)
+          if (!ran.has(cmd)) {
+            ran.add(cmd);
+            if (cmd(view)) {
+              if (binding.stopPropagation)
+                stopPropagation = true;
+              return true;
+            }
+          }
+        if (binding.preventDefault) {
+          if (binding.stopPropagation)
+            stopPropagation = true;
+          prevented = true;
+        }
+      }
+      return false;
+    };
+    let scopeObj = map[scope], baseName, shiftName;
+    if (scopeObj) {
+      if (runFor(scopeObj[prefix2 + modifiers(name2, event, !isChar)])) {
+        handled = true;
+      } else if (isChar && (event.altKey || event.metaKey || event.ctrlKey) && // Ctrl-Alt may be used for AltGr on Windows
+      !(browser.windows && event.ctrlKey && event.altKey) && // Alt-combinations on macOS tend to be typed characters
+      !(browser.mac && event.altKey && !(event.ctrlKey || event.metaKey)) && (baseName = base[event.keyCode]) && baseName != name2) {
+        if (runFor(scopeObj[prefix2 + modifiers(baseName, event, true)])) {
+          handled = true;
+        } else if (event.shiftKey && (shiftName = shift[event.keyCode]) != name2 && shiftName != baseName && runFor(scopeObj[prefix2 + modifiers(shiftName, event, false)])) {
+          handled = true;
+        }
+      } else if (isChar && event.shiftKey && runFor(scopeObj[prefix2 + modifiers(name2, event, true)])) {
+        handled = true;
+      }
+      if (!handled && runFor(scopeObj._any))
+        handled = true;
+    }
+    if (prevented)
+      handled = true;
+    if (handled && stopPropagation)
+      event.stopPropagation();
+    currentKeyEvent = null;
+    return handled;
+  }
   var selectionBg = browser.gecko && browser.gecko_version == 153 ? "#ffffff01" : "transparent";
   var hideNativeSelection = /* @__PURE__ */ Prec.highest(/* @__PURE__ */ EditorView.theme({
     ".cm-line": {
@@ -13429,6 +12044,320 @@
     }
   }));
   var UnicodeRegexpSupport = /x/.unicode != null ? "gu" : "g";
+  var Outside = "-10000px";
+  var TooltipViewManager = class {
+    constructor(view, facet, createTooltipView, removeTooltipView) {
+      this.facet = facet;
+      this.createTooltipView = createTooltipView;
+      this.removeTooltipView = removeTooltipView;
+      this.input = view.state.facet(facet);
+      this.tooltips = this.input.filter((t2) => t2);
+      let prev = null;
+      this.tooltipViews = this.tooltips.map((t2) => prev = createTooltipView(t2, prev));
+    }
+    update(update, above) {
+      var _a2;
+      let input = update.state.facet(this.facet);
+      let tooltips = input.filter((x) => x);
+      if (input === this.input) {
+        for (let t2 of this.tooltipViews)
+          if (t2.update)
+            t2.update(update);
+        return false;
+      }
+      let tooltipViews = [], newAbove = above ? [] : null;
+      for (let i2 = 0; i2 < tooltips.length; i2++) {
+        let tip = tooltips[i2], known = -1;
+        if (!tip)
+          continue;
+        for (let i3 = 0; i3 < this.tooltips.length; i3++) {
+          let other = this.tooltips[i3];
+          if (other && other.create == tip.create)
+            known = i3;
+        }
+        if (known < 0) {
+          tooltipViews[i2] = this.createTooltipView(tip, i2 ? tooltipViews[i2 - 1] : null);
+          if (newAbove)
+            newAbove[i2] = !!tip.above;
+        } else {
+          let tooltipView = tooltipViews[i2] = this.tooltipViews[known];
+          if (newAbove)
+            newAbove[i2] = above[known];
+          if (tooltipView.update)
+            tooltipView.update(update);
+        }
+      }
+      for (let t2 of this.tooltipViews)
+        if (tooltipViews.indexOf(t2) < 0) {
+          this.removeTooltipView(t2);
+          (_a2 = t2.destroy) === null || _a2 === void 0 ? void 0 : _a2.call(t2);
+        }
+      if (above) {
+        newAbove.forEach((val, i2) => above[i2] = val);
+        above.length = newAbove.length;
+      }
+      this.input = input;
+      this.tooltips = tooltips;
+      this.tooltipViews = tooltipViews;
+      return true;
+    }
+  };
+  function windowSpace(view) {
+    let docElt = view.dom.ownerDocument.documentElement;
+    return { top: 0, left: 0, bottom: docElt.clientHeight, right: docElt.clientWidth };
+  }
+  var tooltipConfig = /* @__PURE__ */ Facet.define({
+    combine: (values) => {
+      var _a2, _b, _c;
+      return {
+        position: browser.ios ? "absolute" : ((_a2 = values.find((conf) => conf.position)) === null || _a2 === void 0 ? void 0 : _a2.position) || "fixed",
+        parent: ((_b = values.find((conf) => conf.parent)) === null || _b === void 0 ? void 0 : _b.parent) || null,
+        tooltipSpace: ((_c = values.find((conf) => conf.tooltipSpace)) === null || _c === void 0 ? void 0 : _c.tooltipSpace) || windowSpace
+      };
+    }
+  });
+  var knownHeight = /* @__PURE__ */ new WeakMap();
+  var tooltipPlugin = /* @__PURE__ */ ViewPlugin.fromClass(class {
+    constructor(view) {
+      this.view = view;
+      this.above = [];
+      this.inView = true;
+      this.madeAbsolute = false;
+      this.lastTransaction = 0;
+      this.measureTimeout = -1;
+      let config = view.state.facet(tooltipConfig);
+      this.position = config.position;
+      this.parent = config.parent;
+      this.classes = view.themeClasses;
+      this.createContainer();
+      this.measureReq = { read: this.readMeasure.bind(this), write: this.writeMeasure.bind(this), key: this };
+      this.resizeObserver = typeof ResizeObserver == "function" ? new ResizeObserver(() => this.measureSoon()) : null;
+      this.manager = new TooltipViewManager(view, showTooltip, (t2, p) => this.createTooltip(t2, p), (t2) => {
+        if (this.resizeObserver)
+          this.resizeObserver.unobserve(t2.dom);
+        t2.dom.remove();
+      });
+      this.above = this.manager.tooltips.map((t2) => !!t2.above);
+      this.intersectionObserver = typeof IntersectionObserver == "function" ? new IntersectionObserver((entries) => {
+        if (Date.now() > this.lastTransaction - 50 && entries.length > 0 && entries[entries.length - 1].intersectionRatio < 1)
+          this.measureSoon();
+      }, { threshold: [1] }) : null;
+      this.observeIntersection();
+      view.win.addEventListener("resize", this.measureSoon = this.measureSoon.bind(this));
+      this.maybeMeasure();
+    }
+    createContainer() {
+      if (this.parent) {
+        this.container = document.createElement("div");
+        this.container.style.position = "relative";
+        this.container.className = this.view.themeClasses;
+        this.parent.appendChild(this.container);
+      } else {
+        this.container = this.view.dom;
+      }
+    }
+    observeIntersection() {
+      if (this.intersectionObserver) {
+        this.intersectionObserver.disconnect();
+        for (let tooltip of this.manager.tooltipViews)
+          this.intersectionObserver.observe(tooltip.dom);
+      }
+    }
+    measureSoon() {
+      if (this.measureTimeout < 0)
+        this.measureTimeout = setTimeout(() => {
+          this.measureTimeout = -1;
+          this.maybeMeasure();
+        }, 50);
+    }
+    update(update) {
+      if (update.transactions.length)
+        this.lastTransaction = Date.now();
+      let updated = this.manager.update(update, this.above);
+      if (updated)
+        this.observeIntersection();
+      let shouldMeasure = updated || update.geometryChanged;
+      let newConfig = update.state.facet(tooltipConfig);
+      if (newConfig.position != this.position && !this.madeAbsolute) {
+        this.position = newConfig.position;
+        for (let t2 of this.manager.tooltipViews)
+          t2.dom.style.position = this.position;
+        shouldMeasure = true;
+      }
+      if (newConfig.parent != this.parent) {
+        if (this.parent)
+          this.container.remove();
+        this.parent = newConfig.parent;
+        this.createContainer();
+        for (let t2 of this.manager.tooltipViews)
+          this.container.appendChild(t2.dom);
+        shouldMeasure = true;
+      } else if (this.parent && this.view.themeClasses != this.classes) {
+        this.classes = this.container.className = this.view.themeClasses;
+      }
+      if (shouldMeasure)
+        this.maybeMeasure();
+    }
+    createTooltip(tooltip, prev) {
+      let tooltipView = tooltip.create(this.view);
+      let before = prev ? prev.dom : null;
+      tooltipView.dom.classList.add("cm-tooltip");
+      if (tooltip.arrow && !tooltipView.dom.querySelector(".cm-tooltip > .cm-tooltip-arrow")) {
+        let arrow = document.createElement("div");
+        arrow.className = "cm-tooltip-arrow";
+        tooltipView.dom.appendChild(arrow);
+      }
+      tooltipView.dom.style.position = this.position;
+      tooltipView.dom.style.top = Outside;
+      tooltipView.dom.style.left = "0px";
+      this.container.insertBefore(tooltipView.dom, before);
+      if (tooltipView.mount)
+        tooltipView.mount(this.view);
+      if (this.resizeObserver)
+        this.resizeObserver.observe(tooltipView.dom);
+      return tooltipView;
+    }
+    destroy() {
+      var _a2, _b, _c;
+      this.view.win.removeEventListener("resize", this.measureSoon);
+      for (let tooltipView of this.manager.tooltipViews) {
+        tooltipView.dom.remove();
+        (_a2 = tooltipView.destroy) === null || _a2 === void 0 ? void 0 : _a2.call(tooltipView);
+      }
+      if (this.parent)
+        this.container.remove();
+      (_b = this.resizeObserver) === null || _b === void 0 ? void 0 : _b.disconnect();
+      (_c = this.intersectionObserver) === null || _c === void 0 ? void 0 : _c.disconnect();
+      clearTimeout(this.measureTimeout);
+    }
+    readMeasure() {
+      let scaleX = 1, scaleY = 1, makeAbsolute = false;
+      if (this.position == "fixed" && this.manager.tooltipViews.length) {
+        let { dom } = this.manager.tooltipViews[0];
+        if (browser.safari) {
+          let rect = dom.getBoundingClientRect();
+          makeAbsolute = Math.abs(rect.top + 1e4) > 1 || Math.abs(rect.left) > 1;
+        } else {
+          makeAbsolute = !!dom.offsetParent && dom.offsetParent != this.container.ownerDocument.body;
+        }
+      }
+      if (makeAbsolute || this.position == "absolute") {
+        if (this.parent) {
+          let rect = this.parent.getBoundingClientRect();
+          if (rect.width && rect.height) {
+            scaleX = rect.width / this.parent.offsetWidth;
+            scaleY = rect.height / this.parent.offsetHeight;
+          }
+        } else {
+          ({ scaleX, scaleY } = this.view.viewState);
+        }
+      }
+      let visible = this.view.scrollDOM.getBoundingClientRect(), margins = getScrollMargins(this.view);
+      return {
+        visible: {
+          left: visible.left + margins.left,
+          top: visible.top + margins.top,
+          right: visible.right - margins.right,
+          bottom: visible.bottom - margins.bottom
+        },
+        parent: this.parent ? this.container.getBoundingClientRect() : this.view.dom.getBoundingClientRect(),
+        pos: this.manager.tooltips.map((t2, i2) => {
+          let tv = this.manager.tooltipViews[i2];
+          return tv.getCoords ? tv.getCoords(t2.pos) : this.view.coordsAtPos(t2.pos);
+        }),
+        size: this.manager.tooltipViews.map(({ dom }) => dom.getBoundingClientRect()),
+        space: this.view.state.facet(tooltipConfig).tooltipSpace(this.view),
+        scaleX,
+        scaleY,
+        makeAbsolute
+      };
+    }
+    writeMeasure(measured) {
+      var _a2;
+      if (measured.makeAbsolute) {
+        this.madeAbsolute = true;
+        this.position = "absolute";
+        for (let t2 of this.manager.tooltipViews)
+          t2.dom.style.position = "absolute";
+      }
+      let { visible, space, scaleX, scaleY } = measured;
+      let others = [];
+      for (let i2 = 0; i2 < this.manager.tooltips.length; i2++) {
+        let tooltip = this.manager.tooltips[i2], tView = this.manager.tooltipViews[i2], { dom } = tView;
+        let pos = measured.pos[i2], size = measured.size[i2];
+        if (!pos || tooltip.clip !== false && (pos.bottom <= Math.max(visible.top, space.top) || pos.top >= Math.min(visible.bottom, space.bottom) || pos.right < Math.max(visible.left, space.left) - 0.1 || pos.left > Math.min(visible.right, space.right) + 0.1)) {
+          dom.style.top = Outside;
+          continue;
+        }
+        let arrow = tooltip.arrow ? tView.dom.querySelector(".cm-tooltip-arrow") : null;
+        let arrowHeight = arrow ? 7 : 0;
+        let width = size.right - size.left, height = (_a2 = knownHeight.get(tView)) !== null && _a2 !== void 0 ? _a2 : size.bottom - size.top;
+        let offset = tView.offset || noOffset, ltr = this.view.textDirection == Direction.LTR;
+        let left = size.width > space.right - space.left ? ltr ? space.left : space.right - size.width : ltr ? Math.max(space.left, Math.min(pos.left - (arrow ? 14 : 0) + offset.x, space.right - width)) : Math.min(Math.max(space.left, pos.left - width + (arrow ? 14 : 0) - offset.x), space.right - width);
+        let above = this.above[i2];
+        if (!tooltip.strictSide && (above ? pos.top - height - arrowHeight - offset.y < space.top : pos.bottom + height + arrowHeight + offset.y > space.bottom) && above == space.bottom - pos.bottom > pos.top - space.top)
+          above = this.above[i2] = !above;
+        let spaceVert = (above ? pos.top - space.top : space.bottom - pos.bottom) - arrowHeight;
+        if (spaceVert < height && tView.resize !== false) {
+          if (spaceVert < this.view.defaultLineHeight) {
+            dom.style.top = Outside;
+            continue;
+          }
+          knownHeight.set(tView, height);
+          dom.style.height = (height = spaceVert) / scaleY + "px";
+        } else if (dom.style.height) {
+          dom.style.height = "";
+        }
+        let top2 = above ? pos.top - height - arrowHeight - offset.y : pos.bottom + arrowHeight + offset.y;
+        let right = left + width;
+        if (tView.overlap !== true) {
+          for (let r of others)
+            if (r.left < right && r.right > left && r.top < top2 + height && r.bottom > top2)
+              top2 = above ? r.top - height - 2 - arrowHeight : r.bottom + arrowHeight + 2;
+        }
+        if (this.position == "absolute") {
+          dom.style.top = (top2 - measured.parent.top) / scaleY + "px";
+          setLeftStyle(dom, (left - measured.parent.left) / scaleX);
+        } else {
+          dom.style.top = top2 / scaleY + "px";
+          setLeftStyle(dom, left / scaleX);
+        }
+        if (arrow) {
+          let arrowLeft = pos.left + (ltr ? offset.x : -offset.x) - (left + 14 - 7);
+          arrow.style.left = arrowLeft / scaleX + "px";
+        }
+        if (tView.overlap !== true)
+          others.push({ left, top: top2, right, bottom: top2 + height });
+        dom.classList.toggle("cm-tooltip-above", above);
+        dom.classList.toggle("cm-tooltip-below", !above);
+        if (tView.positioned)
+          tView.positioned(measured.space);
+      }
+    }
+    maybeMeasure() {
+      if (this.manager.tooltips.length) {
+        if (this.view.inView)
+          this.view.requestMeasure(this.measureReq);
+        if (this.inView != this.view.inView) {
+          this.inView = this.view.inView;
+          if (!this.inView)
+            for (let tv of this.manager.tooltipViews)
+              tv.dom.style.top = Outside;
+        }
+      }
+    }
+  }, {
+    eventObservers: {
+      scroll() {
+        this.maybeMeasure();
+      }
+    }
+  });
+  function setLeftStyle(elt, value) {
+    let current = parseInt(elt.style.left, 10);
+    if (isNaN(current) || Math.abs(value - current) > 1)
+      elt.style.left = value + "px";
+  }
   var baseTheme = /* @__PURE__ */ EditorView.baseTheme({
     ".cm-tooltip": {
       zIndex: 500,
@@ -13491,6 +12420,17 @@
       }
     }
   });
+  var noOffset = { x: 0, y: 0 };
+  var showTooltip = /* @__PURE__ */ Facet.define({
+    enables: [tooltipPlugin, baseTheme]
+  });
+  function getTooltip(view, tooltip) {
+    let plugin = view.plugin(tooltipPlugin);
+    if (!plugin)
+      return null;
+    let found = plugin.manager.tooltips.indexOf(tooltip);
+    return found < 0 ? null : plugin.manager.tooltipViews[found];
+  }
   var GutterMarker = class extends RangeValue {
     /**
     @internal
@@ -13516,6 +12456,1630 @@
   GutterMarker.prototype.mapMode = MapMode.TrackBefore;
   GutterMarker.prototype.startSide = GutterMarker.prototype.endSide = -1;
   GutterMarker.prototype.point = true;
+
+  // node_modules/@lezer/common/dist/index.js
+  var DefaultBufferLength = 1024;
+  var nextPropID = 0;
+  var Range2 = class {
+    constructor(from, to) {
+      this.from = from;
+      this.to = to;
+    }
+  };
+  var NodeProp = class {
+    /**
+    Create a new node prop type.
+    */
+    constructor(config = {}) {
+      this.id = nextPropID++;
+      this.perNode = !!config.perNode;
+      this.deserialize = config.deserialize || (() => {
+        throw new Error("This node type doesn't define a deserialize function");
+      });
+      this.combine = config.combine || null;
+    }
+    /**
+    This is meant to be used with
+    [`NodeSet.extend`](#common.NodeSet.extend) or
+    [`LRParser.configure`](#lr.ParserConfig.props) to compute
+    prop values for each node type in the set. Takes a [match
+    object](#common.NodeType^match) or function that returns undefined
+    if the node type doesn't get this prop, and the prop's value if
+    it does.
+    */
+    add(match) {
+      if (this.perNode)
+        throw new RangeError("Can't add per-node props to node types");
+      if (typeof match != "function")
+        match = NodeType.match(match);
+      return (type) => {
+        let result = match(type);
+        return result === void 0 ? null : [this, result];
+      };
+    }
+  };
+  NodeProp.closedBy = new NodeProp({ deserialize: (str) => str.split(" ") });
+  NodeProp.openedBy = new NodeProp({ deserialize: (str) => str.split(" ") });
+  NodeProp.group = new NodeProp({ deserialize: (str) => str.split(" ") });
+  NodeProp.isolate = new NodeProp({ deserialize: (value) => {
+    if (value && value != "rtl" && value != "ltr" && value != "auto")
+      throw new RangeError("Invalid value for isolate: " + value);
+    return value || "auto";
+  } });
+  NodeProp.contextHash = new NodeProp({ perNode: true });
+  NodeProp.lookAhead = new NodeProp({ perNode: true });
+  NodeProp.mounted = new NodeProp({ perNode: true });
+  var MountedTree = class {
+    constructor(tree, overlay, parser, bracketed = false) {
+      this.tree = tree;
+      this.overlay = overlay;
+      this.parser = parser;
+      this.bracketed = bracketed;
+    }
+    /**
+    @internal
+    */
+    static get(tree) {
+      return tree && tree.props && tree.props[NodeProp.mounted.id];
+    }
+  };
+  var noProps = /* @__PURE__ */ Object.create(null);
+  var NodeType = class _NodeType {
+    /**
+    @internal
+    */
+    constructor(name2, props, id, flags = 0) {
+      this.name = name2;
+      this.props = props;
+      this.id = id;
+      this.flags = flags;
+    }
+    /**
+    Define a node type.
+    */
+    static define(spec) {
+      let props = spec.props && spec.props.length ? /* @__PURE__ */ Object.create(null) : noProps;
+      let flags = (spec.top ? 1 : 0) | (spec.skipped ? 2 : 0) | (spec.error ? 4 : 0) | (spec.name == null ? 8 : 0);
+      let type = new _NodeType(spec.name || "", props, spec.id, flags);
+      if (spec.props)
+        for (let src of spec.props) {
+          if (!Array.isArray(src))
+            src = src(type);
+          if (src) {
+            if (src[0].perNode)
+              throw new RangeError("Can't store a per-node prop on a node type");
+            props[src[0].id] = src[1];
+          }
+        }
+      return type;
+    }
+    /**
+    Retrieves a node prop for this type. Will return `undefined` if
+    the prop isn't present on this node.
+    */
+    prop(prop) {
+      return this.props[prop.id];
+    }
+    /**
+    True when this is the top node of a grammar.
+    */
+    get isTop() {
+      return (this.flags & 1) > 0;
+    }
+    /**
+    True when this node is produced by a skip rule.
+    */
+    get isSkipped() {
+      return (this.flags & 2) > 0;
+    }
+    /**
+    Indicates whether this is an error node.
+    */
+    get isError() {
+      return (this.flags & 4) > 0;
+    }
+    /**
+    When true, this node type doesn't correspond to a user-declared
+    named node, for example because it is used to cache repetition.
+    */
+    get isAnonymous() {
+      return (this.flags & 8) > 0;
+    }
+    /**
+    Returns true when this node's name or one of its
+    [groups](#common.NodeProp^group) matches the given string.
+    */
+    is(name2) {
+      if (typeof name2 == "string") {
+        if (this.name == name2)
+          return true;
+        let group = this.prop(NodeProp.group);
+        return group ? group.indexOf(name2) > -1 : false;
+      }
+      return this.id == name2;
+    }
+    /**
+    Create a function from node types to arbitrary values by
+    specifying an object whose property names are node or
+    [group](#common.NodeProp^group) names. Often useful with
+    [`NodeProp.add`](#common.NodeProp.add). You can put multiple
+    names, separated by spaces, in a single property name to map
+    multiple node names to a single value.
+    */
+    static match(map) {
+      let direct = /* @__PURE__ */ Object.create(null);
+      for (let prop in map)
+        for (let name2 of prop.split(" "))
+          direct[name2] = map[prop];
+      return (node) => {
+        for (let groups = node.prop(NodeProp.group), i2 = -1; i2 < (groups ? groups.length : 0); i2++) {
+          let found = direct[i2 < 0 ? node.name : groups[i2]];
+          if (found)
+            return found;
+        }
+      };
+    }
+  };
+  NodeType.none = new NodeType(
+    "",
+    /* @__PURE__ */ Object.create(null),
+    0,
+    8
+    /* NodeFlag.Anonymous */
+  );
+  var NodeSet = class _NodeSet {
+    /**
+    Create a set with the given types. The `id` property of each
+    type should correspond to its position within the array.
+    */
+    constructor(types2) {
+      this.types = types2;
+      for (let i2 = 0; i2 < types2.length; i2++)
+        if (types2[i2].id != i2)
+          throw new RangeError("Node type ids should correspond to array positions when creating a node set");
+    }
+    /**
+    Create a copy of this set with some node properties added. The
+    arguments to this method can be created with
+    [`NodeProp.add`](#common.NodeProp.add).
+    */
+    extend(...props) {
+      let newTypes = [];
+      for (let type of this.types) {
+        let newProps = null;
+        for (let source of props) {
+          let add = source(type);
+          if (add) {
+            if (!newProps)
+              newProps = Object.assign({}, type.props);
+            let value = add[1], prop = add[0];
+            if (prop.combine && prop.id in newProps)
+              value = prop.combine(newProps[prop.id], value);
+            newProps[prop.id] = value;
+          }
+        }
+        newTypes.push(newProps ? new NodeType(type.name, newProps, type.id, type.flags) : type);
+      }
+      return new _NodeSet(newTypes);
+    }
+  };
+  var CachedNode = /* @__PURE__ */ new WeakMap();
+  var CachedInnerNode = /* @__PURE__ */ new WeakMap();
+  var IterMode;
+  (function(IterMode2) {
+    IterMode2[IterMode2["ExcludeBuffers"] = 1] = "ExcludeBuffers";
+    IterMode2[IterMode2["IncludeAnonymous"] = 2] = "IncludeAnonymous";
+    IterMode2[IterMode2["IgnoreMounts"] = 4] = "IgnoreMounts";
+    IterMode2[IterMode2["IgnoreOverlays"] = 8] = "IgnoreOverlays";
+    IterMode2[IterMode2["EnterBracketed"] = 16] = "EnterBracketed";
+  })(IterMode || (IterMode = {}));
+  var Tree = class _Tree {
+    /**
+    Construct a new tree. See also [`Tree.build`](#common.Tree^build).
+    */
+    constructor(type, children, positions, length, props) {
+      this.type = type;
+      this.children = children;
+      this.positions = positions;
+      this.length = length;
+      this.props = null;
+      if (props && props.length) {
+        this.props = /* @__PURE__ */ Object.create(null);
+        for (let [prop, value] of props)
+          this.props[typeof prop == "number" ? prop : prop.id] = value;
+      }
+    }
+    /**
+    @internal
+    */
+    toString() {
+      let mounted = MountedTree.get(this);
+      if (mounted && !mounted.overlay)
+        return mounted.tree.toString();
+      let children = "";
+      for (let ch of this.children) {
+        let str = ch.toString();
+        if (str) {
+          if (children)
+            children += ",";
+          children += str;
+        }
+      }
+      return !this.type.name ? children : (/\W/.test(this.type.name) && !this.type.isError ? JSON.stringify(this.type.name) : this.type.name) + (children.length ? "(" + children + ")" : "");
+    }
+    /**
+    Get a [tree cursor](#common.TreeCursor) positioned at the top of
+    the tree. Mode can be used to [control](#common.IterMode) which
+    nodes the cursor visits.
+    */
+    cursor(mode = 0) {
+      return new TreeCursor(this.topNode, mode);
+    }
+    /**
+    Get a [tree cursor](#common.TreeCursor) pointing into this tree
+    at the given position and side (see
+    [`moveTo`](#common.TreeCursor.moveTo).
+    */
+    cursorAt(pos, side = 0, mode = 0) {
+      let scope = CachedNode.get(this) || this.topNode;
+      let cursor = new TreeCursor(scope);
+      cursor.moveTo(pos, side);
+      CachedNode.set(this, cursor._tree);
+      return cursor;
+    }
+    /**
+    Get a [syntax node](#common.SyntaxNode) object for the top of the
+    tree.
+    */
+    get topNode() {
+      return new TreeNode(this, 0, 0, null);
+    }
+    /**
+    Get the [syntax node](#common.SyntaxNode) at the given position.
+    If `side` is -1, this will move into nodes that end at the
+    position. If 1, it'll move into nodes that start at the
+    position. With 0, it'll only enter nodes that cover the position
+    from both sides.
+
+    Note that this will not enter
+    [overlays](#common.MountedTree.overlay), and you often want
+    [`resolveInner`](#common.Tree.resolveInner) instead.
+    */
+    resolve(pos, side = 0) {
+      let node = resolveNode(CachedNode.get(this) || this.topNode, pos, side, false);
+      CachedNode.set(this, node);
+      return node;
+    }
+    /**
+    Like [`resolve`](#common.Tree.resolve), but will enter
+    [overlaid](#common.MountedTree.overlay) nodes, producing a syntax node
+    pointing into the innermost overlaid tree at the given position
+    (with parent links going through all parent structure, including
+    the host trees).
+    */
+    resolveInner(pos, side = 0) {
+      let node = resolveNode(CachedInnerNode.get(this) || this.topNode, pos, side, true);
+      CachedInnerNode.set(this, node);
+      return node;
+    }
+    /**
+    In some situations, it can be useful to iterate through all
+    nodes around a position, including those in overlays that don't
+    directly cover the position. This method gives you an iterator
+    that will produce all nodes, from small to big, around the given
+    position.
+    */
+    resolveStack(pos, side = 0) {
+      return stackIterator(this, pos, side);
+    }
+    /**
+    Iterate over the tree and its children, calling `enter` for any
+    node that touches the `from`/`to` region (if given) before
+    running over such a node's children, and `leave` (if given) when
+    leaving the node. When `enter` returns `false`, that node will
+    not have its children iterated over (or `leave` called).
+    */
+    iterate(spec) {
+      let { enter, leave, from = 0, to = this.length } = spec;
+      let mode = spec.mode || 0, anon = (mode & IterMode.IncludeAnonymous) > 0;
+      for (let c = this.cursor(mode | IterMode.IncludeAnonymous); ; ) {
+        let entered = false;
+        if (c.from <= to && c.to >= from && (!anon && c.type.isAnonymous || enter(c) !== false)) {
+          if (c.firstChild())
+            continue;
+          entered = true;
+        }
+        for (; ; ) {
+          if (entered && leave && (anon || !c.type.isAnonymous))
+            leave(c);
+          if (c.nextSibling())
+            break;
+          if (!c.parent())
+            return;
+          entered = true;
+        }
+      }
+    }
+    /**
+    Get the value of the given [node prop](#common.NodeProp) for this
+    node. Works with both per-node and per-type props.
+    */
+    prop(prop) {
+      return !prop.perNode ? this.type.prop(prop) : this.props ? this.props[prop.id] : void 0;
+    }
+    /**
+    Returns the node's [per-node props](#common.NodeProp.perNode) in a
+    format that can be passed to the [`Tree`](#common.Tree)
+    constructor.
+    */
+    get propValues() {
+      let result = [];
+      if (this.props)
+        for (let id in this.props)
+          result.push([+id, this.props[id]]);
+      return result;
+    }
+    /**
+    Balance the direct children of this tree, producing a copy of
+    which may have children grouped into subtrees with type
+    [`NodeType.none`](#common.NodeType^none).
+    */
+    balance(config = {}) {
+      return this.children.length <= 8 ? this : balanceRange(NodeType.none, this.children, this.positions, 0, this.children.length, 0, this.length, (children, positions, length) => new _Tree(this.type, children, positions, length, this.propValues), config.makeTree || ((children, positions, length) => new _Tree(NodeType.none, children, positions, length)));
+    }
+    /**
+    Build a tree from a postfix-ordered buffer of node information,
+    or a cursor over such a buffer.
+    */
+    static build(data) {
+      return buildTree(data);
+    }
+  };
+  Tree.empty = new Tree(NodeType.none, [], [], 0);
+  var FlatBufferCursor = class _FlatBufferCursor {
+    constructor(buffer, index) {
+      this.buffer = buffer;
+      this.index = index;
+    }
+    get id() {
+      return this.buffer[this.index - 4];
+    }
+    get start() {
+      return this.buffer[this.index - 3];
+    }
+    get end() {
+      return this.buffer[this.index - 2];
+    }
+    get size() {
+      return this.buffer[this.index - 1];
+    }
+    get pos() {
+      return this.index;
+    }
+    next() {
+      this.index -= 4;
+    }
+    fork() {
+      return new _FlatBufferCursor(this.buffer, this.index);
+    }
+  };
+  var TreeBuffer = class _TreeBuffer {
+    /**
+    Create a tree buffer.
+    */
+    constructor(buffer, length, set) {
+      this.buffer = buffer;
+      this.length = length;
+      this.set = set;
+    }
+    /**
+    @internal
+    */
+    get type() {
+      return NodeType.none;
+    }
+    /**
+    @internal
+    */
+    toString() {
+      let result = [];
+      for (let index = 0; index < this.buffer.length; ) {
+        result.push(this.childString(index));
+        index = this.buffer[index + 3];
+      }
+      return result.join(",");
+    }
+    /**
+    @internal
+    */
+    childString(index) {
+      let id = this.buffer[index], endIndex = this.buffer[index + 3];
+      let type = this.set.types[id], result = type.name;
+      if (/\W/.test(result) && !type.isError)
+        result = JSON.stringify(result);
+      index += 4;
+      if (endIndex == index)
+        return result;
+      let children = [];
+      while (index < endIndex) {
+        children.push(this.childString(index));
+        index = this.buffer[index + 3];
+      }
+      return result + "(" + children.join(",") + ")";
+    }
+    /**
+    @internal
+    */
+    findChild(startIndex, endIndex, dir, pos, side) {
+      let { buffer } = this, pick = -1;
+      for (let i2 = startIndex; i2 != endIndex; i2 = buffer[i2 + 3]) {
+        if (checkSide(side, pos, buffer[i2 + 1], buffer[i2 + 2])) {
+          pick = i2;
+          if (dir > 0)
+            break;
+        }
+      }
+      return pick;
+    }
+    /**
+    @internal
+    */
+    slice(startI, endI, from) {
+      let b = this.buffer;
+      let copy = new Uint16Array(endI - startI), len = 0;
+      for (let i2 = startI, j = 0; i2 < endI; ) {
+        copy[j++] = b[i2++];
+        copy[j++] = b[i2++] - from;
+        let to = copy[j++] = b[i2++] - from;
+        copy[j++] = b[i2++] - startI;
+        len = Math.max(len, to);
+      }
+      return new _TreeBuffer(copy, len, this.set);
+    }
+  };
+  function checkSide(side, pos, from, to) {
+    switch (side) {
+      case -2:
+        return from < pos;
+      case -1:
+        return to >= pos && from < pos;
+      case 0:
+        return from < pos && to > pos;
+      case 1:
+        return from <= pos && to > pos;
+      case 2:
+        return to > pos;
+      case 4:
+        return true;
+    }
+  }
+  function resolveNode(node, pos, side, overlays) {
+    var _a2;
+    while (node.from == node.to || (side < 1 ? node.from >= pos : node.from > pos) || (side > -1 ? node.to <= pos : node.to < pos)) {
+      let parent = !overlays && node instanceof TreeNode && node.index < 0 ? null : node.parent;
+      if (!parent)
+        return node;
+      node = parent;
+    }
+    let mode = overlays ? 0 : IterMode.IgnoreOverlays;
+    if (overlays)
+      for (let scan = node, parent = scan.parent; parent; scan = parent, parent = scan.parent) {
+        if (scan instanceof TreeNode && scan.index < 0 && ((_a2 = parent.enter(pos, side, mode)) === null || _a2 === void 0 ? void 0 : _a2.from) != scan.from)
+          node = parent;
+      }
+    for (; ; ) {
+      let inner = node.enter(pos, side, mode);
+      if (!inner)
+        return node;
+      node = inner;
+    }
+  }
+  var BaseNode = class {
+    cursor(mode = 0) {
+      return new TreeCursor(this, mode);
+    }
+    getChild(type, before = null, after = null) {
+      let r = getChildren(this, type, before, after);
+      return r.length ? r[0] : null;
+    }
+    getChildren(type, before = null, after = null) {
+      return getChildren(this, type, before, after);
+    }
+    resolve(pos, side = 0) {
+      return resolveNode(this, pos, side, false);
+    }
+    resolveInner(pos, side = 0) {
+      return resolveNode(this, pos, side, true);
+    }
+    matchContext(context) {
+      return matchNodeContext(this.parent, context);
+    }
+    enterUnfinishedNodesBefore(pos) {
+      let scan = this.childBefore(pos), node = this;
+      while (scan) {
+        let last = scan.lastChild;
+        if (!last || last.to != scan.to)
+          break;
+        if (last.type.isError && last.from == last.to) {
+          node = scan;
+          scan = last.prevSibling;
+        } else {
+          scan = last;
+        }
+      }
+      return node;
+    }
+    get node() {
+      return this;
+    }
+    get next() {
+      return this.parent;
+    }
+  };
+  var TreeNode = class _TreeNode extends BaseNode {
+    constructor(_tree, from, index, _parent) {
+      super();
+      this._tree = _tree;
+      this.from = from;
+      this.index = index;
+      this._parent = _parent;
+    }
+    get type() {
+      return this._tree.type;
+    }
+    get name() {
+      return this._tree.type.name;
+    }
+    get to() {
+      return this.from + this._tree.length;
+    }
+    nextChild(i2, dir, pos, side, mode = 0) {
+      for (let parent = this; ; ) {
+        for (let { children, positions } = parent._tree, e = dir > 0 ? children.length : -1; i2 != e; i2 += dir) {
+          let next = children[i2], start = positions[i2] + parent.from, mounted;
+          if (!(mode & IterMode.EnterBracketed && next instanceof Tree && (mounted = MountedTree.get(next)) && !mounted.overlay && mounted.bracketed && pos >= start && pos <= start + next.length) && !checkSide(side, pos, start, start + next.length))
+            continue;
+          if (next instanceof TreeBuffer) {
+            if (mode & IterMode.ExcludeBuffers)
+              continue;
+            let index = next.findChild(0, next.buffer.length, dir, pos - start, side);
+            if (index > -1)
+              return new BufferNode(new BufferContext(parent, next, i2, start), null, index);
+          } else if (mode & IterMode.IncludeAnonymous || (!next.type.isAnonymous || hasChild(next))) {
+            let mounted2;
+            if (!(mode & IterMode.IgnoreMounts) && (mounted2 = MountedTree.get(next)) && !mounted2.overlay)
+              return new _TreeNode(mounted2.tree, start, i2, parent);
+            let inner = new _TreeNode(next, start, i2, parent);
+            return mode & IterMode.IncludeAnonymous || !inner.type.isAnonymous ? inner : inner.nextChild(dir < 0 ? next.children.length - 1 : 0, dir, pos, side, mode);
+          }
+        }
+        if (mode & IterMode.IncludeAnonymous || !parent.type.isAnonymous)
+          return null;
+        if (parent.index >= 0)
+          i2 = parent.index + dir;
+        else
+          i2 = dir < 0 ? -1 : parent._parent._tree.children.length;
+        parent = parent._parent;
+        if (!parent)
+          return null;
+      }
+    }
+    get firstChild() {
+      return this.nextChild(
+        0,
+        1,
+        0,
+        4
+        /* Side.DontCare */
+      );
+    }
+    get lastChild() {
+      return this.nextChild(
+        this._tree.children.length - 1,
+        -1,
+        0,
+        4
+        /* Side.DontCare */
+      );
+    }
+    childAfter(pos) {
+      return this.nextChild(
+        0,
+        1,
+        pos,
+        2
+        /* Side.After */
+      );
+    }
+    childBefore(pos) {
+      return this.nextChild(
+        this._tree.children.length - 1,
+        -1,
+        pos,
+        -2
+        /* Side.Before */
+      );
+    }
+    prop(prop) {
+      return this._tree.prop(prop);
+    }
+    enter(pos, side, mode = 0) {
+      let mounted;
+      if (!(mode & IterMode.IgnoreOverlays) && (mounted = MountedTree.get(this._tree)) && mounted.overlay) {
+        let rPos = pos - this.from, enterBracketed = mode & IterMode.EnterBracketed && mounted.bracketed;
+        for (let { from, to } of mounted.overlay) {
+          if ((side > 0 || enterBracketed ? from <= rPos : from < rPos) && (side < 0 || enterBracketed ? to >= rPos : to > rPos))
+            return new _TreeNode(mounted.tree, mounted.overlay[0].from + this.from, -1, this);
+        }
+      }
+      return this.nextChild(0, 1, pos, side, mode);
+    }
+    nextSignificantParent() {
+      let val = this;
+      while (val.type.isAnonymous && val._parent)
+        val = val._parent;
+      return val;
+    }
+    get parent() {
+      return this._parent ? this._parent.nextSignificantParent() : null;
+    }
+    get nextSibling() {
+      return this._parent && this.index >= 0 ? this._parent.nextChild(
+        this.index + 1,
+        1,
+        0,
+        4
+        /* Side.DontCare */
+      ) : null;
+    }
+    get prevSibling() {
+      return this._parent && this.index >= 0 ? this._parent.nextChild(
+        this.index - 1,
+        -1,
+        0,
+        4
+        /* Side.DontCare */
+      ) : null;
+    }
+    get tree() {
+      return this._tree;
+    }
+    toTree() {
+      return this._tree;
+    }
+    /**
+    @internal
+    */
+    toString() {
+      return this._tree.toString();
+    }
+  };
+  function getChildren(node, type, before, after) {
+    let cur2 = node.cursor(), result = [];
+    if (!cur2.firstChild())
+      return result;
+    if (before != null)
+      for (let found = false; !found; ) {
+        found = cur2.type.is(before);
+        if (!cur2.nextSibling())
+          return result;
+      }
+    for (; ; ) {
+      if (after != null && cur2.type.is(after))
+        return result;
+      if (cur2.type.is(type))
+        result.push(cur2.node);
+      if (!cur2.nextSibling())
+        return after == null ? result : [];
+    }
+  }
+  function matchNodeContext(node, context, i2 = context.length - 1) {
+    for (let p = node; i2 >= 0; p = p.parent) {
+      if (!p)
+        return false;
+      if (!p.type.isAnonymous) {
+        if (context[i2] && context[i2] != p.name)
+          return false;
+        i2--;
+      }
+    }
+    return true;
+  }
+  var BufferContext = class {
+    constructor(parent, buffer, index, start) {
+      this.parent = parent;
+      this.buffer = buffer;
+      this.index = index;
+      this.start = start;
+    }
+  };
+  var BufferNode = class _BufferNode extends BaseNode {
+    get name() {
+      return this.type.name;
+    }
+    get from() {
+      return this.context.start + this.context.buffer.buffer[this.index + 1];
+    }
+    get to() {
+      return this.context.start + this.context.buffer.buffer[this.index + 2];
+    }
+    constructor(context, _parent, index) {
+      super();
+      this.context = context;
+      this._parent = _parent;
+      this.index = index;
+      this.type = context.buffer.set.types[context.buffer.buffer[index]];
+    }
+    child(dir, pos, side) {
+      let { buffer } = this.context;
+      let index = buffer.findChild(this.index + 4, buffer.buffer[this.index + 3], dir, pos - this.context.start, side);
+      return index < 0 ? null : new _BufferNode(this.context, this, index);
+    }
+    get firstChild() {
+      return this.child(
+        1,
+        0,
+        4
+        /* Side.DontCare */
+      );
+    }
+    get lastChild() {
+      return this.child(
+        -1,
+        0,
+        4
+        /* Side.DontCare */
+      );
+    }
+    childAfter(pos) {
+      return this.child(
+        1,
+        pos,
+        2
+        /* Side.After */
+      );
+    }
+    childBefore(pos) {
+      return this.child(
+        -1,
+        pos,
+        -2
+        /* Side.Before */
+      );
+    }
+    prop(prop) {
+      return this.type.prop(prop);
+    }
+    enter(pos, side, mode = 0) {
+      if (mode & IterMode.ExcludeBuffers)
+        return null;
+      let { buffer } = this.context;
+      let index = buffer.findChild(this.index + 4, buffer.buffer[this.index + 3], side > 0 ? 1 : -1, pos - this.context.start, side);
+      return index < 0 ? null : new _BufferNode(this.context, this, index);
+    }
+    get parent() {
+      return this._parent || this.context.parent.nextSignificantParent();
+    }
+    externalSibling(dir) {
+      return this._parent ? null : this.context.parent.nextChild(
+        this.context.index + dir,
+        dir,
+        0,
+        4
+        /* Side.DontCare */
+      );
+    }
+    get nextSibling() {
+      let { buffer } = this.context;
+      let after = buffer.buffer[this.index + 3];
+      if (after < (this._parent ? buffer.buffer[this._parent.index + 3] : buffer.buffer.length))
+        return new _BufferNode(this.context, this._parent, after);
+      return this.externalSibling(1);
+    }
+    get prevSibling() {
+      let { buffer } = this.context;
+      let parentStart = this._parent ? this._parent.index + 4 : 0;
+      if (this.index == parentStart)
+        return this.externalSibling(-1);
+      return new _BufferNode(this.context, this._parent, buffer.findChild(
+        parentStart,
+        this.index,
+        -1,
+        0,
+        4
+        /* Side.DontCare */
+      ));
+    }
+    get tree() {
+      return null;
+    }
+    toTree() {
+      let children = [], positions = [];
+      let { buffer } = this.context;
+      let startI = this.index + 4, endI = buffer.buffer[this.index + 3];
+      if (endI > startI) {
+        let from = buffer.buffer[this.index + 1];
+        children.push(buffer.slice(startI, endI, from));
+        positions.push(0);
+      }
+      return new Tree(this.type, children, positions, this.to - this.from);
+    }
+    /**
+    @internal
+    */
+    toString() {
+      return this.context.buffer.childString(this.index);
+    }
+  };
+  function iterStack(heads) {
+    if (!heads.length)
+      return null;
+    let pick = 0, picked = heads[0];
+    for (let i2 = 1; i2 < heads.length; i2++) {
+      let node = heads[i2];
+      if (node.from > picked.from || node.to < picked.to) {
+        picked = node;
+        pick = i2;
+      }
+    }
+    let next = picked instanceof TreeNode && picked.index < 0 ? null : picked.parent;
+    let newHeads = heads.slice();
+    if (next)
+      newHeads[pick] = next;
+    else
+      newHeads.splice(pick, 1);
+    return new StackIterator(newHeads, picked);
+  }
+  var StackIterator = class {
+    constructor(heads, node) {
+      this.heads = heads;
+      this.node = node;
+    }
+    get next() {
+      return iterStack(this.heads);
+    }
+  };
+  function stackIterator(tree, pos, side) {
+    let inner = tree.resolveInner(pos, side), layers = null;
+    for (let scan = inner instanceof TreeNode ? inner : inner.context.parent; scan; scan = scan.parent) {
+      if (scan.index < 0) {
+        let parent = scan.parent;
+        (layers || (layers = [inner])).push(parent.resolve(pos, side));
+        scan = parent;
+      } else {
+        let mount = MountedTree.get(scan.tree);
+        if (mount && mount.overlay && mount.overlay[0].from <= pos && mount.overlay[mount.overlay.length - 1].to >= pos) {
+          let root = new TreeNode(mount.tree, mount.overlay[0].from + scan.from, -1, scan);
+          (layers || (layers = [inner])).push(resolveNode(root, pos, side, false));
+        }
+      }
+    }
+    return layers ? iterStack(layers) : inner;
+  }
+  var TreeCursor = class {
+    /**
+    Shorthand for `.type.name`.
+    */
+    get name() {
+      return this.type.name;
+    }
+    /**
+    @internal
+    */
+    constructor(node, mode = 0) {
+      this.buffer = null;
+      this.stack = [];
+      this.index = 0;
+      this.bufferNode = null;
+      this.mode = mode & ~IterMode.EnterBracketed;
+      if (node instanceof TreeNode) {
+        this.yieldNode(node);
+      } else {
+        this._tree = node.context.parent;
+        this.buffer = node.context;
+        for (let n = node._parent; n; n = n._parent)
+          this.stack.unshift(n.index);
+        this.bufferNode = node;
+        this.yieldBuf(node.index);
+      }
+    }
+    yieldNode(node) {
+      if (!node)
+        return false;
+      this._tree = node;
+      this.type = node.type;
+      this.from = node.from;
+      this.to = node.to;
+      return true;
+    }
+    yieldBuf(index, type) {
+      this.index = index;
+      let { start, buffer } = this.buffer;
+      this.type = type || buffer.set.types[buffer.buffer[index]];
+      this.from = start + buffer.buffer[index + 1];
+      this.to = start + buffer.buffer[index + 2];
+      return true;
+    }
+    /**
+    @internal
+    */
+    yield(node) {
+      if (!node)
+        return false;
+      if (node instanceof TreeNode) {
+        this.buffer = null;
+        return this.yieldNode(node);
+      }
+      this.buffer = node.context;
+      return this.yieldBuf(node.index, node.type);
+    }
+    /**
+    @internal
+    */
+    toString() {
+      return this.buffer ? this.buffer.buffer.childString(this.index) : this._tree.toString();
+    }
+    /**
+    @internal
+    */
+    enterChild(dir, pos, side) {
+      if (!this.buffer)
+        return this.yield(this._tree.nextChild(dir < 0 ? this._tree._tree.children.length - 1 : 0, dir, pos, side, this.mode));
+      let { buffer } = this.buffer;
+      let index = buffer.findChild(this.index + 4, buffer.buffer[this.index + 3], dir, pos - this.buffer.start, side);
+      if (index < 0)
+        return false;
+      this.stack.push(this.index);
+      return this.yieldBuf(index);
+    }
+    /**
+    Move the cursor to this node's first child. When this returns
+    false, the node has no child, and the cursor has not been moved.
+    */
+    firstChild() {
+      return this.enterChild(
+        1,
+        0,
+        4
+        /* Side.DontCare */
+      );
+    }
+    /**
+    Move the cursor to this node's last child.
+    */
+    lastChild() {
+      return this.enterChild(
+        -1,
+        0,
+        4
+        /* Side.DontCare */
+      );
+    }
+    /**
+    Move the cursor to the first child that ends after `pos`.
+    */
+    childAfter(pos) {
+      return this.enterChild(
+        1,
+        pos,
+        2
+        /* Side.After */
+      );
+    }
+    /**
+    Move to the last child that starts before `pos`.
+    */
+    childBefore(pos) {
+      return this.enterChild(
+        -1,
+        pos,
+        -2
+        /* Side.Before */
+      );
+    }
+    /**
+    Move the cursor to the child around `pos`. If side is -1 the
+    child may end at that position, when 1 it may start there. This
+    will also enter [overlaid](#common.MountedTree.overlay)
+    [mounted](#common.NodeProp^mounted) trees unless `overlays` is
+    set to false.
+    */
+    enter(pos, side, mode = this.mode) {
+      if (!this.buffer)
+        return this.yield(this._tree.enter(pos, side, mode));
+      return mode & IterMode.ExcludeBuffers ? false : this.enterChild(1, pos, side);
+    }
+    /**
+    Move to the node's parent node, if this isn't the top node.
+    */
+    parent() {
+      if (!this.buffer)
+        return this.yieldNode(this.mode & IterMode.IncludeAnonymous ? this._tree._parent : this._tree.parent);
+      if (this.stack.length)
+        return this.yieldBuf(this.stack.pop());
+      let parent = this.mode & IterMode.IncludeAnonymous ? this.buffer.parent : this.buffer.parent.nextSignificantParent();
+      this.buffer = null;
+      return this.yieldNode(parent);
+    }
+    /**
+    @internal
+    */
+    sibling(dir) {
+      if (!this.buffer)
+        return !this._tree._parent ? false : this.yield(this._tree.index < 0 ? null : this._tree._parent.nextChild(this._tree.index + dir, dir, 0, 4, this.mode));
+      let { buffer } = this.buffer, d = this.stack.length - 1;
+      if (dir < 0) {
+        let parentStart = d < 0 ? 0 : this.stack[d] + 4;
+        if (this.index != parentStart)
+          return this.yieldBuf(buffer.findChild(
+            parentStart,
+            this.index,
+            -1,
+            0,
+            4
+            /* Side.DontCare */
+          ));
+      } else {
+        let after = buffer.buffer[this.index + 3];
+        if (after < (d < 0 ? buffer.buffer.length : buffer.buffer[this.stack[d] + 3]))
+          return this.yieldBuf(after);
+      }
+      return d < 0 ? this.yield(this.buffer.parent.nextChild(this.buffer.index + dir, dir, 0, 4, this.mode)) : false;
+    }
+    /**
+    Move to this node's next sibling, if any.
+    */
+    nextSibling() {
+      return this.sibling(1);
+    }
+    /**
+    Move to this node's previous sibling, if any.
+    */
+    prevSibling() {
+      return this.sibling(-1);
+    }
+    atLastNode(dir) {
+      let index, parent, { buffer } = this;
+      if (buffer) {
+        if (dir > 0) {
+          if (this.index < buffer.buffer.buffer.length)
+            return false;
+        } else {
+          for (let i2 = 0; i2 < this.index; i2++)
+            if (buffer.buffer.buffer[i2 + 3] < this.index)
+              return false;
+        }
+        ({ index, parent } = buffer);
+      } else {
+        ({ index, _parent: parent } = this._tree);
+      }
+      for (; parent; { index, _parent: parent } = parent) {
+        if (index > -1)
+          for (let i2 = index + dir, e = dir < 0 ? -1 : parent._tree.children.length; i2 != e; i2 += dir) {
+            let child = parent._tree.children[i2];
+            if (this.mode & IterMode.IncludeAnonymous || child instanceof TreeBuffer || !child.type.isAnonymous || hasChild(child))
+              return false;
+          }
+      }
+      return true;
+    }
+    move(dir, enter) {
+      if (enter && this.enterChild(
+        dir,
+        0,
+        4
+        /* Side.DontCare */
+      ))
+        return true;
+      for (; ; ) {
+        if (this.sibling(dir))
+          return true;
+        if (this.atLastNode(dir) || !this.parent())
+          return false;
+      }
+    }
+    /**
+    Move to the next node in a
+    [pre-order](https://en.wikipedia.org/wiki/Tree_traversal#Pre-order,_NLR)
+    traversal, going from a node to its first child or, if the
+    current node is empty or `enter` is false, its next sibling or
+    the next sibling of the first parent node that has one.
+    */
+    next(enter = true) {
+      return this.move(1, enter);
+    }
+    /**
+    Move to the next node in a last-to-first pre-order traversal. A
+    node is followed by its last child or, if it has none, its
+    previous sibling or the previous sibling of the first parent
+    node that has one.
+    */
+    prev(enter = true) {
+      return this.move(-1, enter);
+    }
+    /**
+    Move the cursor to the innermost node that covers `pos`. If
+    `side` is -1, it will enter nodes that end at `pos`. If it is 1,
+    it will enter nodes that start at `pos`.
+    */
+    moveTo(pos, side = 0) {
+      while (this.from == this.to || (side < 1 ? this.from >= pos : this.from > pos) || (side > -1 ? this.to <= pos : this.to < pos))
+        if (!this.parent())
+          break;
+      while (this.enterChild(1, pos, side)) {
+      }
+      return this;
+    }
+    /**
+    Get a [syntax node](#common.SyntaxNode) at the cursor's current
+    position.
+    */
+    get node() {
+      if (!this.buffer)
+        return this._tree;
+      let cache = this.bufferNode, result = null, depth = 0;
+      if (cache && cache.context == this.buffer) {
+        scan: for (let index = this.index, d = this.stack.length; d >= 0; ) {
+          for (let c = cache; c; c = c._parent)
+            if (c.index == index) {
+              if (index == this.index)
+                return c;
+              result = c;
+              depth = d + 1;
+              break scan;
+            }
+          index = this.stack[--d];
+        }
+      }
+      for (let i2 = depth; i2 < this.stack.length; i2++)
+        result = new BufferNode(this.buffer, result, this.stack[i2]);
+      return this.bufferNode = new BufferNode(this.buffer, result, this.index);
+    }
+    /**
+    Get the [tree](#common.Tree) that represents the current node, if
+    any. Will return null when the node is in a [tree
+    buffer](#common.TreeBuffer).
+    */
+    get tree() {
+      return this.buffer ? null : this._tree._tree;
+    }
+    /**
+    Iterate over the current node and all its descendants, calling
+    `enter` when entering a node and `leave`, if given, when leaving
+    one. When `enter` returns `false`, any children of that node are
+    skipped, and `leave` isn't called for it.
+    */
+    iterate(enter, leave) {
+      for (let depth = 0; ; ) {
+        let mustLeave = false;
+        if (this.type.isAnonymous || enter(this) !== false) {
+          if (this.firstChild()) {
+            depth++;
+            continue;
+          }
+          if (!this.type.isAnonymous)
+            mustLeave = true;
+        }
+        for (; ; ) {
+          if (mustLeave && leave)
+            leave(this);
+          mustLeave = this.type.isAnonymous;
+          if (!depth)
+            return;
+          if (this.nextSibling())
+            break;
+          this.parent();
+          depth--;
+          mustLeave = true;
+        }
+      }
+    }
+    /**
+    Test whether the current node matches a given context—a sequence
+    of direct parent node names. Empty strings in the context array
+    are treated as wildcards.
+    */
+    matchContext(context) {
+      if (!this.buffer)
+        return matchNodeContext(this.node.parent, context);
+      let { buffer } = this.buffer, { types: types2 } = buffer.set;
+      for (let i2 = context.length - 1, d = this.stack.length - 1; i2 >= 0; d--) {
+        if (d < 0)
+          return matchNodeContext(this._tree, context, i2);
+        let type = types2[buffer.buffer[this.stack[d]]];
+        if (!type.isAnonymous) {
+          if (context[i2] && context[i2] != type.name)
+            return false;
+          i2--;
+        }
+      }
+      return true;
+    }
+  };
+  function hasChild(tree) {
+    return tree.children.some((ch) => ch instanceof TreeBuffer || !ch.type.isAnonymous || hasChild(ch));
+  }
+  function buildTree(data) {
+    var _a2;
+    let { buffer, nodeSet: nodeSet2, maxBufferLength = DefaultBufferLength, reused = [], minRepeatType = nodeSet2.types.length } = data;
+    let cursor = Array.isArray(buffer) ? new FlatBufferCursor(buffer, buffer.length) : buffer;
+    let types2 = nodeSet2.types;
+    let contextHash = 0, lookAhead = 0;
+    function takeNode(parentStart, minPos, children2, positions2, inRepeat, depth) {
+      let { id, start, end, size } = cursor;
+      let lookAheadAtStart = lookAhead, contextAtStart = contextHash;
+      if (size < 0) {
+        cursor.next();
+        if (size == -1) {
+          let node2 = reused[id];
+          children2.push(node2);
+          positions2.push(start - parentStart);
+          return;
+        } else if (size == -3) {
+          contextHash = id;
+          return;
+        } else if (size == -4) {
+          lookAhead = id;
+          return;
+        } else {
+          throw new RangeError(`Unrecognized record size: ${size}`);
+        }
+      }
+      let type = types2[id], node, buffer2;
+      let startPos = start - parentStart;
+      if (end - start <= maxBufferLength && (buffer2 = findBufferSize(cursor.pos - minPos, inRepeat))) {
+        let data2 = new Uint16Array(buffer2.size - buffer2.skip);
+        let endPos = cursor.pos - buffer2.size, index = data2.length;
+        while (cursor.pos > endPos)
+          index = copyToBuffer(buffer2.start, data2, index);
+        node = new TreeBuffer(data2, end - buffer2.start, nodeSet2);
+        startPos = buffer2.start - parentStart;
+      } else {
+        let endPos = cursor.pos - size;
+        cursor.next();
+        let localChildren = [], localPositions = [];
+        let localInRepeat = id >= minRepeatType ? id : -1;
+        let lastGroup = 0, lastEnd = end;
+        while (cursor.pos > endPos) {
+          if (localInRepeat >= 0 && cursor.id == localInRepeat && cursor.size >= 0) {
+            if (cursor.end <= lastEnd - maxBufferLength) {
+              makeRepeatLeaf(localChildren, localPositions, start, lastGroup, cursor.end, lastEnd, localInRepeat, lookAheadAtStart, contextAtStart);
+              lastGroup = localChildren.length;
+              lastEnd = cursor.end;
+            }
+            cursor.next();
+          } else if (depth > 2500) {
+            takeFlatNode(start, endPos, localChildren, localPositions);
+          } else {
+            takeNode(start, endPos, localChildren, localPositions, localInRepeat, depth + 1);
+          }
+        }
+        if (localInRepeat >= 0 && lastGroup > 0 && lastGroup < localChildren.length)
+          makeRepeatLeaf(localChildren, localPositions, start, lastGroup, start, lastEnd, localInRepeat, lookAheadAtStart, contextAtStart);
+        localChildren.reverse();
+        localPositions.reverse();
+        if (localInRepeat > -1 && lastGroup > 0) {
+          let make = makeBalanced(type, contextAtStart);
+          node = balanceRange(type, localChildren, localPositions, 0, localChildren.length, 0, end - start, make, make);
+        } else {
+          node = makeTree(type, localChildren, localPositions, end - start, lookAheadAtStart - end, contextAtStart);
+        }
+      }
+      children2.push(node);
+      positions2.push(startPos);
+    }
+    function takeFlatNode(parentStart, minPos, children2, positions2) {
+      let nodes = [];
+      let nodeCount = 0, stopAt = -1;
+      while (cursor.pos > minPos) {
+        let { id, start, end, size } = cursor;
+        if (size > 4) {
+          cursor.next();
+        } else if (stopAt > -1 && start < stopAt) {
+          break;
+        } else {
+          if (stopAt < 0)
+            stopAt = end - maxBufferLength;
+          nodes.push(id, start, end);
+          nodeCount++;
+          cursor.next();
+        }
+      }
+      if (nodeCount) {
+        let buffer2 = new Uint16Array(nodeCount * 4);
+        let start = nodes[nodes.length - 2];
+        for (let i2 = nodes.length - 3, j = 0; i2 >= 0; i2 -= 3) {
+          buffer2[j++] = nodes[i2];
+          buffer2[j++] = nodes[i2 + 1] - start;
+          buffer2[j++] = nodes[i2 + 2] - start;
+          buffer2[j++] = j;
+        }
+        children2.push(new TreeBuffer(buffer2, nodes[2] - start, nodeSet2));
+        positions2.push(start - parentStart);
+      }
+    }
+    function makeBalanced(type, contextHash2) {
+      return (children2, positions2, length2) => {
+        let lookAhead2 = 0, lastI = children2.length - 1, last, lookAheadProp;
+        if (lastI >= 0 && (last = children2[lastI]) instanceof Tree) {
+          if (!lastI && last.type == type && last.length == length2)
+            return last;
+          if (lookAheadProp = last.prop(NodeProp.lookAhead))
+            lookAhead2 = positions2[lastI] + last.length + lookAheadProp;
+        }
+        return makeTree(type, children2, positions2, length2, lookAhead2, contextHash2);
+      };
+    }
+    function makeRepeatLeaf(children2, positions2, base2, i2, from, to, type, lookAhead2, contextHash2) {
+      let localChildren = [], localPositions = [];
+      while (children2.length > i2) {
+        localChildren.push(children2.pop());
+        localPositions.push(positions2.pop() + base2 - from);
+      }
+      children2.push(makeTree(nodeSet2.types[type], localChildren, localPositions, to - from, lookAhead2 - to, contextHash2));
+      positions2.push(from - base2);
+    }
+    function makeTree(type, children2, positions2, length2, lookAhead2, contextHash2, props) {
+      if (contextHash2) {
+        let pair = [NodeProp.contextHash, contextHash2];
+        props = props ? [pair].concat(props) : [pair];
+      }
+      if (lookAhead2 > 25) {
+        let pair = [NodeProp.lookAhead, lookAhead2];
+        props = props ? [pair].concat(props) : [pair];
+      }
+      return new Tree(type, children2, positions2, length2, props);
+    }
+    function findBufferSize(maxSize, inRepeat) {
+      let fork = cursor.fork();
+      let size = 0, start = 0, skip = 0, minStart = fork.end - maxBufferLength;
+      let result = { size: 0, start: 0, skip: 0 };
+      scan: for (let minPos = fork.pos - maxSize; fork.pos > minPos; ) {
+        let nodeSize2 = fork.size;
+        if (fork.id == inRepeat && nodeSize2 >= 0) {
+          result.size = size;
+          result.start = start;
+          result.skip = skip;
+          skip += 4;
+          size += 4;
+          fork.next();
+          continue;
+        }
+        let startPos = fork.pos - nodeSize2;
+        if (nodeSize2 < 0 || startPos < minPos || fork.start < minStart)
+          break;
+        let localSkipped = fork.id >= minRepeatType ? 4 : 0;
+        let nodeStart = fork.start;
+        fork.next();
+        while (fork.pos > startPos) {
+          if (fork.size < 0) {
+            if (fork.size == -3 || fork.size == -4)
+              localSkipped += 4;
+            else
+              break scan;
+          } else if (fork.id >= minRepeatType) {
+            localSkipped += 4;
+          }
+          fork.next();
+        }
+        start = nodeStart;
+        size += nodeSize2;
+        skip += localSkipped;
+      }
+      if (inRepeat < 0 || size == maxSize) {
+        result.size = size;
+        result.start = start;
+        result.skip = skip;
+      }
+      return result.size > 4 ? result : void 0;
+    }
+    function copyToBuffer(bufferStart, buffer2, index) {
+      let { id, start, end, size } = cursor;
+      cursor.next();
+      if (size >= 0 && id < minRepeatType) {
+        let startIndex = index;
+        if (size > 4) {
+          let endPos = cursor.pos - (size - 4);
+          while (cursor.pos > endPos)
+            index = copyToBuffer(bufferStart, buffer2, index);
+        }
+        buffer2[--index] = startIndex;
+        buffer2[--index] = end - bufferStart;
+        buffer2[--index] = start - bufferStart;
+        buffer2[--index] = id;
+      } else if (size == -3) {
+        contextHash = id;
+      } else if (size == -4) {
+        lookAhead = id;
+      }
+      return index;
+    }
+    let children = [], positions = [];
+    while (cursor.pos > 0)
+      takeNode(data.start || 0, data.bufferStart || 0, children, positions, -1, 0);
+    let length = (_a2 = data.length) !== null && _a2 !== void 0 ? _a2 : children.length ? positions[0] + children[0].length : 0;
+    return new Tree(types2[data.topID], children.reverse(), positions.reverse(), length);
+  }
+  var nodeSizeCache = /* @__PURE__ */ new WeakMap();
+  function nodeSize(balanceType, node) {
+    if (!balanceType.isAnonymous || node instanceof TreeBuffer || node.type != balanceType)
+      return 1;
+    let size = nodeSizeCache.get(node);
+    if (size == null) {
+      size = 1;
+      for (let child of node.children) {
+        if (child.type != balanceType || !(child instanceof Tree)) {
+          size = 1;
+          break;
+        }
+        size += nodeSize(balanceType, child);
+      }
+      nodeSizeCache.set(node, size);
+    }
+    return size;
+  }
+  function balanceRange(balanceType, children, positions, from, to, start, length, mkTop, mkTree) {
+    let total = 0;
+    for (let i2 = from; i2 < to; i2++)
+      total += nodeSize(balanceType, children[i2]);
+    let maxChild = Math.ceil(
+      total * 1.5 / 8
+      /* Balance.BranchFactor */
+    );
+    let localChildren = [], localPositions = [];
+    function divide(children2, positions2, from2, to2, offset) {
+      for (let i2 = from2; i2 < to2; ) {
+        let groupFrom = i2, groupStart = positions2[i2], groupSize = nodeSize(balanceType, children2[i2]);
+        i2++;
+        for (; i2 < to2; i2++) {
+          let nextSize = nodeSize(balanceType, children2[i2]);
+          if (groupSize + nextSize >= maxChild)
+            break;
+          groupSize += nextSize;
+        }
+        if (i2 == groupFrom + 1) {
+          if (groupSize > maxChild) {
+            let only = children2[groupFrom];
+            divide(only.children, only.positions, 0, only.children.length, positions2[groupFrom] + offset);
+            continue;
+          }
+          localChildren.push(children2[groupFrom]);
+        } else {
+          let length2 = positions2[i2 - 1] + children2[i2 - 1].length - groupStart;
+          localChildren.push(balanceRange(balanceType, children2, positions2, groupFrom, i2, groupStart, length2, null, mkTree));
+        }
+        localPositions.push(groupStart + offset - start);
+      }
+    }
+    divide(children, positions, from, to, 0);
+    return (mkTop || mkTree)(localChildren, localPositions, length);
+  }
+  var TreeFragment = class _TreeFragment {
+    /**
+    Construct a tree fragment. You'll usually want to use
+    [`addTree`](#common.TreeFragment^addTree) and
+    [`applyChanges`](#common.TreeFragment^applyChanges) instead of
+    calling this directly.
+    */
+    constructor(from, to, tree, offset, openStart = false, openEnd = false) {
+      this.from = from;
+      this.to = to;
+      this.tree = tree;
+      this.offset = offset;
+      this.open = (openStart ? 1 : 0) | (openEnd ? 2 : 0);
+    }
+    /**
+    Whether the start of the fragment represents the start of a
+    parse, or the end of a change. (In the second case, it may not
+    be safe to reuse some nodes at the start, depending on the
+    parsing algorithm.)
+    */
+    get openStart() {
+      return (this.open & 1) > 0;
+    }
+    /**
+    Whether the end of the fragment represents the end of a
+    full-document parse, or the start of a change.
+    */
+    get openEnd() {
+      return (this.open & 2) > 0;
+    }
+    /**
+    Create a set of fragments from a freshly parsed tree, or update
+    an existing set of fragments by replacing the ones that overlap
+    with a tree with content from the new tree. When `partial` is
+    true, the parse is treated as incomplete, and the resulting
+    fragment has [`openEnd`](#common.TreeFragment.openEnd) set to
+    true.
+    */
+    static addTree(tree, fragments = [], partial = false) {
+      let result = [new _TreeFragment(0, tree.length, tree, 0, false, partial)];
+      for (let f of fragments)
+        if (f.to > tree.length)
+          result.push(f);
+      return result;
+    }
+    /**
+    Apply a set of edits to an array of fragments, removing or
+    splitting fragments as necessary to remove edited ranges, and
+    adjusting offsets for fragments that moved.
+    */
+    static applyChanges(fragments, changes, minGap = 128) {
+      if (!changes.length)
+        return fragments;
+      let result = [];
+      let fI = 1, nextF = fragments.length ? fragments[0] : null;
+      for (let cI = 0, pos = 0, off = 0; ; cI++) {
+        let nextC = cI < changes.length ? changes[cI] : null;
+        let nextPos = nextC ? nextC.fromA : 1e9;
+        if (nextPos - pos >= minGap)
+          while (nextF && nextF.from < nextPos) {
+            let cut = nextF;
+            if (pos >= cut.from || nextPos <= cut.to || off) {
+              let fFrom = Math.max(cut.from, pos) - off, fTo = Math.min(cut.to, nextPos) - off;
+              cut = fFrom >= fTo ? null : new _TreeFragment(fFrom, fTo, cut.tree, cut.offset + off, cI > 0, !!nextC);
+            }
+            if (cut)
+              result.push(cut);
+            if (nextF.to > nextPos)
+              break;
+            nextF = fI < fragments.length ? fragments[fI++] : null;
+          }
+        if (!nextC)
+          break;
+        pos = nextC.toA;
+        off = nextC.toA - nextC.toB;
+      }
+      return result;
+    }
+  };
+  var Parser = class {
+    /**
+    Start a parse, returning a [partial parse](#common.PartialParse)
+    object. [`fragments`](#common.TreeFragment) can be passed in to
+    make the parse incremental.
+
+    By default, the entire input is parsed. You can pass `ranges`,
+    which should be a sorted array of non-empty, non-overlapping
+    ranges, to parse only those ranges. The tree returned in that
+    case will start at `ranges[0].from`.
+    */
+    startParse(input, fragments, ranges) {
+      if (typeof input == "string")
+        input = new StringInput(input);
+      ranges = !ranges ? [new Range2(0, input.length)] : ranges.length ? ranges.map((r) => new Range2(r.from, r.to)) : [new Range2(0, 0)];
+      return this.createParse(input, fragments || [], ranges);
+    }
+    /**
+    Run a full parse, returning the resulting tree.
+    */
+    parse(input, fragments, ranges) {
+      let parse = this.startParse(input, fragments, ranges);
+      for (; ; ) {
+        let done = parse.advance();
+        if (done)
+          return done;
+      }
+    }
+  };
+  var StringInput = class {
+    constructor(string2) {
+      this.string = string2;
+    }
+    get length() {
+      return this.string.length;
+    }
+    chunk(from) {
+      return this.string.slice(from);
+    }
+    get lineChunks() {
+      return false;
+    }
+    read(from, to) {
+      return this.string.slice(from, to);
+    }
+  };
+  var stoppedInner = new NodeProp({ perNode: true });
 
   // node_modules/@lezer/highlight/dist/index.js
   var nextTagID = 0;
@@ -13648,7 +14212,7 @@
   }
   var ruleNodeProp = new NodeProp({
     combine(a, b) {
-      let cur, root, take;
+      let cur2, root, take;
       while (a || b) {
         if (!a || b && a.depth >= b.depth) {
           take = b;
@@ -13657,14 +14221,14 @@
           take = a;
           a = a.next;
         }
-        if (cur && cur.mode == take.mode && !take.context && !cur.context)
+        if (cur2 && cur2.mode == take.mode && !take.context && !cur2.context)
           continue;
         let copy = new Rule(take.tags, take.mode, take.context);
-        if (cur)
-          cur.next = copy;
+        if (cur2)
+          cur2.next = copy;
         else
           root = copy;
-        cur = copy;
+        cur2 = copy;
       }
       return root;
     }
@@ -15333,6 +15897,1450 @@
     auto: /* @__PURE__ */ Decoration.mark({ class: "cm-iso", inclusive: true, attributes: { dir: "auto" }, bidiIsolate: null })
   };
 
+  // node_modules/@codemirror/autocomplete/dist/index.js
+  var CompletionContext = class {
+    /**
+    Create a new completion context. (Mostly useful for testing
+    completion sources—in the editor, the extension will create
+    these for you.)
+    */
+    constructor(state, pos, explicit, view) {
+      this.state = state;
+      this.pos = pos;
+      this.explicit = explicit;
+      this.view = view;
+      this.abortListeners = [];
+      this.abortOnDocChange = false;
+    }
+    /**
+    Get the extent, content, and (if there is a token) type of the
+    token before `this.pos`.
+    */
+    tokenBefore(types2) {
+      let token = syntaxTree(this.state).resolveInner(this.pos, -1);
+      while (token && types2.indexOf(token.name) < 0)
+        token = token.parent;
+      return token ? {
+        from: token.from,
+        to: this.pos,
+        text: this.state.sliceDoc(token.from, this.pos),
+        type: token.type
+      } : null;
+    }
+    /**
+    Get the match of the given expression directly before the
+    cursor.
+    */
+    matchBefore(expr) {
+      let line = this.state.doc.lineAt(this.pos);
+      let start = Math.max(line.from, this.pos - 250);
+      let str = line.text.slice(start - line.from, this.pos - line.from);
+      let found = str.search(ensureAnchor(expr, false));
+      return found < 0 ? null : { from: start + found, to: this.pos, text: str.slice(found) };
+    }
+    /**
+    Yields true when the query has been aborted. Can be useful in
+    asynchronous queries to avoid doing work that will be ignored.
+    */
+    get aborted() {
+      return this.abortListeners == null;
+    }
+    /**
+    Allows you to register abort handlers, which will be called when
+    the query is
+    [aborted](https://codemirror.net/6/docs/ref/#autocomplete.CompletionContext.aborted).
+
+    By default, running queries will not be aborted for regular
+    typing or backspacing, on the assumption that they are likely to
+    return a result with a
+    [`validFor`](https://codemirror.net/6/docs/ref/#autocomplete.CompletionResult.validFor) field that
+    allows the result to be used after all. Passing `onDocChange:
+    true` will cause this query to be aborted for any document
+    change.
+    */
+    addEventListener(type, listener, options) {
+      if (type == "abort" && this.abortListeners) {
+        this.abortListeners.push(listener);
+        if (options && options.onDocChange)
+          this.abortOnDocChange = true;
+      }
+    }
+  };
+  function toSet(chars) {
+    let flat = Object.keys(chars).join("");
+    let words = /\w/.test(flat);
+    if (words)
+      flat = flat.replace(/\w/g, "");
+    return `[${words ? "\\w" : ""}${flat.replace(/[^\w\s]/g, "\\$&")}]`;
+  }
+  function prefixMatch(options) {
+    let first = /* @__PURE__ */ Object.create(null), rest = /* @__PURE__ */ Object.create(null);
+    for (let { label } of options) {
+      first[label[0]] = true;
+      for (let i2 = 1; i2 < label.length; i2++)
+        rest[label[i2]] = true;
+    }
+    let source = toSet(first) + toSet(rest) + "*$";
+    return [new RegExp("^" + source), new RegExp(source)];
+  }
+  function completeFromList(list) {
+    let options = list.map((o) => typeof o == "string" ? { label: o } : o);
+    let [validFor, match] = options.every((o) => /^\w+$/.test(o.label)) ? [/\w*$/, /\w+$/] : prefixMatch(options);
+    return (context) => {
+      let token = context.matchBefore(match);
+      return token || context.explicit ? { from: token ? token.from : context.pos, options, validFor } : null;
+    };
+  }
+  var Option = class {
+    constructor(completion, source, match, score2) {
+      this.completion = completion;
+      this.source = source;
+      this.match = match;
+      this.score = score2;
+    }
+  };
+  function cur(state) {
+    return state.selection.main.from;
+  }
+  function ensureAnchor(expr, start) {
+    var _a2;
+    let { source } = expr;
+    let addStart = start && source[0] != "^", addEnd = source[source.length - 1] != "$";
+    if (!addStart && !addEnd)
+      return expr;
+    return new RegExp(`${addStart ? "^" : ""}(?:${source})${addEnd ? "$" : ""}`, (_a2 = expr.flags) !== null && _a2 !== void 0 ? _a2 : expr.ignoreCase ? "i" : "");
+  }
+  var pickedCompletion = /* @__PURE__ */ Annotation.define();
+  function insertCompletionText(state, text, from, to) {
+    let { main } = state.selection, fromOff = from - main.from, toOff = to - main.from;
+    return {
+      ...state.changeByRange((range) => {
+        if (range != main && from != to && state.sliceDoc(range.from + fromOff, range.from + toOff) != state.sliceDoc(from, to))
+          return { range };
+        let lines = state.toText(text);
+        return {
+          changes: { from: range.from + fromOff, to: to == main.from ? range.to : range.from + toOff, insert: lines },
+          range: EditorSelection.cursor(range.from + fromOff + lines.length)
+        };
+      }),
+      scrollIntoView: true,
+      userEvent: "input.complete"
+    };
+  }
+  var SourceCache = /* @__PURE__ */ new WeakMap();
+  function asSource(source) {
+    if (!Array.isArray(source))
+      return source;
+    let known = SourceCache.get(source);
+    if (!known)
+      SourceCache.set(source, known = completeFromList(source));
+    return known;
+  }
+  var startCompletionEffect = /* @__PURE__ */ StateEffect.define();
+  var closeCompletionEffect = /* @__PURE__ */ StateEffect.define();
+  var FuzzyMatcher = class {
+    constructor(pattern) {
+      this.pattern = pattern;
+      this.chars = [];
+      this.folded = [];
+      this.any = [];
+      this.precise = [];
+      this.byWord = [];
+      this.score = 0;
+      this.matched = [];
+      for (let p = 0; p < pattern.length; ) {
+        let char = codePointAt2(pattern, p), size = codePointSize2(char);
+        this.chars.push(char);
+        let part = pattern.slice(p, p + size), upper = part.toUpperCase();
+        this.folded.push(codePointAt2(upper == part ? part.toLowerCase() : upper, 0));
+        p += size;
+      }
+      this.astral = pattern.length != this.chars.length;
+    }
+    ret(score2, matched) {
+      this.score = score2;
+      this.matched = matched;
+      return this;
+    }
+    // Matches a given word (completion) against the pattern (input).
+    // Will return a boolean indicating whether there was a match and,
+    // on success, set `this.score` to the score, `this.matched` to an
+    // array of `from, to` pairs indicating the matched parts of `word`.
+    //
+    // The score is a number that is more negative the worse the match
+    // is. See `Penalty` above.
+    match(word) {
+      if (this.pattern.length == 0)
+        return this.ret(-100, []);
+      if (word.length < this.pattern.length)
+        return null;
+      let { chars, folded, any, precise, byWord } = this;
+      if (chars.length == 1) {
+        let first = codePointAt2(word, 0), firstSize = codePointSize2(first);
+        let score2 = firstSize == word.length ? 0 : -100;
+        if (first == chars[0]) ;
+        else if (first == folded[0])
+          score2 += -200;
+        else
+          return null;
+        return this.ret(score2, [0, firstSize]);
+      }
+      let direct = word.indexOf(this.pattern);
+      if (direct == 0)
+        return this.ret(word.length == this.pattern.length ? 0 : -100, [0, this.pattern.length]);
+      let len = chars.length, anyTo = 0;
+      if (direct < 0) {
+        for (let i2 = 0, e = Math.min(word.length, 200); i2 < e && anyTo < len; ) {
+          let next = codePointAt2(word, i2);
+          if (next == chars[anyTo] || next == folded[anyTo])
+            any[anyTo++] = i2;
+          i2 += codePointSize2(next);
+        }
+        if (anyTo < len)
+          return null;
+      }
+      let preciseTo = 0;
+      let byWordTo = 0, byWordFolded = false;
+      let adjacentTo = 0, adjacentStart = -1, adjacentEnd = -1;
+      let hasLower = /[a-z]/.test(word), wordAdjacent = true;
+      for (let i2 = 0, e = Math.min(word.length, 200), prevType = 0; i2 < e && byWordTo < len; ) {
+        let next = codePointAt2(word, i2);
+        if (direct < 0) {
+          if (preciseTo < len && next == chars[preciseTo])
+            precise[preciseTo++] = i2;
+          if (adjacentTo < len) {
+            if (next == chars[adjacentTo] || next == folded[adjacentTo]) {
+              if (adjacentTo == 0)
+                adjacentStart = i2;
+              adjacentEnd = i2 + 1;
+              adjacentTo++;
+            } else {
+              adjacentTo = 0;
+            }
+          }
+        }
+        let ch, type = next < 255 ? next >= 48 && next <= 57 || next >= 97 && next <= 122 ? 2 : next >= 65 && next <= 90 ? 1 : 0 : (ch = fromCodePoint(next)) != ch.toLowerCase() ? 1 : ch != ch.toUpperCase() ? 2 : 0;
+        if (!i2 || type == 1 && hasLower || prevType == 0 && type != 0) {
+          if (chars[byWordTo] == next || folded[byWordTo] == next && (byWordFolded = true))
+            byWord[byWordTo++] = i2;
+          else if (byWord.length)
+            wordAdjacent = false;
+        }
+        prevType = type;
+        i2 += codePointSize2(next);
+      }
+      if (byWordTo == len && byWord[0] == 0 && wordAdjacent)
+        return this.result(-100 + (byWordFolded ? -200 : 0), byWord, word);
+      if (adjacentTo == len && adjacentStart == 0)
+        return this.ret(-200 - word.length + (adjacentEnd == word.length ? 0 : -100), [0, adjacentEnd]);
+      if (direct > -1)
+        return this.ret(-700 - word.length, [direct, direct + this.pattern.length]);
+      if (adjacentTo == len)
+        return this.ret(-200 + -700 - word.length, [adjacentStart, adjacentEnd]);
+      if (byWordTo == len)
+        return this.result(-100 + (byWordFolded ? -200 : 0) + -700 + (wordAdjacent ? 0 : -1100), byWord, word);
+      return chars.length == 2 ? null : this.result((any[0] ? -700 : 0) + -200 + -1100, any, word);
+    }
+    result(score2, positions, word) {
+      let result = [], i2 = 0;
+      for (let pos of positions) {
+        let to = pos + (this.astral ? codePointSize2(codePointAt2(word, pos)) : 1);
+        if (i2 && result[i2 - 1] == pos)
+          result[i2 - 1] = to;
+        else {
+          result[i2++] = pos;
+          result[i2++] = to;
+        }
+      }
+      return this.ret(score2 - word.length, result);
+    }
+  };
+  var StrictMatcher = class {
+    constructor(pattern) {
+      this.pattern = pattern;
+      this.matched = [];
+      this.score = 0;
+      this.folded = pattern.toLowerCase();
+    }
+    match(word) {
+      if (word.length < this.pattern.length)
+        return null;
+      let start = word.slice(0, this.pattern.length);
+      let match = start == this.pattern ? 0 : start.toLowerCase() == this.folded ? -200 : null;
+      if (match == null)
+        return null;
+      this.matched = [0, start.length];
+      this.score = match + (word.length == this.pattern.length ? 0 : -100);
+      return this;
+    }
+  };
+  var completionConfig = /* @__PURE__ */ Facet.define({
+    combine(configs) {
+      return combineConfig(configs, {
+        activateOnTyping: true,
+        activateOnCompletion: () => false,
+        activateOnTypingDelay: 100,
+        selectOnOpen: true,
+        override: null,
+        closeOnBlur: true,
+        maxRenderedOptions: 100,
+        defaultKeymap: true,
+        tooltipClass: () => "",
+        optionClass: () => "",
+        aboveCursor: false,
+        icons: true,
+        addToOptions: [],
+        positionInfo: defaultPositionInfo,
+        filterStrict: false,
+        compareCompletions: (a, b) => (a.sortText || a.label).localeCompare(b.sortText || b.label),
+        interactionDelay: 75,
+        updateSyncTime: 100
+      }, {
+        defaultKeymap: (a, b) => a && b,
+        closeOnBlur: (a, b) => a && b,
+        icons: (a, b) => a && b,
+        tooltipClass: (a, b) => (c) => joinClass(a(c), b(c)),
+        optionClass: (a, b) => (c) => joinClass(a(c), b(c)),
+        addToOptions: (a, b) => a.concat(b),
+        filterStrict: (a, b) => a || b
+      });
+    }
+  });
+  function joinClass(a, b) {
+    return a ? b ? a + " " + b : a : b;
+  }
+  function defaultPositionInfo(view, list, option, info, space, tooltip) {
+    let rtl = view.textDirection == Direction.RTL, left = rtl, narrow = false;
+    let side = "top", offset, maxWidth;
+    let spaceLeft = list.left - space.left, spaceRight = space.right - list.right;
+    let infoWidth = info.right - info.left, infoHeight = info.bottom - info.top;
+    if (left && spaceLeft < Math.min(infoWidth, spaceRight))
+      left = false;
+    else if (!left && spaceRight < Math.min(infoWidth, spaceLeft))
+      left = true;
+    if (infoWidth <= (left ? spaceLeft : spaceRight)) {
+      offset = Math.max(space.top, Math.min(option.top, space.bottom - infoHeight)) - list.top;
+      maxWidth = Math.min(400, left ? spaceLeft : spaceRight);
+    } else {
+      narrow = true;
+      maxWidth = Math.min(
+        400,
+        (rtl ? list.right : space.right - list.left) - 30
+        /* Info.Margin */
+      );
+      let spaceBelow = space.bottom - list.bottom;
+      if (spaceBelow >= infoHeight || spaceBelow > list.top) {
+        offset = option.bottom - list.top;
+      } else {
+        side = "bottom";
+        offset = list.bottom - option.top;
+      }
+    }
+    let scaleY = (list.bottom - list.top) / tooltip.offsetHeight;
+    let scaleX = (list.right - list.left) / tooltip.offsetWidth;
+    return {
+      style: `${side}: ${offset / scaleY}px; max-width: ${maxWidth / scaleX}px`,
+      class: "cm-completionInfo-" + (narrow ? rtl ? "left-narrow" : "right-narrow" : left ? "left" : "right")
+    };
+  }
+  var setSelectedEffect = /* @__PURE__ */ StateEffect.define();
+  function optionContent(config) {
+    let content2 = config.addToOptions.slice();
+    if (config.icons)
+      content2.push({
+        render(completion) {
+          let icon = document.createElement("div");
+          icon.classList.add("cm-completionIcon");
+          if (completion.type)
+            icon.classList.add(...completion.type.split(/\s+/g).map((cls) => "cm-completionIcon-" + cls));
+          icon.setAttribute("aria-hidden", "true");
+          return icon;
+        },
+        position: 20
+      });
+    content2.push({
+      render(completion, _s, _v, match) {
+        let labelElt = document.createElement("span");
+        labelElt.className = "cm-completionLabel";
+        let label = completion.displayLabel || completion.label, off = 0;
+        for (let j = 0; j < match.length; ) {
+          let from = match[j++], to = match[j++];
+          if (from > off)
+            labelElt.appendChild(document.createTextNode(label.slice(off, from)));
+          let span = labelElt.appendChild(document.createElement("span"));
+          span.appendChild(document.createTextNode(label.slice(from, to)));
+          span.className = "cm-completionMatchedText";
+          off = to;
+        }
+        if (off < label.length)
+          labelElt.appendChild(document.createTextNode(label.slice(off)));
+        return labelElt;
+      },
+      position: 50
+    }, {
+      render(completion) {
+        if (!completion.detail)
+          return null;
+        let detailElt = document.createElement("span");
+        detailElt.className = "cm-completionDetail";
+        detailElt.textContent = completion.detail;
+        return detailElt;
+      },
+      position: 80
+    });
+    return content2.sort((a, b) => a.position - b.position).map((a) => a.render);
+  }
+  function rangeAroundSelected(total, selected, max) {
+    if (total <= max)
+      return { from: 0, to: total };
+    if (selected < 0)
+      selected = 0;
+    if (selected <= total >> 1) {
+      let off2 = Math.floor(selected / max);
+      return { from: off2 * max, to: (off2 + 1) * max };
+    }
+    let off = Math.ceil((total - selected) / max);
+    return { from: total - off * max, to: total - (off - 1) * max };
+  }
+  var CompletionTooltip = class {
+    constructor(view, stateField, applyCompletion2) {
+      this.view = view;
+      this.stateField = stateField;
+      this.applyCompletion = applyCompletion2;
+      this.info = null;
+      this.infoDestroy = null;
+      this.placeInfoReq = {
+        read: () => this.measureInfo(),
+        write: (pos) => this.placeInfo(pos),
+        key: this
+      };
+      this.space = null;
+      this.currentClass = "";
+      let cState = view.state.field(stateField);
+      let { options, selected } = cState.open;
+      let config = view.state.facet(completionConfig);
+      this.optionContent = optionContent(config);
+      this.optionClass = config.optionClass;
+      this.tooltipClass = config.tooltipClass;
+      this.range = rangeAroundSelected(options.length, selected, config.maxRenderedOptions);
+      this.dom = document.createElement("div");
+      this.dom.className = "cm-tooltip-autocomplete";
+      this.updateTooltipClass(view.state);
+      this.dom.addEventListener("mousedown", (e) => {
+        let { options: options2 } = view.state.field(stateField).open;
+        for (let dom = e.target, match; dom && dom != this.dom; dom = dom.parentNode) {
+          if (dom.nodeName == "LI" && (match = /-(\d+)$/.exec(dom.id)) && +match[1] < options2.length) {
+            this.applyCompletion(view, options2[+match[1]]);
+            e.preventDefault();
+            return;
+          }
+        }
+        if (e.target == this.list) {
+          let move = this.list.classList.contains("cm-completionListIncompleteTop") && e.clientY < this.list.firstChild.getBoundingClientRect().top ? this.range.from - 1 : this.list.classList.contains("cm-completionListIncompleteBottom") && e.clientY > this.list.lastChild.getBoundingClientRect().bottom ? this.range.to : null;
+          if (move != null) {
+            view.dispatch({ effects: setSelectedEffect.of(move) });
+            e.preventDefault();
+          }
+        }
+      });
+      this.dom.addEventListener("focusout", (e) => {
+        let state = view.state.field(this.stateField, false);
+        if (state && state.tooltip && view.state.facet(completionConfig).closeOnBlur && e.relatedTarget != view.contentDOM)
+          view.dispatch({ effects: closeCompletionEffect.of(null) });
+      });
+      this.showOptions(options, cState.id);
+    }
+    mount() {
+      this.updateSel();
+    }
+    showOptions(options, id) {
+      if (this.list)
+        this.list.remove();
+      this.list = this.dom.appendChild(this.createListBox(options, id, this.range));
+      this.list.addEventListener("scroll", () => {
+        if (this.info)
+          this.view.requestMeasure(this.placeInfoReq);
+      });
+    }
+    update(update) {
+      var _a2;
+      let cState = update.state.field(this.stateField);
+      let prevState = update.startState.field(this.stateField);
+      this.updateTooltipClass(update.state);
+      if (cState != prevState) {
+        let { options, selected, disabled } = cState.open;
+        if (!prevState.open || prevState.open.options != options) {
+          this.range = rangeAroundSelected(options.length, selected, update.state.facet(completionConfig).maxRenderedOptions);
+          this.showOptions(options, cState.id);
+        }
+        this.updateSel();
+        if (disabled != ((_a2 = prevState.open) === null || _a2 === void 0 ? void 0 : _a2.disabled))
+          this.dom.classList.toggle("cm-tooltip-autocomplete-disabled", !!disabled);
+      }
+    }
+    updateTooltipClass(state) {
+      let cls = this.tooltipClass(state);
+      if (cls != this.currentClass) {
+        for (let c of this.currentClass.split(" "))
+          if (c)
+            this.dom.classList.remove(c);
+        for (let c of cls.split(" "))
+          if (c)
+            this.dom.classList.add(c);
+        this.currentClass = cls;
+      }
+    }
+    positioned(space) {
+      this.space = space;
+      if (this.info)
+        this.view.requestMeasure(this.placeInfoReq);
+    }
+    updateSel() {
+      let cState = this.view.state.field(this.stateField), open = cState.open;
+      if (open.selected > -1 && open.selected < this.range.from || open.selected >= this.range.to) {
+        this.range = rangeAroundSelected(open.options.length, open.selected, this.view.state.facet(completionConfig).maxRenderedOptions);
+        this.showOptions(open.options, cState.id);
+      }
+      let newSel = this.updateSelectedOption(open.selected);
+      if (newSel) {
+        this.destroyInfo();
+        let { completion } = open.options[open.selected];
+        let { info } = completion;
+        if (!info)
+          return;
+        let infoResult = typeof info === "string" ? document.createTextNode(info) : info(completion);
+        if (!infoResult)
+          return;
+        if ("then" in infoResult) {
+          infoResult.then((obj) => {
+            if (obj && this.view.state.field(this.stateField, false) == cState)
+              this.addInfoPane(obj, completion);
+          }).catch((e) => logException(this.view.state, e, "completion info"));
+        } else {
+          this.addInfoPane(infoResult, completion);
+          newSel.setAttribute("aria-describedby", this.info.id);
+        }
+      }
+    }
+    addInfoPane(content2, completion) {
+      this.destroyInfo();
+      let wrap = this.info = document.createElement("div");
+      wrap.className = "cm-tooltip cm-completionInfo";
+      wrap.id = "cm-completionInfo-" + Math.floor(Math.random() * 65535).toString(16);
+      if (content2.nodeType != null) {
+        wrap.appendChild(content2);
+        this.infoDestroy = null;
+      } else {
+        let { dom, destroy } = content2;
+        wrap.appendChild(dom);
+        this.infoDestroy = destroy || null;
+      }
+      this.dom.appendChild(wrap);
+      this.view.requestMeasure(this.placeInfoReq);
+    }
+    updateSelectedOption(selected) {
+      let set = null;
+      for (let opt = this.list.firstChild, i2 = this.range.from; opt; opt = opt.nextSibling, i2++) {
+        if (opt.nodeName != "LI" || !opt.id) {
+          i2--;
+        } else if (i2 == selected) {
+          if (!opt.hasAttribute("aria-selected")) {
+            opt.setAttribute("aria-selected", "true");
+            set = opt;
+          }
+        } else {
+          if (opt.hasAttribute("aria-selected")) {
+            opt.removeAttribute("aria-selected");
+            opt.removeAttribute("aria-describedby");
+          }
+        }
+      }
+      if (set)
+        scrollIntoView2(this.list, set);
+      return set;
+    }
+    measureInfo() {
+      let sel = this.dom.querySelector("[aria-selected]");
+      if (!sel || !this.info)
+        return null;
+      let listRect = this.dom.getBoundingClientRect();
+      let infoRect = this.info.getBoundingClientRect();
+      let selRect = sel.getBoundingClientRect();
+      let space = this.space;
+      if (!space) {
+        let docElt = this.dom.ownerDocument.documentElement;
+        space = { left: 0, top: 0, right: docElt.clientWidth, bottom: docElt.clientHeight };
+      }
+      if (selRect.top > Math.min(space.bottom, listRect.bottom) - 10 || selRect.bottom < Math.max(space.top, listRect.top) + 10)
+        return null;
+      return this.view.state.facet(completionConfig).positionInfo(this.view, listRect, selRect, infoRect, space, this.dom);
+    }
+    placeInfo(pos) {
+      if (this.info) {
+        if (pos) {
+          if (pos.style)
+            this.info.style.cssText = pos.style;
+          this.info.className = "cm-tooltip cm-completionInfo " + (pos.class || "");
+        } else {
+          this.info.style.cssText = "top: -1e6px";
+        }
+      }
+    }
+    createListBox(options, id, range) {
+      const ul = document.createElement("ul");
+      ul.id = id;
+      ul.setAttribute("role", "listbox");
+      ul.setAttribute("aria-expanded", "true");
+      ul.setAttribute("aria-label", this.view.state.phrase("Completions"));
+      ul.addEventListener("mousedown", (e) => {
+        if (e.target == ul)
+          e.preventDefault();
+      });
+      let curSection = null;
+      for (let i2 = range.from; i2 < range.to; i2++) {
+        let { completion, match } = options[i2], { section } = completion;
+        if (section) {
+          let name2 = typeof section == "string" ? section : section.name;
+          if (name2 != curSection && (i2 > range.from || range.from == 0)) {
+            curSection = name2;
+            if (typeof section != "string" && section.header) {
+              ul.appendChild(section.header(section));
+            } else {
+              let header = ul.appendChild(document.createElement("completion-section"));
+              header.textContent = name2;
+            }
+          }
+        }
+        const li = ul.appendChild(document.createElement("li"));
+        li.id = id + "-" + i2;
+        li.setAttribute("role", "option");
+        let cls = this.optionClass(completion);
+        if (cls)
+          li.className = cls;
+        for (let source of this.optionContent) {
+          let node = source(completion, this.view.state, this.view, match);
+          if (node)
+            li.appendChild(node);
+        }
+      }
+      if (range.from)
+        ul.classList.add("cm-completionListIncompleteTop");
+      if (range.to < options.length)
+        ul.classList.add("cm-completionListIncompleteBottom");
+      return ul;
+    }
+    destroyInfo() {
+      if (this.info) {
+        if (this.infoDestroy)
+          this.infoDestroy();
+        this.info.remove();
+        this.info = null;
+      }
+    }
+    destroy() {
+      this.destroyInfo();
+    }
+  };
+  function completionTooltip(stateField, applyCompletion2) {
+    return (view) => new CompletionTooltip(view, stateField, applyCompletion2);
+  }
+  function scrollIntoView2(container, element) {
+    let parent = container.getBoundingClientRect();
+    let self = element.getBoundingClientRect();
+    let scaleY = parent.height / container.offsetHeight;
+    if (self.top < parent.top)
+      container.scrollTop -= (parent.top - self.top) / scaleY;
+    else if (self.bottom > parent.bottom)
+      container.scrollTop += (self.bottom - parent.bottom) / scaleY;
+  }
+  function score(option) {
+    return (option.boost || 0) * 100 + (option.apply ? 10 : 0) + (option.info ? 5 : 0) + (option.type ? 1 : 0);
+  }
+  function sortOptions(active, state) {
+    let options = [];
+    let sections = null, dynamicSectionScore = null;
+    let addOption = (option) => {
+      options.push(option);
+      let { section } = option.completion;
+      if (section) {
+        if (!sections)
+          sections = [];
+        let name2 = typeof section == "string" ? section : section.name;
+        if (!sections.some((s) => s.name == name2))
+          sections.push(typeof section == "string" ? { name: name2 } : section);
+      }
+    };
+    let conf = state.facet(completionConfig);
+    for (let a of active)
+      if (a.hasResult()) {
+        let getMatch = a.result.getMatch;
+        if (a.result.filter === false) {
+          for (let option of a.result.options) {
+            addOption(new Option(option, a.source, getMatch ? getMatch(option) : [], 1e9 - options.length));
+          }
+        } else {
+          let pattern = state.sliceDoc(a.from, a.to), match;
+          let matcher = conf.filterStrict ? new StrictMatcher(pattern) : new FuzzyMatcher(pattern);
+          for (let option of a.result.options)
+            if (match = matcher.match(option.label)) {
+              let matched = !option.displayLabel ? match.matched : getMatch ? getMatch(option, match.matched) : [];
+              let score2 = match.score + (option.boost || 0);
+              addOption(new Option(option, a.source, matched, score2));
+              if (typeof option.section == "object" && option.section.rank === "dynamic") {
+                let { name: name2 } = option.section;
+                if (!dynamicSectionScore)
+                  dynamicSectionScore = /* @__PURE__ */ Object.create(null);
+                dynamicSectionScore[name2] = Math.max(score2, dynamicSectionScore[name2] || -1e9);
+              }
+            }
+        }
+      }
+    if (sections) {
+      let sectionOrder = /* @__PURE__ */ Object.create(null), pos = 0;
+      let cmp = (a, b) => {
+        return (a.rank === "dynamic" && b.rank === "dynamic" ? dynamicSectionScore[b.name] - dynamicSectionScore[a.name] : 0) || (typeof a.rank == "number" ? a.rank : 1e9) - (typeof b.rank == "number" ? b.rank : 1e9) || (a.name < b.name ? -1 : 1);
+      };
+      for (let s of sections.sort(cmp)) {
+        pos -= 1e5;
+        sectionOrder[s.name] = pos;
+      }
+      for (let option of options) {
+        let { section } = option.completion;
+        if (section)
+          option.score += sectionOrder[typeof section == "string" ? section : section.name];
+      }
+    }
+    let result = [], prev = null;
+    let compare2 = conf.compareCompletions;
+    for (let opt of options.sort((a, b) => b.score - a.score || compare2(a.completion, b.completion))) {
+      let cur2 = opt.completion;
+      if (!prev || prev.label != cur2.label || prev.detail != cur2.detail || prev.type != null && cur2.type != null && prev.type != cur2.type || prev.apply != cur2.apply || prev.boost != cur2.boost)
+        result.push(opt);
+      else if (score(opt.completion) > score(prev))
+        result[result.length - 1] = opt;
+      prev = opt.completion;
+    }
+    return result;
+  }
+  var CompletionDialog = class _CompletionDialog {
+    constructor(options, attrs, tooltip, timestamp, selected, disabled) {
+      this.options = options;
+      this.attrs = attrs;
+      this.tooltip = tooltip;
+      this.timestamp = timestamp;
+      this.selected = selected;
+      this.disabled = disabled;
+    }
+    setSelected(selected, id) {
+      return selected == this.selected || selected >= this.options.length ? this : new _CompletionDialog(this.options, makeAttrs(id, selected), this.tooltip, this.timestamp, selected, this.disabled);
+    }
+    static build(active, state, id, prev, conf, didSetActive) {
+      if (prev && !didSetActive && active.some((s) => s.isPending))
+        return prev.setDisabled();
+      let options = sortOptions(active, state);
+      if (!options.length)
+        return prev && active.some((a) => a.isPending) ? prev.setDisabled() : null;
+      let selected = state.facet(completionConfig).selectOnOpen ? 0 : -1;
+      if (prev && prev.selected != selected && prev.selected != -1) {
+        let selectedValue = prev.options[prev.selected].completion;
+        for (let i2 = 0; i2 < options.length; i2++)
+          if (options[i2].completion == selectedValue) {
+            selected = i2;
+            break;
+          }
+      }
+      return new _CompletionDialog(options, makeAttrs(id, selected), {
+        pos: active.reduce((a, b) => b.hasResult() ? Math.min(a, b.from) : a, 1e8),
+        create: createTooltip,
+        above: conf.aboveCursor
+      }, prev ? prev.timestamp : Date.now(), selected, false);
+    }
+    map(changes) {
+      return new _CompletionDialog(this.options, this.attrs, { ...this.tooltip, pos: changes.mapPos(this.tooltip.pos) }, this.timestamp, this.selected, this.disabled);
+    }
+    setDisabled() {
+      return new _CompletionDialog(this.options, this.attrs, this.tooltip, this.timestamp, this.selected, true);
+    }
+  };
+  var CompletionState = class _CompletionState {
+    constructor(active, id, open) {
+      this.active = active;
+      this.id = id;
+      this.open = open;
+    }
+    static start() {
+      return new _CompletionState(none2, "cm-ac-" + Math.floor(Math.random() * 2e6).toString(36), null);
+    }
+    update(tr) {
+      let { state } = tr, conf = state.facet(completionConfig);
+      let sources = conf.override || state.languageDataAt("autocomplete", cur(state)).map(asSource);
+      let active = sources.map((source) => {
+        let value = this.active.find((s) => s.source == source) || new ActiveSource(
+          source,
+          this.active.some(
+            (a) => a.state != 0
+            /* State.Inactive */
+          ) ? 1 : 0
+          /* State.Inactive */
+        );
+        return value.update(tr, conf);
+      });
+      if (active.length == this.active.length && active.every((a, i2) => a == this.active[i2]))
+        active = this.active;
+      let open = this.open, didSet = tr.effects.some((e) => e.is(setActiveEffect));
+      if (open && tr.docChanged)
+        open = open.map(tr.changes);
+      if (tr.selection || active.some((a) => a.hasResult() && tr.changes.touchesRange(a.from, a.to)) || !sameResults(active, this.active) || didSet)
+        open = CompletionDialog.build(active, state, this.id, open, conf, didSet);
+      else if (open && open.disabled && !active.some((a) => a.isPending))
+        open = null;
+      if (!open && active.every((a) => !a.isPending) && active.some((a) => a.hasResult()))
+        active = active.map((a) => a.hasResult() ? new ActiveSource(
+          a.source,
+          0
+          /* State.Inactive */
+        ) : a);
+      for (let effect of tr.effects)
+        if (effect.is(setSelectedEffect))
+          open = open && open.setSelected(effect.value, this.id);
+      return active == this.active && open == this.open ? this : new _CompletionState(active, this.id, open);
+    }
+    get tooltip() {
+      return this.open ? this.open.tooltip : null;
+    }
+    get attrs() {
+      return this.open ? this.open.attrs : this.active.length ? baseAttrs : noAttrs2;
+    }
+  };
+  function sameResults(a, b) {
+    if (a == b)
+      return true;
+    for (let iA = 0, iB = 0; ; ) {
+      while (iA < a.length && !a[iA].hasResult())
+        iA++;
+      while (iB < b.length && !b[iB].hasResult())
+        iB++;
+      let endA = iA == a.length, endB = iB == b.length;
+      if (endA || endB)
+        return endA == endB;
+      if (a[iA++].result != b[iB++].result)
+        return false;
+    }
+  }
+  var baseAttrs = {
+    "aria-autocomplete": "list"
+  };
+  var noAttrs2 = {};
+  function makeAttrs(id, selected) {
+    let result = {
+      "aria-autocomplete": "list",
+      "aria-haspopup": "listbox",
+      "aria-controls": id
+    };
+    if (selected > -1)
+      result["aria-activedescendant"] = id + "-" + selected;
+    return result;
+  }
+  var none2 = [];
+  function getUpdateType(tr, conf) {
+    if (tr.isUserEvent("input.complete")) {
+      let completion = tr.annotation(pickedCompletion);
+      if (completion && conf.activateOnCompletion(completion))
+        return 4 | 8;
+    }
+    let typing = tr.isUserEvent("input.type");
+    return typing && conf.activateOnTyping ? 4 | 1 : typing ? 1 : tr.isUserEvent("delete.backward") ? 2 : tr.selection ? 8 : tr.docChanged ? 16 : 0;
+  }
+  var ActiveSource = class _ActiveSource {
+    constructor(source, state, explicit = false) {
+      this.source = source;
+      this.state = state;
+      this.explicit = explicit;
+    }
+    hasResult() {
+      return false;
+    }
+    get isPending() {
+      return this.state == 1;
+    }
+    update(tr, conf) {
+      let type = getUpdateType(tr, conf), value = this;
+      if (type & 8 || type & 16 && this.touches(tr))
+        value = new _ActiveSource(
+          value.source,
+          0
+          /* State.Inactive */
+        );
+      if (type & 4 && value.state == 0)
+        value = new _ActiveSource(
+          this.source,
+          1
+          /* State.Pending */
+        );
+      value = value.updateFor(tr, type);
+      for (let effect of tr.effects) {
+        if (effect.is(startCompletionEffect))
+          value = new _ActiveSource(value.source, 1, effect.value);
+        else if (effect.is(closeCompletionEffect))
+          value = new _ActiveSource(
+            value.source,
+            0
+            /* State.Inactive */
+          );
+        else if (effect.is(setActiveEffect)) {
+          for (let active of effect.value)
+            if (active.source == value.source)
+              value = active;
+        }
+      }
+      return value;
+    }
+    updateFor(tr, type) {
+      return this.map(tr.changes);
+    }
+    map(changes) {
+      return this;
+    }
+    touches(tr) {
+      return tr.changes.touchesRange(cur(tr.state));
+    }
+  };
+  var ActiveResult = class _ActiveResult extends ActiveSource {
+    constructor(source, explicit, limit, result, from, to) {
+      super(source, 3, explicit);
+      this.limit = limit;
+      this.result = result;
+      this.from = from;
+      this.to = to;
+    }
+    hasResult() {
+      return true;
+    }
+    updateFor(tr, type) {
+      var _a2;
+      if (!(type & 3))
+        return this.map(tr.changes);
+      let result = this.result;
+      if (result.map && !tr.changes.empty)
+        result = result.map(result, tr.changes);
+      let from = tr.changes.mapPos(this.from), to = tr.changes.mapPos(this.to, 1);
+      let pos = cur(tr.state);
+      if (pos > to || !result || type & 2 && (cur(tr.startState) == this.from || pos < this.limit))
+        return new ActiveSource(
+          this.source,
+          type & 4 ? 1 : 0
+          /* State.Inactive */
+        );
+      let limit = tr.changes.mapPos(this.limit);
+      if (checkValid(result.validFor, tr.state, from, to))
+        return new _ActiveResult(this.source, this.explicit, limit, result, from, to);
+      if (result.update && (result = result.update(result, from, to, new CompletionContext(tr.state, pos, false))))
+        return new _ActiveResult(this.source, this.explicit, limit, result, result.from, (_a2 = result.to) !== null && _a2 !== void 0 ? _a2 : cur(tr.state));
+      return new ActiveSource(this.source, 1, this.explicit);
+    }
+    map(mapping) {
+      if (mapping.empty)
+        return this;
+      let result = this.result.map ? this.result.map(this.result, mapping) : this.result;
+      if (!result)
+        return new ActiveSource(
+          this.source,
+          0
+          /* State.Inactive */
+        );
+      return new _ActiveResult(this.source, this.explicit, mapping.mapPos(this.limit), result, mapping.mapPos(this.from), mapping.mapPos(this.to, 1));
+    }
+    touches(tr) {
+      return tr.changes.touchesRange(this.from, this.to);
+    }
+  };
+  function checkValid(validFor, state, from, to) {
+    if (!validFor)
+      return false;
+    let text = state.sliceDoc(from, to);
+    return typeof validFor == "function" ? validFor(text, from, to, state) : ensureAnchor(validFor, true).test(text);
+  }
+  var setActiveEffect = /* @__PURE__ */ StateEffect.define({
+    map(sources, mapping) {
+      return sources.map((s) => s.map(mapping));
+    }
+  });
+  var completionState = /* @__PURE__ */ StateField.define({
+    create() {
+      return CompletionState.start();
+    },
+    update(value, tr) {
+      return value.update(tr);
+    },
+    provide: (f) => [
+      showTooltip.from(f, (val) => val.tooltip),
+      EditorView.contentAttributes.from(f, (state) => state.attrs)
+    ]
+  });
+  function applyCompletion(view, option) {
+    const apply = option.completion.apply || option.completion.label;
+    let result = view.state.field(completionState).active.find((a) => a.source == option.source);
+    if (!(result instanceof ActiveResult))
+      return false;
+    if (typeof apply == "string")
+      view.dispatch({
+        ...insertCompletionText(view.state, apply, result.from, result.to),
+        annotations: pickedCompletion.of(option.completion)
+      });
+    else
+      apply(view, option.completion, result.from, result.to);
+    return true;
+  }
+  var createTooltip = /* @__PURE__ */ completionTooltip(completionState, applyCompletion);
+  function moveCompletionSelection(forward, by = "option") {
+    return (view) => {
+      let cState = view.state.field(completionState, false);
+      if (!cState || !cState.open || cState.open.disabled || Date.now() - cState.open.timestamp < view.state.facet(completionConfig).interactionDelay)
+        return false;
+      let step = 1, tooltip;
+      if (by == "page" && (tooltip = getTooltip(view, cState.open.tooltip)))
+        step = Math.max(2, Math.floor(tooltip.dom.offsetHeight / tooltip.dom.querySelector("li").offsetHeight) - 1);
+      let { length } = cState.open.options;
+      let selected = cState.open.selected > -1 ? cState.open.selected + step * (forward ? 1 : -1) : forward ? 0 : length - 1;
+      if (selected < 0)
+        selected = by == "page" ? 0 : length - 1;
+      else if (selected >= length)
+        selected = by == "page" ? length - 1 : 0;
+      view.dispatch({ effects: setSelectedEffect.of(selected) });
+      return true;
+    };
+  }
+  var acceptCompletion = (view) => {
+    let cState = view.state.field(completionState, false);
+    if (view.state.readOnly || !cState || !cState.open || cState.open.selected < 0 || cState.open.disabled || Date.now() - cState.open.timestamp < view.state.facet(completionConfig).interactionDelay)
+      return false;
+    return applyCompletion(view, cState.open.options[cState.open.selected]);
+  };
+  var startCompletion = (view) => {
+    let cState = view.state.field(completionState, false);
+    if (!cState)
+      return false;
+    view.dispatch({ effects: startCompletionEffect.of(true) });
+    return true;
+  };
+  var closeCompletion = (view) => {
+    let cState = view.state.field(completionState, false);
+    if (!cState || !cState.active.some(
+      (a) => a.state != 0
+      /* State.Inactive */
+    ))
+      return false;
+    view.dispatch({ effects: closeCompletionEffect.of(null) });
+    return true;
+  };
+  var RunningQuery = class {
+    constructor(active, context) {
+      this.active = active;
+      this.context = context;
+      this.time = Date.now();
+      this.updates = [];
+      this.done = void 0;
+    }
+  };
+  var MaxUpdateCount = 50;
+  var MinAbortTime = 1e3;
+  var completionPlugin = /* @__PURE__ */ ViewPlugin.fromClass(class {
+    constructor(view) {
+      this.view = view;
+      this.debounceUpdate = -1;
+      this.running = [];
+      this.debounceAccept = -1;
+      this.pendingStart = false;
+      this.composing = 0;
+      for (let active of view.state.field(completionState).active)
+        if (active.isPending)
+          this.startQuery(active);
+    }
+    update(update) {
+      let cState = update.state.field(completionState);
+      let conf = update.state.facet(completionConfig);
+      if (!update.selectionSet && !update.docChanged && update.startState.field(completionState) == cState)
+        return;
+      let doesReset = update.transactions.some((tr) => {
+        let type = getUpdateType(tr, conf);
+        return type & 8 || (tr.selection || tr.docChanged) && !(type & 3);
+      });
+      for (let i2 = 0; i2 < this.running.length; i2++) {
+        let query = this.running[i2];
+        if (doesReset || query.context.abortOnDocChange && update.docChanged || query.updates.length + update.transactions.length > MaxUpdateCount && Date.now() - query.time > MinAbortTime) {
+          for (let handler of query.context.abortListeners) {
+            try {
+              handler();
+            } catch (e) {
+              logException(this.view.state, e);
+            }
+          }
+          query.context.abortListeners = null;
+          this.running.splice(i2--, 1);
+        } else {
+          query.updates.push(...update.transactions);
+        }
+      }
+      if (this.debounceUpdate > -1)
+        clearTimeout(this.debounceUpdate);
+      if (update.transactions.some((tr) => tr.effects.some((e) => e.is(startCompletionEffect))))
+        this.pendingStart = true;
+      let delay = this.pendingStart ? 50 : conf.activateOnTypingDelay;
+      this.debounceUpdate = cState.active.some((a) => a.isPending && !this.running.some((q) => q.active.source == a.source)) ? setTimeout(() => this.startUpdate(), delay) : -1;
+      if (this.composing != 0)
+        for (let tr of update.transactions) {
+          if (tr.isUserEvent("input.type"))
+            this.composing = 2;
+          else if (this.composing == 2 && tr.selection)
+            this.composing = 3;
+        }
+    }
+    startUpdate() {
+      this.debounceUpdate = -1;
+      this.pendingStart = false;
+      let { state } = this.view, cState = state.field(completionState);
+      for (let active of cState.active) {
+        if (active.isPending && !this.running.some((r) => r.active.source == active.source))
+          this.startQuery(active);
+      }
+      if (this.running.length && cState.open && cState.open.disabled)
+        this.debounceAccept = setTimeout(() => this.accept(), this.view.state.facet(completionConfig).updateSyncTime);
+    }
+    startQuery(active) {
+      let { state } = this.view, pos = cur(state);
+      let context = new CompletionContext(state, pos, active.explicit, this.view);
+      let pending = new RunningQuery(active, context);
+      this.running.push(pending);
+      Promise.resolve(active.source(context)).then((result) => {
+        if (!pending.context.aborted) {
+          pending.done = result || null;
+          this.scheduleAccept();
+        }
+      }, (err) => {
+        this.view.dispatch({ effects: closeCompletionEffect.of(null) });
+        logException(this.view.state, err);
+      });
+    }
+    scheduleAccept() {
+      if (this.running.every((q) => q.done !== void 0))
+        this.accept();
+      else if (this.debounceAccept < 0)
+        this.debounceAccept = setTimeout(() => this.accept(), this.view.state.facet(completionConfig).updateSyncTime);
+    }
+    // For each finished query in this.running, try to create a result
+    // or, if appropriate, restart the query.
+    accept() {
+      var _a2;
+      if (this.debounceAccept > -1)
+        clearTimeout(this.debounceAccept);
+      this.debounceAccept = -1;
+      let updated = [];
+      let conf = this.view.state.facet(completionConfig), cState = this.view.state.field(completionState);
+      for (let i2 = 0; i2 < this.running.length; i2++) {
+        let query = this.running[i2];
+        if (query.done === void 0)
+          continue;
+        this.running.splice(i2--, 1);
+        if (query.done) {
+          let pos = cur(query.updates.length ? query.updates[0].startState : this.view.state);
+          let limit = Math.min(pos, query.done.from + (query.active.explicit ? 0 : 1));
+          let active = new ActiveResult(query.active.source, query.active.explicit, limit, query.done, query.done.from, (_a2 = query.done.to) !== null && _a2 !== void 0 ? _a2 : pos);
+          for (let tr of query.updates)
+            active = active.update(tr, conf);
+          if (active.hasResult()) {
+            updated.push(active);
+            continue;
+          }
+        }
+        let current = cState.active.find((a) => a.source == query.active.source);
+        if (current && current.isPending) {
+          if (query.done == null) {
+            let active = new ActiveSource(
+              query.active.source,
+              0
+              /* State.Inactive */
+            );
+            for (let tr of query.updates)
+              active = active.update(tr, conf);
+            if (!active.isPending)
+              updated.push(active);
+          } else {
+            this.startQuery(current);
+          }
+        }
+      }
+      if (updated.length || cState.open && cState.open.disabled)
+        this.view.dispatch({ effects: setActiveEffect.of(updated) });
+    }
+  }, {
+    eventHandlers: {
+      blur(event) {
+        let state = this.view.state.field(completionState, false);
+        if (state && state.tooltip && this.view.state.facet(completionConfig).closeOnBlur) {
+          let dialog = state.open && getTooltip(this.view, state.open.tooltip);
+          if (!dialog || !dialog.dom.contains(event.relatedTarget))
+            setTimeout(() => this.view.dispatch({ effects: closeCompletionEffect.of(null) }), 10);
+        }
+      },
+      compositionstart() {
+        this.composing = 1;
+      },
+      compositionend() {
+        if (this.composing == 3) {
+          setTimeout(() => this.view.dispatch({ effects: startCompletionEffect.of(false) }), 20);
+        }
+        this.composing = 0;
+      }
+    }
+  });
+  var windows = typeof navigator == "object" && /* @__PURE__ */ /Win/.test(navigator.platform);
+  var commitCharacters = /* @__PURE__ */ Prec.highest(/* @__PURE__ */ EditorView.domEventHandlers({
+    keydown(event, view) {
+      let field = view.state.field(completionState, false);
+      if (!field || !field.open || field.open.disabled || field.open.selected < 0 || event.key.length > 1 || event.ctrlKey && !(windows && event.altKey) || event.metaKey)
+        return false;
+      let option = field.open.options[field.open.selected];
+      let result = field.active.find((a) => a.source == option.source);
+      let commitChars = option.completion.commitCharacters || result.result.commitCharacters;
+      if (commitChars && commitChars.indexOf(event.key) > -1)
+        applyCompletion(view, option);
+      return false;
+    }
+  }));
+  var baseTheme2 = /* @__PURE__ */ EditorView.baseTheme({
+    ".cm-tooltip.cm-tooltip-autocomplete": {
+      "& > ul": {
+        fontFamily: "monospace",
+        whiteSpace: "nowrap",
+        overflow: "hidden auto",
+        maxWidth_fallback: "700px",
+        maxWidth: "min(700px, 95vw)",
+        minWidth: "250px",
+        maxHeight: "10em",
+        height: "100%",
+        listStyle: "none",
+        margin: 0,
+        padding: 0,
+        "& > li, & > completion-section": {
+          padding: "1px 3px",
+          lineHeight: 1.2
+        },
+        "& > li": {
+          overflowX: "hidden",
+          textOverflow: "ellipsis",
+          cursor: "pointer"
+        },
+        "& > completion-section": {
+          display: "list-item",
+          borderBottom: "1px solid silver",
+          paddingLeft: "0.5em",
+          opacity: 0.7
+        }
+      }
+    },
+    "&light .cm-tooltip-autocomplete ul li[aria-selected]": {
+      background: "#17c",
+      color: "white"
+    },
+    "&light .cm-tooltip-autocomplete-disabled ul li[aria-selected]": {
+      background: "#777"
+    },
+    "&dark .cm-tooltip-autocomplete ul li[aria-selected]": {
+      background: "#347",
+      color: "white"
+    },
+    "&dark .cm-tooltip-autocomplete-disabled ul li[aria-selected]": {
+      background: "#444"
+    },
+    ".cm-completionListIncompleteTop:before, .cm-completionListIncompleteBottom:after": {
+      content: '"\xB7\xB7\xB7"',
+      opacity: 0.5,
+      display: "block",
+      textAlign: "center",
+      cursor: "pointer"
+    },
+    ".cm-tooltip.cm-completionInfo": {
+      position: "absolute",
+      padding: "3px 9px",
+      width: "max-content",
+      maxWidth: `${400}px`,
+      boxSizing: "border-box",
+      whiteSpace: "pre-line"
+    },
+    ".cm-completionInfo.cm-completionInfo-left": { right: "100%" },
+    ".cm-completionInfo.cm-completionInfo-right": { left: "100%" },
+    ".cm-completionInfo.cm-completionInfo-left-narrow": { right: `${30}px` },
+    ".cm-completionInfo.cm-completionInfo-right-narrow": { left: `${30}px` },
+    "&light .cm-snippetField": { backgroundColor: "#00000022" },
+    "&dark .cm-snippetField": { backgroundColor: "#ffffff22" },
+    ".cm-snippetFieldPosition": {
+      verticalAlign: "text-top",
+      width: 0,
+      height: "1.15em",
+      display: "inline-block",
+      margin: "0 -0.7px -.7em",
+      borderLeft: "1.4px dotted #888"
+    },
+    ".cm-completionMatchedText": {
+      textDecoration: "underline"
+    },
+    ".cm-completionDetail": {
+      marginLeft: "0.5em",
+      fontStyle: "italic"
+    },
+    ".cm-completionIcon": {
+      fontSize: "90%",
+      width: ".8em",
+      display: "inline-block",
+      textAlign: "center",
+      paddingRight: ".6em",
+      opacity: "0.6",
+      boxSizing: "content-box"
+    },
+    ".cm-completionIcon-function, .cm-completionIcon-method": {
+      "&:after": { content: "'\u0192'" }
+    },
+    ".cm-completionIcon-class": {
+      "&:after": { content: "'\u25CB'" }
+    },
+    ".cm-completionIcon-interface": {
+      "&:after": { content: "'\u25CC'" }
+    },
+    ".cm-completionIcon-variable": {
+      "&:after": { content: "'\u{1D465}'" }
+    },
+    ".cm-completionIcon-constant": {
+      "&:after": { content: "'\u{1D436}'" }
+    },
+    ".cm-completionIcon-type": {
+      "&:after": { content: "'\u{1D461}'" }
+    },
+    ".cm-completionIcon-enum": {
+      "&:after": { content: "'\u222A'" }
+    },
+    ".cm-completionIcon-property": {
+      "&:after": { content: "'\u25A1'" }
+    },
+    ".cm-completionIcon-keyword": {
+      "&:after": { content: "'\u{1F511}\uFE0E'" }
+      // Disable emoji rendering
+    },
+    ".cm-completionIcon-namespace": {
+      "&:after": { content: "'\u25A2'" }
+    },
+    ".cm-completionIcon-text": {
+      "&:after": { content: "'abc'", fontSize: "50%", verticalAlign: "middle" }
+    }
+  });
+  var closedBracket = /* @__PURE__ */ new class extends RangeValue {
+  }();
+  closedBracket.startSide = 1;
+  closedBracket.endSide = -1;
+  var android = typeof navigator == "object" && /* @__PURE__ */ /Android\b/.test(navigator.userAgent);
+  function autocompletion(config = {}) {
+    return [
+      commitCharacters,
+      completionState,
+      completionConfig.of(config),
+      completionPlugin,
+      completionKeymapExt,
+      baseTheme2
+    ];
+  }
+  var completionKeymap = [
+    { key: "Ctrl-Space", run: startCompletion },
+    { mac: "Alt-`", run: startCompletion },
+    { mac: "Alt-i", run: startCompletion },
+    { key: "Escape", run: closeCompletion },
+    { key: "ArrowDown", run: /* @__PURE__ */ moveCompletionSelection(true) },
+    { key: "ArrowUp", run: /* @__PURE__ */ moveCompletionSelection(false) },
+    { key: "PageDown", run: /* @__PURE__ */ moveCompletionSelection(true, "page") },
+    { key: "PageUp", run: /* @__PURE__ */ moveCompletionSelection(false, "page") },
+    { key: "Enter", run: acceptCompletion }
+  ];
+  var completionKeymapExt = /* @__PURE__ */ Prec.highest(/* @__PURE__ */ keymap.computeN([completionConfig], (state) => state.facet(completionConfig).defaultKeymap ? [completionKeymap] : []));
+  function completionStatus(state) {
+    let cState = state.field(completionState, false);
+    return cState && cState.active.some((a) => a.isPending) ? "pending" : cState && cState.active.some(
+      (a) => a.state != 0
+      /* State.Inactive */
+    ) ? "active" : null;
+  }
+  var completionArrayCache = /* @__PURE__ */ new WeakMap();
+  function currentCompletions(state) {
+    var _a2;
+    let open = (_a2 = state.field(completionState, false)) === null || _a2 === void 0 ? void 0 : _a2.open;
+    if (!open || open.disabled)
+      return [];
+    let completions = completionArrayCache.get(open.options);
+    if (!completions)
+      completionArrayCache.set(open.options, completions = open.options.map((o) => o.completion));
+    return completions;
+  }
+  function setSelectedCompletion(index) {
+    return setSelectedEffect.of(index);
+  }
+
+  // src/js/codemirror6/exact-prefix.js
+  var setExactPrefix = StateEffect.define();
+  var exactPrefix = StateField.define({
+    create: () => 0,
+    update(value, transaction) {
+      if (transaction.docChanged) value = 0;
+      for (const effect of transaction.effects) {
+        if (effect.is(setExactPrefix)) value = Math.max(value, effect.value);
+      }
+      return value;
+    }
+  });
+  function ensureExactPrefix(view, upto, timeout = 50) {
+    const target = Math.min(Math.max(0, upto), view.state.doc.length);
+    const tree = ensureSyntaxTree(view.state, target, timeout);
+    if (!tree || !syntaxTreeAvailable(view.state, target)) return false;
+    view.dispatch({ effects: setExactPrefix.of(target) });
+    return true;
+  }
+  function requestIdle2(callback) {
+    if (typeof globalThis.requestIdleCallback === "function") {
+      return { kind: "idle", handle: globalThis.requestIdleCallback(callback) };
+    }
+    return { kind: "timeout", handle: globalThis.setTimeout(callback, 0) };
+  }
+  function cancelIdle(pending) {
+    if (!pending) return;
+    if (pending.kind === "idle" && typeof globalThis.cancelIdleCallback === "function") {
+      globalThis.cancelIdleCallback(pending.handle);
+    } else {
+      globalThis.clearTimeout(pending.handle);
+    }
+  }
+  var ExactPrefixScheduler = class {
+    constructor(view) {
+      this.view = view;
+      this.pending = null;
+      this.destroyed = false;
+      this.schedule();
+    }
+    schedule() {
+      if (this.destroyed || this.pending) return;
+      this.pending = requestIdle2(() => {
+        this.pending = null;
+        if (this.destroyed) return;
+        if (!ensureExactPrefix(this.view, this.view.viewport.to, 25)) this.schedule();
+      });
+    }
+    update(update) {
+      this.view = update.view;
+      if (update.docChanged || update.viewportChanged) this.schedule();
+    }
+    destroy() {
+      this.destroyed = true;
+      cancelIdle(this.pending);
+      this.pending = null;
+    }
+  };
+  var exactPrefixScheduler = ViewPlugin.fromClass(ExactPrefixScheduler);
+
   // src/js/codemirror6/style-token.js
   var prefix = "ps_";
   function encodeStyleToken(style) {
@@ -15353,6 +17361,184 @@
   }
   function isStyleToken(name2) {
     return name2.startsWith(prefix);
+  }
+
+  // src/js/codemirror6/stream-state.js
+  function assertPinnedStreamLanguage(language2) {
+    if (!language2 || !language2.stateAfter || !language2.streamParser || typeof language2.streamParser.copyState !== "function") {
+      throw new Error("Unsupported @codemirror/language StreamLanguage internals; expected 6.12.4");
+    }
+  }
+  function findState2(language2, tree, offset, startPosition, before) {
+    const state = offset >= startPosition && offset + tree.length <= before && tree.prop(language2.stateAfter);
+    if (state) {
+      return {
+        state: language2.streamParser.copyState(state),
+        position: offset + tree.length
+      };
+    }
+    for (let index = tree.children.length - 1; index >= 0; index--) {
+      const child = tree.children[index];
+      const position = offset + tree.positions[index];
+      if (child instanceof Tree && position < before) {
+        const found = findState2(language2, child, position, startPosition, before);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+  function readToken2(token, stream, state) {
+    stream.start = stream.pos;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const style = token(stream, state);
+      if (stream.pos > stream.start) return style;
+    }
+    throw new Error("PuzzleScript parser failed to advance its stream");
+  }
+  function advanceCompleteLine(parser, state, text, tabSize, indentUnit2) {
+    const stream = new StringStream(text, tabSize, indentUnit2);
+    if (stream.eol()) {
+      parser.blankLine(state, indentUnit2);
+      return;
+    }
+    while (!stream.eol()) readToken2(parser.token, stream, state);
+  }
+  function getTokenAtPosition(editorState, language2, position) {
+    assertPinnedStreamLanguage(language2);
+    const document2 = editorState.doc;
+    const clippedPosition = Math.min(Math.max(0, position), document2.length);
+    const line = document2.lineAt(clippedPosition);
+    const parsedExactlyThrough = editorState.field(exactPrefix, false);
+    if (parsedExactlyThrough === void 0 || parsedExactlyThrough < line.from || !syntaxTreeAvailable(editorState, line.from)) {
+      throw new Error("PuzzleScript parser state requires an exact prefix through the current line");
+    }
+    const parser = language2.streamParser;
+    const indentUnit2 = getIndentUnit(editorState);
+    const checkpoint = findState2(language2, syntaxTree(editorState), 0, 0, line.from);
+    let wrappedState = checkpoint ? checkpoint.state : parser.startState(indentUnit2);
+    let statePosition = checkpoint ? checkpoint.position : 0;
+    while (statePosition < line.from) {
+      const completeLine = document2.lineAt(statePosition);
+      if (completeLine.from !== statePosition || completeLine.to >= line.from) {
+        throw new Error("Unsupported StreamLanguage checkpoint position; expected a complete line boundary");
+      }
+      advanceCompleteLine(parser, wrappedState, completeLine.text, editorState.tabSize, indentUnit2);
+      statePosition = completeLine.to + 1;
+    }
+    const column = clippedPosition - line.from;
+    const stream = new StringStream(line.text, editorState.tabSize, indentUnit2);
+    let encodedStyle = null;
+    while (stream.pos < column && !stream.eol()) {
+      encodedStyle = readToken2(parser.token, stream, wrappedState);
+    }
+    return {
+      start: stream.start,
+      end: stream.pos,
+      string: stream.current(),
+      type: encodedStyle ? decodeStyleToken(encodedStyle) : null,
+      state: wrappedState.inner
+    };
+  }
+
+  // src/js/codemirror6/autocomplete.js
+  function stateWithExactPrefix(context) {
+    let state = context.view ? context.view.state : context.state;
+    if ((state.field(exactPrefix, false) ?? -1) >= context.pos) return state;
+    if (!context.view || !ensureExactPrefix(context.view, context.pos, 50)) return null;
+    state = context.view.state;
+    return (state.field(exactPrefix, false) ?? -1) >= context.pos ? state : null;
+  }
+  function puzzleScriptCompletionSource({ language: language2, complete }) {
+    return async (context) => {
+      const state = stateWithExactPrefix(context);
+      if (!state) return null;
+      const line = state.doc.lineAt(context.pos);
+      const token = getTokenAtPosition(state, language2, context.pos);
+      const result = complete({
+        line: line.text,
+        previousLine: line.number > 1 ? state.doc.line(line.number - 1).text : "",
+        cursor: context.pos - line.from,
+        token,
+        state: token.state
+      });
+      if (!result || result.list.length === 0) return null;
+      return {
+        from: line.from + result.from,
+        to: line.from + result.to,
+        filter: false,
+        options: result.list.map((item) => ({
+          label: item.text,
+          displayLabel: "",
+          psExtra: item.extra || "",
+          psTag: item.tag || null,
+          type: item.tag || void 0,
+          apply: item.text
+        }))
+      };
+    };
+  }
+  function renderPuzzleScriptOption(completion) {
+    let primaryText = completion.label;
+    let extraText = completion.psExtra || "";
+    if (primaryText.length === 0) {
+      primaryText = extraText;
+      extraText = completion.label;
+    }
+    const fragment = document.createDocumentFragment();
+    const wrapper = document.createElement("span");
+    wrapper.className += " cm-s-midnight ";
+    const primary = document.createElement("span");
+    primary.appendChild(document.createTextNode(primaryText));
+    if (completion.psTag != null) primary.className += "cm-" + completion.psTag;
+    wrapper.appendChild(primary);
+    fragment.appendChild(wrapper);
+    if (extraText.length > 0) fragment.appendChild(document.createTextNode(" " + extraText));
+    return fragment;
+  }
+  var moveUp = moveCompletionSelection(false);
+  var moveDown = moveCompletionSelection(true);
+  var movePageUp = moveCompletionSelection(false, "page");
+  var movePageDown = moveCompletionSelection(true, "page");
+  function moveToBoundary(last) {
+    return (view) => {
+      if (completionStatus(view.state) !== "active") return false;
+      const options = currentCompletions(view.state);
+      if (options.length === 0) return false;
+      view.dispatch({ effects: setSelectedCompletion(last ? options.length - 1 : 0) });
+      return true;
+    };
+  }
+  var puzzleScriptCompletionKeymap = Object.freeze([
+    { key: "ArrowUp", run: moveUp },
+    { key: "ArrowDown", run: moveDown },
+    { key: "PageUp", run: movePageUp },
+    { key: "PageDown", run: movePageDown },
+    { key: "Home", run: moveToBoundary(false) },
+    { key: "End", run: moveToBoundary(true) },
+    { key: "Enter", run: acceptCompletion },
+    { key: "Tab", run: acceptCompletion },
+    { key: "Escape", run: closeCompletion },
+    { key: "Ctrl-p", run: moveUp },
+    { key: "Ctrl-n", run: moveDown }
+  ]);
+  function puzzleScriptAutocomplete({ language: language2, complete, excludedKeyCodes }) {
+    const source = puzzleScriptCompletionSource({ language: language2, complete });
+    const completion = autocompletion({
+      activateOnTyping: false,
+      defaultKeymap: false,
+      interactionDelay: 0,
+      maxRenderedOptions: Number.MAX_SAFE_INTEGER,
+      icons: false,
+      override: [source],
+      addToOptions: [{ render: renderPuzzleScriptOption, position: 40 }]
+    });
+    const activateOnKeyRelease = EditorView.domEventHandlers({
+      keyup(event, view) {
+        if (!Object.prototype.hasOwnProperty.call(excludedKeyCodes, event.keyCode)) startCompletion(view);
+        return false;
+      }
+    });
+    return [completion, Prec.highest(keymap.of(puzzleScriptCompletionKeymap)), activateOnKeyRelease];
   }
 
   // src/js/codemirror6/stream-language.js
@@ -15514,66 +17700,6 @@
     return style;
   }
 
-  // src/js/codemirror6/exact-prefix.js
-  var setExactPrefix = StateEffect.define();
-  var exactPrefix = StateField.define({
-    create: () => 0,
-    update(value, transaction) {
-      if (transaction.docChanged) value = 0;
-      for (const effect of transaction.effects) {
-        if (effect.is(setExactPrefix)) value = Math.max(value, effect.value);
-      }
-      return value;
-    }
-  });
-  function ensureExactPrefix(view, upto, timeout = 50) {
-    const target = Math.min(Math.max(0, upto), view.state.doc.length);
-    const tree = ensureSyntaxTree(view.state, target, timeout);
-    if (!tree || !syntaxTreeAvailable(view.state, target)) return false;
-    view.dispatch({ effects: setExactPrefix.of(target) });
-    return true;
-  }
-  function requestIdle2(callback) {
-    if (typeof globalThis.requestIdleCallback === "function") {
-      return { kind: "idle", handle: globalThis.requestIdleCallback(callback) };
-    }
-    return { kind: "timeout", handle: globalThis.setTimeout(callback, 0) };
-  }
-  function cancelIdle(pending) {
-    if (!pending) return;
-    if (pending.kind === "idle" && typeof globalThis.cancelIdleCallback === "function") {
-      globalThis.cancelIdleCallback(pending.handle);
-    } else {
-      globalThis.clearTimeout(pending.handle);
-    }
-  }
-  var ExactPrefixScheduler = class {
-    constructor(view) {
-      this.view = view;
-      this.pending = null;
-      this.destroyed = false;
-      this.schedule();
-    }
-    schedule() {
-      if (this.destroyed || this.pending) return;
-      this.pending = requestIdle2(() => {
-        this.pending = null;
-        if (this.destroyed) return;
-        if (!ensureExactPrefix(this.view, this.view.viewport.to, 25)) this.schedule();
-      });
-    }
-    update(update) {
-      this.view = update.view;
-      if (update.docChanged || update.viewportChanged) this.schedule();
-    }
-    destroy() {
-      this.destroyed = true;
-      cancelIdle(this.pending);
-      this.pending = null;
-    }
-  };
-  var exactPrefixScheduler = ViewPlugin.fromClass(ExactPrefixScheduler);
-
   // src/js/codemirror6/token-presentation.js
   function classesForStyle(style) {
     return style.split(/\s+/).filter(Boolean).map((name2) => "cm-" + name2);
@@ -15617,6 +17743,9 @@
   }
   window.PuzzleScriptCM6 = Object.freeze({
     createEditor,
+    puzzleScriptAutocomplete,
+    puzzleScriptCompletionKeymap,
+    puzzleScriptCompletionSource,
     createPuzzleScriptLanguage,
     buildTokenDecorations
   });
