@@ -19283,21 +19283,40 @@
 
   // src/js/codemirror6/exact-prefix.js
   var setExactPrefix = StateEffect.define();
+  function earliestChangedPosition(transaction) {
+    let earliest = transaction.startState.doc.length;
+    transaction.changes.iterChanges((fromA) => {
+      earliest = Math.min(earliest, fromA);
+    });
+    return earliest;
+  }
   var exactPrefix = StateField.define({
     create: () => 0,
     update(value, transaction) {
-      if (transaction.docChanged) value = 0;
+      if (transaction.docChanged) {
+        const changedLine = transaction.startState.doc.lineAt(earliestChangedPosition(transaction));
+        value = Math.min(value, changedLine.from);
+      }
       for (const effect of transaction.effects) {
-        if (effect.is(setExactPrefix)) value = Math.max(value, effect.value);
+        if (effect.is(setExactPrefix)) {
+          value = Math.max(value, Math.min(effect.value, transaction.newDoc.length));
+        }
       }
       return value;
     }
   });
   function ensureExactPrefix(view, upto, timeout = 50) {
     const target = Math.min(Math.max(0, upto), view.state.doc.length);
+    const current = view.state.field(exactPrefix, false) ?? -1;
+    if (current >= target && syntaxTreeAvailable(view.state, target)) return true;
+    const publishedTree = syntaxTree(view.state);
     const tree = ensureSyntaxTree(view.state, target, timeout);
     if (!tree || !syntaxTreeAvailable(view.state, target)) return false;
-    view.dispatch({ effects: setExactPrefix.of(target) });
+    if (target > (view.state.field(exactPrefix, false) ?? -1)) {
+      view.dispatch({ effects: setExactPrefix.of(target) });
+    } else if (tree !== publishedTree) {
+      view.dispatch({});
+    }
     return true;
   }
   function requestIdle2(callback) {
@@ -19444,10 +19463,10 @@
   // src/js/codemirror6/autocomplete.js
   function stateWithExactPrefix(context) {
     let state = context.view ? context.view.state : context.state;
-    if ((state.field(exactPrefix, false) ?? -1) >= context.pos) return state;
+    if ((state.field(exactPrefix, false) ?? -1) >= context.pos && syntaxTreeAvailable(state, context.pos)) return state;
     if (!context.view || !ensureExactPrefix(context.view, context.pos, 50)) return null;
     state = context.view.state;
-    return (state.field(exactPrefix, false) ?? -1) >= context.pos ? state : null;
+    return (state.field(exactPrefix, false) ?? -1) >= context.pos && syntaxTreeAvailable(state, context.pos) ? state : null;
   }
   function puzzleScriptCompletionSource({ language: language2, complete }) {
     return async (context) => {
@@ -20900,7 +20919,7 @@
       },
       token(stream, state) {
         if (stream.sol()) {
-          state.lineStart = parser.copyState(state.inner);
+          state.lineStart = stream.string.length > CM5_MAX_HIGHLIGHT_LENGTH ? parser.copyState(state.inner) : null;
           state.discardRestOfLine = false;
         }
         if (state.discardRestOfLine) {
@@ -20909,6 +20928,7 @@
         }
         const style = parser.token(stream, state.inner);
         if (stream.pos > CM5_MAX_HIGHLIGHT_LENGTH) {
+          if (!state.lineStart) throw new Error("Missing long-line rollback state");
           state.inner = parser.copyState(state.lineStart);
           state.discardRestOfLine = true;
         }
@@ -21041,7 +21061,7 @@
   }
   function buildTokenDecorations(view) {
     const visibleEnd = Math.max(...view.visibleRanges.map((range) => range.to));
-    if (view.state.field(exactPrefix) < visibleEnd) return Decoration.none;
+    if (view.state.field(exactPrefix) < visibleEnd || !syntaxTreeAvailable(view.state, visibleEnd)) return Decoration.none;
     const decorations2 = [];
     const seen = /* @__PURE__ */ new Set();
     const tree = syntaxTree(view.state);
@@ -21066,7 +21086,7 @@
   }
   function updateTokenDecorations(update, previous) {
     const visibleEnd = Math.max(...update.view.visibleRanges.map((range) => range.to));
-    if (update.view.state.field(exactPrefix) >= visibleEnd) {
+    if (update.view.state.field(exactPrefix) >= visibleEnd && syntaxTreeAvailable(update.view.state, visibleEnd)) {
       return buildTokenDecorations(update.view);
     }
     return update.docChanged ? previous.map(update.changes) : previous;

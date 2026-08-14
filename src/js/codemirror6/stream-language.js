@@ -35,7 +35,9 @@ export function wrapPuzzleScriptParser(parser) {
     },
     token(stream, state) {
       if (stream.sol()) {
-        state.lineStart = parser.copyState(state.inner)
+        state.lineStart = stream.string.length > CM5_MAX_HIGHLIGHT_LENGTH
+          ? parser.copyState(state.inner)
+          : null
         state.discardRestOfLine = false
       }
       if (state.discardRestOfLine) {
@@ -44,6 +46,7 @@ export function wrapPuzzleScriptParser(parser) {
       }
       const style = parser.token(stream, state.inner)
       if (stream.pos > CM5_MAX_HIGHLIGHT_LENGTH) {
+        if (!state.lineStart) throw new Error("Missing long-line rollback state")
         state.inner = parser.copyState(state.lineStart)
         state.discardRestOfLine = true
       }

@@ -1,12 +1,18 @@
 import assert from "node:assert/strict"
 import {test} from "node:test"
 
+import {history, undo} from "@codemirror/commands"
+import {ensureSyntaxTree, StringStream} from "@codemirror/language"
+import {EditorState} from "@codemirror/state"
+
+import {exactPrefix, setExactPrefix} from "../../js/codemirror6/exact-prefix.js"
 import {decodeStyleToken, encodeStyleToken, isStyleToken} from "../../js/codemirror6/style-token.js"
 import {
   CM5_MAX_HIGHLIGHT_LENGTH,
   createPuzzleScriptLanguage,
   wrapPuzzleScriptParser
 } from "../../js/codemirror6/stream-language.js"
+import {getTokenAtPosition} from "../../js/codemirror6/stream-state.js"
 import {parserCases} from "./fixtures/parser-cases.js"
 import {
   canonicalState,
@@ -27,12 +33,91 @@ function treeTokens(tree) {
   return tokens
 }
 
+function copyCountsForLine(line) {
+  let allCopies = 0
+  let rollbackSnapshots = 0
+  const initialState = {generation: 0}
+  const parser = {
+    startState: () => initialState,
+    copyState(state) {
+      allCopies++
+      // Count only the extra snapshot allocated at the start of a pathological
+      // line. The detached restore copy and CM6-owned checkpoints are separate.
+      if (state === initialState) rollbackSnapshots++
+      return {generation: state.generation + 1}
+    },
+    blankLine: () => {},
+    token(stream) {
+      stream.skipToEnd()
+      return null
+    }
+  }
+  const wrapped = wrapPuzzleScriptParser(parser)
+  const state = wrapped.startState(2)
+  const stream = new StringStream(line, 4, 2)
+  wrapped.token(stream, state)
+  return {allCopies, rollbackSnapshots}
+}
+
+function copiesForLine(line) {
+  return copyCountsForLine(line).rollbackSnapshots
+}
+
+async function parserStateAtFollowingObjects(state, language) {
+  assert.ok(ensureSyntaxTree(state, state.doc.length, 1_000))
+  state = state.update({effects: setExactPrefix.of(state.doc.length)}).state
+  const objects = state.doc.toString().lastIndexOf("OBJECTS")
+  assert.notEqual(objects, -1)
+  return {
+    state,
+    parserState: canonicalState(getTokenAtPosition(state, language, objects + 2).state)
+  }
+}
+
+async function freshParserStateAtFollowingObjects(source) {
+  const harness = await createParserHarness()
+  const language = createPuzzleScriptLanguage(harness.parser)
+  const state = EditorState.create({doc: source, extensions: [language, exactPrefix]})
+  return (await parserStateAtFollowingObjects(state, language)).parserState
+}
+
 test("style identities are lossless and collision-free", () => {
   const style = "COLOR BOLDCOLOR COLOR-#Ff00aA"
   assert.equal(decodeStyleToken(encodeStyleToken(style)), style)
   assert.notEqual(encodeStyleToken("A B"), encodeStyleToken("A_B"))
   assert.equal(encodeStyleToken(null), null)
   assert.equal(decodeStyleToken("not-a-puzzlescript-token"), null)
+})
+
+test("only pathological lines allocate a line-start rollback snapshot", () => {
+  assert.equal(copiesForLine("x".repeat(9_999)), 0)
+  assert.equal(copiesForLine("x".repeat(10_000)), 0)
+  assert.equal(copiesForLine("x".repeat(10_001)), 1)
+  assert.equal(copyCountsForLine("x".repeat(10_001)).allCopies, 2,
+    "one rollback snapshot plus one detached restore copy")
+})
+
+test("edits and undo around a pathological line preserve the following section state", async () => {
+  const source = `${"x".repeat(10_001)}\nOBJECTS\nPlayer\nred\n.....\n.....\n.....\n.....\n.....\n`
+  const harness = await createParserHarness()
+  const language = createPuzzleScriptLanguage(harness.parser)
+  let state = EditorState.create({
+    doc: source,
+    extensions: [history(), language, exactPrefix]
+  })
+
+  state = state.update({changes: {from: 5_000, to: 5_001}}).state
+  let parsed = await parserStateAtFollowingObjects(state, language)
+  state = parsed.state
+  assert.deepEqual(parsed.parserState, await freshParserStateAtFollowingObjects(state.doc.toString()))
+
+  const view = {
+    get state() { return state },
+    dispatch(transaction) { state = transaction.state }
+  }
+  assert.equal(undo(view), true)
+  parsed = await parserStateAtFollowingObjects(state, language)
+  assert.deepEqual(parsed.parserState, await freshParserStateAtFollowingObjects(state.doc.toString()))
 })
 
 test("StreamLanguage preserves every styled parser span and final parser state", async t => {

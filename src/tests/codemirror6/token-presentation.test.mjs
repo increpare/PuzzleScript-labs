@@ -1,12 +1,12 @@
 import assert from "node:assert/strict"
 import {test} from "node:test"
 
-import {ensureSyntaxTree} from "@codemirror/language"
+import {ensureSyntaxTree, syntaxTree, syntaxTreeAvailable} from "@codemirror/language"
 import {EditorState} from "@codemirror/state"
 import {Decoration} from "@codemirror/view"
 
 import {styleFromHexCode} from "../../js/codemirror6/dynamic-colors.js"
-import {exactPrefix, setExactPrefix} from "../../js/codemirror6/exact-prefix.js"
+import {ensureExactPrefix, exactPrefix, setExactPrefix} from "../../js/codemirror6/exact-prefix.js"
 import {createPuzzleScriptLanguage} from "../../js/codemirror6/stream-language.js"
 import {
   buildTokenDecorations,
@@ -15,6 +15,7 @@ import {
   presentationClasses,
   updateTokenDecorations
 } from "../../js/codemirror6/token-presentation.js"
+import {distantPosition, largeSource} from "./fixtures/large-source.js"
 import {createParserHarness} from "./parser-support.mjs"
 
 function collectMarks(decorations) {
@@ -86,7 +87,10 @@ test("document edits retain mapped exact decorations until the replacement tree 
   const visibleRanges = [{from: 0, to: state.doc.length}]
   const previous = buildTokenDecorations({state, visibleRanges})
   const transaction = state.update({changes: {from: 15, insert: "x"}})
-  assert.equal(transaction.state.field(exactPrefix), 0)
+  assert.equal(
+    transaction.state.field(exactPrefix),
+    transaction.startState.doc.lineAt(15).from
+  )
 
   const retained = updateTokenDecorations({
     view: {
@@ -99,4 +103,46 @@ test("document edits retain mapped exact decorations until the replacement tree 
 
   assert.notStrictEqual(retained, Decoration.none)
   assert.ok(collectMarks(retained).length > 0)
+})
+
+test("a retained prefix cannot rebuild decorations from an unavailable mapped tree", async () => {
+  const harness = await createParserHarness()
+  const language = createPuzzleScriptLanguage(harness.parser)
+  let state = EditorState.create({
+    doc: largeSource,
+    extensions: [language, exactPrefix]
+  })
+  assert.ok(ensureSyntaxTree(state, state.doc.length, 2_000))
+  state = state.update({effects: setExactPrefix.of(state.doc.length)}).state
+
+  const line = state.doc.lineAt(distantPosition)
+  const visibleRanges = [{from: line.from, to: line.to}]
+  const previous = buildTokenDecorations({state, visibleRanges})
+  assert.ok(collectMarks(previous).length > 0)
+
+  const transaction = state.update({changes: {from: state.doc.length, insert: "("}})
+  assert.ok(transaction.state.field(exactPrefix) >= line.to)
+  assert.equal(syntaxTreeAvailable(transaction.state, line.to), false)
+  const view = {state: transaction.state, visibleRanges}
+  assert.strictEqual(buildTokenDecorations(view), Decoration.none)
+
+  const retained = updateTokenDecorations({
+    view,
+    docChanged: true,
+    changes: transaction.changes
+  }, previous)
+  assert.deepEqual(collectMarks(retained), collectMarks(previous.map(transaction.changes)))
+  assert.equal(collectMarks(retained).length, 80)
+
+  view.dispatches = 0
+  view.dispatch = spec => {
+    view.dispatches++
+    view.state = view.state.update(spec).state
+  }
+  assert.equal(ensureExactPrefix(view, line.to, 2_000), true)
+  assert.equal(view.dispatches, 1)
+  assert.ok(syntaxTree(view.state).length >= line.to)
+
+  const rebuilt = updateTokenDecorations({view, docChanged: false}, retained)
+  assert.equal(collectMarks(rebuilt).length, 80)
 })

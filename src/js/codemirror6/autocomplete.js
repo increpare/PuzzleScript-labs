@@ -8,6 +8,7 @@ import {
   setSelectedCompletion,
   startCompletion
 } from "@codemirror/autocomplete"
+import {syntaxTreeAvailable} from "@codemirror/language"
 import {EditorView} from "@codemirror/view"
 
 import {ensureExactPrefix, exactPrefix} from "./exact-prefix.js"
@@ -15,10 +16,12 @@ import {getTokenAtPosition} from "./stream-state.js"
 
 function stateWithExactPrefix(context) {
   let state = context.view ? context.view.state : context.state
-  if ((state.field(exactPrefix, false) ?? -1) >= context.pos) return state
+  if ((state.field(exactPrefix, false) ?? -1) >= context.pos &&
+      syntaxTreeAvailable(state, context.pos)) return state
   if (!context.view || !ensureExactPrefix(context.view, context.pos, 50)) return null
   state = context.view.state
-  return (state.field(exactPrefix, false) ?? -1) >= context.pos ? state : null
+  return (state.field(exactPrefix, false) ?? -1) >= context.pos &&
+    syntaxTreeAvailable(state, context.pos) ? state : null
 }
 
 export function puzzleScriptCompletionSource({language, complete}) {

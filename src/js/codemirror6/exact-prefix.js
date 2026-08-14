@@ -1,15 +1,26 @@
-import {ensureSyntaxTree, syntaxTreeAvailable} from "@codemirror/language"
+import {ensureSyntaxTree, syntaxTree, syntaxTreeAvailable} from "@codemirror/language"
 import {StateEffect, StateField} from "@codemirror/state"
 import {ViewPlugin} from "@codemirror/view"
 
 export const setExactPrefix = StateEffect.define()
 
+function earliestChangedPosition(transaction) {
+  let earliest = transaction.startState.doc.length
+  transaction.changes.iterChanges(fromA => { earliest = Math.min(earliest, fromA) })
+  return earliest
+}
+
 export const exactPrefix = StateField.define({
   create: () => 0,
   update(value, transaction) {
-    if (transaction.docChanged) value = 0
+    if (transaction.docChanged) {
+      const changedLine = transaction.startState.doc.lineAt(earliestChangedPosition(transaction))
+      value = Math.min(value, changedLine.from)
+    }
     for (const effect of transaction.effects) {
-      if (effect.is(setExactPrefix)) value = Math.max(value, effect.value)
+      if (effect.is(setExactPrefix)) {
+        value = Math.max(value, Math.min(effect.value, transaction.newDoc.length))
+      }
     }
     return value
   }
@@ -17,9 +28,16 @@ export const exactPrefix = StateField.define({
 
 export function ensureExactPrefix(view, upto, timeout = 50) {
   const target = Math.min(Math.max(0, upto), view.state.doc.length)
+  const current = view.state.field(exactPrefix, false) ?? -1
+  if (current >= target && syntaxTreeAvailable(view.state, target)) return true
+  const publishedTree = syntaxTree(view.state)
   const tree = ensureSyntaxTree(view.state, target, timeout)
   if (!tree || !syntaxTreeAvailable(view.state, target)) return false
-  view.dispatch({effects: setExactPrefix.of(target)})
+  if (target > (view.state.field(exactPrefix, false) ?? -1)) {
+    view.dispatch({effects: setExactPrefix.of(target)})
+  } else if (tree !== publishedTree) {
+    view.dispatch({})
+  }
   return true
 }
 

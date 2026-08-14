@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import {test} from "node:test"
 
 import {CompletionContext, insertCompletionText} from "@codemirror/autocomplete"
-import {ensureSyntaxTree} from "@codemirror/language"
+import {ensureSyntaxTree, syntaxTree, syntaxTreeAvailable} from "@codemirror/language"
 import {EditorState} from "@codemirror/state"
 
 import {
@@ -12,6 +12,7 @@ import {
 import {exactPrefix, setExactPrefix} from "../../js/codemirror6/exact-prefix.js"
 import {createPuzzleScriptLanguage} from "../../js/codemirror6/stream-language.js"
 import {autocompleteCases} from "./fixtures/autocomplete-cases.js"
+import {largeSource} from "./fixtures/large-source.js"
 import {createAutocompleteHarness} from "./parser-support.mjs"
 
 async function exactState(source, language) {
@@ -75,6 +76,35 @@ test("the CM6 source refuses unavailable exact state instead of guessing", async
   const source = puzzleScriptCompletionSource({language, complete: harness.autocomplete.complete})
 
   assert.equal(await source(new CompletionContext(state, state.doc.length, false)), null)
+})
+
+test("completion never trusts a retained prefix without an available syntax tree", async () => {
+  const harness = await createAutocompleteHarness()
+  const language = createPuzzleScriptLanguage(harness.parser)
+  const lastLevelStart = largeSource.lastIndexOf("\n", largeSource.length - 2) + 1
+  const completionSource = largeSource.slice(0, lastLevelStart) + "mes\n"
+  const position = completionSource.length - 1
+  let state = await exactState(completionSource, language)
+  state = state.update({changes: {from: state.doc.length, insert: "("}}).state
+  assert.ok(state.field(exactPrefix) >= position)
+  assert.equal(syntaxTreeAvailable(state, position), false)
+
+  const source = puzzleScriptCompletionSource({language, complete: harness.autocomplete.complete})
+  assert.equal(await source(new CompletionContext(state, position, false)), null)
+
+  const view = {
+    state,
+    dispatches: 0,
+    dispatch(spec) {
+      this.dispatches++
+      this.state = this.state.update(spec).state
+    }
+  }
+  const result = await source(new CompletionContext(view.state, position, false, view))
+  assert.ok(result)
+  assert.equal(result.options[0].label, "message")
+  assert.equal(view.dispatches, 1)
+  assert.ok(syntaxTree(view.state).length >= position)
 })
 
 test("the completion keymap contains only the captured CM5 popup bindings", () => {

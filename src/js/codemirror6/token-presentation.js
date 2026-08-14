@@ -1,4 +1,4 @@
-import {syntaxTree} from "@codemirror/language"
+import {syntaxTree, syntaxTreeAvailable} from "@codemirror/language"
 import {Decoration, ViewPlugin} from "@codemirror/view"
 
 import {styleFromHexCode} from "./dynamic-colors.js"
@@ -20,7 +20,8 @@ export function presentationClasses(style) {
 
 export function buildTokenDecorations(view) {
   const visibleEnd = Math.max(...view.visibleRanges.map(range => range.to))
-  if (view.state.field(exactPrefix) < visibleEnd) return Decoration.none
+  if (view.state.field(exactPrefix) < visibleEnd ||
+      !syntaxTreeAvailable(view.state, visibleEnd)) return Decoration.none
 
   const decorations = []
   const seen = new Set()
@@ -48,7 +49,8 @@ export function buildTokenDecorations(view) {
 
 export function updateTokenDecorations(update, previous) {
   const visibleEnd = Math.max(...update.view.visibleRanges.map(range => range.to))
-  if (update.view.state.field(exactPrefix) >= visibleEnd) {
+  if (update.view.state.field(exactPrefix) >= visibleEnd &&
+      syntaxTreeAvailable(update.view.state, visibleEnd)) {
     return buildTokenDecorations(update.view)
   }
   return update.docChanged ? previous.map(update.changes) : previous
