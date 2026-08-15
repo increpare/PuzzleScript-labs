@@ -139,15 +139,11 @@ async function main() {
     await concat(["./src/css/editor-cm6.css",
         "./src/css/editor-theme.css",
         "./src/css/docs.css",
-        "./src/css/codemirror.css",
-        "./src/css/midnight.css",
         "./src/css/console.css",
         "./src/css/gamecanvas.css",
         "./src/css/soundbar.css",
         "./src/css/layout.css",
-        "./src/css/toolbar.css",
-        "./src/css/dialog.css",
-        "./src/css/show-hint.css"],
+        "./src/css/toolbar.css"],
         "./bin/css/combined.css");
     console.log('css files concatenated')
 

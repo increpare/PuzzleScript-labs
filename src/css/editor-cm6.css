@@ -26,6 +26,7 @@
 }
 
 .puzzlescript-editor .cm-content {
+  min-width: 0;
   padding: 4px 0;
   caret-color: light-dark(#164, #F8F8F0);
   tab-size: 8 !important;
@@ -33,6 +34,10 @@
 
 .puzzlescript-editor .cm-line {
   padding: 0 4px;
+  white-space: pre-wrap;
+  word-break: normal;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
 }
 
 .puzzlescript-editor .cm-gutters {
@@ -136,7 +141,7 @@
 }
 
 .puzzlescript-editor .cm-search button[name=prev] {
-  margin-right: 180px;
+  margin-right: max(.6em, calc(100% - 33em));
 }
 
 .puzzlescript-editor .cm-search .cm-textfield {

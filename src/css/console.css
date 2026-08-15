@@ -22,6 +22,10 @@
 	color: orange;
 }
 
+.systemMessage {
+	color: light-dark(rgb(91, 74, 152), white);
+}
+
 .hoverpreview::before{
 	content: url(../images/eye.svg);
 }

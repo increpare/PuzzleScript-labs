@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 
 import {randomUUID} from "node:crypto"
+import {execFile} from "node:child_process"
 import {mkdir, readFile, rename, rm, writeFile} from "node:fs/promises"
 import path from "node:path"
+import {promisify} from "node:util"
 import {fileURLToPath, pathToFileURL} from "node:url"
 
 import {chromium} from "@playwright/test"
@@ -31,6 +33,7 @@ const directory = path.dirname(fileURLToPath(import.meta.url))
 const harnessPath = path.join(directory, "harness.js")
 const WARMUP_COUNT = 5
 const SAMPLE_COUNT = 20
+const execFileAsync = promisify(execFile)
 const SCENARIO_NAMES = Object.freeze([
   "keyToNextPaint",
   "autocompleteVisible",
@@ -43,7 +46,7 @@ const SCENARIO_NAMES = Object.freeze([
 
 function usageError(message) {
   return new Error(`${message}\nUsage: --browser chrome|safari --surface cm5|cm6 ` +
-    "--base-url http://127.0.0.1:4173 --output /path/to/result.json")
+    "--base-url http://127.0.0.1:4173 --output /path/to/result.json [--cpu-throttle 4]")
 }
 
 export function parseArguments(argv) {
@@ -55,7 +58,7 @@ export function parseArguments(argv) {
       throw usageError(`Invalid argument: ${option || "<missing>"}`)
     }
     const key = option.slice(2)
-    if (!["browser", "surface", "base-url", "output"].includes(key)) {
+    if (!["browser", "surface", "base-url", "output", "cpu-throttle"].includes(key)) {
       throw usageError(`Unknown option: ${option}`)
     }
     values[key] = value
@@ -70,12 +73,17 @@ export function parseArguments(argv) {
   if (!["cm5", "cm6"].includes(values.surface)) {
     throw usageError("--surface must be cm5|cm6")
   }
+  if (values["cpu-throttle"] !== undefined) {
+    if (values.browser !== "chrome") throw usageError("--cpu-throttle is Chrome only")
+    if (values["cpu-throttle"] !== "4") throw usageError("--cpu-throttle must equal 4")
+  }
 
   return {
     browser: values.browser,
     surface: values.surface,
     baseUrl: values["base-url"].replace(/\/+$/, ""),
-    output: values.output
+    output: values.output,
+    ...(values["cpu-throttle"] === undefined ? {} : {cpuThrottle: 4})
   }
 }
 
@@ -308,12 +316,18 @@ export function launchInstalledChrome(chromiumImplementation = chromium) {
   return chromiumImplementation.launch({channel: "chrome"})
 }
 
+export async function applyChromeCpuThrottle(page, rate) {
+  const session = await page.context().newCDPSession(page)
+  await session.send("Emulation.setCPUThrottlingRate", {rate})
+}
+
 async function runChrome(options, harnessSource, inputs) {
   const browser = await launchInstalledChrome()
   try {
     const page = await browser.newPage({viewport: {width: 1280, height: 900}})
     const pageErrors = []
     page.on("pageerror", error => pageErrors.push(String(error)))
+    if (options.cpuThrottle) await applyChromeCpuThrottle(page, options.cpuThrottle)
     await page.goto(surfaceUrl(options), {waitUntil: "networkidle"})
     await waitForChromeEditor(page, options.surface)
     await page.addScriptTag({content: harnessSource})
@@ -342,6 +356,100 @@ async function waitForSafariEditor(sessionId, surface) {
   throw new Error("Expected Safari editor root or adapter is missing")
 }
 
+async function activateInstalledSafari() {
+  await execFileAsync("/usr/bin/open", ["-a", "Safari"])
+}
+
+export async function ensureSafariForeground(sessionId, overrides = {}) {
+  const execute = overrides.execute || safariExecute
+  const activate = overrides.activate || activateInstalledSafari
+  const delay = overrides.delay || (milliseconds =>
+    new Promise(resolve => setTimeout(resolve, milliseconds)))
+  let activated = false
+  for (let attempt = 0; attempt < 300; attempt++) {
+    const visibility = await execute(sessionId, "return document.visibilityState")
+    if (visibility === "visible") return
+    if (!activated) {
+      await activate()
+      activated = true
+    }
+    await delay(100)
+  }
+  throw new Error("Safari benchmark visibilityState remained hidden after 30s foreground wait")
+}
+
+const safariScenarioBatchScript = [
+  "const inputs = arguments[0];",
+  "const name = arguments[1];",
+  "const warmups = arguments[2];",
+  "const samples = arguments[3];",
+  "const done = arguments[arguments.length - 1];",
+  "(async () => {",
+  "  for (let index = 0; index < warmups; index++) {",
+  "    await window.PuzzleScriptPerformance.runScenario(name, inputs);",
+  "  }",
+  "  const values = [];",
+  "  for (let index = 0; index < samples; index++) {",
+  "    values.push(await window.PuzzleScriptPerformance.runScenario(name, inputs));",
+  "  }",
+  "  return samples === 1 ? values[0] : window.PuzzleScriptPerformance.summarize(values);",
+  "})()",
+  "  .then(value => done({status: 'success', value}))",
+  "  .catch(error => {",
+  "    const message = String(error && error.message || error);",
+  "    const stack = String(error && error.stack || '');",
+  "    done({status: 'failure', message: stack && !stack.includes(message) ? message + '\\n' + stack : message});",
+  "  });"
+].join("\n")
+
+async function runSafariScenarioBatch(sessionId, inputs, name, warmups, samples, execute) {
+  const result = await execute(
+    sessionId,
+    safariScenarioBatchScript,
+    [inputs, name, warmups, samples],
+    true
+  )
+  if (!result || result.status !== "success") {
+    throw new Error(result?.message || "Safari benchmark scenario returned an invalid result")
+  }
+  return result.value
+}
+
+export async function collectSafariScenarioSummaries(
+  sessionId,
+  inputs,
+  execute = safariExecute
+) {
+  const summaries = {}
+  for (const name of SCENARIO_NAMES) {
+    if (name !== "loadDistantJumpExact") {
+      summaries[name] = await runSafariScenarioBatch(
+        sessionId,
+        inputs,
+        name,
+        WARMUP_COUNT,
+        SAMPLE_COUNT,
+        execute
+      )
+      continue
+    }
+
+    const samples = []
+    for (let index = 0; index < SAMPLE_COUNT; index++) {
+      samples.push(await runSafariScenarioBatch(
+        sessionId,
+        inputs,
+        name,
+        index === 0 ? WARMUP_COUNT : 0,
+        1,
+        execute
+      ))
+    }
+    summaries[name] = summarize(samples)
+  }
+  return summaries
+}
+
 async function runSafari(options, harnessSource, inputs) {
   return withSafariSessionLifecycle(
     connectSafari,
@@ -351,19 +459,14 @@ async function runSafari(options, harnessSource, inputs) {
       await webdriverRequest(`/session/${sessionId}/window/rect`, "POST", {width: 1280, height: 900})
       await webdriverRequest(`/session/${sessionId}/url`, "POST", {url: surfaceUrl(options)})
       await waitForSafariEditor(sessionId, options.surface)
+      await ensureSafariForeground(sessionId)
       await safariExecute(sessionId, [
         "window.__puzzleScriptPerformanceErrors = [];",
         "window.addEventListener('error', event => window.__puzzleScriptPerformanceErrors.push(String(event.error || event.message)));",
         "(0, eval)(arguments[0]);",
         "return true;"
       ].join("\n"), [harnessSource])
-      const result = await safariExecute(sessionId, [
-        "const done = arguments[arguments.length - 1];",
-        "Promise.resolve(window.PuzzleScriptPerformance.runAll(arguments[0]))",
-        "  .then(value => done({value}))",
-        "  .catch(error => done({error: String(error && (error.stack || error.message) || error)}));"
-      ].join("\n"), [inputs], true)
-      if (result.error) throw new Error(result.error)
+      const summaries = await collectSafariScenarioSummaries(sessionId, inputs)
       const environment = await safariExecute(sessionId,
         "return {visibilityState: document.visibilityState, pageErrors: window.__puzzleScriptPerformanceErrors.slice()}"
       )
@@ -372,7 +475,14 @@ async function runSafari(options, harnessSource, inputs) {
       return {
         browser: {name: "safari", version: capabilities.browserVersion || "unknown"},
         environment,
-        ...result.value,
+        warmups: WARMUP_COUNT,
+        samples: SAMPLE_COUNT,
+        sourceLengths: {
+          representative: inputs.representativeSource.length,
+          completion: inputs.completion.source.length + inputs.completion.key.length,
+          large: inputs.largeSource.length
+        },
+        summaries,
         heap: {supported: false, reason: "SafariDriver does not expose repeatable JavaScript heap usage"}
       }
     }

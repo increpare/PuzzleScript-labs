@@ -20,7 +20,8 @@ export async function webdriverRequest(
   })
   const payload = await response.json()
   if (!response.ok || payload.value?.error) {
-    throw new Error(payload.value?.message || `SafariDriver ${method} ${pathname} failed (${response.status})`)
+    const details = payload.value?.message || JSON.stringify(payload.value)
+    throw new Error(details || `SafariDriver ${method} ${pathname} failed (${response.status})`)
   }
   return payload.value
 }

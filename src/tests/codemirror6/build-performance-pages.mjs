@@ -7,6 +7,14 @@ const root = path.resolve(testDirectory, "../../..")
 const inputPath = path.join(root, "src/editor.html")
 const outputDirectory = path.join(root, "src/tests/codemirror6/generated")
 const outputPath = path.join(outputDirectory, "cm5-editor.html")
+const legacyProofOutputPath = path.join(outputDirectory, "cm6-legacy-css-proof.html")
+
+const cm5LegacyStylesheets = Object.freeze([
+  "codemirror.css",
+  "midnight.css",
+  "dialog.css",
+  "show-hint.css"
+])
 
 const cm5ScriptWhitelist = [
   "js/Blob.js",
@@ -59,8 +67,36 @@ const cm5ScriptWhitelist = [
   "js/makegif.js"
 ]
 
-export function transformCM5ComparisonHtml(input) {
+function injectCM5LegacyStylesheets(input) {
   let output = input
+  for (const stylesheet of cm5LegacyStylesheets) {
+    const pattern = new RegExp(
+      `\\s*<link\\b(?=[^>]*\\bhref\\s*=\\s*["']css/${stylesheet.replace(".", "\\.")}["'])[^>]*\\/?>`,
+      "gi"
+    )
+    output = output.replace(pattern, "")
+  }
+
+  output = output.replace(
+    /(<link\b(?=[^>]*\bhref\s*=\s*["']css\/docs\.css["'])[^>]*\/?>)/i,
+    '$1\n<link rel="stylesheet" href="css/codemirror.css">\n' +
+      '<link rel="stylesheet" href="css/midnight.css">\n' +
+      '<link rel="stylesheet" href="css/dialog.css">'
+  )
+  return output.replace(
+    /(<link\b(?=[^>]*\bhref\s*=\s*["']css\/toolbar\.css["'])[^>]*\/?>)/i,
+    '$1\n<link rel="stylesheet" href="css/show-hint.css">'
+  )
+}
+
+export function transformCM6LegacyCssProofHtml(input) {
+  const output = injectCM5LegacyStylesheets(input)
+    .replace(/\s*<base\s+href=["'][^"']*["']\s*\/?>/gi, "")
+  return output.replace(/<head>/i, '<head>\n<base href="../../../">')
+}
+
+export function transformCM5ComparisonHtml(input) {
+  let output = injectCM5LegacyStylesheets(input)
     .replace(/\s*<base\s+href=["'][^"']*["']\s*\/?>/gi, "")
     .replace(/\s*<link\b(?=[^>]*\bhref\s*=\s*["']css\/editor-cm6\.css["'])[^>]*\/?>/gi, "")
 
@@ -81,8 +117,10 @@ export function transformCM5ComparisonHtml(input) {
 export async function buildPerformancePages() {
   const input = await readFile(inputPath, "utf8")
   const output = transformCM5ComparisonHtml(input)
+  const legacyProof = transformCM6LegacyCssProofHtml(input)
   await mkdir(outputDirectory, {recursive: true})
   await writeFile(outputPath, output)
+  await writeFile(legacyProofOutputPath, legacyProof)
   return outputPath
 }
 

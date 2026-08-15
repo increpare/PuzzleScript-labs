@@ -18,6 +18,12 @@ npm run perf:codemirror:safari -- \
   --surface cm6 \
   --base-url http://127.0.0.1:4173 \
   --output /tmp/puzzlescript-cm6-safari.json
+
+npm run perf:codemirror:chrome -- \
+  --surface cm6 \
+  --base-url http://127.0.0.1:4173 \
+  --output /tmp/puzzlescript-cm6-chrome-cpu4.json \
+  --cpu-throttle 4
 ```
 
 All three arguments are required. `--surface` is `cm5` or `cm6`, `--base-url`
@@ -27,12 +33,32 @@ Safari through SafariDriver. SafariDriver must already be enabled; the runner
 never invokes `safaridriver --enable`. It connects to an existing driver on port
 4444 when available and stops only a driver process it started.
 
+`--cpu-throttle 4` is an optional Chrome-only headroom probe. It uses Chrome's
+public DevTools CPU-throttling command and is rejected for Safari or for values
+other than exactly `4`.
+
 The runner performs 5 warmups and stores 20 samples for each scenario. Chrome
 also records 20 fresh-page heap samples after garbage collection for initial
 mount and the 129,721-character source. Safari intentionally makes no automated
 heap claim because WebDriver exposes no equivalent repeatable heap measurement.
 Initial heap settling observes the already-mounted editor without changing its
 source, history, cursor, focus, selection, or scroll state.
+
+Safari uses one session for the complete capture. Each ordinary scenario is one
+bounded asynchronous WebDriver call. The distant-jump scenario keeps the same
+session but records one sample per call, with its five warmups applied only to
+the first call, to avoid SafariDriver's long-script timeout without changing the
+20-sample contract. The runner activates Safari and waits up to 30 seconds for
+`document.visibilityState === "visible"` before injecting the harness or doing
+any warmup; focus the SafariDriver-controlled window if it remains hidden.
+
+Chrome's page-error listener is attached before navigation. SafariDriver cannot
+carry a page listener across navigation, so Safari first requires the mounted
+editor and visible foreground, then attaches its listener immediately before
+harness injection. Safari's `environment.pageErrors` therefore covers the full
+warmup and measurement window, but does not claim to capture earlier page-load
+errors; missing or failed editor initialization is enforced separately by the
+mount wait.
 
 Settled scenarios observe the editor root before starting the measured mutation,
 require scenario-specific semantic readiness, then confirm 100 ms of DOM quiet

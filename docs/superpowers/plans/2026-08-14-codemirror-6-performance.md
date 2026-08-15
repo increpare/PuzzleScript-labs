@@ -8,6 +8,18 @@
 
 **Tech Stack:** Existing browser-global JavaScript, CodeMirror 6 (`@codemirror/state` 6.7.1, `view` 6.43.8, `language` 6.12.4, `commands` 6.10.4, `search` 6.7.1, `autocomplete` 6.20.3), Lezer support libraries (`@lezer/common` 1.5.2, `@lezer/highlight` 1.2.3), esbuild 0.28.2, gzipper 7.2.x, Node's test runner, Playwright 1.62.1, installed Chrome, and installed Safari through SafariDriver.
 
+> **Final outcome — 2026-08-15:** The branch achieved the autocomplete,
+> distant-navigation, decoration-reuse, heap, delivery, and frozen-fidelity
+> improvements, but it did not satisfy every original runtime gate. Installed
+> Safari key-to-paint p95 remains a failure at 19 ms, and whole-document
+> synchronous replacement remains a failure at approximately 22 ms rather than
+> becoming 2× faster. The diagnostic Chrome 4× CPU capture also misses one-frame
+> autocomplete headroom at 17.699999809265137 ms p95. Branch completion accepts
+> these as documented residual limits, not as passes and without weakening any
+> threshold, because the user's explicit hard constraints require public CM6
+> APIs, the unchanged `codeMirrorFn`/`StreamLanguage` parser architecture, and
+> frozen editor fidelity. See the [final evidence report](../../codemirror6-performance-report.md).
+
 ---
 
 ## Governing specification and safety rails
@@ -616,6 +628,13 @@ Update CM5 and CM6 adapter tests to assert one semantic navigation call/dispatch
 
 Run `replaceDocumentSync` and `replaceDocumentSettled` in installed Chrome and Safari. Synchronous replacement must be at least 2× faster than the pre-optimization CM6 baseline, settled time must also improve, and cursor, undo, dirty callback, styled viewport, and no-flash behavior must remain identical. If the synchronous number improves but settled time does not, treat the gate as failed and profile deferred parsing/presentation work.
 
+**Final outcome — 2026-08-15:** This gate remains **FAILED**. Final installed
+Chrome and Safari synchronous replacement are both approximately 22 ms and do
+not provide the required 2× improvement over pre-optimization CM6. Settled time
+improved modestly, but it does not substitute for the failed synchronous gate.
+The exact medians and p95 values remain in the
+[final evidence report](../../codemirror6-performance-report.md).
+
 - [ ] **Step 5: Test the optional one-state reset path**
 
 Write failing tests for `resetDocument(text)` that require: one new `EditorState`, unchanged extensions, cursor 0, scroll top, empty undo/redo history, one document/dirty notification, and no intermediate unstyled editor. Implement it as one `view.setState(EditorState.create(...))`, one scroll request if `setState` does not itself scroll to zero, and one explicit tracker notification because `setState` does not emit an update-listener transaction.
@@ -628,6 +647,14 @@ Benchmark it against the current `setValue(newSource)` plus `clearHistory()` seq
 - Callback, cursor, scroll, clean/dirty, and empty-history tests pass.
 
 If any reset condition fails, remove the uncommitted reset-only implementation/tests with `apply_patch`, retain the existing history-clearing compatibility path, and record the failed measurements in the final report. Do not weaken a gate to keep the method.
+
+**Final reset decision — 2026-08-15:** The one-state reset experiment was much
+faster in isolated Chrome measurements, but parser token decorations disappeared
+in both Chromium and WebKit. It was therefore removed and the established
+replacement-plus-history-clearing path retained. Private `LanguageState`,
+`setState`, or checkpoint manipulation was also rejected: it would violate the
+public-API and unchanged-stream-parser constraints. No measured threshold was
+weakened to keep either approach.
 
 - [ ] **Step 6: Remove superseded mechanical methods where the measured path permits**
 
@@ -810,6 +837,15 @@ Run the full harness in installed Chrome and installed Safari and write the opti
 
 Reject or remove any isolated optimization that misses its performance gate, changes correctness, or shifts work into `replaceDocumentSettled`/the next interaction.
 
+**Final measurement outcome — 2026-08-15:** Installed Safari key-to-paint p95
+is 19 ms and remains **FAILED** against 16.7 ms. Whole-document synchronous
+replacement remains approximately 22 ms in both installed browsers and remains
+**FAILED** against the 2× target. The Chrome 4× diagnostic measured
+17.699999809265137 ms autocomplete p95, so it does not demonstrate one-frame
+headroom. These misses remain explicit in the committed baselines and
+[final evidence report](../../codemirror6-performance-report.md); none is
+re-labelled as a pass or hidden by a relaxed threshold.
+
 - [ ] **Step 4: Write the evidence report**
 
 Create `docs/codemirror6-performance-report.md` containing:
@@ -840,7 +876,16 @@ Run separately:
 9. Installed Chrome performance/visual run
 10. Installed Safari performance/visual run through SafariDriver
 
-Expected: all Node/editor/engine/browser/release tests pass; Edge is not run; Chrome and Safari meet the performance contract; Chromium screenshots and cross-engine geometry remain within their approved baselines; release compression round-trips byte-for-byte.
+Expected originally: all Node/editor/engine/browser/release tests pass; Edge is not run; Chrome and Safari meet the performance contract; Chromium screenshots and cross-engine geometry remain within their approved baselines; release compression round-trips byte-for-byte.
+
+**Final deviation accepted on 2026-08-15:** Correctness, visual, geometry,
+parser, build, compression, and HTTP-delivery gates passed, but Safari's 19 ms
+key p95 and the approximately 22 ms whole-document synchronous result remain
+failed runtime gates; the Chrome 4× autocomplete headroom probe also remains a
+17.699999809265137 ms miss. Branch completion accepts those documented residual
+limits because pursuing them through private CM6 state/checkpoint hooks or the
+decoration-breaking reset would violate the user's parser and frozen-fidelity
+requirements. This acceptance does not convert the failures into passes.
 
 - [ ] **Step 6: Audit scope and commit final evidence**
 
@@ -878,6 +923,6 @@ git commit -m "docs: verify CodeMirror 6 performance gains"
 - [ ] `setValue` is only the agreed compatibility alias; repository application callers use semantic operations.
 - [ ] No `.gz` is generated; every `.br` round-trips to its original; raw files remain.
 - [ ] CM6 IIFE is deterministic and below 100 KiB Brotli.
-- [ ] Chrome and Safari meet the runtime gates; Edge was not run.
+- [ ] Chrome and Safari meet the runtime gates; Edge was not run. **Final 2026-08-15 status: not fully satisfied.** Safari key-to-paint p95 is 19 ms and whole-document synchronous replacement remains approximately 22 ms; both thresholds remain failed and unchanged. The branch accepts them only as documented residual limits under the public-API, unchanged-stream-parser, and frozen-fidelity constraints; see the [final evidence report](../../codemirror6-performance-report.md).
 - [ ] Layout/font/wrapping/gutters/panels match the frozen baseline.
 - [ ] The unrelated `candidate-page.test.mjs` edit remains untouched and unstaged.

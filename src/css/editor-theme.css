@@ -1,3 +1,22 @@
+:root {
+  color-scheme: light dark;
+}
+
+body {
+  color-scheme: dark;
+}
+
+.nocolorlink, .nocolorlink:visited, .nocolorlink .quasilink {
+  color: inherit;
+}
+
+span.cm-SOUND {
+  color: orange;
+  cursor: pointer;
+  cursor: hand;
+  text-decoration: underline;
+}
+
 /* PuzzleScript token presentation shared by CM5's and CM6's class names. */
 :is(.cm-s-midnight, .puzzlescript-editor) span.cm-COLOR {}
 
@@ -66,7 +85,6 @@
 :is(.cm-s-midnight, .puzzlescript-editor) span.cm-DIRECTION { color: #C11DC1; }
 :is(.cm-s-midnight, .puzzlescript-editor) span.cm-MESSAGE { color: orange; font-style: italic; }
 :is(.cm-s-midnight, .puzzlescript-editor) span.cm-METADATATEXT { color: light-dark(rgb(255, 127, 0), orange); font-style: italic; }
-:is(.cm-s-midnight, .puzzlescript-editor) span.cm-SOUND { color: orange; cursor: pointer; text-decoration: underline; }
 :is(.cm-s-midnight, .puzzlescript-editor) span.cm-SOUNDVERB,
 :is(.cm-s-midnight, .puzzlescript-editor) span.cm-SOUNDEVENT { color: #AE81FF; }
 :is(.cm-s-midnight, .puzzlescript-editor) span.cm-LEVEL { color: light-dark(rgb(17, 99, 93), #AAAAAA); }

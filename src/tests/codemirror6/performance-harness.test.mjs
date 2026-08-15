@@ -7,6 +7,7 @@ import {EventEmitter} from "node:events"
 import vm from "node:vm"
 
 import {transformCM5ComparisonHtml} from "./build-performance-pages.mjs"
+import * as performancePageBuilder from "./build-performance-pages.mjs"
 import performanceSettleConfig from "./performance-settle.config.mjs"
 import {
   collectChromeHeap,
@@ -18,11 +19,16 @@ import {
   terminateOwnedDriver,
   validateBenchmarkResults,
   validateHeapResults,
+  webdriverRequest,
   writeJsonAtomically,
   withSafariSessionLifecycle
 } from "./performance/run-installed-browser.mjs"
+import * as installedBrowserRunner from "./performance/run-installed-browser.mjs"
 
 const editorHtml = await readFile(new URL("../../editor.html", import.meta.url), "utf8")
+const midnightCss = await readFile(new URL("../../css/midnight.css", import.meta.url), "utf8")
+const editorThemeCss = await readFile(new URL("../../css/editor-theme.css", import.meta.url), "utf8")
+const consoleCss = await readFile(new URL("../../css/console.css", import.meta.url), "utf8")
 
 function count(source, needle) {
   return source.split(needle).length - 1
@@ -78,6 +84,51 @@ const cm5ScriptWhitelist = [
   "js/addlisteners_editor.js",
   "js/makegif.js"
 ]
+
+function cssRules(source) {
+  const withoutComments = source.replace(/\/\*[\s\S]*?\*\//g, "")
+  return [...withoutComments.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(match => ({
+    selectors: match[1].split(",").map(selector => selector.trim()),
+    declarations: match[2].replace(/\s+/g, " ").trim()
+  }))
+}
+
+function declarationFor(source, expectedSelectors) {
+  const rule = cssRules(source).find(candidate =>
+    candidate.selectors.join(",") === expectedSelectors.join(","))
+  assert.ok(rule, `missing CSS rule for ${expectedSelectors.join(", ")}`)
+  return rule.declarations
+}
+
+test("every non-CM5 midnight rule is exactly retained by production CSS", () => {
+  const globalSelectors = cssRules(midnightCss)
+    .flatMap(rule => rule.selectors)
+    .filter(selector => !selector.includes(".cm-s-midnight"))
+    .sort()
+  assert.deepEqual(globalSelectors, [
+    ".nocolorlink",
+    ".nocolorlink .quasilink",
+    ".nocolorlink:visited",
+    ".systemMessage",
+    ":root",
+    "body",
+    "span.cm-SOUND"
+  ])
+
+  for (const [source, selectors] of [
+    [editorThemeCss, [":root"]],
+    [editorThemeCss, ["body"]],
+    [editorThemeCss, [".nocolorlink", ".nocolorlink:visited", ".nocolorlink .quasilink"]],
+    [editorThemeCss, ["span.cm-SOUND"]],
+    [consoleCss, [".systemMessage"]]
+  ]) {
+    assert.equal(
+      declarationFor(source, selectors),
+      declarationFor(midnightCss, selectors),
+      selectors.join(", ")
+    )
+  }
+})
 
 const performanceScenarioNames = [
   "keyToNextPaint",
@@ -336,6 +387,29 @@ test("CM5 comparison removes CM6 stylesheet tags independent of attribute order"
   assert.equal(count(output, 'href="css/codemirror.css"'), 1)
 })
 
+test("CM5 comparison injects its frozen stylesheet whitelist when production omits it", () => {
+  const input = editorHtml.replace(/\s*<link\b[^>]*href=["']css\/(?:codemirror|midnight|dialog|show-hint)\.css["'][^>]*>/gi, "")
+  const output = transformCM5ComparisonHtml(input)
+
+  for (const stylesheet of ["codemirror.css", "midnight.css", "dialog.css", "show-hint.css"]) {
+    assert.equal(count(output, `href="css/${stylesheet}"`), 1, stylesheet)
+  }
+  assert.equal(transformCM5ComparisonHtml(output), output)
+})
+
+test("CM6 legacy-CSS proof page injects each candidate stylesheet exactly once", () => {
+  assert.equal(typeof performancePageBuilder.transformCM6LegacyCssProofHtml, "function")
+  const input = editorHtml.replace(/\s*<link\b[^>]*href=["']css\/(?:codemirror|midnight|dialog|show-hint)\.css["'][^>]*>/gi, "")
+  const output = performancePageBuilder.transformCM6LegacyCssProofHtml(input)
+
+  for (const stylesheet of ["codemirror.css", "midnight.css", "dialog.css", "show-hint.css"]) {
+    assert.equal(count(output, `href="css/${stylesheet}"`), 1, stylesheet)
+  }
+  assert.equal(count(output, 'src="js/codemirror6.bundle.js"'), 1)
+  assert.equal(count(output, 'src="js/editor-cm6.js"'), 1)
+  assert.equal(performancePageBuilder.transformCM6LegacyCssProofHtml(output), output)
+})
+
 test("performance harness exposes only its frozen API and summarizes a sorted copy", async () => {
   const source = await readFile(new URL("performance/harness.js", import.meta.url), "utf8")
   const context = vm.createContext({window: {}})
@@ -513,6 +587,14 @@ test("installed-browser arguments require a complete explicit destination", () =
   assert.throws(() => parseArguments([
     "--browser", "edge", "--surface", "cm6", "--base-url", "http://example.test", "--output", "x"
   ]), /chrome\|safari/)
+  assert.deepEqual(parseArguments([
+    "--browser", "chrome", "--surface", "cm6", "--base-url", "http://example.test",
+    "--output", "x", "--cpu-throttle", "4"
+  ]).cpuThrottle, 4)
+  assert.throws(() => parseArguments([
+    "--browser", "safari", "--surface", "cm6", "--base-url", "http://example.test",
+    "--output", "x", "--cpu-throttle", "4"
+  ]), /Chrome only/)
 })
 
 test("focused settle config matches only the intended browser contract", () => {
@@ -555,12 +637,23 @@ test("benchmark validation enforces the exact baseline contract", () => {
 })
 
 test("every checked performance baseline satisfies the explicit final-output schema", async () => {
-  for (const [filename, browser, surface] of [
+  const checkedBaselines = [
     ["cm5-chrome.json", "chrome", "cm5"],
     ["pre-cm6-chrome.json", "chrome", "cm6"],
+    ["optimized-cm6-chrome.json", "chrome", "cm6"],
     ["cm5-safari.json", "safari", "cm5"],
-    ["pre-cm6-safari.json", "safari", "cm6"]
-  ]) {
+    ["pre-cm6-safari.json", "safari", "cm6"],
+    ["optimized-cm6-safari.json", "safari", "cm6"]
+  ]
+  assert.deepEqual(checkedBaselines.map(([filename]) => filename), [
+    "cm5-chrome.json",
+    "pre-cm6-chrome.json",
+    "optimized-cm6-chrome.json",
+    "cm5-safari.json",
+    "pre-cm6-safari.json",
+    "optimized-cm6-safari.json"
+  ])
+  for (const [filename, browser, surface] of checkedBaselines) {
     const result = JSON.parse(await readFile(new URL(`performance/baselines/${filename}`, import.meta.url)))
     assert.doesNotThrow(() => validateBenchmarkResults(result, {
       browser,
@@ -729,6 +822,23 @@ test("Chrome runner launches the installed Chrome channel", async () => {
   assert.deepEqual(calls, [{channel: "chrome"}])
 })
 
+test("Chrome CPU throttling uses the public DevTools emulation command", async () => {
+  assert.equal(typeof installedBrowserRunner.applyChromeCpuThrottle, "function")
+  const calls = []
+  const page = {
+    context() {
+      return {
+        async newCDPSession(actualPage) {
+          assert.equal(actualPage, page)
+          return {async send(command, value) { calls.push([command, value]) }}
+        }
+      }
+    }
+  }
+  await installedBrowserRunner.applyChromeCpuThrottle(page, 4)
+  assert.deepEqual(calls, [["Emulation.setCPUThrottlingRate", {rate: 4}]])
+})
+
 test("Safari lifecycle always deletes sessions and stops only a driver it started", async () => {
   const deleted = []
   const stopped = []
@@ -760,6 +870,77 @@ test("Safari async benchmark requests outlive the configured script timeout", as
 
   assert.equal(calls[0][3], 30_000)
   assert.equal(calls[1][3], 610_000)
+})
+
+test("SafariDriver errors without messages retain their raw WebDriver details", async () => {
+  const response = {
+    ok: true,
+    status: 200,
+    json: async () => ({value: {error: "javascript error", stacktrace: "line 1"}})
+  }
+  await assert.rejects(
+    webdriverRequest("/session/test/execute/async", "POST", {}, 1_000, async () => response),
+    /javascript error.*line 1/
+  )
+})
+
+test("Safari benchmarks use bounded scenario calls and chunk distant samples in one session", async () => {
+  assert.equal(typeof installedBrowserRunner.collectSafariScenarioSummaries, "function")
+  const calls = []
+  let distantSample = 0
+  const execute = async (sessionId, script, args, asynchronous) => {
+    calls.push({sessionId, script, args, asynchronous})
+    const name = args[1]
+    if (name === "loadDistantJumpExact") return {status: "success", value: ++distantSample}
+    return {status: "success", value: validSummary()}
+  }
+
+  const summaries = await installedBrowserRunner.collectSafariScenarioSummaries(
+    "single-session",
+    performanceInputs(),
+    execute
+  )
+
+  assert.deepEqual(Object.keys(summaries).sort(), performanceScenarioNames.slice().sort())
+  assert.equal(calls.length, 26)
+  assert.equal(calls.every(call => call.sessionId === "single-session"), true)
+  assert.equal(calls.every(call => call.asynchronous === true), true)
+  assert.equal(calls.every(call => call.script.includes("arguments[0]")), true)
+  assert.equal(calls.every(call => !call.script.includes("...arguments")), true)
+  assert.equal(calls.every(call => !call.script.includes("done({error")), true)
+  assert.equal(calls.every(call =>
+    call.script.indexOf("error.message") < call.script.indexOf("error.stack")
+  ), true)
+  const distantCalls = calls.filter(call => call.args[1] === "loadDistantJumpExact")
+  assert.equal(distantCalls.length, 20)
+  assert.deepEqual(distantCalls.map(call => call.args.slice(2)), [
+    [5, 1],
+    ...Array.from({length: 19}, () => [0, 1])
+  ])
+  assert.deepEqual(summaries.loadDistantJumpExact, {
+    samples: Array.from({length: 20}, (_, index) => index + 1),
+    median: 10.5,
+    p95: 19,
+    min: 1,
+    max: 20
+  })
+})
+
+test("Safari runner foregrounds and verifies a hidden automation page before measurements", async () => {
+  assert.equal(typeof installedBrowserRunner.ensureSafariForeground, "function")
+  const visibility = ["hidden", "hidden", "visible"]
+  const events = []
+  await installedBrowserRunner.ensureSafariForeground("single-session", {
+    execute: async (sessionId, script) => {
+      events.push(["execute", sessionId, script])
+      return visibility.shift()
+    },
+    activate: async () => { events.push(["activate"]) },
+    delay: async milliseconds => { events.push(["delay", milliseconds]) }
+  })
+  assert.deepEqual(events.map(event => event[0]), [
+    "execute", "activate", "delay", "execute", "delay", "execute"
+  ])
 })
 
 test("Safari connection terminates an owned driver when readiness fails", async () => {
