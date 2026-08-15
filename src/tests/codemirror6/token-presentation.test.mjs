@@ -1,15 +1,20 @@
 import assert from "node:assert/strict"
 import {test} from "node:test"
 
-import {setSelectedCompletion} from "@codemirror/autocomplete"
-import {ensureSyntaxTree, syntaxTree, syntaxTreeAvailable} from "@codemirror/language"
-import {EditorState} from "@codemirror/state"
-import {SearchQuery, setSearchQuery} from "@codemirror/search"
-import {Decoration} from "@codemirror/view"
+import {
+  Decoration,
+  EditorState,
+  ensureSyntaxTree,
+  SearchQuery,
+  setSearchQuery,
+  setSelectedCompletion,
+  syntaxTree,
+  syntaxTreeAvailable
+} from "./plugin-test-support.mjs"
 
-import {styleFromHexCode} from "../../js/codemirror6/dynamic-colors.js"
-import {ensureExactPrefix, exactPrefix, setExactPrefix} from "../../js/codemirror6/exact-prefix.js"
-import {createPuzzleScriptLanguage} from "../../js/codemirror6/stream-language.js"
+import {styleFromHexCode} from "./plugin-test-support.mjs"
+import {ensureExactPrefix, exactPrefix, setExactPrefix} from "./plugin-test-support.mjs"
+import {createPuzzleScriptLanguage} from "./plugin-test-support.mjs"
 import {
   buildTokenDecorations,
   classesForStyle,
@@ -17,7 +22,7 @@ import {
   presentationClasses,
   tokenPresentation,
   updateTokenDecorations
-} from "../../js/codemirror6/token-presentation.js"
+} from "./plugin-test-support.mjs"
 import {distantPosition, largeSource} from "./fixtures/large-source.js"
 import {createParserHarness} from "./parser-support.mjs"
 

@@ -1,8 +1,9 @@
-import {syntaxTree} from "@codemirror/language"
-import {EditorView} from "@codemirror/view"
+(function(host) {
+"use strict"
 
-import {exactPrefix} from "./exact-prefix.js"
-import {decodeStyleToken, isStyleToken} from "./style-token.js"
+const {EditorView, syntaxTree} = host.requireRuntime(["EditorView", "syntaxTree"])
+const {exactPrefix} = host.require("exact-prefix")
+const {decodeStyleToken, isStyleToken} = host.require("style-token")
 
 function styleNodeAt(state, position) {
   const clipped = Math.max(0, Math.min(state.doc.length, position))
@@ -17,7 +18,7 @@ function styleNodeAt(state, position) {
   return null
 }
 
-export function puzzleScriptTokenAtPosition(state, position) {
+function puzzleScriptTokenAtPosition(state, position) {
   const node = styleNodeAt(state, position)
   if (!node || state.field(exactPrefix, false) < node.to) return null
   return {
@@ -29,7 +30,7 @@ export function puzzleScriptTokenAtPosition(state, position) {
   }
 }
 
-export function classifyPuzzleScriptToken(token, modifiers) {
+function classifyPuzzleScriptToken(token, modifiers) {
   if (!token) return null
   const styles = new Set(token.style.split(/\s+/).filter(Boolean))
   if (styles.has("SOUND")) return {type: "sound", seed: Number(token.text)}
@@ -39,7 +40,7 @@ export function classifyPuzzleScriptToken(token, modifiers) {
   return null
 }
 
-export function dispatchPuzzleScriptInteraction(action, callbacks) {
+function dispatchPuzzleScriptInteraction(action, callbacks) {
   if (!action) return false
   if (action.type === "sound") callbacks.onSound(action.seed)
   else if (action.type === "level") callbacks.onLevel(action.line)
@@ -47,7 +48,7 @@ export function dispatchPuzzleScriptInteraction(action, callbacks) {
   return true
 }
 
-export function notifyPuzzleScriptChange(update, onDocumentChange) {
+function notifyPuzzleScriptChange(update, onDocumentChange) {
   if (update.docChanged) onDocumentChange(update.state.doc)
 }
 
@@ -57,7 +58,7 @@ function reportError(prefix, error) {
   else console.error(message)
 }
 
-export function puzzleScriptInteractions({callbacks, onDocumentChange}) {
+function puzzleScriptInteractions({callbacks, onDocumentChange}) {
   const onUpdate = EditorView.updateListener.of(update =>
     notifyPuzzleScriptChange(update, onDocumentChange))
 
@@ -96,3 +97,12 @@ export function puzzleScriptInteractions({callbacks, onDocumentChange}) {
 
   return [onUpdate, handlers]
 }
+
+host.define("interactions", {
+  classifyPuzzleScriptToken,
+  dispatchPuzzleScriptInteraction,
+  notifyPuzzleScriptChange,
+  puzzleScriptInteractions,
+  puzzleScriptTokenAtPosition
+})
+})(globalThis.PuzzleScriptCM6Plugins)

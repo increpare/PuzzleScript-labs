@@ -1,9 +1,10 @@
-import {StreamLanguage} from "@codemirror/language"
-import {Tag} from "@lezer/highlight"
+(function(host) {
+"use strict"
 
-import {encodeStyleToken, isStyleToken} from "./style-token.js"
+const {StreamLanguage, Tag} = host.requireRuntime(["StreamLanguage", "Tag"])
+const {encodeStyleToken, isStyleToken} = host.require("style-token")
 
-export const CM5_MAX_HIGHLIGHT_LENGTH = 10_000
+const CM5_MAX_HIGHLIGHT_LENGTH = 10_000
 
 const puzzleTokenTag = Tag.define()
 const tokenTable = new Proxy(Object.create(null), {
@@ -12,7 +13,7 @@ const tokenTable = new Proxy(Object.create(null), {
   }
 })
 
-export function wrapPuzzleScriptParser(parser) {
+function wrapPuzzleScriptParser(parser) {
   return {
     name: "puzzle",
     mergeTokens: false,
@@ -55,6 +56,13 @@ export function wrapPuzzleScriptParser(parser) {
   }
 }
 
-export function createPuzzleScriptLanguage(parser) {
+function createPuzzleScriptLanguage(parser) {
   return StreamLanguage.define(wrapPuzzleScriptParser(parser))
 }
+
+host.define("stream-language", {
+  CM5_MAX_HIGHLIGHT_LENGTH,
+  createPuzzleScriptLanguage,
+  wrapPuzzleScriptParser
+})
+})(globalThis.PuzzleScriptCM6Plugins)

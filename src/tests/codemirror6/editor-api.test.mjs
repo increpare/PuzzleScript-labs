@@ -2,14 +2,22 @@ import assert from "node:assert/strict"
 import {readFile} from "node:fs/promises"
 import {test} from "node:test"
 
-import {history, isolateHistory, redo, undo, undoSelection} from "@codemirror/commands"
-import {EditorSelection, EditorState, Text} from "@codemirror/state"
-import {EditorView} from "@codemirror/view"
+import {
+  EditorSelection,
+  EditorState,
+  EditorView,
+  history,
+  isolateHistory,
+  redo,
+  Text,
+  undo,
+  undoSelection
+} from "./plugin-test-support.mjs"
 
 import {
   createCleanDocumentTracker,
   createCM6EditorDriver
-} from "../../js/codemirror6/editor-adapter.js"
+} from "./plugin-test-support.mjs"
 
 const apiPath = new URL("../../js/editor-api.js", import.meta.url)
 const shortcuts = JSON.parse(await readFile(

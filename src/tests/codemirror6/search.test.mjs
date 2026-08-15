@@ -1,14 +1,13 @@
 import assert from "node:assert/strict"
 import {test} from "node:test"
 
-import {SearchQuery, getSearchQuery} from "@codemirror/search"
-import {EditorState} from "@codemirror/state"
+import {SearchQuery, getSearchQuery, EditorState} from "./plugin-test-support.mjs"
 
 import {
   forceCaseInsensitive,
   puzzleScriptSearch,
   puzzleScriptSearchKeymap
-} from "../../js/codemirror6/search.js"
+} from "./plugin-test-support.mjs"
 
 test("forceCaseInsensitive copies every query option and changes only case sensitivity", () => {
   const marker = () => true

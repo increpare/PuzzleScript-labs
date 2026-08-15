@@ -1,8 +1,21 @@
-import {isolateHistory} from "@codemirror/commands"
-import {EditorSelection, EditorState, Transaction} from "@codemirror/state"
-import {EditorView} from "@codemirror/view"
+(function(host) {
+"use strict"
 
-export function createCleanDocumentTracker(initialDocument, equals, onDirtyChange) {
+const {
+  isolateHistory,
+  EditorSelection,
+  EditorState,
+  Transaction,
+  EditorView
+} = host.requireRuntime([
+  "isolateHistory",
+  "EditorSelection",
+  "EditorState",
+  "Transaction",
+  "EditorView"
+])
+
+function createCleanDocumentTracker(initialDocument, equals, onDirtyChange) {
   let cleanDocument = initialDocument
   let dirty = false
   return Object.freeze({
@@ -24,14 +37,14 @@ export function createCleanDocumentTracker(initialDocument, equals, onDirtyChang
   })
 }
 
-export function clipPosition(state, line, column) {
+function clipPosition(state, line, column) {
   const lineNumber = Math.max(1, Math.min(state.doc.lines, Number(line) + 1 || 1))
   const documentLine = state.doc.line(lineNumber)
   const clippedColumn = Math.max(0, Math.min(documentLine.length, Number(column) || 0))
   return documentLine.from + clippedColumn
 }
 
-export function createCM6EditorDriver(view, extensions, cleanDocumentTracker) {
+function createCM6EditorDriver(view, extensions, cleanDocumentTracker) {
   function replaceDocument(text) {
     view.dispatch({
       changes: {from: 0, to: view.state.doc.length, insert: String(text)},
@@ -82,3 +95,10 @@ export function createCM6EditorDriver(view, extensions, cleanDocumentTracker) {
     getInputElement: () => view.contentDOM
   })
 }
+
+host.define("editor-adapter", {
+  clipPosition,
+  createCleanDocumentTracker,
+  createCM6EditorDriver
+})
+})(globalThis.PuzzleScriptCM6Plugins)

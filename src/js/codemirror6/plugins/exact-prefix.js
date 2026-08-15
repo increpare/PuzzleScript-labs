@@ -1,8 +1,23 @@
-import {ensureSyntaxTree, syntaxTree, syntaxTreeAvailable} from "@codemirror/language"
-import {StateEffect, StateField} from "@codemirror/state"
-import {ViewPlugin} from "@codemirror/view"
+(function(host) {
+"use strict"
 
-export const setExactPrefix = StateEffect.define()
+const {
+  ensureSyntaxTree,
+  StateEffect,
+  StateField,
+  syntaxTree,
+  syntaxTreeAvailable,
+  ViewPlugin
+} = host.requireRuntime([
+  "ensureSyntaxTree",
+  "StateEffect",
+  "StateField",
+  "syntaxTree",
+  "syntaxTreeAvailable",
+  "ViewPlugin"
+])
+
+const setExactPrefix = StateEffect.define()
 
 function earliestChangedPosition(transaction) {
   let earliest = transaction.startState.doc.length
@@ -10,7 +25,7 @@ function earliestChangedPosition(transaction) {
   return earliest
 }
 
-export const exactPrefix = StateField.define({
+const exactPrefix = StateField.define({
   create: () => 0,
   update(value, transaction) {
     if (transaction.docChanged) {
@@ -26,7 +41,7 @@ export const exactPrefix = StateField.define({
   }
 })
 
-export function ensureExactPrefix(view, upto, timeout = 50) {
+function ensureExactPrefix(view, upto, timeout = 50) {
   const target = Math.min(Math.max(0, upto), view.state.doc.length)
   const current = view.state.field(exactPrefix, false) ?? -1
   if (current >= target && syntaxTreeAvailable(view.state, target)) return true
@@ -57,7 +72,7 @@ function cancelIdle(pending) {
   }
 }
 
-export class ExactPrefixScheduler {
+class ExactPrefixScheduler {
   constructor(view) {
     this.view = view
     this.pending = null
@@ -86,5 +101,15 @@ export class ExactPrefixScheduler {
   }
 }
 
-export const exactPrefixScheduler = ViewPlugin.fromClass(ExactPrefixScheduler)
-export const exactPrefixExtensions = [exactPrefix, exactPrefixScheduler]
+const exactPrefixScheduler = ViewPlugin.fromClass(ExactPrefixScheduler)
+const exactPrefixExtensions = [exactPrefix, exactPrefixScheduler]
+
+host.define("exact-prefix", {
+  ensureExactPrefix,
+  exactPrefix,
+  ExactPrefixScheduler,
+  exactPrefixExtensions,
+  exactPrefixScheduler,
+  setExactPrefix
+})
+})(globalThis.PuzzleScriptCM6Plugins)

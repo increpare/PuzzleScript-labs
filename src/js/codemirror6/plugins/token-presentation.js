@@ -1,20 +1,26 @@
-import {syntaxTree, syntaxTreeAvailable} from "@codemirror/language"
-import {Decoration, ViewPlugin} from "@codemirror/view"
+(function(host) {
+"use strict"
 
-import {styleFromHexCode} from "./dynamic-colors.js"
-import {exactPrefix} from "./exact-prefix.js"
-import {decodeStyleToken, isStyleToken} from "./style-token.js"
+const {Decoration, syntaxTree, syntaxTreeAvailable, ViewPlugin} = host.requireRuntime([
+  "Decoration",
+  "syntaxTree",
+  "syntaxTreeAvailable",
+  "ViewPlugin"
+])
+const {styleFromHexCode} = host.require("dynamic-colors")
+const {exactPrefix} = host.require("exact-prefix")
+const {decodeStyleToken, isStyleToken} = host.require("style-token")
 
-export function classesForStyle(style) {
+function classesForStyle(style) {
   return style.split(/\s+/).filter(Boolean).map(name => "cm-" + name)
 }
 
-export function dynamicHexForStyle(style) {
+function dynamicHexForStyle(style) {
   const match = style.match(/(?:^MULTICOLOR|(?:^|\s)COLOR-)(#[0-9a-fA-F]{3,8})(?:\s|$)/)
   return match ? match[1] : null
 }
 
-export function presentationClasses(style) {
+function presentationClasses(style) {
   return style.startsWith("MULTICOLOR#") ? ["cm-COLOR"] : classesForStyle(style)
 }
 
@@ -50,7 +56,7 @@ function cachedPresentation(name, cache) {
   return presentation
 }
 
-export function buildTokenDecorations(view, cache = new Map()) {
+function buildTokenDecorations(view, cache = new Map()) {
   const end = visibleEnd(view)
   if (view.state.field(exactPrefix) < end ||
       !syntaxTreeAvailable(view.state, end)) return Decoration.none
@@ -116,7 +122,7 @@ function defaultContext(update, previous) {
   }
 }
 
-export function updateTokenDecorations(update, previous, suppliedContext) {
+function updateTokenDecorations(update, previous, suppliedContext) {
   const context = suppliedContext ?? defaultContext(update, previous)
   const prefix = update.view.state.field(exactPrefix)
 
@@ -220,6 +226,16 @@ const tokenPresentationPlugin = ViewPlugin.fromClass(TokenPresentationPlugin, {
   decorations: value => value.decorations
 })
 
-export function tokenPresentation() {
+function tokenPresentation() {
   return tokenPresentationPlugin
 }
+
+host.define("token-presentation", {
+  buildTokenDecorations,
+  classesForStyle,
+  dynamicHexForStyle,
+  presentationClasses,
+  tokenPresentation,
+  updateTokenDecorations
+})
+})(globalThis.PuzzleScriptCM6Plugins)

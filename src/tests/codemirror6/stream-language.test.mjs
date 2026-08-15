@@ -1,18 +1,16 @@
 import assert from "node:assert/strict"
 import {test} from "node:test"
 
-import {history, undo} from "@codemirror/commands"
-import {ensureSyntaxTree, StringStream} from "@codemirror/language"
-import {EditorState} from "@codemirror/state"
+import {history, undo, ensureSyntaxTree, StringStream, EditorState} from "./plugin-test-support.mjs"
 
-import {exactPrefix, setExactPrefix} from "../../js/codemirror6/exact-prefix.js"
-import {decodeStyleToken, encodeStyleToken, isStyleToken} from "../../js/codemirror6/style-token.js"
+import {exactPrefix, setExactPrefix} from "./plugin-test-support.mjs"
+import {decodeStyleToken, encodeStyleToken, isStyleToken} from "./plugin-test-support.mjs"
 import {
   CM5_MAX_HIGHLIGHT_LENGTH,
   createPuzzleScriptLanguage,
   wrapPuzzleScriptParser
-} from "../../js/codemirror6/stream-language.js"
-import {getTokenAtPosition} from "../../js/codemirror6/stream-state.js"
+} from "./plugin-test-support.mjs"
+import {getTokenAtPosition} from "./plugin-test-support.mjs"
 import {parserCases} from "./fixtures/parser-cases.js"
 import {
   canonicalState,

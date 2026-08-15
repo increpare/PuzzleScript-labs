@@ -1,4 +1,7 @@
-import {
+(function(host) {
+"use strict"
+
+const {
   SearchQuery,
   closeSearchPanel,
   findNext,
@@ -7,17 +10,29 @@ import {
   openSearchPanel,
   replaceAll,
   search,
-  setSearchQuery
-} from "@codemirror/search"
-import {EditorState} from "@codemirror/state"
-import {ViewPlugin} from "@codemirror/view"
+  setSearchQuery,
+  EditorState,
+  ViewPlugin
+} = host.requireRuntime([
+  "SearchQuery",
+  "closeSearchPanel",
+  "findNext",
+  "findPrevious",
+  "getSearchQuery",
+  "openSearchPanel",
+  "replaceAll",
+  "search",
+  "setSearchQuery",
+  "EditorState",
+  "ViewPlugin"
+])
 
 const puzzleScriptSearchPhrases = EditorState.phrases.of({
   regexp: "regex",
   "by word": "whole word"
 })
 
-export function forceCaseInsensitive(query) {
+function forceCaseInsensitive(query) {
   if (!query.caseSensitive) return query
   return new SearchQuery({
     search: query.search,
@@ -78,7 +93,7 @@ function closeSearch(view) {
   return true
 }
 
-export const puzzleScriptSearchKeymap = Object.freeze([
+const puzzleScriptSearchKeymap = Object.freeze([
   {key: "Escape", run: closeSearch, scope: "editor search-panel"},
   {win: "Ctrl-f", linux: "Ctrl-f", mac: "Meta-f", run: openSearchPanel, scope: "editor search-panel"},
   {win: "Ctrl-g", linux: "Ctrl-g", mac: "Meta-g", run: findNext, scope: "editor search-panel"},
@@ -86,10 +101,17 @@ export const puzzleScriptSearchKeymap = Object.freeze([
   {win: "Shift-Ctrl-r", linux: "Shift-Ctrl-r", mac: "Shift-Meta-Alt-f", run: replaceAll, scope: "editor search-panel"}
 ])
 
-export function puzzleScriptSearch() {
+function puzzleScriptSearch() {
   return [
     puzzleScriptSearchPhrases,
     search({top: true, caseSensitive: false, regexp: false, wholeWord: false}),
     caseInsensitiveSearchGuard
   ]
 }
+
+host.define("search", {
+  forceCaseInsensitive,
+  puzzleScriptSearch,
+  puzzleScriptSearchKeymap
+})
+})(globalThis.PuzzleScriptCM6Plugins)

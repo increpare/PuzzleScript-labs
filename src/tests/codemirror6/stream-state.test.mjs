@@ -1,15 +1,14 @@
 import assert from "node:assert/strict"
 import {test} from "node:test"
 
-import {ensureSyntaxTree} from "@codemirror/language"
-import {EditorState} from "@codemirror/state"
+import {ensureSyntaxTree, EditorState} from "./plugin-test-support.mjs"
 
-import {exactPrefix, setExactPrefix} from "../../js/codemirror6/exact-prefix.js"
-import {createPuzzleScriptLanguage} from "../../js/codemirror6/stream-language.js"
+import {exactPrefix, setExactPrefix} from "./plugin-test-support.mjs"
+import {createPuzzleScriptLanguage} from "./plugin-test-support.mjs"
 import {
   assertPinnedStreamLanguage,
   getTokenAtPosition
-} from "../../js/codemirror6/stream-state.js"
+} from "./plugin-test-support.mjs"
 import {createParserHarness, directParserTrace} from "./parser-support.mjs"
 
 const source = "OBJECTS\nPlayer\nred\n.....\n.....\n.....\n.....\n.....\n\nLEGEND\nHero = Player"

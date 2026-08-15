@@ -1,15 +1,23 @@
-import {
+(function(host) {
+"use strict"
+
+const {
   StringStream,
   getIndentUnit,
   syntaxTree,
-  syntaxTreeAvailable
-} from "@codemirror/language"
-import {Tree} from "@lezer/common"
+  syntaxTreeAvailable,
+  Tree
+} = host.requireRuntime([
+  "StringStream",
+  "getIndentUnit",
+  "syntaxTree",
+  "syntaxTreeAvailable",
+  "Tree"
+])
+const {exactPrefix} = host.require("exact-prefix")
+const {decodeStyleToken} = host.require("style-token")
 
-import {exactPrefix} from "./exact-prefix.js"
-import {decodeStyleToken} from "./style-token.js"
-
-export function assertPinnedStreamLanguage(language) {
+function assertPinnedStreamLanguage(language) {
   if (!language || !language.stateAfter || !language.streamParser ||
       typeof language.streamParser.copyState !== "function") {
     throw new Error("Unsupported @codemirror/language StreamLanguage internals; expected 6.12.4")
@@ -56,7 +64,7 @@ function advanceCompleteLine(parser, state, text, tabSize, indentUnit) {
   while (!stream.eol()) readToken(parser.token, stream, state)
 }
 
-export function getTokenAtPosition(editorState, language, position) {
+function getTokenAtPosition(editorState, language, position) {
   assertPinnedStreamLanguage(language)
   const document = editorState.doc
   const clippedPosition = Math.min(Math.max(0, position), document.length)
@@ -97,3 +105,9 @@ export function getTokenAtPosition(editorState, language, position) {
     state: wrappedState.inner
   }
 }
+
+host.define("stream-state", {
+  assertPinnedStreamLanguage,
+  getTokenAtPosition
+})
+})(globalThis.PuzzleScriptCM6Plugins)

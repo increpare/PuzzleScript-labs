@@ -3,12 +3,17 @@ import {readFile} from "node:fs/promises"
 import {test} from "node:test"
 
 import {CompletionContext, insertCompletionText} from "@codemirror/autocomplete"
-import {ensureSyntaxTree, syntaxTree, syntaxTreeAvailable} from "@codemirror/language"
-import {EditorState, Transaction} from "@codemirror/state"
+import {
+  EditorState,
+  ensureSyntaxTree,
+  syntaxTree,
+  syntaxTreeAvailable,
+  Transaction
+} from "./plugin-test-support.mjs"
 
-import * as autocompleteModule from "../../js/codemirror6/autocomplete.js"
-import {exactPrefix, setExactPrefix} from "../../js/codemirror6/exact-prefix.js"
-import {createPuzzleScriptLanguage} from "../../js/codemirror6/stream-language.js"
+import * as autocompleteModule from "./plugin-test-support.mjs"
+import {exactPrefix, setExactPrefix} from "./plugin-test-support.mjs"
+import {createPuzzleScriptLanguage} from "./plugin-test-support.mjs"
 import {autocompleteCases} from "./fixtures/autocomplete-cases.js"
 import {largeSource} from "./fixtures/large-source.js"
 import {createAutocompleteHarness} from "./parser-support.mjs"
@@ -163,7 +168,7 @@ test("completion never trusts a retained prefix without an available syntax tree
 
 test("native typing activation uses the public zero-delay configuration", async () => {
   const implementation = await readFile(
-    new URL("../../js/codemirror6/autocomplete.js", import.meta.url),
+    new URL("../../js/codemirror6/plugins/autocomplete.js", import.meta.url),
     "utf8"
   )
   assert.match(implementation, /activateOnTyping:\s*true/)

@@ -1,17 +1,21 @@
 import assert from "node:assert/strict"
 import {test} from "node:test"
 
-import {ensureSyntaxTree, syntaxTree, syntaxTreeAvailable} from "@codemirror/language"
-import {EditorState} from "@codemirror/state"
+import {
+  EditorState,
+  ensureSyntaxTree,
+  syntaxTree,
+  syntaxTreeAvailable
+} from "./plugin-test-support.mjs"
 
 import {
   ExactPrefixScheduler,
   ensureExactPrefix,
   exactPrefix,
   setExactPrefix
-} from "../../js/codemirror6/exact-prefix.js"
-import {createPuzzleScriptLanguage} from "../../js/codemirror6/stream-language.js"
-import {getTokenAtPosition} from "../../js/codemirror6/stream-state.js"
+} from "./plugin-test-support.mjs"
+import {createPuzzleScriptLanguage} from "./plugin-test-support.mjs"
+import {getTokenAtPosition} from "./plugin-test-support.mjs"
 import {distantLineText, distantPosition, largeSource} from "./fixtures/large-source.js"
 import {createParserHarness} from "./parser-support.mjs"
 

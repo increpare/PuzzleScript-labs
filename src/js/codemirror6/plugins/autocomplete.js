@@ -1,4 +1,7 @@
-import {
+(function(host) {
+"use strict"
+
+const {
   acceptCompletion,
   autocompletion,
   closeCompletion,
@@ -6,13 +9,25 @@ import {
   currentCompletions,
   moveCompletionSelection,
   setSelectedCompletion,
-  startCompletion
-} from "@codemirror/autocomplete"
-import {syntaxTreeAvailable} from "@codemirror/language"
-import {EditorView, ViewPlugin} from "@codemirror/view"
-
-import {ensureExactPrefix, exactPrefix} from "./exact-prefix.js"
-import {getTokenAtPosition} from "./stream-state.js"
+  startCompletion,
+  syntaxTreeAvailable,
+  EditorView,
+  ViewPlugin
+} = host.requireRuntime([
+  "acceptCompletion",
+  "autocompletion",
+  "closeCompletion",
+  "completionStatus",
+  "currentCompletions",
+  "moveCompletionSelection",
+  "setSelectedCompletion",
+  "startCompletion",
+  "syntaxTreeAvailable",
+  "EditorView",
+  "ViewPlugin"
+])
+const {ensureExactPrefix, exactPrefix} = host.require("exact-prefix")
+const {getTokenAtPosition} = host.require("stream-state")
 
 function stateWithExactPrefix(context) {
   let state = context.view ? context.view.state : context.state
@@ -24,7 +39,7 @@ function stateWithExactPrefix(context) {
     syntaxTreeAvailable(state, context.pos) ? state : null
 }
 
-export function puzzleScriptCompletionSource({language, complete, allows = () => true}) {
+function puzzleScriptCompletionSource({language, complete, allows = () => true}) {
   return async context => {
     if (!allows(context.state.doc)) return null
     const state = stateWithExactPrefix(context)
@@ -92,7 +107,7 @@ function moveToBoundary(last) {
   }
 }
 
-export const puzzleScriptCompletionKeymap = Object.freeze([
+const puzzleScriptCompletionKeymap = Object.freeze([
   {key: "ArrowUp", run: moveUp},
   {key: "ArrowDown", run: moveDown},
   {key: "PageUp", run: movePageUp},
@@ -106,7 +121,7 @@ export const puzzleScriptCompletionKeymap = Object.freeze([
   {mac: "Ctrl-n", run: moveDown}
 ])
 
-export function createPuzzleScriptAutocompleteActivationCleanup(
+function createPuzzleScriptAutocompleteActivationCleanup(
   activation,
   defer = callback => queueMicrotask(callback)
 ) {
@@ -125,7 +140,7 @@ export function createPuzzleScriptAutocompleteActivationCleanup(
   })
 }
 
-export function createPuzzleScriptAutocompleteActivationController({
+function createPuzzleScriptAutocompleteActivationController({
   excludedKeyCodes,
   start = startCompletion,
   schedule = callback => setTimeout(callback, 0),
@@ -208,7 +223,7 @@ export function createPuzzleScriptAutocompleteActivationController({
   return Object.freeze(controller)
 }
 
-export function puzzleScriptAutocomplete({language, complete, excludedKeyCodes}) {
+function puzzleScriptAutocomplete({language, complete, excludedKeyCodes}) {
   const activation = createPuzzleScriptAutocompleteActivationController({excludedKeyCodes})
   const cleanup = createPuzzleScriptAutocompleteActivationCleanup(activation)
   const source = puzzleScriptCompletionSource({language, complete, allows: activation.allows})
@@ -238,3 +253,12 @@ export function puzzleScriptAutocomplete({language, complete, excludedKeyCodes})
   const destroyActivation = ViewPlugin.define(() => cleanup.create())
   return [completion, activationHandlers, observeActivation, destroyActivation]
 }
+
+host.define("autocomplete", {
+  createPuzzleScriptAutocompleteActivationCleanup,
+  createPuzzleScriptAutocompleteActivationController,
+  puzzleScriptAutocomplete,
+  puzzleScriptCompletionKeymap,
+  puzzleScriptCompletionSource
+})
+})(globalThis.PuzzleScriptCM6Plugins)

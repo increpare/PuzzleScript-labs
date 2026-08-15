@@ -1,3 +1,6 @@
+(function(host) {
+"use strict"
+
 const MINIMUM_COLOR_CONTRAST_RATIO = 2.361;
 
 function parseHexColor(hexColor) {
@@ -41,7 +44,7 @@ function contrastRatio(firstColor, secondColor) {
 
 // PuzzleScript: dynamic token colors (contrast-adjusted for midnight theme)
 var colorCache = {};
-export function styleFromHexCode(hexCode) {
+function styleFromHexCode(hexCode) {
   var editorBackground = parseHexColor('#0F192A');
   function rgbToHsl(rgb) {
     var r = rgb[0], g = rgb[1], b = rgb[2];
@@ -98,3 +101,6 @@ export function styleFromHexCode(hexCode) {
   }
   return style;
 }
+
+host.define("dynamic-colors", {styleFromHexCode})
+})(globalThis.PuzzleScriptCM6Plugins)

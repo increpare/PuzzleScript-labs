@@ -1,6 +1,9 @@
+(function(host) {
+"use strict"
+
 const prefix = "ps_"
 
-export function encodeStyleToken(style) {
+function encodeStyleToken(style) {
   if (!style) return null
   let encoded = prefix
   for (let i = 0; i < style.length; i++) {
@@ -9,7 +12,7 @@ export function encodeStyleToken(style) {
   return encoded
 }
 
-export function decodeStyleToken(name) {
+function decodeStyleToken(name) {
   if (!name.startsWith(prefix) || (name.length - prefix.length) % 4) return null
   let style = ""
   for (let i = prefix.length; i < name.length; i += 4) {
@@ -18,6 +21,13 @@ export function decodeStyleToken(name) {
   return style
 }
 
-export function isStyleToken(name) {
+function isStyleToken(name) {
   return name.startsWith(prefix)
 }
+
+host.define("style-token", {
+  decodeStyleToken,
+  encodeStyleToken,
+  isStyleToken
+})
+})(globalThis.PuzzleScriptCM6Plugins)

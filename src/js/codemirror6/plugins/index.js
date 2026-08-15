@@ -1,6 +1,10 @@
-import {history} from "@codemirror/commands"
-import {EditorState, Text} from "@codemirror/state"
-import {
+(function(host) {
+"use strict"
+
+const {
+  history,
+  EditorState,
+  Text,
   EditorView,
   drawSelection,
   dropCursor,
@@ -8,29 +12,39 @@ import {
   highlightActiveLineGutter,
   keymap,
   lineNumbers
-} from "@codemirror/view"
-
-import {
+} = host.requireRuntime([
+  "history",
+  "EditorState",
+  "Text",
+  "EditorView",
+  "drawSelection",
+  "dropCursor",
+  "highlightActiveLine",
+  "highlightActiveLineGutter",
+  "keymap",
+  "lineNumbers"
+])
+const {
   puzzleScriptAutocomplete,
   puzzleScriptCompletionKeymap
-} from "./autocomplete.js"
-import {
+} = host.require("autocomplete")
+const {
   puzzleScriptCommandExtensions,
   puzzleScriptCoreKeymap,
   puzzleScriptKeymap
-} from "./commands.js"
-import {
+} = host.require("commands")
+const {
   createCleanDocumentTracker,
   createCM6EditorDriver
-} from "./editor-adapter.js"
-import {exactPrefixExtensions} from "./exact-prefix.js"
-import {puzzleScriptInteractions} from "./interactions.js"
-import {
+} = host.require("editor-adapter")
+const {exactPrefixExtensions} = host.require("exact-prefix")
+const {puzzleScriptInteractions} = host.require("interactions")
+const {
   puzzleScriptSearch,
   puzzleScriptSearchKeymap
-} from "./search.js"
-import {createPuzzleScriptLanguage} from "./stream-language.js"
-import {tokenPresentation} from "./token-presentation.js"
+} = host.require("search")
+const {createPuzzleScriptLanguage} = host.require("stream-language")
+const {tokenPresentation} = host.require("token-presentation")
 
 function createEditor(options) {
   const language = createPuzzleScriptLanguage(options.parser)
@@ -89,4 +103,7 @@ function createEditor(options) {
   return editor
 }
 
-window.PuzzleScriptCM6 = Object.freeze({createEditor})
+host.define("index", {createEditor})
+host.seal()
+globalThis.PuzzleScriptCM6 = Object.freeze({createEditor})
+})(globalThis.PuzzleScriptCM6Plugins)

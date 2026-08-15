@@ -2,8 +2,7 @@ import assert from "node:assert/strict"
 import {readFile} from "node:fs/promises"
 import {test} from "node:test"
 
-import {history, undo} from "@codemirror/commands"
-import {EditorSelection, EditorState} from "@codemirror/state"
+import {EditorSelection, EditorState, history, undo} from "./plugin-test-support.mjs"
 
 import {
   movePuzzleScriptLineDown,
@@ -14,9 +13,9 @@ import {
   puzzleScriptKeymap,
   togglePuzzleScriptComment,
   togglePuzzleScriptOverwrite
-} from "../../js/codemirror6/commands.js"
-import {puzzleScriptCompletionKeymap} from "../../js/codemirror6/autocomplete.js"
-import {puzzleScriptSearchKeymap} from "../../js/codemirror6/search.js"
+} from "./plugin-test-support.mjs"
+import {puzzleScriptCompletionKeymap} from "./plugin-test-support.mjs"
+import {puzzleScriptSearchKeymap} from "./plugin-test-support.mjs"
 
 const shortcuts = JSON.parse(await readFile(
   new URL("./baselines/cm5/shortcuts.json", import.meta.url),

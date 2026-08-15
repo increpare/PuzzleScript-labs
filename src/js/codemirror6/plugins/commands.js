@@ -1,4 +1,7 @@
-import {
+(function(host) {
+"use strict"
+
+const {
   cursorCharLeft,
   cursorCharRight,
   cursorDocEnd,
@@ -48,10 +51,67 @@ import {
   splitLine,
   transposeChars,
   undo,
-  undoSelection
-} from "@codemirror/commands"
-import {EditorSelection, StateEffect, StateField} from "@codemirror/state"
-import {EditorView} from "@codemirror/view"
+  undoSelection,
+  EditorSelection,
+  StateEffect,
+  StateField,
+  EditorView
+} = host.requireRuntime([
+  "cursorCharLeft",
+  "cursorCharRight",
+  "cursorDocEnd",
+  "cursorDocStart",
+  "cursorGroupLeft",
+  "cursorGroupRight",
+  "cursorLineBoundaryBackward",
+  "cursorLineBoundaryForward",
+  "cursorLineBoundaryLeft",
+  "cursorLineBoundaryRight",
+  "cursorLineDown",
+  "cursorLineEnd",
+  "cursorLineStart",
+  "cursorLineUp",
+  "cursorPageDown",
+  "cursorPageUp",
+  "deleteCharBackward",
+  "deleteCharForward",
+  "deleteGroupBackward",
+  "deleteGroupForward",
+  "deleteLineBoundaryBackward",
+  "deleteLineBoundaryForward",
+  "deleteToLineEnd",
+  "indentLess",
+  "indentMore",
+  "insertNewlineAndIndent",
+  "insertTab",
+  "redo",
+  "redoSelection",
+  "selectAll",
+  "selectCharLeft",
+  "selectCharRight",
+  "selectDocEnd",
+  "selectDocStart",
+  "selectGroupLeft",
+  "selectGroupRight",
+  "selectLineBoundaryBackward",
+  "selectLineBoundaryForward",
+  "selectLineBoundaryLeft",
+  "selectLineBoundaryRight",
+  "selectLineDown",
+  "selectLineEnd",
+  "selectLineStart",
+  "selectLineUp",
+  "selectPageDown",
+  "selectPageUp",
+  "splitLine",
+  "transposeChars",
+  "undo",
+  "undoSelection",
+  "EditorSelection",
+  "StateEffect",
+  "StateField",
+  "EditorView"
+])
 
 function selectedLines(state) {
   const numbers = new Set()
@@ -70,7 +130,7 @@ function isCommentedLine(text) {
   return text.startsWith("( ") && text.endsWith(" )")
 }
 
-export function togglePuzzleScriptComment(view) {
+function togglePuzzleScriptComment(view) {
   if (view.state.readOnly) return false
   const state = view.state
   const {numbers, commentBlankLines} = selectedLines(state)
@@ -178,8 +238,8 @@ function movePuzzleScriptLines(view, forward) {
   return true
 }
 
-export const movePuzzleScriptLineUp = view => movePuzzleScriptLines(view, false)
-export const movePuzzleScriptLineDown = view => movePuzzleScriptLines(view, true)
+const movePuzzleScriptLineUp = view => movePuzzleScriptLines(view, false)
+const movePuzzleScriptLineDown = view => movePuzzleScriptLines(view, true)
 
 function defaultTab(view) {
   return view.state.selection.ranges.some(range => !range.empty) ? indentMore(view) : insertTab(view)
@@ -213,7 +273,7 @@ function cm5IndentAutoLines(state) {
   return lines
 }
 
-export function indentPuzzleScriptAuto(view) {
+function indentPuzzleScriptAuto(view) {
   const {state} = view
   if (state.readOnly) return false
   const selected = cm5IndentAutoLines(state)
@@ -265,7 +325,7 @@ export function indentPuzzleScriptAuto(view) {
   return true
 }
 
-export function deletePuzzleScriptLine(view) {
+function deletePuzzleScriptLine(view) {
   const {state} = view
   if (state.readOnly) return false
   const ranges = []
@@ -289,8 +349,8 @@ export function deletePuzzleScriptLine(view) {
   return true
 }
 
-export const setOverwriteMode = StateEffect.define()
-export const overwriteMode = StateField.define({
+const setOverwriteMode = StateEffect.define()
+const overwriteMode = StateField.define({
   create: () => false,
   update(value, transaction) {
     for (const effect of transaction.effects) {
@@ -300,7 +360,7 @@ export const overwriteMode = StateField.define({
   }
 })
 
-export function togglePuzzleScriptOverwrite(view) {
+function togglePuzzleScriptOverwrite(view) {
   view.dispatch({effects: setOverwriteMode.of(!view.state.field(overwriteMode))})
   return true
 }
@@ -320,23 +380,23 @@ const overwriteInput = EditorView.inputHandler.of((view, _from, _to, text) => {
   return true
 })
 
-export const puzzleScriptCommandExtensions = [overwriteMode, overwriteInput]
+const puzzleScriptCommandExtensions = [overwriteMode, overwriteInput]
 
-export function macShiftControlPageUp(view, event) {
+function macShiftControlPageUp(view, event) {
   if (!event || !event.shiftKey || !event.ctrlKey || event.altKey || event.metaKey ||
       String(event.key).toLowerCase() !== "v" ||
       !/^Mac/.test(globalThis.navigator && globalThis.navigator.platform || "")) return false
   return cursorPageUp(view)
 }
 
-export const puzzleScriptKeymap = Object.freeze([
+const puzzleScriptKeymap = Object.freeze([
   {key: "Ctrl-/", run: togglePuzzleScriptComment},
   {key: "Meta-/", run: togglePuzzleScriptComment},
   {key: "Shift-Ctrl-ArrowUp", run: movePuzzleScriptLineUp},
   {key: "Shift-Ctrl-ArrowDown", run: movePuzzleScriptLineDown}
 ])
 
-export const puzzleScriptCoreKeymap = Object.freeze([
+const puzzleScriptCoreKeymap = Object.freeze([
   {any: macShiftControlPageUp},
   {win: "Ctrl-a", linux: "Ctrl-a", mac: "Meta-a", run: selectAll},
   {win: "Ctrl-d", linux: "Ctrl-d", mac: "Meta-d", run: deletePuzzleScriptLine},
@@ -394,3 +454,19 @@ export const puzzleScriptCoreKeymap = Object.freeze([
   {mac: "Meta-Backspace", run: deleteLineBoundaryBackward},
   {mac: "Meta-Delete", run: deleteLineBoundaryForward}
 ])
+
+host.define("commands", {
+  deletePuzzleScriptLine,
+  indentPuzzleScriptAuto,
+  macShiftControlPageUp,
+  movePuzzleScriptLineDown,
+  movePuzzleScriptLineUp,
+  overwriteMode,
+  puzzleScriptCommandExtensions,
+  puzzleScriptCoreKeymap,
+  puzzleScriptKeymap,
+  setOverwriteMode,
+  togglePuzzleScriptComment,
+  togglePuzzleScriptOverwrite
+})
+})(globalThis.PuzzleScriptCM6Plugins)

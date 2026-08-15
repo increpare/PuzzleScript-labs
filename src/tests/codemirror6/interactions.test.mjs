@@ -1,17 +1,16 @@
 import assert from "node:assert/strict"
 import {test} from "node:test"
 
-import {ensureSyntaxTree} from "@codemirror/language"
-import {EditorState} from "@codemirror/state"
+import {ensureSyntaxTree, EditorState} from "./plugin-test-support.mjs"
 
-import {exactPrefix, setExactPrefix} from "../../js/codemirror6/exact-prefix.js"
+import {exactPrefix, setExactPrefix} from "./plugin-test-support.mjs"
 import {
   classifyPuzzleScriptToken,
   dispatchPuzzleScriptInteraction,
   notifyPuzzleScriptChange,
   puzzleScriptTokenAtPosition
-} from "../../js/codemirror6/interactions.js"
-import {createPuzzleScriptLanguage} from "../../js/codemirror6/stream-language.js"
+} from "./plugin-test-support.mjs"
+import {createPuzzleScriptLanguage} from "./plugin-test-support.mjs"
 import {createParserHarness} from "./parser-support.mjs"
 
 const source = `title 123
