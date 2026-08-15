@@ -42,7 +42,8 @@ The CodeMirror and Lezer dependencies are exact pins because
 `src/js/codemirror6/plugins/stream-state.js` reads the `stateAfter` and
 `streamParser` checkpoints stored by the pinned `StreamLanguage`
 implementation. Treat dependency changes as explicit migrations: inspect the
-upstream stream-parser source, update the contract if necessary, run
+upstream stream-parser source, update the exact version contract in
+`plugins/bootstrap.js`, update the checkpoint contract if necessary, run
 `npm dedupe`, verify a single installed state/view/language package, rebuild the
 runtime, and run `npm run test:codemirror`, `node src/tests/run_tests_node.js`,
 and `npm run test:codemirror-browser`. Do not apply unattended version-range

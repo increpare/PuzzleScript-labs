@@ -137,7 +137,7 @@ so no Safari heap result is claimed.
 | Whole-document synchronous replacement at least 2x faster than pre-CM6, with settled improvement | **Fail** | Chrome sync 22.450000047683716 to 22.600000143051147 ms and Safari changes from 21.99999999999909 to 21.99999999999909 ms; both are effectively unchanged. Chrome settled is 31.149999856948853 / 39.80000019073486 ms and Safari is 42.99999999999636 / 44 ms, but the required synchronous improvement did not occur. |
 | Reuse token decorations for non-document activity | **Pass** | Identity tests cover cursor, selection, focus, search-panel activity, and completion selection. Chrome cursor/search median drops from 57.35000002384186 to 11 ms; Safari drops from 60 to 17 ms. Search Replace and Replace All remain document transactions. |
 | Heap below pre-CM6 and approximately no more than 1.5x CM5 | **Pass** | Chrome optimized initial/large medians are 3.9125308990478516 / 6.796018600463867 MiB, below pre-CM6 and about 1.280x / 1.312x CM5. |
-| Checked IIFE below 100 KiB Brotli | **Pass** | 100479 bytes at Brotli text mode, quality 11; the limit is 102400 bytes. |
+| Release-equivalent runtime plus plugins below 100 KiB Brotli | **Pass** | 100606 bytes after the release-equivalent Terser pass at Brotli text mode, quality 11; the limit is 102400 bytes. |
 
 ### Reset-path rejection
 
@@ -226,20 +226,26 @@ comparison, its row is the concatenation of exactly the frozen editor-only
 scripts loaded by the comparison page: CM5 core, panel, active-line, dialog,
 searchcursor, search, match-highlighter, show-hint, anyword-hint, comment, and
 `editor-cm5.js`. Shared PuzzleScript parser, completion data, and application
-scripts are excluded from all three editor rows. The pre-CM6 row is the checked
-IIFE at commit `a69c0216`; the optimized row is the final checked IIFE.
+scripts are excluded from every editor row. The pre-CM6 row is the checked IIFE
+at commit `a69c0216`. The optimized-IIFE row is the final artifact before the
+source-ownership reorganization. The current development surface loads one
+generated runtime followed by directly editable PuzzleScript plugins; the
+release compiler still minifies those inputs into its single application
+script.
 
 | Editor artifact as checked/loaded | Raw bytes | Comparison-only gzip level 9 | Brotli text q11 |
 | --- | ---: | ---: | ---: |
 | Frozen CM5 editor script stack | 486750 | 125674 | 103286 |
 | Pre-optimization CM6 IIFE (`a69c0216`) | 781124 | 184594 | 149497 |
-| Optimized CM6 IIFE | 361152 | 116794 | 100479 |
+| Optimized CM6 IIFE before the runtime/plugin split | 361152 | 116794 | 100479 |
+| Current generated runtime + direct plugin sources | 398874 | 123552 | 106637 |
 
-Only the optimized CM6 Brotli value is calculated from the current checked
-bundle. The historical Brotli values apply the same settings for comparison;
-neither historical surface was delivered that way. The raw comparison also reflects the
-important packaging difference: CM5 and the pre-CM6 IIFE were readable source
-artifacts, whereas the optimized checked IIFE is esbuild-minified.
+The historical Brotli values apply the same settings for comparison; neither
+historical surface was delivered that way. The raw comparison also reflects an
+important packaging difference: CM5 and the current PuzzleScript plugins are
+readable sources, whereas the generated runtime and the earlier optimized IIFE
+are esbuild-minified. The current raw row is the exact development script stack,
+not the release representation.
 
 For the historical minified-plus-gzip comparison, all three inputs were also
 run through the repository's pinned Terser 5.17.1 defaults before compression:
@@ -248,32 +254,36 @@ run through the repository's pinned Terser 5.17.1 defaults before compression:
 | --- | ---: | ---: | ---: |
 | Frozen CM5 editor script stack | 215084 | 69724 | 60919 |
 | Pre-optimization CM6 IIFE (`a69c0216`) | 354100 | 112504 | 96507 |
-| Optimized CM6 IIFE | 359934 | 114471 | 97997 |
+| Optimized CM6 IIFE before the runtime/plugin split | 359934 | 114471 | 97997 |
+| Current runtime + plugins, release-equivalent Terser pass | 371095 | 117330 | 100606 |
 
 This normalized table preserves the approved historical comparison: CM5 is
 about 68.1 KiB gzip and pre-CM6 is about 109.9 KiB. It also shows that the
 optimized runtime is not smaller than CM5 and is slightly larger than pre-CM6
-under a second Terser pass; the production win is the deterministic minified
-IIFE and its 100479-byte Brotli-q11 result, not a claim of beating
+under the release-equivalent Terser pass. The production win is a deterministic,
+sub-100-KiB editor payload and clearer source ownership, not a claim of beating
 CM5's size.
 
 The final release `combined.css` is 16519 raw bytes, 3906 bytes at comparison
 gzip level 9, and 3345 bytes at production Brotli text quality 11.
 
-The final release retains every raw original, generates no `.gz` files, and
-produces 206 `.br` sidecars. `npm run verify:release-compression` decompressed
+The reorganized release retains every raw original, generates no `.gz` files,
+and produces 208 `.br` sidecars. `npm run verify:release-compression` decompressed
 every sidecar and compared it byte-for-byte with its original. The checked
-bundle's SHA-256 is
-`55d3247faec6dd8528bca9929c482d632c42ec0000a0ae8c21ed4205f55d8908`;
-the source map is
-`0c77db910ae705c94e793587c4bc9a2ca89b8d5b1a9c30d1f10e535645977ea9`.
-The final compiled 100479-byte bundle sidecar is
-`b7e1b6191c22b8f90499367c136af2ccf3b5848a5fed816531b901d3be633358`,
-and the unchanged standalone source is
+runtime's SHA-256 is
+`655bb52e6c3ff81a31b7b723f7f6c0a0235574a338f4c1212727e4cef4fb936f`;
+its source map is
+`69390bf1a14197256e0d608d33ed1fdd4525dfd0b3b209274333c64be30e2d8e`.
+The release-equivalent runtime-plus-plugin payload is 100606 bytes at Brotli
+quality 11 with SHA-256
+`2b1b5acbf048b6b42dec8c62bda1265df8169240572462604b6ee66c37e2219c`
+before compression. The copied generated runtime has a 94496-byte Brotli
+sidecar. The unchanged standalone source is
 `dd6128b1f53c01ea9f3a399c57c7e296f1a2e5e2d9a9fd56ead99e795501d203`.
-The IIFE ends with a matching `sourceMappingURL=codemirror6.bundle.js.map`;
-the build regression parses that linked map, checks its source/content arrays,
-and verifies that it contains the CM6 entry point.
+The generated runtime ends with a matching
+`sourceMappingURL=codemirror6-runtime.js.map`; the build regression parses that
+linked map, checks its source/content arrays, verifies the runtime entry point,
+and proves directly editable plugins are absent from the generated graph.
 
 A fresh isolated real Apache 2.4.62 smoke test against this final release, with `mod_rewrite`, `mod_mime`,
 `mod_headers`, and `mod_negotiation`, verified JavaScript, CSS, HTML, and text
@@ -312,14 +322,16 @@ without changing or copying its contents.
 - `npm run test:codemirror`: expected non-product failure at the protected
   malformed candidate test; its localhost deadline test also receives
   `listen EPERM` inside the filesystem sandbox. With only the protected file
-  blacklisted and localhost binding allowed, the same suite passed 191/191.
+  blacklisted and localhost binding allowed, the reorganized suite passed
+  197/197.
 - `node src/tests/run_tests_node.js`: passed 750/750 with 0 failures and 0
   errors.
 - `npm run test:codemirror-browser`: passed 149 with 55 intentional
   baseline-only/engine-specific skips across Chromium, Firefox, and WebKit.
 - Release compilation: passed at preserved exact four-byte build number `1838`
-  with the final shortcut and linked-source-map changes.
-- `npm run verify:release-compression`: passed all 206 Brotli sidecars, with no
+  with the generated runtime and direct plugins folded into the same single
+  application script.
+- `npm run verify:release-compression`: passed all 208 Brotli sidecars, with no
   gzip sidecars.
 - Fresh isolated Apache 2.4.62 HTTP smoke: passed negotiation, MIME, `Vary`,
   identity/q=0, and missing-sidecar fallback contracts.
@@ -327,3 +339,11 @@ without changing or copying its contents.
   state and the generated pre-product bootstrap observed no page errors from
   initial navigation through the complete warmup/measurement window; direct
   product geometry inspection passed as described above.
+- Runtime/plugin-boundary follow-up (historical baselines unchanged): two
+  error-free Chrome diagnostics retained the 8.9 ms key median with 14.7 and
+  13.1 ms p95, both below 16.7 ms; autocomplete and document operations were
+  neutral or faster and heap movement was noise-scale. One error-free Safari
+  diagnostic measured key 18/23 ms and autocomplete 6/11 ms, retaining the
+  documented Safari key miss while other scenarios were neutral or faster
+  within frame-scale variation. A second Safari attempt timed out in
+  SafariDriver and was excluded from the evidence.

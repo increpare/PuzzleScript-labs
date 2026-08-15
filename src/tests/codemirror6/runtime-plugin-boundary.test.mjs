@@ -4,6 +4,7 @@ import {readFile} from "node:fs/promises"
 import path from "node:path"
 import {test} from "node:test"
 import {fileURLToPath} from "node:url"
+import vm from "node:vm"
 
 import {transformCandidateHtml} from "./build-candidate-page.mjs"
 import {pluginPaths, runtimePath} from "./cm6-surface-paths.mjs"
@@ -28,6 +29,24 @@ function assertContiguous(haystack, needle, label) {
   const start = haystack.indexOf(needle[0])
   assert.notEqual(start, -1, `${label} is missing ${needle[0]}`)
   assert.deepEqual(haystack.slice(start, start + needle.length), needle, `${label} CM6 order`)
+}
+
+const supportedVersions = Object.freeze({
+  "@codemirror/autocomplete": "6.20.3",
+  "@codemirror/commands": "6.10.4",
+  "@codemirror/language": "6.12.4",
+  "@codemirror/search": "6.7.1",
+  "@codemirror/state": "6.7.1",
+  "@codemirror/view": "6.43.8",
+  "@lezer/common": "1.5.2",
+  "@lezer/highlight": "1.2.3"
+})
+
+async function runBootstrap(runtime) {
+  const source = await readFile(sourcePath(pluginPaths[0]), "utf8")
+  const context = runtime === undefined ? {} : {PuzzleScriptCM6Runtime: runtime}
+  vm.runInNewContext(source, context, {filename: pluginPaths[0]})
+  return context.PuzzleScriptCM6Plugins
 }
 
 test("CodeMirror paths make editable, generated, and frozen ownership explicit", async () => {
@@ -89,6 +108,25 @@ test("candidate generation preserves the exact direct-load CM6 surface", async (
     assert.equal(localScripts(output).filter(source => source === relative).length, 1, relative)
   }
   assert.equal(transformCandidateHtml(output), output)
+})
+
+test("plugin bootstrap fails early at every runtime and ordering boundary", async () => {
+  await assert.rejects(runBootstrap(), /Missing PuzzleScriptCM6Runtime.*build:codemirror/s)
+  await assert.rejects(
+    runBootstrap({versions: {...supportedVersions, "@codemirror/language": "0.0.0"}}),
+    /Unsupported @codemirror\/language runtime 0\.0\.0.*expected 6\.12\.4/s
+  )
+
+  const host = await runBootstrap({versions: supportedVersions, EditorView: "view"})
+  assert.deepEqual({...host.requireRuntime(["EditorView"])}, {EditorView: "view"})
+  assert.throws(() => host.requireRuntime(["EditorState"]), /missing export EditorState.*build:codemirror/s)
+  assert.throws(() => host.require("missing"), /dependency missing is missing.*script order/s)
+
+  host.define("module", {value: 1})
+  assert.equal(host.require("module").value, 1)
+  assert.throws(() => host.define("module", {}), /module is already defined/)
+  host.seal()
+  assert.throws(() => host.define("later", {}), /host is sealed/)
 })
 
 test("the checked dependency tree has one state, view, and language runtime", () => {
