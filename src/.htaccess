@@ -1,4 +1,11 @@
-RewriteEngine on 
-RewriteCond %{HTTP:Accept-Encoding} gzip 
-RewriteCond %{REQUEST_FILENAME}.gz -f 
-RewriteRule ^(.*)$ $1.gz [L] 
+Options -MultiViews
+RewriteEngine On
+RewriteCond %{HTTP:Accept-Encoding} "(^|,)[[:space:]]*br[[:space:]]*(?:;[[:space:]]*q[[:space:]]*=[[:space:]]*(?:1(?:\.0{0,3})?|0\.(?:[1-9][0-9]{0,2}|0[1-9][0-9]?|00[1-9]))[[:space:]]*)?(?:,|$)" [NC]
+RewriteCond %{REQUEST_FILENAME}.br -f
+RewriteRule ^(.+\.(?:js|css|html|txt))$ $1.br [L]
+
+AddEncoding br .br
+Header merge Vary Accept-Encoding
+<FilesMatch "\.br$">
+  Header set Content-Encoding br
+</FilesMatch>

@@ -22,6 +22,7 @@ async function build() {
     format: "iife",
     platform: "browser",
     target: ["chrome110", "firefox110", "safari16", "edge110"],
+    minify: true,
     sourcemap: "external",
     sourcesContent: true,
     outfile: "src/js/codemirror6.bundle.js",
