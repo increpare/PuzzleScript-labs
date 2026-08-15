@@ -9,8 +9,8 @@ async function openCandidate(page) {
 async function setSource(page, source, line = 0, column = 0) {
   await page.evaluate(({source, line, column}) => {
     const editor = document.getElementById("code").editorreference
-    editor.setValue(source)
-    editor.setCursor(line, column)
+    editor.replaceDocument(source)
+    editor.revealLine(line, {cursor: column})
     editor.focus()
   }, {source, line, column})
 }
@@ -22,9 +22,8 @@ test("the test-only page contains one CM6 editor and preserves the application s
   await expect(page.locator("#leftpanel")).toBeVisible()
   await expect(page.locator("#gameCanvas")).toBeVisible()
   expect(await page.evaluate(() => Object.keys(document.getElementById("code").editorreference).sort())).toEqual([
-    "blur", "clearHistory", "focus", "getInputElement", "getLastLine",
-    "getValue", "isDirty", "markClean", "replaceSelection", "scrollToLine",
-    "setCursor", "setValue"
+    "blur", "clearHistory", "focus", "getInputElement", "getValue", "isDirty",
+    "markClean", "replaceDocument", "replaceSelection", "revealLine", "setValue"
   ])
 })
 
@@ -34,7 +33,7 @@ test("the narrow adapter, compile path, navigation, autocomplete, comments, and 
   await setSource(page, "alpha\nbeta")
   await page.evaluate(() => {
     const editor = document.getElementById("code").editorreference
-    editor.setCursor(99, 99)
+    editor.revealLine(99, {cursor: 99})
     editor.replaceSelection("!")
   })
   expect(await page.evaluate(() => document.getElementById("code").editorreference.getValue())).toBe("alpha\nbeta!")
@@ -47,8 +46,32 @@ test("the narrow adapter, compile path, navigation, autocomplete, comments, and 
   expect(await page.evaluate(() => window.__compileCalls)).toEqual([["restart"]])
 
   await setSource(page, Array.from({length: 60}, (_, index) => `line ${index + 1}`).join("\n"))
-  await page.evaluate(() => jumpToLine(30))
+  const navigation = await page.evaluate(() => {
+    const code = document.getElementById("code")
+    const editor = code.editorreference
+    const revealCalls = []
+    code.editorreference = Object.freeze({
+      ...editor,
+      revealLine(line, options) {
+        revealCalls.push([line, options])
+        editor.revealLine(line, options)
+      }
+    })
+    try {
+      jumpToLine(30)
+    } finally {
+      code.editorreference = editor
+    }
+    return revealCalls
+  })
+  expect(navigation).toEqual([[29, {cursor: 0, y: "center"}]])
   await expect(page.locator(".cm-activeLine")).toContainText("line 30")
+  const navigationCenterDelta = await page.evaluate(() => {
+    const scroller = document.querySelector(".cm-scroller").getBoundingClientRect()
+    const line = document.querySelector(".cm-activeLine").getBoundingClientRect()
+    return Math.abs((line.top + line.height / 2) - (scroller.top + scroller.height / 2))
+  })
+  expect(navigationCenterDelta).toBeLessThan(30)
 
   await setSource(page, "")
   await page.keyboard.type("tit")

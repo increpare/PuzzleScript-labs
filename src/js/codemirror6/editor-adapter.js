@@ -31,19 +31,23 @@ export function clipPosition(state, line, column) {
 }
 
 export function createCM6EditorDriver(view, extensions, cleanDocumentTracker) {
+  function replaceDocument(text) {
+    view.dispatch({
+      changes: {from: 0, to: view.state.doc.length, insert: String(text)},
+      selection: EditorSelection.cursor(0),
+      effects: EditorView.scrollIntoView(0)
+    })
+  }
+
   return Object.freeze({
     getValue: () => view.state.doc.toString(),
 
     markClean: () => cleanDocumentTracker.markClean(view.state.doc),
     isDirty: () => cleanDocumentTracker.isDirty(),
 
-    setValue(text) {
-      view.dispatch({
-        changes: {from: 0, to: view.state.doc.length, insert: String(text)},
-        selection: EditorSelection.cursor(0),
-        effects: EditorView.scrollIntoView(0)
-      })
-    },
+    replaceDocument,
+    // Temporary compatibility alias for external callers during migration.
+    setValue: replaceDocument,
 
     clearHistory() {
       view.setState(EditorState.create({
@@ -60,20 +64,15 @@ export function createCM6EditorDriver(view, extensions, cleanDocumentTracker) {
       view.dispatch(view.state.replaceSelection(String(text)))
     },
 
-    setCursor(line, column) {
-      const position = clipPosition(view.state, line, column)
-      view.dispatch({
-        selection: EditorSelection.cursor(position),
-        effects: EditorView.scrollIntoView(position)
-      })
+    revealLine(line, {cursor = false, y = "nearest"} = {}) {
+      const position = clipPosition(view.state, line, cursor === false ? 0 : cursor)
+      const spec = {
+        effects: EditorView.scrollIntoView(position, {y})
+      }
+      if (cursor !== false) spec.selection = EditorSelection.cursor(position)
+      view.dispatch(spec)
     },
 
-    scrollToLine(line) {
-      const position = clipPosition(view.state, line, 0)
-      view.dispatch({effects: EditorView.scrollIntoView(position)})
-    },
-
-    getLastLine: () => view.state.doc.lines - 1,
     getInputElement: () => view.contentDOM
   })
 }

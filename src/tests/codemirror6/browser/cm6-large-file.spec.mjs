@@ -12,7 +12,7 @@ const redoKey = process.platform === "darwin" ? "Shift+Meta+z" : "Shift+Control+
 async function showDistantRendering(page, levelLine = distantLevelLine) {
   await page.evaluate(({levelLine}) => {
     const editor = document.getElementById("code").editorreference
-    editor.setCursor(levelLine, 40)
+    editor.revealLine(levelLine, {cursor: 40})
     editor.focus()
   }, {levelLine})
   await expect(page.locator(".cm-LEVEL").last()).toBeVisible()
@@ -26,7 +26,7 @@ async function showDistantAutocomplete(
 ) {
   await showDistantRendering(page, levelLine)
   await page.evaluate(({completionLine}) => {
-    document.getElementById("code").editorreference.setCursor(completionLine, 3)
+    document.getElementById("code").editorreference.revealLine(completionLine, {cursor: 3})
   }, {completionLine})
   await page.keyboard.press("Backspace")
   await expect(page.locator(".cm-tooltip-autocomplete")).toBeVisible()
@@ -46,9 +46,9 @@ test("distant rendering and autocomplete wait for exact StreamLanguage state", a
 
   await page.evaluate(({source, line}) => {
     const editor = document.getElementById("code").editorreference
-    editor.setValue(source)
+    editor.replaceDocument(source)
     editor.clearHistory()
-    editor.setCursor(line, 40)
+    editor.revealLine(line, {cursor: 40})
     editor.focus()
   }, {source: editableLargeSource, line: distantLevelLine})
   await showDistantAutocomplete(page)
@@ -58,7 +58,7 @@ test("distant rendering and autocomplete wait for exact StreamLanguage state", a
   // Edit after the distant viewport, then exercise exact undo and redo paths.
   await page.evaluate(({line}) => {
     const editor = document.getElementById("code").editorreference
-    editor.setCursor(line, 0)
+    editor.revealLine(line, {cursor: 0})
     editor.replaceSelection("( suffix edit )\n")
   }, {line: afterViewportLine})
   await showDistantRendering(page, distantLevelLine)
@@ -71,7 +71,7 @@ test("distant rendering and autocomplete wait for exact StreamLanguage state", a
   // state after the 10,001-character rollback, including undo and redo.
   await page.evaluate(longLine => {
     const editor = document.getElementById("code").editorreference
-    editor.setCursor(0, 0)
+    editor.revealLine(0, {cursor: 0})
     editor.replaceSelection(`${longLine}\n`)
   }, "x".repeat(10_001))
   await showDistantRendering(page, distantLevelLine + 1)

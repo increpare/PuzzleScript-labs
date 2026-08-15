@@ -66,7 +66,7 @@ test("dirty state follows mark clean, typing, undo, and redo without reading sou
     document.getElementById("code").editorreference.isDirty())).toBe(false)
 
   await page.evaluate(() =>
-    document.getElementById("code").editorreference.setValue("title clean state"))
+    document.getElementById("code").editorreference.replaceDocument("title clean state"))
   await expect(page.locator("#saveClickLink")).toHaveText("SAVE*")
   expect(await page.evaluate(() =>
     document.getElementById("code").editorreference.isDirty())).toBe(true)
@@ -78,7 +78,7 @@ test("dirty state follows mark clean, typing, undo, and redo without reading sou
 
   await page.evaluate(() => {
     const editor = document.getElementById("code").editorreference
-    editor.setCursor(0, 999)
+    editor.revealLine(0, {cursor: 999})
     window.__getValueCalls = 0
     editor.focus()
   })
@@ -108,7 +108,7 @@ test("only exact SOUND and modified LEVEL tokens dispatch application callbacks"
     window.__interactionCalls = []
     window.playSound = (seed, immediate) => window.__interactionCalls.push(["sound", seed, immediate])
     window.compile = command => window.__interactionCalls.push(["compile", command])
-    document.getElementById("code").editorreference.setValue(source)
+    document.getElementById("code").editorreference.replaceDocument(source)
   }, interactionSource)
 
   const sound = page.locator(".cm-SOUND").filter({hasText: "123456"})
@@ -137,8 +137,8 @@ test("image paste inserts the existing 5x5 object format and restores focus", as
   await openCandidate(page)
   await page.evaluate(() => {
     const editor = document.getElementById("code").editorreference
-    editor.setValue("title paste")
-    editor.setCursor(0, 11)
+    editor.replaceDocument("title paste")
+    editor.revealLine(0, {cursor: 11})
     editor.focus()
   })
   await page.locator(".cm-content").evaluate(async target => {
@@ -168,9 +168,9 @@ test("text and exported-HTML drops use shared loading and dirty-state paths", as
   await openCandidate(page)
   const cleanSource = await page.evaluate(() => document.getElementById("code").editorreference.getValue())
 
-  await page.evaluate(() => document.getElementById("code").editorreference.setValue("changed"))
+  await page.evaluate(() => document.getElementById("code").editorreference.replaceDocument("changed"))
   await expect(page.locator("#saveClickLink")).toHaveText("SAVE*")
-  await page.evaluate(source => document.getElementById("code").editorreference.setValue(source), cleanSource)
+  await page.evaluate(source => document.getElementById("code").editorreference.replaceDocument(source), cleanSource)
   await expect(page.locator("#saveClickLink")).toHaveText("SAVE")
 
   await page.locator(".cm-content").evaluate(target => {

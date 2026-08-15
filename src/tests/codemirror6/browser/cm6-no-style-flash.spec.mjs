@@ -39,8 +39,8 @@ test("an edit retains exact syntax decorations while reparsing is pending", asyn
   await page.waitForFunction(() => !!document.getElementById("code")?.editorreference)
   await page.evaluate(source => {
     const editor = document.getElementById("code").editorreference
-    editor.setValue(source)
-    editor.setCursor(0, 0)
+    editor.replaceDocument(source)
+    editor.revealLine(0, {cursor: 0})
     editor.focus()
   }, representativeSource)
 

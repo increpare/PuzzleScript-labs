@@ -8,8 +8,8 @@ async function openCandidate(page, source) {
     !!document.getElementById("code")?.editorreference)
   await page.evaluate(value => {
     const editor = document.getElementById("code").editorreference
-    editor.setValue(value)
-    editor.setCursor(0, 0)
+    editor.replaceDocument(value)
+    editor.revealLine(0, {cursor: 0})
     editor.focus()
   }, source)
 }
@@ -63,7 +63,7 @@ test("stock search remains case-insensitive for literal, regexp, selection, navi
   await expect(page.locator(".cm-search")).toHaveCount(0)
   await page.evaluate(() => {
     const editor = document.getElementById("code").editorreference
-    editor.setCursor(0, 0)
+    editor.revealLine(0, {cursor: 0})
     editor.focus()
   })
   await page.keyboard.down("Shift")
@@ -88,7 +88,7 @@ test("replace operations, malformed regexps, and zero-width regexps are safe and
   await expect.poll(() => page.evaluate(() =>
     document.getElementById("code").editorreference.getValue())).toBe("omega omega omega")
 
-  await page.evaluate(() => document.getElementById("code").editorreference.setValue("aaa"))
+  await page.evaluate(() => document.getElementById("code").editorreference.replaceDocument("aaa"))
   await page.locator('.cm-search [name="re"]').check()
   await page.locator('.cm-search [name="search"]').fill("[")
   await page.locator('.cm-search input[name="replace"]').fill("broken")

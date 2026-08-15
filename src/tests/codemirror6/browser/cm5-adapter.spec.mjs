@@ -3,7 +3,7 @@ import {expect, test} from "@playwright/test"
 test.skip(process.env.RUN_CM5_BASELINE !== "1", "CM5 compatibility tests are opt-in after product cutover")
 
 async function openCM5(page) {
-  await page.goto("/editor.html")
+  await page.goto("/tests/codemirror6/generated/cm5-editor.html")
   await page.waitForFunction(() => {
     const code = document.getElementById("code")
     return !!(code && code.editorreference && document.querySelector(".CodeMirror")?.CodeMirror)
@@ -21,25 +21,22 @@ test("the narrow adapter preserves CM5 value, selection, history, focus, and nav
       head: point(range.head)
     }))
 
-    editor.setValue("alpha\nbeta")
+    editor.replaceDocument("alpha\nbeta")
     const afterSetValue = selection()
 
-    editor.setCursor(99, 99)
+    editor.revealLine(99, {cursor: 99})
     const clippedAfter = point(raw.getCursor())
-    editor.setCursor(-99, -99)
+    editor.revealLine(-99, {cursor: -99})
     const clippedBefore = point(raw.getCursor())
 
     raw.setSelection({line: 0, ch: 0}, {line: 1, ch: 4})
     editor.replaceSelection("replacement")
     const afterReplacement = {value: editor.getValue(), selection: selection()}
 
-    editor.setValue("fresh")
+    editor.replaceDocument("fresh")
     editor.clearHistory()
     raw.undo()
     const afterClearedUndo = {value: editor.getValue(), history: raw.historySize()}
-
-    editor.setValue("one\ntwo\nthree")
-    const lastLine = editor.getLastLine()
 
     editor.focus()
     const input = editor.getInputElement()
@@ -47,9 +44,23 @@ test("the narrow adapter preserves CM5 value, selection, history, focus, and nav
     editor.blur()
     const blurred = document.activeElement !== input
 
-    editor.setValue(Array.from({length: 60}, (_, index) => `line ${index + 1}`).join("\n"))
-    jumpToLine(30)
+    editor.replaceDocument(Array.from({length: 60}, (_, index) => `line ${index + 1}`).join("\n"))
+    const revealCalls = []
+    document.getElementById("code").editorreference = Object.freeze({
+      ...editor,
+      revealLine(line, options) {
+        revealCalls.push([line, options])
+        editor.revealLine(line, options)
+      }
+    })
+    try {
+      jumpToLine(30)
+    } finally {
+      document.getElementById("code").editorreference = editor
+    }
     const errorNavigationCursor = point(raw.getCursor())
+    const navigationScroll = raw.getScrollInfo()
+    const navigationCoordinates = raw.cursorCoords(null, "local")
 
     return {
       keys: Object.keys(editor).sort(),
@@ -60,18 +71,21 @@ test("the narrow adapter preserves CM5 value, selection, history, focus, and nav
       clippedBefore,
       afterReplacement,
       afterClearedUndo,
-      lastLine,
       focused,
       blurred,
-      errorNavigationCursor
+      errorNavigationCursor,
+      revealCalls,
+      navigationCenterDelta: Math.abs(
+        navigationCoordinates.top - (navigationScroll.top + navigationScroll.clientHeight / 2)
+      )
     }
   })
 
-  expect(result).toEqual({
+  const {navigationCenterDelta, ...semanticResult} = result
+  expect(semanticResult).toEqual({
     keys: [
-      "blur", "clearHistory", "focus", "getInputElement", "getLastLine",
-      "getValue", "isDirty", "markClean", "replaceSelection", "scrollToLine",
-      "setCursor", "setValue"
+      "blur", "clearHistory", "focus", "getInputElement", "getValue", "isDirty",
+      "markClean", "replaceDocument", "replaceSelection", "revealLine", "setValue"
     ],
     leakedDoc: undefined,
     leakedDisplay: undefined,
@@ -83,19 +97,20 @@ test("the narrow adapter preserves CM5 value, selection, history, focus, and nav
       selection: [{anchor: {line: 0, ch: 11}, head: {line: 0, ch: 11}}]
     },
     afterClearedUndo: {value: "fresh", history: {undo: 0, redo: 0}},
-    lastLine: 2,
     focused: true,
     blurred: true,
-    errorNavigationCursor: {line: 29, ch: 0}
+    errorNavigationCursor: {line: 29, ch: 0},
+    revealCalls: [[29, {cursor: 0, y: "center"}]]
   })
+  expect(navigationCenterDelta).toBeLessThan(30)
 })
 
 test("image paste still enters through the narrow editor operations", async ({page}) => {
   await openCM5(page)
   await page.evaluate(() => {
     const editor = document.getElementById("code").editorreference
-    editor.setValue("alpha")
-    editor.setCursor(0, 5)
+    editor.replaceDocument("alpha")
+    editor.revealLine(0, {cursor: 5})
     imageBlobToObjectText = () => Promise.resolve("\nPASTED\n")
     const event = new Event("paste", {bubbles: true, cancelable: true})
     Object.defineProperty(event, "clipboardData", {

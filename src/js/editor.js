@@ -72,7 +72,7 @@ function tryLoadGist(id) {
 			consoleError(e);
 			return;
 		}
-		editor.setValue(code);
+		editor.replaceDocument(code);
 		editor.clearHistory();
 		clearConsole();
 		setEditorClean();
@@ -91,7 +91,7 @@ function tryLoadFile(fileName) {
   		}
   		
 		function doStuff(){
-			editor.setValue(fileOpenClient.responseText);
+			editor.replaceDocument(fileOpenClient.responseText);
 			clearConsole();
 			setEditorClean();
 			unloadGame();
@@ -166,7 +166,7 @@ function loadDroppedSource(file, rawText) {
 			consoleError("Only .html and .txt files are supported");
 			return;
 		}
-		editor.setValue(sourceText);
+		editor.replaceDocument(sourceText);
 		editor.clearHistory();
 		consolePrint("Loaded file: " + file.name);
 	} catch (error) {

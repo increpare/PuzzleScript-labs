@@ -47,8 +47,8 @@ async function installCompletionTimerProbe(page) {
 async function setSource(page, source, line = 0, column = 0) {
   await page.evaluate(({source, line, column}) => {
     const editor = document.getElementById("code").editorreference
-    editor.setValue(source)
-    editor.setCursor(line, column)
+    editor.replaceDocument(source)
+    editor.revealLine(line, {cursor: column})
     editor.focus()
   }, {source, line, column})
 }

@@ -20,9 +20,9 @@ async function openEditor(page, path) {
 async function setSource(page, source, line = 0, column = 0) {
   await page.evaluate(({source, line, column}) => {
     const editor = document.getElementById("code").editorreference
-    editor.setValue(source)
+    editor.replaceDocument(source)
     editor.clearHistory()
-    editor.setCursor(line, column)
+    editor.revealLine(line, {cursor: column})
     editor.focus()
   }, {source, line, column})
   await page.evaluate(() => new Promise(resolve =>
