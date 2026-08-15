@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import {readFile} from "node:fs/promises"
 import {test} from "node:test"
 
-import {history, isolateHistory, redo, undo} from "@codemirror/commands"
+import {history, isolateHistory, redo, undo, undoSelection} from "@codemirror/commands"
 import {EditorSelection, EditorState, Text} from "@codemirror/state"
 import {EditorView} from "@codemirror/view"
 
@@ -12,6 +12,10 @@ import {
 } from "../../js/codemirror6/editor-adapter.js"
 
 const apiPath = new URL("../../js/editor-api.js", import.meta.url)
+const shortcuts = JSON.parse(await readFile(
+  new URL("./baselines/cm5/shortcuts.json", import.meta.url),
+  "utf8"
+))
 
 async function loadAPI() {
   const source = await readFile(apiPath, "utf8")
@@ -236,6 +240,81 @@ test("replaceDocument is one normal undoable CM6 dispatch with one dirty notific
   assert.deepEqual(transitions, [true, false])
 })
 
+test("replaceDocument is its own CM5-compatible history event between user edits", () => {
+  const extensions = [history()]
+  const view = {
+    state: EditorState.create({
+      doc: "initial",
+      selection: EditorSelection.cursor(7),
+      extensions
+    })
+  }
+  const tracker = createCleanDocumentTracker(
+    view.state.doc,
+    (left, right) => left.eq(right),
+    () => {}
+  )
+  view.dispatch = (...specs) => {
+    view.state = view.state.update(...specs).state
+    tracker.documentChanged(view.state.doc)
+  }
+  const driver = createCM6EditorDriver(view, extensions, tracker)
+  const snapshot = () => ({
+    value: driver.getValue(),
+    selections: view.state.selection.ranges.map(range => {
+      const point = position => {
+        const line = view.state.doc.lineAt(position)
+        return {line: line.number - 1, ch: position - line.from}
+      }
+      return {anchor: point(range.anchor), head: point(range.head)}
+    }),
+    dirty: driver.isDirty()
+  })
+  const type = text => {
+    const position = view.state.selection.main.head
+    view.dispatch({
+      changes: {from: position, insert: text},
+      selection: EditorSelection.cursor(position + text.length),
+      userEvent: "input.type"
+    })
+  }
+
+  const expected = shortcuts.pc.replaceDocumentHistory
+  type("?")
+  assert.deepEqual(snapshot(), expected.afterPriorUserEdit)
+  driver.replaceDocument("clean")
+  assert.deepEqual(snapshot(), expected.afterReplaceDocument)
+  type("!")
+  assert.deepEqual(snapshot(), expected.afterFollowingUserEdit)
+
+  for (const [name, command] of [
+    ["afterUndo", undo],
+    ["afterSecondUndo", undo],
+    ["afterRedo", redo],
+    ["afterSecondRedo", redo]
+  ]) {
+    assert.equal(command(view), true, name)
+    const actual = snapshot()
+    if (name === "afterRedo") {
+      assert.deepEqual(
+        {value: actual.value, dirty: actual.dirty},
+        {value: expected[name].value, dirty: expected[name].dirty},
+        name
+      )
+      assert.deepEqual(expected[name].selections, [{
+        anchor: {line: 0, ch: 0},
+        head: {line: 0, ch: 0}
+      }], "the frozen CM5 redo cursor remains documented")
+      assert.deepEqual(actual.selections, [{
+        anchor: {line: 0, ch: actual.value.length},
+        head: {line: 0, ch: actual.value.length}
+      }], "stock CM6 maps the pre-replacement cursor through the redone change")
+    } else {
+      assert.deepEqual(actual, expected[name], name)
+    }
+  }
+})
+
 test("revealLine clips line and cursor and combines selection and scrolling in one dispatch", () => {
   const calls = []
   const view = {
@@ -269,6 +348,45 @@ test("revealLine clips line and cursor and combines selection and scrolling in o
   assert.equal(view.state.selection.main.head, 6)
   assert.equal(calls[0].effects.value.range.from, 6)
   assert.equal(calls[0].effects.value.y, "center")
+})
+
+test("programmatic revealLine cursor placement stays out of user selection history", () => {
+  const extensions = [history()]
+  const view = {
+    state: EditorState.create({doc: "alpha\nbeta\ngamma", extensions})
+  }
+  view.dispatch = (...specs) => { view.state = view.state.update(...specs).state }
+  const tracker = createCleanDocumentTracker(view.state.doc, (left, right) => left.eq(right), () => {})
+  const driver = createCM6EditorDriver(view, extensions, tracker)
+
+  driver.revealLine(1, {cursor: 2})
+  assert.equal(view.state.selection.main.head, 8)
+  assert.equal(undoSelection(view), false)
+  assert.equal(view.state.selection.main.head, 8)
+
+  view.dispatch({selection: EditorSelection.cursor(6), userEvent: "select"})
+  assert.equal(undoSelection(view), true)
+  assert.equal(view.state.selection.main.head, 8)
+  assert.equal(undoSelection(view), false)
+})
+
+test("programmatic revealLine separates a later user edit from prior document replacement", () => {
+  const extensions = [history()]
+  const view = {
+    state: EditorState.create({doc: "initial", extensions})
+  }
+  view.dispatch = (...specs) => { view.state = view.state.update(...specs).state }
+  const tracker = createCleanDocumentTracker(view.state.doc, (left, right) => left.eq(right), () => {})
+  const driver = createCM6EditorDriver(view, extensions, tracker)
+
+  driver.replaceDocument("clean")
+  tracker.markClean(view.state.doc)
+  driver.revealLine(0, {cursor: 5})
+  view.dispatch({changes: {from: 5, insert: "!"}, userEvent: "input.type"})
+
+  assert.equal(view.state.doc.toString(), "clean!")
+  assert.equal(undo(view), true)
+  assert.equal(view.state.doc.toString(), "clean")
 })
 
 test("the CM6 driver keeps implementation types private", () => {

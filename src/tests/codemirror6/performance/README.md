@@ -52,13 +52,15 @@ the first call, to avoid SafariDriver's long-script timeout without changing the
 `document.visibilityState === "visible"` before injecting the harness or doing
 any warmup; focus the SafariDriver-controlled window if it remains hidden.
 
-Chrome's page-error listener is attached before navigation. SafariDriver cannot
-carry a page listener across navigation, so Safari first requires the mounted
-editor and visible foreground, then attaches its listener immediately before
-harness injection. Safari's `environment.pageErrors` therefore covers the full
-warmup and measurement window, but does not claim to capture earlier page-load
-errors; missing or failed editor initialization is enforced separately by the
-mount wait.
+The page builder writes frozen CM5 and active-CM6 benchmark pages under
+`tests/codemirror6/generated/`. Both install the same small error-capture
+bootstrap before any product script. It records synchronous `error` events and
+`unhandledrejection` events as deduplicated strings from initial page load
+through the final sample. The runner requires this buffer after mount and again
+after measurement; a missing, malformed, or non-empty buffer rejects the
+capture. Chrome also keeps its native pre-navigation `pageerror` listener and
+deduplicates those reports with the page buffer. The generated CM6 page differs
+from `/editor.html` only by its base URL and this measurement-only bootstrap.
 
 Settled scenarios observe the editor root before starting the measured mutation,
 require scenario-specific semantic readiness, then confirm 100 ms of DOM quiet

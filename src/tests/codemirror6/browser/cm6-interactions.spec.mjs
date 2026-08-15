@@ -1,4 +1,10 @@
 import {expect, test} from "@playwright/test"
+import {readFile} from "node:fs/promises"
+
+const shortcuts = JSON.parse(await readFile(
+  new URL("../baselines/cm5/shortcuts.json", import.meta.url),
+  "utf8"
+))
 
 const interactionSource = `title 123
 OBJECTS
@@ -56,6 +62,78 @@ async function installGetValueSpy(page) {
     window.__getValueCalls = 0
   })
 }
+
+async function historySnapshot(page) {
+  return page.locator(".cm-content").evaluate(content => {
+    const selection = content.ownerDocument.defaultView.getSelection()
+    const lines = Array.from(content.querySelectorAll(":scope > .cm-line"))
+    function point(node, offset) {
+      const element = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement
+      const line = element && element.closest(".cm-line")
+      if (!line || !content.contains(line)) return null
+      const range = document.createRange()
+      range.setStart(line, 0)
+      range.setEnd(node, offset)
+      return {line: lines.indexOf(line), ch: range.toString().length}
+    }
+    const editor = document.getElementById("code").editorreference
+    return {
+      value: editor.getValue(),
+      selections: [{
+        anchor: point(selection.anchorNode, selection.anchorOffset),
+        head: point(selection.focusNode, selection.focusOffset)
+      }],
+      dirty: editor.isDirty()
+    }
+  })
+}
+
+test("replaceDocument is a CM5-compatible history event between user edits", async ({page}) => {
+  await openCandidate(page)
+  const expected = shortcuts.pc.replaceDocumentHistory
+  await page.evaluate(() => {
+    const editor = document.getElementById("code").editorreference
+    editor.replaceDocument("initial")
+    editor.clearHistory()
+    editor.markClean()
+    editor.revealLine(0, {cursor: 7})
+    editor.focus()
+  })
+
+  await page.keyboard.type("?")
+  expect(await historySnapshot(page)).toEqual(expected.afterPriorUserEdit)
+  await page.evaluate(() => document.getElementById("code").editorreference.replaceDocument("clean"))
+  expect(await historySnapshot(page)).toEqual(expected.afterReplaceDocument)
+  await page.keyboard.type("!")
+  expect(await historySnapshot(page)).toEqual(expected.afterFollowingUserEdit)
+
+  const modifier = process.platform === "darwin" ? "Meta" : "Control"
+  for (const [name, shortcut] of [
+    ["afterUndo", `${modifier}+z`],
+    ["afterSecondUndo", `${modifier}+z`],
+    ["afterRedo", `${modifier}+Shift+z`],
+    ["afterSecondRedo", `${modifier}+Shift+z`]
+  ]) {
+    await page.keyboard.press(shortcut)
+    const actual = await historySnapshot(page)
+    if (name === "afterRedo") {
+      expect({value: actual.value, dirty: actual.dirty}, name).toEqual({
+        value: expected[name].value,
+        dirty: expected[name].dirty
+      })
+      expect(expected[name].selections, "the frozen CM5 redo cursor remains documented").toEqual([{
+        anchor: {line: 0, ch: 0},
+        head: {line: 0, ch: 0}
+      }])
+      expect(actual.selections, "stock CM6 maps the pre-replacement cursor through the redone change").toEqual([{
+        anchor: {line: 0, ch: actual.value.length},
+        head: {line: 0, ch: actual.value.length}
+      }])
+    } else {
+      expect(actual, name).toEqual(expected[name])
+    }
+  }
+})
 
 test("dirty state follows mark clean, typing, undo, and redo without reading source", async ({page}) => {
   await installGetValueSpy(page)

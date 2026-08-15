@@ -23,7 +23,7 @@ async function build() {
     platform: "browser",
     target: ["chrome110", "firefox110", "safari16", "edge110"],
     minify: true,
-    sourcemap: "external",
+    sourcemap: "linked",
     sourcesContent: true,
     outfile: "src/js/codemirror6.bundle.js",
     write: false,

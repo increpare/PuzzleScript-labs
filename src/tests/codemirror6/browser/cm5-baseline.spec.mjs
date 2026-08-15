@@ -24,7 +24,7 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 const baselineDir = path.resolve(here, "../baselines/cm5")
 
 async function openCM5(page) {
-  await page.goto("/editor.html")
+  await page.goto("/tests/codemirror6/generated/cm5-editor.html")
   await page.waitForFunction(() => {
     const code = document.getElementById("code")
     return !!(code && code.editorreference && document.querySelector(".CodeMirror"))
@@ -158,20 +158,31 @@ async function captureShortcutData(page, platform) {
       }
     }
 
-    function resetFor(bindingName, popup) {
+    function resetFor(commandName, popup) {
       CodeMirror.commands.clearSearch(cm)
       cm.closeHint()
+      cm.toggleOverwrite(false)
       cm.setValue("  alpha beta\nsecond line\nthird line")
-      cm.clearHistory()
       cm.setCursor({line: 1, ch: 6})
-      if (/\bundo\b/i.test(bindingName)) cm.replaceSelection("X")
-      if (/redo/i.test(bindingName)) {
+      cm.clearHistory()
+      if (commandName === "undo") cm.replaceSelection("X")
+      if (commandName === "redo") {
         cm.replaceSelection("X")
         cm.undo()
+      }
+      if (commandName === "undoSelection") {
+        cm.setCursor({line: 1, ch: 1})
+        cm.setCursor({line: 1, ch: 6})
+      }
+      if (commandName === "redoSelection") {
+        cm.setCursor({line: 1, ch: 1})
+        cm.setCursor({line: 1, ch: 6})
+        cm.undoSelection()
       }
       if (popup) {
         cm.setValue("tit")
         cm.setCursor({line: 0, ch: 3})
+        cm.clearHistory()
         CodeMirror.commands.autocomplete(cm, null, {completeSingle: false})
       }
       cm.focus()
@@ -180,9 +191,12 @@ async function captureShortcutData(page, platform) {
     function snapshot(event) {
       return {
         value: cm.getValue(),
-        selections: cm.listSelections().map(range => ({anchor: range.anchor, head: range.head})),
+        selections: cm.listSelections().map(range => ({
+          anchor: {line: range.anchor.line, ch: range.anchor.ch},
+          head: {line: range.head.line, ch: range.head.ch}
+        })),
         overwrite: !!cm.state.overwrite,
-        searchOpen: !!cm.getWrapperElement().querySelector(".CodeMirror-search-panel"),
+        searchOpen: !!document.querySelector(".CodeMirror-search-panel"),
         completionOpen: !!cm.state.completionActive,
         defaultPrevented: event.defaultPrevented,
         propagationStopped: event.propagationStopped
@@ -191,11 +205,28 @@ async function captureShortcutData(page, platform) {
 
     function outcomesFor(bindings, popup = false) {
       const outcomes = {}
-      for (const bindingName of Object.keys(bindings)) {
-        resetFor(bindingName, popup)
+      for (const [bindingName, commandName] of Object.entries(bindings)) {
+        resetFor(commandName.replace(/^function:/, ""), popup)
         const event = eventFor(bindingName)
         cm.triggerOnKeyDown(event)
         outcomes[bindingName] = snapshot(event)
+      }
+      return outcomes
+    }
+
+    function compatibilityOutcomes(bindingName, fixtures) {
+      const outcomes = {}
+      for (const fixture of fixtures) {
+        CodeMirror.commands.clearSearch(cm)
+        cm.closeHint()
+        cm.toggleOverwrite(false)
+        cm.setValue(fixture.value)
+        cm.setSelections(fixture.selections)
+        cm.clearHistory()
+        cm.focus()
+        const event = eventFor(bindingName)
+        cm.triggerOnKeyDown(event)
+        outcomes[fixture.name] = snapshot(event)
       }
       return outcomes
     }
@@ -222,7 +253,58 @@ async function captureShortcutData(page, platform) {
       effectiveBindingNames: Object.keys(effective),
       popupBindingNames: Object.keys(popupMap),
       outcomes: outcomesFor(effective),
-      popupOutcomes: outcomesFor(popupMap, true)
+      popupOutcomes: outcomesFor(popupMap, true),
+      compatibilityOutcomes: {
+        indentAuto: compatibilityOutcomes("Shift-Tab", [
+          {
+            name: "cursor on first line",
+            value: "  alpha\nbeta",
+            selections: [{anchor: {line: 0, ch: 1}, head: {line: 0, ch: 1}}]
+          },
+          {
+            name: "cursor copies previous indentation",
+            value: "  alpha\nbeta",
+            selections: [{anchor: {line: 1, ch: 2}, head: {line: 1, ch: 2}}]
+          },
+          {
+            name: "cursor on blank line copies previous indentation",
+            value: "  alpha\n\nbeta",
+            selections: [{anchor: {line: 1, ch: 0}, head: {line: 1, ch: 0}}]
+          },
+          {
+            name: "multiline selection leaves blank lines empty",
+            value: "  alpha\nbeta\n\n    gamma\nomega",
+            selections: [{anchor: {line: 1, ch: 0}, head: {line: 4, ch: 0}}]
+          }
+        ]),
+        deleteLine: compatibilityOutcomes(platform === "mac" ? "Cmd-D" : "Ctrl-D", [
+          {
+            name: "cursor on first line",
+            value: "first\nmiddle\nlast",
+            selections: [{anchor: {line: 0, ch: 2}, head: {line: 0, ch: 2}}]
+          },
+          {
+            name: "cursor on middle line",
+            value: "first\nmiddle\nlast",
+            selections: [{anchor: {line: 1, ch: 3}, head: {line: 1, ch: 3}}]
+          },
+          {
+            name: "cursor on last line",
+            value: "first\nmiddle\nlast",
+            selections: [{anchor: {line: 2, ch: 2}, head: {line: 2, ch: 2}}]
+          },
+          {
+            name: "selection ending at next line column zero includes that line",
+            value: "first\nmiddle\nlast",
+            selections: [{anchor: {line: 0, ch: 2}, head: {line: 1, ch: 0}}]
+          },
+          {
+            name: "backward multiline selection",
+            value: "first\nmiddle\nlast\nafter",
+            selections: [{anchor: {line: 2, ch: 2}, head: {line: 1, ch: 3}}]
+          }
+        ])
+      }
     }
   }, platform)
 }
@@ -274,6 +356,55 @@ async function captureApplicationShortcuts(page, platform) {
   return results
 }
 
+async function captureReplaceDocumentHistory(page) {
+  const snapshot = () => page.evaluate(() => {
+    const editor = document.getElementById("code").editorreference
+    const cm = document.querySelector(".CodeMirror").CodeMirror
+    const point = value => ({line: value.line, ch: value.ch})
+    return {
+      value: editor.getValue(),
+      selections: cm.listSelections().map(range => ({
+        anchor: point(range.anchor),
+        head: point(range.head)
+      })),
+      dirty: editor.isDirty()
+    }
+  })
+
+  await page.evaluate(() => {
+    const editor = document.getElementById("code").editorreference
+    editor.replaceDocument("initial")
+    editor.clearHistory()
+    editor.markClean()
+    editor.revealLine(0, {cursor: 7})
+    editor.focus()
+  })
+
+  const outcomes = {}
+  await page.keyboard.type("?")
+  outcomes.afterPriorUserEdit = await snapshot()
+
+  await page.evaluate(() => document.getElementById("code").editorreference.replaceDocument("clean"))
+  outcomes.afterReplaceDocument = await snapshot()
+
+  await page.keyboard.type("!")
+  outcomes.afterFollowingUserEdit = await snapshot()
+
+  for (const [name, command] of [
+    ["afterUndo", "undo"],
+    ["afterSecondUndo", "undo"],
+    ["afterRedo", "redo"],
+    ["afterSecondRedo", "redo"]
+  ]) {
+    await page.evaluate(command => {
+      const cm = document.querySelector(".CodeMirror").CodeMirror
+      CodeMirror.commands[command](cm)
+    }, command)
+    outcomes[name] = await snapshot()
+  }
+  return outcomes
+}
+
 test("capture CM5 PC and Mac shortcut compatibility matrix", async ({browser}, testInfo) => {
   test.skip(testInfo.project.name !== "chromium", "shortcut structure is browser-engine independent")
 
@@ -294,6 +425,7 @@ test("capture CM5 PC and Mac shortcut compatibility matrix", async ({browser}, t
     await openCM5(page)
     matrices[platform] = await captureShortcutData(page, platform)
     matrices[platform].applicationOutcomes = await captureApplicationShortcuts(page, platform)
+    matrices[platform].replaceDocumentHistory = await captureReplaceDocumentHistory(page)
     await context.close()
   }
 

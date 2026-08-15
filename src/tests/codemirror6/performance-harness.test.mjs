@@ -173,6 +173,23 @@ function scriptSources(source) {
   return Array.from(source.matchAll(/<script\s+src=["']([^"']+)["']\s*><\/script>/gi), match => match[1])
 }
 
+function performanceErrorCaptureSource(source) {
+  const match = source.match(
+    /<script\s+data-puzzlescript-performance-error-capture>([\s\S]*?)<\/script>/i
+  )
+  assert.ok(match, "missing performance error-capture bootstrap")
+  return match[1]
+}
+
+function runPerformanceErrorCapture(source) {
+  const listeners = new Map()
+  const window = {
+    addEventListener(name, listener) { listeners.set(name, listener) }
+  }
+  vm.runInContext(performanceErrorCaptureSource(source), vm.createContext({window}))
+  return {listeners, window}
+}
+
 function performanceInputs() {
   return {
     representativeSource: "title Representative\n",
@@ -352,6 +369,82 @@ test("CM5 comparison generation is exact and idempotent from active CM6 markup",
   assert.ok(output.indexOf("js/editor-api.js") < output.indexOf("js/editor-cm5.js"))
   assert.ok(output.indexOf("js/editor-cm5.js") < output.indexOf("js/editor.js"))
   assert.equal(transformCM5ComparisonHtml(output), output)
+})
+
+test("generated CM5 and CM6 performance pages bootstrap error capture before product scripts", () => {
+  assert.equal(typeof performancePageBuilder.transformCM6PerformanceHtml, "function")
+  const pages = [
+    transformCM5ComparisonHtml(editorHtml),
+    performancePageBuilder.transformCM6PerformanceHtml(editorHtml)
+  ]
+
+  for (const output of pages) {
+    assert.equal(count(output, "data-puzzlescript-performance-error-capture"), 1)
+    assert.ok(
+      output.indexOf("data-puzzlescript-performance-error-capture") < output.indexOf("<script src="),
+      "capture bootstrap must be the earliest executable script"
+    )
+  }
+  assert.equal(
+    performancePageBuilder.transformCM6PerformanceHtml(pages[1]),
+    pages[1]
+  )
+})
+
+test("performance-page bootstrap serializes pre-mount and rejected-promise errors", () => {
+  assert.equal(typeof performancePageBuilder.transformCM6PerformanceHtml, "function")
+  const output = performancePageBuilder.transformCM6PerformanceHtml(editorHtml)
+  const {listeners, window} = runPerformanceErrorCapture(output)
+
+  listeners.get("error")({error: {name: "SyntaxError", message: "load exploded"}})
+  listeners.get("unhandledrejection")({reason: {name: "TypeError", message: "promise exploded"}})
+
+  assert.deepEqual(Array.from(window.__puzzleScriptPerformanceErrors), [
+    "error: SyntaxError: load exploded",
+    "unhandledrejection: TypeError: promise exploded"
+  ])
+})
+
+test("performance-page bootstrap keeps post-mount errors and deduplicates serializable messages", () => {
+  assert.equal(typeof performancePageBuilder.transformCM6PerformanceHtml, "function")
+  const output = performancePageBuilder.transformCM6PerformanceHtml(editorHtml)
+  const {listeners, window} = runPerformanceErrorCapture(output)
+
+  window.__puzzleScriptPerformanceMounted = true
+  listeners.get("error")({message: "late failure"})
+  listeners.get("error")({message: "late failure"})
+  const circular = {}
+  circular.self = circular
+  listeners.get("unhandledrejection")({reason: circular})
+
+  assert.deepEqual(Array.from(window.__puzzleScriptPerformanceErrors), [
+    "error: late failure",
+    "unhandledrejection: [object Object]"
+  ])
+  assert.doesNotThrow(() => JSON.stringify(window.__puzzleScriptPerformanceErrors))
+})
+
+test("performance-page bootstrap safely serializes primitive and hostile rejection reasons", () => {
+  const output = performancePageBuilder.transformCM6PerformanceHtml(editorHtml)
+  const {listeners, window} = runPerformanceErrorCapture(output)
+  const hostile = Object.create(null)
+  Object.defineProperties(hostile, {
+    name: {get() { throw new Error("name getter exploded") }},
+    message: {get() { throw new Error("message getter exploded") }},
+    toJSON: {value() { throw new Error("toJSON exploded") }}
+  })
+
+  for (const reason of ["plain rejection", null, 17, undefined, hostile]) {
+    listeners.get("unhandledrejection")({reason})
+  }
+
+  assert.deepEqual(Array.from(window.__puzzleScriptPerformanceErrors), [
+    "unhandledrejection: plain rejection",
+    "unhandledrejection: null",
+    "unhandledrejection: 17",
+    "unhandledrejection: undefined",
+    "unhandledrejection: [unserializable error]"
+  ])
 })
 
 test("CM5 comparison scripts are reconstructed exclusively from the historical whitelist", () => {
@@ -581,7 +674,7 @@ test("installed-browser arguments require a complete explicit destination", () =
   )
   assert.equal(
     surfaceUrl({surface: "cm6", baseUrl: "http://127.0.0.1:4173"}),
-    "http://127.0.0.1:4173/editor.html"
+    "http://127.0.0.1:4173/tests/codemirror6/generated/cm6-performance-editor.html"
   )
   assert.throws(() => parseArguments(["--browser", "safari"]), /--surface/)
   assert.throws(() => parseArguments([
@@ -636,14 +729,43 @@ test("benchmark validation enforces the exact baseline contract", () => {
   assert.throws(() => validateBenchmarkResults(safari, validationOptions(safari)), /heap\.reason/)
 })
 
+test("runner merges native and page-buffer errors without duplicate baseline entries", () => {
+  assert.equal(typeof installedBrowserRunner.mergePerformancePageErrors, "function")
+  assert.deepEqual(installedBrowserRunner.mergePerformancePageErrors(
+    ["error: Error: load exploded", "error: Error: post-mount exploded"],
+    ["error: Error: load exploded", "unhandledrejection: TypeError: rejected"]
+  ), [
+    "error: Error: load exploded",
+    "error: Error: post-mount exploded",
+    "unhandledrejection: TypeError: rejected"
+  ])
+  assert.throws(
+    () => installedBrowserRunner.mergePerformancePageErrors([], undefined),
+    /performance error buffer must be an array of strings/i
+  )
+  assert.throws(
+    () => installedBrowserRunner.mergePerformancePageErrors([], ["valid", {message: "not serialized"}]),
+    /performance error buffer must be an array of strings/i
+  )
+})
+
+test("benchmark validation rejects captured promise failures", () => {
+  const result = validBenchmarkResults({browser: "safari"})
+  result.environment.pageErrors.push("unhandledrejection: TypeError: rejected")
+  assert.throws(
+    () => validateBenchmarkResults(result, validationOptions(result)),
+    /environment\.pageErrors/
+  )
+})
+
 test("every checked performance baseline satisfies the explicit final-output schema", async () => {
   const checkedBaselines = [
-    ["cm5-chrome.json", "chrome", "cm5"],
-    ["pre-cm6-chrome.json", "chrome", "cm6"],
-    ["optimized-cm6-chrome.json", "chrome", "cm6"],
-    ["cm5-safari.json", "safari", "cm5"],
-    ["pre-cm6-safari.json", "safari", "cm6"],
-    ["optimized-cm6-safari.json", "safari", "cm6"]
+    ["cm5-chrome.json", "chrome", "cm5", "tests/codemirror6/generated/cm5-editor.html"],
+    ["pre-cm6-chrome.json", "chrome", "cm6", "editor.html"],
+    ["optimized-cm6-chrome.json", "chrome", "cm6", "tests/codemirror6/generated/cm6-performance-editor.html"],
+    ["cm5-safari.json", "safari", "cm5", "tests/codemirror6/generated/cm5-editor.html"],
+    ["pre-cm6-safari.json", "safari", "cm6", "editor.html"],
+    ["optimized-cm6-safari.json", "safari", "cm6", "tests/codemirror6/generated/cm6-performance-editor.html"]
   ]
   assert.deepEqual(checkedBaselines.map(([filename]) => filename), [
     "cm5-chrome.json",
@@ -653,14 +775,12 @@ test("every checked performance baseline satisfies the explicit final-output sch
     "pre-cm6-safari.json",
     "optimized-cm6-safari.json"
   ])
-  for (const [filename, browser, surface] of checkedBaselines) {
+  for (const [filename, browser, surface, pathname] of checkedBaselines) {
     const result = JSON.parse(await readFile(new URL(`performance/baselines/${filename}`, import.meta.url)))
     assert.doesNotThrow(() => validateBenchmarkResults(result, {
       browser,
       surface,
-      url: surface === "cm5"
-        ? "http://127.0.0.1:4173/tests/codemirror6/generated/cm5-editor.html"
-        : "http://127.0.0.1:4173/editor.html"
+      url: `http://127.0.0.1:4173/${pathname}`
     }), filename)
   }
 })
@@ -738,7 +858,9 @@ test("Chrome heap collection uses a fresh page and CDP garbage collection for ev
           calls.harnessScripts += 1
         },
         async evaluate(callback, argument) {
-          if (argument === undefined) return true
+          if (argument === undefined) {
+            return String(callback).includes("__puzzleScriptPerformanceErrors") ? [] : true
+          }
           if (argument.name === "currentMountSettled") {
             assert.equal(argument.inputs.largeSource.length, 129_721)
             calls.currentMountSettles += 1
@@ -795,7 +917,9 @@ test("Chrome heap rejects a page error attached before navigation and still clos
         on(event, handler) { order.push(`on:${event}`); pageErrorHandler = handler },
         async goto() { order.push("goto"); pageErrorHandler(new Error("parser exploded")) },
         async waitForSelector() {},
-        async evaluate() { return true },
+        async evaluate(callback) {
+          return String(callback).includes("__puzzleScriptPerformanceErrors") ? [] : true
+        },
         async addScriptTag() {},
         async close() { order.push("close") }
       }

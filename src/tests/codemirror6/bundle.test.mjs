@@ -10,6 +10,19 @@ test("checked-in CM6 bundle exposes only the PuzzleScript factory", async () => 
   assert.doesNotMatch(code, /[ \t]+$/m)
 })
 
+test("checked-in CM6 bundle links its discoverable matching source map", async () => {
+  const bundleURL = new URL("../../js/codemirror6.bundle.js", import.meta.url)
+  const code = await readFile(bundleURL, "utf8")
+  const sourceMap = code.match(/\/\/# sourceMappingURL=([^\s]+)\s*$/)
+  assert.ok(sourceMap, "bundle must end with a sourceMappingURL")
+  assert.equal(sourceMap[1], "codemirror6.bundle.js.map")
+
+  const map = JSON.parse(await readFile(new URL(sourceMap[1], bundleURL), "utf8"))
+  assert.equal(map.version, 3)
+  assert.ok(map.sources.includes("codemirror6/index.js"))
+  assert.equal(map.sourcesContent.length, map.sources.length)
+})
+
 test("checked-in CM6 bundle is below 100 KiB at Brotli text quality 11", async () => {
   const code = await readFile(new URL("../../js/codemirror6.bundle.js", import.meta.url))
   const brotli = brotliCompressSync(code, {

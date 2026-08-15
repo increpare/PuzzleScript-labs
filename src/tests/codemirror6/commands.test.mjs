@@ -38,7 +38,17 @@ function createView(doc, ranges) {
       selection,
       extensions: [history(), EditorState.allowMultipleSelections.of(true)]
     }),
-    dispatch: null
+    dispatch: null,
+    lineWrapping: false,
+    moveVertically(range, forward) {
+      const line = this.state.doc.lineAt(range.head)
+      const targetNumber = Math.max(1, Math.min(
+        this.state.doc.lines,
+        line.number + (forward ? 1 : -1)
+      ))
+      const target = this.state.doc.line(targetNumber)
+      return EditorSelection.cursor(target.from + Math.min(target.length, range.head - line.from))
+    }
   }
   view.dispatch = transaction => {
     view.state = transaction && transaction.state
@@ -75,6 +85,97 @@ const cursor = (line, ch) => ({anchor: {line, ch}, head: {line, ch}})
 const selection = (anchorLine, anchorCh, headLine, headCh) => ({
   anchor: {line: anchorLine, ch: anchorCh},
   head: {line: headLine, ch: headCh}
+})
+
+function coreCommand(key, platform = "pc") {
+  const property = platform === "mac" ? "mac" : "win"
+  const binding = puzzleScriptCoreKeymap.find(candidate =>
+    (candidate[property] || candidate.key) === key)
+  assert.ok(binding, `missing ${platform} ${key} binding`)
+  return binding.run
+}
+
+function editingSnapshot(outcome) {
+  return {
+    value: outcome.value,
+    selections: outcome.selections
+  }
+}
+
+test("Shift-Tab preserves the frozen CM5 indentAuto behavior", () => {
+  const fixtures = [
+    {
+      name: "cursor on first line",
+      doc: "  alpha\nbeta",
+      ranges: [cursor(0, 1)]
+    },
+    {
+      name: "cursor copies previous indentation",
+      doc: "  alpha\nbeta",
+      ranges: [cursor(1, 2)]
+    },
+    {
+      name: "cursor on blank line copies previous indentation",
+      doc: "  alpha\n\nbeta",
+      ranges: [cursor(1, 0)]
+    },
+    {
+      name: "multiline selection leaves blank lines empty",
+      doc: "  alpha\nbeta\n\n    gamma\nomega",
+      ranges: [selection(1, 0, 4, 0)]
+    }
+  ]
+
+  for (const fixture of fixtures) {
+    const expected = editingSnapshot(
+      shortcuts.pc.compatibilityOutcomes.indentAuto[fixture.name]
+    )
+    const actual = run(coreCommand("Shift-Tab"), fixture.doc, fixture.ranges)
+    assert.equal(actual.handled, true, fixture.name)
+    assert.deepEqual(actual.after, expected, fixture.name)
+  }
+})
+
+test("Ctrl/Cmd-D preserves CM5 whole-line deletion and selection collapse", () => {
+  const fixtures = [
+    {
+      name: "cursor on first line",
+      doc: "first\nmiddle\nlast",
+      ranges: [cursor(0, 2)]
+    },
+    {
+      name: "cursor on middle line",
+      doc: "first\nmiddle\nlast",
+      ranges: [cursor(1, 3)]
+    },
+    {
+      name: "cursor on last line",
+      doc: "first\nmiddle\nlast",
+      ranges: [cursor(2, 2)]
+    },
+    {
+      name: "selection ending at next line column zero includes that line",
+      doc: "first\nmiddle\nlast",
+      ranges: [selection(0, 2, 1, 0)]
+    },
+    {
+      name: "backward multiline selection",
+      doc: "first\nmiddle\nlast\nafter",
+      ranges: [selection(2, 2, 1, 3)]
+    }
+  ]
+
+  for (const platform of ["pc", "mac"]) {
+    const key = platform === "mac" ? "Meta-d" : "Ctrl-d"
+    for (const fixture of fixtures) {
+      const expected = editingSnapshot(
+        shortcuts[platform].compatibilityOutcomes.deleteLine[fixture.name]
+      )
+      const actual = run(coreCommand(key, platform), fixture.doc, fixture.ranges)
+      assert.equal(actual.handled, true, `${platform}: ${fixture.name}`)
+      assert.deepEqual(actual.after, expected, `${platform}: ${fixture.name}`)
+    }
+  }
 })
 
 test("per-line comments preserve the captured CM5 text and selection geometry", () => {

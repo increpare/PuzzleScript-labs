@@ -7,7 +7,59 @@ const root = path.resolve(testDirectory, "../../..")
 const inputPath = path.join(root, "src/editor.html")
 const outputDirectory = path.join(root, "src/tests/codemirror6/generated")
 const outputPath = path.join(outputDirectory, "cm5-editor.html")
+const cm6OutputPath = path.join(outputDirectory, "cm6-performance-editor.html")
 const legacyProofOutputPath = path.join(outputDirectory, "cm6-legacy-css-proof.html")
+
+const performanceErrorCaptureScript = `<script data-puzzlescript-performance-error-capture>
+(function () {
+  "use strict";
+  const errors = [];
+
+  function serialize(value) {
+    if (value && typeof value === "object") {
+      let name = "";
+      let message = "";
+      try {
+        if (typeof value.name === "string") name = value.name;
+      } catch (_) {}
+      try {
+        if (typeof value.message === "string") message = value.message;
+      } catch (_) {}
+      if (name || message) return name && message ? name + ": " + message : name || message;
+      try {
+        const json = JSON.stringify(value);
+        if (json !== undefined) return json;
+      } catch (_) {}
+    }
+    try {
+      return String(value);
+    } catch (_) {
+      return "[unserializable error]";
+    }
+  }
+
+  function record(type, value) {
+    const error = type + ": " + serialize(value);
+    if (errors.indexOf(error) === -1) errors.push(error);
+  }
+
+  Object.defineProperty(window, "__puzzleScriptPerformanceErrors", {
+    configurable: false,
+    enumerable: false,
+    value: errors,
+    writable: false
+  });
+  window.addEventListener("error", function (event) {
+    record("error", event.error || event.message);
+  });
+  window.addEventListener("unhandledrejection", function (event) {
+    record("unhandledrejection", event.reason);
+  });
+})();
+</script>`
+
+const performanceErrorCapturePattern =
+  /\s*<script\s+data-puzzlescript-performance-error-capture>[\s\S]*?<\/script>/gi
 
 const cm5LegacyStylesheets = Object.freeze([
   "codemirror.css",
@@ -95,14 +147,32 @@ export function transformCM6LegacyCssProofHtml(input) {
   return output.replace(/<head>/i, '<head>\n<base href="../../../">')
 }
 
+function injectPerformanceErrorCapture(input) {
+  const output = input
+    .replace(performanceErrorCapturePattern, "")
+    .replace(/\s*<base\s+href=["'][^"']*["']\s*\/?>/gi, "")
+  return output.replace(
+    /<head>/i,
+    `<head>\n<base href="../../../">\n${performanceErrorCaptureScript}`
+  )
+}
+
+export function transformCM6PerformanceHtml(input) {
+  return injectPerformanceErrorCapture(input)
+}
+
 export function transformCM5ComparisonHtml(input) {
   let output = injectCM5LegacyStylesheets(input)
+    .replace(performanceErrorCapturePattern, "")
     .replace(/\s*<base\s+href=["'][^"']*["']\s*\/?>/gi, "")
     .replace(/\s*<link\b(?=[^>]*\bhref\s*=\s*["']css\/editor-cm6\.css["'])[^>]*\/?>/gi, "")
 
   output = output.replace(/\s*<script\b(?=[^>]*\ssrc\s*=)[^>]*>[\s\S]*?<\/script\s*>/gi, "")
 
-  output = output.replace(/<head>/i, '<head>\n<base href="../../../">')
+  output = output.replace(
+    /<head>/i,
+    `<head>\n<base href="../../../">\n${performanceErrorCaptureScript}`
+  )
 
   const scriptMarker = "<!--___SCRIPTINSERT___-->"
   if (!output.includes(scriptMarker)) throw new Error("CM5 comparison source is missing script marker")
@@ -117,9 +187,11 @@ export function transformCM5ComparisonHtml(input) {
 export async function buildPerformancePages() {
   const input = await readFile(inputPath, "utf8")
   const output = transformCM5ComparisonHtml(input)
+  const cm6Output = transformCM6PerformanceHtml(input)
   const legacyProof = transformCM6LegacyCssProofHtml(input)
   await mkdir(outputDirectory, {recursive: true})
   await writeFile(outputPath, output)
+  await writeFile(cm6OutputPath, cm6Output)
   await writeFile(legacyProofOutputPath, legacyProof)
   return outputPath
 }

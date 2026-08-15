@@ -9,15 +9,15 @@ heap use, while retaining PuzzleScript's stream parser and frozen CM5 layout.
 It does not claim that every approved performance target passed:
 
 - Installed Chrome passes the unthrottled 16.7 ms key and autocomplete p95
-  targets. Installed Safari passes autocomplete but its 19 ms key p95 misses the
+  targets. Installed Safari passes autocomplete but its 18 ms key p95 misses the
   16.7 ms target.
 - Whole-document synchronous replacement remains about 22 ms in both browsers,
   so the required 2x improvement over pre-optimization CM6 did not occur. The
   faster reset-only experiment was rejected because it removed visible token
   decorations in both Chromium and WebKit.
-- The final Chrome 4x CPU-throttled probe measured 26.09999990463257 ms key p95
-  and 17.699999809265137 ms autocomplete p95. It therefore demonstrates useful
-  behavior under throttling, but not a one-frame p95 headroom pass.
+- The final Chrome 4x CPU-throttled probe measured 21.800000190734863 ms key
+  p95 and 14.5 ms autocomplete p95. Autocomplete therefore retains
+  one-frame p95 headroom under throttling; key-to-paint does not.
 
 Those misses are visible below and were not hidden by changing thresholds,
 discarding samples, or measuring only the synchronous part of deferred work.
@@ -67,10 +67,11 @@ the first of the exact 20 samples. Scripts use indexed `arguments[n]` because
 Safari's WebDriver `arguments` object is not iterable. Before harness injection,
 warmups, or samples, the runner activates Safari and waits up to 30 seconds for
 `document.visibilityState` to be exactly `visible`. Both final JSON files report
-`visible`. Chrome's empty page-error array covers navigation through measurement.
-Safari attaches its listener after the editor mount/foreground checks and before
-harness injection, so its empty array covers every warmup and measured sample,
-not earlier page initialization; mount failure is checked separately.
+`visible`. Generated CM5 and CM6 benchmark pages install the same error-capture
+bootstrap before any product script. It records synchronous errors and unhandled
+promise rejections from initial page load through the final sample. The runner
+rejects a missing, malformed, or non-empty buffer; Chrome additionally merges
+its native pre-navigation page-error listener. Both final buffers are empty.
 
 ## Installed Chrome timings
 
@@ -78,29 +79,29 @@ Values are exact committed JSON `median / p95` milliseconds.
 
 | Scenario | Frozen CM5 | Pre-optimization CM6 | Optimized CM6 |
 | --- | ---: | ---: | ---: |
-| Key to next paint | 7.2500001192092896 / 8.799999952316284 | 10.950000047683716 / 11.599999904632568 | 9.199999809265137 / 10.099999904632568 |
-| Autocomplete visible | 1.5 / 3.6000001430511475 | 58.300000071525574 / 59.19999980926514 | 5.3999998569488525 / 6.600000381469727 |
-| 100 API edits | 22.34999990463257 / 24 | 35.65000009536743 / 37.40000009536743 | 28.949999809265137 / 30.5 |
-| Replace document, synchronous | 5.399999976158142 / 6.900000095367432 | 22.450000047683716 / 22.899999856948853 | 22.5 / 22.899999618530273 |
-| Replace document, settled | 5.799999952316284 / 60.90000009536743 | 32.64999997615814 / 40.799999952316284 | 30.699999809265137 / 39 |
-| Load, distant jump, exact style | 121.99999988079071 / 171.09999990463257 | 64.5 / 68.40000009536743 | 60.09999990463257 / 67.2999997138977 |
-| Cursor, focus, and search settled | 4.75 / 65.89999985694885 | 57.35000002384186 / 60.5 | 11.599999904632568 / 13.600000381469727 |
+| Key to next paint | 7.2500001192092896 / 8.799999952316284 | 10.950000047683716 / 11.599999904632568 | 8.899999856948853 / 10.099999904632568 |
+| Autocomplete visible | 1.5 / 3.6000001430511475 | 58.300000071525574 / 59.19999980926514 | 6 / 6.899999618530273 |
+| 100 API edits | 22.34999990463257 / 24 | 35.65000009536743 / 37.40000009536743 | 28.699999809265137 / 30.700000286102295 |
+| Replace document, synchronous | 5.399999976158142 / 6.900000095367432 | 22.450000047683716 / 22.899999856948853 | 22.600000143051147 / 23 |
+| Replace document, settled | 5.799999952316284 / 60.90000009536743 | 32.64999997615814 / 40.799999952316284 | 31.149999856948853 / 39.80000019073486 |
+| Load, distant jump, exact style | 121.99999988079071 / 171.09999990463257 | 64.5 / 68.40000009536743 | 62.5 / 70.89999961853027 |
+| Cursor, focus, and search settled | 4.75 / 65.89999985694885 | 57.35000002384186 / 60.5 | 11 / 11.400000095367432 |
 
 The final optimized Chrome capture was written at
-`2026-08-15T16:45:52.220Z`. Its 4x CPU capture, retained as diagnostic evidence
-rather than a committed baseline, measured 22.700000047683716 /
-26.09999990463257 ms for key-to-paint and 15.049999952316284 /
-17.699999809265137 ms for autocomplete.
+`2026-08-15T19:04:06.516Z`. Its 4x CPU capture, retained as diagnostic evidence
+rather than a committed baseline, measured
+20.84999990463257 / 21.800000190734863 ms for key-to-paint and
+12.999999761581421 / 14.5 ms for autocomplete.
 
 Chrome heap values are exact `median / p95` MiB:
 
 | State | Frozen CM5 | Pre-optimization CM6 | Optimized CM6 |
 | --- | ---: | ---: | ---: |
-| Initial mount | 3.057697296142578 / 3.0577239990234375 | 3.933156967163086 / 3.9344215393066406 | 3.8925552368164062 / 3.8947486877441406 |
-| Large document | 5.18183708190918 / 5.18218994140625 | 7.948541641235352 / 8.0015869140625 | 6.7791900634765625 / 6.783245086669922 |
+| Initial mount | 3.057697296142578 / 3.0577239990234375 | 3.933156967163086 / 3.9344215393066406 | 3.9125308990478516 / 3.912822723388672 |
+| Large document | 5.18183708190918 / 5.18218994140625 | 7.948541641235352 / 8.0015869140625 | 6.796018600463867 / 6.7981414794921875 |
 
-The optimized initial median is about 1.273x CM5 and the optimized large-source
-median is about 1.308x CM5, both within the approximately 1.5x contract. Both
+The optimized initial median is about 1.280x CM5 and the optimized large-source
+median is about 1.312x CM5, both within the approximately 1.5x contract. Both
 are also below their pre-optimization CM6 medians.
 
 ## Installed Safari timings
@@ -109,33 +110,34 @@ Values are exact committed JSON `median / p95` milliseconds.
 
 | Scenario | Frozen CM5 | Pre-optimization CM6 | Optimized CM6 |
 | --- | ---: | ---: | ---: |
-| Key to next paint | 16 / 24 | 17.000000000000227 / 25 | 17 / 19 |
-| Autocomplete visible | 5 / 6 | 66 / 69 | 5 / 5.0000000000009095 |
-| 100 API edits | 28.50000000000091 / 32 | 24 / 25 | 23 / 25 |
-| Replace document, synchronous | 7 / 9 | 21.99999999999909 / 22 | 21.99999999999909 / 22 |
-| Replace document, settled | 7 / 10 | 42.99999999999818 / 44.00000000000364 | 40 / 41 |
-| Load, distant jump, exact style | 122.5 / 128 | 67 / 69.00000000000364 | 66 / 68 |
-| Cursor, focus, and search settled | 12 / 13 | 60 / 62.000000000007276 | 17 / 19.999999999992724 |
+| Key to next paint | 16 / 24 | 17.000000000000227 / 25 | 16.500000000000114 / 18 |
+| Autocomplete visible | 5 / 6 | 66 / 69 | 8 / 9 |
+| 100 API edits | 28.50000000000091 / 32 | 24 / 25 | 26 / 27 |
+| Replace document, synchronous | 7 / 9 | 21.99999999999909 / 22 | 21.99999999999909 / 22.000000000003638 |
+| Replace document, settled | 7 / 10 | 42.99999999999818 / 44.00000000000364 | 42.99999999999636 / 44 |
+| Load, distant jump, exact style | 122.5 / 128 | 67 / 69.00000000000364 | 64.49999999999818 / 66 |
+| Cursor, focus, and search settled | 12 / 13 | 60 / 62.000000000007276 | 17 / 19.000000000007276 |
 
 The final optimized Safari capture was written at
-`2026-08-15T16:52:07.513Z`. Safari's paint measurements are frame-quantized:
-the optimized key median equals the approximately 17 ms pre-optimization
-median, and the p95 improves from 25 ms to 19 ms, but 19 ms still fails the
-16.7 ms contract. Relative to CM5, the optimized median is 1 ms slower while
-the p95 is 5 ms faster. SafariDriver exposes no repeatable JavaScript heap API,
+`2026-08-15T19:07:20.137Z`. Safari's paint measurements are frame-quantized:
+the optimized key median is 0.5 ms below the approximately 17 ms
+pre-optimization median, and the p95 improves from 25 ms to 18 ms, but 18 ms
+still fails the 16.7 ms contract. Relative to CM5, the optimized median is
+0.5 ms slower while
+the p95 is 6 ms faster. SafariDriver exposes no repeatable JavaScript heap API,
 so no Safari heap result is claimed.
 
 ## Contract decisions
 
 | Contract item | Result | Evidence |
 | --- | --- | --- |
-| Key-to-paint p95 below 16.7 ms | **Chrome pass; Safari fail** | Chrome 10.099999904632568 ms; Safari 19 ms. Structural dirty tracking avoids per-key document stringification and decoration identity tests reject unrelated rebuilds. |
-| Ordinary autocomplete below 16.7 ms | **Pass** | Chrome 6.600000381469727 ms and Safari 5.0000000000009095 ms p95. Native activation uses `activateOnTyping: true` and `activateOnTypingDelay: 0`; the fixed 50 ms normal path is gone. |
-| Exact distant jump materially faster than CM5 | **Pass** | Chrome median 121.99999988079071 to 60.09999990463257 ms; Safari 122.5 to 66 ms. Exact token-style assertions reject approximate state. |
-| Whole-document synchronous replacement at least 2x faster than pre-CM6, with settled improvement | **Fail** | Chrome sync 22.450000047683716 to 22.5 ms and Safari remains 21.99999999999909 ms; both are effectively unchanged. Chrome settled improves to 30.699999809265137 / 39 ms and Safari to 40 / 41 ms, but the required synchronous improvement did not occur. |
-| Reuse token decorations for non-document activity | **Pass** | Identity tests cover cursor, selection, focus, search-panel activity, and completion selection. Chrome cursor/search median drops from 57.35000002384186 to 11.599999904632568 ms; Safari drops from 60 to 17 ms. Search Replace and Replace All remain document transactions. |
-| Heap below pre-CM6 and approximately no more than 1.5x CM5 | **Pass** | Chrome optimized initial/large medians are 3.8925552368164062 / 6.7791900634765625 MiB, below pre-CM6 and about 1.273x / 1.308x CM5. |
-| Checked IIFE below 100 KiB Brotli | **Pass** | 100162 bytes at Brotli text mode, quality 11; the limit is 102400 bytes. |
+| Key-to-paint p95 below 16.7 ms | **Chrome pass; Safari fail** | Chrome 10.099999904632568 ms; Safari 18 ms. Structural dirty tracking avoids per-key document stringification and decoration identity tests reject unrelated rebuilds. |
+| Ordinary autocomplete below 16.7 ms | **Pass** | Chrome 6.899999618530273 ms and Safari 9 ms p95. Native activation uses `activateOnTyping: true` and `activateOnTypingDelay: 0`; the fixed 50 ms normal path is gone. Chrome's 4x diagnostic also passes this threshold at 14.5 ms p95. |
+| Exact distant jump materially faster than CM5 | **Pass** | Chrome median 121.99999988079071 to 62.5 ms; Safari 122.5 to 64.49999999999818 ms. Exact token-style assertions reject approximate state. |
+| Whole-document synchronous replacement at least 2x faster than pre-CM6, with settled improvement | **Fail** | Chrome sync 22.450000047683716 to 22.600000143051147 ms and Safari changes from 21.99999999999909 to 21.99999999999909 ms; both are effectively unchanged. Chrome settled is 31.149999856948853 / 39.80000019073486 ms and Safari is 42.99999999999636 / 44 ms, but the required synchronous improvement did not occur. |
+| Reuse token decorations for non-document activity | **Pass** | Identity tests cover cursor, selection, focus, search-panel activity, and completion selection. Chrome cursor/search median drops from 57.35000002384186 to 11 ms; Safari drops from 60 to 17 ms. Search Replace and Replace All remain document transactions. |
+| Heap below pre-CM6 and approximately no more than 1.5x CM5 | **Pass** | Chrome optimized initial/large medians are 3.9125308990478516 / 6.796018600463867 MiB, below pre-CM6 and about 1.280x / 1.312x CM5. |
+| Checked IIFE below 100 KiB Brotli | **Pass** | 100479 bytes at Brotli text mode, quality 11; the limit is 102400 bytes. |
 
 ### Reset-path rejection
 
@@ -231,13 +233,13 @@ IIFE at commit `a69c0216`; the optimized row is the final checked IIFE.
 | --- | ---: | ---: | ---: |
 | Frozen CM5 editor script stack | 486750 | 125674 | 103286 |
 | Pre-optimization CM6 IIFE (`a69c0216`) | 781124 | 184594 | 149497 |
-| Optimized CM6 IIFE | 360272 | 116369 | 100162 |
+| Optimized CM6 IIFE | 361152 | 116794 | 100479 |
 
-Only the optimized CM6 Brotli value is a production sidecar. The historical
-Brotli values apply the final production settings for comparison; neither
-historical surface was delivered that way. The raw comparison also reflects
-the important packaging difference: CM5 and the pre-CM6 IIFE were readable
-source artifacts, whereas the optimized checked IIFE is esbuild-minified.
+Only the optimized CM6 Brotli value is calculated from the current checked
+bundle. The historical Brotli values apply the same settings for comparison;
+neither historical surface was delivered that way. The raw comparison also reflects the
+important packaging difference: CM5 and the pre-CM6 IIFE were readable source
+artifacts, whereas the optimized checked IIFE is esbuild-minified.
 
 For the historical minified-plus-gzip comparison, all three inputs were also
 run through the repository's pinned Terser 5.17.1 defaults before compression:
@@ -246,26 +248,34 @@ run through the repository's pinned Terser 5.17.1 defaults before compression:
 | --- | ---: | ---: | ---: |
 | Frozen CM5 editor script stack | 215084 | 69724 | 60919 |
 | Pre-optimization CM6 IIFE (`a69c0216`) | 354100 | 112504 | 96507 |
-| Optimized CM6 IIFE | 359080 | 114173 | 97682 |
+| Optimized CM6 IIFE | 359934 | 114471 | 97997 |
 
 This normalized table preserves the approved historical comparison: CM5 is
 about 68.1 KiB gzip and pre-CM6 is about 109.9 KiB. It also shows that the
 optimized runtime is not smaller than CM5 and is slightly larger than pre-CM6
 under a second Terser pass; the production win is the deterministic minified
-IIFE and its 100162-byte Brotli sidecar, not a claim of beating CM5's size.
+IIFE and its 100479-byte Brotli-q11 result, not a claim of beating
+CM5's size.
 
 The final release `combined.css` is 16519 raw bytes, 3906 bytes at comparison
 gzip level 9, and 3345 bytes at production Brotli text quality 11.
 
-The release retains every raw original, generates no `.gz` files, and produced
-206 `.br` sidecars. `npm run verify:release-compression` decompressed every
-sidecar and compared it byte-for-byte with its original. The bundle's committed
-SHA-256 is
-`d7d599262c154e96148e1aafa55a9979901956acf8feaab0abe5ab32551b346c`;
+The final release retains every raw original, generates no `.gz` files, and
+produces 206 `.br` sidecars. `npm run verify:release-compression` decompressed
+every sidecar and compared it byte-for-byte with its original. The checked
+bundle's SHA-256 is
+`55d3247faec6dd8528bca9929c482d632c42ec0000a0ae8c21ed4205f55d8908`;
 the source map is
-`d462a373a2c68c38eb131e2f1d72fb32c0edbcd90f9925252d8b49129e80aa43`.
+`0c77db910ae705c94e793587c4bc9a2ca89b8d5b1a9c30d1f10e535645977ea9`.
+The final compiled 100479-byte bundle sidecar is
+`b7e1b6191c22b8f90499367c136af2ccf3b5848a5fed816531b901d3be633358`,
+and the unchanged standalone source is
+`dd6128b1f53c01ea9f3a399c57c7e296f1a2e5e2d9a9fd56ead99e795501d203`.
+The IIFE ends with a matching `sourceMappingURL=codemirror6.bundle.js.map`;
+the build regression parses that linked map, checks its source/content arrays,
+and verifies that it contains the CM6 entry point.
 
-A real Apache 2.4.62 smoke test, with `mod_rewrite`, `mod_mime`,
+A fresh isolated real Apache 2.4.62 smoke test against this final release, with `mod_rewrite`, `mod_mime`,
 `mod_headers`, and `mod_negotiation`, verified JavaScript, CSS, HTML, and text
 responses. Requests that accept Brotli received byte-equivalent compressed bodies with
 `Content-Encoding: br`, the original MIME type, and `Vary: Accept-Encoding`.
@@ -302,18 +312,18 @@ without changing or copying its contents.
 - `npm run test:codemirror`: expected non-product failure at the protected
   malformed candidate test; its localhost deadline test also receives
   `listen EPERM` inside the filesystem sandbox. With only the protected file
-  blacklisted and localhost binding allowed, the same suite passed 179/179.
+  blacklisted and localhost binding allowed, the same suite passed 191/191.
 - `node src/tests/run_tests_node.js`: passed 750/750 with 0 failures and 0
   errors.
-- `npm run test:codemirror-browser`: passed 144 with 45 intentional
+- `npm run test:codemirror-browser`: passed 149 with 55 intentional
   baseline-only/engine-specific skips across Chromium, Firefox, and WebKit.
-- Release compilation: passed at preserved four-byte build number `1838`;
-  checked bundle, source map, and standalone hashes remain deterministic.
+- Release compilation: passed at preserved exact four-byte build number `1838`
+  with the final shortcut and linked-source-map changes.
 - `npm run verify:release-compression`: passed all 206 Brotli sidecars, with no
   gzip sidecars.
 - Fresh isolated Apache 2.4.62 HTTP smoke: passed negotiation, MIME, `Vary`,
   identity/q=0, and missing-sidecar fallback contracts.
 - Installed Chrome and Safari: final performance JSON reports visible foreground
-  state. Chrome observed no page errors from navigation onward, and Safari
-  observed none during the complete warmup/measurement window; direct product
-  geometry inspection passed as described above.
+  state and the generated pre-product bootstrap observed no page errors from
+  initial navigation through the complete warmup/measurement window; direct
+  product geometry inspection passed as described above.

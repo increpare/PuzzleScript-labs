@@ -223,13 +223,11 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 8,
-              "sticky": null
+              "ch": 8
             },
             "head": {
               "line": 1,
-              "ch": 8,
-              "sticky": null
+              "ch": 8
             }
           }
         ],
@@ -245,13 +243,11 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 8,
-              "sticky": null
+              "ch": 8
             },
             "head": {
               "line": 1,
-              "ch": 8,
-              "sticky": null
+              "ch": 8
             }
           }
         ],
@@ -287,13 +283,11 @@
           {
             "anchor": {
               "line": 0,
-              "ch": 6,
-              "sticky": null
+              "ch": 6
             },
             "head": {
               "line": 0,
-              "ch": 6,
-              "sticky": null
+              "ch": 6
             }
           }
         ],
@@ -309,13 +303,11 @@
           {
             "anchor": {
               "line": 2,
-              "ch": 6,
-              "sticky": null
+              "ch": 6
             },
             "head": {
               "line": 2,
-              "ch": 6,
-              "sticky": null
+              "ch": 6
             }
           }
         ],
@@ -331,13 +323,11 @@
           {
             "anchor": {
               "line": 0,
-              "ch": 0,
-              "sticky": null
+              "ch": 0
             },
             "head": {
               "line": 2,
-              "ch": 10,
-              "sticky": null
+              "ch": 10
             }
           }
         ],
@@ -353,13 +343,11 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 0,
-              "sticky": null
+              "ch": 0
             },
             "head": {
               "line": 1,
-              "ch": 0,
-              "sticky": null
+              "ch": 0
             }
           }
         ],
@@ -390,16 +378,16 @@
         "propagationStopped": false
       },
       "Shift-Ctrl-Z": {
-        "value": "  alpha beta\nsecond line\nthird line",
+        "value": "  alpha beta\nsecondX line\nthird line",
         "selections": [
           {
             "anchor": {
               "line": 1,
-              "ch": 6
+              "ch": 7
             },
             "head": {
               "line": 1,
-              "ch": 6
+              "ch": 7
             }
           }
         ],
@@ -410,16 +398,16 @@
         "propagationStopped": false
       },
       "Ctrl-Y": {
-        "value": "  alpha beta\nsecond line\nthird line",
+        "value": "  alpha beta\nsecondX line\nthird line",
         "selections": [
           {
             "anchor": {
               "line": 1,
-              "ch": 6
+              "ch": 7
             },
             "head": {
               "line": 1,
-              "ch": 6
+              "ch": 7
             }
           }
         ],
@@ -435,13 +423,11 @@
           {
             "anchor": {
               "line": 0,
-              "ch": 0,
-              "sticky": null
+              "ch": 0
             },
             "head": {
               "line": 0,
-              "ch": 0,
-              "sticky": null
+              "ch": 0
             }
           }
         ],
@@ -457,13 +443,11 @@
           {
             "anchor": {
               "line": 2,
-              "ch": 10,
-              "sticky": null
+              "ch": 10
             },
             "head": {
               "line": 2,
-              "ch": 10,
-              "sticky": null
+              "ch": 10
             }
           }
         ],
@@ -479,15 +463,11 @@
           {
             "anchor": {
               "line": 0,
-              "ch": 6,
-              "sticky": "after",
-              "xRel": 0
+              "ch": 6
             },
             "head": {
               "line": 0,
-              "ch": 6,
-              "sticky": "after",
-              "xRel": 0
+              "ch": 6
             }
           }
         ],
@@ -503,15 +483,11 @@
           {
             "anchor": {
               "line": 2,
-              "ch": 6,
-              "sticky": "after",
-              "xRel": 0
+              "ch": 6
             },
             "head": {
               "line": 2,
-              "ch": 6,
-              "sticky": "after",
-              "xRel": 0
+              "ch": 6
             }
           }
         ],
@@ -527,13 +503,11 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 0,
-              "sticky": "after"
+              "ch": 0
             },
             "head": {
               "line": 1,
-              "ch": 0,
-              "sticky": "after"
+              "ch": 0
             }
           }
         ],
@@ -549,13 +523,11 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 11,
-              "sticky": "before"
+              "ch": 11
             },
             "head": {
               "line": 1,
-              "ch": 11,
-              "sticky": "before"
+              "ch": 11
             }
           }
         ],
@@ -571,13 +543,11 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 0,
-              "sticky": "after"
+              "ch": 0
             },
             "head": {
               "line": 1,
-              "ch": 0,
-              "sticky": "after"
+              "ch": 0
             }
           }
         ],
@@ -593,13 +563,11 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 11,
-              "sticky": "before"
+              "ch": 11
             },
             "head": {
               "line": 1,
-              "ch": 11,
-              "sticky": "before"
+              "ch": 11
             }
           }
         ],
@@ -615,13 +583,11 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 0,
-              "sticky": null
+              "ch": 0
             },
             "head": {
               "line": 1,
-              "ch": 0,
-              "sticky": null
+              "ch": 0
             }
           }
         ],
@@ -666,7 +632,7 @@
           }
         ],
         "overwrite": false,
-        "searchOpen": false,
+        "searchOpen": true,
         "completionOpen": false,
         "defaultPrevented": true,
         "propagationStopped": false
@@ -726,7 +692,7 @@
           }
         ],
         "overwrite": false,
-        "searchOpen": false,
+        "searchOpen": true,
         "completionOpen": false,
         "defaultPrevented": true,
         "propagationStopped": false
@@ -757,13 +723,11 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 8,
-              "sticky": null
+              "ch": 8
             },
             "head": {
               "line": 1,
-              "ch": 8,
-              "sticky": null
+              "ch": 8
             }
           }
         ],
@@ -779,11 +743,11 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 6
+              "ch": 1
             },
             "head": {
               "line": 1,
-              "ch": 6
+              "ch": 1
             }
           }
         ],
@@ -839,13 +803,11 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 5,
-              "sticky": "after"
+              "ch": 5
             },
             "head": {
               "line": 1,
-              "ch": 5,
-              "sticky": "after"
+              "ch": 5
             }
           }
         ],
@@ -861,13 +823,11 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 7,
-              "sticky": "before"
+              "ch": 7
             },
             "head": {
               "line": 1,
-              "ch": 7,
-              "sticky": "before"
+              "ch": 7
             }
           }
         ],
@@ -883,15 +843,11 @@
           {
             "anchor": {
               "line": 0,
-              "ch": 6,
-              "sticky": "after",
-              "xRel": 0
+              "ch": 6
             },
             "head": {
               "line": 0,
-              "ch": 6,
-              "sticky": "after",
-              "xRel": 0
+              "ch": 6
             }
           }
         ],
@@ -907,15 +863,11 @@
           {
             "anchor": {
               "line": 2,
-              "ch": 6,
-              "sticky": "after",
-              "xRel": 0
+              "ch": 6
             },
             "head": {
               "line": 2,
-              "ch": 6,
-              "sticky": "after",
-              "xRel": 0
+              "ch": 6
             }
           }
         ],
@@ -931,13 +883,11 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 11,
-              "sticky": "before"
+              "ch": 11
             },
             "head": {
               "line": 1,
-              "ch": 11,
-              "sticky": "before"
+              "ch": 11
             }
           }
         ],
@@ -953,13 +903,11 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 0,
-              "sticky": "after"
+              "ch": 0
             },
             "head": {
               "line": 1,
-              "ch": 0,
-              "sticky": "after"
+              "ch": 0
             }
           }
         ],
@@ -975,19 +923,11 @@
           {
             "anchor": {
               "line": 0,
-              "ch": 0,
-              "sticky": null,
-              "xRel": -1,
-              "outside": -1,
-              "hitSide": true
+              "ch": 0
             },
             "head": {
               "line": 0,
-              "ch": 0,
-              "sticky": null,
-              "xRel": -1,
-              "outside": -1,
-              "hitSide": true
+              "ch": 0
             }
           }
         ],
@@ -1003,19 +943,11 @@
           {
             "anchor": {
               "line": 2,
-              "ch": 10,
-              "sticky": null,
-              "xRel": 1,
-              "outside": 1,
-              "hitSide": true
+              "ch": 10
             },
             "head": {
               "line": 2,
-              "ch": 10,
-              "sticky": null,
-              "xRel": 1,
-              "outside": 1,
-              "hitSide": true
+              "ch": 10
             }
           }
         ],
@@ -1051,13 +983,11 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 5,
-              "sticky": null
+              "ch": 5
             },
             "head": {
               "line": 1,
-              "ch": 5,
-              "sticky": null
+              "ch": 5
             }
           }
         ],
@@ -1073,13 +1003,11 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 5,
-              "sticky": null
+              "ch": 5
             },
             "head": {
               "line": 1,
-              "ch": 5,
-              "sticky": null
+              "ch": 5
             }
           }
         ],
@@ -1095,13 +1023,11 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 7,
-              "sticky": null
+              "ch": 7
             },
             "head": {
               "line": 1,
-              "ch": 7,
-              "sticky": null
+              "ch": 7
             }
           }
         ],
@@ -1117,13 +1043,11 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 8,
-              "sticky": null
+              "ch": 8
             },
             "head": {
               "line": 1,
-              "ch": 8,
-              "sticky": null
+              "ch": 8
             }
           }
         ],
@@ -1139,13 +1063,11 @@
           {
             "anchor": {
               "line": 2,
-              "ch": 0,
-              "sticky": null
+              "ch": 0
             },
             "head": {
               "line": 2,
-              "ch": 0,
-              "sticky": null
+              "ch": 0
             }
           }
         ],
@@ -1191,7 +1113,7 @@
             }
           }
         ],
-        "overwrite": true,
+        "overwrite": false,
         "searchOpen": false,
         "completionOpen": true,
         "defaultPrevented": true,
@@ -1211,7 +1133,7 @@
             }
           }
         ],
-        "overwrite": true,
+        "overwrite": false,
         "searchOpen": false,
         "completionOpen": true,
         "defaultPrevented": true,
@@ -1231,7 +1153,7 @@
             }
           }
         ],
-        "overwrite": true,
+        "overwrite": false,
         "searchOpen": false,
         "completionOpen": true,
         "defaultPrevented": true,
@@ -1251,7 +1173,7 @@
             }
           }
         ],
-        "overwrite": true,
+        "overwrite": false,
         "searchOpen": false,
         "completionOpen": true,
         "defaultPrevented": true,
@@ -1271,7 +1193,7 @@
             }
           }
         ],
-        "overwrite": true,
+        "overwrite": false,
         "searchOpen": false,
         "completionOpen": true,
         "defaultPrevented": true,
@@ -1291,7 +1213,7 @@
             }
           }
         ],
-        "overwrite": true,
+        "overwrite": false,
         "searchOpen": false,
         "completionOpen": true,
         "defaultPrevented": true,
@@ -1303,17 +1225,15 @@
           {
             "anchor": {
               "line": 0,
-              "ch": 5,
-              "sticky": null
+              "ch": 5
             },
             "head": {
               "line": 0,
-              "ch": 5,
-              "sticky": null
+              "ch": 5
             }
           }
         ],
-        "overwrite": true,
+        "overwrite": false,
         "searchOpen": false,
         "completionOpen": false,
         "defaultPrevented": true,
@@ -1325,17 +1245,15 @@
           {
             "anchor": {
               "line": 0,
-              "ch": 5,
-              "sticky": null
+              "ch": 5
             },
             "head": {
               "line": 0,
-              "ch": 5,
-              "sticky": null
+              "ch": 5
             }
           }
         ],
-        "overwrite": true,
+        "overwrite": false,
         "searchOpen": false,
         "completionOpen": false,
         "defaultPrevented": true,
@@ -1355,11 +1273,197 @@
             }
           }
         ],
-        "overwrite": true,
+        "overwrite": false,
         "searchOpen": false,
         "completionOpen": false,
         "defaultPrevented": true,
         "propagationStopped": false
+      }
+    },
+    "compatibilityOutcomes": {
+      "indentAuto": {
+        "cursor on first line": {
+          "value": "alpha\nbeta",
+          "selections": [
+            {
+              "anchor": {
+                "line": 0,
+                "ch": 0
+              },
+              "head": {
+                "line": 0,
+                "ch": 0
+              }
+            }
+          ],
+          "overwrite": false,
+          "searchOpen": false,
+          "completionOpen": false,
+          "defaultPrevented": true,
+          "propagationStopped": false
+        },
+        "cursor copies previous indentation": {
+          "value": "  alpha\n  beta",
+          "selections": [
+            {
+              "anchor": {
+                "line": 1,
+                "ch": 4
+              },
+              "head": {
+                "line": 1,
+                "ch": 4
+              }
+            }
+          ],
+          "overwrite": false,
+          "searchOpen": false,
+          "completionOpen": false,
+          "defaultPrevented": true,
+          "propagationStopped": false
+        },
+        "cursor on blank line copies previous indentation": {
+          "value": "  alpha\n  \nbeta",
+          "selections": [
+            {
+              "anchor": {
+                "line": 1,
+                "ch": 2
+              },
+              "head": {
+                "line": 1,
+                "ch": 2
+              }
+            }
+          ],
+          "overwrite": false,
+          "searchOpen": false,
+          "completionOpen": false,
+          "defaultPrevented": true,
+          "propagationStopped": false
+        },
+        "multiline selection leaves blank lines empty": {
+          "value": "  alpha\n  beta\n\ngamma\nomega",
+          "selections": [
+            {
+              "anchor": {
+                "line": 1,
+                "ch": 0
+              },
+              "head": {
+                "line": 4,
+                "ch": 0
+              }
+            }
+          ],
+          "overwrite": false,
+          "searchOpen": false,
+          "completionOpen": false,
+          "defaultPrevented": true,
+          "propagationStopped": false
+        }
+      },
+      "deleteLine": {
+        "cursor on first line": {
+          "value": "middle\nlast",
+          "selections": [
+            {
+              "anchor": {
+                "line": 0,
+                "ch": 0
+              },
+              "head": {
+                "line": 0,
+                "ch": 0
+              }
+            }
+          ],
+          "overwrite": false,
+          "searchOpen": false,
+          "completionOpen": false,
+          "defaultPrevented": true,
+          "propagationStopped": false
+        },
+        "cursor on middle line": {
+          "value": "first\nlast",
+          "selections": [
+            {
+              "anchor": {
+                "line": 1,
+                "ch": 0
+              },
+              "head": {
+                "line": 1,
+                "ch": 0
+              }
+            }
+          ],
+          "overwrite": false,
+          "searchOpen": false,
+          "completionOpen": false,
+          "defaultPrevented": true,
+          "propagationStopped": false
+        },
+        "cursor on last line": {
+          "value": "first\nmiddle\n",
+          "selections": [
+            {
+              "anchor": {
+                "line": 2,
+                "ch": 0
+              },
+              "head": {
+                "line": 2,
+                "ch": 0
+              }
+            }
+          ],
+          "overwrite": false,
+          "searchOpen": false,
+          "completionOpen": false,
+          "defaultPrevented": true,
+          "propagationStopped": false
+        },
+        "selection ending at next line column zero includes that line": {
+          "value": "last",
+          "selections": [
+            {
+              "anchor": {
+                "line": 0,
+                "ch": 0
+              },
+              "head": {
+                "line": 0,
+                "ch": 0
+              }
+            }
+          ],
+          "overwrite": false,
+          "searchOpen": false,
+          "completionOpen": false,
+          "defaultPrevented": true,
+          "propagationStopped": false
+        },
+        "backward multiline selection": {
+          "value": "first\nafter",
+          "selections": [
+            {
+              "anchor": {
+                "line": 1,
+                "ch": 0
+              },
+              "head": {
+                "line": 1,
+                "ch": 0
+              }
+            }
+          ],
+          "overwrite": false,
+          "searchOpen": false,
+          "completionOpen": false,
+          "defaultPrevented": true,
+          "propagationStopped": false
+        }
       }
     },
     "applicationOutcomes": {
@@ -1412,6 +1516,120 @@
           "gif": 1
         },
         "value": "alpha\nbeta"
+      }
+    },
+    "replaceDocumentHistory": {
+      "afterPriorUserEdit": {
+        "value": "initial?",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 8
+            },
+            "head": {
+              "line": 0,
+              "ch": 8
+            }
+          }
+        ],
+        "dirty": true
+      },
+      "afterReplaceDocument": {
+        "value": "clean",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 0
+            },
+            "head": {
+              "line": 0,
+              "ch": 0
+            }
+          }
+        ],
+        "dirty": true
+      },
+      "afterFollowingUserEdit": {
+        "value": "!clean",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 1
+            },
+            "head": {
+              "line": 0,
+              "ch": 1
+            }
+          }
+        ],
+        "dirty": true
+      },
+      "afterUndo": {
+        "value": "clean",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 0
+            },
+            "head": {
+              "line": 0,
+              "ch": 0
+            }
+          }
+        ],
+        "dirty": true
+      },
+      "afterSecondUndo": {
+        "value": "initial?",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 8
+            },
+            "head": {
+              "line": 0,
+              "ch": 8
+            }
+          }
+        ],
+        "dirty": true
+      },
+      "afterRedo": {
+        "value": "clean",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 0
+            },
+            "head": {
+              "line": 0,
+              "ch": 0
+            }
+          }
+        ],
+        "dirty": true
+      },
+      "afterSecondRedo": {
+        "value": "!clean",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 1
+            },
+            "head": {
+              "line": 0,
+              "ch": 1
+            }
+          }
+        ],
+        "dirty": true
       }
     }
   },
@@ -1677,13 +1895,11 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 8,
-              "sticky": null
+              "ch": 8
             },
             "head": {
               "line": 1,
-              "ch": 8,
-              "sticky": null
+              "ch": 8
             }
           }
         ],
@@ -1699,13 +1915,11 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 8,
-              "sticky": null
+              "ch": 8
             },
             "head": {
               "line": 1,
-              "ch": 8,
-              "sticky": null
+              "ch": 8
             }
           }
         ],
@@ -1741,13 +1955,11 @@
           {
             "anchor": {
               "line": 0,
-              "ch": 6,
-              "sticky": null
+              "ch": 6
             },
             "head": {
               "line": 0,
-              "ch": 6,
-              "sticky": null
+              "ch": 6
             }
           }
         ],
@@ -1763,13 +1975,11 @@
           {
             "anchor": {
               "line": 2,
-              "ch": 6,
-              "sticky": null
+              "ch": 6
             },
             "head": {
               "line": 2,
-              "ch": 6,
-              "sticky": null
+              "ch": 6
             }
           }
         ],
@@ -1785,13 +1995,11 @@
           {
             "anchor": {
               "line": 0,
-              "ch": 0,
-              "sticky": null
+              "ch": 0
             },
             "head": {
               "line": 2,
-              "ch": 10,
-              "sticky": null
+              "ch": 10
             }
           }
         ],
@@ -1807,13 +2015,11 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 0,
-              "sticky": null
+              "ch": 0
             },
             "head": {
               "line": 1,
-              "ch": 0,
-              "sticky": null
+              "ch": 0
             }
           }
         ],
@@ -1844,16 +2050,16 @@
         "propagationStopped": false
       },
       "Shift-Cmd-Z": {
-        "value": "  alpha beta\nsecond line\nthird line",
+        "value": "  alpha beta\nsecondX line\nthird line",
         "selections": [
           {
             "anchor": {
               "line": 1,
-              "ch": 6
+              "ch": 7
             },
             "head": {
               "line": 1,
-              "ch": 6
+              "ch": 7
             }
           }
         ],
@@ -1864,16 +2070,16 @@
         "propagationStopped": false
       },
       "Cmd-Y": {
-        "value": "  alpha beta\nsecond line\nthird line",
+        "value": "  alpha beta\nsecondX line\nthird line",
         "selections": [
           {
             "anchor": {
               "line": 1,
-              "ch": 6
+              "ch": 7
             },
             "head": {
               "line": 1,
-              "ch": 6
+              "ch": 7
             }
           }
         ],
@@ -1889,13 +2095,11 @@
           {
             "anchor": {
               "line": 0,
-              "ch": 0,
-              "sticky": null
+              "ch": 0
             },
             "head": {
               "line": 0,
-              "ch": 0,
-              "sticky": null
+              "ch": 0
             }
           }
         ],
@@ -1911,13 +2115,11 @@
           {
             "anchor": {
               "line": 0,
-              "ch": 0,
-              "sticky": null
+              "ch": 0
             },
             "head": {
               "line": 0,
-              "ch": 0,
-              "sticky": null
+              "ch": 0
             }
           }
         ],
@@ -1933,13 +2135,11 @@
           {
             "anchor": {
               "line": 2,
-              "ch": 10,
-              "sticky": null
+              "ch": 10
             },
             "head": {
               "line": 2,
-              "ch": 10,
-              "sticky": null
+              "ch": 10
             }
           }
         ],
@@ -1955,13 +2155,11 @@
           {
             "anchor": {
               "line": 2,
-              "ch": 10,
-              "sticky": null
+              "ch": 10
             },
             "head": {
               "line": 2,
-              "ch": 10,
-              "sticky": null
+              "ch": 10
             }
           }
         ],
@@ -1977,13 +2175,11 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 0,
-              "sticky": "after"
+              "ch": 0
             },
             "head": {
               "line": 1,
-              "ch": 0,
-              "sticky": "after"
+              "ch": 0
             }
           }
         ],
@@ -1999,13 +2195,11 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 11,
-              "sticky": "before"
+              "ch": 11
             },
             "head": {
               "line": 1,
-              "ch": 11,
-              "sticky": "before"
+              "ch": 11
             }
           }
         ],
@@ -2021,15 +2215,11 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 0,
-              "sticky": "after",
-              "xRel": -4
+              "ch": 0
             },
             "head": {
               "line": 1,
-              "ch": 0,
-              "sticky": "after",
-              "xRel": -4
+              "ch": 0
             }
           }
         ],
@@ -2045,15 +2235,11 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 11,
-              "sticky": "before",
-              "xRel": 681.375
+              "ch": 11
             },
             "head": {
               "line": 1,
-              "ch": 11,
-              "sticky": "before",
-              "xRel": 681.375
+              "ch": 11
             }
           }
         ],
@@ -2069,13 +2255,11 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 0,
-              "sticky": null
+              "ch": 0
             },
             "head": {
               "line": 1,
-              "ch": 0,
-              "sticky": null
+              "ch": 0
             }
           }
         ],
@@ -2140,7 +2324,7 @@
           }
         ],
         "overwrite": false,
-        "searchOpen": false,
+        "searchOpen": true,
         "completionOpen": false,
         "defaultPrevented": true,
         "propagationStopped": false
@@ -2200,7 +2384,7 @@
           }
         ],
         "overwrite": false,
-        "searchOpen": false,
+        "searchOpen": true,
         "completionOpen": false,
         "defaultPrevented": true,
         "propagationStopped": false
@@ -2231,13 +2415,11 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 8,
-              "sticky": null
+              "ch": 8
             },
             "head": {
               "line": 1,
-              "ch": 8,
-              "sticky": null
+              "ch": 8
             }
           }
         ],
@@ -2253,13 +2435,11 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 0,
-              "sticky": null
+              "ch": 0
             },
             "head": {
               "line": 1,
-              "ch": 0,
-              "sticky": null
+              "ch": 0
             }
           }
         ],
@@ -2295,11 +2475,11 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 6
+              "ch": 1
             },
             "head": {
               "line": 1,
-              "ch": 6
+              "ch": 1
             }
           }
         ],
@@ -2335,13 +2515,11 @@
           {
             "anchor": {
               "line": 0,
-              "ch": 0,
-              "sticky": null
+              "ch": 0
             },
             "head": {
               "line": 0,
-              "ch": 0,
-              "sticky": null
+              "ch": 0
             }
           }
         ],
@@ -2357,13 +2535,11 @@
           {
             "anchor": {
               "line": 2,
-              "ch": 10,
-              "sticky": null
+              "ch": 10
             },
             "head": {
               "line": 2,
-              "ch": 10,
-              "sticky": null
+              "ch": 10
             }
           }
         ],
@@ -2379,13 +2555,11 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 5,
-              "sticky": "after"
+              "ch": 5
             },
             "head": {
               "line": 1,
-              "ch": 5,
-              "sticky": "after"
+              "ch": 5
             }
           }
         ],
@@ -2401,13 +2575,11 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 7,
-              "sticky": "before"
+              "ch": 7
             },
             "head": {
               "line": 1,
-              "ch": 7,
-              "sticky": "before"
+              "ch": 7
             }
           }
         ],
@@ -2423,15 +2595,11 @@
           {
             "anchor": {
               "line": 0,
-              "ch": 6,
-              "sticky": "after",
-              "xRel": 0
+              "ch": 6
             },
             "head": {
               "line": 0,
-              "ch": 6,
-              "sticky": "after",
-              "xRel": 0
+              "ch": 6
             }
           }
         ],
@@ -2447,15 +2615,11 @@
           {
             "anchor": {
               "line": 2,
-              "ch": 6,
-              "sticky": "after",
-              "xRel": 0
+              "ch": 6
             },
             "head": {
               "line": 2,
-              "ch": 6,
-              "sticky": "after",
-              "xRel": 0
+              "ch": 6
             }
           }
         ],
@@ -2471,13 +2635,11 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 11,
-              "sticky": "before"
+              "ch": 11
             },
             "head": {
               "line": 1,
-              "ch": 11,
-              "sticky": "before"
+              "ch": 11
             }
           }
         ],
@@ -2493,13 +2655,11 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 0,
-              "sticky": "after"
+              "ch": 0
             },
             "head": {
               "line": 1,
-              "ch": 0,
-              "sticky": "after"
+              "ch": 0
             }
           }
         ],
@@ -2515,19 +2675,11 @@
           {
             "anchor": {
               "line": 0,
-              "ch": 0,
-              "sticky": null,
-              "xRel": -1,
-              "outside": -1,
-              "hitSide": true
+              "ch": 0
             },
             "head": {
               "line": 0,
-              "ch": 0,
-              "sticky": null,
-              "xRel": -1,
-              "outside": -1,
-              "hitSide": true
+              "ch": 0
             }
           }
         ],
@@ -2543,19 +2695,11 @@
           {
             "anchor": {
               "line": 2,
-              "ch": 10,
-              "sticky": null,
-              "xRel": 1,
-              "outside": 1,
-              "hitSide": true
+              "ch": 10
             },
             "head": {
               "line": 2,
-              "ch": 10,
-              "sticky": null,
-              "xRel": 1,
-              "outside": 1,
-              "hitSide": true
+              "ch": 10
             }
           }
         ],
@@ -2591,13 +2735,11 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 5,
-              "sticky": null
+              "ch": 5
             },
             "head": {
               "line": 1,
-              "ch": 5,
-              "sticky": null
+              "ch": 5
             }
           }
         ],
@@ -2613,13 +2755,11 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 5,
-              "sticky": null
+              "ch": 5
             },
             "head": {
               "line": 1,
-              "ch": 5,
-              "sticky": null
+              "ch": 5
             }
           }
         ],
@@ -2635,13 +2775,11 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 7,
-              "sticky": null
+              "ch": 7
             },
             "head": {
               "line": 1,
-              "ch": 7,
-              "sticky": null
+              "ch": 7
             }
           }
         ],
@@ -2657,13 +2795,11 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 8,
-              "sticky": null
+              "ch": 8
             },
             "head": {
               "line": 1,
-              "ch": 8,
-              "sticky": null
+              "ch": 8
             }
           }
         ],
@@ -2679,13 +2815,11 @@
           {
             "anchor": {
               "line": 2,
-              "ch": 0,
-              "sticky": null
+              "ch": 0
             },
             "head": {
               "line": 2,
-              "ch": 0,
-              "sticky": null
+              "ch": 0
             }
           }
         ],
@@ -2721,17 +2855,15 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 7,
-              "sticky": "before"
+              "ch": 7
             },
             "head": {
               "line": 1,
-              "ch": 7,
-              "sticky": "before"
+              "ch": 7
             }
           }
         ],
-        "overwrite": true,
+        "overwrite": false,
         "searchOpen": false,
         "completionOpen": false,
         "defaultPrevented": true,
@@ -2743,17 +2875,15 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 5,
-              "sticky": "after"
+              "ch": 5
             },
             "head": {
               "line": 1,
-              "ch": 5,
-              "sticky": "after"
+              "ch": 5
             }
           }
         ],
-        "overwrite": true,
+        "overwrite": false,
         "searchOpen": false,
         "completionOpen": false,
         "defaultPrevented": true,
@@ -2765,19 +2895,15 @@
           {
             "anchor": {
               "line": 0,
-              "ch": 6,
-              "sticky": "after",
-              "xRel": 0
+              "ch": 6
             },
             "head": {
               "line": 0,
-              "ch": 6,
-              "sticky": "after",
-              "xRel": 0
+              "ch": 6
             }
           }
         ],
-        "overwrite": true,
+        "overwrite": false,
         "searchOpen": false,
         "completionOpen": false,
         "defaultPrevented": true,
@@ -2789,19 +2915,15 @@
           {
             "anchor": {
               "line": 2,
-              "ch": 6,
-              "sticky": "after",
-              "xRel": 0
+              "ch": 6
             },
             "head": {
               "line": 2,
-              "ch": 6,
-              "sticky": "after",
-              "xRel": 0
+              "ch": 6
             }
           }
         ],
-        "overwrite": true,
+        "overwrite": false,
         "searchOpen": false,
         "completionOpen": false,
         "defaultPrevented": true,
@@ -2813,17 +2935,15 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 0,
-              "sticky": "after"
+              "ch": 0
             },
             "head": {
               "line": 1,
-              "ch": 0,
-              "sticky": "after"
+              "ch": 0
             }
           }
         ],
-        "overwrite": true,
+        "overwrite": false,
         "searchOpen": false,
         "completionOpen": false,
         "defaultPrevented": true,
@@ -2835,17 +2955,15 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 11,
-              "sticky": "before"
+              "ch": 11
             },
             "head": {
               "line": 1,
-              "ch": 11,
-              "sticky": "before"
+              "ch": 11
             }
           }
         ],
-        "overwrite": true,
+        "overwrite": false,
         "searchOpen": false,
         "completionOpen": false,
         "defaultPrevented": true,
@@ -2857,23 +2975,15 @@
           {
             "anchor": {
               "line": 2,
-              "ch": 10,
-              "sticky": null,
-              "xRel": 1,
-              "outside": 1,
-              "hitSide": true
+              "ch": 10
             },
             "head": {
               "line": 2,
-              "ch": 10,
-              "sticky": null,
-              "xRel": 1,
-              "outside": 1,
-              "hitSide": true
+              "ch": 10
             }
           }
         ],
-        "overwrite": true,
+        "overwrite": false,
         "searchOpen": false,
         "completionOpen": false,
         "defaultPrevented": true,
@@ -2885,23 +2995,15 @@
           {
             "anchor": {
               "line": 0,
-              "ch": 0,
-              "sticky": null,
-              "xRel": -1,
-              "outside": -1,
-              "hitSide": true
+              "ch": 0
             },
             "head": {
               "line": 0,
-              "ch": 0,
-              "sticky": null,
-              "xRel": -1,
-              "outside": -1,
-              "hitSide": true
+              "ch": 0
             }
           }
         ],
-        "overwrite": true,
+        "overwrite": false,
         "searchOpen": false,
         "completionOpen": false,
         "defaultPrevented": true,
@@ -2921,7 +3023,7 @@
             }
           }
         ],
-        "overwrite": true,
+        "overwrite": false,
         "searchOpen": false,
         "completionOpen": false,
         "defaultPrevented": true,
@@ -2933,17 +3035,15 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 5,
-              "sticky": null
+              "ch": 5
             },
             "head": {
               "line": 1,
-              "ch": 5,
-              "sticky": null
+              "ch": 5
             }
           }
         ],
-        "overwrite": true,
+        "overwrite": false,
         "searchOpen": false,
         "completionOpen": false,
         "defaultPrevented": true,
@@ -2963,7 +3063,7 @@
             }
           }
         ],
-        "overwrite": true,
+        "overwrite": false,
         "searchOpen": false,
         "completionOpen": false,
         "defaultPrevented": true,
@@ -2975,17 +3075,15 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 7,
-              "sticky": null
+              "ch": 7
             },
             "head": {
               "line": 1,
-              "ch": 7,
-              "sticky": null
+              "ch": 7
             }
           }
         ],
-        "overwrite": true,
+        "overwrite": false,
         "searchOpen": false,
         "completionOpen": false,
         "defaultPrevented": true,
@@ -2997,17 +3095,15 @@
           {
             "anchor": {
               "line": 1,
-              "ch": 6,
-              "sticky": null
+              "ch": 6
             },
             "head": {
               "line": 1,
-              "ch": 6,
-              "sticky": null
+              "ch": 6
             }
           }
         ],
-        "overwrite": true,
+        "overwrite": false,
         "searchOpen": false,
         "completionOpen": false,
         "defaultPrevented": true,
@@ -3029,7 +3125,7 @@
             }
           }
         ],
-        "overwrite": true,
+        "overwrite": false,
         "searchOpen": false,
         "completionOpen": true,
         "defaultPrevented": true,
@@ -3049,7 +3145,7 @@
             }
           }
         ],
-        "overwrite": true,
+        "overwrite": false,
         "searchOpen": false,
         "completionOpen": true,
         "defaultPrevented": true,
@@ -3069,7 +3165,7 @@
             }
           }
         ],
-        "overwrite": true,
+        "overwrite": false,
         "searchOpen": false,
         "completionOpen": true,
         "defaultPrevented": true,
@@ -3089,7 +3185,7 @@
             }
           }
         ],
-        "overwrite": true,
+        "overwrite": false,
         "searchOpen": false,
         "completionOpen": true,
         "defaultPrevented": true,
@@ -3109,7 +3205,7 @@
             }
           }
         ],
-        "overwrite": true,
+        "overwrite": false,
         "searchOpen": false,
         "completionOpen": true,
         "defaultPrevented": true,
@@ -3129,7 +3225,7 @@
             }
           }
         ],
-        "overwrite": true,
+        "overwrite": false,
         "searchOpen": false,
         "completionOpen": true,
         "defaultPrevented": true,
@@ -3141,17 +3237,15 @@
           {
             "anchor": {
               "line": 0,
-              "ch": 5,
-              "sticky": null
+              "ch": 5
             },
             "head": {
               "line": 0,
-              "ch": 5,
-              "sticky": null
+              "ch": 5
             }
           }
         ],
-        "overwrite": true,
+        "overwrite": false,
         "searchOpen": false,
         "completionOpen": false,
         "defaultPrevented": true,
@@ -3163,17 +3257,15 @@
           {
             "anchor": {
               "line": 0,
-              "ch": 5,
-              "sticky": null
+              "ch": 5
             },
             "head": {
               "line": 0,
-              "ch": 5,
-              "sticky": null
+              "ch": 5
             }
           }
         ],
-        "overwrite": true,
+        "overwrite": false,
         "searchOpen": false,
         "completionOpen": false,
         "defaultPrevented": true,
@@ -3193,7 +3285,7 @@
             }
           }
         ],
-        "overwrite": true,
+        "overwrite": false,
         "searchOpen": false,
         "completionOpen": false,
         "defaultPrevented": true,
@@ -3213,7 +3305,7 @@
             }
           }
         ],
-        "overwrite": true,
+        "overwrite": false,
         "searchOpen": false,
         "completionOpen": true,
         "defaultPrevented": true,
@@ -3233,11 +3325,197 @@
             }
           }
         ],
-        "overwrite": true,
+        "overwrite": false,
         "searchOpen": false,
         "completionOpen": true,
         "defaultPrevented": true,
         "propagationStopped": false
+      }
+    },
+    "compatibilityOutcomes": {
+      "indentAuto": {
+        "cursor on first line": {
+          "value": "alpha\nbeta",
+          "selections": [
+            {
+              "anchor": {
+                "line": 0,
+                "ch": 0
+              },
+              "head": {
+                "line": 0,
+                "ch": 0
+              }
+            }
+          ],
+          "overwrite": false,
+          "searchOpen": false,
+          "completionOpen": false,
+          "defaultPrevented": true,
+          "propagationStopped": false
+        },
+        "cursor copies previous indentation": {
+          "value": "  alpha\n  beta",
+          "selections": [
+            {
+              "anchor": {
+                "line": 1,
+                "ch": 4
+              },
+              "head": {
+                "line": 1,
+                "ch": 4
+              }
+            }
+          ],
+          "overwrite": false,
+          "searchOpen": false,
+          "completionOpen": false,
+          "defaultPrevented": true,
+          "propagationStopped": false
+        },
+        "cursor on blank line copies previous indentation": {
+          "value": "  alpha\n  \nbeta",
+          "selections": [
+            {
+              "anchor": {
+                "line": 1,
+                "ch": 2
+              },
+              "head": {
+                "line": 1,
+                "ch": 2
+              }
+            }
+          ],
+          "overwrite": false,
+          "searchOpen": false,
+          "completionOpen": false,
+          "defaultPrevented": true,
+          "propagationStopped": false
+        },
+        "multiline selection leaves blank lines empty": {
+          "value": "  alpha\n  beta\n\ngamma\nomega",
+          "selections": [
+            {
+              "anchor": {
+                "line": 1,
+                "ch": 0
+              },
+              "head": {
+                "line": 4,
+                "ch": 0
+              }
+            }
+          ],
+          "overwrite": false,
+          "searchOpen": false,
+          "completionOpen": false,
+          "defaultPrevented": true,
+          "propagationStopped": false
+        }
+      },
+      "deleteLine": {
+        "cursor on first line": {
+          "value": "middle\nlast",
+          "selections": [
+            {
+              "anchor": {
+                "line": 0,
+                "ch": 0
+              },
+              "head": {
+                "line": 0,
+                "ch": 0
+              }
+            }
+          ],
+          "overwrite": false,
+          "searchOpen": false,
+          "completionOpen": false,
+          "defaultPrevented": true,
+          "propagationStopped": false
+        },
+        "cursor on middle line": {
+          "value": "first\nlast",
+          "selections": [
+            {
+              "anchor": {
+                "line": 1,
+                "ch": 0
+              },
+              "head": {
+                "line": 1,
+                "ch": 0
+              }
+            }
+          ],
+          "overwrite": false,
+          "searchOpen": false,
+          "completionOpen": false,
+          "defaultPrevented": true,
+          "propagationStopped": false
+        },
+        "cursor on last line": {
+          "value": "first\nmiddle\n",
+          "selections": [
+            {
+              "anchor": {
+                "line": 2,
+                "ch": 0
+              },
+              "head": {
+                "line": 2,
+                "ch": 0
+              }
+            }
+          ],
+          "overwrite": false,
+          "searchOpen": false,
+          "completionOpen": false,
+          "defaultPrevented": true,
+          "propagationStopped": false
+        },
+        "selection ending at next line column zero includes that line": {
+          "value": "last",
+          "selections": [
+            {
+              "anchor": {
+                "line": 0,
+                "ch": 0
+              },
+              "head": {
+                "line": 0,
+                "ch": 0
+              }
+            }
+          ],
+          "overwrite": false,
+          "searchOpen": false,
+          "completionOpen": false,
+          "defaultPrevented": true,
+          "propagationStopped": false
+        },
+        "backward multiline selection": {
+          "value": "first\nafter",
+          "selections": [
+            {
+              "anchor": {
+                "line": 1,
+                "ch": 0
+              },
+              "head": {
+                "line": 1,
+                "ch": 0
+              }
+            }
+          ],
+          "overwrite": false,
+          "searchOpen": false,
+          "completionOpen": false,
+          "defaultPrevented": true,
+          "propagationStopped": false
+        }
       }
     },
     "applicationOutcomes": {
@@ -3340,6 +3618,120 @@
           "gif": 1
         },
         "value": "al\nbeta"
+      }
+    },
+    "replaceDocumentHistory": {
+      "afterPriorUserEdit": {
+        "value": "initial?",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 8
+            },
+            "head": {
+              "line": 0,
+              "ch": 8
+            }
+          }
+        ],
+        "dirty": true
+      },
+      "afterReplaceDocument": {
+        "value": "clean",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 0
+            },
+            "head": {
+              "line": 0,
+              "ch": 0
+            }
+          }
+        ],
+        "dirty": true
+      },
+      "afterFollowingUserEdit": {
+        "value": "!clean",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 1
+            },
+            "head": {
+              "line": 0,
+              "ch": 1
+            }
+          }
+        ],
+        "dirty": true
+      },
+      "afterUndo": {
+        "value": "clean",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 0
+            },
+            "head": {
+              "line": 0,
+              "ch": 0
+            }
+          }
+        ],
+        "dirty": true
+      },
+      "afterSecondUndo": {
+        "value": "initial?",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 8
+            },
+            "head": {
+              "line": 0,
+              "ch": 8
+            }
+          }
+        ],
+        "dirty": true
+      },
+      "afterRedo": {
+        "value": "clean",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 0
+            },
+            "head": {
+              "line": 0,
+              "ch": 0
+            }
+          }
+        ],
+        "dirty": true
+      },
+      "afterSecondRedo": {
+        "value": "!clean",
+        "selections": [
+          {
+            "anchor": {
+              "line": 0,
+              "ch": 1
+            },
+            "head": {
+              "line": 0,
+              "ch": 1
+            }
+          }
+        ],
+        "dirty": true
       }
     }
   }

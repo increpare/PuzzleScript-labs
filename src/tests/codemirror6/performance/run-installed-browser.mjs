@@ -90,7 +90,7 @@ export function parseArguments(argv) {
 export function surfaceUrl(options) {
   const pathname = options.surface === "cm5"
     ? "/tests/codemirror6/generated/cm5-editor.html"
-    : "/editor.html"
+    : "/tests/codemirror6/generated/cm6-performance-editor.html"
   return options.baseUrl + pathname
 }
 
@@ -272,6 +272,53 @@ function throwPageErrors(pageErrors, label) {
   if (pageErrors.length) throw new Error(`${label} page errors: ${pageErrors.join("; ")}`)
 }
 
+function serializePerformanceError(value) {
+  if (value && typeof value === "object") {
+    let name = ""
+    let message = ""
+    try {
+      if (typeof value.name === "string") name = value.name
+    } catch {}
+    try {
+      if (typeof value.message === "string") message = value.message
+    } catch {}
+    if (name || message) return name && message ? `${name}: ${message}` : name || message
+    try {
+      const json = JSON.stringify(value)
+      if (json !== undefined) return json
+    } catch {}
+  }
+  try {
+    return String(value)
+  } catch {
+    return "[unserializable error]"
+  }
+}
+
+function capturedPageError(value) {
+  return `error: ${serializePerformanceError(value)}`
+}
+
+export function mergePerformancePageErrors(nativeErrors, pageBuffer) {
+  for (const errors of [nativeErrors, pageBuffer]) {
+    if (!Array.isArray(errors) || errors.some(error => typeof error !== "string")) {
+      throw new Error("Performance error buffer must be an array of strings")
+    }
+  }
+  return [...new Set([...nativeErrors, ...pageBuffer])]
+}
+
+async function readChromePageErrors(page, nativeErrors) {
+  const pageBuffer = await page.evaluate(
+    () => window.__puzzleScriptPerformanceErrors?.slice()
+  )
+  return mergePerformancePageErrors(nativeErrors, pageBuffer)
+}
+
+async function requireNoChromePageErrors(page, nativeErrors, label) {
+  throwPageErrors(await readChromePageErrors(page, nativeErrors), label)
+}
+
 async function runHeapSettleScenario(page, name, inputs) {
   await page.evaluate(
     ({name, inputs}) => window.PuzzleScriptPerformance.runScenario(name, inputs),
@@ -286,20 +333,20 @@ export async function collectChromeHeap(browser, url, surface, inputs, suppliedH
   for (let index = 0; index < SAMPLE_COUNT; index += 1) {
     const page = await browser.newPage({viewport: {width: 1280, height: 900}})
     const pageErrors = []
-    page.on("pageerror", error => pageErrors.push(String(error)))
+    page.on("pageerror", error => pageErrors.push(capturedPageError(error)))
     try {
       await page.goto(url, {waitUntil: "networkidle"})
       await waitForChromeEditor(page, surface)
-      throwPageErrors(pageErrors, `Chrome heap sample ${index + 1}`)
+      await requireNoChromePageErrors(page, pageErrors, `Chrome heap sample ${index + 1}`)
       await page.addScriptTag({content: heapHarnessSource})
       await runHeapSettleScenario(page, "currentMountSettled", inputs)
-      throwPageErrors(pageErrors, `Chrome initial heap sample ${index + 1}`)
+      await requireNoChromePageErrors(page, pageErrors, `Chrome initial heap sample ${index + 1}`)
       const session = await page.context().newCDPSession(page)
       await session.send("HeapProfiler.collectGarbage")
       const initialUsage = await session.send("Runtime.getHeapUsage")
       initial.push(initialUsage.usedSize / 1024 / 1024)
       await runHeapSettleScenario(page, "loadDistantJumpExact", inputs)
-      throwPageErrors(pageErrors, `Chrome large heap sample ${index + 1}`)
+      await requireNoChromePageErrors(page, pageErrors, `Chrome large heap sample ${index + 1}`)
       await session.send("HeapProfiler.collectGarbage")
       const largeUsage = await session.send("Runtime.getHeapUsage")
       large.push(largeUsage.usedSize / 1024 / 1024)
@@ -326,19 +373,24 @@ async function runChrome(options, harnessSource, inputs) {
   try {
     const page = await browser.newPage({viewport: {width: 1280, height: 900}})
     const pageErrors = []
-    page.on("pageerror", error => pageErrors.push(String(error)))
+    page.on("pageerror", error => pageErrors.push(capturedPageError(error)))
     if (options.cpuThrottle) await applyChromeCpuThrottle(page, options.cpuThrottle)
     await page.goto(surfaceUrl(options), {waitUntil: "networkidle"})
     await waitForChromeEditor(page, options.surface)
+    await requireNoChromePageErrors(page, pageErrors, "Chrome load")
     await page.addScriptTag({content: harnessSource})
     const result = await page.evaluate(inputs => window.PuzzleScriptPerformance.runAll(inputs), inputs)
-    const environment = await page.evaluate(() => ({visibilityState: document.visibilityState}))
+    const environment = await page.evaluate(() => ({
+      visibilityState: document.visibilityState,
+      pageErrors: window.__puzzleScriptPerformanceErrors?.slice()
+    }))
     if (environment.visibilityState !== "visible") throw new Error("Chrome benchmark page is backgrounded")
-    if (pageErrors.length) throw new Error(`Chrome page errors: ${pageErrors.join("; ")}`)
+    environment.pageErrors = mergePerformancePageErrors(pageErrors, environment.pageErrors)
+    throwPageErrors(environment.pageErrors, "Chrome")
     const version = browser.version()
     await page.close()
     const heap = await collectChromeHeap(browser, surfaceUrl(options), options.surface, inputs, harnessSource)
-    return {browser: {name: "chrome", version}, environment: {...environment, pageErrors}, ...result, heap}
+    return {browser: {name: "chrome", version}, environment, ...result, heap}
   } finally {
     await browser.close()
   }
@@ -460,18 +512,22 @@ async function runSafari(options, harnessSource, inputs) {
       await webdriverRequest(`/session/${sessionId}/url`, "POST", {url: surfaceUrl(options)})
       await waitForSafariEditor(sessionId, options.surface)
       await ensureSafariForeground(sessionId)
+      const loadErrors = mergePerformancePageErrors([], await safariExecute(
+        sessionId,
+        "return window.__puzzleScriptPerformanceErrors && window.__puzzleScriptPerformanceErrors.slice()"
+      ))
+      throwPageErrors(loadErrors, "Safari load")
       await safariExecute(sessionId, [
-        "window.__puzzleScriptPerformanceErrors = [];",
-        "window.addEventListener('error', event => window.__puzzleScriptPerformanceErrors.push(String(event.error || event.message)));",
         "(0, eval)(arguments[0]);",
         "return true;"
       ].join("\n"), [harnessSource])
       const summaries = await collectSafariScenarioSummaries(sessionId, inputs)
       const environment = await safariExecute(sessionId,
-        "return {visibilityState: document.visibilityState, pageErrors: window.__puzzleScriptPerformanceErrors.slice()}"
+        "return {visibilityState: document.visibilityState, pageErrors: window.__puzzleScriptPerformanceErrors && window.__puzzleScriptPerformanceErrors.slice()}"
       )
       if (environment.visibilityState !== "visible") throw new Error("Safari benchmark page is backgrounded")
-      if (environment.pageErrors.length) throw new Error(`Safari page errors: ${environment.pageErrors.join("; ")}`)
+      environment.pageErrors = mergePerformancePageErrors([], environment.pageErrors)
+      throwPageErrors(environment.pageErrors, "Safari")
       return {
         browser: {name: "safari", version: capabilities.browserVersion || "unknown"},
         environment,

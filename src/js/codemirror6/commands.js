@@ -19,13 +19,11 @@ import {
   deleteCharForward,
   deleteGroupBackward,
   deleteGroupForward,
-  deleteLine,
   deleteLineBoundaryBackward,
   deleteLineBoundaryForward,
   deleteToLineEnd,
   indentLess,
   indentMore,
-  indentSelection,
   insertNewlineAndIndent,
   insertTab,
   redo,
@@ -187,6 +185,110 @@ function defaultTab(view) {
   return view.state.selection.ranges.some(range => !range.empty) ? indentMore(view) : insertTab(view)
 }
 
+function leadingWhitespace(text) {
+  return /^\s*/.exec(text)[0]
+}
+
+function indentationColumns(text, tabSize) {
+  let columns = 0
+  for (const character of leadingWhitespace(text)) {
+    columns = character === "\t"
+      ? columns + tabSize - columns % tabSize
+      : columns + 1
+  }
+  return columns
+}
+
+function cm5IndentAutoLines(state) {
+  const lines = new Map()
+  for (const range of state.selection.ranges) {
+    const startLine = state.doc.lineAt(range.from)
+    let endLine = state.doc.lineAt(range.to)
+    if (!range.empty && range.to === endLine.from) endLine = state.doc.lineAt(range.to - 1)
+    for (let number = startLine.number; number <= endLine.number; number++) {
+      const existing = lines.get(number)
+      lines.set(number, {aggressive: !!(existing && existing.aggressive) || range.empty})
+    }
+  }
+  return lines
+}
+
+export function indentPuzzleScriptAuto(view) {
+  const {state} = view
+  if (state.readOnly) return false
+  const selected = cm5IndentAutoLines(state)
+  const targetIndentation = new Map()
+  const lineIndentation = new Map()
+  const changes = []
+
+  for (const [number, {aggressive}] of selected) {
+    const line = state.doc.line(number)
+    const blank = !/\S/.test(line.text)
+    let columns = 0
+    if (number > 1 && (aggressive || !blank)) {
+      columns = targetIndentation.has(number - 1)
+        ? targetIndentation.get(number - 1)
+        : indentationColumns(state.doc.line(number - 1).text, state.tabSize)
+    }
+    targetIndentation.set(number, columns)
+    const current = leadingWhitespace(line.text)
+    const replacement = " ".repeat(columns)
+    lineIndentation.set(number, {current, replacement})
+    if (current !== replacement) {
+      changes.push({from: line.from, to: line.from + current.length, insert: replacement})
+    }
+  }
+
+  const changeSet = state.changes(changes)
+  const ranges = state.selection.ranges.map(range => {
+    let mapped = range.map(changeSet)
+    const startLine = state.doc.lineAt(range.from)
+    if (!range.empty && range.from === startLine.from) {
+      const mappedStart = changeSet.mapPos(startLine.from, -1)
+      if (mapped.from > mappedStart) mapped = EditorSelection.range(mappedStart, mapped.to)
+    } else if (range.empty) {
+      const indentation = lineIndentation.get(startLine.number)
+      if (indentation && range.head - startLine.from <= indentation.current.length) {
+        const mappedStart = changeSet.mapPos(startLine.from, -1)
+        if (indentation.current !== indentation.replacement ||
+            range.head - startLine.from < indentation.current.length) {
+          mapped = EditorSelection.cursor(mappedStart + indentation.replacement.length)
+        }
+      }
+    }
+    return mapped
+  })
+  const selection = EditorSelection.create(ranges, state.selection.mainIndex)
+  if (!changeSet.empty || !selection.eq(state.selection)) {
+    view.dispatch(state.update({changes: changeSet, selection, userEvent: "indent"}))
+  }
+  return true
+}
+
+export function deletePuzzleScriptLine(view) {
+  const {state} = view
+  if (state.readOnly) return false
+  const ranges = []
+  for (const selection of state.selection.ranges) {
+    const from = state.doc.lineAt(selection.from).from
+    const endLine = state.doc.lineAt(selection.to)
+    const to = endLine.number < state.doc.lines
+      ? state.doc.line(endLine.number + 1).from
+      : state.doc.length
+    const previous = ranges[ranges.length - 1]
+    if (previous && from <= previous.to) previous.to = Math.max(previous.to, to)
+    else ranges.push({from, to})
+  }
+  const changes = state.changes(ranges)
+  view.dispatch(state.update({
+    changes,
+    selection: state.selection.map(changes),
+    scrollIntoView: true,
+    userEvent: "delete.line"
+  }))
+  return true
+}
+
 export const setOverwriteMode = StateEffect.define()
 export const overwriteMode = StateField.define({
   create: () => false,
@@ -220,6 +322,13 @@ const overwriteInput = EditorView.inputHandler.of((view, _from, _to, text) => {
 
 export const puzzleScriptCommandExtensions = [overwriteMode, overwriteInput]
 
+export function macShiftControlPageUp(view, event) {
+  if (!event || !event.shiftKey || !event.ctrlKey || event.altKey || event.metaKey ||
+      String(event.key).toLowerCase() !== "v" ||
+      !/^Mac/.test(globalThis.navigator && globalThis.navigator.platform || "")) return false
+  return cursorPageUp(view)
+}
+
 export const puzzleScriptKeymap = Object.freeze([
   {key: "Ctrl-/", run: togglePuzzleScriptComment},
   {key: "Meta-/", run: togglePuzzleScriptComment},
@@ -228,8 +337,9 @@ export const puzzleScriptKeymap = Object.freeze([
 ])
 
 export const puzzleScriptCoreKeymap = Object.freeze([
+  {any: macShiftControlPageUp},
   {win: "Ctrl-a", linux: "Ctrl-a", mac: "Meta-a", run: selectAll},
-  {win: "Ctrl-d", linux: "Ctrl-d", mac: "Meta-d", run: deleteLine},
+  {win: "Ctrl-d", linux: "Ctrl-d", mac: "Meta-d", run: deletePuzzleScriptLine},
   {win: "Ctrl-z", linux: "Ctrl-z", mac: "Meta-z", run: undo},
   {win: "Shift-Ctrl-z", linux: "Shift-Ctrl-z", mac: "Shift-Meta-z", run: redo},
   {win: "Ctrl-y", linux: "Ctrl-y", mac: "Meta-y", run: redo},
@@ -265,7 +375,7 @@ export const puzzleScriptCoreKeymap = Object.freeze([
   {key: "Backspace", run: deleteCharBackward, preventDefault: true},
   {key: "Shift-Backspace", run: deleteCharBackward, preventDefault: true},
   {key: "Tab", run: defaultTab},
-  {key: "Shift-Tab", run: indentSelection},
+  {key: "Shift-Tab", run: indentPuzzleScriptAuto},
   {key: "Enter", run: insertNewlineAndIndent},
   {key: "Insert", run: togglePuzzleScriptOverwrite},
   {mac: "Ctrl-f", run: cursorCharRight, shift: selectCharRight},

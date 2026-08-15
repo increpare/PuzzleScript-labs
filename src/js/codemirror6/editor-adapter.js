@@ -1,4 +1,5 @@
-import {EditorSelection, EditorState} from "@codemirror/state"
+import {isolateHistory} from "@codemirror/commands"
+import {EditorSelection, EditorState, Transaction} from "@codemirror/state"
 import {EditorView} from "@codemirror/view"
 
 export function createCleanDocumentTracker(initialDocument, equals, onDirtyChange) {
@@ -35,7 +36,8 @@ export function createCM6EditorDriver(view, extensions, cleanDocumentTracker) {
     view.dispatch({
       changes: {from: 0, to: view.state.doc.length, insert: String(text)},
       selection: EditorSelection.cursor(0),
-      effects: EditorView.scrollIntoView(0)
+      effects: EditorView.scrollIntoView(0),
+      annotations: isolateHistory.of("full")
     })
   }
 
@@ -67,7 +69,11 @@ export function createCM6EditorDriver(view, extensions, cleanDocumentTracker) {
     revealLine(line, {cursor = false, y = "nearest"} = {}) {
       const position = clipPosition(view.state, line, cursor === false ? 0 : cursor)
       const spec = {
-        effects: EditorView.scrollIntoView(position, {y})
+        effects: EditorView.scrollIntoView(position, {y}),
+        annotations: [
+          Transaction.addToHistory.of(false),
+          isolateHistory.of("before")
+        ]
       }
       if (cursor !== false) spec.selection = EditorSelection.cursor(position)
       view.dispatch(spec)

@@ -11,10 +11,12 @@
 > **Final outcome — 2026-08-15:** The branch achieved the autocomplete,
 > distant-navigation, decoration-reuse, heap, delivery, and frozen-fidelity
 > improvements, but it did not satisfy every original runtime gate. Installed
-> Safari key-to-paint p95 remains a failure at 19 ms, and whole-document
+> Safari key-to-paint p95 remains a failure at 18 ms, and whole-document
 > synchronous replacement remains a failure at approximately 22 ms rather than
-> becoming 2× faster. The diagnostic Chrome 4× CPU capture also misses one-frame
-> autocomplete headroom at 17.699999809265137 ms p95. Branch completion accepts
+> becoming 2× faster. The diagnostic Chrome 4× CPU capture passes one-frame
+> autocomplete headroom at 14.5 ms p95, although its
+> 21.800000190734863 ms key p95
+> does not. Branch completion accepts
 > these as documented residual limits, not as passes and without weakening any
 > threshold, because the user's explicit hard constraints require public CM6
 > APIs, the unchanged `codeMirrorFn`/`StreamLanguage` parser architecture, and
@@ -838,11 +840,12 @@ Run the full harness in installed Chrome and installed Safari and write the opti
 Reject or remove any isolated optimization that misses its performance gate, changes correctness, or shifts work into `replaceDocumentSettled`/the next interaction.
 
 **Final measurement outcome — 2026-08-15:** Installed Safari key-to-paint p95
-is 19 ms and remains **FAILED** against 16.7 ms. Whole-document synchronous
+is 18 ms and remains **FAILED** against 16.7 ms. Whole-document synchronous
 replacement remains approximately 22 ms in both installed browsers and remains
 **FAILED** against the 2× target. The Chrome 4× diagnostic measured
-17.699999809265137 ms autocomplete p95, so it does not demonstrate one-frame
-headroom. These misses remain explicit in the committed baselines and
+14.5 ms autocomplete p95 and therefore demonstrates one-frame autocomplete
+headroom, while its 21.800000190734863 ms key p95 does not. The remaining misses
+are explicit in the committed baselines and
 [final evidence report](../../codemirror6-performance-report.md); none is
 re-labelled as a pass or hidden by a relaxed threshold.
 
@@ -879,10 +882,10 @@ Run separately:
 Expected originally: all Node/editor/engine/browser/release tests pass; Edge is not run; Chrome and Safari meet the performance contract; Chromium screenshots and cross-engine geometry remain within their approved baselines; release compression round-trips byte-for-byte.
 
 **Final deviation accepted on 2026-08-15:** Correctness, visual, geometry,
-parser, build, compression, and HTTP-delivery gates passed, but Safari's 19 ms
+parser, build, compression, and HTTP-delivery gates passed, but Safari's 18 ms
 key p95 and the approximately 22 ms whole-document synchronous result remain
-failed runtime gates; the Chrome 4× autocomplete headroom probe also remains a
-17.699999809265137 ms miss. Branch completion accepts those documented residual
+failed runtime gates. The Chrome 4× autocomplete headroom probe passes at
+14.5 ms, although 4× key p95 remains 21.800000190734863 ms. Branch completion accepts those documented residual
 limits because pursuing them through private CM6 state/checkpoint hooks or the
 decoration-breaking reset would violate the user's parser and frozen-fidelity
 requirements. This acceptance does not convert the failures into passes.
@@ -923,6 +926,6 @@ git commit -m "docs: verify CodeMirror 6 performance gains"
 - [ ] `setValue` is only the agreed compatibility alias; repository application callers use semantic operations.
 - [ ] No `.gz` is generated; every `.br` round-trips to its original; raw files remain.
 - [ ] CM6 IIFE is deterministic and below 100 KiB Brotli.
-- [ ] Chrome and Safari meet the runtime gates; Edge was not run. **Final 2026-08-15 status: not fully satisfied.** Safari key-to-paint p95 is 19 ms and whole-document synchronous replacement remains approximately 22 ms; both thresholds remain failed and unchanged. The branch accepts them only as documented residual limits under the public-API, unchanged-stream-parser, and frozen-fidelity constraints; see the [final evidence report](../../codemirror6-performance-report.md).
+- [ ] Chrome and Safari meet the runtime gates; Edge was not run. **Final 2026-08-15 status: not fully satisfied.** Safari key-to-paint p95 is 18 ms and whole-document synchronous replacement remains approximately 22 ms; both thresholds remain failed and unchanged. Chrome 4× autocomplete headroom passes at 14.5 ms p95, while 4× key p95 remains 21.800000190734863 ms. The branch accepts the remaining failures only as documented residual limits under the public-API, unchanged-stream-parser, and frozen-fidelity constraints; see the [final evidence report](../../codemirror6-performance-report.md).
 - [ ] Layout/font/wrapping/gutters/panels match the frozen baseline.
 - [ ] The unrelated `candidate-page.test.mjs` edit remains untouched and unstaged.
