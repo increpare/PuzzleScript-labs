@@ -20,11 +20,33 @@ npm install
 
 This installs the packages listed in `package.json`.
 
-### CodeMirror 6 bundle
+### CodeMirror 6 runtime and plugins
 
-The editor loads the committed `src/js/codemirror6.bundle.js`; running PuzzleScript does not require npm or a CDN. After changing files under `src/js/codemirror6/` or the pinned CM6 dependencies, run `npm run build:codemirror` and commit both the bundle and source map. CI/review should run `npm run check:codemirror`.
+The editor has two clearly separated CM6 development loops:
 
-The new CodeMirror and Lezer dependencies are exact pins because `src/js/codemirror6/stream-state.js` reads the `stateAfter` and `streamParser` checkpoints stored by the pinned `StreamLanguage` implementation. Treat dependency changes as explicit migrations: inspect the upstream stream-parser source, update the contract if necessary, and run `npm run test:codemirror`, `node src/tests/run_tests_node.js`, and `npm run test:codemirror-browser` before committing regenerated output. Do not apply unattended version-range upgrades to these packages.
+- Files under `src/js/codemirror6/plugins/` are ordinary PuzzleScript source.
+  Edit a plugin and refresh `src/editor.html`; no Node or CodeMirror build is
+  required to see the change.
+- `src/js/codemirror6/runtime/source/` and the exact pinned CodeMirror/Lezer npm
+  dependencies feed the generated browser runtime under
+  `src/js/codemirror6/runtime/dist/`. After changing either, run
+  `npm run build:codemirror` and commit both generated files. Never hand-edit
+  `runtime/dist/`.
+
+Running PuzzleScript needs no CDN, import map, or runtime npm request.
+`npm run check:codemirror` verifies the committed runtime without rewriting it.
+`node compile.js` refuses a stale runtime and still emits one optimized
+`scripts_compiled.js` containing the runtime, direct plugins, and application.
+
+The CodeMirror and Lezer dependencies are exact pins because
+`src/js/codemirror6/plugins/stream-state.js` reads the `stateAfter` and
+`streamParser` checkpoints stored by the pinned `StreamLanguage`
+implementation. Treat dependency changes as explicit migrations: inspect the
+upstream stream-parser source, update the contract if necessary, run
+`npm dedupe`, verify a single installed state/view/language package, rebuild the
+runtime, and run `npm run test:codemirror`, `node src/tests/run_tests_node.js`,
+and `npm run test:codemirror-browser`. Do not apply unattended version-range
+upgrades to these packages.
 
 PuzzleScript's `codeMirrorFn` remains the single language parser. CodeMirror 6 consumes it through `StreamLanguage`; do not replace it with a separate Lezer grammar.
 
