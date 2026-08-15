@@ -66,12 +66,11 @@ test("the narrow adapter, compile path, navigation, autocomplete, comments, and 
   })
   expect(navigation).toEqual([[29, {cursor: 0, y: "center"}]])
   await expect(page.locator(".cm-activeLine")).toContainText("line 30")
-  const navigationCenterDelta = await page.evaluate(() => {
+  await expect.poll(() => page.evaluate(() => {
     const scroller = document.querySelector(".cm-scroller").getBoundingClientRect()
     const line = document.querySelector(".cm-activeLine").getBoundingClientRect()
     return Math.abs((line.top + line.height / 2) - (scroller.top + scroller.height / 2))
-  })
-  expect(navigationCenterDelta).toBeLessThan(30)
+  })).toBeLessThan(30)
 
   await setSource(page, "")
   await page.keyboard.type("tit")
