@@ -6,6 +6,7 @@ import {test} from "node:test"
 import {EventEmitter} from "node:events"
 import vm from "node:vm"
 
+import {pluginPaths, runtimePath} from "./cm6-surface-paths.mjs"
 import {transformCM5ComparisonHtml} from "./build-performance-pages.mjs"
 import * as performancePageBuilder from "./build-performance-pages.mjs"
 import performanceSettleConfig from "./performance-settle.config.mjs"
@@ -359,7 +360,9 @@ test("CM5 comparison generation is exact and idempotent from active CM6 markup",
   assert.equal(count(output, 'src="js/editor-api.js"'), 1)
   assert.equal(count(output, 'src="js/editor.js"'), 1)
   assert.equal(count(output, 'href="css/codemirror.css"'), 1)
-  assert.equal(count(output, 'src="js/codemirror6.bundle.js"'), 0)
+  for (const script of [runtimePath, ...pluginPaths]) {
+    assert.equal(count(output, `src="${script}"`), 0, script)
+  }
   assert.equal(count(output, 'src="js/editor-cm6.js"'), 0)
   assert.equal(count(output, 'href="css/editor-cm6.css"'), 0)
   assert.ok(output.indexOf("js/codemirror/codemirror.js") < output.indexOf("js/editor-cm5.js"))
@@ -463,7 +466,9 @@ test("CM5 comparison scripts are reconstructed exclusively from the historical w
   assert.equal(output.includes("future-cm6-src-first.js"), false)
   assert.equal(output.includes("future-cm6-spaced.js"), false)
   assert.equal(output.includes("puzzlescript-stream.js"), false)
-  assert.equal(output.includes("codemirror6.bundle.js"), false)
+  for (const script of [runtimePath, ...pluginPaths]) {
+    assert.equal(output.includes(script), false, script)
+  }
 })
 
 test("CM5 comparison removes CM6 stylesheet tags independent of attribute order", () => {
@@ -498,7 +503,9 @@ test("CM6 legacy-CSS proof page injects each candidate stylesheet exactly once",
   for (const stylesheet of ["codemirror.css", "midnight.css", "dialog.css", "show-hint.css"]) {
     assert.equal(count(output, `href="css/${stylesheet}"`), 1, stylesheet)
   }
-  assert.equal(count(output, 'src="js/codemirror6.bundle.js"'), 1)
+  for (const script of [runtimePath, ...pluginPaths]) {
+    assert.equal(count(output, `src="${script}"`), 1, script)
+  }
   assert.equal(count(output, 'src="js/editor-cm6.js"'), 1)
   assert.equal(performancePageBuilder.transformCM6LegacyCssProofHtml(output), output)
 })

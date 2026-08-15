@@ -5,6 +5,7 @@ import path from "node:path"
 import {test} from "node:test"
 import {fileURLToPath} from "node:url"
 
+import {transformCandidateHtml} from "./build-candidate-page.mjs"
 import {pluginPaths, runtimePath} from "./cm6-surface-paths.mjs"
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..")
@@ -77,6 +78,17 @@ test("development and release use one identical ordered CM6 surface", async () =
   const play = compile.match(/const includesPlay = \[([\s\S]*?)\];\s*await generateFrom/)
   assert.ok(play)
   for (const relative of expected) assert.equal(play[1].includes(relative), false, relative)
+})
+
+test("candidate generation preserves the exact direct-load CM6 surface", async () => {
+  const html = await readFile(path.join(root, "src/editor.html"), "utf8")
+  const expected = [runtimePath, ...pluginPaths]
+  const output = transformCandidateHtml(html)
+  assertContiguous(localScripts(output), expected, "candidate page")
+  for (const relative of expected) {
+    assert.equal(localScripts(output).filter(source => source === relative).length, 1, relative)
+  }
+  assert.equal(transformCandidateHtml(output), output)
 })
 
 test("the checked dependency tree has one state, view, and language runtime", () => {

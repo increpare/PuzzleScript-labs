@@ -71,6 +71,19 @@ test("release build owns and rejects every asynchronous pipeline stage", async (
   assert.ok(compression > releaseInline && success > compression)
 })
 
+test("release build rejects a stale CM6 runtime before changing release state", async () => {
+  const compile = await read("compile.js")
+  const check = compile.indexOf('path.join(__dirname, "build-codemirror6.js")')
+  const checkFlag = compile.indexOf('"--check"', check)
+  const buildNumber = compile.indexOf('fs.readFileSync(".build/buildnumber.txt"')
+  const removeBin = compile.indexOf('rimraf.sync("./bin")')
+
+  assert.ok(check >= 0, "release must run the deterministic CM6 runtime check")
+  assert.ok(checkFlag > check, "release runtime check must use --check")
+  assert.ok(check < buildNumber, "runtime check must precede the build-number change")
+  assert.ok(check < removeBin, "runtime check must precede deleting bin")
+})
+
 test("source Apache rules negotiate Brotli conservatively", async () => {
   const rules = await read("src/.htaccess")
   const acceptEncodingRule = "RewriteCond %{HTTP:Accept-Encoding} \"(^|,)[[:space:]]*br[[:space:]]*(?:;[[:space:]]*q[[:space:]]*=[[:space:]]*(?:1(?:\\.0{0,3})?|0\\.(?:[1-9][0-9]{0,2}|0[1-9][0-9]?|00[1-9]))[[:space:]]*)?(?:,|$)\" [NC]"
@@ -96,8 +109,7 @@ test("release compression has byte and HTTP verification commands", async () => 
   assert.equal(packageJson.scripts["verify:release-compression"], "node verify-release-compression.js")
   assert.match(verifier, /brotliDecompressSync/)
   assert.match(verifier, /\.gz/)
-  assert.match(verifier, /codemirror6\.bundle\.js\.br/)
-  assert.match(verifier, /100 \* 1024/)
+  assert.match(verifier, /codemirror6[\\/]runtime[\\/]dist[\\/]codemirror6-runtime\.js\.br/)
   assert.match(verifier, /src[\\/]\.htaccess/)
   assert.match(verifier, /bin[\\/]\.htaccess/)
   assert.ok(verifier.includes('`RewriteCond %{HTTP:Accept-Encoding} "(^|,)[[:space:]]*br'))

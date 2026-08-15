@@ -95,6 +95,11 @@ async function generateFrom(files, outputSource, outputBin) {
 }
 
 async function main() {
+    execFileSync(process.execPath, [
+        path.join(__dirname, "build-codemirror6.js"),
+        "--check"
+    ], {stdio: "inherit"});
+
     const lines = fs.readFileSync(".build/buildnumber.txt", encoding = 'utf-8');
     const buildnum = parseInt(lines) + 1;
     fs.writeFileSync(".build/buildnumber.txt", buildnum.toString(), encoding = 'utf-8');
@@ -174,7 +179,20 @@ async function main() {
         "./src/js/sfxr.js",
         "./src/js/colorhelpers.js",
         "./src/js/puzzlescript-stream.js",
-        "./src/js/codemirror6.bundle.js",
+        "./src/js/codemirror6/runtime/dist/codemirror6-runtime.js",
+        "./src/js/codemirror6/plugins/bootstrap.js",
+        "./src/js/codemirror6/plugins/style-token.js",
+        "./src/js/codemirror6/plugins/dynamic-colors.js",
+        "./src/js/codemirror6/plugins/exact-prefix.js",
+        "./src/js/codemirror6/plugins/stream-language.js",
+        "./src/js/codemirror6/plugins/stream-state.js",
+        "./src/js/codemirror6/plugins/token-presentation.js",
+        "./src/js/codemirror6/plugins/autocomplete.js",
+        "./src/js/codemirror6/plugins/commands.js",
+        "./src/js/codemirror6/plugins/interactions.js",
+        "./src/js/codemirror6/plugins/search.js",
+        "./src/js/codemirror6/plugins/editor-adapter.js",
+        "./src/js/codemirror6/plugins/index.js",
         "./src/js/codemirror/rule-transform.js",
         "./src/js/puzzlescript-autocomplete.js",
         "./src/js/colors.js",

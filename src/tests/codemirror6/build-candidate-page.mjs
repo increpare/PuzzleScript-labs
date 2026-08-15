@@ -2,6 +2,8 @@ import {mkdir, readFile, writeFile} from "node:fs/promises"
 import path from "node:path"
 import {fileURLToPath, pathToFileURL} from "node:url"
 
+import {pluginPaths, runtimePath} from "./cm6-surface-paths.mjs"
+
 const testDirectory = path.dirname(fileURLToPath(import.meta.url))
 const root = path.resolve(testDirectory, "../../..")
 const inputPath = path.join(root, "src/editor.html")
@@ -25,6 +27,8 @@ const removedScripts = [
   "js/codemirror/anyword-hint.js",
   "js/codemirror/comment.js",
   "js/codemirror6.bundle.js",
+  runtimePath,
+  ...pluginPaths,
   "js/editor-cm5.js",
   "js/editor-cm6.js"
 ]
@@ -55,14 +59,18 @@ export function transformCandidateHtml(input) {
     '<base href="../../../">',
     ...candidateStyles.map(stylesheet => `<link rel="stylesheet" href="${stylesheet}">`)
   ].join("\n"))
+  const editorApi = '<script src="js/editor-api.js"></script>'
   const sharedEditor = '<script src="js/editor.js"></script>'
-  const candidateScripts = [
-    '<script src="js/codemirror6.bundle.js"></script>',
-    '<script src="js/editor-cm6.js"></script>',
-    sharedEditor
-  ].join("\n")
+  const candidateScripts = [runtimePath, ...pluginPaths]
+    .map(script => `<script src="${script}"></script>`)
+    .join("\n")
+  if (!output.includes(editorApi)) throw new Error("Candidate source is missing js/editor-api.js")
   if (!output.includes(sharedEditor)) throw new Error("Candidate source is missing js/editor.js")
-  return output.replace(sharedEditor, candidateScripts)
+  output = output.replace(editorApi, `${candidateScripts}\n${editorApi}`)
+  return output.replace(
+    sharedEditor,
+    '<script src="js/editor-cm6.js"></script>\n' + sharedEditor
+  )
 }
 
 export async function buildCandidatePage() {

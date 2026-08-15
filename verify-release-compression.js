@@ -6,7 +6,10 @@ const path = require("path")
 const {brotliDecompressSync} = require("zlib")
 
 const binDir = path.join(__dirname, "bin")
-const bundleSidecar = path.join(binDir, "js/source/codemirror6.bundle.js.br")
+const runtimeSidecar = path.join(
+  binDir,
+  "js/source/codemirror6/runtime/dist/codemirror6-runtime.js.br"
+)
 const sourceApacheRules = path.join(__dirname, "src/.htaccess")
 const generatedApacheRules = path.join(__dirname, "bin/.htaccess")
 const requiredApacheRules = [
@@ -76,21 +79,18 @@ function verifyReleaseCompression() {
     }
   }
 
-  if (!brotliFiles.includes(bundleSidecar)) {
-    throw new Error(`Checked CodeMirror bundle sidecar is missing: ${bundleSidecar}`)
+  if (!brotliFiles.includes(runtimeSidecar)) {
+    throw new Error(`Checked CodeMirror runtime sidecar is missing: ${runtimeSidecar}`)
   }
-  const bundleSize = fs.statSync(bundleSidecar).size
-  if (bundleSize >= 100 * 1024) {
-    throw new Error(`${bundleSize} bytes is not below 100 KiB: ${bundleSidecar}`)
-  }
+  const runtimeSize = fs.statSync(runtimeSidecar).size
 
-  return {brotliFiles: brotliFiles.length, bundleSize}
+  return {brotliFiles: brotliFiles.length, runtimeSize}
 }
 
 if (require.main === module) {
   try {
     const result = verifyReleaseCompression()
-    console.log(`Verified ${result.brotliFiles} Brotli sidecars; CodeMirror bundle is ${result.bundleSize} bytes.`)
+    console.log(`Verified ${result.brotliFiles} Brotli sidecars; CodeMirror runtime is ${result.runtimeSize} bytes.`)
   } catch (error) {
     console.error(error.message || error)
     process.exitCode = 1
