@@ -88,3 +88,4 @@ hardware/pocket_card/case/.venv/
 
 # editor local-history folders
 .history/
+/.build/monster_garden

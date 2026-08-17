@@ -2411,6 +2411,30 @@ function clip(value, n) {
     return String(value == null ? '' : value).slice(0, n || 80);
 }
 
+function stableCrashCallSite(error) {
+    const lines = String(error && error.stack || '').split('\n');
+    for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        let match = /^at\s+(.+?)\s+\((.*?):\d+:\d+\)$/.exec(line);
+        if (match) {
+            const functionName = match[1];
+            const generated = /(?:^|\/)puzzlescript\/generated\/([^/]+)\.js$/.exec(match[2]);
+            if (generated) {
+                return 'generated/' + generated[1];
+            }
+            if (functionName === 'eval' || functionName === '<anonymous>') {
+                return functionName;
+            }
+            return functionName;
+        }
+        match = /^at\s+(.*?):\d+:\d+$/.exec(line);
+        if (match) {
+            return path.basename(match[1]);
+        }
+    }
+    return '';
+}
+
 function failureSignature(result) {
     if (!result || !result.kind) {
         return 'unknown';
@@ -2420,12 +2444,21 @@ function failureSignature(result) {
     }
     if (result.kind === 'crash' && result.error) {
         const message = String(result.error.message || '').split('\n')[0];
-        return 'crash:' + result.error.name + ':' + message;
+        const callSite = stableCrashCallSite(result.error);
+        return 'crash:' + result.error.name + ':' + message + (callSite ? ':' + callSite : '');
     }
     if (result.kind === 'invariant' || result.kind === 'semantic-mismatch') {
         return result.kind + ':' + clip(result.detail) + ':' + clip(result.fingerprint);
     }
     return result.kind + ':' + clip(result.fingerprint) + ':' + clip(result.detail);
+}
+
+function claimFailureSignature(seen, signature) {
+    if (seen.has(signature)) {
+        return false;
+    }
+    seen.add(signature);
+    return true;
 }
 
 function isIntArrayLike(value, length) {
@@ -3027,6 +3060,7 @@ module.exports = {
     prepareTrialInputs: prepareTrialInputs,
     trialMaxInputs: trialMaxInputs,
     failureSignature: failureSignature,
+    claimFailureSignature: claimFailureSignature,
     checkLevelInvariants: checkLevelInvariants,
     isInteresting: isInteresting,
     normaliseBoardNames: normaliseBoardNames,

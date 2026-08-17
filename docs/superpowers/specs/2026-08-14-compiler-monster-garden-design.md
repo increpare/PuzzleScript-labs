@@ -230,6 +230,24 @@ returns. Thrown exceptions are the unexpected case.
 If `errorCount > 0`, the worker emits `compiler-error` and does not execute
 inputs, check invariants, replay, or recompile.
 
+### Expected compiler aborts (2026-08-16)
+
+The parser deliberately stops after more than 100 distinct diagnostics by
+throwing `TooManyErrors`. This is bounded compiler control flow, not an engine
+crash. The exception must have a stable `TooManyErrors` name so callers do not
+match human-facing message text.
+
+The garden worker catches only that named exception around `compile()`, then
+uses the diagnostics already accumulated by the parser. It emits
+`compiler-error` when `errorCount > 0`, otherwise `compiler-warning`. Every
+other exception still propagates to the worker's crash classifier. This keeps
+genuine compiler faults visible while preventing warning-heavy malformed input
+from producing false crash artifacts.
+
+Regression coverage generates more than 100 distinct parser warnings, verifies
+the result is a compiler diagnostic rather than a crash, and replays the saved
+Rose artifact through the same worker boundary.
+
 ### Baseline preflight
 
 For every mutant the parent first evaluates the unmutated fixture with the same

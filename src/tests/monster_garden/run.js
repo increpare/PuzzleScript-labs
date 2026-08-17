@@ -42,6 +42,7 @@ async function evaluateMutant(mutant, options, oracle) {
         inputs: mutant.inputs,
         level: mutant.level,
         randomSeed: mutant.randomSeed,
+        fixtureKind: mutant.kind || mutant.fixtureKind,
         replay: options.replay,
         maxInputs: garden.trialMaxInputs(options, mutant.inputs)
     };
@@ -137,6 +138,7 @@ async function main() {
         skipped: 0
     };
     let artifactIndex = 0;
+    const savedSignatures = new Set();
     let lastSaved = null;
     let stopRequested = false;
     let finishing = false;
@@ -199,7 +201,8 @@ async function main() {
             source: fixture.source,
             inputs: executedInputs,
             level: fixture.level,
-            randomSeed: fixture.randomSeed
+            randomSeed: fixture.randomSeed,
+            kind: fixture.kind
         }, options, garden.baselineOracleFields(fixture, options));
         const result = await evaluateMutant(mutant, options);
         let attributed = garden.attributeMonster(baseline, result);
@@ -220,6 +223,10 @@ async function main() {
             '#' + (i + 1) + ' ' + attributed.tally + ' ' + mutant.mutator + ' ' + mutant.fixtureName + '\n'
         );
         if (!attributed.save) {
+            refreshStatus(counts, i, artifactIndex);
+            continue;
+        }
+        if (!garden.claimFailureSignature(savedSignatures, garden.failureSignature(result))) {
             refreshStatus(counts, i, artifactIndex);
             continue;
         }

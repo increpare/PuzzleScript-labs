@@ -431,7 +431,7 @@ function generateExtraMembers(state) {
 function levelFromString(state, level) {
     let backgroundlayer = state.backgroundlayer;
     let backgroundid = state.backgroundid;
-    let backgroundLayerMask = state.layerMasks[backgroundlayer];
+    let backgroundLayerMask = state.layerMasks[backgroundlayer] || new BitVec(STRIDE_OBJ);
     let o = new Level(level[0], level[1].length, level.length - 1, state.collisionLayers.length, null);
     o.objects = new Int32Array(o.width * o.height * STRIDE_OBJ);
 
@@ -627,6 +627,7 @@ function processRuleString(rule, state, curRules) {
     let commands = [];
     let randomRule = false;
     let has_plus = false;
+    let malformedRule = false;
 
     if (tokens.length === 1) {
         if (tokens[0] === "startloop") {
@@ -644,6 +645,7 @@ function processRuleString(rule, state, curRules) {
 
     if (!tokens.includes('->')) {
         logError("A rule has to have an arrow in it.  There's no arrow here! Consider reading up about rules - you're clearly doing something weird", lineNumber);
+        malformedRule = true;
     }
 
     curcell = [];
@@ -670,6 +672,9 @@ function processRuleString(rule, state, curRules) {
                         } else {
                             logError('Two "+"s (the "append to previous rule group" symbol) applied to the same rule.', lineNumber);
                         }
+                    } else if (token === 'parallel' || token === 'perpendicular') {
+                        logError('PARALLEL and PERPENDICULAR are relative directions for objects inside a rule, and cannot be used to indicate the direction in which a whole rule applies.', lineNumber);
+                        return null;
                     } else if (token in directionaggregates) {
                         authoredDirections.push(token);
                         directions = directions.concat(directionaggregates[token]);
@@ -739,6 +744,7 @@ function processRuleString(rule, state, curRules) {
                         }
 
                         if (curcell.length % 2 === 1) {
+                            malformedRule = true;
                             if (curcell[0] === '...') {
                                 logError('Cannot end a rule with ellipses.', lineNumber);
                             } else {
@@ -848,26 +854,38 @@ function processRuleString(rule, state, curRules) {
         logError("Late rules cannot be marked as rigid (rigid rules are all about dealing with the consequences of unresolvable movements, and late rules can't even have movements).", lineNumber);
     }
 
+    if (bracketbalance !== 0 || incellrow) {
+        malformedRule = true;
+    }
+
     if (lhs_cells.length !== rhs_cells.length) {
         if (commands.length > 0 && rhs_cells.length === 0) {
             //ok
         } else {
             logWarning('Error, when specifying a rule, the number of matches (square bracketed bits) on the left hand side of the arrow must equal the number on the right', lineNumber);
+            malformedRule = true;
         }
     } else {
         for (let i = 0; i < lhs_cells.length; i++) {
             if (lhs_cells[i].length !== rhs_cells[i].length) {
                 logError('In a rule, each pattern to match on the left must have a corresponding pattern on the right of equal length (number of cells).', lineNumber);
                 state.invalid = true;
+                malformedRule = true;
             }
             if (lhs_cells[i].length === 0) {
                 logError("You have an totally empty pattern on the left-hand side.  This will match *everything*.  You certainly don't want this.");
+                malformedRule = true;
             }
         }
     }
 
     if (lhs_cells.length === 0) {
         logError('This rule refers to nothing.  What the heck? :O', lineNumber);
+        malformedRule = true;
+    }
+
+    if (malformedRule) {
+        return null;
     }
 
     let rule_line = {
@@ -1142,6 +1160,11 @@ First, let's check for 'X no X' on the RHS.
                         let no_name = cell[l+1];
                         let no_name_mask = state.objectMasks[no_name];
 
+                        if (no_name_mask === undefined) {
+                            logError(`Object ${no_name.toUpperCase()} has not been assigned to a collision layer.`, rule.lineNumber);
+                            continue;
+                        }
+
                         //if no_name overlaps with any objects_present, then we have a problem.
                         if (no_name_mask.anyBitsInCommon(objects_present_mask)){
                             logError(`You have specified that there should be NO ${no_name.toUpperCase()} but there is also a requirement that ${objects_present.join(", ").toUpperCase()} be here.  This is a mistake right?`, rule.lineNumber);
@@ -1222,6 +1245,9 @@ First, let's check for 'X no X' on the RHS.
                         let aggregate_obs = state.aggregatesDict[entity_name];
                         for (let m=0;m<aggregate_obs.length;m++){
                             let object_info = state.objects[aggregate_obs[m]];
+                            if (object_info === undefined) {
+                                continue;
+                            }
                             let layer = object_info.layer;
                             let ob_id = object_info.id;
                             required_layers.ibitset(layer);
@@ -3048,6 +3074,7 @@ function rulesToMask(state) {
 
     outerloop: for (let ruleIndex = 0; ruleIndex < state.rules.length; ruleIndex++) {
         const rule = state.rules[ruleIndex];
+        let discardForMalformedRHSEllipsis = false;
         
         for (let rowIndex = 0; rowIndex < rule.lhs.length; rowIndex++) {
             const [cellrow_l, cellrow_r] = [rule.lhs[rowIndex], rule.rhs[rowIndex]];
@@ -3086,14 +3113,22 @@ function rulesToMask(state) {
                             ruleIndex--;
                             continue outerloop;
                         }
+                        let malformedEllipsis = false;
                         if (colIndex === 0 || colIndex === cellrow_l.length - 1) {
                             logError("There's no point in putting an ellipsis at the very start or the end of a rule", rule.lineNumber);
+                            malformedEllipsis = true;
                         }
                         if (rule.rhs.length > 0) {
                             const rhscell = cellrow_r[colIndex];
                             if (rhscell.length !== 2 || rhscell[0] !== '...') {
                                 logError("An ellipsis on the left must be matched by one in the corresponding place on the right.", rule.lineNumber);
+                                malformedEllipsis = true;
                             }
+                        }
+                        if (malformedEllipsis) {
+                            state.rules.splice(ruleIndex, 1);
+                            ruleIndex--;
+                            continue outerloop;
                         }
                         bitVectors.objectsPresent = ellipsisPattern;
                         break;
@@ -3105,6 +3140,12 @@ function rulesToMask(state) {
                     }
 
                     // Process regular object
+                    if (typeof object_name !== 'string') {
+                        logError('A malformed or undefined object name was found in a rule.', rule.lineNumber);
+                        state.rules.splice(ruleIndex, 1);
+                        ruleIndex--;
+                        continue outerloop;
+                    }
                     const object = state.objects[object_name];
                     const objectMask = state.objectMasks[object_name];
                     const isCoupledProperty = !object && isLayerCoupledProperty(state, object_name);
@@ -3112,6 +3153,9 @@ function rulesToMask(state) {
 
                     if (!isCoupledProperty && typeof layerIndex === "undefined") {
                         logError(`Oops! ${object_name.toUpperCase()} not assigned to a layer.`, rule.lineNumber);
+                        state.rules.splice(ruleIndex, 1);
+                        ruleIndex--;
+                        continue outerloop;
                     }
 
                     if (object_dir === 'no') {
@@ -3230,15 +3274,22 @@ function rulesToMask(state) {
                 const cell_r = cellrow_r[colIndex];
 
                 // Check for mismatched ellipsis
+                let malformedRHSEllipsis = false;
                 if (cell_r[0] === '...' && cell_l[0] !== '...') {
                     logError("An ellipsis on the right must be matched by one in the corresponding place on the left.", rule.lineNumber);
+                    malformedRHSEllipsis = true;
                 }
                 
                 // Validate ellipsis in right-hand side
                 for (let i = 0; i < cell_r.length; i += 2) {
                     if (cell_r[i] === '...' && cell_r.length !== 2) {
                         logError("You can't have anything in with an ellipsis. Sorry.", rule.lineNumber);
+                        malformedRHSEllipsis = true;
                     }
+                }
+                if (malformedRHSEllipsis) {
+                    discardForMalformedRHSEllipsis = true;
+                    continue;
                 }
 
                 const layersUsed_r = [...layerTemplate];
@@ -3268,6 +3319,12 @@ function rulesToMask(state) {
                     const [object_dir, object_name] = [cell_r[i], cell_r[i + 1]];
 
                     if (object_dir === '...') break;
+                    if (typeof object_name !== 'string') {
+                        logError('A malformed or undefined object name was found on the right-hand side of a rule.', rule.lineNumber);
+                        state.rules.splice(ruleIndex, 1);
+                        ruleIndex--;
+                        continue outerloop;
+                    }
                     
                     if (object_dir === 'random') {
                         if (object_name in state.objectMasks) {
@@ -3307,6 +3364,13 @@ function rulesToMask(state) {
                     const objectMask = state.objectMasks[object_name];
                     const isCoupledProperty = !object && isLayerCoupledProperty(state, object_name);
                     const layerIndex = object ? (object.layer | 0) : state.propertiesSingleLayer[object_name];
+
+                    if (!isCoupledProperty && typeof layerIndex === 'undefined') {
+                        logError(`Oops! ${object_name.toUpperCase()} not assigned to a layer.`, rule.lineNumber);
+                        state.rules.splice(ruleIndex, 1);
+                        ruleIndex--;
+                        continue outerloop;
+                    }
 
                     if (object_dir === 'no') {
                         if (objectMask !== undefined) {
@@ -3606,6 +3670,11 @@ function rulesToMask(state) {
                         inferredPropertySources
                     ]);
                 }
+            }
+            if (discardForMalformedRHSEllipsis) {
+                state.rules.splice(ruleIndex, 1);
+                ruleIndex--;
+                continue outerloop;
             }
         }
     }
@@ -4489,7 +4558,7 @@ function lookupWinConditionMask(state, name, lineNumber) {
         return { aggregate: true, mask: state.aggregateMasks[name] };
     } else {
         logError('Unwelcome term "' + name + '" found in win condition. I don\'t know what I\'m supposed to do with this. ', lineNumber);
-        return { aggregate: false, mask: 0 };
+        return null;
     }
 }
 
@@ -4526,6 +4595,9 @@ function processWinConditions(state) {
         }
         let r1 = lookupWinConditionMask(state, n1, lineNumber);
         let r2 = lookupWinConditionMask(state, n2, lineNumber);
+        if (r1 === null || r2 === null) {
+            continue;
+        }
         let newcondition = [num, r1.mask, r2.mask, lineNumber, r1.aggregate, r2.aggregate];
         newconditions.push(newcondition);
     }
@@ -4868,11 +4940,13 @@ function generateSoundData(state) {
 
             if (target in state.aggregatesDict) {
                 logError('cannot assign sound events to aggregate objects (declared with "and"), only to regular objects, or properties, things defined in terms of "or" ("' + target + '").', lineNumber);
+                continue;
             } else if (target in state.objectMasks) {
 
             } else {
                 //probably unreachable
                 logError('Object "' + target + '" not found.', lineNumber);
+                continue;
             }
 
             let objectMask = state.objectMasks[target];
@@ -4917,6 +4991,9 @@ function generateSoundData(state) {
                 for (let j = 0; j < targets.length; j++) {
                     let targetName = targets[j];
                     let targetDat = state.objects[targetName];
+                    if (targetDat === undefined) {
+                        continue;
+                    }
                     let targetLayer = targetDat.layer;
                     let this_object_mask = new BitVec(STRIDE_OBJ);
                     this_object_mask.ibitset(targetDat.id)

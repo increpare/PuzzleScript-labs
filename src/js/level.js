@@ -115,9 +115,14 @@ function LEVEL_SET_MOVEMENTS_REUSE_INDICES(index, vec, array_size) {
 Level.prototype.calcBackgroundMask = function (state) {
 	if (state.backgroundlayer === undefined) {
 		logError("you have to have a background layer");
+		return new BitVec(STRIDE_OBJ);
 	}
 
 	let backgroundMask = state.layerMasks[state.backgroundlayer];
+	if (backgroundMask === undefined) {
+		logError("the background layer is invalid");
+		return new BitVec(STRIDE_OBJ);
+	}
 	for (let i = 0; i < this.n_tiles; i++) {
 		let cell = this.getCell(i);
 		cell.iand(backgroundMask);
@@ -126,6 +131,8 @@ Level.prototype.calcBackgroundMask = function (state) {
 		}
 	}
 	const cell = new BitVec(STRIDE_OBJ);
-	cell.ibitset(state.backgroundid);
+	if (state.backgroundid !== undefined) {
+		cell.ibitset(state.backgroundid);
+	}
 	return cell;
 }

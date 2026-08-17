@@ -62,9 +62,6 @@ const sourceFiles = [
     'js/languageConstants.js',
     'js/globalVariables.js',
     'js/debug.js',
-    // Defines pluginOptimizationHook, which compiler.js calls from loadFile.
-    // Keep this list in step with sourceFiles in run_tests_node.js.
-    'js/plugin_header_on.js',
     'js/font.js',
     'js/rng.js',
     'js/riffwave.js',
@@ -78,10 +75,40 @@ const sourceFiles = [
     'js/soundbar.js'
 ];
 
+// Sources that exist only in some forks. PuzzleScript-labs' compiler.js calls
+// pluginOptimizationHook from loadFile; upstream has no such file. Each entry
+// is loaded directly after `after` when present and skipped when absent.
+//
+// Named explicitly rather than skipping any missing file: a genuinely missing
+// required source must still fail loudly here, instead of surfacing much later
+// as an undefined global from deep inside the compiler, which is exactly how
+// this one first presented.
+const optionalSourceFiles = [
+    { file: 'js/plugin_header_on.js', after: 'js/debug.js' }
+];
+
+function resolveSourceFiles() {
+    const resolved = sourceFiles.slice();
+    for (let i = 0; i < optionalSourceFiles.length; i++) {
+        const optional = optionalSourceFiles[i];
+        if (!fs.existsSync(path.join(srcDir, optional.file))) {
+            continue;
+        }
+        const at = resolved.indexOf(optional.after);
+        if (at < 0) {
+            throw new Error('optional source anchor is missing: ' + optional.after);
+        }
+        resolved.splice(at + 1, 0, optional.file);
+    }
+    return resolved;
+}
+
+const loadedSourceFiles = resolveSourceFiles();
+
 let allCode = '';
-for (let i = 0; i < sourceFiles.length; i++) {
-    allCode += '\n// ---- ' + sourceFiles[i] + ' ----\n';
-    allCode += fs.readFileSync(path.join(srcDir, sourceFiles[i]), 'utf8') + '\n';
+for (let i = 0; i < loadedSourceFiles.length; i++) {
+    allCode += '\n// ---- ' + loadedSourceFiles[i] + ' ----\n';
+    allCode += fs.readFileSync(path.join(srcDir, loadedSourceFiles[i]), 'utf8') + '\n';
 }
 // Top-level let/const in the concatenated compiler are script-scoped, not
 // global properties. Bridge the ones the worker reads and writes.
@@ -414,7 +441,14 @@ function runOnce(job) {
         global.errorStrings = [];
         global.errorCount = 0;
     }
-    global.compile(['loadLevel', job.level], job.source, job.engineSeed);
+    const compileCommand = job.fixtureKind === 'compiler-message' ? ['restart'] : ['loadLevel', job.level];
+    try {
+        global.compile(compileCommand, job.source, job.engineSeed);
+    } catch (error) {
+        if (!error || error.name !== 'TooManyErrors') {
+            throw error;
+        }
+    }
     const diagnosticKind = compilerDiagnosticKind();
     const oracleMismatch = checkErrorOracle(job, diagnosticKind);
     if (oracleMismatch) {
@@ -429,7 +463,8 @@ function runOnce(job) {
             fingerprint: diagnosticKind + ':' + errorCount + ':' + JSON.stringify(errorStrings),
             detail: '',
             errorCount: errorCount,
-            errorStrings: errorStrings
+            errorStrings: errorStrings,
+            compiledRuleCount: global.state && Array.isArray(global.state.rules) ? global.state.rules.length : null
         });
     }
     if (!global.state || !Array.isArray(global.state.levels)) {
@@ -586,7 +621,11 @@ function runJob(job) {
     } catch (error) {
         const result = {
             kind: 'crash',
-            error: { name: error.name, message: String(error.message || error) },
+            error: {
+                name: error.name,
+                message: String(error.message || error),
+                stack: String(error.stack || '')
+            },
             fingerprint: '',
             detail: '',
             errorCount: typeof global.errorCount === 'number' ? global.errorCount : 0
@@ -613,7 +652,11 @@ readStdin().then(function(raw) {
 }).catch(function(error) {
     emit({
         kind: 'crash',
-        error: { name: error.name, message: String(error.message || error) },
+        error: {
+            name: error.name,
+            message: String(error.message || error),
+            stack: String(error.stack || '')
+        },
         fingerprint: '',
         detail: '',
         errorCount: 0

@@ -1640,6 +1640,24 @@ test('a trailing ellipsis with run_rules_on_level_start is a compiler error, not
     assert.strictEqual(compiled.error, null);
 });
 
+test('an unmatched RHS ellipsis is discarded before generated rules are built', function() {
+    const source = SAMPLE.replace(
+        '[ > Player | Wall ] -> [ > Player | > Wall ] again',
+        '[ Player | Wall | Player ] -> [ Player | ... | Player ]'
+    );
+    const compiled = workerResult({
+        source: source,
+        inputs: [],
+        level: 0,
+        randomSeed: 'garden-seed',
+        replay: false,
+        maxInputs: 8
+    });
+    assert.strictEqual(compiled.kind, 'compiler-error', JSON.stringify(compiled));
+    assert.strictEqual(compiled.error, null);
+    assert.strictEqual(compiled.compiledRuleCount, 0, JSON.stringify(compiled));
+});
+
 test('comment-reflow stays line-aligned and comments after the finished rule', function() {
     const mutator = garden.mutators.filter(function(m) { return m.name === 'comment-reflow'; })[0];
     const result = mutator.apply(RICH_SAMPLE, new garden.Random(9), {});
@@ -2431,15 +2449,48 @@ test('only inapplicable mutation errors are skippable', function() {
 test('failure signatures distinguish timeouts from parser crashes and include fingerprints', function() {
     const crash = garden.failureSignature({
         kind: 'crash',
-        error: { name: 'TypeError', message: 'bad thing\nwith stack noise' },
+        error: {
+            name: 'TypeError',
+            message: 'bad thing\nwith stack noise',
+            stack: 'TypeError: bad thing\n    at firstCrashSite (/tmp/worker.js:10:2)'
+        },
         fingerprint: 'ignored',
         detail: ''
     });
     assert.strictEqual(crash, garden.failureSignature({
         kind: 'crash',
-        error: { name: 'TypeError', message: 'bad thing\nelsewhere' },
+        error: {
+            name: 'TypeError',
+            message: 'bad thing\nelsewhere',
+            stack: 'TypeError: bad thing\n    at firstCrashSite (/different/path/worker.js:99:8)'
+        },
         fingerprint: 'other'
     }));
+    assert.notStrictEqual(crash, garden.failureSignature({
+        kind: 'crash',
+        error: {
+            name: 'TypeError',
+            message: 'bad thing',
+            stack: 'TypeError: bad thing\n    at secondCrashSite (/tmp/worker.js:10:2)'
+        }
+    }));
+    const generatedMatch = garden.failureSignature({
+        kind: 'crash',
+        error: {
+            name: 'TypeError',
+            message: 'generated failure',
+            stack: 'TypeError: generated failure\n    at CellPattern.eval [as matches] (puzzlescript/generated/cellPatternMatch.js:6:17)'
+        }
+    });
+    const generatedReplace = garden.failureSignature({
+        kind: 'crash',
+        error: {
+            name: 'TypeError',
+            message: 'generated failure',
+            stack: 'TypeError: generated failure\n    at CellPattern.eval [as matches] (puzzlescript/generated/cellPatternReplace.js:6:17)'
+        }
+    });
+    assert.notStrictEqual(generatedMatch, generatedReplace);
     assert.notStrictEqual(crash, garden.failureSignature({ kind: 'timeout' }));
     const first = garden.failureSignature({
         kind: 'replay-divergence',
@@ -2453,6 +2504,13 @@ test('failure signatures distinguish timeouts from parser crashes and include fi
     });
     assert.notStrictEqual(first, second);
     assert.strictEqual(garden.failureSignature({ kind: 'timeout', fingerprint: 'x' }), 'timeout');
+});
+
+test('failure signature claims keep only the first specimen in a campaign', function() {
+    const seen = new Set();
+    assert.strictEqual(garden.claimFailureSignature(seen, 'crash:TypeError:boom:firstSite'), true);
+    assert.strictEqual(garden.claimFailureSignature(seen, 'crash:TypeError:boom:firstSite'), false);
+    assert.strictEqual(garden.claimFailureSignature(seen, 'crash:TypeError:boom:secondSite'), true);
 });
 
 test('timeouts are not shrunk and a signature change after shrink is reverted', async function() {
@@ -2877,6 +2935,22 @@ function workerResult(job) {
     return JSON.parse(line);
 }
 
+function assertCompilerDiagnosticWithoutCrash(source, overrides) {
+    const jobOverrides = Object.assign({}, overrides);
+    const expectedKind = jobOverrides.expectedKind || 'compiler-error';
+    delete jobOverrides.expectedKind;
+    const result = workerResult(Object.assign({
+        source: source,
+        inputs: [],
+        level: 0,
+        randomSeed: 'garden-seed',
+        replay: false,
+        maxInputs: 8
+    }, jobOverrides));
+    assert.strictEqual(result.kind, expectedKind, JSON.stringify(result));
+    assert.strictEqual(result.error, null, JSON.stringify(result));
+}
+
 test('restart-again-message combines a turn command, a message and a tape restart, and the mutant runs without crashing', function() {
     const mutator = garden.mutators.filter(function(m) { return m.name === 'restart-again-message'; })[0];
     assert(mutator, 'restart-again-message should be registered');
@@ -3118,6 +3192,24 @@ test('shuffle-levels permutes levels or scrambles rows', function() {
 // clean and the workaround has been dropped. The test stays as the guard: it
 // was deleted by accident in 7a938656 and the regression would have been
 // invisible without it.
+test('more than 100 parser warnings are a compiler diagnostic, not a crash', function() {
+    const duplicateMetadata = [];
+    for (let i = 0; i < 102; i++) {
+        duplicateMetadata.push('title warning ' + i);
+    }
+    const result = workerResult({
+        source: duplicateMetadata.join('\n') + '\n' + SAMPLE,
+        inputs: [],
+        level: 0,
+        randomSeed: 'garden-seed',
+        replay: false,
+        maxInputs: 8
+    });
+    assert.strictEqual(result.kind, 'compiler-warning', JSON.stringify(result));
+    assert.strictEqual(result.error, null, JSON.stringify(result));
+    assert(result.errorStrings.length > 100, JSON.stringify(result));
+});
+
 test('flooding runtime errors should stop logging instead of crashing (TooManyErrors)', function() {
     const result = workerResult({
         source: `title flood runtime errors
@@ -3735,6 +3827,79 @@ P
     assert.strictEqual(result.kind, 'compiler-error', JSON.stringify(result));
 });
 
+test('an empty rule row should error instead of reaching generateMatchString', function() {
+    const source = SAMPLE.replace(
+        '[ > Player | Wall ] -> [ > Player | > Wall ] again',
+        '[ > ] -> cancel'
+    );
+    assertCompilerDiagnosticWithoutCrash(source);
+});
+
+test('mismatched rule row counts should error before property concretization', function() {
+    const source = SAMPLE.replace(
+        '[ > Player | Wall ] -> [ > Player | > Wall ] again',
+        '[ Player ] -> [ Player ] [ Obstacle ]'
+    );
+    assertCompilerDiagnosticWithoutCrash(source, { expectedKind: 'compiler-warning' });
+});
+
+test('mismatched rule row counts should error before up-left rewriting', function() {
+    const source = SAMPLE.replace(
+        '[ > Player | Wall ] -> [ > Player | > Wall ] again',
+        'up [ Player ] [ ] -> [ Player ]'
+    );
+    assertCompilerDiagnosticWithoutCrash(source, { expectedKind: 'compiler-warning' });
+});
+
+test('an unlayered object in a no-clause should error before coincidence checks', function() {
+    const source = SAMPLE.replace(
+        'Player, Wall',
+        'Player'
+    ).replace(
+        '[ > Player | Wall ] -> [ > Player | > Wall ] again',
+        '[ Player ] -> [ Player no Wall ]'
+    );
+    assertCompilerDiagnosticWithoutCrash(source);
+});
+
+test('an aggregate containing an undefined legend name should not reach layer checks', function() {
+    const source = SAMPLE.replace(
+        'Together = Player and Background',
+        'Together = Player and Background\nBad = Player and Missing'
+    ).replace(
+        '[ > Player | Wall ] -> [ > Player | > Wall ] again',
+        '[ Bad ] -> [ Bad ]'
+    );
+    assertCompilerDiagnosticWithoutCrash(source);
+});
+
+test('an undefined aggregate used only on a rule RHS should not reach layer checks', function() {
+    const source = SAMPLE.replace(
+        'Together = Player and Background',
+        'Together = Player and Background\nBad = Player and Missing'
+    ).replace(
+        '[ > Player | Wall ] -> [ > Player | > Wall ] again',
+        '[ Player ] -> [ Bad ]'
+    );
+    assertCompilerDiagnosticWithoutCrash(source);
+});
+
+test('an aggregate sound target should error before looking up object layers', function() {
+    const source = SAMPLE.replace(
+        'SOUNDS\n=========\n',
+        'SOUNDS\n=========\n\nTogether move 12345\n'
+    );
+    assertCompilerDiagnosticWithoutCrash(source);
+});
+
+test('a background object missing from collision layers should not crash level loading', function() {
+    const source = SAMPLE.replace(
+        'Background\nPlayer, Wall',
+        'Player, Wall'
+    );
+    assertCompilerDiagnosticWithoutCrash(source);
+});
+
 test('a compiled game with fewer levels than job.level is ok, not a crash', function() {
     const result = workerResult({
         source: SAMPLE,
@@ -4256,6 +4421,27 @@ test('compiler-message oracles compare stripped messages', function() {
     assert.strictEqual(mismatch.kind, 'semantic-mismatch', JSON.stringify(mismatch));
 });
 
+test('compiler-message fixtures use the canonical restart compilation command', function() {
+    const corpus = garden.loadCorpus(path.join(__dirname, '..', 'resources'));
+    const item = corpus.find(function(row) {
+        return row.kind === 'compiler-message' && row.name === 'Author name is too long to fit on screen';
+    });
+    assert(item);
+    const result = workerResult({
+        source: item.source,
+        inputs: [],
+        level: 0,
+        randomSeed: null,
+        replay: false,
+        maxInputs: 8,
+        fixtureKind: item.kind,
+        expectedErrors: item.expectedErrors,
+        expectedErrorCount: item.expectedErrorCount
+    });
+    assert.notStrictEqual(result.kind, 'semantic-mismatch', JSON.stringify(result));
+    assert.strictEqual(result.kind, 'compiler-warning', JSON.stringify(result));
+});
+
 test('warning-only compiles are compiler-warning, not ok', function() {
     const corpus = garden.loadCorpus(path.join(__dirname, '..', 'resources'));
     const warning = corpus.find(function(item) {
@@ -4288,6 +4474,8 @@ test('the worker reports a crash when execution throws', function() {
     assert.strictEqual(result.kind, 'crash', JSON.stringify(result));
     assert.strictEqual(typeof result.error.name, 'string');
     assert.strictEqual(typeof result.error.message, 'string');
+    assert.strictEqual(typeof result.error.stack, 'string');
+    assert(result.error.stack.indexOf('\n    at ') >= 0, result.error.stack);
 });
 
 test('unmutated legend of zokoban with replay is ok', function() {
@@ -4745,4 +4933,3 @@ async function main() {
 }
 
 main();
-

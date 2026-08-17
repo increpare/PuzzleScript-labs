@@ -71,7 +71,9 @@ function resetParserErrorState() {
 function TooManyErrors() {
     const message = compiling ? "Too many errors/warnings; aborting compilation." : "Too many errors/warnings; noping out.";
     consolePrint(message, true);
-    throw new Error(message);
+    const error = new Error(message);
+    error.name = 'TooManyErrors';
+    throw error;
 }
 
 function buildErrorHtml(lineNumber, str, className) {
@@ -358,6 +360,7 @@ let codeMirrorFn = function () {
                             return found.entry.slice(1).map(substitutor).flat();
                         case 'property':
                             logError("Cannot define an aggregate (using 'and') in terms of properties (something that uses 'or').", state.lineNumber);
+                            logError('Trying to define aggregate "' + splits[0].toUpperCase() + '" in terms of property "' + found.name.toUpperCase() + '".');
                             ok = false;
                             return [found.name];
                         default:
@@ -370,10 +373,11 @@ let codeMirrorFn = function () {
                 for (let i = 6; i < splits.length; i += 2) {
                     newlegend.push(...substitutor(splits[i]));
                 }
-                newlegend.lineNumber = state.lineNumber;
-
-                registerOriginalCaseName(state, newlegend[0], mixedCase, state.lineNumber);
-                state.legend_aggregates.push(newlegend);
+                if (ok) {
+                    newlegend.lineNumber = state.lineNumber;
+                    registerOriginalCaseName(state, newlegend[0], mixedCase, state.lineNumber);
+                    state.legend_aggregates.push(newlegend);
+                }
 
             } else if (splits[3] === 'or') {
                 let malformed = false;
