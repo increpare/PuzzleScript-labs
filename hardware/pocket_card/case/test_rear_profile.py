@@ -70,5 +70,17 @@ class RearDeckProfileTest(unittest.TestCase):
         self.assertLessEqual(max(values), P.DECK_H + 1e-9)
 
 
+class RearDeckEnvelopeTest(unittest.TestCase):
+    def test_centreline_has_thin_top_full_plug_depth_and_lower_return(self):
+        x = P.BODY_W / 2
+        z_top = side_arc.outer_back_z_at(x, 24.0)
+        z_plug = side_arc.outer_back_z_at(x, P.DISPLAY_PLUG_Y)
+        z_lower = side_arc.outer_back_z_at(x, 70.0)
+        self.assertAlmostEqual(z_top, -P.BODY_T, delta=0.03)
+        self.assertAlmostEqual(z_plug, -P.DECK_ZONE_T, delta=0.03)
+        self.assertGreater(z_lower, z_plug)
+        self.assertLess(z_lower, z_top)
+
+
 if __name__ == "__main__":
     unittest.main()

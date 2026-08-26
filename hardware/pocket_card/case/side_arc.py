@@ -32,10 +32,45 @@ import cadquery as cq
 import params as P
 
 
+def _s_curve_depth(x: float, run: float, height: float, *, rising: bool) -> float:
+    x = min(max(float(x), 0.0), run)
+    phi = 2 * math.atan(height / run)
+    radius = height / (2 * (1 - math.cos(phi)))
+    half = run / 2
+    if x <= half:
+        theta = math.asin(min(x / radius, 1.0))
+        taper_depth = height - radius * (1 - math.cos(theta))
+    else:
+        remaining = run - x
+        theta = math.asin(min(remaining / radius, 1.0))
+        taper_depth = radius * (1 - math.cos(theta))
+    return height - taper_depth if rising else taper_depth
+
+
+def rear_deck_extra_at(y: float) -> float:
+    if y <= P.DECK_RISE_Y0 or y >= P.BODY_H:
+        return 0.0
+    if y < P.DECK_PLATEAU_Y0:
+        return _s_curve_depth(
+            y - P.DECK_RISE_Y0,
+            P.DECK_RISE_RUN,
+            P.DECK_H,
+            rising=True,
+        )
+    if y <= P.DECK_PLATEAU_Y1:
+        return P.DECK_H
+    return _s_curve_depth(
+        y - P.DECK_PLATEAU_Y1,
+        P.DECK_TAPER_RUN,
+        P.DECK_H,
+        rising=False,
+    )
+
+
 def _plan_solid(inset: float, extra: float = 0.0) -> cq.Shape:
     """Box with the four vertical corners rounded (plan-view outline).
 
-    ``extra`` deepens the back only, for the north rib's envelope.
+    ``extra`` deepens the back only, for the deck profile's envelope.
     """
     from OCP.BRepFilletAPI import BRepFilletAPI_MakeFillet
 
@@ -79,12 +114,12 @@ def _roll_radius_at(x: float, y: float, inset: float) -> float:
 def _back_perimeter(solid: cq.Shape):
     """Edges where the back surface meets the sides.
 
-    Not ``faces("<Z").edges()``: once the rib is in the solid the back is four
-    faces (plateau, two blend strips, nominal), and that selector returns the
-    deepest one only. Take every face whose outward normal points back, then
-    keep the edges used by exactly one of them — an edge shared by two back
-    faces is an internal seam (the blend's own tangent lines), which is already
-    smooth and must not be filleted.
+    Not ``faces("<Z").edges()``: once the deck profile is in the solid the back
+    has several faces (plateau, blend strips, nominal), and that selector
+    returns the deepest one only. Take every face whose outward normal points
+    back, then keep the edges used by exactly one of them — an edge shared by
+    two back faces is an internal seam (the blend's own tangent lines), which
+    is already smooth and must not be filleted.
     """
     back = [f for f in cq.Workplane(solid).faces().vals()
             if f.normalAt(f.Center()).z < -0.5]
@@ -123,41 +158,57 @@ def _roll_back(solid: cq.Shape, inset: float) -> cq.Shape:
     return cq.Shape.cast(mk.Shape())
 
 
-def _rib_region(inset: float) -> cq.Workplane:
-    """Everything north of the rib's south blend, as a cutter swept in x.
+def _deck_region(inset: float) -> cq.Workplane:
+    """Deck rise, plateau, and lower return as one cutter swept in x.
 
-    The blend is two tangent arcs, so the rib's back meets BODY_T's back with
-    no crease anywhere — see the RIB_BLEND_PHI note in params. A step would
-    have been simpler to draw and impossible to fillet.
-
-    Being a prism in x, this is only a valid trim where the back is flat. That
-    is the whole back before the perimeter is rolled, which is why the rib goes
-    into the plan solid and the roll comes after.
+    Each transition is a pair of tangent arcs, so the maximum-depth deck meets
+    the nominal back without a crease. Being a prism in x, this is only a valid
+    trim while the back is flat. That is the whole back before the perimeter is
+    rolled, which is why the profile goes into the plan solid first.
     """
-    r, phi = P.RIB_BLEND_R, math.radians(P.RIB_BLEND_PHI)
-    zd = -(P.BODY_T + P.RIB_H - inset)      # rib's back
-    zn = -(P.BODY_T - inset)                # nominal back
-    y1 = P.RIB_Y - inset
-    y2 = y1 + P.RIB_BLEND_RUN
+    zn = -(P.BODY_T - inset)
+    zd = -(P.BODY_T + P.DECK_H - inset)
+    rise_y0 = P.DECK_RISE_Y0 - inset
+    plateau_y0 = P.DECK_PLATEAU_Y0 - inset
+    plateau_y1 = P.DECK_PLATEAU_Y1 - inset
+    bottom_y = P.BODY_H - inset
+    rise_r = P.DECK_RISE_R
+    rise_phi = math.radians(P.DECK_RISE_PHI)
+    taper_r = P.DECK_TAPER_R
+    taper_phi = math.radians(P.DECK_TAPER_PHI)
     pad = 4.0
     return (cq.Workplane("YZ")
-            .moveTo(-pad, zd - pad).lineTo(y1, zd - pad).lineTo(y1, zd)
-            .threePointArc((y1 + r * math.sin(phi / 2),
-                            zd + r * (1 - math.cos(phi / 2))),
-                           (y1 + r * math.sin(phi), zd + r * (1 - math.cos(phi))))
-            .threePointArc((y2 - r * math.sin(phi / 2),
-                            zn - r * (1 - math.cos(phi / 2))), (y2, zn))
-            .lineTo(y2, pad).lineTo(-pad, pad).close()
+            .moveTo(-pad, zn).lineTo(rise_y0, zn)
+            .threePointArc(
+                (rise_y0 + rise_r * math.sin(rise_phi / 2),
+                 zn - rise_r * (1 - math.cos(rise_phi / 2))),
+                (rise_y0 + rise_r * math.sin(rise_phi),
+                 zn - rise_r * (1 - math.cos(rise_phi))))
+            .threePointArc(
+                (plateau_y0 - rise_r * math.sin(rise_phi / 2),
+                 zd + rise_r * (1 - math.cos(rise_phi / 2))),
+                (plateau_y0, zd))
+            .lineTo(plateau_y1, zd)
+            .threePointArc(
+                (plateau_y1 + taper_r * math.sin(taper_phi / 2),
+                 zd + taper_r * (1 - math.cos(taper_phi / 2))),
+                (plateau_y1 + taper_r * math.sin(taper_phi),
+                 zd + taper_r * (1 - math.cos(taper_phi))))
+            .threePointArc(
+                (bottom_y - taper_r * math.sin(taper_phi / 2),
+                 zn - taper_r * (1 - math.cos(taper_phi / 2))),
+                (bottom_y, zn))
+            .lineTo(bottom_y, pad).lineTo(-pad, pad).close()
             .extrude(P.BODY_W + 2 * pad).translate((-pad, 0, 0)))
 
 
-def _stepped_plan(inset: float) -> cq.Shape:
-    """Plan solid with the north band stepped out to the rib's depth."""
+def _profiled_plan(inset: float) -> cq.Shape:
+    """Plan solid deepened by the deck's rise, plateau, and lower return."""
     base = _plan_solid(inset, 0.0)
-    if P.RIB_H <= 1e-6:
+    if P.DECK_H <= 1e-6:
         return base
-    deep = (cq.Workplane(_plan_solid(inset, P.RIB_H))
-            .intersect(_rib_region(inset)))
+    deep = (cq.Workplane(_plan_solid(inset, P.DECK_H))
+            .intersect(_deck_region(inset)))
     return cq.Workplane(base).union(deep).val()
 
 
@@ -167,21 +218,21 @@ def _envelope(inset: float = 0.0) -> cq.Shape:
 
     Cached: the back shell alone asks for this a dozen times per build.
 
-    The north rib is a step in the PLAN solid, rolled afterwards with everything
-    else, so the perimeter is still one fillet and the rib's silhouette is part
-    of it. Rolling the two depths separately and unioning them looked equivalent
-    and was not: the blend is a prism in x, so on the flat middle of the back it
-    did the right thing, while at the rolled sides it trimmed nothing and left a
-    2.40 cliff in the side wall at RIB_Y2, tapering out about 5 mm inboard. The
-    order matters because a height field can describe the back but not the roll,
-    where the surface turns under and becomes the wall.
+    The deck profile is built into the PLAN solid, then rolled with everything
+    else, so the perimeter is still one fillet and the profile's silhouette is
+    part of it. Rolling the depths separately and unioning them looked
+    equivalent and was not: the blend is a prism in x, so on the flat middle of
+    the back it did the right thing, while at the rolled sides it trimmed
+    nothing and left a cliff in the side wall, tapering out about 5 mm inboard.
+    The order matters because a height field can describe the back but not the
+    roll, where the surface turns under and becomes the wall.
 
     Note the inner surfaces are an exact parallel offset on the flats but
     slightly over-offset through the blend — the whole profile is shifted
     (-inset, +inset) rather than along its own normal, which leaves up to 1.95
     of wall there instead of 1.50. Thicker, in a band where nothing lives.
     """
-    solid = _roll_back(_stepped_plan(inset), inset)
+    solid = _roll_back(_profiled_plan(inset), inset)
 
     if inset <= 1e-9:
         # Front perimeter only — the back has no sharp edge left to chamfer.
@@ -194,7 +245,7 @@ def _envelope(inset: float = 0.0) -> cq.Shape:
                 pass
 
     bb = solid.BoundingBox()
-    if bb.zlen > P.BODY_T + P.RIB_H + 0.5 or bb.xlen > P.BODY_W + 0.5:
+    if bb.zlen > P.BODY_T + P.DECK_H + 0.5 or bb.xlen > P.BODY_W + 0.5:
         raise RuntimeError(
             f"envelope exploded: bbox {bb.xlen:.1f}x{bb.ylen:.1f}x{bb.zlen:.1f}")
     brick = (P.BODY_W - 2 * inset) * (P.BODY_H - 2 * inset) * (P.BODY_T - inset)
