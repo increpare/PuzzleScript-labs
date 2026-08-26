@@ -1,4 +1,5 @@
 """Geometry contract for the role-specific Pocket Card button crowns."""
+import shutil
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -9,6 +10,30 @@ import coupon
 import params as P
 import sculpted_buttons as sb
 import sculpted_buttons_blender as sbb
+from test_emboss_shells import (
+    ROOT,
+    author_preservation_sentinels,
+    blender_bin,
+    inspect_blend,
+    run_bounded,
+    sha256,
+)
+
+
+CASE = ROOT / "hardware/pocket_card/case"
+COMPLETE = CASE / "out/order/pocket_card_complete.blend"
+PREVIEW = CASE / "out/order/preview"
+BLENDER_SCRIPT = CASE / "sculpted_buttons_blender.py"
+
+
+def run_sculpted_replacement(source, buttons_dir, output):
+    command = [
+        blender_bin(), "--background", str(source),
+        "--python-exit-code", "1", "--python", str(BLENDER_SCRIPT), "--",
+        "--input", str(source), "--buttons-dir", str(buttons_dir),
+        "--output", str(output),
+    ]
+    return run_bounded(command, "sculpted Blender replacement")
 
 
 class SculptedButtonGeometryTest(unittest.TestCase):
@@ -100,6 +125,53 @@ class SculptedButtonGeometryTest(unittest.TestCase):
         grooved = sb.cap("menu").val().Volume()
         plain = sb.cap("menu", menu_grooves=False).val().Volume()
         self.assertLess(grooved, plain)
+
+
+class SculptedButtonBlenderIntegrationTest(unittest.TestCase):
+    maxDiff = None
+
+    def test_replacement_preserves_authored_button_objects_and_scene(self):
+        with TemporaryDirectory() as tmp:
+            temporary = Path(tmp)
+            source = temporary / "authored_complete.blend"
+            output = temporary / "sculpted_complete.blend"
+            buttons_dir = temporary / "placed"
+            buttons_dir.mkdir()
+            shutil.copy2(COMPLETE, source)
+            for name in sbb.BUTTON_NAMES:
+                shutil.copy2(PREVIEW / f"{name}.stl", buttons_dir / f"{name}.stl")
+
+            author_preservation_sentinels(source)
+            source_hash = sha256(source)
+            before = inspect_blend(source)
+
+            result = run_sculpted_replacement(source, buttons_dir, output)
+            self.assertEqual(result.returncode, 0, result.stdout)
+            self.assertEqual(sha256(source), source_hash)
+            after = inspect_blend(output)
+
+            for key in (
+                "collections", "collection_children", "objects", "materials",
+                "transforms", "modifiers", "memberships", "world_matrices",
+                "parents", "custom_properties", "display_transform",
+                "display_material_count", "display_images", "scene", "world",
+                "cameras", "lights",
+            ):
+                self.assertEqual(after[key], before[key], key)
+
+            for name, mesh_hash in before["mesh_hashes"].items():
+                if name in sbb.BUTTON_NAMES:
+                    self.assertNotEqual(after["mesh_hashes"][name], mesh_hash, name)
+                    self.assertEqual(
+                        after["mesh_data_names"][name], f"{name}_sculpted_mesh"
+                    )
+                else:
+                    self.assertEqual(after["mesh_hashes"][name], mesh_hash, name)
+                    self.assertEqual(
+                        after["mesh_data_names"][name],
+                        before["mesh_data_names"][name],
+                        name,
+                    )
 
 
 if __name__ == "__main__":

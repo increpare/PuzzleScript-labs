@@ -110,6 +110,18 @@ def world_bounds(obj):
     )
 
 
+def local_bounds(obj):
+    points = [Vector(corner) for corner in obj.bound_box]
+    return tuple(
+        value
+        for axis in range(3)
+        for value in (
+            min(point[axis] for point in points),
+            max(point[axis] for point in points),
+        )
+    )
+
+
 def assert_bounds_close(actual, expected, label, axes=(0, 1, 2)):
     axis_names = "XYZ"
     for axis in axes:
@@ -405,7 +417,7 @@ def import_assembly_part(
     return obj
 
 
-def build_assembly(paths, staged_front, staged_back, staged_blend):
+def build_clean_assembly(paths, staged_front, staged_back, staged_blend):
     bpy.ops.wm.read_factory_settings(use_empty=True)
     scene = bpy.context.scene
     scene.unit_settings.system = "METRIC"
@@ -465,6 +477,137 @@ def build_assembly(paths, staged_front, staged_back, staged_blend):
     if "FINISHED" not in result or not staged_blend.is_file():
         raise FinishError(f"failed to save assembly: {staged_blend}")
     print(f"FINISH staged assembly: {staged_blend} ({len(actual)} mesh objects)")
+
+
+def preserved_object_state(excluded=()):
+    excluded = set(excluded)
+    return {
+        obj.name: {
+            "object": obj,
+            "matrix_world": obj.matrix_world.copy(),
+            "collections": tuple(sorted(
+                collection.name for collection in obj.users_collection
+            )),
+            "data": obj.data if obj.type == "MESH" else None,
+        }
+        for obj in bpy.data.objects
+        if obj.name not in excluded
+    }
+
+
+def assert_preserved_object_state(snapshot):
+    for name, before in snapshot.items():
+        obj = bpy.data.objects.get(name)
+        if obj is not before["object"]:
+            raise FinishError(
+                f"assembly object changed during shell replacement: {name}"
+            )
+        if obj.matrix_world != before["matrix_world"]:
+            raise FinishError(
+                f"assembly transform changed during shell replacement: {name}"
+            )
+        collections = tuple(sorted(
+            collection.name for collection in obj.users_collection
+        ))
+        if collections != before["collections"]:
+            raise FinishError(
+                "assembly collection membership changed during shell "
+                f"replacement: {name}"
+            )
+        if before["data"] is not None and obj.data is not before["data"]:
+            raise FinishError(
+                f"non-shell mesh data changed during replacement: {name}"
+            )
+
+
+def replace_assembly_mesh_data(target, imported):
+    identity = {
+        "object": target,
+        "name": target.name,
+        "matrix_world": target.matrix_world.copy(),
+        "parent": target.parent,
+        "collections": tuple(sorted(
+            collection.name for collection in target.users_collection
+        )),
+        "materials": tuple(target.data.materials),
+    }
+    old_mesh = target.data
+    new_mesh = imported.data
+    new_mesh.materials.clear()
+    for material in identity["materials"]:
+        new_mesh.materials.append(material)
+    target.data = new_mesh
+    bpy.data.objects.remove(imported, do_unlink=True)
+    if old_mesh.users == 0:
+        bpy.data.meshes.remove(old_mesh)
+    target.data.name = f"{target.name}_generated"
+
+    collections = tuple(sorted(
+        collection.name for collection in target.users_collection
+    ))
+    if (
+        target is not identity["object"]
+        or target.name != identity["name"]
+        or target.matrix_world != identity["matrix_world"]
+        or target.parent is not identity["parent"]
+        or collections != identity["collections"]
+        or tuple(target.data.materials) != identity["materials"]
+    ):
+        raise FinishError(f"{target.name}: authored object state changed")
+
+
+def update_existing_assembly(
+    source, staged_front, staged_back, staged_blend
+):
+    result = bpy.ops.wm.open_mainfile(filepath=str(source))
+    if "FINISHED" not in result:
+        raise FinishError(f"failed to open existing assembly: {source}")
+
+    targets = {}
+    for name in ("shell_front_embossed", "shell_back_embossed"):
+        target = bpy.data.objects.get(name)
+        if target is None or target.type != "MESH":
+            raise FinishError(f"existing assembly lacks mesh object {name!r}")
+        validate_object(target, f"existing assembly {name}", require_manifold=False)
+        targets[name] = target
+
+    protected = preserved_object_state(excluded=targets)
+    for name, staged_path in (
+        ("shell_front_embossed", staged_front),
+        ("shell_back_embossed", staged_back),
+    ):
+        imported = import_one_stl(
+            staged_path, f"assembly replacement {name}", require_manifold=False
+        )
+        assert_bounds_close(
+            local_bounds(imported), local_bounds(targets[name]),
+            f"assembly replacement {name} local bounds", axes=(0, 1),
+        )
+        replace_assembly_mesh_data(targets[name], imported)
+
+    assert_preserved_object_state(protected)
+    bpy.context.preferences.filepaths.save_version = 0
+    result = bpy.ops.wm.save_as_mainfile(
+        filepath=str(staged_blend), check_existing=False
+    )
+    if "FINISHED" not in result or not staged_blend.is_file():
+        raise FinishError(f"failed to save preserved assembly: {staged_blend}")
+    print(
+        f"FINISH staged preserved assembly: {staged_blend} "
+        f"({len(bpy.data.objects)} objects)"
+    )
+
+
+def build_assembly(paths, staged_front, staged_back, staged_blend):
+    existing = paths.output / "pocket_card_complete.blend"
+    if existing.is_file():
+        update_existing_assembly(
+            existing, staged_front, staged_back, staged_blend
+        )
+    else:
+        build_clean_assembly(
+            paths, staged_front, staged_back, staged_blend
+        )
 
 
 def publish(staged_to_final):
