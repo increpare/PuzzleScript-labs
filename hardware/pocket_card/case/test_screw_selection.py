@@ -3,6 +3,7 @@ import os
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -12,6 +13,32 @@ import joints  # noqa: E402
 
 
 class ScrewLengthSelectionTest(unittest.TestCase):
+    def test_module_pilot_entry_matches_module_post_construction(self):
+        joint = next(j for j in joints.back_joints() if j.kind == "module")
+        self.assertAlmostEqual(
+            joint.pilot_entry_z,
+            -(joints.P.BODY_T - joints.P.LID_T),
+        )
+
+    def test_pcb_pilot_entry_matches_pcb_post_construction(self):
+        joint = next(j for j in joints.back_joints() if j.kind == "pcb")
+        self.assertAlmostEqual(
+            joint.pilot_entry_z,
+            -(joints.P.PCB_FRONT_Z + joints.P.PCB_T + joints.P.PCB_PIN_TIP),
+        )
+
+    def test_pcb_pilot_datum_tracks_its_stack_independently_of_module_split(self):
+        module = next(j for j in joints.back_joints() if j.kind == "module")
+        pcb = next(j for j in joints.back_joints() if j.kind == "pcb")
+        module_entry = module.pilot_entry_z
+        changed_tip = joints.P.PCB_PIN_TIP + 0.4
+        with mock.patch.object(joints.P, "PCB_PIN_TIP", changed_tip):
+            self.assertEqual(module.pilot_entry_z, module_entry)
+            self.assertAlmostEqual(
+                pcb.pilot_entry_z,
+                -(joints.P.PCB_FRONT_Z + joints.P.PCB_T + changed_tip),
+            )
+
     def test_selects_shortest_stocked_length_with_required_engagement(self):
         self.assertEqual(joints.select_screw_length(5.5), 8.0)
         self.assertEqual(joints.select_screw_length(5.51), 10.0)

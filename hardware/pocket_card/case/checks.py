@@ -87,6 +87,62 @@ def rear_deck_transition_metrics(y0, y1, *, increasing, step=0.1):
     }
 
 
+def rear_deck_surface_transition_metrics(
+        y0, y1, *, increasing, slope_limit_deg, step=0.1, x_step=0.5):
+    """Actual-envelope transition metrics including the rolled side regions.
+
+    This domain is only valid where the Y interval does not enter a plan
+    corner or the independent north/south perimeter roll.  Within that domain
+    it deliberately starts at x=0.4 and runs to the opposite side, so a deck
+    cliff hidden on either rolled side cannot be masked by a flat-field scan.
+    """
+    import side_arc
+
+    ys = _profile_sample_ys(float(y0), float(y1), float(step))
+    worst_slope, at = 0.0, None
+    monotonic = True
+    samples = 0
+    sampled_x = []
+    x = 0.4
+    while x < P.BODY_W - 0.3:
+        prev = None
+        used_x = False
+        for y in ys:
+            cur = side_arc.outer_back_z_opt(x, y)
+            if cur is None:
+                prev = None
+                continue
+            used_x = True
+            if prev is not None:
+                py, pz = prev
+                dz = cur - pz
+                if increasing and dz > 0.005:
+                    monotonic = False
+                if not increasing and dz < -0.005:
+                    monotonic = False
+                slope = math.degrees(math.atan(abs(dz) / (y - py)))
+                if slope > worst_slope:
+                    worst_slope, at = slope, (round(x, 1), round(y, 1))
+                samples += 1
+            prev = (y, cur)
+        if used_x:
+            sampled_x.append(x)
+        x += x_step
+
+    return {
+        "start_y": float(y0),
+        "end_y": float(y1),
+        "step": float(step),
+        "sample_count": samples,
+        "min_sampled_x": min(sampled_x) if sampled_x else None,
+        "max_sampled_x": max(sampled_x) if sampled_x else None,
+        "monotonic": monotonic,
+        "continuous": samples > 0 and worst_slope <= slope_limit_deg + 1e-9,
+        "max_slope_deg": worst_slope,
+        "max_slope_at": at,
+    }
+
+
 def raster_xy(tri):
     """Top-down occupancy: which (x, y) cells have any material at all."""
     x0, x1 = tri[:, :, 0].min(), tri[:, :, 0].max()
@@ -934,6 +990,37 @@ def check_back_roll():
             increasing=True, designed_slope=P.DECK_RISE_PHI)
         scan_transition(
             "taper", P.DECK_PLATEAU_Y1, P.DECK_TAPER_Y1,
+            increasing=False, designed_slope=P.DECK_TAPER_PHI)
+
+        # The central scans above can follow the taper farther south, but their
+        # x inset intentionally excludes the rolled sides. Add a second,
+        # full-width regression over Y domains where side columns are defined
+        # without entering a plan corner: the complete rise, and the taper only
+        # through the R12 bottom-corner tangent at BODY_H-CASE_BOTTOM_R.
+        def check_full_width(label, y0, y1, *, increasing, designed_slope):
+            limit = designed_slope + 0.5
+            metrics = rear_deck_surface_transition_metrics(
+                y0, y1, increasing=increasing, slope_limit_deg=limit)
+            covers_sides = (
+                metrics["min_sampled_x"] is not None
+                and metrics["min_sampled_x"] < P.BACK_ROLL_SIDE
+                and metrics["max_sampled_x"] > P.BODY_W - P.BACK_ROLL_SIDE
+            )
+            ok = (metrics["monotonic"] and metrics["continuous"]
+                  and covers_sides)
+            print(f"   {'PASS' if ok else 'FAIL'}  deck {label} has no side "
+                  f"cliff across x={metrics['min_sampled_x']:.1f}.."
+                  f"{metrics['max_sampled_x']:.1f}, y={y0:.2f}..{y1:.2f} "
+                  f"(steepest {metrics['max_slope_deg']:.2f} deg at "
+                  f"{metrics['max_slope_at']}, limit {limit:.2f})")
+            if not ok:
+                FAILURES.append(f"rear deck {label} side transition")
+
+        check_full_width(
+            "rise", P.DECK_RISE_Y0, P.DECK_PLATEAU_Y0,
+            increasing=True, designed_slope=P.DECK_RISE_PHI)
+        check_full_width(
+            "taper", P.DECK_PLATEAU_Y1, P.BODY_H - P.CASE_BOTTOM_R,
             increasing=False, designed_slope=P.DECK_TAPER_PHI)
 
     # 5. torus sanity: a roll wider than its plan corner self-intersects

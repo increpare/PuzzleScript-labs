@@ -110,7 +110,9 @@ class ScrewJoint:
     @property
     def pilot_entry_z(self):
         """Rear entrance of the matching pilot in the front-shell post."""
-        return -(P.BODY_T - P.LID_T)
+        if self.kind == "module":
+            return -(P.BODY_T - P.LID_T)
+        return -(P.PCB_FRONT_Z + P.PCB_T + P.PCB_PIN_TIP)
 
     @property
     def shank_span(self):

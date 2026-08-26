@@ -122,6 +122,42 @@ class RearDeckCheckContractTest(unittest.TestCase):
         self.assertAlmostEqual(taper["start_depth"], P.DECK_H, places=7)
         self.assertAlmostEqual(taper["end_depth"], 0.0, places=7)
 
+    def test_full_width_surface_scan_includes_rolled_sides_on_rise(self):
+        metrics = checks.rear_deck_surface_transition_metrics(
+            P.DECK_RISE_Y0,
+            P.DECK_PLATEAU_Y0,
+            increasing=True,
+            slope_limit_deg=P.DECK_RISE_PHI + 0.5,
+        )
+        self.assertLess(metrics["min_sampled_x"], P.BACK_ROLL_SIDE)
+        self.assertGreater(
+            metrics["max_sampled_x"],
+            P.BODY_W - P.BACK_ROLL_SIDE,
+        )
+        self.assertTrue(metrics["monotonic"])
+        self.assertTrue(metrics["continuous"])
+        self.assertLessEqual(
+            metrics["max_slope_deg"], P.DECK_RISE_PHI + 0.5)
+
+    def test_full_width_surface_scan_covers_taper_before_bottom_corners(self):
+        y1 = P.BODY_H - P.CASE_BOTTOM_R
+        metrics = checks.rear_deck_surface_transition_metrics(
+            P.DECK_PLATEAU_Y1,
+            y1,
+            increasing=False,
+            slope_limit_deg=P.DECK_TAPER_PHI + 0.5,
+        )
+        self.assertEqual(metrics["end_y"], y1)
+        self.assertLess(metrics["min_sampled_x"], P.BACK_ROLL_SIDE)
+        self.assertGreater(
+            metrics["max_sampled_x"],
+            P.BODY_W - P.BACK_ROLL_SIDE,
+        )
+        self.assertTrue(metrics["monotonic"])
+        self.assertTrue(metrics["continuous"])
+        self.assertLessEqual(
+            metrics["max_slope_deg"], P.DECK_TAPER_PHI + 0.5)
+
 
 if __name__ == "__main__":
     unittest.main()
