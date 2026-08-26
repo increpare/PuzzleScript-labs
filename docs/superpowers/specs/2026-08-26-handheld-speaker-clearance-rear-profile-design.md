@@ -1,6 +1,7 @@
 # Handheld Speaker-Clearance Rear Profile Design
 
-**Status:** Approved in design discussion on 2026-08-26
+**Status:** Approved in design discussion on 2026-08-26; upper-rise revision
+approved on 2026-08-27
 **Target:** `hardware/pocket_card/case/out/order/pocket_card_complete.blend`
 rear shell, generated from `hardware/pocket_card/case/params.py`,
 `side_arc.py`, and `shell_back.py`
@@ -54,6 +55,26 @@ concept sketches exaggerate this depth change for readability. The production
 shape must be as subtle as the established clearance permits: no extra
 thickness should be added merely to make the feature more visible.
 
+### Approved upper-rise revision
+
+Review of the first production render showed that the rounded shoulder began
+too far up the screen section. Move only the start of the upper rise 5.00 mm
+toward the plug, from layout `y = 26.9812 mm` to `y = 31.9812 mm`.
+
+The functional clearance is unchanged:
+
+- keep the full-depth plateau fixed at `y = 39.3281..46.8281 mm`;
+- keep its maximum added depth at `2.40 mm`;
+- keep the plug, cable, wall, and roll allowances unchanged; and
+- keep the complete lower return unchanged through the bottom edge.
+
+The shortened upper transition runs `7.3469 mm`. Preserve the same pair of
+tangent circular arcs, recomputing their shared maximum slope from the fixed
+run and height as `2 * atan(2.40 / 7.3469) = 36.181 degrees`. This is a more
+compact shoulder, but it remains rounded, tangent to both rear planes, and
+full-width. Do not shift the plateau downward or reduce its clearance to gain
+the later visual start.
+
 ## Geometry Rules
 
 The implementation is derived from placed assembly geometry rather than new
@@ -66,8 +87,9 @@ guessed dimensions:
    in the assembled PCB coordinate frame.
 3. Preserve the existing rear-shell wall thickness around the relocated
    envelope.
-4. Start the rounded step as late as the available radius and plug clearance
-   allow, preserving the visibly thin screen region.
+4. Start the rounded step at layout `y = 31.9812 mm`, exactly 5.00 mm later
+   than the first production profile. Reach the unchanged full-depth plateau
+   at `y = 39.3281 mm` with the recomputed tangent two-arc shoulder.
 5. From the maximum-depth section, reduce rear offset without reversals until
    it is zero at the bottom edge.
 6. Blend the transition into both side walls without a local wart, sharp ledge,
