@@ -155,7 +155,7 @@ class SculptedButtonBlenderIntegrationTest(unittest.TestCase):
                 "transforms", "modifiers", "memberships", "world_matrices",
                 "parents", "custom_properties", "display_transform",
                 "display_material_count", "display_images", "scene", "world",
-                "cameras", "lights",
+                "cameras", "lights", "relative_resources",
             ):
                 self.assertEqual(after[key], before[key], key)
 

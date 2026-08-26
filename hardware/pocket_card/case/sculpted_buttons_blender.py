@@ -1,8 +1,10 @@
 """Replace the neutral caps in a complete Pocket Card .blend assembly.
 
 Blender opens the source file before running this script.  The sculpted caps
-are imported from individual STLs already exported in model space, so every
-object keeps an identity transform and matches the rest of the assembly.
+are imported from individual STLs already exported in model space.  Each
+imported mesh is transferred onto its existing target object so object
+identity and authored transforms are preserved, including nonidentity
+transforms used by the lookdev assembly.
 
 Run through Blender, for example::
 
@@ -153,7 +155,9 @@ def main(argv=None):
     args.output.parent.mkdir(parents=True, exist_ok=True)
     bpy.context.preferences.filepaths.save_version = 0
     result = bpy.ops.wm.save_as_mainfile(
-        filepath=str(args.output.resolve()), check_existing=False
+        filepath=str(args.output.resolve()),
+        check_existing=False,
+        relative_remap=False,
     )
     if "FINISHED" not in result or not args.output.is_file():
         raise RuntimeError(f"failed to save assembled blend: {args.output}")

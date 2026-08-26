@@ -594,7 +594,9 @@ def update_existing_assembly(
     assert_preserved_object_state(protected)
     bpy.context.preferences.filepaths.save_version = 0
     result = bpy.ops.wm.save_as_mainfile(
-        filepath=str(staged_blend), check_existing=False
+        filepath=str(staged_blend),
+        check_existing=False,
+        relative_remap=False,
     )
     if "FINISHED" not in result or not staged_blend.is_file():
         raise FinishError(f"failed to save preserved assembly: {staged_blend}")
@@ -604,12 +606,11 @@ def update_existing_assembly(
     )
 
 
-def build_assembly(paths, staged_front, staged_back, staged_blend):
+def build_assembly(
+    paths, staged_front, staged_back, staged_source, staged_blend
+):
     existing = paths.output / "pocket_card_complete.blend"
     if existing.is_file():
-        staged_source = staged_blend.with_name(
-            "pocket_card_complete_source.blend"
-        )
         shutil.copy2(existing, staged_source)
         require_file(staged_source, "staged existing assembly")
         update_existing_assembly(
@@ -651,6 +652,13 @@ def finish(paths):
     paths.output.mkdir(parents=True, exist_ok=True)
     targets, original_bounds = preflight(paths)
     staging = Path(tempfile.mkdtemp(prefix=".pocket-card-finish-", dir=paths.output))
+    assembly_token = uuid.uuid4().hex
+    staged_source = paths.output / (
+        f".pocket_card_complete.{assembly_token}.source.blend"
+    )
+    staged_blend = paths.output / (
+        f".pocket_card_complete.{assembly_token}.candidate.blend"
+    )
     try:
         staged = {}
         for target_name, input_attr, output_name in SHELL_INPUTS:
@@ -669,11 +677,11 @@ def finish(paths):
             )
             staged[output_name] = staged_path
 
-        staged_blend = staging / "pocket_card_complete.blend"
         build_assembly(
             paths,
             staged["shell_front_embossed.stl"],
             staged["shell_back_embossed.stl"],
+            staged_source,
             staged_blend,
         )
         staged["pocket_card_complete.blend"] = staged_blend
@@ -690,6 +698,8 @@ def finish(paths):
         for _, final in publication:
             print(f"FINISH wrote {final}")
     finally:
+        staged_source.unlink(missing_ok=True)
+        staged_blend.unlink(missing_ok=True)
         shutil.rmtree(staging, ignore_errors=True)
 
 

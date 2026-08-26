@@ -108,7 +108,8 @@ make pocket_card_case_sculpted
 The Makefile finds `blender` on `PATH`, then checks the standard macOS app
 location. Override either with `BLENDER=/absolute/path/to/blender`.
 
-`pocket_card_complete.blend` keeps all parts selectable in four collections:
+When no complete assembly exists, the clean fallback creates four generated
+collections:
 
 - `Case`: purple embossed front and white embossed back
 - `Buttons`: eight yellow face caps plus yellow power/mute tips
@@ -117,6 +118,12 @@ location. Override either with `BLENDER=/absolute/path/to/blender`.
   materials, and modifiers
 - `Display`: the positioned `es3c28p_3d` model with its original materials;
   referenced display images are packed into the completed `.blend`
+
+When regenerating an existing `pocket_card_complete.blend`, the finishing pass
+updates only the shell mesh data and preserves every authored collection and
+object. Extra QLE/lookdev collections, cameras, lights, materials, transforms,
+and render settings therefore remain alongside the four generated part
+collections listed above.
 
 ## What to print first
 

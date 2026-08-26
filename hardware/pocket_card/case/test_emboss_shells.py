@@ -122,6 +122,7 @@ def run_blender_expression(path, expression):
 def inspect_blend(path):
     expression = r'''
 import bpy, hashlib, json, struct
+from pathlib import Path
 
 def custom_properties(item):
     result = {}
@@ -224,6 +225,23 @@ inventory = {
         o.name: o.data.name
         for o in bpy.data.objects if o.type == "MESH"
     },
+    "relative_resources": {
+        "images": sorted(
+            (image.name, image.filepath)
+            for image in bpy.data.images
+            if image.filepath.startswith("//")
+        ),
+        "libraries": sorted(
+            (library.name, library.filepath)
+            for library in bpy.data.libraries
+            if library.filepath.startswith("//")
+        ),
+        "fonts": sorted(
+            (font.name, font.filepath)
+            for font in bpy.data.fonts
+            if font.filepath.startswith("//")
+        ),
+    },
     "display_transform": transform(display),
     "display_material_count": len(display.material_slots) if display else 0,
     "display_images": display_images,
@@ -243,6 +261,25 @@ inventory = {
         "name": bpy.context.scene.world.name,
         "color": list(bpy.context.scene.world.color),
         "custom_properties": custom_properties(bpy.context.scene.world),
+        "use_nodes": bpy.context.scene.world.use_nodes,
+        "nodes": sorted(
+            (node.name, node.bl_idname)
+            for node in bpy.context.scene.world.node_tree.nodes
+        ) if bpy.context.scene.world.use_nodes else [],
+        "images": {
+            node.image.name: {
+                "stored_filepath": node.image.filepath,
+                "resolved_filepath": str(Path(
+                    bpy.path.abspath(node.image.filepath)
+                ).resolve()),
+                "exists": Path(bpy.path.abspath(node.image.filepath)).is_file(),
+                "packed": node.image.packed_file is not None,
+                "has_data": node.image.has_data,
+                "size": list(node.image.size),
+            }
+            for node in bpy.context.scene.world.node_tree.nodes
+            if getattr(node, "image", None) is not None
+        } if bpy.context.scene.world.use_nodes else {},
     },
     "cameras": {
         o.name: {
@@ -275,6 +312,9 @@ print("ASSEMBLY_INVENTORY=" + json.dumps(inventory, sort_keys=True))
 
 def author_preservation_sentinels(path, mutate_buttons=True):
     button_names = sorted(EXPECTED_BUTTONS - {"tip_power", "tip_mute"})
+    external_image = path.parent / "lookdev_assets" / "sentinel_texture.png"
+    external_image.parent.mkdir(exist_ok=True)
+    shutil.copy2(CASE / "screentexture2.png", external_image)
     expression = f'''
 import bpy
 
@@ -331,6 +371,27 @@ if {mutate_buttons!r}:
 world = bpy.data.worlds.new("Sentinel World")
 world.color = (0.13, 0.21, 0.34)
 world["world_note"] = "preserve-world"
+world.use_nodes = True
+nodes = world.node_tree.nodes
+nodes.clear()
+background = nodes.new("ShaderNodeBackground")
+background.name = "Sentinel Background"
+output = nodes.new("ShaderNodeOutputWorld")
+output.name = "Sentinel World Output"
+texture = nodes.new("ShaderNodeTexEnvironment")
+texture.name = "Sentinel External Texture"
+image = bpy.data.images.load(
+    {str(external_image.resolve())!r}, check_existing=False
+)
+image.name = "Sentinel External Image"
+image.filepath = "//lookdev_assets/sentinel_texture.png"
+texture.image = image
+world.node_tree.links.new(
+    texture.outputs["Color"], background.inputs["Color"]
+)
+world.node_tree.links.new(
+    background.outputs["Background"], output.inputs["Surface"]
+)
 bpy.context.scene.world = world
 bpy.context.scene["scene_note"] = "preserve-scene"
 bpy.context.scene.render.resolution_x = 713
@@ -338,9 +399,14 @@ bpy.context.scene.render.resolution_y = 419
 bpy.context.scene.render.resolution_percentage = 83
 bpy.context.scene.render.film_transparent = True
 bpy.context.preferences.filepaths.save_version = 0
-bpy.ops.wm.save_as_mainfile(filepath={str(path.resolve())!r}, check_existing=False)
+bpy.ops.wm.save_as_mainfile(
+    filepath={str(path.resolve())!r},
+    check_existing=False,
+    relative_remap=False,
+)
 '''
     run_blender_expression(path, expression)
+    return external_image.resolve()
 
 
 class BlenderFinishIntegrationTest(unittest.TestCase):
@@ -423,8 +489,18 @@ class BlenderFinishIntegrationTest(unittest.TestCase):
             self.assertEqual(first.returncode, 0, first.stdout)
 
             assembly = output / "pocket_card_complete.blend"
-            author_preservation_sentinels(assembly)
+            external_image = author_preservation_sentinels(assembly)
             before = inspect_blend(assembly)
+            dependency = before["world"]["images"]["Sentinel External Image"]
+            self.assertEqual(
+                dependency["stored_filepath"],
+                "//lookdev_assets/sentinel_texture.png",
+            )
+            self.assertEqual(
+                Path(dependency["resolved_filepath"]), external_image
+            )
+            self.assertTrue(dependency["exists"])
+            self.assertFalse(dependency["packed"])
 
             second = run_pipeline(output)
             self.assertEqual(second.returncode, 0, second.stdout)
@@ -435,22 +511,37 @@ class BlenderFinishIntegrationTest(unittest.TestCase):
                 if line.startswith(marker)
             ]
             self.assertEqual(len(opened), 1, second.stdout)
-            self.assertEqual(
-                opened[0].name, "pocket_card_complete_source.blend"
-            )
-            self.assertTrue(
-                opened[0].parent.name.startswith(".pocket-card-finish-")
-            )
-            self.assertEqual(opened[0].parent.parent, output.resolve())
+            self.assertTrue(opened[0].name.startswith(".pocket_card_complete."))
+            self.assertTrue(opened[0].name.endswith(".source.blend"))
+            self.assertEqual(opened[0].parent, output.resolve())
             self.assertNotEqual(opened[0], assembly.resolve())
+            self.assertFalse(opened[0].exists())
+            self.assertFalse(
+                list(output.glob(".pocket_card_complete.*.blend"))
+            )
+            working_resource = (
+                opened[0].parent
+                / dependency["stored_filepath"].removeprefix("//")
+            ).resolve()
+            self.assertEqual(working_resource, external_image)
             after = inspect_blend(assembly)
+            dependency = after["world"]["images"]["Sentinel External Image"]
+            self.assertEqual(
+                dependency["stored_filepath"],
+                "//lookdev_assets/sentinel_texture.png",
+            )
+            self.assertEqual(
+                Path(dependency["resolved_filepath"]), external_image
+            )
+            self.assertTrue(dependency["exists"])
+            self.assertFalse(dependency["packed"])
 
             for key in (
                 "collections", "collection_children", "objects", "materials",
                 "transforms", "modifiers", "memberships", "world_matrices",
                 "parents", "custom_properties", "display_transform",
                 "display_material_count", "display_images", "scene", "world",
-                "cameras", "lights",
+                "cameras", "lights", "relative_resources",
             ):
                 self.assertEqual(after[key], before[key], key)
 
@@ -462,7 +553,41 @@ class BlenderFinishIntegrationTest(unittest.TestCase):
 
             for name, data_name in before["mesh_data_names"].items():
                 if name not in SHELL_OBJECTS:
-                    self.assertEqual(after["mesh_data_names"][name], data_name, name)
+                    self.assertEqual(
+                        after["mesh_data_names"][name], data_name, name
+                    )
+
+    def test_authored_assembly_keeps_existing_relative_resource_paths(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp)
+            assembly = output / "pocket_card_complete.blend"
+            shutil.copy2(CASE / "out/order/pocket_card_complete.blend", assembly)
+            before = inspect_blend(assembly)["relative_resources"]
+            self.assertTrue(any(before.values()), before)
+
+            result = run_pipeline(output)
+            self.assertEqual(result.returncode, 0, result.stdout)
+            after = inspect_blend(assembly)["relative_resources"]
+            self.assertEqual(after, before)
+
+    def test_invalid_existing_assembly_preserves_outputs_and_cleans_staging(self):
+        sentinels = {
+            "shell_front_embossed.stl": b"old-front",
+            "shell_back_embossed.stl": b"old-back",
+            "pocket_card_complete.blend": b"invalid-old-blend",
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp)
+            for name, contents in sentinels.items():
+                (output / name).write_bytes(contents)
+
+            result = run_pipeline(output)
+            self.assertNotEqual(result.returncode, 0, result.stdout)
+            for name, contents in sentinels.items():
+                self.assertEqual((output / name).read_bytes(), contents)
+            self.assertFalse(
+                list(output.glob(".pocket_card_complete.*.blend"))
+            )
 
     def test_missing_input_preserves_previous_outputs(self):
         sentinels = {
