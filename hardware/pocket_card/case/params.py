@@ -416,7 +416,52 @@ LOWER_ZONE_T = PCB_FRONT_Z + PCB_T + PET_T + CELL_T + CELL_SWELL + WALL
 UPPER_ZONE_T = MODULE_Z + MOD_FRONT_STACK + MOD_REAR_TYPICAL + 0.3 + WALL   # 12.80
 BODY_T       = max(LOWER_ZONE_T, UPPER_ZONE_T)
 
+# ------------------------------------------------------ rear display deck ----
+# Authored display transform in pocket_card_complete.blend places this component
+# at x 34.5476..42.1976, y 41.2781..44.8781, z -12.2148..-7.5148.
+DISPLAY_PLUG_BODY_L = 7.65
+DISPLAY_PLUG_BODY_W = 3.70
+DISPLAY_PLUG_X = 38.3726
+DISPLAY_PLUG_Y = 43.0781
+DISPLAY_PLUG_CLEAR = 0.40
+DISPLAY_PLUG_MATED_H = 5.70
+DISPLAY_PLUG_CABLE = 0.80
+DISPLAY_PLUG_ROLL_ALLOWANCE = 0.20
+
+DECK_ZONE_T = (
+    MODULE_Z + MOD_FRONT_STACK + DISPLAY_PLUG_MATED_H
+    + DISPLAY_PLUG_CABLE + DISPLAY_PLUG_ROLL_ALLOWANCE + WALL
+)
+DECK_H = round(DECK_ZONE_T - BODY_T, 3)  # unchanged: 2.40 mm
+DECK_FLOOR_Z = -DECK_ZONE_T + WALL
+
+DECK_PLATEAU_Y0 = (
+    DISPLAY_PLUG_Y - DISPLAY_PLUG_BODY_W / 2
+    - DISPLAY_PLUG_CLEAR - WALL
+)
+DECK_PLATEAU_Y1 = (
+    DISPLAY_PLUG_Y + DISPLAY_PLUG_BODY_W / 2
+    + DISPLAY_PLUG_CLEAR + WALL
+)
+
+# Preserve the established rounded-shoulder slope.
+DECK_RISE_PHI = 22.0
+_deck_rise_p = _math.radians(DECK_RISE_PHI)
+DECK_RISE_R = DECK_H / (2 * (1 - _math.cos(_deck_rise_p)))
+DECK_RISE_RUN = 2 * DECK_RISE_R * _math.sin(_deck_rise_p)
+DECK_RISE_Y0 = DECK_PLATEAU_Y0 - DECK_RISE_RUN
+
+# Use all remaining length for a tangent lower return.
+DECK_TAPER_Y0 = DECK_PLATEAU_Y1
+DECK_TAPER_Y1 = BODY_H
+DECK_TAPER_RUN = DECK_TAPER_Y1 - DECK_TAPER_Y0
+DECK_TAPER_PHI = _math.degrees(2 * _math.atan(DECK_H / DECK_TAPER_RUN))
+_deck_taper_p = _math.radians(DECK_TAPER_PHI)
+DECK_TAPER_R = DECK_H / (2 * (1 - _math.cos(_deck_taper_p)))
+
 # --------------------------------------------------------- north-edge rib ----
+# Compatibility values below remain on the old north-edge placement until
+# side_arc.py, shell_back.py, and checks.py migrate; remove this block in Task 4.
 # The module's battery header is a vertical Molex PicoBlade 53398-0271: 4.70
 # tall bare, 5.70 with the 51021 crimp housing on it. BODY_T is 13.30, set by
 # the cell in the south half, and the flat tray leaves 4.24 under the module —
