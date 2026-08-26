@@ -85,18 +85,24 @@ def vol(shape):
     return shape.val().Volume() / 1000.0      # mm^3 -> cm^3
 
 
+def build_shells():
+    """Build the fixed shells and refresh every published rear-shell alias."""
+    front = shell_front.build()
+    cq.exporters.export(front, os.path.join(OUT, "shell_front.stl"))
+    back = shell_back.build_back()
+    shell_back.export_published_rear_shell(back)
+    return front, back
+
+
 def main():
     total = 0.0
     lines = []
 
-    front = shell_front.build()
-    cq.exporters.export(front, os.path.join(OUT, "shell_front.stl"))
+    front, back = build_shells()
     v = vol(front)
     total += v
     lines.append(f"shell_front.stl                 {v:6.1f} cm3   x1")
 
-    back = shell_back.build_back()
-    cq.exporters.export(back, os.path.join(OUT, "shell_back.stl"))
     v = vol(back)
     total += v
     lines.append(f"shell_back.stl                  {v:6.1f} cm3   x1")

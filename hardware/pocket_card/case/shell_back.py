@@ -20,6 +20,27 @@ import side_arc
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "out")
 os.makedirs(OUT, exist_ok=True)
 
+
+def published_rear_shell_paths(out=OUT):
+    """Canonical STL/STEP destinations for the published rear shell."""
+    order = os.path.join(out, "order")
+    return (
+        os.path.join(out, "shell_back.stl"),
+        os.path.join(out, "shell_back.step"),
+        os.path.join(order, "shell_back.stl"),
+        os.path.join(order, "shell_back.step"),
+    )
+
+
+def export_published_rear_shell(back, out=OUT):
+    """Export one built rear shell to every published STL/STEP alias."""
+    paths = published_rear_shell_paths(out)
+    for path in paths:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        cq.exporters.export(back, path)
+    return paths
+
+
 CORNER_R = 4.5
 SHELL_DEPTH = P.BODY_T - P.LID_T       # front shell ends here
 LID_Z0 = -P.BODY_T                     # outer back surface
@@ -297,14 +318,10 @@ def pcb_outline_wire():
 
 if __name__ == "__main__":
     back = build_back()
-    order = os.path.join(OUT, "order")
-    os.makedirs(order, exist_ok=True)
-    for folder in (OUT, order):
-        cq.exporters.export(back, os.path.join(folder, "shell_back.stl"))
-        cq.exporters.export(back, os.path.join(folder, "shell_back.step"))
+    export_published_rear_shell(back)
     bb = back.val().BoundingBox()
     print(f"shell_back   {bb.xlen:.2f} x {bb.ylen:.2f} x {bb.zlen:.2f}")
-    print(f"  wrote out/shell_back.stl and out/order/shell_back.stl")
+    print("  wrote root/order shell_back STL and STEP aliases")
     print(f"  battery fence  {P.CELL_W} x {P.CELL_H} cell at "
           f"({P.BATT_X}, {P.BATT_Y}), {P.BATT_CLEAR} clearance")
 
