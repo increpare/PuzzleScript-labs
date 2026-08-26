@@ -418,7 +418,9 @@ BODY_T       = max(LOWER_ZONE_T, UPPER_ZONE_T)
 
 # ------------------------------------------------------ rear display deck ----
 # Authored display transform in pocket_card_complete.blend places this component
-# at x 34.5476..42.1976, y 41.2781..44.8781, z -12.2148..-7.5148.
+# at measured mesh bounds x 34.5476..42.1976, y 41.2781..44.8781,
+# z -12.2148..-7.5148. The 3.70 mm width below is the conservative
+# nominal/datasheet envelope (0.05 mm beyond each measured mesh side).
 DISPLAY_PLUG_BODY_L = 7.65
 DISPLAY_PLUG_BODY_W = 3.70
 DISPLAY_PLUG_X = 38.3726
