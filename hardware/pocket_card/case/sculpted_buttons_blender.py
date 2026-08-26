@@ -154,10 +154,14 @@ def main(argv=None):
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     bpy.context.preferences.filepaths.save_version = 0
+    output = args.output.resolve()
+    # Keep authored // strings exact in place, but preserve their resolved
+    # resources when the documented comparison output changes directories.
+    remap_relative_paths = output.parent != source.parent
     result = bpy.ops.wm.save_as_mainfile(
-        filepath=str(args.output.resolve()),
+        filepath=str(output),
         check_existing=False,
-        relative_remap=False,
+        relative_remap=remap_relative_paths,
     )
     if "FINISHED" not in result or not args.output.is_file():
         raise RuntimeError(f"failed to save assembled blend: {args.output}")

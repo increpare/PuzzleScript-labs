@@ -130,6 +130,21 @@ class SculptedButtonGeometryTest(unittest.TestCase):
 class SculptedButtonBlenderIntegrationTest(unittest.TestCase):
     maxDiff = None
 
+    def assert_mesh_replacement_preserved_objects(self, before, after):
+        for name, mesh_hash in before["mesh_hashes"].items():
+            if name in sbb.BUTTON_NAMES:
+                self.assertNotEqual(after["mesh_hashes"][name], mesh_hash, name)
+                self.assertEqual(
+                    after["mesh_data_names"][name], f"{name}_sculpted_mesh"
+                )
+            else:
+                self.assertEqual(after["mesh_hashes"][name], mesh_hash, name)
+                self.assertEqual(
+                    after["mesh_data_names"][name],
+                    before["mesh_data_names"][name],
+                    name,
+                )
+
     def test_replacement_preserves_authored_button_objects_and_scene(self):
         with TemporaryDirectory() as tmp:
             temporary = Path(tmp)
@@ -139,7 +154,9 @@ class SculptedButtonBlenderIntegrationTest(unittest.TestCase):
             buttons_dir.mkdir()
             shutil.copy2(COMPLETE, source)
             for name in sbb.BUTTON_NAMES:
-                shutil.copy2(PREVIEW / f"{name}.stl", buttons_dir / f"{name}.stl")
+                shutil.copy2(
+                    PREVIEW / f"{name}.stl", buttons_dir / f"{name}.stl"
+                )
 
             author_preservation_sentinels(source)
             source_hash = sha256(source)
@@ -159,19 +176,68 @@ class SculptedButtonBlenderIntegrationTest(unittest.TestCase):
             ):
                 self.assertEqual(after[key], before[key], key)
 
-            for name, mesh_hash in before["mesh_hashes"].items():
-                if name in sbb.BUTTON_NAMES:
-                    self.assertNotEqual(after["mesh_hashes"][name], mesh_hash, name)
-                    self.assertEqual(
-                        after["mesh_data_names"][name], f"{name}_sculpted_mesh"
-                    )
-                else:
-                    self.assertEqual(after["mesh_hashes"][name], mesh_hash, name)
-                    self.assertEqual(
-                        after["mesh_data_names"][name],
-                        before["mesh_data_names"][name],
-                        name,
-                    )
+            self.assert_mesh_replacement_preserved_objects(before, after)
+
+    def test_different_output_parent_remaps_relative_resources(self):
+        with TemporaryDirectory() as tmp:
+            temporary = Path(tmp)
+            source = temporary / "order/pocket_card_complete.blend"
+            output = temporary / "sculpted/pocket_card_complete.blend"
+            buttons_dir = temporary / "placed"
+            source.parent.mkdir()
+            buttons_dir.mkdir()
+            shutil.copy2(COMPLETE, source)
+            for name in sbb.BUTTON_NAMES:
+                shutil.copy2(
+                    PREVIEW / f"{name}.stl", buttons_dir / f"{name}.stl"
+                )
+
+            external_image = author_preservation_sentinels(source)
+            source_hash = sha256(source)
+            image_hash = sha256(external_image)
+            before = inspect_blend(source)
+            before_dependency = before["world"]["images"][
+                "Sentinel External Image"
+            ]
+            self.assertEqual(
+                before_dependency["stored_filepath"],
+                "//lookdev_assets/sentinel_texture.png",
+            )
+            self.assertEqual(
+                Path(before_dependency["resolved_filepath"]), external_image
+            )
+
+            result = run_sculpted_replacement(source, buttons_dir, output)
+            self.assertEqual(result.returncode, 0, result.stdout)
+            self.assertEqual(sha256(source), source_hash)
+            self.assertEqual(sha256(external_image), image_hash)
+            after = inspect_blend(output)
+
+            for key in (
+                "collections", "collection_children", "objects", "materials",
+                "transforms", "modifiers", "memberships", "world_matrices",
+                "parents", "custom_properties", "display_transform",
+                "display_material_count", "display_images", "scene",
+                "cameras", "lights",
+            ):
+                self.assertEqual(after[key], before[key], key)
+            for key, value in before["world"].items():
+                if key != "images":
+                    self.assertEqual(after["world"][key], value, key)
+
+            after_dependency = after["world"]["images"][
+                "Sentinel External Image"
+            ]
+            self.assertNotEqual(
+                after_dependency["stored_filepath"],
+                before_dependency["stored_filepath"],
+            )
+            self.assertEqual(
+                Path(after_dependency["resolved_filepath"]), external_image
+            )
+            self.assertTrue(after_dependency["exists"])
+            self.assertFalse(after_dependency["packed"])
+            self.assert_mesh_replacement_preserved_objects(before, after)
 
 
 if __name__ == "__main__":
