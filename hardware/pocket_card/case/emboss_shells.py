@@ -562,6 +562,12 @@ def update_existing_assembly(
     result = bpy.ops.wm.open_mainfile(filepath=str(source))
     if "FINISHED" not in result:
         raise FinishError(f"failed to open existing assembly: {source}")
+    opened_source = Path(bpy.data.filepath).resolve()
+    if opened_source != source.resolve():
+        raise FinishError(
+            f"opened assembly source {opened_source}, expected {source.resolve()}"
+        )
+    print(f"FINISH opened staged assembly source: {opened_source}")
 
     targets = {}
     for name in ("shell_front_embossed", "shell_back_embossed"):
@@ -601,8 +607,13 @@ def update_existing_assembly(
 def build_assembly(paths, staged_front, staged_back, staged_blend):
     existing = paths.output / "pocket_card_complete.blend"
     if existing.is_file():
+        staged_source = staged_blend.with_name(
+            "pocket_card_complete_source.blend"
+        )
+        shutil.copy2(existing, staged_source)
+        require_file(staged_source, "staged existing assembly")
         update_existing_assembly(
-            existing, staged_front, staged_back, staged_blend
+            staged_source, staged_front, staged_back, staged_blend
         )
     else:
         build_clean_assembly(

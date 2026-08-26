@@ -428,6 +428,21 @@ class BlenderFinishIntegrationTest(unittest.TestCase):
 
             second = run_pipeline(output)
             self.assertEqual(second.returncode, 0, second.stdout)
+            marker = "FINISH opened staged assembly source: "
+            opened = [
+                Path(line[len(marker):])
+                for line in second.stdout.splitlines()
+                if line.startswith(marker)
+            ]
+            self.assertEqual(len(opened), 1, second.stdout)
+            self.assertEqual(
+                opened[0].name, "pocket_card_complete_source.blend"
+            )
+            self.assertTrue(
+                opened[0].parent.name.startswith(".pocket-card-finish-")
+            )
+            self.assertEqual(opened[0].parent.parent, output.resolve())
+            self.assertNotEqual(opened[0], assembly.resolve())
             after = inspect_blend(assembly)
 
             for key in (
