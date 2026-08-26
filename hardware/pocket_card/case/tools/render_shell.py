@@ -20,10 +20,10 @@ CASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(CASE, "out", "render_shell.png")
 
 # These files are in MODEL space, not layout space: shell_*.to_model_space
-# mirrors about XZ, so model y = BODY_H - layout y and the north edge (layout
-# y = 0, where the rib is) sits at model y = 93. Worth stating because reading
-# a render with the layout frame in mind puts the rib at the wrong end and
-# invites you to go hunting for a defect that is not there.
+# mirrors about XZ, so model y = BODY_H - layout y. The display-plug deck lies
+# around layout y=43 (model y=50), then tapers toward model y=0 at the bottom.
+# Worth stating because reading the render in the layout frame reverses the
+# direction of the lower return.
 #
 # Camera azimuth/elevation, screen-up reference, specular, caption. Elevation
 # 90 looks straight at the outer back (which faces -z); azimuth 90 puts the
@@ -32,10 +32,10 @@ OUT = os.path.join(CASE, "out", "render_shell.png")
 # elevation, where +z (the front face) is what should be up.
 NORTH_UP, FRONT_UP = (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)
 VIEWS = [
-    (0.0, 90.0, NORTH_UP, False, "outer back, north (rib) at top"),
-    (-40.0, 30.0, FRONT_UP, False, "three-quarter from behind, rib edge nearest"),
-    (90.0, 0.0, FRONT_UP, False, "east elevation — north at right"),
-    (0.0, 90.0, NORTH_UP, True, "specular — a kink in the band is a bad blend"),
+    (0.0, 90.0, NORTH_UP, False, "outer back — thin screen zone at top"),
+    (-40.0, 30.0, FRONT_UP, False, "three-quarter — rounded lower-deck step"),
+    (90.0, 0.0, FRONT_UP, False, "east elevation — gentle return to bottom"),
+    (0.0, 90.0, NORTH_UP, True, "specular — transitions should remain tangent"),
 ]
 
 

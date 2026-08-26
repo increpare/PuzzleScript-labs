@@ -195,21 +195,29 @@ def write_bom(output_dir: str | Path = OUT) -> str:
 def write_hardware_bom(output_dir: str | Path | None = None) -> str:
     """Case assembly fasteners — not SMT, not for JLCPCB.
 
-    The north rib deepened two module screw seats, so M2×10 is needed there
-    and M2×8 elsewhere. Sourced from params.SCREW_*.
+    Rear-seat depths vary with the lower deck.  Group the per-joint selections
+    by actual stocked length rather than assuming a north/south split.
     """
     output = Path(output_dir) if output_dir is not None else HERE / "out"
     output.mkdir(parents=True, exist_ok=True)
     out = output / "hardware_BOM.csv"
+    # The electronics exporter imports this module under system Python, where
+    # CadQuery is intentionally absent. Screw selection needs the real rear
+    # envelope, so defer the CadQuery-backed joints import until this case-only
+    # BOM is actually requested (normally from the case venv).
+    if __package__:
+        from . import joints
+    else:
+        import joints
     rows = []
-    for key, spec in (("SCREW_NORTH", P.SCREW_NORTH),
-                      ("SCREW_SOUTH", P.SCREW_SOUTH)):
-        sites = ";".join("(%g,%g)" % xy for xy in spec["sites"])
+    for length, selections in joints.screw_length_groups().items():
+        key = "SCREW_M2X%g" % length
+        sites = ";".join("(%g,%g)" % (s.x, s.y) for s in selections)
         rows.append([
-            spec["mpn"],
+            "M2x%g pan self-tap" % length,
             key,
-            spec["qty"],
-            "%.1f" % spec["length"],
+            len(selections),
+            "%.1f" % length,
             "M2 pan-head self-tap into Ø1.7 pilot",
             sites,
         ])

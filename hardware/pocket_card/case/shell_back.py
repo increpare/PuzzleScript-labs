@@ -24,11 +24,12 @@ CORNER_R = 4.5
 SHELL_DEPTH = P.BODY_T - P.LID_T       # front shell ends here
 LID_Z0 = -P.BODY_T                     # outer back surface
 LID_Z1 = -SHELL_DEPTH                  # meets the front shell
-RIB_Z0 = -P.RIB_ZONE_T                 # outer back inside the north rib
+DECK_Z0 = -P.DECK_ZONE_T               # deepest outer back on the lower deck
 # Inner face of the back floor (WALL thick). Internal ribs rise from here.
-# The rib's own floor is P.RIB_FLOOR_Z, RIB_H lower; nothing but the module's
-# battery header lives down there, so internals still rise from FLOOR_Z.
-FLOOR_Z = LID_Z0 + P.WALL
+# Start internals at the deepest deck floor, then clip them to the profiled
+# envelope.  Using the nominal floor left pads/backstops floating wherever the
+# lower taper moved the real floor away from them.
+FLOOR_Z = P.DECK_FLOOR_Z
 # Split-line lap geometry (LAP_*) lives in params.py — the front shell cuts
 # the matching rebate from the same numbers.
 # Screw shaft/head/land geometry lives in joints.py (single spec per site).
@@ -73,14 +74,14 @@ def split_tongue():
 def lid():
     """Hollow tray: shaped outer band, WALL floor/sides, open at the split.
 
-    Both the band and the void run to the rib's depth rather than BODY_T. The
-    envelope already carries the rib, so a void taken from RIB_FLOOR_Z is the
-    flat tray everywhere the rib is absent and the connector pocket where it is
-    not — the pocket needs no separate feature, and cannot drift from the skin.
+    Both the band and void span the lower deck's maximum depth.  The profiled
+    envelope clips them locally, so a void taken from DECK_FLOOR_Z follows the
+    thin upper plane, full plug plateau, and gentle lower return without a
+    separate pocket that could drift away from the exterior.
     """
-    body = side_arc.shaped_outer_band(RIB_Z0, LID_Z1, CORNER_R)
+    body = side_arc.shaped_outer_band(DECK_Z0, LID_Z1, CORNER_R)
     # Void from above the floor through the open face (into the front a hair).
-    cav = side_arc.shaped_cavity_xy(P.WALL, P.RIB_FLOOR_Z, LID_Z1 + 0.5, CORNER_R)
+    cav = side_arc.shaped_cavity_xy(P.WALL, P.DECK_FLOOR_Z, LID_Z1 + 0.5, CORNER_R)
     body = body.cut(cav)
     return body.union(split_tongue())
 
@@ -232,7 +233,7 @@ def interior_crop():
     shut. Straight, not rolled: the roll only opens the front wall away from
     this line as z rises, so the split section bounds the whole climb.
     """
-    below = side_arc.shaped_cavity_xy(0.0, RIB_Z0 - 1.0, LID_Z1, CORNER_R)
+    below = side_arc.shaped_cavity_xy(0.0, DECK_Z0 - 1.0, LID_Z1, CORNER_R)
     above = side_arc.section_prism(P.WALL, LID_Z1, LID_Z1 - 0.1, -P.FACE_T)
     return below.union(above)
 

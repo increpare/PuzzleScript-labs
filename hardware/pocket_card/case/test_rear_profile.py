@@ -2,10 +2,13 @@ import os
 import sys
 import unittest
 
+import numpy as np
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
 import params as P  # noqa: E402
+import checks  # noqa: E402
 import side_arc  # noqa: E402
 
 
@@ -80,6 +83,44 @@ class RearDeckEnvelopeTest(unittest.TestCase):
         self.assertAlmostEqual(z_plug, -P.DECK_ZONE_T, delta=0.03)
         self.assertGreater(z_lower, z_plug)
         self.assertLess(z_lower, z_top)
+
+
+class RearDeckCheckContractTest(unittest.TestCase):
+    def test_back_shell_check_reads_the_canonical_order_stl(self):
+        self.assertEqual(
+            checks.back_shell_stl_path(),
+            os.path.join(HERE, "out", "order", "shell_back.stl"),
+        )
+
+    def test_vertex_allowance_is_evaluated_at_each_layout_y(self):
+        # Both vertices are shallower than the deck's global maximum.  The
+        # first is nevertheless illegal because it sits in the normal-depth
+        # upper screen region; a global z-min check cannot catch that.
+        vertices = np.array([
+            [P.BODY_W / 2, P.BODY_H - 24.0, -P.BODY_T - 0.05],
+            [P.BODY_W / 2, P.BODY_H - P.DISPLAY_PLUG_Y,
+             -P.DECK_ZONE_T],
+        ])
+        bad = checks.back_shell_vertex_violations(vertices)
+        self.assertEqual(len(bad), 1)
+        self.assertAlmostEqual(bad[0][0], 24.0)
+
+    def test_transition_sampler_covers_rise_and_taper_at_point_one_mm(self):
+        rise = checks.rear_deck_transition_metrics(
+            P.DECK_RISE_Y0, P.DECK_PLATEAU_Y0, increasing=True)
+        taper = checks.rear_deck_transition_metrics(
+            P.DECK_PLATEAU_Y1, P.DECK_TAPER_Y1, increasing=False)
+
+        self.assertAlmostEqual(rise["step"], 0.1)
+        self.assertAlmostEqual(taper["step"], 0.1)
+        self.assertTrue(rise["monotonic"])
+        self.assertTrue(taper["monotonic"])
+        self.assertLessEqual(rise["max_slope_deg"], P.DECK_RISE_PHI + 0.5)
+        self.assertLessEqual(taper["max_slope_deg"], P.DECK_TAPER_PHI + 0.5)
+        self.assertAlmostEqual(rise["start_depth"], 0.0, places=7)
+        self.assertAlmostEqual(rise["end_depth"], P.DECK_H, places=7)
+        self.assertAlmostEqual(taper["start_depth"], P.DECK_H, places=7)
+        self.assertAlmostEqual(taper["end_depth"], 0.0, places=7)
 
 
 if __name__ == "__main__":

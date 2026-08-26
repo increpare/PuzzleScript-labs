@@ -172,14 +172,17 @@ Writes `out/pcb/BOM.csv` + `out/pcb/CPL.csv`, and the case-assembly fastener
 list `out/hardware_BOM.csv`. Upload the SMT pair with
 `out/pcb/pocket_card_controller_gerbers.zip`.
 
-Case screws (self-tap into the Ø1.7 pilots; the north rib needs a longer pair):
+Case screws are selected from stocked M2×8 / ×10 / ×12 pan-head self-tappers.
+Each screw bridges its profile-aware rear seat to the Ø1.7 front-shell pilot
+and retains at least 2.5 mm of thread engagement:
 
 | Qty | Part | Sites |
 |---|---|---|
-| 2 | M2×10 pan self-tap | north module mounts `(6, 6.5)`, `(84, 6.5)` |
-| 4 | M2×8 pan self-tap | south module + both PCB mounts |
+| 3 | M2×8 pan self-tap | module `(6, 6.5)`, `(84, 6.5)`; PCB `(66, 84)` |
+| 3 | M2×10 pan self-tap | module `(6, 48.5)`, `(84, 48.5)`; PCB `(64.5, 56)` |
 
-Constants: `params.SCREW_NORTH` / `SCREW_SOUTH`.
+Selection and derived length groups: `joints.selected_screws()` /
+`joints.screw_length_groups()`.
 
 Connector populate (land stays KiCad JST GH; parts are GH-compatible XUNPU
 wafers — genuine JST often OOS):

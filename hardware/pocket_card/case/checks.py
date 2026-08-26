@@ -33,6 +33,60 @@ def load_tris(path):
                      for i in range(n)]).reshape(n, 3, 3)
 
 
+def back_shell_stl_path():
+    """Canonical shell produced by build_variants.py and shipped for order."""
+    return os.path.join(OUT, "order", "shell_back.stl")
+
+
+def back_shell_vertex_violations(vertices):
+    """Vertices deeper than the rear profile permits at their own Y."""
+    import side_arc
+
+    flat = np.asarray(vertices, dtype=float).reshape(-1, 3)
+    bad = []
+    for _, y_model, z in flat:
+        y_layout = P.BODY_H - y_model
+        allowed_z = -(P.BODY_T + side_arc.rear_deck_extra_at(y_layout)) - 0.02
+        if z < allowed_z:
+            bad.append((float(y_layout), float(z), float(allowed_z)))
+    return bad
+
+
+def _profile_sample_ys(y0, y1, step=0.1):
+    """Inclusive transition samples, maintaining 0.1 mm nominal spacing."""
+    count = int(math.floor((y1 - y0) / step + 1e-9))
+    ys = [y0 + i * step for i in range(count + 1)]
+    if ys[-1] < y1 - 1e-9:
+        ys.append(y1)
+    else:
+        ys[-1] = y1
+    return ys
+
+
+def rear_deck_transition_metrics(y0, y1, *, increasing, step=0.1):
+    """Scalar continuity, monotonicity, and steepest slope on one transition."""
+    import side_arc
+
+    ys = _profile_sample_ys(float(y0), float(y1), float(step))
+    depths = [side_arc.rear_deck_extra_at(y) for y in ys]
+    tol = 1e-9
+    if increasing:
+        monotonic = all(a <= b + tol for a, b in zip(depths, depths[1:]))
+    else:
+        monotonic = all(a + tol >= b for a, b in zip(depths, depths[1:]))
+    slopes = [
+        math.degrees(math.atan(abs(b - a) / (yb - ya)))
+        for a, b, ya, yb in zip(depths, depths[1:], ys, ys[1:])
+    ]
+    return {
+        "step": float(step),
+        "monotonic": monotonic,
+        "max_slope_deg": max(slopes, default=0.0),
+        "start_depth": depths[0],
+        "end_depth": depths[-1],
+    }
+
+
 def raster_xy(tri):
     """Top-down occupancy: which (x, y) cells have any material at all."""
     x0, x1 = tri[:, :, 0].min(), tri[:, :, 0].max()
@@ -660,29 +714,20 @@ def check_back_shell():
     the posts were widened to Ø4.2 for the corner bosses, which cannot pass
     through the module's Ø3.2 holes at all. A render shows neither.
     """
-    path = os.path.join(OUT, "shell_back.stl")
+    path = back_shell_stl_path()
     if not os.path.exists(path):
         return
     print("\nback shell")
     tri = load_tris(path)
-    zmin = float(tri[:, :, 2].min())
-    ok = zmin >= -P.RIB_ZONE_T - 0.02
-    print(f"   {'PASS' if ok else 'FAIL'}  nothing proud of the back    "
-          f"min z = {zmin:.2f} (deepest skin {-P.RIB_ZONE_T:.2f}, in the rib)")
+    bad = back_shell_vertex_violations(tri)
+    ok = not bad
+    worst = min((z - allowed for _, z, allowed in bad), default=0.0)
+    print(f"   {'PASS' if ok else 'FAIL'}  every vertex stays inside its local "
+          f"rear-deck allowance ({len(bad)} violations, worst {worst:.3f} mm)")
+    for y, z, allowed in bad[:5]:
+        print(f"          layout y={y:.2f}: z={z:.3f}, allowed >= {allowed:.3f}")
     if not ok:
-        FAILURES.append("feature proud of back")
-
-    # The rib is the only licence to pass BODY_T, and only where it actually
-    # is. Checking the global minimum alone would let a wrong-way extrusion
-    # anywhere on the shell hide behind the rib's allowance.
-    y_rib = P.BODY_H - P.RIB_Y2      # layout y is mirrored in the STL
-    outside = tri[(tri[:, :, 1] <= y_rib).all(axis=1)]
-    zmin_flat = float(outside[:, :, 2].min())
-    ok = zmin_flat >= -P.BODY_T - 0.02
-    print(f"   {'PASS' if ok else 'FAIL'}  and nothing past {-P.BODY_T:.2f} "
-          f"outside the rib      min z = {zmin_flat:.2f}")
-    if not ok:
-        FAILURES.append("feature proud of back outside the rib")
+        FAILURES.append("feature proud of local rear profile")
 
     ok = 3.0 < P.MOUNT_HOLE_D
     print(f"   {'PASS' if ok else 'FAIL'}  post fits the module hole   "
@@ -693,7 +738,7 @@ def check_back_shell():
     pcb_front = P.MODULE_Z + P.MOD_FRONT_STACK - 1.6
     pcb_back = P.MODULE_Z + P.MOD_FRONT_STACK
     print(f"   INFO  module clamped between {pcb_front:.2f} (front-shell shoulder) "
-          f"and {pcb_back:.2f} (lid rib)")
+          f"and {pcb_back:.2f} (rear joint land)")
 
 
 _BUILT_BACK = None
@@ -816,33 +861,80 @@ def check_back_roll():
     if not ok:
         FAILURES.append("back roll flare")
 
-    # 4. the rib's blend must be a blend everywhere, not just down the middle.
-    #    It is a prism in x, so it only trims the back where the back is flat;
-    #    applied after the roll it left the side walls stepping the rib's full
-    #    height at RIB_Y2 while the centre eased in perfectly. Walking south
-    #    through the blend at every x catches that, and the tolerance is the
-    #    designed slope, so a step of any size fails wherever it hides.
-    if P.RIB_H > 1e-6:
-        step = 0.1
-        limit = math.tan(math.radians(P.RIB_BLEND_PHI)) * step + 0.005
-        worst, at = 0.0, None
-        x = 0.4
-        while x < P.BODY_W - 0.3:
-            prev, y = None, P.RIB_Y - 2.0
-            while y < P.RIB_Y2 + 2.0:
+    # 4. Both deck transitions must stay continuous and monotonic across the
+    #    real rolled surface, not merely in the analytic centreline profile.
+    #    Applying the profile after the perimeter roll once left a full-height
+    #    cliff at the sides while the centreline looked correct.
+    def scan_transition(label, y0, y1, *, increasing, designed_slope):
+        scalar = rear_deck_transition_metrics(
+            y0, y1, increasing=increasing, step=0.1)
+        limit = designed_slope + 0.5
+        expected_start = 0.0 if increasing else P.DECK_H
+        expected_end = P.DECK_H if increasing else 0.0
+        scalar_ok = (
+            scalar["monotonic"]
+            and scalar["max_slope_deg"] <= limit + 1e-9
+            and abs(scalar["start_depth"] - expected_start) <= 1e-7
+            and abs(scalar["end_depth"] - expected_end) <= 1e-7
+        )
+
+        # The deck's scalar contract runs all the way to BODY_H.  The finished
+        # surface check stops where the independent south perimeter roll starts:
+        # that pre-existing roll deliberately turns the surface toward vertical
+        # over its last BACK_ROLL_S millimetres, so its slope is not the deck
+        # taper's slope.  The separate edge-roll checks above own that region.
+        surface_y1 = min(y1, P.BODY_H - P.BACK_ROLL_S)
+        ys = _profile_sample_ys(y0, surface_y1, 0.1)
+        # Stay on the back field rather than measuring the side torus.  The
+        # lower transition enters the R12 plan corners, whose perimeter roll
+        # also changes Z with Y; inset by that plan radius to keep the sampled
+        # width on the deck surface itself.
+        x_margin = P.BACK_ROLL_SIDE + 0.4
+        if surface_y1 > P.BODY_H - P.CASE_BOTTOM_R:
+            x_margin = max(x_margin, P.CASE_BOTTOM_R + 0.4)
+        worst_slope, at = 0.0, None
+        surface_monotonic = True
+        samples = 0
+        x = x_margin
+        while x < P.BODY_W - x_margin + 0.1:
+            prev = None
+            for y in ys:
                 cur = side_arc.outer_back_z_opt(x, y)
-                if cur is not None and prev is not None:
-                    if abs(cur - prev) > worst:
-                        worst, at = abs(cur - prev), (round(x, 1), round(y, 1))
-                prev = cur
-                y += step
+                if cur is None:
+                    prev = None
+                    continue
+                if prev is not None:
+                    py, pz = prev
+                    dz = cur - pz
+                    if increasing and dz > 0.005:
+                        surface_monotonic = False
+                    if not increasing and dz < -0.005:
+                        surface_monotonic = False
+                    slope = math.degrees(math.atan(abs(dz) / (y - py)))
+                    if slope > worst_slope:
+                        worst_slope, at = slope, (round(x, 1), round(y, 1))
+                    samples += 1
+                prev = (y, cur)
             x += 0.5
-        ok = worst <= limit
-        print(f"   {'PASS' if ok else 'FAIL'}  rib blend is smooth across the "
-              f"full width (steepest {math.degrees(math.atan(worst/step)):.1f} "
-              f"deg at {at}, designed {P.RIB_BLEND_PHI:.0f})")
+        surface_ok = (surface_monotonic and worst_slope <= limit + 1e-9
+                      and samples > 0)
+        ok = scalar_ok and surface_ok
+        print(f"   {'PASS' if ok else 'FAIL'}  deck {label} continuous and "
+              f"{'deepens' if increasing else 'returns'} every 0.1 mm; scalar "
+              f"{scalar['max_slope_deg']:.2f} deg through y={y1:.2f}, "
+              f"surface {worst_slope:.2f} deg at {at} through "
+              f"y={surface_y1:.2f}, x={x_margin:.1f}.."
+              f"{P.BODY_W-x_margin:.1f} (limit {limit:.2f})")
         if not ok:
-            FAILURES.append("rib blend steps at the sides")
+            FAILURES.append(f"rear deck {label} transition")
+
+    if P.DECK_H > 1e-6:
+        scan_transition(
+            "rise", P.DECK_RISE_Y0, P.DECK_PLATEAU_Y0,
+            increasing=True, designed_slope=P.DECK_RISE_PHI)
+        scan_transition(
+            "taper", P.DECK_PLATEAU_Y1, P.DECK_TAPER_Y1,
+            increasing=False, designed_slope=P.DECK_TAPER_PHI)
 
     # 5. torus sanity: a roll wider than its plan corner self-intersects
     for lbl, plan, roll in (("top", P.CASE_TOP_R, max(P.BACK_ROLL_N, P.BACK_ROLL_SIDE)),
@@ -896,18 +988,15 @@ def check_module_outline():
         FAILURES.append("module overlaps the controller board")
 
 
-def check_bat_header():
-    """The module's vertical battery header, and the rib that makes room for it.
+def check_display_plug():
+    """The outward-facing display plug and the lower deck behind it.
 
-    This one went unnoticed for a long time because MOD_REAR_PARTS was declared
-    and never used: the flat tray left 4.24 under the module and the mated
-    connector is 5.70, so it did not merely foul the floor, it came out through
-    the back of the case by 0.04. The rib exists for this part alone, which is
-    why the part's own envelope is checked here rather than a rib dimension —
-    a rib that stops being tall enough, wide enough or far enough south all
-    show up as the same failure.
+    The old clearance was correctly budgeted but placed at the module's top
+    edge.  Probe the real shell at the assembled plug coordinates so a future
+    move in either direction cannot silently separate the cavity from the
+    connector it exists to clear.
     """
-    print("\nmodule battery header (PicoBlade 53398-0271) vs the north rib")
+    print("\ndisplay plug and cable vs the lower rear deck")
     import cadquery as cq
 
     import shell_back
@@ -917,7 +1006,8 @@ def check_bat_header():
 
     def lump(l, w, h, dx=0.0, dy=0.0):
         part = (cq.Workplane("XY").box(l, w, h, centered=(True, True, False))
-                .translate((P.BAT_X + dx, P.BAT_Y + dy, rear - h)))
+                .translate((P.DISPLAY_PLUG_X + dx,
+                            P.DISPLAY_PLUG_Y + dy, rear - h)))
         s = back.intersect(part)
         return sum(x.Volume() for x in s.solids().vals()) if s.solids().vals() else 0.0
 
@@ -926,35 +1016,43 @@ def check_bat_header():
     worst, at = 0.0, None
     for dx in (-0.3, 0.0, 0.3):
         for dy in (-0.3, 0.0, 0.3):
-            v = lump(P.BAT_BODY_L, P.BAT_BODY_W, P.BAT_MATED_H, dx, dy)
+            v = lump(P.DISPLAY_PLUG_BODY_L, P.DISPLAY_PLUG_BODY_W,
+                     P.DISPLAY_PLUG_MATED_H, dx, dy)
             if v > worst:
                 worst, at = v, (dx, dy)
     ok = worst < 1e-3
-    print(f"   {'PASS' if ok else 'FAIL'}  mated {P.BAT_BODY_L} x "
-          f"{P.BAT_BODY_W} x {P.BAT_MATED_H} clear at +/-0.3 module drift "
+    print(f"   {'PASS' if ok else 'FAIL'}  mated {P.DISPLAY_PLUG_BODY_L} x "
+          f"{P.DISPLAY_PLUG_BODY_W} x {P.DISPLAY_PLUG_MATED_H} clear at "
+          f"+/-0.3 module drift "
           f"({worst:.4f} mm^3" + (f" at {at}" if at else "") + ")")
     if not ok:
-        FAILURES.append("tray fouls the module's battery header")
+        FAILURES.append("tray fouls the display plug")
 
-    # 2. and the lead dress over it, which is what set RIB_H in the first place
-    #    — without it the rib would be 1.70 and the cable pinched flat.
-    v = lump(P.BAT_BODY_L, P.BAT_BODY_W, P.BAT_MATED_H + P.BAT_CABLE)
+    # 2. The leads leave the outward-facing plug body and need the established
+    #    extra 0.80 mm before turning away from the shell.
+    v = lump(P.DISPLAY_PLUG_BODY_L, P.DISPLAY_PLUG_BODY_W,
+             P.DISPLAY_PLUG_MATED_H + P.DISPLAY_PLUG_CABLE)
     ok = v < 1e-3
-    print(f"   {'PASS' if ok else 'FAIL'}  plus {P.BAT_CABLE} of lead dress "
+    print(f"   {'PASS' if ok else 'FAIL'}  plus {P.DISPLAY_PLUG_CABLE} of cable "
+          f"exit room "
           f"over the housing ({v:.4f} mm^3)")
     if not ok:
-        FAILURES.append("no room to dress the battery leads")
+        FAILURES.append("no room for the display-plug cable exit")
 
-    # 3. the part must lie in the rib's full-depth plateau, not on its blend.
-    south = P.BAT_Y + P.BAT_BODY_W / 2 + P.BAT_CLR + P.WALL
-    ok = south <= P.RIB_Y
-    print(f"   {'PASS' if ok else 'FAIL'}  pocket's south wall at {south:.2f} "
-          f"is inside the plateau (RIB_Y {P.RIB_Y})")
+    # 3. Both footprint ends, including clearance and the wall, must land on
+    #    the full-depth plateau rather than either transition.
+    north = (P.DISPLAY_PLUG_Y - P.DISPLAY_PLUG_BODY_W / 2
+             - P.DISPLAY_PLUG_CLEAR - P.WALL)
+    south = (P.DISPLAY_PLUG_Y + P.DISPLAY_PLUG_BODY_W / 2
+             + P.DISPLAY_PLUG_CLEAR + P.WALL)
+    ok = P.DECK_PLATEAU_Y0 <= north and south <= P.DECK_PLATEAU_Y1
+    print(f"   {'PASS' if ok else 'FAIL'}  pocket y {north:.2f}..{south:.2f} "
+          f"inside plateau {P.DECK_PLATEAU_Y0:.2f}..{P.DECK_PLATEAU_Y1:.2f}")
     if not ok:
-        FAILURES.append("battery pocket runs into the rib's blend")
+        FAILURES.append("display-plug pocket runs into a deck transition")
 
-    # 4. nothing else on the module needs the rib, which is the whole argument
-    #    for a band instead of 2.20 on the entire case.
+    # 4. Nothing else on the module needs the added depth, which is why the
+    #    upper screen region can return to the normal rear plane.
     flat = P.BODY_T - P.WALL - (P.MODULE_Z + P.MOD_FRONT_STACK)
     ok = P.MOD_REAR_TYPICAL <= flat
     print(f"   {'PASS' if ok else 'FAIL'}  the other rear parts "
@@ -1235,10 +1333,18 @@ def check_screw_joints():
 
     print("\nscrew joints (built solid)")
     solid = _back_solid_probe()
+    selections = {
+        (s.x, s.y, s.kind): s for s in joints.selected_screws()
+    }
 
     for j in joints.back_joints():
         seat = j.seat_z
         errs = []
+        selection = selections[(j.x, j.y, j.kind)]
+        if selection.engagement < joints.MIN_THREAD_ENGAGEMENT - 1e-9:
+            errs.append(
+                f"M2x{selection.length:g} engagement "
+                f"{selection.engagement:.2f} < {joints.MIN_THREAD_ENGAGEMENT:.2f}")
         # 1. pocket open: skin -> seat across the footprint
         for dx in (-0.7 * j.head_r, 0.0, 0.7 * j.head_r):
             xx = j.x + dx
@@ -1267,7 +1373,8 @@ def check_screw_joints():
             errs.append(f"land missing inboard at z={z_mid:.2f}")
         ok = not errs
         print(f"   {'PASS' if ok else 'FAIL'}  {j.kind:6} ({j.x:5.1f},{j.y:5.1f}) "
-              f"seat z={seat:6.2f} membrane>={P.MIN_MEMBRANE}")
+              f"seat z={seat:6.2f}, M2x{selection.length:g} engagement "
+              f"{selection.engagement:.2f}, membrane>={P.MIN_MEMBRANE}")
         for e in errs:
             print(f"          {e}")
         if not ok:
@@ -1769,7 +1876,7 @@ def main():
     check_driver_bond()
     check_back_roll()
     check_module_outline()
-    check_bat_header()
+    check_display_plug()
     check_split_lap()
     check_usb_port()
     check_driver_stack()

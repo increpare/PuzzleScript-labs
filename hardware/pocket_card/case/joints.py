@@ -15,6 +15,7 @@ Geometry rules (see 2026-08-03 feature-framework spec):
 Run through shell_back.py; checks in checks.py.
 """
 import math
+from dataclasses import dataclass
 
 import cadquery as cq
 
@@ -25,6 +26,42 @@ SHAFT_CLEAR_D = 2.6         # clearance for the self-tapper shank
 HEAD_D = 5.0
 HEAD_H = 1.5                # seat depth below the local outer surface
 HEAD_CLEAR = 0.15           # radial play on the head pocket
+STOCKED_SCREW_LENGTHS = (8.0, 10.0, 12.0)
+MIN_THREAD_ENGAGEMENT = 2.5
+
+
+def select_screw_length(shank_span: float,
+                        stocked_lengths=STOCKED_SCREW_LENGTHS,
+                        min_engagement: float = MIN_THREAD_ENGAGEMENT) -> float:
+    """Shortest stock screw that bridges ``shank_span`` and still bites.
+
+    Length is measured under the head, so the span starts at the rear seat and
+    ends at the entrance to the front-shell pilot.  Keeping this arithmetic
+    independent of the CAD objects makes the stock decision directly testable.
+    """
+    span = float(shank_span)
+    engagement = float(min_engagement)
+    if not math.isfinite(span) or span < 0:
+        raise ValueError(f"invalid screw shank span {shank_span!r}")
+    for length in sorted(float(v) for v in stocked_lengths):
+        if length - span >= engagement - 1e-9:
+            return length
+    raise ValueError(
+        f"no stocked screw reaches across {span:.2f} mm with "
+        f"{engagement:.2f} mm thread engagement")
+
+
+@dataclass(frozen=True)
+class ScrewSelection:
+    x: float
+    y: float
+    kind: str
+    shank_span: float
+    length: float
+
+    @property
+    def engagement(self) -> float:
+        return self.length - self.shank_span
 
 
 class ScrewJoint:
@@ -70,6 +107,16 @@ class ScrewJoint:
     def seat_z(self):
         return self.skin_range()[1] + HEAD_H
 
+    @property
+    def pilot_entry_z(self):
+        """Rear entrance of the matching pilot in the front-shell post."""
+        return -(P.BODY_T - P.LID_T)
+
+    @property
+    def shank_span(self):
+        """Distance from the rear head seat to the front-pilot entrance."""
+        return self.pilot_entry_z - self.seat_z
+
     # -- geometry ----------------------------------------------------------
     def material(self) -> cq.Workplane:
         """Land: wide solid from below the skin to the functional top."""
@@ -98,3 +145,29 @@ def back_joints():
     out = [ScrewJoint(x, y, "module") for x in xs for y in ys]
     out += [ScrewJoint(x, y, "pcb") for x, y in P.EXTRA_BOSSES]
     return out
+
+
+def selected_screws():
+    """Profile-aware stock selection for every rear screw joint."""
+    out = []
+    for joint in back_joints():
+        span = joint.shank_span
+        out.append(ScrewSelection(
+            joint.x,
+            joint.y,
+            joint.kind,
+            span,
+            select_screw_length(span),
+        ))
+    return tuple(out)
+
+
+def screw_length_groups():
+    """Selected screws grouped by length, with stable site ordering."""
+    groups = {}
+    for selection in selected_screws():
+        groups.setdefault(selection.length, []).append(selection)
+    return {
+        length: tuple(sorted(items, key=lambda s: (s.y, s.x, s.kind)))
+        for length, items in sorted(groups.items())
+    }

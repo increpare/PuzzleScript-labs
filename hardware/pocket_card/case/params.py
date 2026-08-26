@@ -61,13 +61,10 @@ MOD_CORNER_R    = 3.50          # DATASHEET  "R3.50*4", outline drawing 5.1
 MOD_PCB_T       = 1.60          # DATASHEET  "1.60 PCB"
 MOD_DEPTH       = 10.60         # DATASHEET  total, touch surface to tallest rear part
 MOD_FRONT_STACK = 5.85          # DATASHEET  touch surface to back of module PCB
-MOD_REAR_PARTS  = 4.75          # DATASHEET  "4.70 SMD(MAX)", the BAT header alone
-# What the rest of the back carries. The datasheet maximum above is one part —
-# the vertical battery header — and sizing the whole tray to it would cost 1.25
-# of depth over the entire module. Every other rear connector is side-entry and
-# MEASURED at 3.5, so the flat tray is sized to this and the header gets the
-# north rib instead.
-MOD_REAR_TYPICAL = 3.50         # MEASURED  every rear part except BAT
+# Side-entry rear components are measured at 3.5 mm, so they set the ordinary
+# upper tray. The assembled outward-facing plug is owned by the measured
+# DISPLAY_PLUG_* envelope and local rear deck below.
+MOD_REAR_TYPICAL = 3.50         # MEASURED  ordinary rear components
 MOD_X           = (BODY_W - MOD_W) / 2      # 2.0, centred
 MOD_Y           = 2.5           # ASSUMED  top margin
 
@@ -461,60 +458,6 @@ DECK_TAPER_PHI = _math.degrees(2 * _math.atan(DECK_H / DECK_TAPER_RUN))
 _deck_taper_p = _math.radians(DECK_TAPER_PHI)
 DECK_TAPER_R = DECK_H / (2 * (1 - _math.cos(_deck_taper_p)))
 
-# --------------------------------------------------------- north-edge rib ----
-# Compatibility values below remain on the old north-edge placement until
-# side_arc.py, shell_back.py, and checks.py migrate; remove this block in Task 4.
-# The module's battery header is a vertical Molex PicoBlade 53398-0271: 4.70
-# tall bare, 5.70 with the 51021 crimp housing on it. BODY_T is 13.30, set by
-# the cell in the south half, and the flat tray leaves 4.24 under the module —
-# so the mated connector does not merely foul the floor, it comes out through
-# the back of the case by 0.04.
-#
-# The fix is depth in the band the header sits in rather than over the whole
-# case: the back is RIB_H thicker from the north edge to RIB_Y, then eases back
-# to BODY_T. Full width, so it is symmetric about x = BODY_W/2 and reads as the
-# top edge being fatter rather than as a wart. The header is the only vertical
-# part on the module and it lies wholly inside the band.
-BAT_MATED_H  = 5.70   # DATASHEET  Molex, module PCB surface to top of the pair
-BAT_CABLE    = 0.80   # DECIDED  over the housing, for the leads to fold out.
-                      #          1.20 (a full 26 AWG diameter) wanted 2.60 of
-                      #          rib; 0.30 (pinched flat) wanted 1.70.
-# The rib carries the same R6 north roll as the rest of the back, and the header
-# is close enough to that edge to sit partly under it: at the north corner of
-# its footprint, allowing the module's 0.3 of drift, the roll lifts the pocket
-# roof by 0.17. Without this the promised 0.80 of lead room is only 0.63 in that
-# corner, which is exactly the kind of quiet shortfall that put the connector
-# through the back of the case in the first place.
-RIB_ROLL_LOSS = 0.20  # DECIDED  covers 0.17 with a little to spare
-RIB_ZONE_T   = (MODULE_Z + MOD_FRONT_STACK + BAT_MATED_H + BAT_CABLE
-                + RIB_ROLL_LOSS + WALL)                            # 15.70
-RIB_H        = round(RIB_ZONE_T - BODY_T, 3)      # 2.40, how proud it stands
-RIB_Y        = 11.0   # DECIDED  south end of the full-depth plateau. The
-                      #          pocket's south wall lands at 10.68.
-# The step down to BODY_T is two tangent arcs, not a chamfer and not a fillet:
-# the seam between a stepped rib and the rolled back is a closed loop that turns
-# from concave to convex as it wraps the side rolls, and OCC will not fillet
-# that chain (tried: uniform R1/R2 and split radii, all fail). Ending the rib on
-# a curve that is tangent to both back planes leaves no edge to fillet at all.
-RIB_BLEND_PHI = 22.0  # DECIDED  steepest slope of the blend, degrees
-_rib_p        = _math.radians(RIB_BLEND_PHI)
-RIB_BLEND_R   = RIB_H / (2 * (1 - _math.cos(_rib_p)))       # 15.11
-RIB_BLEND_RUN = 2 * RIB_BLEND_R * _math.sin(_rib_p)         # 11.32
-RIB_Y2        = RIB_Y + RIB_BLEND_RUN                       # 22.32, back to BODY_T
-RIB_FLOOR_Z   = -RIB_ZONE_T + WALL                          # -14.00, pocket roof
-
-# The header, from the KiCad footprint for the exact part (Connector_Molex,
-# Molex_PicoBlade_53398-0271_1x02-1MP_P1.25mm_Vertical). The module's own
-# outline drawing agrees: its 5.18 dimension lands on that footprint's
-# mounting-pad centreline, which sits 2.75 in from the pin row and 0.75 off the
-# body centre — which is why the body is not centred on the 5.18.
-#   body     x -3.825..3.825   y -1.100..2.600     7.65 x 3.70
-#   pin row  y -1.25, along the module's 86 axis, i.e. our x
-BAT_BODY_L, BAT_BODY_W = 7.65, 3.70    # DATASHEET
-BAT_X = 25.18                          # DATASHEET  86-axis chain 35.03/15.97/11.82
-BAT_Y = MOD_Y + 5.18 - 1.5 + (BAT_BODY_W / 2 - 1.1)         # 6.93, body centre
-BAT_CLR = 0.40                         # DECIDED  pocket clearance, per side
-
 # ------------------------------------------------------------ USB-C port ----
 # The module's own receptacle, in the left wall. It is dead centre of the
 # module's 50 mm edge: the outline drawing's bottom dimension chain reads
@@ -636,19 +579,10 @@ BACK_ROLL_S    = 3.5                   # ASSUMED  cell-limited (check enforces)
 MIN_MEMBRANE = 0.8     # ASSUMED  min solid behind any counterbore seat (mm)
 LAND_WALL    = 1.2     # ASSUMED  radial land material beyond the head pocket
 
-# Assembly screws: M2 pan-head self-tappers into the Ø1.7 front-shell pilots
-# (joints.SHAFT_CLEAR_D = 2.6, HEAD_D = 5.0). The north rib deepened the two
-# north module seats by ~2.25, so one length no longer covers all six sites —
-# span seat→post is 6.13 north vs 3.88 south / 4.50 on the PCB mounts.
-# See out/hardware_BOM.csv.
-SCREW_NORTH = dict(  # module mounts at y = MOD_Y + MOUNT_INSET (= 6.5)
-    mpn="M2x10 pan self-tap", qty=2, length=10.0,
-    sites=((6.0, 6.5), (84.0, 6.5)),
-)
-SCREW_SOUTH = dict(  # south module + both controller PCB mounts
-    mpn="M2x8 pan self-tap", qty=4, length=8.0,
-    sites=((6.0, 48.5), (84.0, 48.5), (64.5, 56.0), (66.0, 84.0)),
-)
+# Assembly screws are M2 pan-head self-tappers into the Ø1.7 front-shell
+# pilots (joints.SHAFT_CLEAR_D = 2.6, HEAD_D = 5.0).  Their lengths are now
+# selected per profile-aware rear seat and grouped in joints.py; see
+# out/hardware_BOM.csv.
 
 # Switch height is a direct thickness lever: every millimetre of TACT_H is a
 # millimetre of device. SKQGABE010 at 1.5 mm is the chosen low-profile part.
