@@ -245,6 +245,7 @@ def verify_profile() -> None:
     depths = {
         "upper_y10": -(sample(10.0) + P.BODY_T),
         "top_y24": -(sample(24.0) + P.BODY_T),
+        "upper_y30": -(sample(30.0) + P.BODY_T),
         "rise_start": -(sample(P.DECK_RISE_Y0) + P.BODY_T),
         "rise_mid": -(sample((P.DECK_RISE_Y0 + P.DECK_PLATEAU_Y0) / 2) + P.BODY_T),
         "plateau_start": -(sample(P.DECK_PLATEAU_Y0 + 0.2) + P.BODY_T),
@@ -256,6 +257,7 @@ def verify_profile() -> None:
 
     require_close(depths["upper_y10"], 0.0, 0.08, "upper y=10 added depth")
     require_close(depths["top_y24"], 0.0, 0.08, "top y=24 added depth")
+    require_close(depths["upper_y30"], 0.0, 0.08, "upper y=30 added depth")
     require_close(depths["rise_start"], 0.0, 0.10, "rise start added depth")
     require_close(depths["rise_mid"], P.DECK_H / 2, 0.14, "rise midpoint added depth")
     for label in ("plateau_start", "plug", "plateau_end"):
@@ -291,7 +293,7 @@ def verify_profile() -> None:
         f"rear profile ordering is wrong: {depths!r}",
     )
     print(
-        "PASS profile: native shell mesh is thin at upper y=10/y=24, rises "
+        "PASS profile: native shell mesh is thin at upper y=10/y=24/y=30, rises "
         f"to {depths['plug']:.3f} mm at plug y={P.DISPLAY_PLUG_Y:.4f}, "
         f"tapers through {depths['lower_y70']:.3f} mm at y=70, and returns "
         "to normal near the bottom"
