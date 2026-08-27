@@ -1,3 +1,4 @@
+import math
 import os
 import struct
 import sys
@@ -47,10 +48,33 @@ class RearDeckProfileTest(unittest.TestCase):
     def test_top_is_normal_depth(self):
         self.assertEqual(side_arc.rear_deck_extra_at(0.0), 0.0)
         self.assertEqual(side_arc.rear_deck_extra_at(11.0), 0.0)
+        self.assertEqual(side_arc.rear_deck_extra_at(30.0), 0.0)
         self.assertEqual(
             side_arc.rear_deck_extra_at(P.DECK_RISE_Y0),
             0.0,
         )
+
+    def test_rise_starts_five_mm_later_without_moving_plug_plateau(self):
+        reference_phi = math.radians(P.DECK_RISE_REFERENCE_PHI)
+        reference_radius = P.DECK_H / (
+            2 * (1 - math.cos(reference_phi))
+        )
+        reference_run = 2 * reference_radius * math.sin(reference_phi)
+        previous_rise_y0 = P.DECK_PLATEAU_Y0 - reference_run
+
+        self.assertAlmostEqual(P.DECK_RISE_START_SHIFT, 5.0, places=6)
+        self.assertAlmostEqual(
+            P.DECK_RISE_Y0,
+            previous_rise_y0 + P.DECK_RISE_START_SHIFT,
+            places=9,
+        )
+        self.assertAlmostEqual(P.DECK_RISE_Y0, 31.9811703617, places=9)
+        self.assertAlmostEqual(P.DECK_RISE_RUN, 7.3469296383, places=9)
+        self.assertAlmostEqual(P.DECK_RISE_PHI, 36.1810208032, places=6)
+        self.assertAlmostEqual(P.DECK_PLATEAU_Y0, 39.3281, places=4)
+        self.assertAlmostEqual(P.DECK_PLATEAU_Y1, 46.8281, places=4)
+        self.assertEqual(P.DECK_TAPER_Y0, P.DECK_PLATEAU_Y1)
+        self.assertEqual(P.DECK_TAPER_Y1, P.BODY_H)
 
     def test_full_depth_contains_plug_and_wall_allowance(self):
         plug_y0 = P.DISPLAY_PLUG_Y - P.DISPLAY_PLUG_BODY_W / 2
