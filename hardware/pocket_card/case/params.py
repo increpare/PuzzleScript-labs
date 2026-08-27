@@ -443,12 +443,24 @@ DECK_PLATEAU_Y1 = (
     + DISPLAY_PLUG_CLEAR + WALL
 )
 
-# Preserve the established rounded-shoulder slope.
-DECK_RISE_PHI = 22.0
+# Move the upper shoulder 5 mm toward the plug while retaining the original
+# 22-degree profile as an explicit reference for the previous start point.
+DECK_RISE_REFERENCE_PHI = 22.0
+DECK_RISE_START_SHIFT = 5.0
+_deck_rise_reference_p = _math.radians(DECK_RISE_REFERENCE_PHI)
+_deck_rise_reference_r = DECK_H / (
+    2 * (1 - _math.cos(_deck_rise_reference_p))
+)
+_deck_rise_reference_run = (
+    2 * _deck_rise_reference_r * _math.sin(_deck_rise_reference_p)
+)
+DECK_RISE_Y0 = (
+    DECK_PLATEAU_Y0 - _deck_rise_reference_run + DECK_RISE_START_SHIFT
+)
+DECK_RISE_RUN = DECK_PLATEAU_Y0 - DECK_RISE_Y0
+DECK_RISE_PHI = _math.degrees(2 * _math.atan(DECK_H / DECK_RISE_RUN))
 _deck_rise_p = _math.radians(DECK_RISE_PHI)
 DECK_RISE_R = DECK_H / (2 * (1 - _math.cos(_deck_rise_p)))
-DECK_RISE_RUN = 2 * DECK_RISE_R * _math.sin(_deck_rise_p)
-DECK_RISE_Y0 = DECK_PLATEAU_Y0 - DECK_RISE_RUN
 
 # Use all remaining length for a tangent lower return.
 DECK_TAPER_Y0 = DECK_PLATEAU_Y1
