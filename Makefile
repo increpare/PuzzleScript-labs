@@ -578,6 +578,7 @@ help:
 	@echo "  make pocket_card_pcb_exports       Export fabrication artifacts from native KiCad sources"
 	@echo "  make pocket_card_case              Rebuild Pocket Card shells + PCB exports (incl. 3D meshes)"
 	@echo "  make pocket_card_case_shells       Rebuild shells from current PCB exports"
+	@echo "  make pocket_card_captive_nut_review Render four captive-nut closure review views"
 	@echo "  make pocket_card_engineer_export   Build engineer handoff zip (INCLUDE_BLEND=1 default; 0 omits Blender)"
 	@echo "  make pocket_card_engineer_check    Validate engineer handoff zip (set ZIP=...)"
 	@echo "  make pocket_card_engineer_accept   Accept staged engineer handoff (set STAGED=...)"
@@ -1016,6 +1017,7 @@ POCKET_CARD_SCULPTED_EXPORTER := $(POCKET_CARD_CASE_DIR)/sculpted_buttons.py
 POCKET_CARD_SCULPTED_BLEND_SCRIPT := $(POCKET_CARD_CASE_DIR)/sculpted_buttons_blender.py
 POCKET_CARD_SCULPTED_PLACED_DIR := $(POCKET_CARD_CASE_DIR)/out/sculpted_buttons/placed
 POCKET_CARD_COMPLETE_BLEND := $(POCKET_CARD_CASE_DIR)/out/order/pocket_card_complete.blend
+POCKET_CARD_CAPTIVE_NUT_REVIEW_SCRIPT := $(POCKET_CARD_CASE_DIR)/tools/render_captive_nut_review.py
 BLENDER ?= $(shell command -v blender 2>/dev/null)
 ifeq ($(strip $(BLENDER)),)
 ifneq ($(wildcard /Applications/Blender.app/Contents/MacOS/Blender),)
@@ -1023,7 +1025,7 @@ BLENDER := /Applications/Blender.app/Contents/MacOS/Blender
 endif
 endif
 
-.PHONY: pocket_card_kicad pocket_card_kicad_check pocket_card_pcb_exports pocket_card_case pocket_card_case_shells pocket_card_case_embossed pocket_card_case_sculpted pocket_card_engineer_export pocket_card_engineer_check pocket_card_engineer_accept pocket_card_legacy_pcb_rebuild pocket_card_legacy_schematic_tests
+.PHONY: pocket_card_kicad pocket_card_kicad_check pocket_card_pcb_exports pocket_card_case pocket_card_case_shells pocket_card_case_embossed pocket_card_case_sculpted pocket_card_captive_nut_review pocket_card_engineer_export pocket_card_engineer_check pocket_card_engineer_accept pocket_card_legacy_pcb_rebuild pocket_card_legacy_schematic_tests
 
 pocket_card_electronics_tests:
 	$(PYTHON) -m unittest discover -s hardware/pocket_card/electronics_pipeline/tests -p 'test_*.py' -v
@@ -1087,6 +1089,12 @@ pocket_card_case_sculpted:
 		--input "$(POCKET_CARD_COMPLETE_BLEND)" \
 		--buttons-dir "$(POCKET_CARD_SCULPTED_PLACED_DIR)" \
 		--output "$(POCKET_CARD_COMPLETE_BLEND)"
+
+pocket_card_captive_nut_review: pocket_card_case
+	@test -n "$(BLENDER)" || (echo "Blender not found; set BLENDER=/path/to/blender" >&2; exit 1)
+	@test -f "$(POCKET_CARD_COMPLETE_BLEND)" || (echo "Pocket Card complete blend missing: $(POCKET_CARD_COMPLETE_BLEND)" >&2; exit 1)
+	"$(BLENDER)" --background "$(POCKET_CARD_COMPLETE_BLEND)" \
+		--python-exit-code 1 --python "$(POCKET_CARD_CAPTIVE_NUT_REVIEW_SCRIPT)"
 
 pocket_card_contract_tests: build
 	$(NODE) hardware/pocket_card/test_pin_contract.js

@@ -109,6 +109,34 @@ make pocket_card_case_sculpted
 The Makefile finds `blender` on `PATH`, then checks the standard macOS app
 location. Override either with `BLENDER=/absolute/path/to/blender`.
 
+### Captive-nut digital review checkpoint
+
+From the repository root, rebuild the complete assembly and render the four
+deterministic closure-review views with:
+
+```
+make pocket_card_captive_nut_review
+```
+
+The target writes 1200 x 900 PNGs without saving or modifying the canonical
+`out/order/pocket_card_complete.blend`:
+
+- `out/order/review/captive_nuts_assembled.png` — rear three-quarter closure,
+  all six rear screw heads, and the compound-rounded shell surface.
+- `out/order/review/captive_nuts_exploded.png` — back and six screws moved
+  exactly 18 mm rearward while the front, electronics, and nuts stay fixed.
+- `out/order/review/captive_nuts_h2_cutaway.png` — the real H2 board
+  pass-through and nut cage beside the moved Reset guide, battery right edge,
+  and actual vertical-stadium speaker, with the screw axis clear of the driver.
+- `out/order/review/captive_nuts_trap_closeups.png` — actual module and
+  controller shell sections side by side, with each nut partly withdrawn along
+  its authoritative loading mouth and the roof, bore, and screw alignment
+  visible.
+
+These renders are a digital inspection checkpoint, not physical validation.
+The SLA captive-nut coupon, a complete shell print, and the documented
+ten-cycle assembly/service test are still required before production approval.
+
 When no complete assembly exists, the clean fallback creates four generated
 collections:
 
