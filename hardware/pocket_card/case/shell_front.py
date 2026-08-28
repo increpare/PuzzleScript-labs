@@ -34,7 +34,8 @@ SHOULDER_D = 5.5                       # module rests its PCB on this
 BOSS_D = 4.2                           # corner bosses, nothing to thread through
 DRIVER_POCKET_WALL = 1.2
 DRIVER_POCKET_CLEAR = 0.6
-SPEAKER_WIRE_SERVICE = 1.0             # local free-interior lead service length
+SPEAKER_WIRE_SERVICE = 0.4             # local bend pocket beyond locator wall
+SPEAKER_WIRE_RELIEF_CLEAR = 0.05       # boolean/process clearance around route
 # Bosses start this far INSIDE the face rather than on it. Landing a column
 # exactly on the cavity roof is a coincident-plane union, which OCC leaves
 # unfused: build() came out as seven solids, six of them loose pillars.
@@ -267,45 +268,106 @@ def _speaker_lead_notch(sign):
     )
 
 
-def speaker_wire_envelopes():
-    """Return conservative local lead envelopes for both usable exits.
+def _south_speaker_wire_route_specs():
+    """Box specs for the exit, strain-relief drop, and interior return."""
+    driver_back_z = -P.FACE_T - P.DRIVER_T
+    driver_end_y = P.GRILLE_Y + P.DRIVER_H / 2.0
+    locator_crossing = (
+        (P.DRIVER_H + DRIVER_POCKET_CLEAR
+         + 2.0 * DRIVER_POCKET_WALL) / 2.0
+        - P.DRIVER_H / 2.0
+    )
+    lead_length = locator_crossing + SPEAKER_WIRE_SERVICE
+    drop_length = 2.0 * SPEAKER_WIRE_SERVICE
+    # Keep the deeper bend wholly inboard of the perimeter wall; only the
+    # shallow exit leg needs the intentional perimeter service pocket.
+    drop_outer_y = (
+        driver_end_y + locator_crossing - SPEAKER_WIRE_SERVICE / 4.0
+    )
+    drop_center_y = drop_outer_y - drop_length / 2.0
+    return_length = P.DRIVER_CABLE_CLR + 2.0 * SPEAKER_WIRE_SERVICE
+    return_center_y = drop_center_y - return_length / 2.0
+    return (
+        (P.DRIVER_CABLE_W, lead_length, P.DRIVER_CABLE_CLR,
+         P.GRILLE_X, driver_end_y + lead_length / 2.0, driver_back_z),
+        (P.DRIVER_CABLE_W, drop_length, 2.0 * P.DRIVER_CABLE_CLR,
+         P.GRILLE_X, drop_center_y,
+         driver_back_z - P.DRIVER_CABLE_CLR),
+        (P.DRIVER_CABLE_W, return_length, P.DRIVER_CABLE_CLR,
+         P.GRILLE_X, return_center_y,
+         driver_back_z - P.DRIVER_CABLE_CLR),
+    )
 
-    The physical leads leave the north or south end of the stadium near the
-    driver's rear. Each option starts on the measured driver body, crosses the
-    complete locator-wall/notch thickness, and continues 1.0 mm into the free
-    interior for bend/service room. Z spans the measured rear-side cable
-    clearance, crossing the controller PCB plane inside its driver notch. This
-    deliberately models only the local exit, not an invented harness route.
+
+def _speaker_wire_route_box(spec, clear=0.0):
+    width, length, height, x, y, z = spec
+    return (
+        cq.Workplane("XY")
+        .box(width + 2.0 * clear, length + 2.0 * clear,
+             height + 2.0 * clear, centered=(True, True, False))
+        .translate((x, y, z - clear))
+    )
+
+
+def speaker_wire_envelopes():
+    """Return the north candidate and approved south local lead envelopes.
+
+    Both start at the measured driver body and cross the complete locator-wall
+    thickness near the driver's rear.  North retains the original analytical
+    candidate through its notch, but is explicitly unapproved because it runs
+    into the Action collar.  The symmetric driver is installed rotated 180
+    degrees so its tabs face south; that route continues into a small internal
+    bend/service pocket relieved in the perimeter wall.  Neither envelope
+    claims to model the remote harness route.
     """
     driver_back_z = -P.FACE_T - P.DRIVER_T
     locator_outer_half_h = (
         P.DRIVER_H + DRIVER_POCKET_CLEAR
         + 2.0 * DRIVER_POCKET_WALL
     ) / 2.0
-    lead_length = (
-        locator_outer_half_h - P.DRIVER_H / 2.0
-        + SPEAKER_WIRE_SERVICE
-    )
+    locator_crossing = locator_outer_half_h - P.DRIVER_H / 2.0
     pcb_front_z = -P.PCB_FRONT_Z
     z_back = min(driver_back_z, pcb_front_z)
     z_front = max(driver_back_z + P.DRIVER_CABLE_CLR, pcb_front_z)
-    envelopes = []
-    for sign in (-1, 1):
-        center_y = (
-            P.GRILLE_Y
-            + sign * (P.DRIVER_H / 2.0 + lead_length / 2.0)
-        )
-        envelopes.append(
-            cq.Workplane("XY")
-            .box(
-                P.DRIVER_CABLE_W,
-                lead_length,
-                z_front - z_back,
-                centered=(True, True, False),
-            )
-            .translate((P.GRILLE_X, center_y, z_back))
-        )
-    return tuple(envelopes)
+    north_length = locator_crossing + 1.0
+    north = (cq.Workplane("XY")
+             .box(P.DRIVER_CABLE_W, north_length, z_front - z_back,
+                  centered=(True, True, False))
+             .translate((
+                 P.GRILLE_X,
+                 P.GRILLE_Y - (P.DRIVER_H / 2.0 + north_length / 2.0),
+                 z_back,
+             )))
+
+    # Give the installed leads a truthful local path: after crossing the south
+    # locator wall they turn behind the driver, then return north underneath
+    # its measured rear plane into the open PCB notch.  This is only the
+    # strain-relief bend, not a connector route.
+    south = cq.Workplane("XY")
+    for spec in _south_speaker_wire_route_specs():
+        south = south.union(_speaker_wire_route_box(spec))
+    return north, south
+
+
+def speaker_wire_service_relief():
+    """Exact production cutter for the approved south local service route.
+
+    A 0.05 mm boolean/process margin prevents coincident faces.  The route
+    crosses the south locator wall and opens a 0.4 mm bend pocket into the
+    internal face of the bottom perimeter.  That shallow perimeter cut stops
+    behind a 1.0+ mm exterior skin and above the split-lap engagement band;
+    the deeper return leg remains wholly in the ordinary interior void.
+    """
+    if P.DRIVER_LEAD_EXIT != "south":
+        raise ValueError("front-shell speaker relief is authored for south exit")
+    clear = SPEAKER_WIRE_RELIEF_CLEAR
+    # Offset the three orthogonal legs separately rather than expanding the
+    # route's overall bounding box: a bounding box would needlessly cut the
+    # split skirt beneath the perimeter bend.
+    relief = cq.Workplane("XY")
+    for spec in _south_speaker_wire_route_specs():
+        relief = relief.union(_speaker_wire_route_box(spec, clear))
+    return relief
 
 
 def driver_pocket():
@@ -344,12 +406,12 @@ def driver_pocket():
     walls = outer.cut(bore)
 
     # Lead notches through BOTH end walls. North is -y in layout space, which
-    # to_model_space() turns into the top of the finished part. The driver's
-    # leads leave on the north edge, but the north route passes under the Action
-    # collar, where the lead could be pinched or chafed by the moving cap; the
-    # south notch is the escape if that turns out to be so. An unused notch
-    # costs nothing -- these walls are only a locator, and they are already
-    # discontinuous where the collars relieve them.
+    # to_model_space() turns into the top of the finished part. The symmetric
+    # driver is installed with its physical tabs facing the approved south
+    # exit. North remains an unapproved analytical candidate because it passes
+    # under the Action collar, where a moving cap could pinch or chafe a lead.
+    # The unused notch costs nothing: these walls only locate the driver and
+    # are already discontinuous where collars relieve them.
     for sign in (-1, 1):
         walls = walls.cut(_speaker_lead_notch(sign))
 
@@ -415,7 +477,7 @@ def to_model_space(shape):
     return shape.mirror("XZ").translate((0, P.BODY_H, 0))
 
 
-def build():
+def build(*, apply_speaker_wire_relief=True):
     shell = outer_body().cut(cavity())
     shell = shell.cut(screen_aperture())
     shell = _chamfer_aperture_lip(shell)
@@ -452,6 +514,12 @@ def build():
     # avoids a discrete-position approximation and cannot remove trap material.
     for site in nut_traps.sites():
         shell = shell.cut(nut_traps.insertion_sweep(site))
+
+    # All fixed internal material is present before opening the approved local
+    # speaker-lead route, so no later collar/cage union can refill it.  Envelope
+    # clipping remains last and preserves the compound-rounded exterior.
+    if apply_speaker_wire_relief:
+        shell = shell.cut(speaker_wire_service_relief())
 
     shell = shell.cut(edge_openings())
     shell = shell.cut(grille_slots())

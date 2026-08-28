@@ -712,8 +712,10 @@ def check_captive_nut_traps(front_model=None):
             FAILURES.append(f"captive nut trap collides with {name}")
 
     trap_envelopes = [nut_traps.front_material(site) for site in sites]
-    for exit_name, wire in zip(
-            ("north", "south"), shell_front.speaker_wire_envelopes()):
+    wires = dict(zip(
+        ("north", "south"), shell_front.speaker_wire_envelopes()
+    ))
+    for exit_name, wire in wires.items():
         envelope_overlap = sum(
             _workplane_volume(trap.intersect(wire))
             for trap in trap_envelopes
@@ -738,6 +740,83 @@ def check_captive_nut_traps(front_model=None):
         if not ok:
             FAILURES.append(
                 f"captive nut trap collides with speaker lead {exit_name}")
+
+        front_overlap = _workplane_volume(front.intersect(wire))
+        metrics[f"speaker_wire_{exit_name}_front_overlap"] = front_overlap
+        if exit_name == P.DRIVER_LEAD_EXIT:
+            route_ok = front_overlap < 1e-5
+            print(f"   {'PASS' if route_ok else 'FAIL'}  approved speaker lead "
+                  f"{exit_name} route vs finished front: "
+                  f"{front_overlap:.6f} mm^3")
+            if not route_ok:
+                FAILURES.append(
+                    f"approved speaker lead {exit_name} route blocked by front")
+        else:
+            print(f"   INFO  speaker lead {exit_name} candidate unavailable: "
+                  f"finished-front overlap {front_overlap:.6f} mm^3 "
+                  "(Action collar/pinch risk)")
+
+    relief = shell_front.speaker_wire_service_relief()
+    relief_bounds = relief.val().BoundingBox()
+    base = outer.cut(shell_front.cavity())
+    cut_material = base.intersect(relief)
+    cut_bounds = cut_material.val().BoundingBox()
+    relief_cut = _workplane_volume(cut_material)
+    radial_skin = P.BODY_H - cut_bounds.ymax
+    face_skin = -relief_bounds.zmax
+    rebate_top = -shell_front.SHELL_DEPTH + P.LAP_H + P.LAP_OVER
+    split_gap = cut_bounds.zmin - rebate_top
+    metrics.update({
+        "speaker_wire_relief_volume": relief_cut,
+        "speaker_wire_radial_skin": radial_skin,
+        "speaker_wire_face_skin": face_skin,
+        "speaker_wire_split_gap": split_gap,
+    })
+    print("   INFO  approved south relief route extent: "
+          f"{relief_bounds.xlen:.2f} x {relief_bounds.ylen:.2f} x "
+          f"{relief_bounds.zlen:.2f} mm; perimeter cut "
+          f"{cut_bounds.xlen:.2f} x {cut_bounds.ylen:.2f} x "
+          f"{cut_bounds.zlen:.2f} mm, {relief_cut:.6f} mm^3")
+
+    skin_probe = (cq.Workplane("XY")
+                  .box(cut_bounds.xlen, radial_skin, cut_bounds.zlen,
+                       centered=(True, True, False))
+                  .translate((
+                      (cut_bounds.xmin + cut_bounds.xmax) / 2.0,
+                      cut_bounds.ymax + radial_skin / 2.0,
+                      cut_bounds.zmin,
+                  )))
+    required_skin = base.intersect(skin_probe)
+    skin_missing = _workplane_volume(required_skin.cut(front))
+    skin_ok = (
+        radial_skin >= P.NUT_ROOF_T - 1e-9
+        and face_skin >= P.FACE_T - 1e-9
+        and skin_missing < 1e-5
+    )
+    print(f"   {'PASS' if skin_ok else 'FAIL'}  speaker relief retains "
+          f"{radial_skin:.3f} mm rounded perimeter skin and "
+          f"{face_skin:.3f} mm face-side skin; missing "
+          f"{skin_missing:.6f} mm^3")
+    if not skin_ok:
+        FAILURES.append("speaker lead relief breaches exterior skin")
+
+    lip_probe = (cq.Workplane("XY")
+                 .box(cut_bounds.xlen, P.WALL,
+                      P.LAP_H + P.LAP_OVER,
+                      centered=(True, True, False))
+                 .translate((
+                     (cut_bounds.xmin + cut_bounds.xmax) / 2.0,
+                     P.BODY_H - P.WALL / 2.0,
+                     -shell_front.SHELL_DEPTH,
+                 )))
+    required_lip = base.intersect(lip_probe)
+    lip_missing = _workplane_volume(required_lip.cut(front))
+    lip_ok = split_gap >= P.LAP_FRONT_T - 1e-9 and lip_missing < 1e-5
+    print(f"   {'PASS' if lip_ok else 'FAIL'}  speaker relief remains "
+          f"{split_gap:.3f} mm above split rebate; retained-lip missing "
+          f"{lip_missing:.6f} mm^3")
+    if not lip_ok:
+        FAILURES.append("speaker lead relief weakens split lip")
 
     # Rear joint material is authored by the shared joint helper. Side walls,
     # collars and the front split lip are already included in the built-front

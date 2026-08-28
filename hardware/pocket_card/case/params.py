@@ -656,6 +656,11 @@ DRIVER_PILL = True                 # MEASURED  stadium profile, not a box
 # the back of the wall only and the front 2.0 mm stays continuous as a locator.
 DRIVER_CABLE_W = 5.0               # MEASURED  notch width
 DRIVER_CABLE_CLR = 1.5             # MEASURED  notch height, from the driver's back
+# The stadium locator is symmetric, so production installs the driver rotated
+# 180 degrees with its physical lead tabs facing south.  The north notch remains
+# a harmless candidate opening, but is not a usable route: it enters the Action
+# collar's moving envelope and could pinch or chafe the leads.
+DRIVER_LEAD_EXIT = "south"          # DECIDED  approved installed orientation
 # The adhesive is a perimeter ring, so what matters is solid face under the RIM,
 # not over the whole footprint. Ring bond measured at 94-95% for 1.0-2.0 mm ring
 # widths; the missing 5% is the two points where the arm slot crosses the rim.

@@ -734,6 +734,122 @@ class AssembledFrontNutTrapTest(unittest.TestCase):
                 self.assertLess(bounds.zmin, -P.PCB_FRONT_Z)
                 self.assertGreater(bounds.zmax, -P.PCB_FRONT_Z)
 
+    def test_only_south_is_the_approved_installed_speaker_lead_exit(self):
+        self.assertEqual(getattr(P, "DRIVER_LEAD_EXIT", None), "south")
+        north, south = shell_front.speaker_wire_envelopes()
+        action_guide, _ = shell_front.button_station(
+            hole_d=P.AB_CAP_D, pill=False
+        )
+        action_guide = shell_front._dev(action_guide, P.ACT_X, P.ACT_Y)
+        self.assertGreater(shape_volume(action_guide.intersect(north)), 0.1)
+        self.assertLess(shape_volume(action_guide.intersect(south)), 1e-5)
+
+    def test_approved_south_service_route_is_clear_in_finished_front(self):
+        north, south = shell_front.speaker_wire_envelopes()
+        self.assertGreater(shape_volume(self.front.intersect(north)), 0.1)
+        self.assertLess(shape_volume(self.front.intersect(south)), 1e-5)
+
+    def test_approved_south_route_returns_below_driver_into_free_interior(self):
+        south = shell_front.speaker_wire_envelopes()[1]
+        driver_back_z = -P.FACE_T - P.DRIVER_T
+        interior_tail = (
+            cq.Workplane("XY")
+            .box(P.DRIVER_CABLE_W, 0.5, 0.5, centered=(True, True, False))
+            .translate((
+                P.GRILLE_X,
+                P.GRILLE_Y + P.DRIVER_H / 2.0 - 1.0,
+                driver_back_z - P.DRIVER_CABLE_CLR,
+            ))
+        )
+        self.assertGreater(shape_volume(south.intersect(interior_tail)), 0.1)
+        self.assertLess(shape_volume(self.front.intersect(interior_tail)), 1e-5)
+
+    def test_south_relief_preserves_exterior_skin_split_lip_and_action_travel(self):
+        relief = shell_front.speaker_wire_service_relief()
+        base = shell_front.outer_body().cut(shell_front.cavity())
+        cut_material = base.intersect(relief)
+        bounds = cut_material.val().BoundingBox()
+        relief_bounds = relief.val().BoundingBox()
+        rebate_top = (
+            -shell_front.SHELL_DEPTH + P.LAP_H + P.LAP_OVER
+        )
+        radial_skin = P.BODY_H - bounds.ymax
+        face_skin = -relief_bounds.zmax
+        split_gap = bounds.zmin - rebate_top
+        self.assertGreaterEqual(radial_skin, P.NUT_ROOF_T)
+        self.assertGreaterEqual(face_skin, P.FACE_T)
+        self.assertGreaterEqual(split_gap, P.LAP_FRONT_T)
+
+        skin_probe = (
+            cq.Workplane("XY")
+            .box(
+                bounds.xlen,
+                radial_skin,
+                bounds.zlen,
+                centered=(True, True, False),
+            )
+            .translate((
+                (bounds.xmin + bounds.xmax) / 2.0,
+                bounds.ymax + radial_skin / 2.0,
+                bounds.zmin,
+            ))
+        )
+        required_skin = base.intersect(skin_probe)
+        self.assertGreater(shape_volume(required_skin), 1.0)
+        self.assertLess(shape_volume(required_skin.cut(self.front)), 1e-5)
+
+        lip_probe = (
+            cq.Workplane("XY")
+            .box(
+                bounds.xlen,
+                P.WALL,
+                P.LAP_H + P.LAP_OVER,
+                centered=(True, True, False),
+            )
+            .translate((
+                (bounds.xmin + bounds.xmax) / 2.0,
+                P.BODY_H - P.WALL / 2.0,
+                -shell_front.SHELL_DEPTH,
+            ))
+        )
+        required_lip = base.intersect(lip_probe)
+        self.assertGreater(shape_volume(required_lip), 1.0)
+        self.assertLess(shape_volume(required_lip.cut(self.front)), 1e-5)
+
+        action_guide, _ = shell_front.button_station(
+            hole_d=P.AB_CAP_D, pill=False
+        )
+        action_guide = shell_front._dev(action_guide, P.ACT_X, P.ACT_Y)
+        action_flange_r = P.AB_CAP_D / 2.0 + P.CAP_FLANGE_OS
+        action_travel = (
+            cq.Workplane("XY")
+            .circle(action_flange_r)
+            .extrude(-(P.FACE_T + P.COLLAR_DEPTH + P.CAP_PROUD))
+            .translate((P.ACT_X, P.ACT_Y, P.CAP_PROUD))
+        )
+        self.assertLess(shape_volume(relief.intersect(action_guide)), 1e-5)
+        self.assertLess(shape_volume(relief.intersect(action_travel)), 1e-5)
+
+    def test_production_check_rejects_front_built_without_south_relief(self):
+        unrelieved_model = shell_front.build(apply_speaker_wire_relief=False)
+        unrelieved = shell_front.to_model_space(unrelieved_model)
+        south = shell_front.speaker_wire_envelopes()[1]
+        self.assertGreater(shape_volume(unrelieved.intersect(south)), 0.1)
+
+        previous_failures = list(checks.FAILURES)
+        checks.FAILURES.clear()
+        try:
+            checks.check_captive_nut_traps(unrelieved_model)
+            self.assertTrue(
+                any(
+                    "approved speaker lead south route blocked" in failure
+                    for failure in checks.FAILURES
+                ),
+                checks.FAILURES,
+            )
+        finally:
+            checks.FAILURES[:] = previous_failures
+
     def test_all_complete_traps_clear_both_speaker_lead_options(self):
         helper = getattr(shell_front, "speaker_wire_envelopes", None)
         self.assertIsNotNone(helper, "speaker lead envelopes are missing")
@@ -798,6 +914,11 @@ class AssembledFrontNutTrapTest(unittest.TestCase):
         self.assertLess(metrics["speaker_wire_south_overlap"], 1e-5)
         self.assertGreater(metrics["speaker_wire_north_clearance"], 0.0)
         self.assertGreater(metrics["speaker_wire_south_clearance"], 0.0)
+        self.assertGreater(metrics["speaker_wire_north_front_overlap"], 0.1)
+        self.assertLess(metrics["speaker_wire_south_front_overlap"], 1e-5)
+        self.assertGreaterEqual(metrics["speaker_wire_radial_skin"], P.NUT_ROOF_T)
+        self.assertGreaterEqual(metrics["speaker_wire_face_skin"], P.FACE_T)
+        self.assertGreaterEqual(metrics["speaker_wire_split_gap"], P.LAP_FRONT_T)
 
 
 if __name__ == "__main__":
