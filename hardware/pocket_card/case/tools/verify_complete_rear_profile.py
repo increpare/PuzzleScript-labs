@@ -12,6 +12,7 @@ from __future__ import annotations
 import math
 from pathlib import Path
 import statistics
+import struct
 import sys
 
 import bmesh
@@ -79,6 +80,20 @@ EXPECTED_MATERIALS = {
     "Material.012", "Material.013", "PCB Green", "Fastener Steel",
 }
 EXPECTED_SHELL_TRANSLATION = Vector((-3.6846468, -2.2743397, 0.6752583))
+FASTENER_PREVIEW_DIR = CASE_DIR / "out/order/preview"
+EXPECTED_SCREW_LENGTHS = (10.0, 12.0, 10.0, 12.0, 12.0, 10.0)
+EXPECTED_FASTENER_MODEL_XY = (
+    (6.0, 86.5), (6.0, 44.5), (84.0, 86.5),
+    (84.0, 44.5), (64.5, 37.0), (64.5, 9.0),
+)
+EXPECTED_NUT_Z_BOUNDS = (-3.1, -1.5)
+EXPECTED_SCREW_Z_BOUNDS = (
+    (-12.5349, -1.0349), (-14.8, -1.3),
+    (-12.5349, -1.0349), (-14.8, -1.3),
+    (-14.8, -1.3), (-12.8, -1.3),
+)
+FASTENER_BOUND_TOL = 0.0002
+FASTENER_MATRIX_TOL = 0.000002
 
 
 class VerificationFailure(RuntimeError):
@@ -116,6 +131,52 @@ def local_bounds(obj) -> tuple[float, ...]:
 
 def world_bounds(obj) -> tuple[float, ...]:
     return axis_bounds(obj.matrix_world @ Vector(corner) for corner in obj.bound_box)
+
+
+def binary_stl_bounds(path: Path) -> tuple[float, ...]:
+    """Read bounds directly from the generated binary STL authority."""
+    try:
+        payload = path.read_bytes()
+    except OSError as error:
+        raise VerificationFailure(f"fastener preview STL unavailable: {path}") from error
+    require(len(payload) >= 84, f"fastener preview STL is truncated: {path}")
+    triangle_count = struct.unpack_from("<I", payload, 80)[0]
+    require(
+        len(payload) == 84 + triangle_count * 50,
+        f"fastener preview STL is not canonical binary STL: {path}",
+    )
+    points = []
+    for index in range(triangle_count):
+        record = struct.unpack_from("<12f", payload, 84 + index * 50)
+        points.extend(Vector(record[offset:offset + 3]) for offset in (3, 6, 9))
+    require(points, f"fastener preview STL is empty: {path}")
+    return axis_bounds(points)
+
+
+def bounds_corners(bounds):
+    return (
+        Vector((x, y, z))
+        for x in (bounds[0], bounds[1])
+        for y in (bounds[2], bounds[3])
+        for z in (bounds[4], bounds[5])
+    )
+
+
+def require_bounds_close(actual, expected, tolerance, label) -> None:
+    for index, (actual_value, expected_value) in enumerate(zip(actual, expected)):
+        require_close(
+            actual_value, expected_value, tolerance,
+            f"{label} bound {('xmin', 'xmax', 'ymin', 'ymax', 'zmin', 'zmax')[index]}",
+        )
+
+
+def require_matrix_close(actual, expected, tolerance, label) -> None:
+    for row in range(4):
+        for column in range(4):
+            require_close(
+                actual[row][column], expected[row][column], tolerance,
+                f"{label} matrix [{row},{column}]",
+            )
 
 
 def verify_inventory() -> None:
@@ -254,12 +315,95 @@ def intersection_volume(first, second) -> float:
             bpy.data.meshes.remove(data)
 
 
-def verify_fastener_clearance() -> None:
+def verify_fasteners() -> None:
+    assembly_matrix = bpy.data.objects["shell_front_embossed"].matrix_world
+    for index in range(1, 7):
+        for kind in ("nut", "screw"):
+            name = f"{kind}_{index}"
+            obj = bpy.data.objects[name]
+            source_bounds = binary_stl_bounds(FASTENER_PREVIEW_DIR / f"{name}.stl")
+
+            # Hardware mesh and placement are generated authorities.  Every
+            # object must use the shell's authored assembly transform, while
+            # its site-specific local bounds come from the independent STL.
+            require_matrix_close(
+                obj.matrix_world, assembly_matrix, FASTENER_MATRIX_TOL, name
+            )
+            require_bounds_close(
+                local_bounds(obj), source_bounds, FASTENER_BOUND_TOL,
+                f"{name} local",
+            )
+            expected_world = axis_bounds(
+                assembly_matrix @ corner for corner in bounds_corners(source_bounds)
+            )
+            actual_world = world_bounds(obj)
+            require_bounds_close(
+                actual_world, expected_world, FASTENER_BOUND_TOL,
+                f"{name} world",
+            )
+            expected_center = assembly_matrix @ Vector(tuple(
+                (source_bounds[axis * 2] + source_bounds[axis * 2 + 1]) / 2.0
+                for axis in range(3)
+            ))
+            actual_center = Vector(tuple(
+                (actual_world[axis * 2] + actual_world[axis * 2 + 1]) / 2.0
+                for axis in range(3)
+            ))
+            require(
+                (actual_center - expected_center).length <= FASTENER_BOUND_TOL,
+                f"{name} world center is at the wrong site",
+            )
+
+            spans = tuple(
+                source_bounds[axis * 2 + 1] - source_bounds[axis * 2]
+                for axis in range(3)
+            )
+            source_center = tuple(
+                (source_bounds[axis * 2] + source_bounds[axis * 2 + 1]) / 2.0
+                for axis in range(3)
+            )
+            for axis, axis_name in enumerate(("X", "Y")):
+                require_close(
+                    source_center[axis], EXPECTED_FASTENER_MODEL_XY[index - 1][axis],
+                    FASTENER_BOUND_TOL, f"{name} known model-space {axis_name} site",
+                )
+            if kind == "nut":
+                require_close(
+                    source_bounds[4], EXPECTED_NUT_Z_BOUNDS[0], 0.0002,
+                    f"{name} minimum Z extent",
+                )
+                require_close(
+                    source_bounds[5], EXPECTED_NUT_Z_BOUNDS[1], 0.0002,
+                    f"{name} maximum Z extent",
+                )
+                require_close(spans[2], P.NUT_MAX_T, 0.002, f"{name} thickness")
+                require(
+                    min(spans[:2]) >= P.NUT_NOMINAL_AF - 0.01
+                    and max(spans[:2]) <= 2.0 * P.NUT_NOMINAL_AF / math.sqrt(3.0) + 0.01,
+                    f"{name} plan envelope is not a correctly oriented M2 hex nut",
+                )
+            else:
+                for endpoint, label in enumerate(("head rear", "front tip")):
+                    require_close(
+                        source_bounds[4 + endpoint],
+                        EXPECTED_SCREW_Z_BOUNDS[index - 1][endpoint],
+                        0.0002, f"{name} known {label} Z extent",
+                    )
+                require_close(spans[0], 5.0, 0.01, f"{name} head X diameter")
+                require_close(spans[1], 5.0, 0.01, f"{name} head Y diameter")
+                require_close(
+                    spans[2], EXPECTED_SCREW_LENGTHS[index - 1] + 1.5,
+                    0.002, f"{name} head plus under-head extent",
+                )
+
     pcb = bpy.data.objects["pcb"]
     for name in ("screw_5", "screw_6"):
         overlap = intersection_volume(bpy.data.objects[name], pcb)
         require_close(overlap, 0.0, 1e-5, f"{name} actual PCB overlap")
-    print("PASS fasteners: H1/H2 screw meshes clear the current PCB mesh")
+    print(
+        "PASS fasteners: 12 site-aware hardware meshes use the authoritative "
+        "assembly transform; H1/H2 screws clear the current PCB mesh"
+    )
 
 
 def native_profile_sampler(obj):
@@ -351,7 +495,7 @@ def main() -> None:
     checks = (
         ("inventory", verify_inventory),
         ("bounds", verify_bounds),
-        ("fasteners", verify_fastener_clearance),
+        ("fasteners", verify_fasteners),
         ("profile", verify_profile),
     )
     failures = []
@@ -364,7 +508,10 @@ def main() -> None:
     if failures:
         print(f"FAIL complete rear profile: {len(failures)} check(s) failed", file=sys.stderr)
         raise SystemExit(1)
-    print("PASS complete rear profile: inventory, bounds, and tapered deck verified")
+    print(
+        "PASS complete rear profile: inventory, hardware placement, bounds, "
+        "and tapered deck verified"
+    )
 
 
 if __name__ == "__main__":

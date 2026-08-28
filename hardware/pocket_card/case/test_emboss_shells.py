@@ -387,6 +387,18 @@ for name in {sorted(EXPECTED_FASTENERS)!r}:
     obj = bpy.data.objects[name]
     obj.data.vertices[0].co.z += 0.021
 
+# Fastener mesh and placement are generated.  Disturb both a nut and screw so
+# the second run must restore the authoritative assembly placement rather than
+# accidentally preserving authored-looking transforms on generated hardware.
+nut = bpy.data.objects["nut_1"]
+nut.location.x += 100.0
+nut.rotation_euler = (0.31, -0.27, 0.19)
+nut.scale = (1.4, 0.7, 1.2)
+screw = bpy.data.objects["screw_6"]
+screw.location = (-17.0, 23.0, 41.0)
+screw.rotation_euler = (-0.42, 0.18, 0.73)
+screw.scale = (0.6, 1.3, 0.8)
+
 if {mutate_buttons!r}:
     for name in {button_names!r}:
         obj = bpy.data.objects[name]
@@ -565,12 +577,37 @@ class BlenderFinishIntegrationTest(unittest.TestCase):
 
             for key in (
                 "collections", "collection_children", "objects", "materials",
-                "transforms", "modifiers", "memberships", "world_matrices",
-                "parents", "custom_properties", "display_transform",
+                "modifiers", "memberships", "parents", "custom_properties",
+                "display_transform",
                 "display_material_count", "display_images", "scene", "world",
                 "cameras", "lights", "relative_resources",
             ):
                 self.assertEqual(after[key], before[key], key)
+
+            expected_fastener_matrix = before["world_matrices"][
+                "shell_front_embossed"
+            ]
+            for name in EXPECTED_FASTENERS:
+                for row, (actual_row, expected_row) in enumerate(zip(
+                    after["world_matrices"][name], expected_fastener_matrix
+                )):
+                    for column, (actual, expected) in enumerate(zip(
+                        actual_row, expected_row
+                    )):
+                        self.assertAlmostEqual(
+                            actual, expected, places=6,
+                            msg=f"{name} matrix [{row},{column}]",
+                        )
+            for key in ("transforms", "world_matrices"):
+                before_authored = {
+                    name: value for name, value in before[key].items()
+                    if name not in EXPECTED_FASTENERS
+                }
+                after_authored = {
+                    name: value for name, value in after[key].items()
+                    if name not in EXPECTED_FASTENERS
+                }
+                self.assertEqual(after_authored, before_authored, key)
 
             for name, mesh_hash in before["mesh_hashes"].items():
                 if name in GENERATED_MESH_OBJECTS:
@@ -652,25 +689,38 @@ class BlenderFinishIntegrationTest(unittest.TestCase):
             for name, contents in sentinels.items():
                 self.assertEqual((output / name).read_bytes(), contents)
 
-    def test_verifier_rejects_missing_miscollected_and_mismaterial_fasteners(self):
+    def test_verifier_rejects_invalid_fastener_inventory_and_placement(self):
         canonical = CASE / "out/order/pocket_card_complete.blend"
         mutations = {
-            "missing": (
+            "missing": ("inventory", (
                 'bpy.data.objects.remove(bpy.data.objects["nut_1"], '
                 'do_unlink=True)'
-            ),
-            "miscollected": "\n".join((
+            )),
+            "miscollected": ("inventory", "\n".join((
                 'obj = bpy.data.objects["screw_2"]',
                 'bpy.data.collections["Fasteners"].objects.unlink(obj)',
                 'bpy.data.collections["Case"].objects.link(obj)',
-            )),
-            "mismaterial": "\n".join((
+            ))),
+            "mismaterial": ("inventory", "\n".join((
                 'obj = bpy.data.objects["nut_3"]',
                 'obj.data.materials.clear()',
                 'obj.data.materials.append(bpy.data.materials["Case White"])',
+            ))),
+            "displaced_nut": ("fasteners", (
+                'bpy.data.objects["nut_1"].location.x += 100.0'
             )),
+            "rotated_scaled_screw": ("fasteners", "\n".join((
+                'obj = bpy.data.objects["screw_4"]',
+                'obj.rotation_euler.z += 0.4',
+                'obj.scale = (1.0, 0.7, 1.3)',
+            ))),
+            "swapped_sites": ("fasteners", "\n".join((
+                'first = bpy.data.objects["nut_1"]',
+                'second = bpy.data.objects["nut_2"]',
+                'first.data, second.data = second.data, first.data',
+            ))),
         }
-        for label, mutation in mutations.items():
+        for label, (failure, mutation) in mutations.items():
             with self.subTest(label=label), tempfile.TemporaryDirectory() as tmp:
                 candidate = Path(tmp) / "candidate.blend"
                 shutil.copy2(canonical, candidate)
@@ -682,7 +732,7 @@ class BlenderFinishIntegrationTest(unittest.TestCase):
                 )
                 result = run_verifier(candidate)
                 self.assertNotEqual(result.returncode, 0, result.stdout)
-                self.assertIn("FAIL inventory", result.stdout)
+                self.assertIn(f"FAIL {failure}", result.stdout)
 
 
 class MakeIntegrationTest(unittest.TestCase):

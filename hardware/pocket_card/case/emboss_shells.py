@@ -590,7 +590,12 @@ def _fastener_material():
 
 
 def update_fasteners(paths, assembly_transform):
-    """Replace/create only the twelve generated hardware meshes."""
+    """Replace/create the twelve generated hardware meshes and placements.
+
+    Fastener transforms are pipeline-owned placement data, unlike authored
+    lookdev object transforms, so every refresh reapplies the shell assembly
+    matrix even when the named object already exists.
+    """
     collection = bpy.data.collections.get("Fasteners")
     if collection is None:
         collection = bpy.data.collections.new("Fasteners")
@@ -605,7 +610,7 @@ def update_fasteners(paths, assembly_transform):
             imported.data.name = f"{stem}_mesh"
             move_to_collection(imported, collection)
             assign_material(imported, material)
-            imported.matrix_world = assembly_transform.copy()
+            target = imported
         else:
             if target.type != "MESH":
                 raise FinishError(
@@ -614,6 +619,7 @@ def update_fasteners(paths, assembly_transform):
             move_to_collection(target, collection)
             assign_material(target, material)
             replace_assembly_mesh_data(target, imported)
+        target.matrix_world = assembly_transform.copy()
 
     members = {obj.name for obj in collection.objects}
     expected = set(FASTENER_STEMS)
