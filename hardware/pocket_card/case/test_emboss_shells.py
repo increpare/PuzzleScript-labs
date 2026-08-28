@@ -32,6 +32,7 @@ EXPECTED_FASTENERS = {
     for index in range(1, 7)
     for name in (f"nut_{index}", f"screw_{index}")
 }
+GENERATED_MESH_OBJECTS = SHELL_OBJECTS | EXPECTED_FASTENERS | {"pcb"}
 EXPECTED_OBJECTS = EXPECTED_BUTTONS | {
     "shell_front_embossed", "shell_back_embossed", "pcb", "es3c28p_3d",
 } | EXPECTED_TEMPLATE_COMPONENTS | EXPECTED_FASTENERS
@@ -379,6 +380,13 @@ for name in {sorted(SHELL_OBJECTS)!r}:
     obj = bpy.data.objects[name]
     obj.data.vertices[0].co.z += 0.013
 
+pcb = bpy.data.objects["pcb"]
+pcb.data.vertices[0].co.z += 0.019
+
+for name in {sorted(EXPECTED_FASTENERS)!r}:
+    obj = bpy.data.objects[name]
+    obj.data.vertices[0].co.z += 0.021
+
 if {mutate_buttons!r}:
     for name in {button_names!r}:
         obj = bpy.data.objects[name]
@@ -501,7 +509,7 @@ class BlenderFinishIntegrationTest(unittest.TestCase):
 
         self.assertEqual((sha256(TEMPLATE), TEMPLATE.stat().st_mtime_ns), before)
 
-    def test_second_run_replaces_only_shell_mesh_data_in_existing_assembly(self):
+    def test_second_run_replaces_only_generated_mesh_data_in_existing_assembly(self):
         with tempfile.TemporaryDirectory() as tmp:
             output = Path(tmp)
             first = run_pipeline(output)
@@ -565,7 +573,7 @@ class BlenderFinishIntegrationTest(unittest.TestCase):
                 self.assertEqual(after[key], before[key], key)
 
             for name, mesh_hash in before["mesh_hashes"].items():
-                if name in SHELL_OBJECTS:
+                if name in GENERATED_MESH_OBJECTS:
                     self.assertNotEqual(after["mesh_hashes"][name], mesh_hash, name)
                 else:
                     self.assertEqual(after["mesh_hashes"][name], mesh_hash, name)

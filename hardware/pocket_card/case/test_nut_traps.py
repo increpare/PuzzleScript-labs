@@ -356,7 +356,7 @@ class NutTrapCouponApiTest(unittest.TestCase):
                     Path(tracked, "nut_trap_coupon.step"), stale_step
                 )
 
-    def test_generated_order_step_files_disable_whitespace_diagnostics(self):
+    def test_generated_step_files_disable_whitespace_diagnostics(self):
         attributes = Path(HERE, "..", "..", "..", ".gitattributes")
         lines = attributes.resolve().read_text(encoding="utf-8").splitlines()
         self.assertIn(
@@ -365,6 +365,10 @@ class NutTrapCouponApiTest(unittest.TestCase):
         )
         self.assertIn(
             "hardware/pocket_card/case/out/order/preview/*.step -whitespace",
+            lines,
+        )
+        self.assertIn(
+            "hardware/pocket_card/case/out/pcb/*.step -whitespace",
             lines,
         )
 
@@ -1203,21 +1207,17 @@ class AssembledFrontNutTrapTest(unittest.TestCase):
             with self.subTest(site=site):
                 self.assertLess(overlap, 1e-5)
 
-    def test_preview_hardware_has_only_intended_thread_engagement_overlap(self):
+    def test_preview_hardware_clears_actual_electronics_and_shell_exports(self):
         shell_back = importlib.import_module("shell_back")
         back = shell_back.build_back().val()
-        controller = (
-            cq.Workplane("XY")
-            .box(P.PCB_W, P.PCB_H, P.PCB_T, centered=(False, False, False))
-            .translate((P.PCB_X, P.PCB_Y, -(P.PCB_FRONT_Z + P.PCB_T)))
-        )
-        for site in nut_traps.sites()[4:]:
-            controller = controller.cut(
-                cq.Workplane("XY")
-                .circle(P.MACHINE_SCREW_CLEAR_D / 2.0)
-                .extrude(P.PCB_T + 0.2)
-                .translate((site.x, site.y, -(P.PCB_FRONT_Z + P.PCB_T + 0.1)))
+        controller = place_preview.kicad_pcb_to_model_space(
+            cq.importers.importStep(
+                str(place_preview.PCB_DIR / "pocket_card_controller.step")
             )
+        )
+        controller = (
+            controller.val() if hasattr(controller, "val") else controller
+        )
         module = (
             cq.Workplane("XY")
             .box(P.MOD_W, P.MOD_H, P.MOD_PCB_T, centered=(False, False, False))
@@ -1230,7 +1230,18 @@ class AssembledFrontNutTrapTest(unittest.TestCase):
                 .extrude(P.MOD_PCB_T + 0.2)
                 .translate((site.x, site.y, -shell_front.MOD_PCB_BACK - 0.1))
             )
-        electronics = shell_front.to_model_space(controller.union(module)).val()
+        module = shell_front.to_model_space(module).val()
+        battery = shell_front.to_model_space(
+            cq.Workplane("XY")
+            .box(P.CELL_W, P.CELL_H, P.CELL_T, centered=(False, False, False))
+            .translate((P.BATT_X, P.BATT_Y, -P.LOWER_ZONE_T + P.WALL))
+        ).val()
+        speaker = shell_front.to_model_space(
+            cq.Workplane("XY")
+            .slot2D(P.DRIVER_H, P.DRIVER_W, 90)
+            .extrude(-P.DRIVER_T)
+            .translate((P.GRILLE_X, P.GRILLE_Y, -P.FACE_T))
+        ).val()
         front = self.front_model.val()
         fasteners = place_preview._model_fasteners()
 
@@ -1241,7 +1252,10 @@ class AssembledFrontNutTrapTest(unittest.TestCase):
             screw = screw_workplane.val()
             for part_name, part in (
                 ("front", front), ("back", back),
-                ("electronics", electronics),
+                ("controller PCB/components", controller),
+                ("display module", module),
+                ("battery", battery),
+                ("speaker", speaker),
             ):
                 with self.subTest(fastener=nut_name, part=part_name):
                     self.assertLess(
@@ -1256,6 +1270,26 @@ class AssembledFrontNutTrapTest(unittest.TestCase):
             with self.subTest(fastener=screw_name, contact=nut_name):
                 self.assertGreater(
                     sum(solid.Volume() for solid in nut.intersect(screw).Solids()),
+                    1.0,
+                )
+
+        for fastener_name in ("screw_5", "screw_6"):
+            screw = dict(fasteners)[fastener_name].val()
+            with self.subTest(fastener=fastener_name, pcb="actual"):
+                self.assertLess(
+                    sum(
+                        solid.Volume()
+                        for solid in controller.intersect(screw).Solids()
+                    ),
+                    1e-5,
+                )
+            wrong_holes = controller.translate((2.0, 0.0, 0.0))
+            with self.subTest(fastener=fastener_name, pcb="translated holes"):
+                self.assertGreater(
+                    sum(
+                        solid.Volume()
+                        for solid in wrong_holes.intersect(screw).Solids()
+                    ),
                     1.0,
                 )
 

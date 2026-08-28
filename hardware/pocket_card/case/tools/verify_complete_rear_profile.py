@@ -14,6 +14,7 @@ from pathlib import Path
 import statistics
 import sys
 
+import bmesh
 import bpy
 from mathutils import Vector
 from mathutils.bvhtree import BVHTree
@@ -226,6 +227,41 @@ def verify_bounds() -> None:
     )
 
 
+def intersection_volume(first, second) -> float:
+    """Return exact evaluated mesh overlap without changing the saved scene."""
+    duplicate = first.copy()
+    duplicate.data = first.data.copy()
+    bpy.context.scene.collection.objects.link(duplicate)
+    try:
+        modifier = duplicate.modifiers.new("verification intersection", "BOOLEAN")
+        modifier.operation = "INTERSECT"
+        modifier.solver = "EXACT"
+        modifier.object = second
+        bpy.ops.object.select_all(action="DESELECT")
+        duplicate.select_set(True)
+        bpy.context.view_layer.objects.active = duplicate
+        bpy.ops.object.modifier_apply(modifier=modifier.name)
+        mesh = bmesh.new()
+        try:
+            mesh.from_mesh(duplicate.data)
+            return abs(mesh.calc_volume(signed=True)) if mesh.faces else 0.0
+        finally:
+            mesh.free()
+    finally:
+        data = duplicate.data
+        bpy.data.objects.remove(duplicate, do_unlink=True)
+        if data.users == 0:
+            bpy.data.meshes.remove(data)
+
+
+def verify_fastener_clearance() -> None:
+    pcb = bpy.data.objects["pcb"]
+    for name in ("screw_5", "screw_6"):
+        overlap = intersection_volume(bpy.data.objects[name], pcb)
+        require_close(overlap, 0.0, 1e-5, f"{name} actual PCB overlap")
+    print("PASS fasteners: H1/H2 screw meshes clear the current PCB mesh")
+
+
 def native_profile_sampler(obj):
     require(not obj.modifiers, "shell_back_embossed unexpectedly has live modifiers")
     vertices = [vertex.co.copy() for vertex in obj.data.vertices]
@@ -315,6 +351,7 @@ def main() -> None:
     checks = (
         ("inventory", verify_inventory),
         ("bounds", verify_bounds),
+        ("fasteners", verify_fastener_clearance),
         ("profile", verify_profile),
     )
     failures = []

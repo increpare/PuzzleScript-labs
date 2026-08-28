@@ -654,8 +654,13 @@ def update_existing_assembly(
         validate_object(target, f"existing assembly {name}", require_manifold=False)
         targets[name] = target
 
+    pcb = bpy.data.objects.get("pcb")
+    if pcb is None or pcb.type != "MESH":
+        raise FinishError("existing assembly lacks mesh object 'pcb'")
+    validate_object(pcb, "existing assembly pcb")
+
     protected = preserved_object_state(
-        excluded=set(targets) | set(FASTENER_STEMS)
+        excluded=set(targets) | set(FASTENER_STEMS) | {"pcb"}
     )
     for name, staged_path in (
         ("shell_front_embossed", staged_front),
@@ -669,6 +674,13 @@ def update_existing_assembly(
             f"assembly replacement {name} local bounds", axes=(0, 1),
         )
         replace_assembly_mesh_data(targets[name], imported)
+
+    imported_pcb = import_one_stl(paths.preview / "pcb.stl", "assembly pcb")
+    assert_bounds_close(
+        local_bounds(imported_pcb), local_bounds(pcb),
+        "assembly replacement pcb local bounds",
+    )
+    replace_assembly_mesh_data(pcb, imported_pcb)
 
     update_fasteners(paths, targets["shell_front_embossed"].matrix_world)
 

@@ -1,7 +1,7 @@
 {
   "messages": [
     "0 ERC errors; 90 warnings",
-    "0 DRC errors; 30 warnings",
+    "0 DRC errors; 14 warnings",
     "0 unconnected items",
     "All 9 warning groups matched",
     "Native parity passed",
@@ -106,10 +106,10 @@
         {
           "items": [
             {
-              "uuid": "02ab24bf-674b-4a92-9f12-d80b64d5be8c"
+              "uuid": "00b58232-e62a-46e0-ae66-1db010f3147c"
             },
             {
-              "uuid": "8f1ac480-1843-470c-8525-b6549115f0da"
+              "uuid": "02ab24bf-674b-4a92-9f12-d80b64d5be8c"
             }
           ],
           "scope": "DRC",
@@ -122,7 +122,7 @@
               "uuid": "07ea6c90-2ae3-4b73-8ed5-88c72271964f"
             },
             {
-              "uuid": "6b57cd2d-9f20-4a51-b779-1e3bcc5abb45"
+              "uuid": "1e47fca0-5b33-4e85-8cec-3f41b79fae16"
             }
           ],
           "scope": "DRC",
@@ -132,98 +132,7 @@
         {
           "items": [
             {
-              "uuid": "16f7ce4e-1b8e-4b86-a176-efa26e7d498e"
-            },
-            {
-              "uuid": "a0b320b8-bec7-4986-826d-97d3e7e380b9"
-            }
-          ],
-          "scope": "DRC",
-          "severity": "warning",
-          "type": "silk_overlap"
-        },
-        {
-          "items": [
-            {
-              "uuid": "2a6a133a-2d97-4143-ac44-5ae3e7346b60"
-            },
-            {
-              "uuid": "a0b320b8-bec7-4986-826d-97d3e7e380b9"
-            }
-          ],
-          "scope": "DRC",
-          "severity": "warning",
-          "type": "silk_overlap"
-        },
-        {
-          "items": [
-            {
-              "uuid": "45427a42-37c9-4689-904d-3824b101ce9b"
-            },
-            {
-              "uuid": "a0b320b8-bec7-4986-826d-97d3e7e380b9"
-            }
-          ],
-          "scope": "DRC",
-          "severity": "warning",
-          "type": "silk_overlap"
-        },
-        {
-          "items": [
-            {
-              "uuid": "4b4d97ba-ae6e-4416-895a-bbb724432943"
-            },
-            {
-              "uuid": "a0b320b8-bec7-4986-826d-97d3e7e380b9"
-            }
-          ],
-          "scope": "DRC",
-          "severity": "warning",
-          "type": "silk_overlap"
-        },
-        {
-          "items": [
-            {
-              "uuid": "57169ddf-16ee-43c3-a2c7-ad2ec9c14326"
-            },
-            {
-              "uuid": "a0b320b8-bec7-4986-826d-97d3e7e380b9"
-            }
-          ],
-          "scope": "DRC",
-          "severity": "warning",
-          "type": "silk_overlap"
-        },
-        {
-          "items": [
-            {
-              "uuid": "663d20cb-43f5-465f-b204-65717a02ad1a"
-            },
-            {
-              "uuid": "a0b320b8-bec7-4986-826d-97d3e7e380b9"
-            }
-          ],
-          "scope": "DRC",
-          "severity": "warning",
-          "type": "silk_overlap"
-        },
-        {
-          "items": [
-            {
-              "uuid": "6de683d2-ba21-4ebc-9ecc-4e0c4ed58ea2"
-            },
-            {
-              "uuid": "80e3803c-3963-48c1-9b23-4bbdb2263208"
-            }
-          ],
-          "scope": "DRC",
-          "severity": "warning",
-          "type": "silk_overlap"
-        },
-        {
-          "items": [
-            {
-              "uuid": "7bb3e0e6-eb55-4b4f-b7ba-47978fae25af"
+              "uuid": "10298a20-c70d-4ef2-913b-67df8dc9393a"
             },
             {
               "uuid": "ba8a8014-5f40-4304-9e97-5d62ee5f1d23"
@@ -236,127 +145,10 @@
         {
           "items": [
             {
-              "uuid": "801769af-46ba-41ef-be41-9d8ef94c83f6"
+              "uuid": "4c84688d-ced2-4edd-b39c-ecb10430661e"
             },
             {
-              "uuid": "a0b320b8-bec7-4986-826d-97d3e7e380b9"
-            }
-          ],
-          "scope": "DRC",
-          "severity": "warning",
-          "type": "silk_overlap"
-        },
-        {
-          "items": [
-            {
-              "uuid": "8570340b-937d-4bbe-b976-0da1728ed03a"
-            },
-            {
-              "uuid": "a0b320b8-bec7-4986-826d-97d3e7e380b9"
-            }
-          ],
-          "scope": "DRC",
-          "severity": "warning",
-          "type": "silk_overlap"
-        },
-        {
-          "items": [
-            {
-              "uuid": "878f9ed0-b72e-4be6-b159-3376a96c88cb"
-            },
-            {
-              "uuid": "a0b320b8-bec7-4986-826d-97d3e7e380b9"
-            }
-          ],
-          "scope": "DRC",
-          "severity": "warning",
-          "type": "silk_overlap"
-        },
-        {
-          "items": [
-            {
-              "uuid": "8bf31af5-c711-4f58-bec9-aea89c673af0"
-            },
-            {
-              "uuid": "a0b320b8-bec7-4986-826d-97d3e7e380b9"
-            }
-          ],
-          "scope": "DRC",
-          "severity": "warning",
-          "type": "silk_overlap"
-        },
-        {
-          "items": [
-            {
-              "uuid": "a0b320b8-bec7-4986-826d-97d3e7e380b9"
-            },
-            {
-              "uuid": "a6b8a269-0f3b-4446-8cb4-0bf24296fa42"
-            }
-          ],
-          "scope": "DRC",
-          "severity": "warning",
-          "type": "silk_overlap"
-        },
-        {
-          "items": [
-            {
-              "uuid": "a0b320b8-bec7-4986-826d-97d3e7e380b9"
-            },
-            {
-              "uuid": "a977270f-0a67-459d-8ac0-163c4344dc30"
-            }
-          ],
-          "scope": "DRC",
-          "severity": "warning",
-          "type": "silk_overlap"
-        },
-        {
-          "items": [
-            {
-              "uuid": "a0b320b8-bec7-4986-826d-97d3e7e380b9"
-            },
-            {
-              "uuid": "c737b59f-234b-4ebc-b69c-e50de7b1ebca"
-            }
-          ],
-          "scope": "DRC",
-          "severity": "warning",
-          "type": "silk_overlap"
-        },
-        {
-          "items": [
-            {
-              "uuid": "a0b320b8-bec7-4986-826d-97d3e7e380b9"
-            },
-            {
-              "uuid": "c78cb11e-4f95-4146-a4af-fb022d7a2239"
-            }
-          ],
-          "scope": "DRC",
-          "severity": "warning",
-          "type": "silk_overlap"
-        },
-        {
-          "items": [
-            {
-              "uuid": "a0b320b8-bec7-4986-826d-97d3e7e380b9"
-            },
-            {
-              "uuid": "e4c8dc0d-65e2-493f-946b-b8fdf685c507"
-            }
-          ],
-          "scope": "DRC",
-          "severity": "warning",
-          "type": "silk_overlap"
-        },
-        {
-          "items": [
-            {
-              "uuid": "a0b320b8-bec7-4986-826d-97d3e7e380b9"
-            },
-            {
-              "uuid": "f2f877e3-c53c-402d-a514-d9134885edfd"
+              "uuid": "80e3803c-3963-48c1-9b23-4bbdb2263208"
             }
           ],
           "scope": "DRC",
@@ -2545,8 +2337,8 @@
         }
       ]
     },
-    "sourceDigestAfter": "312617faffeccfc00891c3c05a824afd4a3694ef6085dc11c2c3e63bc3ea4a1f",
-    "sourceDigestBefore": "312617faffeccfc00891c3c05a824afd4a3694ef6085dc11c2c3e63bc3ea4a1f",
+    "sourceDigestAfter": "1a86283c8bb9ae395b1114ca3e5df9f2c5dc835b388277e814a7a40669b27a1a",
+    "sourceDigestBefore": "1a86283c8bb9ae395b1114ca3e5df9f2c5dc835b388277e814a7a40669b27a1a",
     "sourceDigestError": null,
     "sourceUnchanged": true,
     "unconnected": {
