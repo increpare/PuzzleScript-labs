@@ -111,12 +111,15 @@ location. Override either with `BLENDER=/absolute/path/to/blender`.
 
 ### Captive-nut digital review checkpoint
 
-From the repository root, rebuild the complete assembly and render the four
-deterministic closure-review views with:
+From the repository root, render the checked existing complete assembly into
+four deterministic closure-review views with:
 
 ```
 make pocket_card_captive_nut_review
 ```
+
+The command renders the checked existing complete assembly; it does not run
+the case build or replace the `.blend` first.
 
 The target writes 1200 x 900 PNGs without saving or modifying the canonical
 `out/order/pocket_card_complete.blend`:

@@ -1090,7 +1090,7 @@ pocket_card_case_sculpted:
 		--buttons-dir "$(POCKET_CARD_SCULPTED_PLACED_DIR)" \
 		--output "$(POCKET_CARD_COMPLETE_BLEND)"
 
-pocket_card_captive_nut_review: pocket_card_case
+pocket_card_captive_nut_review:
 	@test -n "$(BLENDER)" || (echo "Blender not found; set BLENDER=/path/to/blender" >&2; exit 1)
 	@test -f "$(POCKET_CARD_COMPLETE_BLEND)" || (echo "Pocket Card complete blend missing: $(POCKET_CARD_COMPLETE_BLEND)" >&2; exit 1)
 	"$(BLENDER)" --background "$(POCKET_CARD_COMPLETE_BLEND)" \

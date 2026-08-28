@@ -61,8 +61,33 @@ H2_REQUIRED_OBJECTS = {
     "nut_6",
     "screw_6",
 }
-CLOSEUP_SITE_MOUTHS = {"nut_1": (1.0, 1.0), "nut_6": (0.0, -1.0)}
 TEMP_PREFIX = "__captive_nut_review_"
+EXPECTED_CAP_RESET_LOCAL_BOUNDS = (
+    51.400002, 61.599998, 8.75, 17.25, -3.0, 1.0,
+)
+EXPECTED_AUTHORED_COMPONENTS = {
+    "Battery": {
+        "matrix": (
+            (0.0500000119, 0.0, 0.0, -2.2230117321),
+            (0.0, 0.0499773920, -0.0015038048, -1.1167685986),
+            (0.0, 0.0015038048, 0.0499773920, 1.1205059290),
+            (0.0, 0.0, 0.0, 1.0),
+        ),
+        "bounds": (
+            -19.7395878, 29.7395897, -19.8229218,
+            13.8229208, -19.7738266, -15.2261782,
+        ),
+    },
+    "speaker": {
+        "matrix": (
+            (0.0008726179, -0.0499923974, 0.0, 0.1224939823),
+            (0.0499697812, 0.0008722231, -0.0015038045, -1.6219793558),
+            (0.0015035755, 0.0000262450, 0.0499773920, 0.5579864979),
+            (0.0, 0.0, 0.0, 1.0),
+        ),
+        "bounds": (-10.0, 10.0, -7.0, 7.0, -1.75, 1.75),
+    },
+}
 
 
 class ReviewFailure(RuntimeError):
@@ -90,11 +115,26 @@ def layout_mouth_to_model_offset(mouth, distance_mm):
     )
 
 
-def closeup_nut_model_offsets(distance_mm=6.0):
-    return {
-        name: layout_mouth_to_model_offset(mouth, distance_mm)
-        for name, mouth in CLOSEUP_SITE_MOUTHS.items()
+def closeup_nut_model_offsets(sites, distance_mm=6.0):
+    """Derive closeup offsets from the live authoritative trap-site objects."""
+    sites = tuple(sites)
+    expected_sites = {
+        0: (6.0, 6.5, "module", "nut_1"),
+        5: (H2_LAYOUT_XY[0], H2_LAYOUT_XY[1], "pcb", "nut_6"),
     }
+    if len(sites) != 6:
+        raise ReviewFailure("authoritative trap site count changed")
+    offsets = {}
+    for index, (x, y, kind, nut_name) in expected_sites.items():
+        site = sites[index]
+        if (site.x, site.y, site.kind) != (x, y, kind):
+            raise ReviewFailure(
+                f"authoritative trap site {index + 1} identity/order changed"
+            )
+        offsets[nut_name] = layout_mouth_to_model_offset(
+            site.mouth, distance_mm
+        )
+    return offsets
 
 
 def is_stadium_speaker(vertex_count, dimensions_mm):
@@ -139,9 +179,84 @@ def _local_dimensions(obj):
     return tuple(max(axis) - min(axis) for axis in coordinates)
 
 
+def _local_bounds(obj):
+    return tuple(
+        value
+        for axis in range(3)
+        for value in (
+            min(corner[axis] for corner in obj.bound_box),
+            max(corner[axis] for corner in obj.bound_box),
+        )
+    )
+
+
+def _require_bounds_close(actual, expected, label, tolerance=0.0002):
+    if len(actual) != len(expected) or any(
+        abs(first - second) > tolerance
+        for first, second in zip(actual, expected)
+    ):
+        raise ReviewFailure(f"{label} placement changed: {tuple(actual)!r}")
+
+
+def _require_matrix_close(actual, expected, label, tolerance=0.000002):
+    if any(
+        abs(actual[row][column] - expected[row][column]) > tolerance
+        for row in range(4)
+        for column in range(4)
+    ):
+        raise ReviewFailure(f"{label} placement changed")
+
+
+def _verify_h2_placements(verifier, params, nut_trap_sites):
+    expected_layout = {
+        "H2": tuple(params.PCB_MOUNTS[1]),
+        "Reset": (params.RESET_X, params.RESET_Y),
+        "speaker": (params.GRILLE_X, params.GRILLE_Y),
+    }
+    if H2_LAYOUT_CONTRACT != expected_layout:
+        raise ReviewFailure(
+            f"H2 layout contract drifted from parameters: {expected_layout!r}"
+        )
+
+    assembly = bpy.data.objects["shell_front_embossed"].matrix_world
+    for name in ("pcb", "cap_reset", "nut_6", "screw_6"):
+        _require_matrix_close(
+            bpy.data.objects[name].matrix_world,
+            assembly,
+            name,
+        )
+    pcb_source = verifier.binary_stl_bounds(
+        CASE_DIR / "out" / "order" / "preview" / "pcb.stl"
+    )
+    _require_bounds_close(_local_bounds(bpy.data.objects["pcb"]), pcb_source, "pcb")
+    _require_bounds_close(
+        _local_bounds(bpy.data.objects["cap_reset"]),
+        EXPECTED_CAP_RESET_LOCAL_BOUNDS,
+        "cap_reset",
+    )
+
+    h2_model_xy = (H2_LAYOUT_XY[0], params.BODY_H - H2_LAYOUT_XY[1])
+    for name in ("nut_6", "screw_6"):
+        bounds = _local_bounds(bpy.data.objects[name])
+        center = (
+            (bounds[0] + bounds[1]) / 2.0,
+            (bounds[2] + bounds[3]) / 2.0,
+        )
+        if any(abs(value - expected) > 0.0002 for value, expected in zip(center, h2_model_xy)):
+            raise ReviewFailure(f"{name} H2 centre placement changed: {center!r}")
+
+    for name, expected in EXPECTED_AUTHORED_COMPONENTS.items():
+        obj = bpy.data.objects[name]
+        _require_matrix_close(obj.matrix_world, expected["matrix"], name)
+        _require_bounds_close(_local_bounds(obj), expected["bounds"], name)
+
+    closeup_nut_model_offsets(nut_trap_sites.sites())
+
+
 def _preflight():
     if bpy is None:
         raise ReviewFailure("this script must run inside Blender")
+    bpy.context.view_layer.update()
     validate_required_objects(bpy.data.objects.keys())
     for name in REQUIRED_OBJECTS:
         if bpy.data.objects[name].type != "MESH":
@@ -166,10 +281,15 @@ def _preflight():
     if clearance <= 0.0:
         raise ReviewFailure("screw_6 axis overlaps the actual stadium speaker")
 
-    # Reuse the canonical source-metadata verifier rather than maintaining a
-    # second placement authority here.
+    # Reuse canonical source metadata rather than maintaining a second
+    # generated-parts placement authority here.
+    sys.path.insert(0, str(CASE_DIR))
     sys.path.insert(0, str(CASE_DIR / "tools"))
+    import params
+    import nut_trap_sites
     import verify_complete_rear_profile as verifier
+
+    _verify_h2_placements(verifier, params, nut_trap_sites)
 
     for check in (
         verifier.verify_inventory,
@@ -217,6 +337,12 @@ def _scene_signature():
             if not obj.name.startswith(TEMP_PREFIX)
         },
         "camera": scene.camera.name if scene.camera else None,
+        "active": (
+            bpy.context.view_layer.objects.active.name
+            if bpy.context.view_layer.objects.active
+            else None
+        ),
+        "selected": tuple(sorted(obj.name for obj in bpy.context.selected_objects)),
         "render": (
             scene.render.engine,
             scene.render.filepath,
@@ -264,6 +390,8 @@ class SceneStateGuard(AbstractContextManager):
             for obj in bpy.data.objects
         }
         self.camera = scene.camera
+        self.active_object = bpy.context.view_layer.objects.active
+        self.selected_objects = tuple(bpy.context.selected_objects)
         self.render = {
             "engine": scene.render.engine,
             "filepath": scene.render.filepath,
@@ -322,6 +450,17 @@ class SceneStateGuard(AbstractContextManager):
             for slot, material in zip(obj.material_slots, state["materials"]):
                 if slot.material != material:
                     slot.material = material
+        bpy.ops.object.select_all(action="DESELECT")
+        for obj in self.selected_objects:
+            if bpy.data.objects.get(obj.name) is obj:
+                obj.select_set(True)
+        if (
+            self.active_object is not None
+            and bpy.data.objects.get(self.active_object.name) is self.active_object
+        ):
+            bpy.context.view_layer.objects.active = self.active_object
+        else:
+            bpy.context.view_layer.objects.active = None
         scene = self.scene
         scene.camera = self.camera
         scene.render.engine = self.render["engine"]
@@ -572,6 +711,9 @@ def _render_h2_cutaway():
         "h2_front_section",
         (45.0, 89.0, 3.0, 22.0, -6.5, 2.0),
     )
+    # Pull the screw rearward on its true axis just enough that the seated
+    # hex nut and cage mouth remain separately legible in the oblique view.
+    _move_model(bpy.data.objects["screw_6"], (0.0, 0.0, -6.0), assembly)
     target = _model_point(assembly, (67.0, 12.0, -2.0))
     camera = target + _model_vector(assembly, (50.0, -58.0, -88.0))
     _configure_scene(camera, target, 3.65)
@@ -602,7 +744,10 @@ def _stage_closeup(site_index, site_xy, bounds, destination, nut_offset):
 def _render_trap_closeups():
     _set_visible(set())
     assembly = bpy.data.objects["shell_front_embossed"].matrix_world.copy()
-    offsets = closeup_nut_model_offsets()
+    sys.path.insert(0, str(CASE_DIR))
+    import nut_trap_sites
+
+    offsets = closeup_nut_model_offsets(nut_trap_sites.sites())
     # Model y is already the once-mirrored layout y: site 1 -> 86.5, H2 -> 9.
     _stage_closeup(
         1,
@@ -647,19 +792,18 @@ def render_view(view, output_path, inject_failure=False):
 
 
 def _self_test_state_restore():
+    bpy.ops.object.select_all(action="DESELECT")
+    bpy.data.objects["cap_reset"].select_set(True)
+    bpy.data.objects["speaker"].select_set(True)
+    bpy.context.view_layer.objects.active = bpy.data.objects["cap_reset"]
     before = _scene_signature()
     caught = False
     try:
-        with SceneStateGuard():
-            obj = bpy.data.objects["screw_1"]
-            obj.matrix_world.translation.x += 9.25
-            obj.hide_render = not obj.hide_render
-            obj.hide_viewport = not obj.hide_viewport
-            if obj.material_slots:
-                obj.material_slots[0].material = None
-            bpy.context.scene.render.resolution_x = 17
-            bpy.context.scene.render.filepath = "/tmp/injected-render-failure.png"
-            raise RuntimeError("injected render failure")
+        render_view(
+            "h2_cutaway",
+            Path("/tmp/injected-render-failure.png"),
+            inject_failure=True,
+        )
     except RuntimeError as error:
         caught = str(error) == "injected render failure"
     after = _scene_signature()
@@ -676,7 +820,10 @@ def _self_test_state_restore():
             "injected render failure did not restore canonical state: "
             + ", ".join(changed)
         )
-    print("PASS injected render failure restored canonical state")
+    print(
+        "PASS real H2 setup failure restored selection, active object, "
+        "and canonical state"
+    )
 
 
 def _arguments(argv):

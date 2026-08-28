@@ -5,6 +5,7 @@ import os
 import subprocess
 import tempfile
 import unittest
+from dataclasses import dataclass
 from pathlib import Path
 
 from PIL import Image, ImageChops, ImageStat
@@ -104,13 +105,39 @@ class CaptiveNutReviewContractTest(unittest.TestCase):
         self.assertGreater(clearance, 0.09)
 
     def test_closeup_nut_offsets_follow_mirrored_authoritative_mouth_vectors(self):
-        offsets = self.review.closeup_nut_model_offsets(6.0)
+        @dataclass(frozen=True)
+        class Site:
+            x: float
+            y: float
+            kind: str
+            mouth: tuple
+
+        sites = (
+            Site(6.0, 6.5, "module", (1, 1)),
+            Site(6.0, 48.5, "module", (1, -1)),
+            Site(84.0, 6.5, "module", (-1, 1)),
+            Site(84.0, 48.5, "module", (-1, -1)),
+            Site(64.5, 56.0, "pcb", (0, 1)),
+            Site(64.5, 84.0, "pcb", (0, -1)),
+        )
+        offsets = self.review.closeup_nut_model_offsets(sites, 6.0)
         self.assertEqual(set(offsets), {"nut_1", "nut_6"})
         diagonal = 6.0 / math.sqrt(2.0)
         self.assertAlmostEqual(offsets["nut_1"][0], diagonal)
         self.assertAlmostEqual(offsets["nut_1"][1], -diagonal)
         self.assertEqual(offsets["nut_1"][2], 0.0)
         self.assertEqual(offsets["nut_6"], (0.0, 6.0, 0.0))
+
+        drifted_mouth = list(sites)
+        drifted_mouth[5] = Site(64.5, 84.0, "pcb", (1, 0))
+        self.assertEqual(
+            self.review.closeup_nut_model_offsets(tuple(drifted_mouth), 6.0)["nut_6"],
+            (6.0, -0.0, 0.0),
+        )
+        drifted_site = list(sites)
+        drifted_site[0] = Site(7.0, 6.5, "module", (1, 1))
+        with self.assertRaisesRegex(self.review.ReviewFailure, "authoritative trap site"):
+            self.review.closeup_nut_model_offsets(tuple(drifted_site), 6.0)
 
     def test_preflight_fails_clearly_when_hardware_is_missing(self):
         result = self.blender(
@@ -126,6 +153,19 @@ class CaptiveNutReviewContractTest(unittest.TestCase):
         self.assertIn("missing required assembly objects", result.stdout)
         self.assertIn("nut_4", result.stdout)
 
+    def test_preflight_rejects_displaced_h2_component(self):
+        result = self.blender(
+            "--python-expr",
+            "import bpy; bpy.data.objects['cap_reset'].location.x += 100.0",
+            "--python",
+            SCRIPT,
+            "--",
+            "--preflight-only",
+            check=False,
+        )
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("cap_reset placement changed", result.stdout)
+
     def test_snapshot_restores_matrices_visibility_materials_and_scene_after_failure(self):
         result = self.blender(
             "--python",
@@ -133,7 +173,17 @@ class CaptiveNutReviewContractTest(unittest.TestCase):
             "--",
             "--self-test-state-restore",
         )
-        self.assertIn("PASS injected render failure restored canonical state", result.stdout)
+        self.assertIn(
+            "PASS real H2 setup failure restored selection, active object, and canonical state",
+            result.stdout,
+        )
+
+    def test_make_target_renders_existing_blend_without_rebuild_prerequisite(self):
+        makefile = (REPO_ROOT / "Makefile").read_text()
+        self.assertIn("\npocket_card_captive_nut_review:\n", makefile)
+        self.assertNotIn("pocket_card_captive_nut_review: pocket_card_case", makefile)
+        readme = (HERE / "README.md").read_text()
+        self.assertIn("renders the checked existing complete assembly", readme)
 
     def test_headless_render_writes_distinct_nonblank_images_without_touching_blend(self):
         before_hash = digest(BLEND)
