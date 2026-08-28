@@ -32,6 +32,11 @@ EXPECTED_COLLECTIONS = {
     "Case": {"shell_back_embossed", "shell_front_embossed"},
     "Display": {"es3c28p_3d"},
     "Electronics": {"Battery", "pcb", "speaker"},
+    "Fasteners": {
+        name
+        for index in range(1, 7)
+        for name in (f"nut_{index}", f"screw_{index}")
+    },
     "QLE": {
         "Area_Back", "Area_Fill", "Area_Left", "Area_Right", "Backdrop",
         "Camera", "Lights_Target",
@@ -61,11 +66,16 @@ EXPECTED_OBJECT_TYPES = {
     "speaker": "MESH",
     "tip_mute": "MESH",
     "tip_power": "MESH",
+    **{
+        name: "MESH"
+        for index in range(1, 7)
+        for name in (f"nut_{index}", f"screw_{index}")
+    },
 }
 EXPECTED_MATERIALS = {
     "Backdrop", "Button Yellow", "Case Purple", "Case White",
     "Material.002", "Material.007", "Material.008", "Material.011",
-    "Material.012", "Material.013", "PCB Green",
+    "Material.012", "Material.013", "PCB Green", "Fastener Steel",
 }
 EXPECTED_SHELL_TRANSLATION = Vector((-3.6846468, -2.2743397, 0.6752583))
 
@@ -153,6 +163,7 @@ def verify_inventory() -> None:
         "shell_back_embossed": ("Case White",),
         "pcb": ("PCB Green",),
         "Backdrop": ("Backdrop",),
+        **{name: ("Fastener Steel",) for name in EXPECTED_COLLECTIONS["Fasteners"]},
     }
     for name, expected in expected_slots.items():
         actual = tuple(
@@ -167,7 +178,7 @@ def verify_inventory() -> None:
         "QLE contents changed",
     )
     print(
-        "PASS inventory: authored 23-object/5-collection lookdev scene, "
+        "PASS inventory: authored 35-object/6-collection lookdev scene, "
         "QLE camera/backdrop/four area lights, and material assignments present"
     )
 

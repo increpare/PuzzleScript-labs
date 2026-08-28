@@ -13,6 +13,7 @@ build/** linguist-generated
 
 # Generated OCCT STEP files retain exporter-emitted trailing spaces.
 hardware/pocket_card/case/out/order/*.step -whitespace
+hardware/pocket_card/case/out/order/preview/*.step -whitespace
 
 # Firmware fixture is byte-copied PuzzleScript source for ESP-IDF embedding.
 firmware/esp32p4/main/sokoban_basic.txt conflict-marker-size=32 -whitespace

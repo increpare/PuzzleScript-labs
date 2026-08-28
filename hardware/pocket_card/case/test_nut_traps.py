@@ -19,7 +19,9 @@ sys.path.insert(0, HERE)
 
 import params as P  # noqa: E402
 import checks  # noqa: E402
+import joints  # noqa: E402
 import nut_traps  # noqa: E402
+import place_preview  # noqa: E402
 import shell_front  # noqa: E402
 
 
@@ -361,6 +363,10 @@ class NutTrapCouponApiTest(unittest.TestCase):
             "hardware/pocket_card/case/out/order/*.step -whitespace",
             lines,
         )
+        self.assertIn(
+            "hardware/pocket_card/case/out/order/preview/*.step -whitespace",
+            lines,
+        )
 
     def test_readme_has_only_the_current_captive_nut_closure_instructions(self):
         readme = Path(HERE, "README.md").read_text(encoding="utf-8")
@@ -515,6 +521,158 @@ class NutTrapDefinitionTest(unittest.TestCase):
                     site.roof_back_z,
                     -P.FACE_T - P.NUT_CAVITY_T - P.NUT_ROOF_T,
                 )
+
+    def test_preview_fasteners_have_stable_alternating_names_and_valid_solids(self):
+        fasteners = nut_traps.preview_fasteners()
+        self.assertEqual(
+            tuple(name for name, _shape in fasteners),
+            tuple(
+                name
+                for index in range(1, 7)
+                for name in (f"nut_{index}", f"screw_{index}")
+            ),
+        )
+        self.assertEqual(len(fasteners), 12)
+        for name, shape in fasteners:
+            with self.subTest(name=name):
+                solids = shape.solids().vals()
+                self.assertEqual(len(solids), 1)
+                self.assertTrue(solids[0].isValid())
+                self.assertGreater(solids[0].Volume(), 0.0)
+
+    def test_preview_nuts_are_bored_din934_m2_solids_seated_in_cavity_direction(self):
+        fasteners = dict(nut_traps.preview_fasteners())
+        for index, site in enumerate(nut_traps.sites(), 1):
+            nut = fasteners[f"nut_{index}"]
+            bounds = nut.val().BoundingBox()
+            mouth_length = math.hypot(*site.mouth)
+            across_flat_axis = (
+                -site.mouth[1] / mouth_length,
+                site.mouth[0] / mouth_length,
+            )
+            projections = [
+                vertex.X * across_flat_axis[0]
+                + vertex.Y * across_flat_axis[1]
+                for vertex in nut.val().Vertices()
+            ]
+            unbored = nut_traps.nut_solid(site)
+            visual_thread = unbored.cut(nut)
+            thread_bounds = visual_thread.val().BoundingBox()
+            with self.subTest(site=index):
+                self.assertAlmostEqual(
+                    max(projections) - min(projections),
+                    P.NUT_NOMINAL_AF,
+                    delta=1e-6,
+                )
+                self.assertAlmostEqual(bounds.zmax, site.nut_front_z, delta=1e-6)
+                self.assertAlmostEqual(bounds.zmin, site.nut_front_z - P.NUT_MAX_T, delta=1e-6)
+                self.assertAlmostEqual(bounds.zlen, P.NUT_MAX_T, delta=1e-6)
+                self.assertAlmostEqual(
+                    (bounds.xmin + bounds.xmax) / 2.0, site.x, delta=1e-6
+                )
+                self.assertAlmostEqual(
+                    (bounds.ymin + bounds.ymax) / 2.0, site.y, delta=1e-6
+                )
+                self.assertAlmostEqual(
+                    thread_bounds.xlen, nut_traps.PREVIEW_NUT_THREAD_D, delta=1e-6
+                )
+                self.assertAlmostEqual(
+                    thread_bounds.ylen, nut_traps.PREVIEW_NUT_THREAD_D, delta=1e-6
+                )
+
+    def test_preview_screws_match_selected_pan_head_and_under_head_stack(self):
+        fasteners = dict(nut_traps.preview_fasteners())
+        for index, (site, selection) in enumerate(
+            zip(nut_traps.sites(), joints.selected_screws()), 1
+        ):
+            screw = fasteners[f"screw_{index}"]
+            bounds = screw.val().BoundingBox()
+            shaft_mid = selection.seat_z + selection.length / 2.0
+            shaft = screw.intersect(thin_slab(shaft_mid - 0.05, shaft_mid + 0.05))
+            shaft_bounds = shaft.val().BoundingBox()
+            head_mid = selection.seat_z - nut_traps.PREVIEW_SCREW_HEAD_H / 2.0
+            head = screw.intersect(thin_slab(head_mid - 0.05, head_mid + 0.05))
+            head_bounds = head.val().BoundingBox()
+            with self.subTest(site=index):
+                self.assertEqual((selection.x, selection.y), (site.x, site.y))
+                self.assertAlmostEqual(shaft_bounds.xlen, 2.0, delta=1e-6)
+                self.assertAlmostEqual(shaft_bounds.ylen, 2.0, delta=1e-6)
+                self.assertAlmostEqual(head_bounds.xlen, joints.HEAD_D, delta=1e-6)
+                self.assertAlmostEqual(head_bounds.ylen, joints.HEAD_D, delta=1e-6)
+                self.assertAlmostEqual(bounds.zmin, selection.seat_z - 1.5, delta=1e-6)
+                self.assertAlmostEqual(bounds.zmax, selection.seat_z + selection.length, delta=1e-6)
+                self.assertAlmostEqual(
+                    bounds.zmax - site.nut_front_z,
+                    selection.tip_protrusion,
+                    delta=1e-6,
+                )
+                self.assertGreaterEqual(selection.tip_protrusion, 0.2 - 1e-9)
+                self.assertLessEqual(selection.tip_protrusion, 0.6 + 1e-9)
+
+    def test_place_fasteners_exports_twelve_individual_solids_and_compound(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            preview = root / "preview"
+            with mock.patch.object(place_preview, "ORDER", root), \
+                    mock.patch.object(place_preview, "PREV", preview):
+                placed = place_preview.place_fasteners()
+
+            self.assertEqual(len(placed), 12)
+            expected_names = [name for name, _shape in nut_traps.preview_fasteners()]
+            for name in expected_names:
+                with self.subTest(name=name):
+                    self.assertGreater((preview / f"{name}.stl").stat().st_size, 0)
+                    step = preview / f"{name}.step"
+                    self.assertGreater(step.stat().st_size, 0)
+                    imported = cq.importers.importStep(str(step))
+                    self.assertEqual(len(imported.solids().vals()), 1)
+                    self.assertTrue(imported.val().isValid())
+
+            compound = cq.importers.importStep(str(preview / "fasteners_placed.step"))
+            self.assertEqual(len(compound.solids().vals()), 12)
+            self.assertGreater((root / "fasteners_placed.step").stat().st_size, 0)
+
+    def test_place_fasteners_applies_the_layout_to_model_transform_once(self):
+        expected = dict(nut_traps.preview_fasteners())
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with mock.patch.object(place_preview, "ORDER", root), \
+                    mock.patch.object(place_preview, "PREV", root / "preview"):
+                placed = dict(place_preview.place_fasteners())
+
+        for name, layout_shape in expected.items():
+            layout_bounds = layout_shape.val().BoundingBox()
+            model_bounds = placed[name].val().BoundingBox()
+            with self.subTest(name=name):
+                # OCC's reflected BREP records sub-micron edge tolerances; the
+                # 0.002 mm bound remains far below any physical fit clearance.
+                self.assertAlmostEqual(model_bounds.xmin, layout_bounds.xmin, delta=0.002)
+                self.assertAlmostEqual(model_bounds.xmax, layout_bounds.xmax, delta=0.002)
+                self.assertAlmostEqual(model_bounds.ymin, P.BODY_H - layout_bounds.ymax, delta=0.002)
+                self.assertAlmostEqual(model_bounds.ymax, P.BODY_H - layout_bounds.ymin, delta=0.002)
+                self.assertAlmostEqual(model_bounds.zmin, layout_bounds.zmin, delta=0.002)
+                self.assertAlmostEqual(model_bounds.zmax, layout_bounds.zmax, delta=0.002)
+
+    def test_assembly_step_adds_exactly_twelve_separable_fastener_solids(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with mock.patch.object(place_preview, "ORDER", root), \
+                    mock.patch.object(place_preview, "PREV", root / "preview"), \
+                    mock.patch.object(place_preview, "_require_exports"):
+                place_preview.assemble()
+            assembly = cq.importers.importStep(str(root / "assembly.step"))
+
+        pcb_raw = cq.importers.importStep(
+            str(place_preview.PCB_DIR / "pocket_card_controller.step")
+        )
+        expected_without_fasteners = (
+            len(shell_front.build().solids().vals())
+            + len(importlib.import_module("shell_back").build_back().solids().vals())
+            + len(pcb_raw.solids().vals())
+        )
+        self.assertEqual(
+            len(assembly.solids().vals()), expected_without_fasteners + 12
+        )
 
     def test_invalid_site_and_dimensions_are_rejected(self):
         with self.assertRaisesRegex(ValueError, "mouth"):
@@ -1044,6 +1202,62 @@ class AssembledFrontNutTrapTest(unittest.TestCase):
             overlap = shape_volume(self.front.intersect(path))
             with self.subTest(site=site):
                 self.assertLess(overlap, 1e-5)
+
+    def test_preview_hardware_has_only_intended_thread_engagement_overlap(self):
+        shell_back = importlib.import_module("shell_back")
+        back = shell_back.build_back().val()
+        controller = (
+            cq.Workplane("XY")
+            .box(P.PCB_W, P.PCB_H, P.PCB_T, centered=(False, False, False))
+            .translate((P.PCB_X, P.PCB_Y, -(P.PCB_FRONT_Z + P.PCB_T)))
+        )
+        for site in nut_traps.sites()[4:]:
+            controller = controller.cut(
+                cq.Workplane("XY")
+                .circle(P.MACHINE_SCREW_CLEAR_D / 2.0)
+                .extrude(P.PCB_T + 0.2)
+                .translate((site.x, site.y, -(P.PCB_FRONT_Z + P.PCB_T + 0.1)))
+            )
+        module = (
+            cq.Workplane("XY")
+            .box(P.MOD_W, P.MOD_H, P.MOD_PCB_T, centered=(False, False, False))
+            .translate((P.MOD_X, P.MOD_Y, -shell_front.MOD_PCB_BACK))
+        )
+        for site in nut_traps.sites()[:4]:
+            module = module.cut(
+                cq.Workplane("XY")
+                .circle(P.MOUNT_HOLE_D / 2.0)
+                .extrude(P.MOD_PCB_T + 0.2)
+                .translate((site.x, site.y, -shell_front.MOD_PCB_BACK - 0.1))
+            )
+        electronics = shell_front.to_model_space(controller.union(module)).val()
+        front = self.front_model.val()
+        fasteners = place_preview._model_fasteners()
+
+        for index in range(0, len(fasteners), 2):
+            nut_name, nut_workplane = fasteners[index]
+            screw_name, screw_workplane = fasteners[index + 1]
+            nut = nut_workplane.val()
+            screw = screw_workplane.val()
+            for part_name, part in (
+                ("front", front), ("back", back),
+                ("electronics", electronics),
+            ):
+                with self.subTest(fastener=nut_name, part=part_name):
+                    self.assertLess(
+                        sum(solid.Volume() for solid in part.intersect(nut).Solids()),
+                        1e-5,
+                    )
+                with self.subTest(fastener=screw_name, part=part_name):
+                    self.assertLess(
+                        sum(solid.Volume() for solid in part.intersect(screw).Solids()),
+                        1e-5,
+                    )
+            with self.subTest(fastener=screw_name, contact=nut_name):
+                self.assertGreater(
+                    sum(solid.Volume() for solid in nut.intersect(screw).Solids()),
+                    1.0,
+                )
 
     def test_cages_fit_the_true_envelope_without_breaking_the_outer_skin(self):
         skin_slab = thin_slab(-0.50, -0.45)

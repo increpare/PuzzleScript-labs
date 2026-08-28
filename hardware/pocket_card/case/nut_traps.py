@@ -5,7 +5,17 @@ from dataclasses import dataclass
 
 import cadquery as cq
 
+import joints
 import params as P
+
+
+# Preview hardware deliberately omits helical thread geometry.  The 1.6 mm
+# axial bore is a faithful visual approximation of the M2 internal minor
+# diameter (basic ISO M2 coarse D1 is 1.567 mm), while the shaft remains the
+# nominal 2.0 mm major diameter so threaded engagement stays visible.
+PREVIEW_NUT_THREAD_D = 1.6
+PREVIEW_SCREW_SHAFT_D = 2.0
+PREVIEW_SCREW_HEAD_H = 1.5
 
 
 @dataclass(frozen=True)
@@ -134,6 +144,65 @@ def nut_solid(
 ):
     """Return a physical preview nut seated against the front-side floor."""
     return _hex_prism(site, across_flats, site.nut_front_z, thickness)
+
+
+def _preview_nut(site):
+    """DIN 934 M2 envelope with a simplified, non-helical thread bore."""
+    thread_bore = (
+        cq.Workplane("XY")
+        .circle(PREVIEW_NUT_THREAD_D / 2.0)
+        .extrude(-P.NUT_MAX_T)
+        .translate((site.x, site.y, site.nut_front_z))
+    )
+    return nut_solid(site).cut(thread_bore)
+
+
+def _preview_screw(selection):
+    """Selected M2 pan-head envelope, measured under the seated head."""
+    shaft = (
+        cq.Workplane("XY")
+        .circle(PREVIEW_SCREW_SHAFT_D / 2.0)
+        .extrude(selection.length)
+        .translate((selection.x, selection.y, selection.seat_z))
+    )
+    head = (
+        cq.Workplane("XY")
+        .circle(joints.HEAD_D / 2.0)
+        .extrude(PREVIEW_SCREW_HEAD_H)
+        .translate(
+            (
+                selection.x,
+                selection.y,
+                selection.seat_z - PREVIEW_SCREW_HEAD_H,
+            )
+        )
+    )
+    return head.union(shaft)
+
+
+def preview_fasteners():
+    """Return six nuts and selected screws in stable layout-space order.
+
+    Names alternate by authoritative site order: ``nut_1``, ``screw_1``, ...,
+    ``nut_6``, ``screw_6``.  Callers that export the complete assembly apply
+    ``shell_front.to_model_space`` exactly once.
+    """
+    site_list = sites()
+    selections = joints.selected_screws()
+    if tuple((site.x, site.y, site.kind) for site in site_list) != tuple(
+        (selection.x, selection.y, selection.kind) for selection in selections
+    ):
+        raise ValueError("nut-trap and selected-screw site order differs")
+    return tuple(
+        entry
+        for index, (site, selection) in enumerate(
+            zip(site_list, selections), 1
+        )
+        for entry in (
+            (f"nut_{index}", _preview_nut(site)),
+            (f"screw_{index}", _preview_screw(selection)),
+        )
+    )
 
 
 def _mouth_prism(site, width, z0, z1):

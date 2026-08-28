@@ -16,19 +16,25 @@ CASE = ROOT / "hardware/pocket_card/case"
 TEMPLATE = ROOT / "hardware/card/case/case_updated.blend"
 DISPLAY = ROOT / "hardware/card/case/es3c28p_3d.blend"
 SCRIPT = CASE / "emboss_shells.py"
+VERIFY = CASE / "tools/verify_complete_rear_profile.py"
 BLENDER_TIMEOUT = 180
 SHELL_OBJECTS = {"shell_front_embossed", "shell_back_embossed"}
 
-EXPECTED_COLLECTIONS = {"Case", "Buttons", "Electronics", "Display"}
+EXPECTED_COLLECTIONS = {"Case", "Buttons", "Electronics", "Display", "Fasteners"}
 EXPECTED_TEMPLATE_COMPONENTS = {"Battery", "speaker"}
 EXPECTED_BUTTONS = {
     "cap_up", "cap_down", "cap_left", "cap_right",
     "cap_undo", "cap_action", "cap_reset", "cap_menu",
     "tip_power", "tip_mute",
 }
+EXPECTED_FASTENERS = {
+    name
+    for index in range(1, 7)
+    for name in (f"nut_{index}", f"screw_{index}")
+}
 EXPECTED_OBJECTS = EXPECTED_BUTTONS | {
     "shell_front_embossed", "shell_back_embossed", "pcb", "es3c28p_3d",
-} | EXPECTED_TEMPLATE_COMPONENTS
+} | EXPECTED_TEMPLATE_COMPONENTS | EXPECTED_FASTENERS
 
 
 def blender_bin():
@@ -117,6 +123,16 @@ def run_blender_expression(path, expression):
     if result.returncode:
         raise AssertionError(result.stdout)
     return result.stdout
+
+
+def run_verifier(path):
+    return run_bounded(
+        [
+            blender_bin(), "--background", str(path),
+            "--python-exit-code", "1", "--python", str(VERIFY),
+        ],
+        "complete assembly verifier",
+    )
 
 
 def inspect_blend(path):
@@ -446,6 +462,9 @@ class BlenderFinishIntegrationTest(unittest.TestCase):
             )
             for name in EXPECTED_BUTTONS:
                 self.assertEqual(inventory["materials"][name], ["Button Yellow"])
+            for name in EXPECTED_FASTENERS:
+                self.assertEqual(inventory["materials"][name], ["Fastener Steel"])
+                self.assertEqual(inventory["memberships"][name], ["Fasteners"])
             self.assertEqual(inventory["materials"]["pcb"], ["PCB Green"])
             for name in EXPECTED_TEMPLATE_COMPONENTS:
                 self.assertEqual(
@@ -604,6 +623,58 @@ class BlenderFinishIntegrationTest(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0, result.stdout)
             for name, contents in sentinels.items():
                 self.assertEqual((output / name).read_bytes(), contents)
+
+    def test_missing_fastener_fails_preflight_and_preserves_previous_outputs(self):
+        sentinels = {
+            "shell_front_embossed.stl": b"old-front",
+            "shell_back_embossed.stl": b"old-back",
+            "pocket_card_complete.blend": b"old-blend",
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp)
+            preview = output / "preview"
+            shutil.copytree(CASE / "out/order/preview", preview)
+            (preview / "nut_4.stl").unlink()
+            for name, contents in sentinels.items():
+                (output / name).write_bytes(contents)
+
+            result = run_pipeline(output, "--preview-dir", preview)
+            self.assertNotEqual(result.returncode, 0, result.stdout)
+            self.assertIn("nut_4: missing or empty file", result.stdout)
+            for name, contents in sentinels.items():
+                self.assertEqual((output / name).read_bytes(), contents)
+
+    def test_verifier_rejects_missing_miscollected_and_mismaterial_fasteners(self):
+        canonical = CASE / "out/order/pocket_card_complete.blend"
+        mutations = {
+            "missing": (
+                'bpy.data.objects.remove(bpy.data.objects["nut_1"], '
+                'do_unlink=True)'
+            ),
+            "miscollected": "\n".join((
+                'obj = bpy.data.objects["screw_2"]',
+                'bpy.data.collections["Fasteners"].objects.unlink(obj)',
+                'bpy.data.collections["Case"].objects.link(obj)',
+            )),
+            "mismaterial": "\n".join((
+                'obj = bpy.data.objects["nut_3"]',
+                'obj.data.materials.clear()',
+                'obj.data.materials.append(bpy.data.materials["Case White"])',
+            )),
+        }
+        for label, mutation in mutations.items():
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as tmp:
+                candidate = Path(tmp) / "candidate.blend"
+                shutil.copy2(canonical, candidate)
+                run_blender_expression(
+                    candidate,
+                    "import bpy\n" + mutation + "\n"
+                    "bpy.context.preferences.filepaths.save_version = 0\n"
+                    "bpy.ops.wm.save_as_mainfile(check_existing=False)\n",
+                )
+                result = run_verifier(candidate)
+                self.assertNotEqual(result.returncode, 0, result.stdout)
+                self.assertIn("FAIL inventory", result.stdout)
 
 
 class MakeIntegrationTest(unittest.TestCase):
