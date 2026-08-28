@@ -182,7 +182,7 @@ _APPROVED_FEATURE_POLICY = {
     "H2": (
         0.05,
         0.1,
-        "Rear enclosure mounting pin and shoulder interface.",
+        "Rear enclosure machine-screw and captive-nut axis.",
     ),
     "SW_UP1": (
         0.05,
@@ -217,7 +217,7 @@ _APPROVED_FEATURE_POLICY = {
     "SW_RESET1": (
         0.05,
         0.1,
-        "Reset button must remain concentric with its enclosure guide.",
+        "Reset button must remain concentric with its relocated enclosure guide.",
     ),
     "SW_MENU1": (
         0.05,

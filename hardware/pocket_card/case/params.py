@@ -216,10 +216,10 @@ DIR_GAP        = (2 ** 0.5) * DIR_RADIUS - DIR_CAP_D # 4.73 between adjacent cap
 UNDO_X,  UNDO_Y  = 60.40, 65.80    # was DMG "B", inboard
 ACT_X,   ACT_Y   = 77.10, 61.10    # was DMG "A"
 # Reset joins the right-hand cluster as a small round cap -- subordinate to
-# Undo/Action by size, which is the hierarchy the July 12 spec asked for.
+# Undo/Action by size. It moves left to free the complete lower-right H2
+# captive-nut envelope.
 # Menu stays a slit: it is the most recessive control on the device.
-RESET_X, RESET_Y = 56.50, 80.00    # was 81.60; north so mute clears courtyard
-                                   # the driver retaining ring by 0.10 mm
+RESET_X, RESET_Y = 54.50, 80.00
 RESET_CAP_D      = DIR_CAP_D       # 8.0, same as a direction button
 MENU_X,  MENU_Y  = 39.60, 85.40    # was DMG "Start", still a pill
 MENU_ANGLE       = 0.0             # DECIDED  straight, not slanted like the DMG
@@ -255,10 +255,9 @@ DECORATIVE_SILK = False
 # pin tip). A rear flare on the front shell made the board impossible to seat.
 # Left mount (4.5,56) dropped: side-arc back land cannot host a shoulder/head
 # left of the cell. Right-strip mounts get rear screws via EXTRA_BOSSES.
-# H1 nudged west so J_BAT_OUT1's courtyard clears its Ø7.7 land; H2 moved
-# south so the land clears J_BAT_IN1's courtyard (the old (66,81) land
-# overlapped it corner-on behind the board).
-PCB_MOUNTS = ((64.5, 56.0), (66.0, 84.0))
+# H1 nudged west so J_BAT_OUT1's courtyard clears its Ø7.7 land. H2 aligns
+# vertically with H1 and its complete captive-nut envelope is clear of Reset.
+PCB_MOUNTS = ((64.5, 56.0), (64.5, 84.0))
 PCB_MOUNT_D    = 2.6   # clearance hole in the board
 PCB_POST_D     = 2.4   # front pin through the hole
 PCB_SHOULDER_D = 4.4   # back-shell column the board rests on

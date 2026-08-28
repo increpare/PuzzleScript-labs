@@ -63,14 +63,14 @@
     },
     {
       "ref": "H2",
-      "xMm": 66.0,
+      "xMm": 64.5,
       "yMm": 84.0,
       "rotationDeg": 0.0,
       "side": "F.Cu",
       "xyToleranceMm": 0.05,
       "rotationToleranceDeg": 0.1,
       "lockedRequired": true,
-      "rationale": "Rear enclosure mounting pin and shoulder interface."
+      "rationale": "Rear enclosure machine-screw and captive-nut axis."
     },
     {
       "ref": "SW_UP1",
@@ -140,14 +140,14 @@
     },
     {
       "ref": "SW_RESET1",
-      "xMm": 56.5,
+      "xMm": 54.5,
       "yMm": 80.0,
       "rotationDeg": 0.0,
       "side": "F.Cu",
       "xyToleranceMm": 0.05,
       "rotationToleranceDeg": 0.1,
       "lockedRequired": true,
-      "rationale": "Reset button must remain concentric with its enclosure guide."
+      "rationale": "Reset button must remain concentric with its relocated enclosure guide."
     },
     {
       "ref": "SW_MENU1",
