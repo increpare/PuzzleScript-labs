@@ -1,3 +1,4 @@
 Comment,Designator,Qty,Length_mm,Notes,Sites_xy
-M2x8 pan self-tap,SCREW_M2X8,3,8.0,M2 pan-head self-tap into Ø1.7 pilot,"(6,6.5);(84,6.5);(66,84)"
-M2x10 pan self-tap,SCREW_M2X10,3,10.0,M2 pan-head self-tap into Ø1.7 pilot,"(6,48.5);(84,48.5);(64.5,56)"
+M2x10 pan-head machine screw,SCREW_M2X10,3,10.0,Rear machine screw into captive DIN 934 M2 nut,"(6,6.5);(84,6.5);(64.5,84)"
+M2x12 pan-head machine screw,SCREW_M2X12,3,12.0,Rear machine screw into captive DIN 934 M2 nut,"(6,48.5);(84,48.5);(64.5,56)"
+M2 DIN 934 hex nut,NUT_M2,6,1.6,4.0 mm AF nominal; verify against SLA fit coupon,"(6,6.5);(6,48.5);(84,6.5);(84,48.5);(64.5,56);(64.5,84)"
