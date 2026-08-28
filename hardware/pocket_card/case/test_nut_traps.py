@@ -294,20 +294,109 @@ class NutTrapCouponApiTest(unittest.TestCase):
                         frontier.append(neighbour)
             self.assertEqual(len(reached), len(faces))
 
+    def assert_same_step_geometry(self, first_path, second_path):
+        first = cq.importers.importStep(str(first_path))
+        second = cq.importers.importStep(str(second_path))
+        first_solids = first.solids().vals()
+        second_solids = second.solids().vals()
+        self.assertEqual(len(first_solids), 1)
+        self.assertEqual(len(second_solids), 1)
+        self.assertTrue(first_solids[0].isValid())
+        self.assertTrue(second_solids[0].isValid())
+
+        first_bounds = first_solids[0].BoundingBox()
+        second_bounds = second_solids[0].BoundingBox()
+        for first_value, second_value in zip(
+            (first_bounds.xlen, first_bounds.ylen, first_bounds.zlen),
+            (second_bounds.xlen, second_bounds.ylen, second_bounds.zlen),
+        ):
+            self.assertAlmostEqual(first_value, second_value, delta=1e-6)
+
+        first_volume = shape_volume(first)
+        second_volume = shape_volume(second)
+        intersection_volume = shape_volume(first.intersect(second))
+        symmetric_difference = shape_volume(first.cut(second)) + shape_volume(
+            second.cut(first)
+        )
+        self.assertAlmostEqual(first_volume, second_volume, delta=1e-5)
+        self.assertAlmostEqual(intersection_volume, first_volume, delta=1e-5)
+        self.assertLess(symmetric_difference, 1e-5)
+
+    def test_tracked_coupon_exports_match_fresh_geometry(self):
+        coupon_module = importlib.import_module("nut_trap_coupon")
+        tracked = Path(HERE, "out", "order")
+        with tempfile.TemporaryDirectory() as tmp:
+            fresh_stl, fresh_step = coupon_module.export(tmp)
+            self.assertEqual(
+                fresh_stl.read_bytes(),
+                Path(tracked, "nut_trap_coupon.stl").read_bytes(),
+            )
+            self.assert_same_step_geometry(
+                fresh_step,
+                Path(tracked, "nut_trap_coupon.step"),
+            )
+
+    def test_artifact_freshness_check_rejects_stale_coupon_geometry(self):
+        coupon_module = importlib.import_module("nut_trap_coupon")
+        tracked = Path(HERE, "out", "order")
+        with tempfile.TemporaryDirectory() as tmp:
+            fresh_stl, _fresh_step = coupon_module.export(tmp)
+            stale_model = coupon_module.blank()
+            stale_stl = Path(tmp, "stale_coupon.stl")
+            stale_step = Path(tmp, "stale_coupon.step")
+            cq.exporters.export(stale_model, str(stale_stl))
+            cq.exporters.export(stale_model, str(stale_step))
+
+            with self.assertRaises(AssertionError):
+                self.assertEqual(fresh_stl.read_bytes(), stale_stl.read_bytes())
+            with self.assertRaises(AssertionError):
+                self.assert_same_step_geometry(
+                    Path(tracked, "nut_trap_coupon.step"), stale_step
+                )
+
+    def test_generated_order_step_files_disable_whitespace_diagnostics(self):
+        attributes = Path(HERE, "..", "..", "..", ".gitattributes")
+        lines = attributes.resolve().read_text(encoding="utf-8").splitlines()
+        self.assertIn(
+            "hardware/pocket_card/case/out/order/*.step -whitespace",
+            lines,
+        )
+
+    def test_readme_has_only_the_current_captive_nut_closure_instructions(self):
+        readme = Path(HERE, "README.md").read_text(encoding="utf-8")
+        lowered = readme.lower()
+        self.assertNotIn("pan-head self-tapper", lowered)
+        self.assertNotIn("pan self-tap", lowered)
+        self.assertNotIn("front-shell pilot", lowered)
+        self.assertNotIn("(66, 84)", readme)
+        self.assertIn("3 | M2×10 pan-head machine screw", readme)
+        self.assertIn("3 | M2×12 pan-head machine screw", readme)
+        self.assertIn("6 | DIN 934 M2 captive nut", readme)
+        self.assertIn("(64.5, 84)", readme)
+        self.assertIn("profile-aware rear seat", readme)
+        self.assertIn("fit coupon", lowered)
+        self.assertIn("hand-start", lowered)
+        self.assertIn("anti-rattle", lowered)
+        self.assertIn("must not be structural", lowered)
+
     def test_order_builder_exports_coupon_after_shells_without_cap_variant_count(self):
         build_module = importlib.import_module("build_variants")
         preview_module = importlib.import_module("place_preview")
         events = []
-        fake_shape = mock.MagicMock()
-        fake_shape.union.return_value = fake_shape
+        front_shape = mock.MagicMock(name="front")
+        back_shape = mock.MagicMock(name="back")
+        coupon_shape = mock.MagicMock(name="coupon")
+        other_shape = mock.MagicMock(name="other")
+        other_shape.union.return_value = other_shape
 
         def build_shells():
             events.append("shells")
-            return fake_shape, fake_shape
+            return front_shape, back_shape
 
-        def export_coupon(output_dir):
+        def export_coupon(output_dir, model=None):
             events.append("coupon")
             self.assertEqual(Path(output_dir), Path(build_module.OUT))
+            self.assertIs(model, coupon_shape)
             return (
                 Path(output_dir, "nut_trap_coupon.stl"),
                 Path(output_dir, "nut_trap_coupon.step"),
@@ -315,7 +404,16 @@ class NutTrapCouponApiTest(unittest.TestCase):
 
         def cap_set(*_args):
             events.append("caps")
-            return fake_shape
+            return other_shape
+
+        def volume(shape):
+            if shape is front_shape:
+                return 1.0
+            if shape is back_shape:
+                return 2.0
+            if shape is coupon_shape:
+                return 3.25
+            return 4.0
 
         output = StringIO()
         with mock.patch.object(
@@ -325,22 +423,28 @@ class NutTrapCouponApiTest(unittest.TestCase):
             "export",
             side_effect=export_coupon,
         ), mock.patch.object(
-            build_module.nut_trap_coupon, "build", return_value=fake_shape
-        ), mock.patch.object(
-            build_module.slide_tip, "tip_solid", return_value=fake_shape
+            build_module.nut_trap_coupon, "build", return_value=coupon_shape
+        ) as build_coupon, mock.patch.object(
+            build_module.slide_tip, "tip_solid", return_value=other_shape
         ), mock.patch.object(
             build_module, "cap_set", side_effect=cap_set
         ), mock.patch.object(
-            build_module, "vol", return_value=1.0
-        ), mock.patch.object(
+            build_module, "vol", side_effect=volume
+        ) as measure_volume, mock.patch.object(
             build_module.cq.exporters, "export"
         ), mock.patch.object(preview_module, "main"), redirect_stdout(output):
             build_module.main()
 
         self.assertEqual(events[:2], ["shells", "coupon"])
         self.assertEqual(events.count("caps"), 4)
+        build_coupon.assert_called_once_with()
+        self.assertEqual(
+            sum(call.args == (coupon_shape,) for call in measure_volume.call_args_list),
+            1,
+        )
         manifest = output.getvalue()
         self.assertIn("nut_trap_coupon.stl", manifest)
+        self.assertIn("3.25 cm3", manifest)
         self.assertIn("8 fab files + preview/ overlays", manifest)
 
 

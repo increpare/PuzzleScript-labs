@@ -100,8 +100,8 @@ def main():
     lines = []
 
     front, back = build_shells()
-    nut_trap_coupon.export(OUT)
     nut_coupon = nut_trap_coupon.build()
+    nut_trap_coupon.export(OUT, nut_coupon)
     v = vol(front)
     total += v
     lines.append(f"shell_front.stl                 {v:6.1f} cm3   x1")

@@ -63,8 +63,8 @@ def build():
     return model.cut(label_voids())
 
 
-def export(output_dir=None):
-    """Write deterministic STL and STEP coupon exports and return their paths."""
+def export(output_dir=None, model=None):
+    """Write stable-path STL/STEP exports of the supplied or freshly built model."""
     destination = (
         Path(output_dir)
         if output_dir is not None
@@ -75,7 +75,7 @@ def export(output_dir=None):
         destination / "nut_trap_coupon.stl",
         destination / "nut_trap_coupon.step",
     )
-    model = build()
+    model = build() if model is None else model
     for path in paths:
         cq.exporters.export(model, str(path))
     return paths

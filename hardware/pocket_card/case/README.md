@@ -215,17 +215,25 @@ Writes `out/pcb/BOM.csv` + `out/pcb/CPL.csv`, and the case-assembly fastener
 list `out/hardware_BOM.csv`. Upload the SMT pair with
 `out/pcb/pocket_card_controller_gerbers.zip`.
 
-Case screws are selected from stocked M2×8 / ×10 / ×12 pan-head self-tappers.
-Each screw bridges its profile-aware rear seat to the Ø1.7 front-shell pilot
-and retains at least 2.5 mm of thread engagement:
+Case closure uses pan-head M2 machine screws threaded into six mechanically
+captive DIN 934 M2 nuts in the front shell. Print and qualify the SLA 8001 nut
+fit coupon first, record the selected cavity in `params.NUT_AF`, and only then
+order the complete front shell. `joints.selected_screws()` derives each screw
+length and profile-aware rear seat from the compound rear surface and approved
+seat-depth range, keeping the screw tip inside the front nut trap's blind
+relief.
 
 | Qty | Part | Sites |
 |---|---|---|
-| 3 | M2×8 pan self-tap | module `(6, 6.5)`, `(84, 6.5)`; PCB `(66, 84)` |
-| 3 | M2×10 pan self-tap | module `(6, 48.5)`, `(84, 48.5)`; PCB `(64.5, 56)` |
+| 3 | M2×10 pan-head machine screw | module `(6, 6.5)`, `(84, 6.5)`; PCB `(64.5, 84)` |
+| 3 | M2×12 pan-head machine screw | module `(6, 48.5)`, `(84, 48.5)`; PCB `(64.5, 56)` |
+| 6 | DIN 934 M2 captive nut | all six sites above |
 
 Selection and derived length groups: `joints.selected_screws()` /
-`joints.screw_length_groups()`.
+`joints.screw_length_groups()`. Hand-start every screw into its nut; never use
+the screw to self-tap printed resin or pull a reluctant nut into its cavity. A
+tiny epoxy dot is optional only as anti-rattle retention, must not be
+structural, and must stay clear of the threads.
 
 Connector populate (land stays KiCad JST GH; parts are GH-compatible XUNPU
 wafers — genuine JST often OOS):
