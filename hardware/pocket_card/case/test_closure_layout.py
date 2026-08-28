@@ -31,7 +31,9 @@ class ClosureLayoutContractTests(unittest.TestCase):
         self.assertEqual(P.PCB_MOUNTS, ((64.5, 56.0), (64.5, 84.0)))
         self.assertEqual(P.EXTRA_BOSSES, P.PCB_MOUNTS)
 
+        h1 = self.board.footprints["H1"]
         h2 = self.board.footprints["H2"]
+        self.assertEqual((h1.x_mm, h2.x_mm), (64.5, 64.5))
         self.assertEqual((h2.x_mm, h2.y_mm), (64.5, 84.0))
         self.assertTrue(h2.locked)
 
@@ -49,6 +51,10 @@ class ClosureLayoutContractTests(unittest.TestCase):
 
         u1 = self.board.footprints["U1"]
         self.assertEqual((u1.x_mm, u1.y_mm), (44.3, 72.0))
+        self.assertEqual(
+            tuple(pad.net for pad in u1.pads["22"]),
+            ("SIG_RESET",),
+        )
 
         for ref, expected in (
             ("H2", (64.5, 84.0)),
@@ -56,6 +62,10 @@ class ClosureLayoutContractTests(unittest.TestCase):
         ):
             feature = self.contract_features[ref]
             self.assertEqual((feature["xMm"], feature["yMm"]), expected)
+
+        h1_contract = self.contract_features["H1"]
+        h2_contract = self.contract_features["H2"]
+        self.assertEqual((h1_contract["xMm"], h2_contract["xMm"]), (64.5, 64.5))
 
 
 if __name__ == "__main__":
