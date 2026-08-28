@@ -32,6 +32,9 @@ FLAT_DEPTH = 0.8
 POST_D = 3.0                           # through the module's Ø3.2 holes
 SHOULDER_D = 5.5                       # module rests its PCB on this
 BOSS_D = 4.2                           # corner bosses, nothing to thread through
+DRIVER_POCKET_WALL = 1.2
+DRIVER_POCKET_CLEAR = 0.6
+SPEAKER_WIRE_SERVICE = 1.0             # local free-interior lead service length
 # Bosses start this far INSIDE the face rather than on it. Landing a column
 # exactly on the cavity roof is a coincident-plane union, which OCC leaves
 # unfused: build() came out as seven solids, six of them loose pillars.
@@ -242,6 +245,69 @@ def module_posts():
     return add, cut
 
 
+def _speaker_lead_notch(sign):
+    """Return the existing rear lead-notch cutter for one driver end."""
+    if sign not in (-1, 1):
+        raise ValueError("speaker lead notch sign must be -1 or 1")
+    driver_h = P.DRIVER_H + DRIVER_POCKET_CLEAR
+    driver_back_z = -P.FACE_T - P.DRIVER_T
+    return (
+        cq.Workplane("XY")
+        .box(
+            P.DRIVER_CABLE_W,
+            2.0 * (DRIVER_POCKET_WALL + SPEAKER_WIRE_SERVICE),
+            P.DRIVER_CABLE_CLR + SPEAKER_WIRE_SERVICE,
+            centered=(True, True, False),
+        )
+        .translate((
+            P.GRILLE_X,
+            P.GRILLE_Y + sign * driver_h / 2.0,
+            driver_back_z - SPEAKER_WIRE_SERVICE,
+        ))
+    )
+
+
+def speaker_wire_envelopes():
+    """Return conservative local lead envelopes for both usable exits.
+
+    The physical leads leave the north or south end of the stadium near the
+    driver's rear. Each option starts on the measured driver body, crosses the
+    complete locator-wall/notch thickness, and continues 1.0 mm into the free
+    interior for bend/service room. Z spans the measured rear-side cable
+    clearance, crossing the controller PCB plane inside its driver notch. This
+    deliberately models only the local exit, not an invented harness route.
+    """
+    driver_back_z = -P.FACE_T - P.DRIVER_T
+    locator_outer_half_h = (
+        P.DRIVER_H + DRIVER_POCKET_CLEAR
+        + 2.0 * DRIVER_POCKET_WALL
+    ) / 2.0
+    lead_length = (
+        locator_outer_half_h - P.DRIVER_H / 2.0
+        + SPEAKER_WIRE_SERVICE
+    )
+    pcb_front_z = -P.PCB_FRONT_Z
+    z_back = min(driver_back_z, pcb_front_z)
+    z_front = max(driver_back_z + P.DRIVER_CABLE_CLR, pcb_front_z)
+    envelopes = []
+    for sign in (-1, 1):
+        center_y = (
+            P.GRILLE_Y
+            + sign * (P.DRIVER_H / 2.0 + lead_length / 2.0)
+        )
+        envelopes.append(
+            cq.Workplane("XY")
+            .box(
+                P.DRIVER_CABLE_W,
+                lead_length,
+                z_front - z_back,
+                centered=(True, True, False),
+            )
+            .translate((P.GRILLE_X, center_y, z_back))
+        )
+    return tuple(envelopes)
+
+
 def driver_pocket():
     """Locating walls and lead notches for the driver, flush behind the face.
 
@@ -259,8 +325,9 @@ def driver_pocket():
     These walls only square the driver up, which is why they can be freely
     interrupted for the collars and the lead notches.
     """
-    wall = 1.2
-    w, h = P.DRIVER_W + 0.6, P.DRIVER_H + 0.6
+    wall = DRIVER_POCKET_WALL
+    w = P.DRIVER_W + DRIVER_POCKET_CLEAR
+    h = P.DRIVER_H + DRIVER_POCKET_CLEAR
     z_face = -P.FACE_T                      # driver's front, on the face
     z_back = z_face - P.DRIVER_T            # driver's back
     z_stop = -(P.PCB_FRONT_Z - 0.2)         # walls end above the board front
@@ -284,11 +351,7 @@ def driver_pocket():
     # costs nothing -- these walls are only a locator, and they are already
     # discontinuous where the collars relieve them.
     for sign in (-1, 1):
-        walls = walls.cut(
-            cq.Workplane("XY")
-            .box(P.DRIVER_CABLE_W, 2 * (wall + 1.0),
-                 P.DRIVER_CABLE_CLR + 1, centered=(True, True, False))
-            .translate((P.GRILLE_X, P.GRILLE_Y + sign * h / 2, z_back - 1)))
+        walls = walls.cut(_speaker_lead_notch(sign))
 
     # Relieve the wall wherever a button collar encroaches. Action's collar
     # reaches y=69.1 and the pocket wall starts at 68.5, so a full box would

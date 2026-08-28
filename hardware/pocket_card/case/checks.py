@@ -710,7 +710,34 @@ def check_captive_nut_traps(front_model=None):
               f"{overlap:.6f} mm^3")
         if not ok:
             FAILURES.append(f"captive nut trap collides with {name}")
-    print("   INFO  speaker wires have no modeled solid envelope")
+
+    trap_envelopes = [nut_traps.front_material(site) for site in sites]
+    for exit_name, wire in zip(
+            ("north", "south"), shell_front.speaker_wire_envelopes()):
+        envelope_overlap = sum(
+            _workplane_volume(trap.intersect(wire))
+            for trap in trap_envelopes
+        )
+        actual_overlap = sum(
+            _workplane_volume(trap.intersect(wire))
+            for trap in actual_traps
+        )
+        clearance = min(
+            trap.val().distance(wire.val())
+            for trap in trap_envelopes
+        )
+        metrics[f"speaker_wire_{exit_name}_overlap"] = max(
+            envelope_overlap,
+            actual_overlap,
+        )
+        metrics[f"speaker_wire_{exit_name}_clearance"] = clearance
+        ok = max(envelope_overlap, actual_overlap) < 1e-5
+        print(f"   {'PASS' if ok else 'FAIL'}  traps vs speaker lead "
+              f"{exit_name}: envelope {envelope_overlap:.6f}, actual "
+              f"{actual_overlap:.6f} mm^3; minimum {clearance:.3f} mm")
+        if not ok:
+            FAILURES.append(
+                f"captive nut trap collides with speaker lead {exit_name}")
 
     # Rear joint material is authored by the shared joint helper. Side walls,
     # collars and the front split lip are already included in the built-front

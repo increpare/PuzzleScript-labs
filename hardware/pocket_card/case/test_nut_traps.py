@@ -701,6 +701,86 @@ class AssembledFrontNutTrapTest(unittest.TestCase):
         self.assertGreaterEqual(speaker_gap, 0.9)
         self.assertGreaterEqual(reset_gap, 0.6)
 
+    def test_speaker_wire_envelopes_cover_both_rear_wall_notches(self):
+        helper = getattr(shell_front, "speaker_wire_envelopes", None)
+        self.assertIsNotNone(helper, "speaker lead envelopes are missing")
+        envelopes = helper()
+        self.assertEqual(len(envelopes), 2)
+
+        wall = 1.2
+        driver_h = P.DRIVER_H + 0.6
+        driver_back_z = -P.FACE_T - P.DRIVER_T
+        for sign, envelope in zip((-1, 1), envelopes):
+            notch = (
+                cq.Workplane("XY")
+                .box(
+                    P.DRIVER_CABLE_W,
+                    2.0 * (wall + 1.0),
+                    P.DRIVER_CABLE_CLR + 1.0,
+                    centered=(True, True, False),
+                )
+                .translate((
+                    P.GRILLE_X,
+                    P.GRILLE_Y + sign * driver_h / 2.0,
+                    driver_back_z - 1.0,
+                ))
+            )
+            with self.subTest(exit="north" if sign < 0 else "south"):
+                bounds = envelope.val().BoundingBox()
+                self.assertTrue(envelope.val().isValid())
+                self.assertEqual(len(envelope.solids().vals()), 1)
+                self.assertGreater(shape_volume(envelope), 0.0)
+                self.assertGreater(shape_volume(envelope.intersect(notch)), 1.0)
+                self.assertLess(bounds.zmin, -P.PCB_FRONT_Z)
+                self.assertGreater(bounds.zmax, -P.PCB_FRONT_Z)
+
+    def test_all_complete_traps_clear_both_speaker_lead_options(self):
+        helper = getattr(shell_front, "speaker_wire_envelopes", None)
+        self.assertIsNotNone(helper, "speaker lead envelopes are missing")
+        for exit_name, wire in zip(("north", "south"), helper()):
+            for site in nut_traps.sites():
+                material = nut_traps.front_material(site)
+                actual_trap = self.front.intersect(material)
+                with self.subTest(exit=exit_name, site=site, probe="envelope"):
+                    self.assertLess(shape_volume(material.intersect(wire)), 1e-5)
+                with self.subTest(exit=exit_name, site=site, probe="actual"):
+                    self.assertLess(
+                        shape_volume(actual_trap.intersect(wire)),
+                        1e-5,
+                    )
+
+    def test_production_check_rejects_an_adversarial_speaker_lead_overlap(self):
+        helper = getattr(shell_front, "speaker_wire_envelopes", None)
+        self.assertIsNotNone(helper, "speaker lead envelopes are missing")
+        north, south = helper()
+        site = nut_traps.sites()[-1]
+        bounds = north.val().BoundingBox()
+        bad_north = north.translate((
+            site.x - (bounds.xmin + bounds.xmax) / 2.0,
+            site.y - (bounds.ymin + bounds.ymax) / 2.0,
+            0.0,
+        ))
+        self.assertGreater(
+            shape_volume(bad_north.intersect(nut_traps.front_material(site))),
+            0.1,
+        )
+
+        previous_failures = list(checks.FAILURES)
+        checks.FAILURES.clear()
+        try:
+            with mock.patch.object(
+                shell_front,
+                "speaker_wire_envelopes",
+                return_value=(bad_north, south),
+            ):
+                checks.check_captive_nut_traps(self.front_model)
+            self.assertTrue(
+                any("speaker lead" in failure for failure in checks.FAILURES),
+                checks.FAILURES,
+            )
+        finally:
+            checks.FAILURES[:] = previous_failures
+
     def test_production_check_accepts_the_built_front_and_reports_h2_gaps(self):
         previous_failures = list(checks.FAILURES)
         checks.FAILURES.clear()
@@ -714,6 +794,10 @@ class AssembledFrontNutTrapTest(unittest.TestCase):
         self.assertAlmostEqual(metrics["h2_battery_gap"], 1.9)
         self.assertAlmostEqual(metrics["h2_speaker_gap"], 0.9433963806)
         self.assertAlmostEqual(metrics["h2_reset_gap"], 0.6703296143)
+        self.assertLess(metrics["speaker_wire_north_overlap"], 1e-5)
+        self.assertLess(metrics["speaker_wire_south_overlap"], 1e-5)
+        self.assertGreater(metrics["speaker_wire_north_clearance"], 0.0)
+        self.assertGreater(metrics["speaker_wire_south_clearance"], 0.0)
 
 
 if __name__ == "__main__":
