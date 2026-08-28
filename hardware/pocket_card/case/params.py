@@ -34,6 +34,8 @@ FACE_T = 1.5           # DECIDED  front face thickness in the button area
 NUT_NOMINAL_AF = 4.0           # NOMINAL  stocked nut width across flats
 NUT_AF = 4.4                   # DECIDED  production cavity across flats
 NUT_AF_VARIANTS = (4.3, 4.4, 4.5)  # DECIDED  SLA fit-coupon cavities
+NUT_KERNEL_MIN_AF = 0.0001     # KERNEL  minimum reliable across-flats size;
+                               # 50x the smallest verified-valid OCC sweep
 NUT_MAX_T = 1.6                # DIN 934  maximum physical nut thickness
 NUT_CAVITY_T = 1.8             # DECIDED  axial cavity depth
 NUT_ROOF_T = 1.0               # DECIDED  printed load-bearing roof

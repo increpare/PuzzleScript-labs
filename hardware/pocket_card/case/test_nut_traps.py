@@ -2,6 +2,7 @@ import math
 import os
 import sys
 import unittest
+from unittest import mock
 
 import cadquery as cq
 
@@ -54,6 +55,9 @@ class NutTrapDefinitionTest(unittest.TestCase):
 
     def test_roof_transition_is_a_half_mm_forty_five_degree_chamfer(self):
         self.assertEqual(getattr(P, "NUT_ROOF_TAPER", None), 0.5)
+
+    def test_kernel_safe_across_flats_minimum_is_documented(self):
+        self.assertEqual(getattr(P, "NUT_KERNEL_MIN_AF", None), 0.0001)
 
     def test_hex_corner_diameter_matches_across_flats(self):
         self.assertAlmostEqual(
@@ -257,6 +261,76 @@ class NutTrapSolidTest(unittest.TestCase):
                 self.assertAlmostEqual(
                     shape_volume(sweep), expected_volume, delta=1e-6
                 )
+
+    def af_calls(self, site, across_flats):
+        return (
+            lambda: nut_traps.cage_radius(across_flats),
+            lambda: nut_traps.hex_corner_diameter(across_flats),
+            lambda: nut_traps.nut_solid(site, across_flats),
+            lambda: nut_traps.front_voids(site, across_flats),
+            lambda: nut_traps.insertion_offsets(site, across_flats),
+            lambda: nut_traps.insertion_sweep(site, across_flats),
+        )
+
+    def test_kernel_safe_minimum_produces_valid_analytic_exact_sweep(self):
+        minimum_af = getattr(P, "NUT_KERNEL_MIN_AF", 0.0001)
+        for site in nut_traps.sites():
+            nut = nut_traps.nut_solid(site, minimum_af)
+            sweep = nut_traps.insertion_sweep(site, minimum_af)
+            travel = math.hypot(
+                *nut_traps.insertion_offsets(site, minimum_af)[0]
+            )
+            expected_volume = (
+                math.sqrt(3.0) * minimum_af ** 2 / 2.0
+                + travel * minimum_af
+            ) * P.NUT_MAX_T
+            with self.subTest(site=site):
+                self.assertTrue(nut.val().isValid())
+                self.assertTrue(sweep.val().isValid())
+                self.assertEqual(len(sweep.solids().vals()), 1)
+                self.assertAlmostEqual(
+                    shape_volume(sweep), expected_volume, delta=1e-10
+                )
+
+    def test_values_immediately_below_kernel_minimum_reject_before_cadquery(self):
+        minimum_af = getattr(P, "NUT_KERNEL_MIN_AF", 0.0001)
+        below_minimum = math.nextafter(minimum_af, 0.0)
+        site = nut_traps.sites()[0]
+        with mock.patch.object(
+            nut_traps.cq,
+            "Workplane",
+            side_effect=AssertionError("CadQuery must not be called"),
+        ):
+            for call in self.af_calls(site, below_minimum):
+                with self.subTest(call=call):
+                    try:
+                        call()
+                    except ValueError as error:
+                        self.assertRegex(str(error), "across_flats")
+                    except AssertionError as error:
+                        self.fail(str(error))
+                    else:
+                        self.fail("below-minimum across_flats was accepted")
+
+    def test_nonpositive_and_nonfinite_af_reject_consistently(self):
+        site = nut_traps.sites()[0]
+        for across_flats in (0.0, -1.0, math.nan, math.inf, -math.inf):
+            for call in self.af_calls(site, across_flats):
+                with self.subTest(across_flats=across_flats, call=call):
+                    with self.assertRaisesRegex(ValueError, "across_flats"):
+                        call()
+
+    def test_thickness_validation_remains_independent_at_minimum_af(self):
+        minimum_af = getattr(P, "NUT_KERNEL_MIN_AF", 0.0001)
+        site = nut_traps.sites()[0]
+        with self.assertRaisesRegex(ValueError, "thickness"):
+            nut_traps.nut_solid(site, minimum_af, thickness=0.0)
+        with self.assertRaisesRegex(ValueError, "across_flats"):
+            nut_traps.nut_solid(
+                site,
+                math.nextafter(minimum_af, 0.0),
+                thickness=0.0,
+            )
 
     def assert_tapered_void_geometry(self, voids, site):
         for depth, expected_af in ((0.10, 4.20), (0.40, 3.60)):

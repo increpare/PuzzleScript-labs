@@ -66,13 +66,13 @@ def sites():
 
 def cage_radius(across_flats=P.NUT_AF):
     """Minimum radial envelope for a hex cavity and its printable wall."""
-    _require_positive("across_flats", across_flats)
+    _require_across_flats(across_flats)
     return across_flats / math.sqrt(3.0) + P.NUT_WALL
 
 
 def hex_corner_diameter(across_flats):
     """Return a regular hexagon's corner diameter from its across-flats size."""
-    _require_positive("across_flats", across_flats)
+    _require_across_flats(across_flats)
     return 2.0 * across_flats / math.sqrt(3.0)
 
 
@@ -83,6 +83,16 @@ def _require_positive(name, value):
         raise ValueError(f"{name} must be a positive finite number") from error
     if not valid:
         raise ValueError(f"{name} must be a positive finite number")
+
+
+def _require_across_flats(across_flats):
+    """Reject dimensions below the empirically verified OCC safety margin."""
+    _require_positive("across_flats", across_flats)
+    if across_flats < P.NUT_KERNEL_MIN_AF:
+        raise ValueError(
+            "across_flats must be at least "
+            f"{P.NUT_KERNEL_MIN_AF:g} mm for reliable CadQuery geometry"
+        )
 
 
 def _normalized_mouth(site):
@@ -103,7 +113,7 @@ def _placed(shape, site):
 
 
 def _hex_prism(site, across_flats, z_front, thickness):
-    _require_positive("across_flats", across_flats)
+    _require_across_flats(across_flats)
     _require_positive("thickness", thickness)
     return _placed(
         (
@@ -198,7 +208,7 @@ def _roof_transition(site, across_flats):
 
 def front_voids(site, across_flats=P.NUT_AF):
     """Return the hex cavity, side throat, and coaxial screw bore union."""
-    _require_positive("across_flats", across_flats)
+    _require_across_flats(across_flats)
     cavity_front_z = site.nut_front_z + 0.1
     cavity = _hex_prism(
         site,
@@ -220,7 +230,7 @@ def front_voids(site, across_flats=P.NUT_AF):
 
 def insertion_offsets(site, across_flats=P.NUT_NOMINAL_AF):
     """Return stable outside-to-seated XY translation offsets for a nut."""
-    _require_positive("across_flats", across_flats)
+    _require_across_flats(across_flats)
     nut_corner_radius = hex_corner_diameter(across_flats) / 2.0
     distance = P.NUT_ENVELOPE_R + nut_corner_radius + 0.1
     step_count = math.ceil(distance / 0.20)
@@ -261,7 +271,7 @@ def _convex_hull_2d(points):
 
 def insertion_sweep(site, across_flats=P.NUT_NOMINAL_AF):
     """Return the exact convex volume swept by the nut's straight translation."""
-    _require_positive("across_flats", across_flats)
+    _require_across_flats(across_flats)
     corner_radius = hex_corner_diameter(across_flats) / 2.0
     travel = math.hypot(*insertion_offsets(site, across_flats)[0])
     seated_profile = tuple(
