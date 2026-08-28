@@ -42,10 +42,18 @@ class NutTrapDefinitionTest(unittest.TestCase):
         self.assertEqual(tuple((s.x, s.y) for s in sites[4:]), P.PCB_MOUNTS)
 
     def test_maximum_coupon_cavity_fits_the_conservative_envelope(self):
+        largest_coupon_af = max(P.NUT_AF_VARIANTS)
         self.assertAlmostEqual(
-            nut_traps.cage_radius(4.5), 4.5 / math.sqrt(3.0) + 1.0
+            nut_traps.cage_radius(largest_coupon_af),
+            largest_coupon_af / math.sqrt(3.0) + P.NUT_WALL,
         )
-        self.assertLessEqual(nut_traps.cage_radius(4.5), 3.6)
+        self.assertLessEqual(
+            nut_traps.cage_radius(largest_coupon_af),
+            P.NUT_ENVELOPE_R,
+        )
+
+    def test_roof_transition_is_a_half_mm_forty_five_degree_chamfer(self):
+        self.assertEqual(getattr(P, "NUT_ROOF_TAPER", None), 0.5)
 
     def test_hex_corner_diameter_matches_across_flats(self):
         self.assertAlmostEqual(
@@ -119,6 +127,33 @@ def roof_cylinder_probe(site, diameter, z0, z1):
     )
 
 
+def equivalent_hex_af_at(voids, z):
+    section_thickness = 0.01
+    section = voids.intersect(
+        thin_slab(z - section_thickness / 2.0, z + section_thickness / 2.0)
+    )
+    section_area = shape_volume(section) / section_thickness
+    return math.sqrt(2.0 * section_area / math.sqrt(3.0))
+
+
+def square_ledged_voids(site, across_flats=P.NUT_AF):
+    cavity_front_z = site.nut_front_z + 0.1
+    cavity = nut_traps._hex_prism(
+        site,
+        across_flats,
+        cavity_front_z,
+        cavity_front_z - site.cavity_back_z,
+    )
+    throat = nut_traps._mouth_prism(
+        site,
+        P.NUT_THROAT_W,
+        site.cavity_back_z,
+        cavity_front_z,
+    )
+    bore = nut_traps.screw_path(site, site.roof_back_z - 0.1)
+    return cavity.union(throat).union(bore)
+
+
 class NutTrapSolidTest(unittest.TestCase):
     def trajectory(self, site):
         helper = getattr(nut_traps, "insertion_offsets", None)
@@ -181,6 +216,67 @@ class NutTrapSolidTest(unittest.TestCase):
                 with self.subTest(site=site, distance=distance):
                     self.assertAlmostEqual(offset_x / distance, expected_x)
                     self.assertAlmostEqual(offset_y / distance, expected_y)
+
+    def test_exact_sweep_contains_intermediate_nuts_for_tiny_and_nominal_af(self):
+        site = nut_traps.sites()[0]
+        for across_flats in (0.05, P.NUT_NOMINAL_AF):
+            sweep = nut_traps.insertion_sweep(site, across_flats)
+            outside_x, outside_y = nut_traps.insertion_offsets(
+                site, across_flats
+            )[0]
+            for fraction in (0.137, 0.503, 0.881):
+                translated_nut = nut_traps.nut_solid(
+                    site, across_flats
+                ).translate(
+                    (outside_x * fraction, outside_y * fraction, 0.0)
+                )
+                missing = shape_volume(translated_nut.cut(sweep))
+                with self.subTest(
+                    across_flats=across_flats,
+                    fraction=fraction,
+                ):
+                    self.assertLess(missing, 1e-7)
+
+    def test_exact_sweep_has_analytic_convex_translation_volume(self):
+        site = nut_traps.sites()[0]
+        for across_flats in (0.05, P.NUT_NOMINAL_AF):
+            sweep = nut_traps.insertion_sweep(site, across_flats)
+            travel = math.hypot(
+                *nut_traps.insertion_offsets(site, across_flats)[0]
+            )
+            hex_area = math.sqrt(3.0) * across_flats ** 2 / 2.0
+            expected_volume = (
+                hex_area + travel * across_flats
+            ) * P.NUT_MAX_T
+            with self.subTest(across_flats=across_flats):
+                self.assertTrue(sweep.val().isValid())
+                self.assertEqual(len(sweep.solids().vals()), 1)
+                self.assertGreater(shape_volume(sweep), shape_volume(
+                    nut_traps.nut_solid(site, across_flats)
+                ))
+                self.assertAlmostEqual(
+                    shape_volume(sweep), expected_volume, delta=1e-6
+                )
+
+    def assert_tapered_void_geometry(self, voids, site):
+        for depth, expected_af in ((0.10, 4.20), (0.40, 3.60)):
+            measured_af = equivalent_hex_af_at(
+                voids,
+                site.cavity_back_z - depth,
+            )
+            self.assertAlmostEqual(measured_af, expected_af, delta=0.02)
+
+    def test_roof_void_has_forty_five_degree_internal_transition(self):
+        for site in nut_traps.sites():
+            with self.subTest(site=site):
+                self.assert_tapered_void_geometry(
+                    nut_traps.front_voids(site), site
+                )
+
+    def test_square_ledged_cavity_is_rejected_by_taper_probe(self):
+        site = nut_traps.sites()[0]
+        with self.assertRaises(AssertionError):
+            self.assert_tapered_void_geometry(square_ledged_voids(site), site)
 
     def test_all_public_geometry_outputs_are_valid(self):
         for site in nut_traps.sites():
@@ -290,24 +386,42 @@ class NutTrapSolidTest(unittest.TestCase):
             site,
             4.4,
             site.roof_back_z,
-            site.cavity_back_z,
+            site.cavity_back_z - 0.5,
         )
         roof_bore = roof_cylinder_probe(
             site,
             2.4,
             site.roof_back_z,
-            site.cavity_back_z,
+            site.cavity_back_z - 0.5,
         )
         load_area = roof_hex.cut(roof_bore)
-        self.assertGreater(shape_volume(load_area), 10.0)
+        self.assertGreater(shape_volume(load_area), 6.0)
         actual_load_area = finished.intersect(load_area)
         self.assertAlmostEqual(
             shape_volume(actual_load_area),
             shape_volume(load_area),
             delta=1e-5,
         )
-        self.assertAlmostEqual(actual_load_area.val().BoundingBox().zlen, 1.0)
-        self.assertLess(shape_volume(finished.intersect(roof_bore)), 1e-8)
+        self.assertAlmostEqual(actual_load_area.val().BoundingBox().zlen, 0.5)
+
+        full_roof_bore = roof_cylinder_probe(
+            site,
+            2.4,
+            site.roof_back_z,
+            site.cavity_back_z,
+        )
+        self.assertLess(shape_volume(finished.intersect(full_roof_bore)), 1e-8)
+
+        cage_section = (
+            cq.Workplane("XY")
+            .circle(P.NUT_ENVELOPE_R)
+            .extrude(0.01)
+            .translate((site.x, site.y, site.cavity_back_z - 0.405))
+        )
+        self.assertGreater(
+            shape_volume(finished.intersect(cage_section)) / 0.01,
+            20.0,
+        )
 
         cavity_side_probe = roof_hex_probe(
             site,

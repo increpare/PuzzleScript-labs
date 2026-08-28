@@ -176,6 +176,26 @@ def screw_path(site, z_back):
     )
 
 
+def _roof_transition(site, across_flats):
+    """Return the 45-degree cavity-to-roof chamfer, or None inside the bore."""
+    end_af = max(
+        P.MACHINE_SCREW_CLEAR_D,
+        across_flats - 2.0 * P.NUT_ROOF_TAPER,
+    )
+    if end_af >= across_flats:
+        return None
+    local = (
+        cq.Workplane("XY")
+        .workplane(offset=site.cavity_back_z)
+        .polygon(6, hex_corner_diameter(across_flats))
+        .workplane(offset=-P.NUT_ROOF_TAPER)
+        .polygon(6, hex_corner_diameter(end_af))
+        .loft(combine=True)
+        .rotate((0.0, 0.0, 0.0), (0.0, 0.0, 1.0), _mouth_angle(site))
+    )
+    return _placed(local, site)
+
+
 def front_voids(site, across_flats=P.NUT_AF):
     """Return the hex cavity, side throat, and coaxial screw bore union."""
     _require_positive("across_flats", across_flats)
@@ -193,7 +213,9 @@ def front_voids(site, across_flats=P.NUT_AF):
         cavity_front_z,
     )
     bore = screw_path(site, site.roof_back_z - 0.1)
-    return cavity.union(throat).union(bore)
+    voids = cavity.union(throat).union(bore)
+    transition = _roof_transition(site, across_flats)
+    return voids if transition is None else voids.union(transition)
 
 
 def insertion_offsets(site, across_flats=P.NUT_NOMINAL_AF):
@@ -213,14 +235,52 @@ def insertion_offsets(site, across_flats=P.NUT_NOMINAL_AF):
     return offsets + ((0.0, 0.0),)
 
 
-def insertion_sweep(site, across_flats=P.NUT_NOMINAL_AF):
-    """Return the continuous collision volume of a nut sliding into its seat."""
-    # At <=0.20 mm pitch successive 4.0 mm nominal hex prisms overlap deeply,
-    # so their fused union is a conservative continuous translation volume.
-    sweep = None
-    for offset_x, offset_y in insertion_offsets(site, across_flats):
-        nut = nut_solid(site, across_flats).translate(
-            (offset_x, offset_y, 0.0)
+def _convex_hull_2d(points):
+    """Return a counter-clockwise monotonic-chain hull of XY point tuples."""
+    ordered = sorted(set(points))
+
+    def cross(origin, first, second):
+        return (
+            (first[0] - origin[0]) * (second[1] - origin[1])
+            - (first[1] - origin[1]) * (second[0] - origin[0])
         )
-        sweep = nut if sweep is None else sweep.union(nut)
-    return sweep
+
+    lower = []
+    for point in ordered:
+        while len(lower) >= 2 and cross(lower[-2], lower[-1], point) <= 0.0:
+            lower.pop()
+        lower.append(point)
+
+    upper = []
+    for point in reversed(ordered):
+        while len(upper) >= 2 and cross(upper[-2], upper[-1], point) <= 0.0:
+            upper.pop()
+        upper.append(point)
+    return tuple(lower[:-1] + upper[:-1])
+
+
+def insertion_sweep(site, across_flats=P.NUT_NOMINAL_AF):
+    """Return the exact convex volume swept by the nut's straight translation."""
+    _require_positive("across_flats", across_flats)
+    corner_radius = hex_corner_diameter(across_flats) / 2.0
+    travel = math.hypot(*insertion_offsets(site, across_flats)[0])
+    seated_profile = tuple(
+        (
+            corner_radius * math.cos(math.radians(60.0 * vertex)),
+            corner_radius * math.sin(math.radians(60.0 * vertex)),
+        )
+        for vertex in range(6)
+    )
+    hull = _convex_hull_2d(
+        seated_profile
+        + tuple((x + travel, y) for x, y in seated_profile)
+    )
+    local = (
+        cq.Workplane("XY")
+        .polyline(hull)
+        .close()
+        .extrude(-P.NUT_MAX_T)
+        .translate((0.0, 0.0, site.nut_front_z))
+        .rotate((0.0, 0.0, 0.0), (0.0, 0.0, 1.0), _mouth_angle(site))
+    )
+    return _placed(local, site)

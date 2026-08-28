@@ -37,6 +37,8 @@ NUT_AF_VARIANTS = (4.3, 4.4, 4.5)  # DECIDED  SLA fit-coupon cavities
 NUT_MAX_T = 1.6                # DIN 934  maximum physical nut thickness
 NUT_CAVITY_T = 1.8             # DECIDED  axial cavity depth
 NUT_ROOF_T = 1.0               # DECIDED  printed load-bearing roof
+NUT_ROOF_TAPER = 0.5           # DECIDED  mm axial/radial, 45-degree inside
+                               # chamfer; leaves 0.5 mm flat exterior-side roof
 NUT_THROAT_W = 4.6             # DECIDED  side-loading throat width
 NUT_WALL = 1.0                 # DECIDED  minimum radial cage wall
 MACHINE_SCREW_CLEAR_D = 2.4    # DECIDED  M2 screw clearance bore diameter
