@@ -1744,10 +1744,36 @@ def check_screw_joints():
         seat = j.seat_z
         errs = []
         selection = selections[(j.x, j.y, j.kind)]
-        if selection.engagement < joints.MIN_THREAD_ENGAGEMENT - 1e-9:
+        nut_front_z = -P.FACE_T
+        nut_back_z = nut_front_z - P.NUT_MAX_T
+        tip_z = selection.seat_z + selection.length
+        outer_back_z = j.skin_range()[1]
+        if selection.length not in joints.STOCKED_MACHINE_SCREW_LENGTHS:
+            errs.append(f"M2x{selection.length:g} is not an approved stock length")
+        if not (joints.MIN_HEAD_SEAT_DEPTH - 1e-9
+                <= selection.seat_depth
+                <= joints.MAX_HEAD_SEAT_DEPTH + 1e-9):
+            errs.append(f"seat depth {selection.seat_depth:.3f} outside range")
+        if abs(selection.outer_back_z - outer_back_z) > 1e-9:
+            errs.append("selected outer-back profile datum is inconsistent")
+        if abs(selection.seat_z
+               - (selection.outer_back_z + selection.seat_depth)) > 1e-9:
+            errs.append("selected seat/profile arithmetic is inconsistent")
+        if abs(selection.seat_z - seat) > 1e-9:
+            errs.append("selected seat does not match rear joint geometry")
+        if seat > nut_back_z + 1e-9:
+            errs.append("screw does not cross the complete 1.6 mm nut")
+        if not (joints.MIN_TIP_PROTRUSION - 1e-9
+                <= selection.tip_protrusion
+                <= joints.MAX_TIP_PROTRUSION + 1e-9):
             errs.append(
-                f"M2x{selection.length:g} engagement "
-                f"{selection.engagement:.2f} < {joints.MIN_THREAD_ENGAGEMENT:.2f}")
+                f"tip protrusion {selection.tip_protrusion:.3f} outside range")
+        if abs(selection.tip_protrusion - (tip_z - nut_front_z)) > 1e-9:
+            errs.append("selected tip/seat arithmetic is inconsistent")
+        if tip_z > nut_front_z + P.MACHINE_SCREW_TIP_RELIEF + 1e-9:
+            errs.append("screw tip exceeds the blind front relief")
+        if P.FACE_T - P.MACHINE_SCREW_TIP_RELIEF < 0.9 - 1e-9:
+            errs.append("less than 0.9 mm exterior front skin remains")
         # 1. pocket open: skin -> seat across the footprint
         for dx in (-0.7 * j.head_r, 0.0, 0.7 * j.head_r):
             xx = j.x + dx
@@ -1776,8 +1802,9 @@ def check_screw_joints():
             errs.append(f"land missing inboard at z={z_mid:.2f}")
         ok = not errs
         print(f"   {'PASS' if ok else 'FAIL'}  {j.kind:6} ({j.x:5.1f},{j.y:5.1f}) "
-              f"seat z={seat:6.2f}, M2x{selection.length:g} engagement "
-              f"{selection.engagement:.2f}, membrane>={P.MIN_MEMBRANE}")
+              f"seat z={seat:6.2f} depth={selection.seat_depth:.3f}, "
+              f"M2x{selection.length:g} tip={selection.tip_protrusion:.3f}, "
+              f"membrane>={P.MIN_MEMBRANE}")
         for e in errs:
             print(f"          {e}")
         if not ok:

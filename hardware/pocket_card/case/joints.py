@@ -5,8 +5,9 @@ pieces cannot disagree (the old Ø4.4 shoulder under a Ø5.3 pocket, the Ø3.6
 rib bore around a Ø2.6 shaft — both were open rings by construction).
 
 Geometry rules (see 2026-08-03 feature-framework spec):
-- Seat plane: highest outer-back z over the head footprint + SCREW_HEAD_H,
-  so the head always gets a flat seat even on the curved side arcs.
+- Seat plane: the selected depth inboard of the shallowest outer-back z over
+  the head footprint, so the head gets a flat seat on the compound rear skin
+  and the screw tip lands inside the captive-nut blind relief.
 - Land: solid cylinder Ø(head + 2·LAND_WALL) from below the skin up to the
   joint's functional top. Pockets are cut into land, never into bare floor.
 - Membrane: the land must keep ≥ MIN_MEMBRANE of solid ring above the seat;
@@ -22,33 +23,89 @@ import cadquery as cq
 import params as P
 import side_arc
 
-SHAFT_CLEAR_D = 2.6         # clearance for the self-tapper shank
 HEAD_D = 5.0
-HEAD_H = 1.5                # seat depth below the local outer surface
 HEAD_CLEAR = 0.15           # radial play on the head pocket
-STOCKED_SCREW_LENGTHS = (8.0, 10.0, 12.0)
-MIN_THREAD_ENGAGEMENT = 2.5
+STOCKED_MACHINE_SCREW_LENGTHS = (8.0, 10.0, 12.0, 14.0)
+MIN_HEAD_SEAT_DEPTH = 1.5
+MAX_HEAD_SEAT_DEPTH = 2.1
+MIN_TIP_PROTRUSION = 0.2
+MAX_TIP_PROTRUSION = 0.6
 
 
-def select_screw_length(shank_span: float,
-                        stocked_lengths=STOCKED_SCREW_LENGTHS,
-                        min_engagement: float = MIN_THREAD_ENGAGEMENT) -> float:
-    """Shortest stock screw that bridges ``shank_span`` and still bites.
+@dataclass(frozen=True)
+class MachineScrewGeometry:
+    length: float
+    seat_depth: float
+    tip_protrusion: float
 
-    Length is measured under the head, so the span starts at the rear seat and
-    ends at the entrance to the front-shell pilot.  Keeping this arithmetic
-    independent of the CAD objects makes the stock decision directly testable.
+
+def _finite_number(name, value):
+    try:
+        valid = math.isfinite(value)
+    except TypeError as error:
+        raise ValueError(f"{name} must be finite") from error
+    if not valid:
+        raise ValueError(f"{name} must be finite")
+    return float(value)
+
+
+def select_machine_screw(
+        outer_back_z: float,
+        nut_front_z: float = -P.FACE_T,
+        stocked_lengths=STOCKED_MACHINE_SCREW_LENGTHS,
+        min_seat_depth: float = MIN_HEAD_SEAT_DEPTH,
+        max_seat_depth: float = MAX_HEAD_SEAT_DEPTH,
+        min_tip_protrusion: float = MIN_TIP_PROTRUSION,
+        max_tip_protrusion: float = MAX_TIP_PROTRUSION,
+        tol: float = 1e-9) -> MachineScrewGeometry:
+    """Choose the shortest M2 screw and its shallowest valid head seat.
+
+    ``outer_back_z`` is the shallowest sampled exterior point beneath the
+    whole head footprint. Length is measured under the head at
+    ``outer_back_z + seat_depth``. The screw must cross the captive nut's
+    front plane and finish within its blind tip relief.
     """
-    span = float(shank_span)
-    engagement = float(min_engagement)
-    if not math.isfinite(span) or span < 0:
-        raise ValueError(f"invalid screw shank span {shank_span!r}")
-    for length in sorted(float(v) for v in stocked_lengths):
-        if length - span >= engagement - 1e-9:
-            return length
+    outer = _finite_number("outer_back_z", outer_back_z)
+    nut_front = _finite_number("nut_front_z", nut_front_z)
+    min_seat = _finite_number("min_seat_depth", min_seat_depth)
+    max_seat = _finite_number("max_seat_depth", max_seat_depth)
+    min_tip = _finite_number("min_tip_protrusion", min_tip_protrusion)
+    max_tip = _finite_number("max_tip_protrusion", max_tip_protrusion)
+    tolerance = _finite_number("tol", tol)
+    if min_seat < 0.0 or max_seat < min_seat:
+        raise ValueError("seat depth range must be finite, nonnegative, and ordered")
+    if min_tip < 0.0 or max_tip < min_tip:
+        raise ValueError(
+            "tip protrusion range must be finite, nonnegative, and ordered")
+    if tolerance < 0.0:
+        raise ValueError("tol must be finite and nonnegative")
+
+    try:
+        stock = list(stocked_lengths)
+    except TypeError as error:
+        raise ValueError("stocked screw lengths must be an iterable") from error
+    lengths = []
+    for value in stock:
+        try:
+            valid = math.isfinite(value) and value > 0.0
+        except TypeError as error:
+            raise ValueError(
+                "stocked screw lengths must be positive finite numbers") from error
+        if not valid:
+            raise ValueError(
+                "stocked screw lengths must be positive finite numbers")
+        lengths.append(float(value))
+
+    for length in sorted(lengths):
+        allowed_lo = nut_front + min_tip - outer - length
+        allowed_hi = nut_front + max_tip - outer - length
+        seat_depth = max(min_seat, allowed_lo)
+        if seat_depth <= min(max_seat, allowed_hi) + tolerance:
+            tip = outer + seat_depth + length - nut_front
+            return MachineScrewGeometry(length, seat_depth, tip)
     raise ValueError(
-        f"no stocked screw reaches across {span:.2f} mm with "
-        f"{engagement:.2f} mm thread engagement")
+        "no stocked machine screw satisfies the head-seat and tip-protrusion "
+        f"ranges for outer_back_z={outer:.3f} mm")
 
 
 @dataclass(frozen=True)
@@ -56,12 +113,11 @@ class ScrewSelection:
     x: float
     y: float
     kind: str
-    shank_span: float
     length: float
-
-    @property
-    def engagement(self) -> float:
-        return self.length - self.shank_span
+    seat_depth: float
+    seat_z: float
+    tip_protrusion: float
+    outer_back_z: float
 
 
 class ScrewJoint:
@@ -72,12 +128,8 @@ class ScrewJoint:
         self.x, self.y, self.kind = float(x), float(y), kind
         self.head_r = HEAD_D / 2 + HEAD_CLEAR
         self.land_r = self.head_r + P.LAND_WALL
-        # Bore through the land above the seat: shaft, and on PCB sites also
-        # the front pin tip (Ø PCB_POST_D + play) which enters the same bore.
-        bore_d = SHAFT_CLEAR_D + 0.3
-        if kind == "pcb":
-            bore_d = max(bore_d, P.PCB_POST_D + 0.35)
-        self.bore_r = bore_d / 2
+        # Coaxial M2 clearance path through the reinforced rear land.
+        self.bore_r = P.MACHINE_SCREW_CLEAR_D / 2.0
         # Functional top: plane the supported board's rear rests on.
         if kind == "module":
             self.top_z = -(P.MODULE_Z + P.MOD_FRONT_STACK)       # module PCB back
@@ -104,20 +156,18 @@ class ScrewJoint:
         return min(zs), max(zs)
 
     @property
+    def outer_back_z(self):
+        """Shallowest sampled outer surface beneath the whole head."""
+        return self.skin_range()[1]
+
+    @property
+    def machine_screw(self):
+        return select_machine_screw(self.outer_back_z, -P.FACE_T)
+
+    @property
     def seat_z(self):
-        return self.skin_range()[1] + HEAD_H
-
-    @property
-    def pilot_entry_z(self):
-        """Rear entrance of the matching pilot in the front-shell post."""
-        if self.kind == "module":
-            return -(P.BODY_T - P.LID_T)
-        return -(P.PCB_FRONT_Z + P.PCB_T + P.PCB_PIN_TIP)
-
-    @property
-    def shank_span(self):
-        """Distance from the rear head seat to the front-pilot entrance."""
-        return self.pilot_entry_z - self.seat_z
+        geometry = self.machine_screw
+        return self.outer_back_z + geometry.seat_depth
 
     # -- geometry ----------------------------------------------------------
     def material(self) -> cq.Workplane:
@@ -153,13 +203,16 @@ def selected_screws():
     """Profile-aware stock selection for every rear screw joint."""
     out = []
     for joint in back_joints():
-        span = joint.shank_span
+        geometry = joint.machine_screw
         out.append(ScrewSelection(
-            joint.x,
-            joint.y,
-            joint.kind,
-            span,
-            select_screw_length(span),
+            x=joint.x,
+            y=joint.y,
+            kind=joint.kind,
+            length=geometry.length,
+            seat_depth=geometry.seat_depth,
+            seat_z=joint.outer_back_z + geometry.seat_depth,
+            tip_protrusion=geometry.tip_protrusion,
+            outer_back_z=joint.outer_back_z,
         ))
     return tuple(out)
 

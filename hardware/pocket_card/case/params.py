@@ -609,9 +609,9 @@ BACK_ROLL_S    = 3.5                   # ASSUMED  cell-limited (check enforces)
 MIN_MEMBRANE = 0.8     # ASSUMED  min solid behind any counterbore seat (mm)
 LAND_WALL    = 1.2     # ASSUMED  radial land material beyond the head pocket
 
-# Assembly screws are M2 pan-head self-tappers into the Ø1.7 front-shell
-# pilots (joints.SHAFT_CLEAR_D = 2.6, HEAD_D = 5.0).  Their lengths are now
-# selected per profile-aware rear seat and grouped in joints.py; see
+# Assembly screws are M2 pan-head machine screws through the 2.4 mm clearance
+# path into captive DIN 934 M2 nuts. Their stocked lengths and variable rear
+# head-seat depths are selected from the compound profile in joints.py; see
 # out/hardware_BOM.csv.
 
 # Switch height is a direct thickness lever: every millimetre of TACT_H is a

@@ -214,13 +214,22 @@ def write_hardware_bom(output_dir: str | Path | None = None) -> str:
         key = "SCREW_M2X%g" % length
         sites = ";".join("(%g,%g)" % (s.x, s.y) for s in selections)
         rows.append([
-            "M2x%g pan self-tap" % length,
+            "M2x%g pan-head machine screw" % length,
             key,
             len(selections),
             "%.1f" % length,
-            "M2 pan-head self-tap into Ø1.7 pilot",
+            "Rear machine screw into captive DIN 934 M2 nut",
             sites,
         ])
+    selections = joints.selected_screws()
+    rows.append([
+        "M2 DIN 934 hex nut",
+        "NUT_M2",
+        len(selections),
+        "1.6",
+        "4.0 mm AF nominal; verify against SLA fit coupon",
+        ";".join("(%g,%g)" % (s.x, s.y) for s in selections),
+    ])
     with out.open("w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["Comment", "Designator", "Qty", "Length_mm",
