@@ -27,6 +27,21 @@ WALL   = 1.5           # ASSUMED  shell wall thickness, sides and back
 # and leaves stock for a shaped rim (split-lip design 2026-08-02).
 LID_T  = 6.0           # DECIDED  back tray; front SHELL_DEPTH = BODY_T - LID_T
 FACE_T = 1.5           # DECIDED  front face thickness in the button area
+
+# Captive DIN 934 M2 nut closure, all dimensions in mm. The production cavity
+# is coupon-tuned for JLC SLA 8001; the complete cage envelope remains fixed so
+# every coupon variant is covered by the same shell-clearance contract.
+NUT_NOMINAL_AF = 4.0           # NOMINAL  stocked nut width across flats
+NUT_AF = 4.4                   # DECIDED  production cavity across flats
+NUT_AF_VARIANTS = (4.3, 4.4, 4.5)  # DECIDED  SLA fit-coupon cavities
+NUT_MAX_T = 1.6                # DIN 934  maximum physical nut thickness
+NUT_CAVITY_T = 1.8             # DECIDED  axial cavity depth
+NUT_ROOF_T = 1.0               # DECIDED  printed load-bearing roof
+NUT_THROAT_W = 4.6             # DECIDED  side-loading throat width
+NUT_WALL = 1.0                 # DECIDED  minimum radial cage wall
+MACHINE_SCREW_CLEAR_D = 2.4    # DECIDED  M2 screw clearance bore diameter
+MACHINE_SCREW_TIP_RELIEF = 0.6  # DECIDED  bore depth into front-face floor
+NUT_ENVELOPE_R = 3.6           # DECIDED  conservative complete cage radius
 # Outer "brick" belt (face↔side, back↔side) and screen lip. Keep ≤~0.8 so the
 # 1.5 mm wall/face is not knifed down at the rim.
 EDGE_CHAMFER = 0.8        # DECIDED  softer perimeter (was 0.6)
