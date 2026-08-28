@@ -1,10 +1,17 @@
+import importlib
 import math
 import os
+import struct
 import sys
+import tempfile
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
+from pathlib import Path
 from unittest import mock
 
 import cadquery as cq
+import numpy as np
 
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -14,6 +21,327 @@ import params as P  # noqa: E402
 import checks  # noqa: E402
 import nut_traps  # noqa: E402
 import shell_front  # noqa: E402
+
+
+class NutTrapCouponApiTest(unittest.TestCase):
+    def test_coupon_module_exposes_the_stable_variant_order(self):
+        coupon_module = importlib.import_module("nut_trap_coupon")
+        self.assertEqual(coupon_module.VARIANTS, (4.3, 4.4, 4.5))
+
+    def test_coupon_is_one_valid_positive_volume_negative_z_solid(self):
+        coupon_module = importlib.import_module("nut_trap_coupon")
+        model = coupon_module.build()
+        self.assertIsInstance(model, cq.Workplane)
+        solids = model.solids().vals()
+        self.assertEqual(len(solids), 1)
+        self.assertTrue(solids[0].isValid())
+        self.assertGreater(solids[0].Volume(), 0.0)
+        bounds = model.val().BoundingBox()
+        self.assertGreater(bounds.xlen, 30.0)
+        self.assertGreater(bounds.ylen, 12.0)
+        self.assertAlmostEqual(bounds.zlen, 4.3, delta=1e-6)
+        self.assertAlmostEqual(bounds.zmax, 0.0, delta=1e-6)
+        self.assertAlmostEqual(bounds.zmin, -4.3, delta=1e-6)
+
+    def test_coupon_stations_are_left_to_right_on_thirteen_mm_pitch(self):
+        coupon_module = importlib.import_module("nut_trap_coupon")
+        stations = coupon_module.sites()
+        self.assertEqual([site.x for site in stations], [-13.0, 0.0, 13.0])
+        self.assertEqual([site.y for site in stations], [3.6, 3.6, 3.6])
+        self.assertEqual([site.mouth for site in stations], [(0, -1)] * 3)
+        self.assertEqual(
+            list(zip([site.x for site in stations], coupon_module.VARIANTS)),
+            [(-13.0, 4.3), (0.0, 4.4), (13.0, 4.5)],
+        )
+
+    def test_coupon_functional_regions_match_exact_production_voids(self):
+        coupon_module = importlib.import_module("nut_trap_coupon")
+        blank = (
+            cq.Workplane("XY")
+            .box(39.0, 17.0, 4.3, centered=(True, False, False))
+            .translate((0.0, 0.0, -4.3))
+        )
+        expected = blank
+        for site, across_flats in zip(
+            coupon_module.sites(), (4.3, 4.4, 4.5)
+        ):
+            production_void = nut_traps.front_voids(site, across_flats).union(
+                nut_traps.insertion_sweep(site, 4.0)
+            )
+            expected = expected.cut(production_void)
+
+        functional_region = (
+            cq.Workplane("XY")
+            .box(39.0, 8.0, 4.3, centered=(True, False, False))
+            .translate((0.0, 0.0, -4.3))
+        )
+        actual = coupon_module.build().intersect(functional_region)
+        expected = expected.intersect(functional_region)
+        symmetric_difference = shape_volume(actual.cut(expected)) + shape_volume(
+            expected.cut(actual)
+        )
+        self.assertLess(symmetric_difference, 1e-5)
+
+    def assert_nominal_nut_insertion_clear(self, model):
+        coupon_module = importlib.import_module("nut_trap_coupon")
+        coupon_bounds = model.val().BoundingBox()
+        for site in coupon_module.sites():
+            outside_x, outside_y = nut_traps.insertion_offsets(site, 4.0)[0]
+            outside_nut = nut_traps.nut_solid(site, 4.0).translate(
+                (outside_x, outside_y, 0.0)
+            )
+            self.assertLess(
+                outside_nut.val().BoundingBox().ymax,
+                coupon_bounds.ymin,
+            )
+            self.assertLess(shape_volume(model.intersect(outside_nut)), 1e-5)
+            self.assertLess(
+                shape_volume(
+                    model.intersect(nut_traps.insertion_sweep(site, 4.0))
+                ),
+                1e-5,
+            )
+
+    def test_nominal_nut_translates_from_outside_edge_to_every_seat(self):
+        coupon_module = importlib.import_module("nut_trap_coupon")
+        self.assert_nominal_nut_insertion_clear(coupon_module.build())
+
+    def test_insertion_check_rejects_sealed_and_narrow_edge_mouths(self):
+        coupon_module = importlib.import_module("nut_trap_coupon")
+        model = coupon_module.build()
+        site = coupon_module.sites()[1]
+        sealed_mouth = (
+            cq.Workplane("XY")
+            .box(5.0, 0.6, 1.6, centered=(True, False, False))
+            .translate((site.x, -0.1, -3.1))
+        )
+        with self.assertRaises(AssertionError):
+            self.assert_nominal_nut_insertion_clear(model.union(sealed_mouth))
+
+        narrow_mouth = cq.Workplane("XY")
+        for x in (-2.1, 2.1):
+            cheek = (
+                cq.Workplane("XY")
+                .box(0.4, 0.6, 1.6, centered=(True, False, False))
+                .translate((site.x + x, -0.1, -3.1))
+            )
+            narrow_mouth = narrow_mouth.union(cheek)
+        with self.assertRaises(AssertionError):
+            self.assert_nominal_nut_insertion_clear(model.union(narrow_mouth))
+
+    def test_measured_cavity_taper_bore_and_skin_planes_match_production(self):
+        coupon_module = importlib.import_module("nut_trap_coupon")
+        model = coupon_module.build()
+        removed = coupon_module.blank().cut(model)
+        dz = 0.01
+
+        for site, requested_af in zip(
+            coupon_module.sites(), (4.3, 4.4, 4.5)
+        ):
+            positive_half = (
+                cq.Workplane("XY")
+                .box(8.0, 4.0, dz, centered=(True, False, False))
+                .translate((site.x, site.y, -3.205))
+            )
+            cavity_area = (
+                2.0 * shape_volume(removed.intersect(positive_half)) / dz
+            )
+            measured_cavity_af = math.sqrt(
+                2.0 * cavity_area / math.sqrt(3.0)
+            )
+            self.assertAlmostEqual(measured_cavity_af, requested_af, delta=0.01)
+
+            taper_slice = (
+                cq.Workplane("XY")
+                .box(8.0, 8.0, dz, centered=(True, True, False))
+                .translate((site.x, site.y, -3.555))
+            )
+            taper_area = shape_volume(removed.intersect(taper_slice)) / dz
+            measured_taper_af = math.sqrt(
+                2.0 * taper_area / math.sqrt(3.0)
+            )
+            self.assertAlmostEqual(
+                measured_taper_af, requested_af - 0.5, delta=0.01
+            )
+
+            roof_slice = (
+                cq.Workplane("XY")
+                .box(8.0, 8.0, dz, centered=(True, True, False))
+                .translate((site.x, site.y, -4.055))
+            )
+            bore_area = shape_volume(removed.intersect(roof_slice)) / dz
+            measured_bore_d = 2.0 * math.sqrt(bore_area / math.pi)
+            self.assertAlmostEqual(measured_bore_d, 2.4, delta=0.01)
+
+            front_skin = (
+                cq.Workplane("XY")
+                .circle(1.0)
+                .extrude(0.89)
+                .translate((site.x, site.y, -0.89))
+            )
+            self.assertLess(shape_volume(removed.intersect(front_skin)), 1e-7)
+
+    def test_af_labels_are_engraved_only_in_the_nonfunctional_rear_strip(self):
+        coupon_module = importlib.import_module("nut_trap_coupon")
+        self.assertEqual(coupon_module.LABELS, ("4.3", "4.4", "4.5"))
+        labels = coupon_module.label_voids()
+        self.assertGreater(shape_volume(labels), 0.5)
+        bounds = labels.val().BoundingBox()
+        self.assertGreater(bounds.ymin, 10.0)
+        self.assertGreaterEqual(bounds.zmin, -0.3)
+        self.assertLessEqual(bounds.zmax, 1e-6)
+
+        functional = cq.Workplane("XY")
+        for site, across_flats in zip(
+            coupon_module.sites(), (4.3, 4.4, 4.5)
+        ):
+            cage = (
+                cq.Workplane("XY")
+                .circle(3.6)
+                .extrude(4.3)
+                .translate((site.x, site.y, -4.3))
+            )
+            functional = functional.union(cage).union(
+                nut_traps.insertion_sweep(site, 4.0)
+            )
+        self.assertLess(shape_volume(labels.intersect(functional)), 1e-7)
+
+        unlabelled = coupon_module.blank()
+        for site, across_flats in zip(
+            coupon_module.sites(), (4.3, 4.4, 4.5)
+        ):
+            unlabelled = unlabelled.cut(
+                coupon_module.station_void(site, across_flats)
+            )
+        engraved_volume = shape_volume(unlabelled.cut(coupon_module.build()))
+        self.assertGreater(engraved_volume, 0.5)
+
+    def test_coupon_preserves_full_backbone_and_separating_webs(self):
+        coupon_module = importlib.import_module("nut_trap_coupon")
+        model = coupon_module.build()
+        backbone = (
+            cq.Workplane("XY")
+            .box(39.0, 2.0, 4.3, centered=(True, False, False))
+            .translate((0.0, 8.0, -4.3))
+        )
+        self.assertAlmostEqual(
+            shape_volume(model.intersect(backbone)), 39.0 * 2.0 * 4.3, places=5
+        )
+        for x in (-6.5, 6.5):
+            web = (
+                cq.Workplane("XY")
+                .box(2.0, 8.0, 4.3, centered=(True, False, False))
+                .translate((x, 0.0, -4.3))
+            )
+            self.assertAlmostEqual(
+                shape_volume(model.intersect(web)), 2.0 * 8.0 * 4.3, places=5
+            )
+
+    def test_export_round_trips_as_one_step_solid_and_connected_stl(self):
+        coupon_module = importlib.import_module("nut_trap_coupon")
+        with tempfile.TemporaryDirectory() as tmp:
+            written = coupon_module.export(tmp)
+            expected = (
+                Path(tmp, "nut_trap_coupon.stl"),
+                Path(tmp, "nut_trap_coupon.step"),
+            )
+            self.assertEqual(written, expected)
+            for path in written:
+                self.assertTrue(path.is_file())
+                self.assertGreater(path.stat().st_size, 100)
+
+            imported = cq.importers.importStep(str(expected[1]))
+            solids = imported.solids().vals()
+            self.assertEqual(len(solids), 1)
+            self.assertTrue(solids[0].isValid())
+            bounds = solids[0].BoundingBox()
+            self.assertAlmostEqual(bounds.xlen, 39.0, delta=1e-5)
+            self.assertAlmostEqual(bounds.ylen, 17.0, delta=1e-5)
+            self.assertAlmostEqual(bounds.zlen, 4.3, delta=1e-5)
+
+            data = expected[0].read_bytes()
+            triangle_count = struct.unpack("<I", data[80:84])[0]
+            triangles = np.array(
+                [
+                    struct.unpack_from("<12f", data, 84 + index * 50)[3:12]
+                    for index in range(triangle_count)
+                ]
+            ).reshape(triangle_count, 3, 3)
+            vertices = triangles.reshape(-1, 3)
+            _, inverse = np.unique(
+                np.round(vertices, decimals=5), axis=0, return_inverse=True
+            )
+            faces = inverse.reshape(-1, 3)
+            edge_faces = {}
+            for face_index, face in enumerate(faces):
+                for edge in (
+                    tuple(sorted((face[0], face[1]))),
+                    tuple(sorted((face[1], face[2]))),
+                    tuple(sorted((face[2], face[0]))),
+                ):
+                    edge_faces.setdefault(edge, []).append(face_index)
+            self.assertTrue(all(len(shared) == 2 for shared in edge_faces.values()))
+            neighbours = [set() for _ in faces]
+            for first, second in edge_faces.values():
+                neighbours[first].add(second)
+                neighbours[second].add(first)
+            reached = {0}
+            frontier = [0]
+            while frontier:
+                for neighbour in neighbours[frontier.pop()]:
+                    if neighbour not in reached:
+                        reached.add(neighbour)
+                        frontier.append(neighbour)
+            self.assertEqual(len(reached), len(faces))
+
+    def test_order_builder_exports_coupon_after_shells_without_cap_variant_count(self):
+        build_module = importlib.import_module("build_variants")
+        preview_module = importlib.import_module("place_preview")
+        events = []
+        fake_shape = mock.MagicMock()
+        fake_shape.union.return_value = fake_shape
+
+        def build_shells():
+            events.append("shells")
+            return fake_shape, fake_shape
+
+        def export_coupon(output_dir):
+            events.append("coupon")
+            self.assertEqual(Path(output_dir), Path(build_module.OUT))
+            return (
+                Path(output_dir, "nut_trap_coupon.stl"),
+                Path(output_dir, "nut_trap_coupon.step"),
+            )
+
+        def cap_set(*_args):
+            events.append("caps")
+            return fake_shape
+
+        output = StringIO()
+        with mock.patch.object(
+            build_module, "build_shells", side_effect=build_shells
+        ), mock.patch.object(
+            build_module.nut_trap_coupon,
+            "export",
+            side_effect=export_coupon,
+        ), mock.patch.object(
+            build_module.nut_trap_coupon, "build", return_value=fake_shape
+        ), mock.patch.object(
+            build_module.slide_tip, "tip_solid", return_value=fake_shape
+        ), mock.patch.object(
+            build_module, "cap_set", side_effect=cap_set
+        ), mock.patch.object(
+            build_module, "vol", return_value=1.0
+        ), mock.patch.object(
+            build_module.cq.exporters, "export"
+        ), mock.patch.object(preview_module, "main"), redirect_stdout(output):
+            build_module.main()
+
+        self.assertEqual(events[:2], ["shells", "coupon"])
+        self.assertEqual(events.count("caps"), 4)
+        manifest = output.getvalue()
+        self.assertIn("nut_trap_coupon.stl", manifest)
+        self.assertIn("8 fab files + preview/ overlays", manifest)
 
 
 class NutTrapDefinitionTest(unittest.TestCase):

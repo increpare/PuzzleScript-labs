@@ -41,6 +41,7 @@ Or from this directory:
 ```
 .venv/bin/python params.py        # print the derived stack-up
 .venv/bin/python coupon.py        # build the clearance-ladder coupon
+.venv/bin/python nut_trap_coupon.py  # build the captive M2 nut fit coupon
 .venv/bin/python checks.py        # verify the exported STL
 .venv/bin/python build_variants.py  # shells, caps, tips, assembly
 ```
@@ -126,6 +127,41 @@ and render settings therefore remain alongside the four generated part
 collections listed above.
 
 ## What to print first
+
+### Captive-nut closure
+
+**`out/order/nut_trap_coupon.stl`** (with a STEP copy beside it) is the first
+closure print. Its left-to-right stations are engraved **4.3**, **4.4**, and
+**4.5** for the cavity width across flats. Each station includes the production
+1.5 mm face/floor stack, 1.8 mm cavity, 1.0 mm roof (a 0.5 mm 45-degree
+transition followed by 0.5 mm straight roof), 4.6 mm side-loading throat, Ø2.4
+screw path, and 0.6 mm blind tip relief. The mouths run through the coupon edge
+so a real DIN 934 M2 nut follows the same outside-to-seated path as it will in
+the front shell.
+
+Print the coupon in the same JLC3DP SLA 8001 resin, process, and orientation as
+the front shell, and wash and cure it identically. Keep the exported z=0
+exterior/front face toward the build plate, matching the front-shell face-down
+orientation; if the production setup adds a support tilt, apply the same tilt
+to both parts.
+
+Try a clean stocked M2 nut by hand at each station, starting with **4.3**. Do
+not force it and do not use the screw to self-tap or pull it into place. Choose
+the smallest station where the nut:
+
+1. slides laterally from the edge;
+2. seats flat without spinning;
+3. accepts the M2 screw by hand; and
+4. does not crack the 1.0 mm roof.
+
+Record that measured value in `params.NUT_AF` before ordering the complete
+front shell. The production default remains 4.4 mm until this physical result
+is recorded. A tiny epoxy dot may be used later only as optional anti-rattle
+retention; it must not be structural and must stay clear of the threads. The
+full enclosure still needs the separate ten-cycle physical service test; the
+coupon does not claim that test has passed.
+
+### Control clearances
 
 **`out/coupon_plate.stl` + `out/coupon_caps.stl`.**
 

@@ -1,4 +1,4 @@
-"""Build a full order: one case, plus cap sets at several clearances.
+"""Build a full order: one case, nut-fit coupon, and clearance cap sets.
 
 Rationale: with a two-week turnaround the shipping cycle costs far more than
 the parts, so the order should answer as many questions as it can in one go.
@@ -19,6 +19,7 @@ import cadquery as cq
 
 import params as P
 import coupon
+import nut_trap_coupon
 import shell_front
 import shell_back
 import slide_tip
@@ -99,6 +100,8 @@ def main():
     lines = []
 
     front, back = build_shells()
+    nut_trap_coupon.export(OUT)
+    nut_coupon = nut_trap_coupon.build()
     v = vol(front)
     total += v
     lines.append(f"shell_front.stl                 {v:6.1f} cm3   x1")
@@ -106,6 +109,13 @@ def main():
     v = vol(back)
     total += v
     lines.append(f"shell_back.stl                  {v:6.1f} cm3   x1")
+
+    v = vol(nut_coupon)
+    total += v
+    lines.append(
+        f"nut_trap_coupon.stl             {v:6.2f} cm3   x1   "
+        "AF 4.3/4.4/4.5 (STEP included)"
+    )
 
     tips = slide_tip.tip_solid()
     tips = tips.union(slide_tip.tip_solid().translate((12.0, 0, 0)))
@@ -143,7 +153,7 @@ def main():
     print("\nmanifest — engraved digit on the crown:")
     for vi, clr in enumerate(VARIANTS, start=1):
         print(f"   {vi}  ->  {clr:.2f} mm clearance")
-    print(f"\n{3 + len(VARIANTS)} fab files + preview/ overlays "
+    print(f"\n{4 + len(VARIANTS)} fab files + preview/ overlays "
           f"(JLCPCB allows 10). Quantity 1 of each fab file.")
     print("Each set holds all eight caps sprued together -- snip at the flanges.")
     print("The menu pill carries no digit; its shape is unique.")
