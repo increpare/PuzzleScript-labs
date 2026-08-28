@@ -11,7 +11,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
 import params as P  # noqa: E402
+import checks  # noqa: E402
 import nut_traps  # noqa: E402
+import shell_front  # noqa: E402
 
 
 class NutTrapDefinitionTest(unittest.TestCase):
@@ -98,7 +100,7 @@ class NutTrapDefinitionTest(unittest.TestCase):
 
 
 def shape_volume(shape):
-    return shape.val().Volume()
+    return sum(solid.Volume() for solid in shape.solids().vals())
 
 
 def thin_slab(z0, z1):
@@ -573,6 +575,145 @@ class NutTrapSolidTest(unittest.TestCase):
             )
         with self.assertRaisesRegex(ValueError, "z_back"):
             nut_traps.screw_path(site, "behind")
+
+
+class AssembledFrontNutTrapTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.front_model = shell_front.build()
+        # to_model_space is an involution: applying it a second time returns
+        # the layout-space coordinates used by params and nut_traps.
+        cls.front = shell_front.to_model_space(cls.front_model)
+        cls.outer = shell_front.outer_body()
+
+    def test_finished_front_is_one_valid_solid(self):
+        self.assertTrue(self.front_model.val().isValid())
+        self.assertEqual(len(self.front_model.solids().vals()), 1)
+
+    def test_all_seated_nuts_and_exact_insertion_sweeps_are_clear(self):
+        for site in nut_traps.sites():
+            nut_overlap = shape_volume(
+                self.front.intersect(nut_traps.nut_solid(site))
+            )
+            sweep_overlap = shape_volume(
+                self.front.intersect(nut_traps.insertion_sweep(site))
+            )
+            with self.subTest(site=site, probe="seated nut"):
+                self.assertLess(nut_overlap, 1e-5)
+            with self.subTest(site=site, probe="insertion sweep"):
+                self.assertLess(sweep_overlap, 1e-5)
+
+    def test_machine_screw_paths_are_clear_through_the_whole_front(self):
+        for site in nut_traps.sites():
+            path = nut_traps.screw_path(
+                site,
+                -shell_front.SHELL_DEPTH - 0.1,
+            )
+            overlap = shape_volume(self.front.intersect(path))
+            with self.subTest(site=site):
+                self.assertLess(overlap, 1e-5)
+
+    def test_cages_fit_the_true_envelope_without_breaking_the_outer_skin(self):
+        skin_slab = thin_slab(-0.50, -0.45)
+        for site in nut_traps.sites():
+            material = nut_traps.front_material(site)
+            outside = shape_volume(material.cut(self.outer))
+            required_skin = (
+                cq.Workplane("XY")
+                .circle(P.NUT_ENVELOPE_R)
+                .extrude(0.05)
+                .translate((site.x, site.y, -0.50))
+                .intersect(self.outer)
+                .intersect(skin_slab)
+            )
+            missing_skin = shape_volume(required_skin.cut(self.front))
+            with self.subTest(site=site, probe="compound envelope"):
+                self.assertLess(outside, 1e-8)
+            with self.subTest(site=site, probe="outer skin"):
+                self.assertGreater(shape_volume(required_skin), 0.1)
+                self.assertLess(missing_skin, 1e-5)
+
+    def test_finished_front_retains_each_complete_isolated_trap(self):
+        for site in nut_traps.sites():
+            required = nut_traps.front_material(site).cut(
+                nut_traps.front_voids(site)
+            )
+            missing = shape_volume(required.cut(self.front))
+            with self.subTest(site=site):
+                self.assertLess(missing, 1e-5)
+
+    def test_old_self_tapping_pilot_cannot_clear_an_m2_screw_path(self):
+        site = nut_traps.sites()[0]
+        legacy_post = (
+            cq.Workplane("XY")
+            .circle(shell_front.POST_D / 2.0)
+            .extrude(-shell_front.SHELL_DEPTH)
+            .translate((site.x, site.y, 0.0))
+            .cut(
+                cq.Workplane("XY")
+                .circle(1.7 / 2.0)
+                .extrude(-shell_front.SHELL_DEPTH)
+                .translate((site.x, site.y, 0.0))
+            )
+        )
+        required_path = nut_traps.screw_path(
+            site,
+            -shell_front.SHELL_DEPTH - 0.1,
+        )
+        self.assertGreater(
+            shape_volume(legacy_post.intersect(required_path)),
+            1.0,
+        )
+
+    def test_h2_complete_radial_envelope_clears_real_neighbours(self):
+        h2_x, h2_y = P.PCB_MOUNTS[1]
+        radius = P.NUT_ENVELOPE_R
+
+        battery_gap = h2_x - (P.BATT_X + P.CELL_W) - radius
+
+        driver_radius = P.DRIVER_W / 2.0
+        cap_offset = (P.DRIVER_H - P.DRIVER_W) / 2.0
+        segment_y0 = P.GRILLE_Y - cap_offset
+        segment_y1 = P.GRILLE_Y + cap_offset
+        closest_segment_y = max(segment_y0, min(h2_y, segment_y1))
+        speaker_gap = (
+            math.hypot(
+                h2_x - P.GRILLE_X,
+                h2_y - closest_segment_y,
+            )
+            - driver_radius
+            - radius
+        )
+
+        reset_outer_radius = (
+            P.RESET_CAP_D / 2.0
+            + P.CAP_FLANGE_OS
+            + P.COLLAR_CLEAR
+            + shell_front.COLLAR_WALL
+        )
+        reset_gap = (
+            math.hypot(h2_x - P.RESET_X, h2_y - P.RESET_Y)
+            - radius
+            - reset_outer_radius
+        )
+
+        self.assertGreaterEqual(battery_gap, 1.8)
+        self.assertGreaterEqual(speaker_gap, 0.9)
+        self.assertGreaterEqual(reset_gap, 0.6)
+
+    def test_production_check_accepts_the_built_front_and_reports_h2_gaps(self):
+        previous_failures = list(checks.FAILURES)
+        checks.FAILURES.clear()
+        try:
+            check = getattr(checks, "check_captive_nut_traps", None)
+            self.assertIsNotNone(check, "production captive-nut check is missing")
+            metrics = check(self.front_model)
+            self.assertEqual(checks.FAILURES, [])
+        finally:
+            checks.FAILURES[:] = previous_failures
+        self.assertAlmostEqual(metrics["h2_battery_gap"], 1.9)
+        self.assertAlmostEqual(metrics["h2_speaker_gap"], 0.9433963806)
+        self.assertAlmostEqual(metrics["h2_reset_gap"], 0.6703296143)
 
 
 if __name__ == "__main__":

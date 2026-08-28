@@ -17,6 +17,7 @@ import os
 
 import cadquery as cq
 
+import nut_traps
 import params as P
 import side_arc
 import slide_tip
@@ -31,7 +32,6 @@ FLAT_DEPTH = 0.8
 POST_D = 3.0                           # through the module's Ø3.2 holes
 SHOULDER_D = 5.5                       # module rests its PCB on this
 BOSS_D = 4.2                           # corner bosses, nothing to thread through
-POST_PILOT_D = 1.7                     # self-tapping screw pilot
 # Bosses start this far INSIDE the face rather than on it. Landing a column
 # exactly on the cavity roof is a coincident-plane union, which OCC leaves
 # unfused: build() came out as seven solids, six of them loose pillars.
@@ -200,15 +200,14 @@ def button_station(hole_d=None, pill=False, keyed=True):
 
 
 def module_posts():
-    """Six screw bosses.
+    """Four locating sleeves plus any independent corner bosses.
 
     Four pass through the module's own Ø3.2 holes, so one feature locates the
-    module, retains it and closes the case. Two more sit in the bottom corners,
-    because those four are all in the upper 50 mm and the lower half -- the half
-    with the cell pressing outward -- would otherwise be held by the rim alone.
+    module, retains it and closes the case. Their Ø2.4 machine-screw bore runs
+    through the complete sleeve while the captive-nut void supplies the blind
+    tip relief behind the outer face. Independent corner bosses, when present,
+    are unthreaded lands rather than legacy self-tapper pilots.
     """
-    xs = (P.MOD_X + P.MOUNT_INSET, P.MOD_X + P.MOD_W - P.MOUNT_INSET)
-    ys = (P.MOD_Y + P.MOUNT_INSET, P.MOD_Y + P.MOD_H - P.MOUNT_INSET)
     add = cq.Workplane("XY")
     cut = cq.Workplane("XY")
 
@@ -216,28 +215,22 @@ def module_posts():
     # plane, then Ø3.0 through the module's own Ø3.2 hole. The shoulder is what
     # sets the module axially -- without it the board would come to rest against
     # the bezel, which must never touch the touch/LCD stack.
-    for x in xs:
-        for y in ys:
-            add = add.union(
-                cq.Workplane("XY").circle(SHOULDER_D / 2)
-                .extrude(-(MOD_PCB_FRONT - P.FACE_T + FACE_FUSE))
-                .translate((x, y, -P.FACE_T + FACE_FUSE)))
-            add = add.union(
-                cq.Workplane("XY").circle(POST_D / 2)
-                .extrude(-(SHELL_DEPTH - MOD_PCB_FRONT))
-                .translate((x, y, -MOD_PCB_FRONT)))
-            # Pilot up into the post AND shoulder: the old depth
-            # (SHELL_DEPTH - MOD_PCB_FRONT - 1.2 = 0.2 mm) gave the rear screw
-            # nothing to bite. Match the corner-boss engagement, capped 1.2
-            # short of the face.
-            cut = cut.union(
-                cq.Workplane("XY").circle(POST_PILOT_D / 2)
-                .extrude(SHELL_DEPTH - P.FACE_T - 1.2)
-                .translate((x, y, -SHELL_DEPTH)))
+    for site in nut_traps.sites()[:4]:
+        add = add.union(
+            cq.Workplane("XY").circle(SHOULDER_D / 2)
+            .extrude(-(MOD_PCB_FRONT - P.FACE_T + FACE_FUSE))
+            .translate((site.x, site.y, -P.FACE_T + FACE_FUSE)))
+        add = add.union(
+            cq.Workplane("XY").circle(POST_D / 2)
+            .extrude(-(SHELL_DEPTH - MOD_PCB_FRONT))
+            .translate((site.x, site.y, -MOD_PCB_FRONT)))
+        cut = cut.union(
+            nut_traps.screw_path(site, -SHELL_DEPTH - 0.1))
 
     # Corner bosses that do NOT coincide with a PCB mount can be fat (they
-    # pass through nothing). Sites that are also PCB_MOUNTS get a thin pin +
-    # pilot from pcb_posts() instead — a Ø4.2 column cannot go through Ø2.6.
+    # pass through nothing). Sites that are also PCB_MOUNTS are now wholly
+    # supplied by their captive-nut cages — a Ø4.2 column cannot go through
+    # the controller board's Ø2.6 hole.
     pcb_mounts = set(P.PCB_MOUNTS)
     for x, y in P.EXTRA_BOSSES:
         if (x, y) in pcb_mounts:
@@ -246,9 +239,6 @@ def module_posts():
             cq.Workplane("XY").circle(BOSS_D / 2)
             .extrude(-(SHELL_DEPTH - P.FACE_T + FACE_FUSE))
             .translate((x, y, -P.FACE_T + FACE_FUSE)))
-        cut = cut.union(
-            cq.Workplane("XY").circle(POST_PILOT_D / 2)
-            .extrude(SHELL_DEPTH - P.FACE_T - 1.2).translate((x, y, -SHELL_DEPTH)))
     return add, cut
 
 
@@ -312,32 +302,6 @@ def driver_pocket():
             cq.Workplane("XY").circle(r).extrude(-(P.FACE_T + P.DRIVER_T + 2))
             .translate((cx, cy, 0)))
     return walls
-
-
-def pcb_posts():
-    """Thin pins the controller PCB drops onto (no rear flare).
-
-    Pin runs from the face through the board hole and a short tip past the PCB
-    back into the back-shell shoulder bore. Wide shoulders live on shell_back
-    so the board can be seated from the front.
-    """
-    pcb_back = P.PCB_FRONT_Z + P.PCB_T
-    pin_end = pcb_back + P.PCB_PIN_TIP
-    screw_sites = set(P.EXTRA_BOSSES)
-    add = cq.Workplane("XY")
-    cut = None
-    for x, y in P.PCB_MOUNTS:
-        add = add.union(
-            cq.Workplane("XY").circle(P.PCB_POST_D / 2)
-            .extrude(-(pin_end - P.FACE_T + FACE_FUSE))
-            .translate((x, y, -P.FACE_T + FACE_FUSE)))
-        if (x, y) in screw_sites:
-            # Pilot for a self-tapper from the back lid through the board hole.
-            pilot = (cq.Workplane("XY").circle(POST_PILOT_D / 2)
-                     .extrude(pin_end - P.FACE_T - 1.0)
-                     .translate((x, y, -pin_end)))
-            cut = pilot if cut is None else cut.union(pilot)
-    return add if cut is None else add.cut(cut)
 
 
 def edge_openings():
@@ -412,8 +376,20 @@ def build():
 
     add, cut = module_posts()
     shell = shell.union(add).cut(cut)
-    shell = shell.union(pcb_posts())
     shell = shell.union(driver_pocket())
+
+    # Fuse every fixed cage before cutting any cavity. This preserves overlap
+    # for robust booleans at the module sleeves and button-collar neighbours.
+    for site in nut_traps.sites():
+        shell = shell.union(nut_traps.front_material(site))
+    for site in nut_traps.sites():
+        shell = shell.cut(nut_traps.front_voids(site))
+    # The exact loading volumes also own any relief beyond a cage mouth. H1
+    # only grazes the neighbouring Undo collar there; cutting the true sweep
+    # avoids a discrete-position approximation and cannot remove trap material.
+    for site in nut_traps.sites():
+        shell = shell.cut(nut_traps.insertion_sweep(site))
+
     shell = shell.cut(edge_openings())
     shell = shell.cut(grille_slots())
     # Keep posts/collars from ever sitting outside the curved envelope.
