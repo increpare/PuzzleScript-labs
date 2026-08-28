@@ -56,8 +56,7 @@ def select_machine_screw(
         min_seat_depth: float = MIN_HEAD_SEAT_DEPTH,
         max_seat_depth: float = MAX_HEAD_SEAT_DEPTH,
         min_tip_protrusion: float = MIN_TIP_PROTRUSION,
-        max_tip_protrusion: float = MAX_TIP_PROTRUSION,
-        tol: float = 1e-9) -> MachineScrewGeometry:
+        max_tip_protrusion: float = MAX_TIP_PROTRUSION) -> MachineScrewGeometry:
     """Choose the shortest M2 screw and its shallowest valid head seat.
 
     ``outer_back_z`` is the shallowest sampled exterior point beneath the
@@ -71,14 +70,11 @@ def select_machine_screw(
     max_seat = _finite_number("max_seat_depth", max_seat_depth)
     min_tip = _finite_number("min_tip_protrusion", min_tip_protrusion)
     max_tip = _finite_number("max_tip_protrusion", max_tip_protrusion)
-    tolerance = _finite_number("tol", tol)
     if min_seat < 0.0 or max_seat < min_seat:
         raise ValueError("seat depth range must be finite, nonnegative, and ordered")
     if min_tip < 0.0 or max_tip < min_tip:
         raise ValueError(
             "tip protrusion range must be finite, nonnegative, and ordered")
-    if tolerance < 0.0:
-        raise ValueError("tol must be finite and nonnegative")
 
     try:
         stock = list(stocked_lengths)
@@ -100,8 +96,12 @@ def select_machine_screw(
         allowed_lo = nut_front + min_tip - outer - length
         allowed_hi = nut_front + max_tip - outer - length
         seat_depth = max(min_seat, allowed_lo)
-        if seat_depth <= min(max_seat, allowed_hi) + tolerance:
-            tip = outer + seat_depth + length - nut_front
+        if seat_depth <= min(max_seat, allowed_hi):
+            raw_tip = outer + seat_depth + length - nut_front
+            # The feasibility equations guarantee this range algebraically;
+            # clamp only the final floating-point representation so the
+            # returned physical contract remains exact at inclusive bounds.
+            tip = min(max(raw_tip, min_tip), max_tip)
             return MachineScrewGeometry(length, seat_depth, tip)
     raise ValueError(
         "no stocked machine screw satisfies the head-seat and tip-protrusion "

@@ -202,13 +202,13 @@ def write_hardware_bom(output_dir: str | Path | None = None) -> str:
     output.mkdir(parents=True, exist_ok=True)
     out = output / "hardware_BOM.csv"
     # The electronics exporter imports this module under system Python, where
-    # CadQuery is intentionally absent. Screw selection needs the real rear
-    # envelope, so defer the CadQuery-backed joints import until this case-only
-    # BOM is actually requested (normally from the case venv).
+    # CadQuery is intentionally absent. Screw and nut geometry need the case
+    # environment, so defer those imports until this case-only BOM is actually
+    # requested (normally from the case venv).
     if __package__:
-        from . import joints
+        from . import joints, nut_traps
     else:
-        import joints
+        import joints, nut_traps
     rows = []
     for length, selections in joints.screw_length_groups().items():
         key = "SCREW_M2X%g" % length
@@ -221,17 +221,17 @@ def write_hardware_bom(output_dir: str | Path | None = None) -> str:
             "Rear machine screw into captive DIN 934 M2 nut",
             sites,
         ])
-    selections = joints.selected_screws()
+    nut_sites = nut_traps.sites()
     rows.append([
         "M2 DIN 934 hex nut",
         "NUT_M2",
-        len(selections),
-        "1.6",
-        "4.0 mm AF nominal; verify against SLA fit coupon",
-        ";".join("(%g,%g)" % (s.x, s.y) for s in selections),
+        len(nut_sites),
+        "%.1f" % P.NUT_MAX_T,
+        "%.1f mm AF nominal; verify against SLA fit coupon" % P.NUT_NOMINAL_AF,
+        ";".join("(%g,%g)" % (site.x, site.y) for site in nut_sites),
     ])
     with out.open("w", newline="", encoding="utf-8") as f:
-        w = csv.writer(f)
+        w = csv.writer(f, lineterminator="\n")
         w.writerow(["Comment", "Designator", "Qty", "Length_mm",
                     "Notes", "Sites_xy"])
         w.writerows(rows)

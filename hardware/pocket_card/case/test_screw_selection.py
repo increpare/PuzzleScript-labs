@@ -4,6 +4,9 @@ import os
 import sys
 import tempfile
 import unittest
+from pathlib import Path
+from types import SimpleNamespace
+from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -12,6 +15,8 @@ import export_smt  # noqa: E402
 import joints  # noqa: E402
 import nut_traps  # noqa: E402
 import shell_back  # noqa: E402
+
+TRACKED_HARDWARE_BOM = Path(HERE) / "out" / "hardware_BOM.csv"
 
 
 class MachineScrewGeometrySelectionTest(unittest.TestCase):
@@ -66,6 +71,27 @@ class MachineScrewGeometrySelectionTest(unittest.TestCase):
     def test_unsatisfiable_stock_fails_clearly(self):
         with self.assertRaisesRegex(ValueError, "no stocked machine screw"):
             joints.select_machine_screw(-11.8, -1.5)
+
+    def test_caller_cannot_weaken_physical_bounds_with_a_tolerance(self):
+        with self.assertRaises(TypeError):
+            joints.select_machine_screw(-11.4000001, -1.5, tol=1.0)
+
+    def test_near_boundary_results_never_exceed_declared_ranges(self):
+        for outer_back_z in (-10.8, -10.7999999999,
+                             -11.4, -11.4000000001):
+            try:
+                geometry = joints.select_machine_screw(outer_back_z, -1.5)
+            except ValueError:
+                continue
+            with self.subTest(outer_back_z=outer_back_z):
+                self.assertGreaterEqual(
+                    geometry.seat_depth, joints.MIN_HEAD_SEAT_DEPTH)
+                self.assertLessEqual(
+                    geometry.seat_depth, joints.MAX_HEAD_SEAT_DEPTH)
+                self.assertGreaterEqual(
+                    geometry.tip_protrusion, joints.MIN_TIP_PROTRUSION)
+                self.assertLessEqual(
+                    geometry.tip_protrusion, joints.MAX_TIP_PROTRUSION)
 
 
 class RearJointMachineScrewTest(unittest.TestCase):
@@ -274,6 +300,48 @@ class HardwareBomTest(unittest.TestCase):
         rendered = "\n".join(",".join(row.values()) for row in rows).lower()
         self.assertNotIn("self" + "-tap", rendered)
         self.assertNotIn("pi" + "lot", rendered)
+
+    def test_nut_row_owns_sites_and_dimensions_independently_of_screws(self):
+        fake_sites = (
+            SimpleNamespace(x=1.25, y=2.5),
+            SimpleNamespace(x=3.75, y=4.5),
+        )
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch.object(joints, "screw_length_groups", return_value={}), \
+                mock.patch.object(
+                    joints,
+                    "selected_screws",
+                    side_effect=AssertionError("nut row consulted rear screws"),
+                ), \
+                mock.patch.object(nut_traps, "sites", return_value=fake_sites), \
+                mock.patch.object(export_smt.P, "NUT_NOMINAL_AF", 3.9), \
+                mock.patch.object(export_smt.P, "NUT_MAX_T", 1.7):
+            path = export_smt.write_hardware_bom(tmp)
+            with open(path, newline="", encoding="utf-8") as handle:
+                rows = list(csv.DictReader(handle))
+
+        self.assertEqual(rows, [{
+            "Comment": "M2 DIN 934 hex nut",
+            "Designator": "NUT_M2",
+            "Qty": "2",
+            "Length_mm": "1.7",
+            "Notes": "3.9 mm AF nominal; verify against SLA fit coupon",
+            "Sites_xy": "(1.25,2.5);(3.75,4.5)",
+        }])
+
+    def test_tracked_hardware_bom_exactly_matches_deterministic_export(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            generated_path = Path(export_smt.write_hardware_bom(tmp))
+            generated = generated_path.read_bytes()
+
+        canonical = TRACKED_HARDWARE_BOM.read_bytes()
+        self.assertNotIn(b"\r\n", generated)
+        self.assertEqual(generated, canonical)
+
+        stale = canonical.replace(b"SCREW_M2X12", b"SCREW_M2X14", 1)
+        self.assertNotEqual(stale, canonical)
+        with self.assertRaises(AssertionError):
+            self.assertEqual(generated, stale)
 
 
 if __name__ == "__main__":
