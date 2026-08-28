@@ -97,7 +97,91 @@ def thin_slab(z0, z1):
     )
 
 
+def roof_hex_probe(site, across_flats, z0, z1):
+    mouth_x, mouth_y = site.mouth
+    angle = math.degrees(math.atan2(mouth_y, mouth_x))
+    return (
+        cq.Workplane("XY")
+        .polygon(6, 2.0 * across_flats / math.sqrt(3.0))
+        .extrude(z1 - z0)
+        .translate((0.0, 0.0, z0))
+        .rotate((0.0, 0.0, 0.0), (0.0, 0.0, 1.0), angle)
+        .translate((site.x, site.y, 0.0))
+    )
+
+
+def roof_cylinder_probe(site, diameter, z0, z1):
+    return (
+        cq.Workplane("XY")
+        .circle(diameter / 2.0)
+        .extrude(z1 - z0)
+        .translate((site.x, site.y, z0))
+    )
+
+
 class NutTrapSolidTest(unittest.TestCase):
+    def trajectory(self, site):
+        helper = getattr(nut_traps, "insertion_offsets", None)
+        self.assertIsNotNone(helper, "insertion_offsets API is missing")
+        return helper(site)
+
+    def test_insertion_offsets_run_from_wholly_outside_to_exactly_seated(self):
+        for site in nut_traps.sites():
+            offsets = self.trajectory(site)
+            first_distance = math.hypot(*offsets[0])
+            nut_corner_radius = (
+                nut_traps.hex_corner_diameter(P.NUT_NOMINAL_AF) / 2.0
+            )
+            with self.subTest(site=site):
+                self.assertGreater(
+                    first_distance - nut_corner_radius,
+                    P.NUT_ENVELOPE_R,
+                )
+                self.assertEqual(offsets[-1], (0.0, 0.0))
+                self.assertEqual(
+                    tuple(math.copysign(1.0, value) for value in offsets[-1]),
+                    (1.0, 1.0),
+                )
+
+    def test_insertion_offset_distances_decrease_monotonically(self):
+        for site in nut_traps.sites():
+            distances = [
+                math.hypot(offset_x, offset_y)
+                for offset_x, offset_y in self.trajectory(site)
+            ]
+            with self.subTest(site=site):
+                self.assertTrue(
+                    all(
+                        first > second
+                        for first, second in zip(distances, distances[1:])
+                    )
+                )
+
+    def test_insertion_offset_spacing_is_at_most_point_two_mm(self):
+        for site in nut_traps.sites():
+            offsets = self.trajectory(site)
+            spacings = [
+                math.dist(first, second)
+                for first, second in zip(offsets, offsets[1:])
+            ]
+            with self.subTest(site=site):
+                self.assertGreater(len(spacings), 1)
+                self.assertTrue(
+                    all(0.0 < spacing <= 0.20 for spacing in spacings)
+                )
+
+    def test_insertion_offsets_follow_each_normalized_mouth_direction(self):
+        for site in nut_traps.sites():
+            mouth_length = math.hypot(*site.mouth)
+            expected_x = site.mouth[0] / mouth_length
+            expected_y = site.mouth[1] / mouth_length
+            offsets = self.trajectory(site)
+            for offset_x, offset_y in offsets[:-1]:
+                distance = math.hypot(offset_x, offset_y)
+                with self.subTest(site=site, distance=distance):
+                    self.assertAlmostEqual(offset_x / distance, expected_x)
+                    self.assertAlmostEqual(offset_y / distance, expected_y)
+
     def test_all_public_geometry_outputs_are_valid(self):
         for site in nut_traps.sites():
             outputs = {
@@ -201,15 +285,62 @@ class NutTrapSolidTest(unittest.TestCase):
         )
         self.assertGreater(blocked_path_overlap, 1.0)
 
-    def test_roof_and_outer_face_skin_have_nominal_thickness(self):
+    def assert_finished_roof_geometry(self, finished, site):
+        roof_hex = roof_hex_probe(
+            site,
+            4.4,
+            site.roof_back_z,
+            site.cavity_back_z,
+        )
+        roof_bore = roof_cylinder_probe(
+            site,
+            2.4,
+            site.roof_back_z,
+            site.cavity_back_z,
+        )
+        load_area = roof_hex.cut(roof_bore)
+        self.assertGreater(shape_volume(load_area), 10.0)
+        actual_load_area = finished.intersect(load_area)
+        self.assertAlmostEqual(
+            shape_volume(actual_load_area),
+            shape_volume(load_area),
+            delta=1e-5,
+        )
+        self.assertAlmostEqual(actual_load_area.val().BoundingBox().zlen, 1.0)
+        self.assertLess(shape_volume(finished.intersect(roof_bore)), 1e-8)
+
+        cavity_side_probe = roof_hex_probe(
+            site,
+            4.0,
+            site.cavity_back_z,
+            site.cavity_back_z + 0.05,
+        )
+        self.assertLess(
+            shape_volume(finished.intersect(cavity_side_probe)),
+            1e-8,
+        )
+
+    def test_finished_trap_has_solid_roof_around_an_open_screw_bore(self):
         for site in nut_traps.sites():
+            finished = nut_traps.front_material(site).cut(
+                nut_traps.front_voids(site)
+            )
             with self.subTest(site=site):
-                self.assertAlmostEqual(
-                    site.cavity_back_z - site.roof_back_z, P.NUT_ROOF_T
-                )
-                self.assertAlmostEqual(
-                    P.FACE_T - P.MACHINE_SCREW_TIP_RELIEF, 0.9
-                )
+                self.assert_finished_roof_geometry(finished, site)
+
+    def test_overdeep_hex_cavity_is_rejected_by_roof_geometry_probe(self):
+        site = nut_traps.sites()[0]
+        overdeep_cavity = roof_hex_probe(
+            site,
+            4.4,
+            site.roof_back_z,
+            site.cavity_back_z + 0.1,
+        )
+        bad_finished = nut_traps.front_material(site).cut(
+            nut_traps.front_voids(site).union(overdeep_cavity)
+        )
+        with self.assertRaises(AssertionError):
+            self.assert_finished_roof_geometry(bad_finished, site)
 
     def test_voids_reach_the_intended_planes_without_opening_outer_face(self):
         for site in nut_traps.sites():
@@ -221,6 +352,7 @@ class NutTrapSolidTest(unittest.TestCase):
                     bounds.zmax,
                     site.nut_front_z + P.MACHINE_SCREW_TIP_RELIEF,
                 )
+                self.assertAlmostEqual(-bounds.zmax, 0.9)
                 self.assertLess(bounds.zmax, 0.0)
                 cavity_back_slice = voids.intersect(
                     thin_slab(site.cavity_back_z, site.cavity_back_z + 0.05)
@@ -238,6 +370,7 @@ class NutTrapSolidTest(unittest.TestCase):
         for function in (
             nut_traps.nut_solid,
             nut_traps.front_voids,
+            nut_traps.insertion_offsets,
             nut_traps.insertion_sweep,
         ):
             with self.subTest(function=function.__name__):

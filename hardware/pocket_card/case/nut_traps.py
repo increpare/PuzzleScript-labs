@@ -196,20 +196,31 @@ def front_voids(site, across_flats=P.NUT_AF):
     return cavity.union(throat).union(bore)
 
 
-def insertion_sweep(site, across_flats=P.NUT_NOMINAL_AF):
-    """Return the continuous collision volume of a nut sliding into its seat."""
+def insertion_offsets(site, across_flats=P.NUT_NOMINAL_AF):
+    """Return stable outside-to-seated XY translation offsets for a nut."""
     _require_positive("across_flats", across_flats)
     nut_corner_radius = hex_corner_diameter(across_flats) / 2.0
     distance = P.NUT_ENVELOPE_R + nut_corner_radius + 0.1
-    # At <=0.20 mm pitch successive 4.0 mm nominal hex prisms overlap deeply,
-    # so their fused union is a conservative continuous translation volume.
     step_count = math.ceil(distance / 0.20)
     mouth_x, mouth_y = _normalized_mouth(site)
+    offsets = tuple(
+        (
+            mouth_x * distance * (step_count - step) / step_count,
+            mouth_y * distance * (step_count - step) / step_count,
+        )
+        for step in range(step_count)
+    )
+    return offsets + ((0.0, 0.0),)
+
+
+def insertion_sweep(site, across_flats=P.NUT_NOMINAL_AF):
+    """Return the continuous collision volume of a nut sliding into its seat."""
+    # At <=0.20 mm pitch successive 4.0 mm nominal hex prisms overlap deeply,
+    # so their fused union is a conservative continuous translation volume.
     sweep = None
-    for step in range(step_count + 1):
-        offset = distance * step / step_count
+    for offset_x, offset_y in insertion_offsets(site, across_flats):
         nut = nut_solid(site, across_flats).translate(
-            (mouth_x * offset, mouth_y * offset, 0.0)
+            (offset_x, offset_y, 0.0)
         )
         sweep = nut if sweep is None else sweep.union(nut)
     return sweep
