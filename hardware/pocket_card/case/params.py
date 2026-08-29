@@ -466,7 +466,7 @@ DECK_ZONE_T = (
 DECK_H = round(DECK_ZONE_T - BODY_T, 3)  # unchanged: 2.40 mm
 DECK_FLOOR_Z = -DECK_ZONE_T + WALL
 
-DECK_PLATEAU_Y0 = (
+_DECK_REQUIRED_PLUG_Y0 = (
     DISPLAY_PLUG_Y - DISPLAY_PLUG_BODY_W / 2
     - DISPLAY_PLUG_CLEAR - WALL
 )
@@ -475,12 +475,11 @@ _DECK_REQUIRED_PLUG_Y1 = (
     + DISPLAY_PLUG_CLEAR + WALL
 )
 
-# Move both visible shoulder boundaries 5 mm south.  The full-depth band's
-# upper edge remains plug-derived: moving that datum would take required wall
-# and cable clearance away from the display connector.  Extending the plateau
-# through the shifted lower shoulder moves the broad rear form without doing
-# that.  See the 2026-08-29 review-corrections design.
+# Translate the broad rear form 5 mm south.  All three interior profile
+# stations move together; keeping the plateau start at the plug datum was the
+# earlier bug, because it stretched the bump instead of translating its crest.
 DECK_BUMP_SHIFT_Y = 5.0
+DECK_PLATEAU_Y0 = _DECK_REQUIRED_PLUG_Y0 + DECK_BUMP_SHIFT_Y
 DECK_PLATEAU_Y1 = _DECK_REQUIRED_PLUG_Y1 + DECK_BUMP_SHIFT_Y
 
 # Retain the original 22-degree profile as an explicit reference for the
@@ -494,10 +493,10 @@ _deck_rise_reference_run = (
     2 * _deck_rise_reference_r * _math.sin(_deck_rise_reference_p)
 )
 DECK_RISE_Y0 = (
-    DECK_PLATEAU_Y0 - _deck_rise_reference_run + DECK_BUMP_SHIFT_Y
+    DECK_PLATEAU_Y0 - _deck_rise_reference_run
 )
 DECK_RISE_RUN = DECK_PLATEAU_Y0 - DECK_RISE_Y0
-DECK_RISE_PHI = _math.degrees(2 * _math.atan(DECK_H / DECK_RISE_RUN))
+DECK_RISE_PHI = DECK_RISE_REFERENCE_PHI
 _deck_rise_p = _math.radians(DECK_RISE_PHI)
 DECK_RISE_R = DECK_H / (2 * (1 - _math.cos(_deck_rise_p)))
 
@@ -510,14 +509,25 @@ _deck_taper_p = _math.radians(DECK_TAPER_PHI)
 DECK_TAPER_R = DECK_H / (2 * (1 - _math.cos(_deck_taper_p)))
 
 # ------------------------------------------------ rear tactile texture ----
-# A classic running-bond mortar grid is cut only through the outer skin of the
-# actual compound rear envelope.  Unlike the retired flat Blender cutter, this
-# follows both the 2.4 mm deck profile and the spherical perimeter roll.
+# The legacy Blender composition, rebuilt against the compound shell skin:
+# a partial running-bond band, a circular clear ring, and a recessed medallion
+# whose PuzzleScript-man silhouette remains proud.  Coordinates below are the
+# evaluated 2026-08-29 template geometry converted back to layout space.
 REAR_TEX_DEPTH = 0.30             # SLA 8001: visible/tactile, still leaves 1.2 mm wall
 REAR_TEX_LINE = 0.45              # printable recessed mortar width
 REAR_TEX_BRICK_W = 6.0
 REAR_TEX_ROW_H = 3.0
-REAR_TEX_MARGIN = 7.0             # smooth rolled perimeter / handling land
+REAR_TEX_X0 = 0.0
+REAR_TEX_X1 = BODY_W
+REAR_TEX_Y0 = 47.110077
+REAR_TEX_Y1 = 80.330240
+REAR_TEX_MEDALLION_X = 45.0
+REAR_TEX_MEDALLION_Y = 54.905323
+REAR_TEX_MEDALLION_CLEAR_D = 18.700676
+REAR_TEX_MEDALLION_D = 15.590497
+REAR_TEX_LOGO_X = 45.046322
+REAR_TEX_LOGO_Y = 54.689465
+REAR_TEX_LOGO_CELL = 2.0
 REAR_TEX_SCREW_CLEAR = 0.80       # beyond the pan-head envelope
 
 # ------------------------------------------------------------ USB-C port ----

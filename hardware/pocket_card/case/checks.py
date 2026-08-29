@@ -1513,6 +1513,7 @@ def check_display_plug():
     import cadquery as cq
 
     import shell_back
+    import side_arc
 
     back = shell_back.to_model_space(shell_back.build_back())
     rear = -(P.MODULE_Z + P.MOD_FRONT_STACK)
@@ -1552,17 +1553,22 @@ def check_display_plug():
     if not ok:
         FAILURES.append("no room for the display-plug cable exit")
 
-    # 3. Both footprint ends, including clearance and the wall, must land on
-    #    the full-depth plateau rather than either transition.
-    north = (P.DISPLAY_PLUG_Y - P.DISPLAY_PLUG_BODY_W / 2
-             - P.DISPLAY_PLUG_CLEAR - P.WALL)
-    south = (P.DISPLAY_PLUG_Y + P.DISPLAY_PLUG_BODY_W / 2
-             + P.DISPLAY_PLUG_CLEAR + P.WALL)
-    ok = P.DECK_PLATEAU_Y0 <= north and south <= P.DECK_PLATEAU_Y1
-    print(f"   {'PASS' if ok else 'FAIL'}  pocket y {north:.2f}..{south:.2f} "
-          f"inside plateau {P.DECK_PLATEAU_Y0:.2f}..{P.DECK_PLATEAU_Y1:.2f}")
+    # 3. The real 3D collision probes above show the translated 22-degree rise
+    #    already clears the connector.  Lock the broad crest to the translated
+    #    datum so a future "clearance" edit cannot anchor it at the old Y again.
+    original_crest = (
+        P.DISPLAY_PLUG_Y - P.DISPLAY_PLUG_BODY_W / 2
+        - P.DISPLAY_PLUG_CLEAR - P.WALL
+    )
+    ok = (
+        abs(P.DECK_PLATEAU_Y0 - (original_crest + P.DECK_BUMP_SHIFT_Y)) < 1e-9
+        and side_arc.rear_deck_extra_at(P.DISPLAY_PLUG_Y) < P.DECK_H
+    )
+    print(f"   {'PASS' if ok else 'FAIL'}  broad crest translated from y "
+          f"{original_crest:.2f} to {P.DECK_PLATEAU_Y0:.2f}; connector lies "
+          f"on the {side_arc.rear_deck_extra_at(P.DISPLAY_PLUG_Y):.3f} mm rise")
     if not ok:
-        FAILURES.append("display-plug pocket runs into a deck transition")
+        FAILURES.append("rear crest is still anchored at the display plug")
 
     # 4. Nothing else on the module needs the added depth, which is why the
     #    upper screen region can return to the normal rear plane.

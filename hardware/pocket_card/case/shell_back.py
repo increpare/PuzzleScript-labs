@@ -241,12 +241,36 @@ def pcb_support_pads():
 
 
 @functools.lru_cache(maxsize=1)
+def rear_texture_logo_prism():
+    """Five-row PuzzleScript man protected inside the rear medallion."""
+    z0 = -P.DECK_ZONE_T - 1.0
+    z_span = P.DECK_ZONE_T - P.BODY_T + 2.0
+    rows = P.GRILLE_BITMAP
+    cell = P.REAR_TEX_LOGO_CELL
+    x0 = P.REAR_TEX_LOGO_X - len(rows[0]) * cell / 2.0
+    y0 = P.REAR_TEX_LOGO_Y - len(rows) * cell / 2.0
+    points = [
+        (x0 + (column + 0.5) * cell, y0 + (row + 0.5) * cell)
+        for row, bitmap_row in enumerate(rows)
+        for column, value in enumerate(bitmap_row)
+        if value == "1"
+    ]
+    return (
+        cq.Workplane("XY")
+        .workplane(offset=z0)
+        .pushPoints(points)
+        .rect(cell, cell)
+        .extrude(z_span, combine=True)
+    )
+
+
+@functools.lru_cache(maxsize=1)
 def rear_texture_pattern_prism():
-    """One fused running-bond mortar grid spanning the usable rear field."""
-    x0 = P.REAR_TEX_MARGIN
-    x1 = P.BODY_W - P.REAR_TEX_MARGIN
-    y0 = P.REAR_TEX_MARGIN
-    y1 = P.BODY_H - P.REAR_TEX_MARGIN
+    """Legacy partial mortar band plus its logo-negative medallion."""
+    x0 = P.REAR_TEX_X0
+    x1 = P.REAR_TEX_X1
+    y0 = P.REAR_TEX_Y0
+    y1 = P.REAR_TEX_Y1
     z0 = -P.DECK_ZONE_T - 1.0
     z_span = P.DECK_ZONE_T - P.BODY_T + 2.0
 
@@ -286,8 +310,36 @@ def rear_texture_pattern_prism():
     )
 
     # The slight vertical overlap makes the complete grid one Boolean operand
-    # instead of hundreds of disconnected boxes.
-    pattern = horizontal.union(vertical)
+    # instead of hundreds of disconnected boxes.  Clip the boundary-centred
+    # lines back to the measured legacy field before composing the medallion.
+    field_clip = (
+        cq.Workplane("XY")
+        .workplane(offset=z0)
+        .box(x1 - x0, y1 - y0, z_span, centered=(False, False, False))
+        .translate((x0, y0, 0))
+    )
+    pattern = horizontal.union(vertical).intersect(field_clip)
+
+    medallion_clear = (
+        cq.Workplane("XY")
+        .workplane(offset=z0)
+        .circle(P.REAR_TEX_MEDALLION_CLEAR_D / 2.0)
+        .extrude(z_span)
+        .translate((P.REAR_TEX_MEDALLION_X, P.REAR_TEX_MEDALLION_Y, 0))
+    )
+    medallion = (
+        cq.Workplane("XY")
+        .workplane(offset=z0)
+        .circle(P.REAR_TEX_MEDALLION_D / 2.0)
+        .extrude(z_span)
+        .translate((P.REAR_TEX_MEDALLION_X, P.REAR_TEX_MEDALLION_Y, 0))
+    )
+    pattern = (
+        pattern
+        .cut(medallion_clear)
+        .union(medallion)
+        .cut(rear_texture_logo_prism())
+    )
     keepout_r = P.REAR_TEX_SCREW_CLEAR + joints.HEAD_D / 2.0
     for joint in joints.back_joints():
         keepout = (

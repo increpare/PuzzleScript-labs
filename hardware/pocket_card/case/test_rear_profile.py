@@ -54,17 +54,21 @@ class RearDeckProfileTest(unittest.TestCase):
             0.0,
         )
 
-    def test_visible_bump_boundaries_move_five_mm_south(self):
+    def test_broad_bump_translates_five_mm_south(self):
         reference_phi = math.radians(P.DECK_RISE_REFERENCE_PHI)
         reference_radius = P.DECK_H / (
             2 * (1 - math.cos(reference_phi))
         )
         reference_run = 2 * reference_radius * math.sin(reference_phi)
-        previous_rise_y0 = P.DECK_PLATEAU_Y0 - reference_run
+        required_plug_y0 = (
+            P.DISPLAY_PLUG_Y - P.DISPLAY_PLUG_BODY_W / 2
+            - P.DISPLAY_PLUG_CLEAR - P.WALL
+        )
         required_plug_y1 = (
             P.DISPLAY_PLUG_Y + P.DISPLAY_PLUG_BODY_W / 2
             + P.DISPLAY_PLUG_CLEAR + P.WALL
         )
+        previous_rise_y0 = required_plug_y0 - reference_run
 
         self.assertAlmostEqual(P.DECK_BUMP_SHIFT_Y, 5.0, places=6)
         self.assertAlmostEqual(
@@ -78,23 +82,23 @@ class RearDeckProfileTest(unittest.TestCase):
             places=9,
         )
         self.assertAlmostEqual(P.DECK_RISE_Y0, 31.9811703617, places=9)
-        self.assertAlmostEqual(P.DECK_RISE_RUN, 7.3469296383, places=9)
-        self.assertAlmostEqual(P.DECK_RISE_PHI, 36.1810208032, places=6)
-        self.assertAlmostEqual(P.DECK_PLATEAU_Y0, 39.3281, places=4)
+        self.assertAlmostEqual(P.DECK_RISE_RUN, reference_run, places=9)
+        self.assertAlmostEqual(P.DECK_RISE_RUN, 12.3469296383, places=9)
+        self.assertAlmostEqual(P.DECK_RISE_PHI, 22.0, places=6)
+        self.assertAlmostEqual(
+            P.DECK_PLATEAU_Y0,
+            required_plug_y0 + P.DECK_BUMP_SHIFT_Y,
+            places=9,
+        )
+        self.assertAlmostEqual(P.DECK_PLATEAU_Y0, 44.3281, places=4)
         self.assertAlmostEqual(P.DECK_PLATEAU_Y1, 51.8281, places=4)
         self.assertEqual(P.DECK_TAPER_Y0, P.DECK_PLATEAU_Y1)
         self.assertEqual(P.DECK_TAPER_Y1, P.BODY_H)
 
-    def test_full_depth_contains_plug_and_wall_allowance(self):
-        plug_y0 = P.DISPLAY_PLUG_Y - P.DISPLAY_PLUG_BODY_W / 2
-        plug_y1 = P.DISPLAY_PLUG_Y + P.DISPLAY_PLUG_BODY_W / 2
-        allowance = P.DISPLAY_PLUG_CLEAR + P.WALL
-        self.assertLessEqual(P.DECK_PLATEAU_Y0, plug_y0 - allowance)
-        self.assertGreaterEqual(P.DECK_PLATEAU_Y1, plug_y1 + allowance)
-        self.assertEqual(
-            side_arc.rear_deck_extra_at(P.DISPLAY_PLUG_Y),
-            P.DECK_H,
-        )
+    def test_display_plug_does_not_anchor_the_broad_crest(self):
+        depth = side_arc.rear_deck_extra_at(P.DISPLAY_PLUG_Y)
+        self.assertLess(depth, P.DECK_H)
+        self.assertAlmostEqual(depth, 2.3525252734, places=9)
 
     def test_rise_and_taper_are_monotonic(self):
         rise = self.sample(P.DECK_RISE_Y0, P.DECK_PLATEAU_Y0)
@@ -113,13 +117,21 @@ class RearDeckProfileTest(unittest.TestCase):
 
 
 class RearDeckEnvelopeTest(unittest.TestCase):
-    def test_centreline_has_thin_top_full_plug_depth_and_lower_return(self):
+    def test_centreline_has_thin_top_translated_plug_depth_and_lower_return(self):
         x = P.BODY_W / 2
         z_top = side_arc.outer_back_z_at(x, 24.0)
-        z_plug = side_arc.outer_back_z_at(x, P.DISPLAY_PLUG_Y)
+        z_broad_at_plug_y = side_arc.outer_back_z_at(x, P.DISPLAY_PLUG_Y)
+        z_plug = side_arc.outer_back_z_at(
+            P.DISPLAY_PLUG_X,
+            P.DISPLAY_PLUG_Y,
+        )
         z_lower = side_arc.outer_back_z_at(x, 70.0)
         self.assertAlmostEqual(z_top, -P.BODY_T, delta=0.03)
-        self.assertAlmostEqual(z_plug, -P.DECK_ZONE_T, delta=0.03)
+        expected_plug_z = -(
+            P.BODY_T + side_arc.rear_deck_extra_at(P.DISPLAY_PLUG_Y)
+        )
+        self.assertAlmostEqual(z_plug, expected_plug_z, delta=0.01)
+        self.assertAlmostEqual(z_broad_at_plug_y, z_plug, delta=0.01)
         self.assertGreater(z_lower, z_plug)
         self.assertLess(z_lower, z_top)
 
@@ -138,7 +150,7 @@ class RearDeckCheckContractTest(unittest.TestCase):
         vertices = np.array([
             [P.BODY_W / 2, P.BODY_H - 24.0, -P.BODY_T - 0.05],
             [P.BODY_W / 2, P.BODY_H - P.DISPLAY_PLUG_Y,
-             -P.DECK_ZONE_T],
+             -P.BODY_T - side_arc.rear_deck_extra_at(P.DISPLAY_PLUG_Y)],
         ])
         bad = checks.back_shell_vertex_violations(vertices)
         self.assertEqual(len(bad), 1)

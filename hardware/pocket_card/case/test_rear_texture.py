@@ -26,18 +26,20 @@ class RearTextureContractTest(unittest.TestCase):
     def setUpClass(cls):
         cls.texture = shell_back.rear_texture_cutters()
 
-    def test_texture_uses_printable_depth_and_covers_the_rear_field(self):
+    def test_texture_uses_printable_depth_and_matches_legacy_partial_band(self):
         self.assertEqual(P.REAR_TEX_DEPTH, 0.30)
         bb = bounds(self.texture)
-        self.assertLessEqual(bb.xmin, P.REAR_TEX_MARGIN + 0.05)
-        self.assertGreaterEqual(bb.xmax, P.BODY_W - P.REAR_TEX_MARGIN - 0.05)
-        self.assertLessEqual(bb.ymin, P.REAR_TEX_MARGIN + 0.05)
-        self.assertGreaterEqual(bb.ymax, P.BODY_H - P.REAR_TEX_MARGIN - 0.05)
+        # The measured flat cutter crossed the nominal silhouette; projecting
+        # it through the real spherical side roll clips the first/last 0.60 mm.
+        self.assertLessEqual(bb.xmin, 0.65)
+        self.assertGreaterEqual(bb.xmax, P.BODY_W - 0.65)
+        self.assertAlmostEqual(bb.ymin, P.REAR_TEX_Y0, delta=0.15)
+        self.assertAlmostEqual(bb.ymax, P.REAR_TEX_Y1, delta=0.15)
         self.assertGreater(bb.zlen, P.DECK_H + P.REAR_TEX_DEPTH - 0.1)
 
-    def test_texture_exists_in_multiple_vertical_bands_not_one_stripe(self):
+    def test_texture_exists_only_in_the_legacy_vertical_band(self):
         z0 = -P.DECK_ZONE_T - 2.0
-        for y in (15.0, 35.0, 55.0, 75.0):
+        for y in (50.0, 65.0, 78.0):
             slab = (
                 cq.Workplane("XY")
                 .box(P.BODY_W + 2.0, 5.0, P.DECK_ZONE_T + 4.0,
@@ -46,6 +48,54 @@ class RearTextureContractTest(unittest.TestCase):
             )
             with self.subTest(y=y):
                 self.assertGreater(volume(self.texture.intersect(slab)), 0.05)
+
+        for y in (15.0, 35.0, 90.0):
+            slab = (
+                cq.Workplane("XY")
+                .box(P.BODY_W + 2.0, 5.0, P.DECK_ZONE_T + 4.0,
+                     centered=(False, True, False))
+                .translate((-1.0, y, z0))
+            )
+            with self.subTest(y=y):
+                self.assertLess(volume(self.texture.intersect(slab)), 1e-5)
+
+    def test_medallion_preserves_clear_ring_and_logo_negative(self):
+        pattern = shell_back.rear_texture_pattern_prism()
+        z0 = -P.DECK_ZONE_T - 1.0
+        z_span = P.DECK_ZONE_T - P.BODY_T + 2.0
+
+        outer = (
+            cq.Workplane("XY")
+            .workplane(offset=z0)
+            .center(P.REAR_TEX_MEDALLION_X, P.REAR_TEX_MEDALLION_Y)
+            .circle(P.REAR_TEX_MEDALLION_CLEAR_D / 2.0 - 0.15)
+            .extrude(z_span)
+        )
+        inner = (
+            cq.Workplane("XY")
+            .workplane(offset=z0)
+            .center(P.REAR_TEX_MEDALLION_X, P.REAR_TEX_MEDALLION_Y)
+            .circle(P.REAR_TEX_MEDALLION_D / 2.0 + 0.15)
+            .extrude(z_span)
+        )
+        annulus = outer.cut(inner)
+        self.assertLess(volume(pattern.intersect(annulus)), 1e-5)
+
+        medallion_witness = (
+            cq.Workplane("XY")
+            .workplane(offset=z0)
+            .center(
+                P.REAR_TEX_MEDALLION_X + 6.0,
+                P.REAR_TEX_MEDALLION_Y,
+            )
+            .circle(0.35)
+            .extrude(z_span)
+        )
+        self.assertGreater(volume(pattern.intersect(medallion_witness)), 0.05)
+        self.assertLess(
+            volume(pattern.intersect(shell_back.rear_texture_logo_prism())),
+            1e-5,
+        )
 
     def test_screw_head_seats_keep_a_smooth_texture_free_disc(self):
         z0 = -P.DECK_ZONE_T - 2.0

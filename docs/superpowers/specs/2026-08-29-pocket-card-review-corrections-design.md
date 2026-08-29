@@ -11,19 +11,28 @@ controller PCB must have a face-side stop opposite its left rear support.
 
 ## Rear bulge
 
-The previous change moved only the upper rise start. The full-depth band and
-lower return stayed fixed, so the visible bulge did not move. Keep the
-plug-derived upper edge of the full-depth region at `39.3281 mm`; moving it
-would remove required display-connector and cable clearance. Move the two
-visible shoulder boundaries 5.00 mm south relative to the original profile:
+Owner correction after inspecting the first implementation: moving only the
+rise start and lower plateau edge stretched the form around the unchanged
+`39.3281 mm` crest. It did **not** translate the visible bump.
 
-- retain the already-corrected upper rise start at `31.9812 mm`;
-- extend the full-depth band so its lower edge moves from `46.8281 mm` to
-  `51.8281 mm`; and
-- recompute the tangent lower return from that new edge to the south end.
+Translate all three interior profile stations 5.00 mm south relative to the
+original profile:
 
-This is the safe geometric correction: the broad form moves lower while the
-small part of the plateau that is structurally required above it remains.
+- upper rise start: `26.9812 -> 31.9812 mm`;
+- full-depth plateau start: `39.3281 -> 44.3281 mm`;
+- full-depth plateau end: `46.8281 -> 51.8281 mm`.
+
+The translated rise therefore retains its original `12.3469 mm` run and
+`22 degree` tangent profile. The south end of the enclosure remains fixed at
+`93 mm`, so recompute only the lower return from the translated plateau end to
+that fixed boundary.
+
+Do not retain a local tongue or blister at the old crest. A direct collision
+probe of the translated 22-degree rise against the mated connector at every
+`+/-0.3 mm` placement extreme, plus the `0.8 mm` cable-exit envelope, measures
+`0.0000 mm3` intersection. The connector lies on `2.353 mm` of the available
+`2.400 mm` rise, so the one broad translated form clears it without another
+visible feature.
 
 ## Rear texture
 
@@ -31,11 +40,27 @@ Retire the fixed-plane Blender `bricktexture_back` Boolean for the generated
 back shell. It spans only about 33 mm in Y and cannot follow a surface whose Z
 varies by 2.4 mm.
 
-Generate the back mortar pattern in CadQuery. Intersect the pattern with the
-outer 0.30 mm skin between the real envelope and its inward offset, then cut
-that skin from the shell. This makes the recess follow the spherical perimeter
-roll and the relocated rear bulge. Texture the broad rear field while leaving
-a smooth perimeter margin and smooth discs around all screw seats.
+The finite Y span is part of the old composition, not a defect. Recreate the
+legacy cutter layout in CadQuery, but intersect it with the outer 0.30 mm skin
+between the real envelope and its inward offset so it follows the spherical
+perimeter roll and relocated rear bulge.
+
+Measurements recovered from `hardware/card/case/case_updated.blend`:
+
+- brick band: model-space `y = 12.67..45.89 mm`, equivalent to layout-space
+  `y = 47.11..80.33 mm`, spanning the rear width and clipped by the shell;
+- circular brick keep-out: diameter `18.70 mm`, centred at layout
+  `(45.00, 54.91)`;
+- recessed medallion: diameter `15.59 mm` at the same centre;
+- protected PuzzleScript man: the existing five-row `GRILLE_BITMAP`, at
+  `2.00 mm` per cell (about `10 x 10 mm`), centred at approximately
+  `(45.05, 54.69)`.
+
+Boolean order is significant: build the partial mortar grid, remove the outer
+medallion circle, add the smaller recessed medallion, then remove the man from
+the cutter. Keep smooth discs around every screw seat. The result must read as
+the old partial brick band with a raised logo-negative, not wallpaper over the
+whole rear.
 
 ## U1 placement
 
@@ -54,13 +79,14 @@ that corner after the two right-side screws are tightened.
 
 ## Verification
 
-- Unit tests lock both moved rear-profile boundaries and retained plug depth.
-- Texture cutter sections must exist in multiple Y bands across the usable
-  rear field and must not enter screw-seat keep-outs.
+- Unit tests lock all three translated rear-profile stations and reject any
+  local feature that re-anchors the connector position at full depth.
+- Texture cutter sections must exist only in the recovered partial Y band,
+  preserve the medallion annulus and logo-negative, and stay out of screw-seat
+  keep-outs.
 - The front stop must lie on real PCB material, clear real components, and
   leave the specified axial gap.
 - KiCad validation must report zero ERC/DRC errors and zero unconnected items.
 - Rebuild all PCB, shell, embossed, and assembly artifacts.
 - Render and inspect the assembled rear, exploded closure, H2 cutaway, and
   trap close-ups before reporting completion.
-

@@ -474,13 +474,15 @@ def expected_rear_deck_extra_at(y: float) -> float:
 def verify_profile() -> None:
     back = bpy.data.objects["shell_back_embossed"]
     sample = native_profile_sampler(back)
+    old_crest_y = P.DECK_PLATEAU_Y0 - P.DECK_BUMP_SHIFT_Y
     depths = {
         "upper_y10": -(sample(10.0) + P.BODY_T),
         "top_y24": -(sample(24.0) + P.BODY_T),
         "upper_y30": -(sample(30.0) + P.BODY_T),
         "rise_start": -(sample(P.DECK_RISE_Y0) + P.BODY_T),
         "rise_mid": -(sample((P.DECK_RISE_Y0 + P.DECK_PLATEAU_Y0) / 2) + P.BODY_T),
-        "plateau_start": -(sample(P.DECK_PLATEAU_Y0 + 0.2) + P.BODY_T),
+        "old_crest": -(sample(old_crest_y) + P.BODY_T),
+        "translated_crest": -(sample(P.DECK_PLATEAU_Y0 + 0.2) + P.BODY_T),
         "plug": -(sample(P.DISPLAY_PLUG_Y) + P.BODY_T),
         "plateau_end": -(sample(P.DECK_PLATEAU_Y1 - 0.2) + P.BODY_T),
         "lower_y70": -(sample(70.0) + P.BODY_T),
@@ -492,7 +494,23 @@ def verify_profile() -> None:
     require_close(depths["upper_y30"], 0.0, 0.08, "upper y=30 added depth")
     require_close(depths["rise_start"], 0.0, 0.10, "rise start added depth")
     require_close(depths["rise_mid"], P.DECK_H / 2, 0.14, "rise midpoint added depth")
-    for label in ("plateau_start", "plug", "plateau_end"):
+    require_close(P.DECK_BUMP_SHIFT_Y, 5.0, 1e-6, "broad bump translation")
+    require_close(P.DECK_PLATEAU_Y0, 44.3281, 1e-4, "translated crest Y")
+    require_close(P.DECK_RISE_RUN, 12.3469296383, 1e-6, "preserved rise run")
+    require_close(
+        depths["old_crest"], expected_rear_deck_extra_at(old_crest_y), 0.10,
+        "old crest station added depth",
+    )
+    require(
+        depths["old_crest"] < P.DECK_H - 0.25,
+        f"old crest y={old_crest_y:.4f} is still full depth: "
+        f"{depths['old_crest']:.4f}",
+    )
+    require_close(
+        depths["plug"], expected_rear_deck_extra_at(P.DISPLAY_PLUG_Y), 0.10,
+        "display-plug station added depth",
+    )
+    for label in ("translated_crest", "plateau_end"):
         require_close(depths[label], P.DECK_H, 0.10, f"{label} added depth")
     require(
         0.6 < depths["lower_y70"] < P.DECK_H - 0.4,
@@ -525,8 +543,10 @@ def verify_profile() -> None:
         f"rear profile ordering is wrong: {depths!r}",
     )
     print(
-        "PASS profile: native shell mesh is thin at upper y=10/y=24/y=30, rises "
-        f"to {depths['plug']:.3f} mm at plug y={P.DISPLAY_PLUG_Y:.4f}, "
+        "PASS profile: native broad crest moved 5.000 mm from "
+        f"y={old_crest_y:.4f} (now {depths['old_crest']:.3f} mm deep) to "
+        f"y={P.DECK_PLATEAU_Y0:.4f} ({depths['translated_crest']:.3f} mm deep); "
+        f"plug y={P.DISPLAY_PLUG_Y:.4f} is on the rise at {depths['plug']:.3f} mm; "
         f"tapers through {depths['lower_y70']:.3f} mm at y=70, and returns "
         "to normal near the bottom"
     )
