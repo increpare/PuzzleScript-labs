@@ -158,6 +158,17 @@ class CaptiveNutReviewBlenderTest(unittest.TestCase):
         result = self.blender("--python", SCRIPT, "--", "--self-test-state-restore")
         self.assertIn("PASS real H2 setup failure restored selection, active object, and canonical state", result.stdout)
 
+    def test_h2_camera_separates_reset_center_from_screw_axis_in_frame(self):
+        result = self.blender(
+            "--python", SCRIPT, "--", "--self-test-h2-projection",
+            check=False)
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertRegex(
+            result.stdout,
+            r"PASS H2 projection: cap_reset center to screw_6 axis "
+            r"(?:1[2-9][0-9]|[2-9][0-9]{2})(?:\.[0-9]+)? px",
+        )
+
     def test_authored_light_and_hidden_fasteners_do_not_change_output_or_state(self):
         with tempfile.TemporaryDirectory(dir="/tmp") as temporary:
             baseline, adversarial = Path(temporary, "baseline"), Path(temporary, "adversarial")

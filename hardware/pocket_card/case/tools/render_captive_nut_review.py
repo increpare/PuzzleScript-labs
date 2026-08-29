@@ -66,6 +66,7 @@ H2_REQUIRED_OBJECTS = {
     "nut_6",
     "screw_6",
 }
+H2_MIN_PROJECTED_SEPARATION_PX = 120.0
 TEMP_PREFIX = "__captive_nut_review_"
 EXPECTED_AUTHORED_COMPONENTS = {
     "Battery": {
@@ -792,7 +793,7 @@ def _render_h2_cutaway():
     # hex nut and cage mouth remain separately legible in the oblique view.
     _move_model(bpy.data.objects["screw_6"], (0.0, 0.0, -6.0), assembly)
     target = _model_point(assembly, (67.0, 12.0, -2.0))
-    camera = target + _model_vector(assembly, (50.0, -58.0, -88.0))
+    camera = target + _model_vector(assembly, (35.0, 80.0, -88.0))
     _configure_scene(camera, target, 3.65)
 
 
@@ -928,12 +929,82 @@ def _self_test_state_restore():
     )
 
 
+def _h2_projected_clearance():
+    from bpy_extras.object_utils import world_to_camera_view
+
+    bpy.context.view_layer.update()
+    scene = bpy.context.scene
+    camera = scene.camera
+    cap = bpy.data.objects["cap_reset"]
+    screw = bpy.data.objects["screw_6"]
+    cap_bounds = _local_bounds(cap)
+    screw_bounds = _local_bounds(screw)
+    cap_world = cap.matrix_world @ Vector((
+        (cap_bounds[0] + cap_bounds[1]) / 2.0,
+        (cap_bounds[2] + cap_bounds[3]) / 2.0,
+        (cap_bounds[4] + cap_bounds[5]) / 2.0,
+    ))
+    screw_x = (screw_bounds[0] + screw_bounds[1]) / 2.0
+    screw_y = (screw_bounds[2] + screw_bounds[3]) / 2.0
+    axis_world = (
+        screw.matrix_world @ Vector((screw_x, screw_y, screw_bounds[4])),
+        screw.matrix_world @ Vector((screw_x, screw_y, screw_bounds[5])),
+    )
+
+    def project(point):
+        ndc = world_to_camera_view(scene, camera, point)
+        return Vector((ndc.x * RENDER_SIZE[0], (1.0 - ndc.y) * RENDER_SIZE[1])), ndc.z
+
+    cap_pixel, cap_depth = project(cap_world)
+    axis_pixels = [project(point) for point in axis_world]
+    start, end = axis_pixels[0][0], axis_pixels[1][0]
+    segment = end - start
+    denominator = segment.length_squared
+    parameter = 0.0 if denominator == 0.0 else max(
+        0.0, min(1.0, (cap_pixel - start).dot(segment) / denominator)
+    )
+    clearance = (cap_pixel - (start + parameter * segment)).length
+    points = [(cap_pixel, cap_depth), *axis_pixels]
+    framed = all(
+        0.0 <= pixel.x <= RENDER_SIZE[0]
+        and 0.0 <= pixel.y <= RENDER_SIZE[1]
+        and depth > 0.0
+        for pixel, depth in points
+    )
+    return clearance, framed, tuple(cap_pixel), tuple(start), tuple(end)
+
+
+def _self_test_h2_projection():
+    before = _scene_signature()
+    with SceneStateGuard():
+        _render_h2_cutaway()
+        clearance, framed, cap_pixel, axis_start, axis_end = _h2_projected_clearance()
+        if not framed:
+            raise ReviewFailure(
+                f"H2 Reset/screw projection is cropped: cap={cap_pixel!r}, "
+                f"axis={axis_start!r}->{axis_end!r}"
+            )
+        if clearance < H2_MIN_PROJECTED_SEPARATION_PX:
+            raise ReviewFailure(
+                f"H2 Reset-to-screw-axis projection is only {clearance:.1f} px; "
+                f"requires {H2_MIN_PROJECTED_SEPARATION_PX:.1f} px"
+            )
+    if _scene_signature() != before:
+        raise ReviewFailure("H2 projection self-test contaminated canonical state")
+    print(
+        f"PASS H2 projection: cap_reset center to screw_6 axis {clearance:.1f} px, "
+        f"both framed; cap_reset={cap_pixel!r}, "
+        f"screw_6 axis={axis_start!r}->{axis_end!r}"
+    )
+
+
 def _arguments(argv):
     parser = argparse.ArgumentParser()
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--view", choices=tuple(OUTPUTS))
     parser.add_argument("--preflight-only", action="store_true")
     parser.add_argument("--self-test-state-restore", action="store_true")
+    parser.add_argument("--self-test-h2-projection", action="store_true")
     parser.add_argument("--inject-failure-view", choices=tuple(OUTPUTS), help=argparse.SUPPRESS)
     return parser.parse_args(argv)
 
@@ -946,6 +1017,9 @@ def main(argv=None):
         return
     if args.self_test_state_restore:
         _self_test_state_restore()
+        return
+    if args.self_test_h2_projection:
+        _self_test_h2_projection()
         return
     views = (args.view,) if args.view else tuple(OUTPUTS)
     args.output_dir.parent.mkdir(parents=True, exist_ok=True)
