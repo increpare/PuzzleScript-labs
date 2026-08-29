@@ -415,19 +415,60 @@ def native_profile_sampler(obj):
     z_start = local_bounds(obj)[4] - 10.0
 
     def sample(layout_y: float) -> float:
-        model_y = P.BODY_H - layout_y
         hits = []
-        # The median rejects local engraving/feature openings while every ray
-        # still interrogates the native shell mesh in the flat centre field.
+        # Sample to either side of a possible running-bond mortar row and keep
+        # the rear-most hit at each X.  This reconstructs the deck envelope
+        # instead of mistaking the intentional 0.30 mm texture recess for a
+        # profile change.  The median across X still rejects local openings.
+        y_offset = P.REAR_TEX_LINE + 0.10
+        target_extra = expected_rear_deck_extra_at(layout_y)
         for x in (30.0, 35.0, 40.0, 45.0, 50.0, 55.0, 60.0):
-            hit, _normal, _index, _distance = tree.ray_cast(
-                Vector((x, model_y, z_start)), Vector((0.0, 0.0, 1.0)), 100.0
-            )
-            require(hit is not None, f"rear surface ray missed at x={x}, layout y={layout_y}")
-            hits.append(hit.z)
+            local_hits = []
+            for offset in (-y_offset, 0.0, y_offset):
+                offset_y = layout_y + offset
+                model_y = P.BODY_H - offset_y
+                hit, _normal, _index, _distance = tree.ray_cast(
+                    Vector((x, model_y, z_start)), Vector((0.0, 0.0, 1.0)), 100.0
+                )
+                require(
+                    hit is not None,
+                    f"rear surface ray missed at x={x}, layout y={offset_y}",
+                )
+                # Normalize the nearby witness back to the requested profile
+                # station before choosing the untextured envelope witness.
+                local_hits.append(
+                    hit.z
+                    + expected_rear_deck_extra_at(offset_y)
+                    - target_extra
+                )
+            hits.append(min(local_hits))
         return statistics.median(hits)
 
     return sample
+
+
+def expected_rear_deck_extra_at(y: float) -> float:
+    """Pure profile authority usable inside Blender's Python runtime."""
+    if y <= P.DECK_RISE_Y0 or y >= P.BODY_H:
+        return 0.0
+    if y <= P.DECK_PLATEAU_Y1 and y >= P.DECK_PLATEAU_Y0:
+        return P.DECK_H
+
+    rising = y < P.DECK_PLATEAU_Y0
+    start = P.DECK_RISE_Y0 if rising else P.DECK_PLATEAU_Y1
+    run = P.DECK_RISE_RUN if rising else P.DECK_TAPER_RUN
+    x = min(max(y - start, 0.0), run)
+    phi = 2 * math.atan(P.DECK_H / run)
+    radius = P.DECK_H / (2 * (1 - math.cos(phi)))
+    half = run / 2
+    if x <= half:
+        theta = math.asin(min(x / radius, 1.0))
+        taper_depth = P.DECK_H - radius * (1 - math.cos(theta))
+    else:
+        remaining = run - x
+        theta = math.asin(min(remaining / radius, 1.0))
+        taper_depth = radius * (1 - math.cos(theta))
+    return P.DECK_H - taper_depth if rising else taper_depth
 
 
 def verify_profile() -> None:

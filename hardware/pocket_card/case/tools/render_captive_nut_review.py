@@ -587,6 +587,11 @@ def _set_visible(names):
         if obj.type == "LIGHT" and not obj.name.startswith(TEMP_PREFIX):
             obj.hide_render = True
             obj.hide_viewport = True
+            # Blender 5.2 can retain a hidden authored light in the Eevee
+            # dependency graph for the current frame.  Zeroing its energy as
+            # well makes the review rig independent of authored light state;
+            # SceneStateGuard restores the exact value after the render.
+            obj.data.energy = 0.0
         if obj.type in {"MESH", "CURVE", "FONT"} and not obj.name.startswith(TEMP_PREFIX):
             visible = obj.name in names
             obj.hide_render = not visible
