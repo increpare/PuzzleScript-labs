@@ -9,8 +9,13 @@ from __future__ import annotations
 import argparse
 from contextlib import AbstractContextManager
 import math
+import os
 from pathlib import Path
 import sys
+import tempfile
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from review_png import normalize_png, validate_review_set
 
 try:  # Keep the small geometry-contract helpers importable by normal Python.
     import bpy
@@ -314,6 +319,16 @@ def _material_signature(obj):
     )
 
 
+def _layer_collections():
+    def descend(view_layer_name, node, path):
+        key = (view_layer_name, path + (node.collection.name,))
+        yield key, node
+        for child in node.children:
+            yield from descend(view_layer_name, child, key[1])
+    for view_layer in bpy.context.scene.view_layers:
+        yield from descend(view_layer.name, view_layer.layer_collection, ())
+
+
 def _scene_signature():
     scene = bpy.context.scene
     world = scene.world
@@ -335,6 +350,19 @@ def _scene_signature():
             )
             for obj in bpy.data.objects
             if not obj.name.startswith(TEMP_PREFIX)
+        },
+        "collections": {
+            collection.name: (bool(collection.hide_render), bool(collection.hide_viewport))
+            for collection in bpy.data.collections
+        },
+        "layer_collections": {
+            key: (bool(node.exclude), bool(node.hide_viewport))
+            for key, node in _layer_collections()
+        },
+        "lights": {
+            obj.name: (float(obj.data.energy), tuple(obj.data.color))
+            for obj in bpy.data.objects
+            if obj.type == "LIGHT" and not obj.name.startswith(TEMP_PREFIX)
         },
         "camera": scene.camera.name if scene.camera else None,
         "active": (
@@ -389,6 +417,18 @@ class SceneStateGuard(AbstractContextManager):
             }
             for obj in bpy.data.objects
         }
+        self.collections = {
+            collection: (collection.hide_render, collection.hide_viewport)
+            for collection in bpy.data.collections
+        }
+        self.layer_collections = {
+            node: (node.exclude, node.hide_viewport)
+            for _key, node in _layer_collections()
+        }
+        self.lights = {
+            obj.data: (obj.data.energy, tuple(obj.data.color))
+            for obj in bpy.data.objects if obj.type == "LIGHT"
+        }
         self.camera = scene.camera
         self.active_object = bpy.context.view_layer.objects.active
         self.selected_objects = tuple(bpy.context.selected_objects)
@@ -439,6 +479,13 @@ class SceneStateGuard(AbstractContextManager):
                         bpy.data.cameras.remove(data)
                     elif isinstance(data, bpy.types.Light):
                         bpy.data.lights.remove(data)
+        for collection, state in self.collections.items():
+            collection.hide_render, collection.hide_viewport = state
+        for node, state in self.layer_collections.items():
+            node.exclude, node.hide_viewport = state
+        for light, state in self.lights.items():
+            light.energy = state[0]
+            light.color = state[1]
         for name, state in self.objects.items():
             obj = bpy.data.objects.get(name)
             if obj is None:
@@ -504,10 +551,27 @@ class SceneStateGuard(AbstractContextManager):
 def _set_visible(names):
     names = set(names)
     for obj in bpy.data.objects:
+        if obj.type == "LIGHT" and not obj.name.startswith(TEMP_PREFIX):
+            obj.hide_render = True
+            obj.hide_viewport = True
         if obj.type in {"MESH", "CURVE", "FONT"} and not obj.name.startswith(TEMP_PREFIX):
             visible = obj.name in names
             obj.hide_render = not visible
             obj.hide_viewport = not visible
+            if visible:
+                for collection in obj.users_collection:
+                    collection.hide_render = False
+                    collection.hide_viewport = False
+                    for _view_layer in bpy.context.scene.view_layers:
+                        def enable_path(node):
+                            found = node.collection == collection
+                            for child in node.children:
+                                found = enable_path(child) or found
+                            if found:
+                                node.exclude = False
+                                node.hide_viewport = False
+                            return found
+                        enable_path(_view_layer.layer_collection)
 
 
 def _model_point(matrix, point):
@@ -789,6 +853,31 @@ def render_view(view, output_path, inject_failure=False):
         after = _scene_signature()
         if after != before:
             raise ReviewFailure(f"{view} contaminated canonical Blender state")
+    normalize_png(output_path)
+
+
+def _publish_transactionally(staging_dir, output_dir, filenames):
+    output_dir.mkdir(parents=True, exist_ok=True)
+    backup_dir = staging_dir.parent / "backup"
+    backup_dir.mkdir()
+    published = []
+    backed_up = []
+    try:
+        for filename in filenames:
+            destination = output_dir / filename
+            if destination.exists():
+                os.replace(destination, backup_dir / filename)
+                backed_up.append(filename)
+            os.replace(staging_dir / filename, destination)
+            published.append(filename)
+    except Exception:
+        for filename in published:
+            destination = output_dir / filename
+            if destination.exists():
+                destination.unlink()
+        for filename in backed_up:
+            os.replace(backup_dir / filename, output_dir / filename)
+        raise
 
 
 def _self_test_state_restore():
@@ -832,6 +921,7 @@ def _arguments(argv):
     parser.add_argument("--view", choices=tuple(OUTPUTS))
     parser.add_argument("--preflight-only", action="store_true")
     parser.add_argument("--self-test-state-restore", action="store_true")
+    parser.add_argument("--inject-failure-view", choices=tuple(OUTPUTS), help=argparse.SUPPRESS)
     return parser.parse_args(argv)
 
 
@@ -844,12 +934,21 @@ def main(argv=None):
     if args.self_test_state_restore:
         _self_test_state_restore()
         return
-    args.output_dir.mkdir(parents=True, exist_ok=True)
     views = (args.view,) if args.view else tuple(OUTPUTS)
+    args.output_dir.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(
+        prefix=".captive-nut-review-", dir=args.output_dir.parent
+    ) as transaction:
+        staging_dir = Path(transaction) / "staging"
+        staging_dir.mkdir()
+        for view in views:
+            output = staging_dir / OUTPUTS[view]
+            render_view(view, output, inject_failure=view == args.inject_failure_view)
+        filenames = {OUTPUTS[view] for view in views}
+        validate_review_set(staging_dir, filenames, RENDER_SIZE)
+        _publish_transactionally(staging_dir, args.output_dir, sorted(filenames))
     for view in views:
-        output = args.output_dir / OUTPUTS[view]
-        render_view(view, output)
-        print(f"PASS rendered {view}: {output}")
+        print(f"PASS rendered {view}: {args.output_dir / OUTPUTS[view]}")
     print(f"PASS rendered {len(views)} captive-nut review views")
 
 

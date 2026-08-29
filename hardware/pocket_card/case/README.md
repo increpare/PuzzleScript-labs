@@ -122,7 +122,9 @@ The command renders the checked existing complete assembly; it does not run
 the case build or replace the `.blend` first.
 
 The target writes 1200 x 900 PNGs without saving or modifying the canonical
-`out/order/pocket_card_complete.blend`:
+`out/order/pocket_card_complete.blend`. It renders and validates all four in a
+staging directory, strips path/time PNG metadata, then publishes the complete
+set transactionally so a failed run cannot leave mixed generations:
 
 - `out/order/review/captive_nuts_assembled.png` — rear three-quarter closure,
   all six rear screw heads, and the compound-rounded shell surface.
