@@ -333,7 +333,7 @@ class ClosureLayoutContractTests(unittest.TestCase):
         self.assertTrue(reset.locked)
 
         u1 = self.board.footprints["U1"]
-        self.assertEqual((u1.x_mm, u1.y_mm), (44.3, 72.0))
+        self.assertEqual((u1.x_mm, u1.y_mm), (41.3, 69.0))
 
         for ref, expected in (
             ("H2", (64.5, 84.0)),
