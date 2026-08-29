@@ -471,7 +471,7 @@ class NutTrapDefinitionTest(unittest.TestCase):
                 (6.0, 48.5, "module", (1, -1)),
                 (84.0, 6.5, "module", (-1, 1)),
                 (84.0, 48.5, "module", (-1, -1)),
-                (64.5, 56.0, "pcb", (0, 1)),
+                (64.5, 56.0, "pcb", (-1, 0)),
                 (64.5, 84.0, "pcb", (0, -1)),
             ],
         )
@@ -738,6 +738,120 @@ def equivalent_hex_af_at(voids, z):
     )
     section_area = shape_volume(section) / section_thickness
     return math.sqrt(2.0 * section_area / math.sqrt(3.0))
+
+
+class ControllerNutChuteContractTest(unittest.TestCase):
+    """Rigid, PCB-capped staging chutes make H1/H2 genuinely captive."""
+
+    @classmethod
+    def setUpClass(cls):
+        shell_back = importlib.import_module("shell_back")
+        raw = cq.importers.importStep(
+            str(place_preview.PCB_DIR / "pocket_card_controller.step")
+        )
+        controller = place_preview.kicad_pcb_to_model_space(raw)
+        cls.controller = (
+            controller.val() if hasattr(controller, "val") else controller
+        )
+        cls.controller_board = max(
+            cls.controller.Solids(), key=lambda solid: solid.Volume()
+        )
+        cls.controller_outline = shell_back.pcb_outline_wire()
+
+    def controller_sites(self):
+        return nut_traps.sites()[4:]
+
+    def test_required_rigid_chute_api_exists(self):
+        for name in (
+            "controller_chute_material",
+            "controller_stage_nut",
+            "controller_stage_opening",
+            "controller_loading_sweep",
+        ):
+            with self.subTest(name=name):
+                self.assertIsNotNone(
+                    getattr(nut_traps, name, None), f"{name} API is missing"
+                )
+
+    def test_preassembly_drop_then_slide_path_is_clear_in_finished_front(self):
+        finished = shell_front.to_model_space(shell_front.build())
+        for site in self.controller_sites():
+            loading = nut_traps.controller_loading_sweep(site)
+            with self.subTest(site=site):
+                self.assertLess(shape_volume(finished.intersect(loading)), 1e-5)
+
+    def test_actual_controller_board_caps_every_complete_stage_opening(self):
+        board = self.controller_board
+        for site in self.controller_sites():
+            opening = shell_front.to_model_space(
+                nut_traps.controller_stage_opening(site)
+            ).val()
+            with self.subTest(site=site):
+                self.assertGreater(sum(s.Volume() for s in opening.Solids()), 0.1)
+                self.assertLess(
+                    sum(s.Volume() for s in opening.cut(board).Solids()),
+                    1e-5,
+                )
+
+    def test_chute_top_gap_to_actual_pcb_is_smaller_than_nut_thickness(self):
+        for site in self.controller_sites():
+            chute = nut_traps.controller_chute_material(site)
+            gap = abs(-P.PCB_FRONT_Z - chute.val().BoundingBox().zmin)
+            with self.subTest(site=site):
+                self.assertGreaterEqual(gap, 0.15)
+                self.assertLess(gap, P.NUT_MAX_T)
+
+    def test_low_staged_nut_is_stopped_outward_and_at_both_side_rails(self):
+        for site in self.controller_sites():
+            chute = nut_traps.controller_chute_material(site)
+            staged = nut_traps.controller_stage_nut(site)
+            mouth_x, mouth_y = nut_traps._normalized_mouth(site)
+            across_x, across_y = -mouth_y, mouth_x
+            attempts = {
+                "outward": (0.35 * mouth_x, 0.35 * mouth_y, 0.0),
+                "side-positive": (0.35 * across_x, 0.35 * across_y, 0.0),
+                "side-negative": (-0.35 * across_x, -0.35 * across_y, 0.0),
+            }
+            self.assertLess(shape_volume(chute.intersect(staged)), 1e-5)
+            for name, offset in attempts.items():
+                with self.subTest(site=site, escape=name):
+                    self.assertGreater(
+                        shape_volume(chute.intersect(staged.translate(offset))),
+                        0.01,
+                    )
+
+    def test_chutes_clear_actual_components_and_all_moving_button_envelopes(self):
+        moving_buttons = []
+        for name, x, y, diameter in (
+            ("Undo", P.UNDO_X, P.UNDO_Y, P.AB_CAP_D),
+            ("Action", P.ACT_X, P.ACT_Y, P.AB_CAP_D),
+            ("Reset", P.RESET_X, P.RESET_Y, P.RESET_CAP_D),
+        ):
+            flange_radius = diameter / 2.0 + P.CAP_FLANGE_OS
+            travel = (
+                cq.Workplane("XY")
+                .circle(flange_radius)
+                .extrude(-(P.FACE_T + P.COLLAR_DEPTH + P.CAP_PROUD))
+                .translate((x, y, P.CAP_PROUD))
+            )
+            moving_buttons.append((name, travel))
+
+        for site in self.controller_sites():
+            chute = nut_traps.controller_chute_material(site)
+            model_chute = shell_front.to_model_space(chute).val()
+            with self.subTest(site=site, obstacle="actual PCB components"):
+                self.assertLess(
+                    sum(
+                        solid.Volume()
+                        for solid in model_chute.intersect(
+                            self.controller
+                        ).Solids()
+                    ),
+                    1e-5,
+                )
+            for name, travel in moving_buttons:
+                with self.subTest(site=site, obstacle=name):
+                    self.assertLess(shape_volume(chute.intersect(travel)), 1e-5)
 
 
 def square_ledged_voids(site, across_flats=P.NUT_AF):
