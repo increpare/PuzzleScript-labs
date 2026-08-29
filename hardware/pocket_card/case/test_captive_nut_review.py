@@ -157,11 +157,15 @@ class CaptiveNutReviewBlenderTest(unittest.TestCase):
     def test_preflight_does_not_require_ignored_sculpted_reset_export(self):
         source = HERE / "out" / "sculpted_buttons" / "placed" / "cap_reset.stl"
         hidden = source.with_suffix(".stl.review-test-hidden")
-        source.replace(hidden)
+        existed = source.exists()
+        if existed:
+            source.replace(hidden)
         try:
+            self.assertFalse(source.exists())
             result = self.blender("--python", SCRIPT, "--", "--preflight-only")
         finally:
-            hidden.replace(source)
+            if existed:
+                hidden.replace(source)
         self.assertIn("PASS captive-nut review preflight", result.stdout)
 
     def test_real_setup_failure_restores_objects_lights_collections_and_selection(self):
