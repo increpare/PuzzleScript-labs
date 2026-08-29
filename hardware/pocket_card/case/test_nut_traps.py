@@ -360,6 +360,10 @@ class NutTrapCouponApiTest(unittest.TestCase):
         attributes = Path(HERE, "..", "..", "..", ".gitattributes")
         lines = attributes.resolve().read_text(encoding="utf-8").splitlines()
         self.assertIn(
+            "hardware/pocket_card/case/out/*.step -whitespace",
+            lines,
+        )
+        self.assertIn(
             "hardware/pocket_card/case/out/order/*.step -whitespace",
             lines,
         )

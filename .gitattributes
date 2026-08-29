@@ -12,6 +12,7 @@ bin/** linguist-generated
 build/** linguist-generated
 
 # Generated OCCT/KiCad STEP files retain exporter-emitted trailing spaces.
+hardware/pocket_card/case/out/*.step -whitespace
 hardware/pocket_card/case/out/order/*.step -whitespace
 hardware/pocket_card/case/out/order/preview/*.step -whitespace
 hardware/pocket_card/case/out/pcb/*.step -whitespace
