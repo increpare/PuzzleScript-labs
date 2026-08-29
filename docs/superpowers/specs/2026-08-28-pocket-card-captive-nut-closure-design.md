@@ -24,16 +24,24 @@ standard M2 hex nuts mechanically captured in the front shell. Preserve the
 existing rear counterbored screw presentation and the compound-rounded outer
 envelope.
 
-Each nut uses a side-loading trap:
+The four display-module nuts use direct side-loading traps. The two controller
+nuts use rigid U-shaped loading chutes because the controller board cannot
+obstruct an uncapped lateral mouth safely:
 
-- the nut slides laterally into a close-fitting hexagonal cavity before the
-  display module and controller PCB are installed;
+- each module nut slides laterally into a close-fitting hexagonal cavity before
+  the display module is installed;
+- each controller nut drops axially into an open-top staging pocket, then slides
+  laterally beneath the cage roof before the controller PCB is installed;
+- two full-height side rails and a closed outer end wall form each controller
+  staging pocket without a flexible or snap-fit feature;
 - a printed roof on the electronics side of the cavity carries the screw's
   axial clamping load;
 - the front-side floor and the hexagonal walls locate the nut and prevent
   rotation;
-- the installed display module or controller PCB obstructs the loading mouth;
-  and
+- the installed display module obstructs each module loading mouth, while the
+  installed controller PCB caps the complete open top of each controller stage
+  with a nominal 0.2 mm rail-to-PCB gap, which is less than the 1.6 mm nut
+  thickness and therefore blocks reverse escape; and
 - a small drop of two-part epoxy may be used to suppress rattling, but the
   closure must remain mechanically captive and load-bearing without adhesive.
 
@@ -93,6 +101,12 @@ The initial nominal trap dimensions are:
 | Minimum resin around cavity | 1.0 mm |
 | Maximum complete radial envelope | 3.6 mm |
 
+At H1 and H2, the staging chute uses 1.2 mm full-height side rails and a
+1.2 mm closed outer end wall around a 4.6 mm-wide channel. Its top remains open
+for deliberate nut insertion until the controller PCB is fitted. The installed
+PCB is only the anti-escape cap; the printed roof remains the screw-clamping
+load path.
+
 The 1.8 mm nut cavity and 1.0 mm roof consume 2.8 mm of the 3.0 mm axial space
 between the inside of the front face and the controller PCB front. They leave
 a nominal 0.2 mm no-contact gap to the PCB. The display-module sites have 4.4
@@ -107,9 +121,10 @@ than 0.6 mm into the floor beneath the nut, leaving at least 0.9 mm of the
 shell is clamped.
 
 The four module trap mouths point diagonally toward the display-module centre,
-away from the outer wall. H1 loads southward and H2 loads northward along the
-controller's `x = 64.5` corridor. Each mouth remains accessible before its
-board is installed and becomes obstructed after normal assembly.
+away from the outer wall. H1 stages and loads westward; H2 stages and loads
+northward along the controller's `x = 64.5` corridor. Each module mouth and
+controller chute remains accessible before its board is installed and becomes
+mechanically obstructed after normal assembly.
 
 ## Front- and Rear-Shell Load Path
 
@@ -152,8 +167,9 @@ design.
 ## Assembly and Service
 
 1. Verify all six nuts against the selected fit-coupon cavity.
-2. Slide the nuts into the front-shell traps and confirm that every nut seats
-   flat beneath its roof and that an M2 screw starts by hand.
+2. Slide the four module nuts into their front-shell traps. For H1 and H2, drop
+   each nut into the open-top staging pocket and slide it laterally beneath the
+   roof. Confirm that every nut seats flat and that an M2 screw starts by hand.
 3. Add only an anti-rattle dot of two-part epoxy if desired; do not fill the
    threads or loading throat.
 4. Install the buttons, display module, and controller PCB normally. Confirm
@@ -166,7 +182,8 @@ design.
 ## CAD and PCB Changes
 
 - Replace the six front-shell self-tapping pilots with parameter-driven
-  side-loading captive-nut traps.
+  captive-nut traps: four direct side-loading module traps and two rigid
+  top-loaded, lateral-slide controller chutes.
 - Keep the existing six rear-joint axes synchronized from one source of truth.
 - Change H2 and Reset coordinates in `params.py` and propagate them into the
   front shell, rear joints, controller PCB, routing, silkscreen, and exports.
@@ -189,6 +206,11 @@ design.
 - Check all trap solids against the real display, controller PCB, battery,
   Reset guide and cap travel, speaker stadium, speaker wires, side walls,
   split lip, and rear joint solids.
+- Assert that the complete H1 and H2 staging openings lie beneath the actual
+  controller PCB, that the installed 0.2 mm cap gap is smaller than the nut
+  thickness, and that both full-height rails and each closed end wall block
+  every reverse path after board installation while the preassembly drop-and-
+  slide paths remain clear.
 - Confirm that the moved H2 land and counterbore remain valid on the compound
   rear surface and preserve the required membrane and radial land.
 - Run controller PCB connectivity and design-rule checks after moving H2 and

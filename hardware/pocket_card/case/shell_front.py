@@ -509,11 +509,21 @@ def build(*, apply_speaker_wire_relief=True):
         shell = shell.union(nut_traps.front_material(site))
     for site in nut_traps.sites():
         shell = shell.cut(nut_traps.front_voids(site))
-    # The exact loading volumes also own any relief beyond a cage mouth. H1
-    # only grazes the neighbouring Undo collar there; cutting the true sweep
-    # avoids a discrete-position approximation and cannot remove trap material.
+    # Module nuts slide directly in from the open interior. Controller nuts
+    # instead drop into rigid open-top staging chutes, then slide under the
+    # cage roof. The installed PCB caps those chutes without carrying clamp
+    # load. Cut all loading motion first, then add the fixed rails/end walls so
+    # the path stays open but cannot be reversed after board installation.
     for site in nut_traps.sites():
-        shell = shell.cut(nut_traps.insertion_sweep(site))
+        loading = (
+            nut_traps.insertion_sweep(site)
+            if site.kind == "module"
+            else nut_traps.controller_loading_voids(site)
+        )
+        shell = shell.cut(loading)
+    for site in nut_traps.sites():
+        if site.kind == "pcb":
+            shell = shell.union(nut_traps.controller_chute_material(site))
 
     # All fixed internal material is present before opening the approved local
     # speaker-lead route, so no later collar/cage union can refill it.  Envelope

@@ -46,6 +46,10 @@ NUT_WALL = 1.0                 # DECIDED  minimum radial cage wall
 MACHINE_SCREW_CLEAR_D = 2.4    # DECIDED  M2 screw clearance bore diameter
 MACHINE_SCREW_TIP_RELIEF = 0.6  # DECIDED  bore depth into front-face floor
 NUT_ENVELOPE_R = 3.6           # DECIDED  conservative complete cage radius
+CONTROLLER_CHUTE_WALL = 1.2    # DECIDED  rigid U-chute rail/end-wall thickness
+CONTROLLER_CHUTE_END_CLEAR = 0.15  # DECIDED  staged nut to closed end wall
+CONTROLLER_CHUTE_OVERLAP = 1.8  # DECIDED  rail start, fused into round cage
+CONTROLLER_DROP_OVERTRAVEL = 0.1  # PROCESS  open-top drop-path margin
 # Outer "brick" belt (face↔side, back↔side) and screen lip. Keep ≤~0.8 so the
 # 1.5 mm wall/face is not knifed down at the rim.
 EDGE_CHAMFER = 0.8        # DECIDED  softer perimeter (was 0.6)

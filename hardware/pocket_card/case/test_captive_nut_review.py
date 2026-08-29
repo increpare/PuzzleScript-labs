@@ -71,7 +71,7 @@ class CaptiveNutReviewPureTest(unittest.TestCase):
             y: float
             kind: str
             mouth: tuple
-        sites = (Site(6, 6.5, "module", (1, 1)), Site(6, 48.5, "module", (1, -1)), Site(84, 6.5, "module", (-1, 1)), Site(84, 48.5, "module", (-1, -1)), Site(64.5, 56, "pcb", (0, 1)), Site(64.5, 84, "pcb", (0, -1)))
+        sites = (Site(6, 6.5, "module", (1, 1)), Site(6, 48.5, "module", (1, -1)), Site(84, 6.5, "module", (-1, 1)), Site(84, 48.5, "module", (-1, -1)), Site(64.5, 56, "pcb", (-1, 0)), Site(64.5, 84, "pcb", (0, -1)))
         offsets = self.review.closeup_nut_model_offsets(sites, 6.0)
         diagonal = 6 / math.sqrt(2)
         self.assertAlmostEqual(offsets["nut_1"][0], diagonal)

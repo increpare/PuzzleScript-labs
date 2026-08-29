@@ -60,6 +60,8 @@ def sites():
         NutTrapSite(module_x[0], module_y[1], "module", (1, -1)),
         NutTrapSite(module_x[1], module_y[0], "module", (-1, 1)),
         NutTrapSite(module_x[1], module_y[1], "module", (-1, -1)),
-        NutTrapSite(*P.PCB_MOUNTS[0], "pcb", (0, 1)),
+        # H1 stages westward under clear controller-board material.  A
+        # southward chute would enter the neighbouring Undo cap travel.
+        NutTrapSite(*P.PCB_MOUNTS[0], "pcb", (-1, 0)),
         NutTrapSite(*P.PCB_MOUNTS[1], "pcb", (0, -1)),
     )

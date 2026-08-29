@@ -285,11 +285,11 @@ def _convex_hull_2d(points):
     return tuple(lower[:-1] + upper[:-1])
 
 
-def insertion_sweep(site, across_flats=P.NUT_NOMINAL_AF):
-    """Return the exact convex volume swept by the nut's straight translation."""
+def _translation_sweep(site, across_flats, travel):
+    """Return the exact convex nut volume swept over ``travel`` millimetres."""
     _require_across_flats(across_flats)
+    _require_positive("travel", travel)
     corner_radius = hex_corner_diameter(across_flats) / 2.0
-    travel = math.hypot(*insertion_offsets(site, across_flats)[0])
     seated_profile = tuple(
         (
             corner_radius * math.cos(math.radians(60.0 * vertex)),
@@ -310,3 +310,180 @@ def insertion_sweep(site, across_flats=P.NUT_NOMINAL_AF):
         .rotate((0.0, 0.0, 0.0), (0.0, 0.0, 1.0), _mouth_angle(site))
     )
     return _placed(local, site)
+
+
+def insertion_sweep(site, across_flats=P.NUT_NOMINAL_AF):
+    """Return the exact convex volume swept by the nut's straight translation."""
+    travel = math.hypot(*insertion_offsets(site, across_flats)[0])
+    return _translation_sweep(site, across_flats, travel)
+
+
+def _require_controller_site(site):
+    if site.kind != "pcb":
+        raise ValueError("controller chute geometry requires a pcb site")
+
+
+def _local_to_site(shape, site):
+    return _placed(
+        shape.rotate(
+            (0.0, 0.0, 0.0),
+            (0.0, 0.0, 1.0),
+            _mouth_angle(site),
+        ),
+        site,
+    )
+
+
+def _controller_stage_distance(site):
+    _require_controller_site(site)
+    # Keep the complete production-clearance opening outside the circular cage
+    # roof, not merely the nominal 4.0 mm nut.  This preserves the full roof
+    # load section while retaining 0.1 mm of process separation.
+    return (
+        P.NUT_ENVELOPE_R
+        + hex_corner_diameter(P.NUT_AF) / 2.0
+        + 0.1
+    )
+
+
+def controller_stage_nut(site, across_flats=P.NUT_NOMINAL_AF):
+    """Return the low nut position inside the rigid open-top staging chute."""
+    _require_controller_site(site)
+    mouth_x, mouth_y = _normalized_mouth(site)
+    distance = _controller_stage_distance(site)
+    offset_x, offset_y = mouth_x * distance, mouth_y * distance
+    return nut_solid(site, across_flats).translate((offset_x, offset_y, 0.0))
+
+
+def controller_stage_opening(site):
+    """Return the complete top opening where the PCB caps the staged nut.
+
+    The thin probe lies just inside the controller FR4 rather than on its
+    coincident front face, making actual-board coverage deterministic.
+    """
+    _require_controller_site(site)
+    distance = _controller_stage_distance(site)
+    local = (
+        cq.Workplane("XY")
+        .workplane(offset=-P.PCB_FRONT_Z)
+        .polygon(6, hex_corner_diameter(P.NUT_AF))
+        .extrude(-0.05)
+        .translate((distance, 0.0, 0.0))
+    )
+    return _local_to_site(local, site)
+
+
+def _controller_stage_void(site):
+    """Open the staging pocket axially so a nut can be dropped before PCB fit."""
+    _require_controller_site(site)
+    distance = _controller_stage_distance(site)
+    cavity_front_z = site.nut_front_z + 0.1
+    split_back_z = -(P.BODY_T - P.LID_T) - P.CONTROLLER_DROP_OVERTRAVEL
+    local = (
+        cq.Workplane("XY")
+        .workplane(offset=cavity_front_z)
+        .polygon(6, hex_corner_diameter(P.NUT_AF))
+        .extrude(split_back_z - cavity_front_z)
+        .translate((distance, 0.0, 0.0))
+    )
+    return _local_to_site(local, site)
+
+
+def _controller_drop_sweep(site):
+    """Exact nominal-nut volume swept from above the rails onto the floor."""
+    _require_controller_site(site)
+    raised_front_z = site.roof_back_z - P.CONTROLLER_DROP_OVERTRAVEL
+    sweep_thickness = (
+        P.NUT_MAX_T + site.nut_front_z - raised_front_z
+    )
+    mouth_x, mouth_y = _normalized_mouth(site)
+    distance = _controller_stage_distance(site)
+    offset_x, offset_y = mouth_x * distance, mouth_y * distance
+    return nut_solid(site, thickness=sweep_thickness).translate(
+        (offset_x, offset_y, 0.0)
+    )
+
+
+def controller_loading_sweep(site):
+    """Exact pre-PCB drop then low slide from the chute into the nut seat."""
+    _require_controller_site(site)
+    low_slide = _translation_sweep(
+        site,
+        P.NUT_NOMINAL_AF,
+        _controller_stage_distance(site),
+    )
+    return _controller_drop_sweep(site).union(low_slide)
+
+
+def _moving_button_travel_voids():
+    """Moving flange envelopes that a nearby chute must never refill."""
+    voids = cq.Workplane("XY")
+    for x, y, diameter in (
+        (P.UNDO_X, P.UNDO_Y, P.AB_CAP_D),
+        (P.ACT_X, P.ACT_Y, P.AB_CAP_D),
+        (P.RESET_X, P.RESET_Y, P.RESET_CAP_D),
+    ):
+        radius = diameter / 2.0 + P.CAP_FLANGE_OS
+        voids = voids.union(
+            cq.Workplane("XY")
+            .circle(radius)
+            .extrude(-(P.FACE_T + P.COLLAR_DEPTH + P.CAP_PROUD))
+            .translate((x, y, P.CAP_PROUD))
+        )
+    return voids
+
+
+def controller_chute_material(site):
+    """Rigid U-chute whose open top is capped by the installed controller.
+
+    Two full-height rails leave the production 4.6 mm throat between them.
+    The outer end wall stops a low nut; the PCB sits 0.2 mm above the wall
+    tops, so the 1.6 mm nut cannot lift out after assembly.  Before the board
+    is installed, the nut drops into the open stage and slides under the cage
+    roof without any flexing or snap fit.
+    """
+    _require_controller_site(site)
+    distance = _controller_stage_distance(site)
+    nut_half_along = hex_corner_diameter(P.NUT_NOMINAL_AF) / 2.0
+    end_inner = distance + nut_half_along + P.CONTROLLER_CHUTE_END_CLEAR
+    end_outer = end_inner + P.CONTROLLER_CHUTE_WALL
+    rail_start = P.CONTROLLER_CHUTE_OVERLAP
+    rail_length = end_outer - rail_start
+    rail_center = (rail_start + end_outer) / 2.0
+    rail_offset = P.NUT_THROAT_W / 2.0 + P.CONTROLLER_CHUTE_WALL / 2.0
+    z_front = site.nut_front_z + 0.1
+    height = z_front - site.roof_back_z
+
+    local = cq.Workplane("XY")
+    for across in (-rail_offset, rail_offset):
+        local = local.union(
+            cq.Workplane("XY")
+            .box(
+                rail_length,
+                P.CONTROLLER_CHUTE_WALL,
+                height,
+                centered=(True, True, False),
+            )
+            .translate((rail_center, across, site.roof_back_z))
+        )
+    local = local.union(
+        cq.Workplane("XY")
+        .box(
+            P.CONTROLLER_CHUTE_WALL,
+            P.NUT_THROAT_W + 2.0 * P.CONTROLLER_CHUTE_WALL,
+            height,
+            centered=(True, True, False),
+        )
+        .translate((
+            (end_inner + end_outer) / 2.0,
+            0.0,
+            site.roof_back_z,
+        ))
+    )
+    return _local_to_site(local, site).cut(_moving_button_travel_voids())
+
+
+def controller_loading_voids(site):
+    """Clearance needed before the rigid chute walls are fused into the shell."""
+    _require_controller_site(site)
+    return controller_loading_sweep(site).union(_controller_stage_void(site))

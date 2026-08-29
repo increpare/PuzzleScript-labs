@@ -590,6 +590,7 @@ def check_captive_nut_traps(front_model=None):
 
     import joints
     import nut_traps
+    import place_preview
     import shell_back
 
     print("\ncaptive-nut traps (built front)")
@@ -663,6 +664,68 @@ def check_captive_nut_traps(front_model=None):
         if not retained_ok:
             FAILURES.append(
                 f"captive nut roof/taper/load clipped at ({site.x},{site.y})")
+
+    # The two controller mouths terminate in rigid U-chutes. Before the PCB is
+    # installed the nut drops through an open top and slides inward; afterward
+    # the actual FR4 caps that complete opening while the rails and end wall
+    # stop every low lateral escape route.
+    raw_controller = cq.importers.importStep(
+        str(place_preview.PCB_DIR / "pocket_card_controller.step")
+    )
+    actual_controller = place_preview.kicad_pcb_to_model_space(raw_controller)
+    actual_controller = (
+        actual_controller.val()
+        if hasattr(actual_controller, "val")
+        else actual_controller
+    )
+    actual_board = max(
+        actual_controller.Solids(), key=lambda solid: solid.Volume()
+    )
+    for index, site in enumerate(sites[4:], start=5):
+        loading_overlap = _workplane_volume(
+            front.intersect(nut_traps.controller_loading_sweep(site))
+        )
+        chute = nut_traps.controller_chute_material(site)
+        material_missing = _workplane_volume(chute.cut(front))
+        model_chute = shell_front.to_model_space(chute).val()
+        component_overlap = sum(
+            solid.Volume()
+            for solid in model_chute.intersect(actual_controller).Solids()
+        )
+        opening = shell_front.to_model_space(
+            nut_traps.controller_stage_opening(site)
+        ).val()
+        opening_missing = sum(
+            solid.Volume() for solid in opening.cut(actual_board).Solids()
+        )
+        pcb_gap = abs(-P.PCB_FRONT_Z - chute.val().BoundingBox().zmin)
+        metrics.update({
+            f"controller_chute_{index}_loading_overlap": loading_overlap,
+            f"controller_chute_{index}_material_missing": material_missing,
+            f"controller_chute_{index}_pcb_opening_missing": opening_missing,
+            f"controller_chute_{index}_component_overlap": component_overlap,
+            f"controller_chute_{index}_pcb_gap": pcb_gap,
+        })
+        ok = (
+            max(
+                loading_overlap,
+                material_missing,
+                opening_missing,
+                component_overlap,
+            ) < 1e-5
+            and 0.15 <= pcb_gap < P.NUT_MAX_T
+        )
+        print(
+            f"   {'PASS' if ok else 'FAIL'}  controller chute {index}: "
+            f"loading {loading_overlap:.6f}, material missing "
+            f"{material_missing:.6f}, PCB opening missing "
+            f"{opening_missing:.6f}, components {component_overlap:.6f} "
+            f"mm^3; PCB cap gap {pcb_gap:.3f} mm"
+        )
+        if not ok:
+            FAILURES.append(
+                f"controller captive-nut chute invalid at ({site.x},{site.y})"
+            )
 
     # Physical component envelopes. The purchased display's mounting datum is
     # its real PCB, not a fictitious solid block filling the glass-to-PCB gap.

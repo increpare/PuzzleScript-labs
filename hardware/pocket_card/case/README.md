@@ -170,7 +170,14 @@ closure print. Its left-to-right stations are engraved **4.3**, **4.4**, and
 transition followed by 0.5 mm straight roof), 4.6 mm side-loading throat, Ø2.4
 screw path, and 0.6 mm blind tip relief. The mouths run through the coupon edge
 so a real DIN 934 M2 nut follows the same outside-to-seated path as it will in
-the front shell.
+the four display-module traps in the front shell. The controller traps use a
+different rigid loading sequence: drop each nut into an open-top U-shaped
+stage, then slide it laterally beneath the cage roof before fitting the PCB.
+H1 stages westward and H2 stages northward. Each stage has 1.2 mm full-height
+side rails and a closed outer end wall; the installed controller PCB caps the
+complete opening with a nominal 0.2 mm gap, smaller than the 1.6 mm nut, so the
+nut cannot lift back out after screw removal. The PCB is only the anti-escape
+cap—the printed cage roof carries screw clamp load.
 
 Print the coupon in the same JLC3DP SLA 8001 resin, process, and orientation as
 the front shell, and wash and cure it identically. Keep the exported z=0

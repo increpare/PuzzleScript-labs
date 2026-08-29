@@ -1717,6 +1717,25 @@ class AssembledFrontNutTrapTest(unittest.TestCase):
         self.assertGreaterEqual(metrics["speaker_wire_radial_skin"], P.NUT_ROOF_T)
         self.assertGreaterEqual(metrics["speaker_wire_face_skin"], P.FACE_T)
         self.assertGreaterEqual(metrics["speaker_wire_split_gap"], P.LAP_FRONT_T)
+        for index in (5, 6):
+            self.assertLess(
+                metrics[f"controller_chute_{index}_loading_overlap"], 1e-5
+            )
+            self.assertLess(
+                metrics[f"controller_chute_{index}_material_missing"], 1e-5
+            )
+            self.assertLess(
+                metrics[f"controller_chute_{index}_pcb_opening_missing"], 1e-5
+            )
+            self.assertLess(
+                metrics[f"controller_chute_{index}_component_overlap"], 1e-5
+            )
+            self.assertGreaterEqual(
+                metrics[f"controller_chute_{index}_pcb_gap"], 0.15
+            )
+            self.assertLess(
+                metrics[f"controller_chute_{index}_pcb_gap"], P.NUT_MAX_T
+            )
 
 
 if __name__ == "__main__":
