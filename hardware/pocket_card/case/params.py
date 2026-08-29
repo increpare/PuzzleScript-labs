@@ -185,6 +185,8 @@ COLLAR_DEPTH   = 2.2        # ASSUMED  guide length below the inner face
 HARD_STOP_AT   = 0.35  # DECIDED  flange lands here: past 0.25 actuation,
                        #          before the switch bottoms
 CAP_BOSS_GAP   = 0.5   # ASSUMED  boss end to plunger at rest
+SCULPTED_ROUND_CAP_FLAT_DEPTH = 0.85
+SCULPTED_RESET_RIM_H = 0.55
 
 # Snap-over collar shoulder (production hard stop). Flange clicks in from the
 # PCB side over a ramp; the flat top of the lip stops travel at HARD_STOP_AT.

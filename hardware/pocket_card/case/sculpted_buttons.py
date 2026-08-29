@@ -42,7 +42,7 @@ UNDO_RIM_H = 1.20
 UNDO_DISH_DEPTH = 0.58
 ACTION_EDGE_H = 0.78
 ACTION_APEX_H = 1.28
-RESET_RIM_H = 0.55
+RESET_RIM_H = P.SCULPTED_RESET_RIM_H
 RESET_DISH_DEPTH = 0.25
 MENU_TOP_H = 0.62
 MENU_GROOVE_DEPTH = 0.18
@@ -67,7 +67,7 @@ def _round_mechanical_base(hole_d, clear_cap):
         .circle(flange_d / 2).extrude(-P.CAP_FLANGE_T)
     )
     flange = coupon._flats(
-        flange, flange_d / 2, coupon.FLAT_DEPTH + 0.05
+        flange, flange_d / 2, P.SCULPTED_ROUND_CAP_FLAT_DEPTH
     )
     boss_top = -(P.FACE_T + P.CAP_FLANGE_T)
     boss = (

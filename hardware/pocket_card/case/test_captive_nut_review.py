@@ -154,6 +154,16 @@ class CaptiveNutReviewBlenderTest(unittest.TestCase):
         self.assertNotEqual(displaced.returncode, 0, displaced.stdout)
         self.assertIn("cap_reset placement changed", displaced.stdout)
 
+    def test_preflight_does_not_require_ignored_sculpted_reset_export(self):
+        source = HERE / "out" / "sculpted_buttons" / "placed" / "cap_reset.stl"
+        hidden = source.with_suffix(".stl.review-test-hidden")
+        source.replace(hidden)
+        try:
+            result = self.blender("--python", SCRIPT, "--", "--preflight-only")
+        finally:
+            hidden.replace(source)
+        self.assertIn("PASS captive-nut review preflight", result.stdout)
+
     def test_real_setup_failure_restores_objects_lights_collections_and_selection(self):
         result = self.blender("--python", SCRIPT, "--", "--self-test-state-restore")
         self.assertIn("PASS real H2 setup failure restored selection, active object, and canonical state", result.stdout)
@@ -168,6 +178,21 @@ class CaptiveNutReviewBlenderTest(unittest.TestCase):
             r"PASS H2 projection: cap_reset center to screw_6 axis "
             r"(?:1[2-9][0-9]|[2-9][0-9]{2})(?:\.[0-9]+)? px",
         )
+
+    def test_h2_normalizes_and_restores_aspect_border_and_crop_state(self):
+        with tempfile.TemporaryDirectory(dir="/tmp") as temporary:
+            baseline, adversarial = Path(temporary, "baseline"), Path(temporary, "adversarial")
+            self.blender("--python", SCRIPT, "--", "--view", "h2_cutaway", "--output-dir", baseline)
+            mutate = (
+                "import bpy; r=bpy.context.scene.render; r.pixel_aspect_x=2; "
+                "r.pixel_aspect_y=1; r.use_border=True; r.use_crop_to_border=True; "
+                "r.border_min_x=.2; r.border_max_x=.7; r.border_min_y=.3; r.border_max_y=.8"
+            )
+            result = self.blender("--python-expr", mutate, "--python", SCRIPT, "--",
+                "--view", "h2_cutaway", "--output-dir", adversarial)
+            name = self.review.OUTPUTS["h2_cutaway"]
+            self.assertEqual(Path(baseline, name).read_bytes(), Path(adversarial, name).read_bytes())
+            self.assertIn("PASS rendered 1 captive-nut review view", result.stdout)
 
     def test_authored_light_and_hidden_fasteners_do_not_change_output_or_state(self):
         with tempfile.TemporaryDirectory(dir="/tmp") as temporary:

@@ -232,22 +232,17 @@ def _verify_h2_placements(verifier, params, nut_trap_sites):
         CASE_DIR / "out" / "order" / "preview" / "pcb.stl"
     )
     _require_bounds_close(_local_bounds(bpy.data.objects["pcb"]), pcb_source, "pcb")
-    reset_source = verifier.binary_stl_bounds(
-        CASE_DIR / "out" / "sculpted_buttons" / "placed" / "cap_reset.stl"
-    )
     reset_model_xy = (params.RESET_X, params.BODY_H - params.RESET_Y)
-    reset_source_center = (
-        (reset_source[0] + reset_source[1]) / 2.0,
-        (reset_source[2] + reset_source[3]) / 2.0,
+    flange_radius = params.RESET_CAP_D / 2.0 + params.CAP_FLANGE_OS
+    flat_half_width = flange_radius - params.SCULPTED_ROUND_CAP_FLAT_DEPTH
+    reset_source = (
+        reset_model_xy[0] - flange_radius,
+        reset_model_xy[0] + flange_radius,
+        reset_model_xy[1] - flat_half_width,
+        reset_model_xy[1] + flat_half_width,
+        -(params.FACE_T + params.CAP_FLANGE_T + params.CAP_BOSS_GAP),
+        params.SCULPTED_RESET_RIM_H,
     )
-    if any(
-        abs(value - expected) > 0.0002
-        for value, expected in zip(reset_source_center, reset_model_xy)
-    ):
-        raise ReviewFailure(
-            "sculpted cap_reset source drifted from authoritative Reset layout: "
-            f"{reset_source_center!r}"
-        )
     _require_bounds_close(
         _local_bounds(bpy.data.objects["cap_reset"]),
         reset_source,
@@ -391,6 +386,14 @@ def _scene_signature():
             scene.render.resolution_x,
             scene.render.resolution_y,
             scene.render.resolution_percentage,
+            scene.render.pixel_aspect_x,
+            scene.render.pixel_aspect_y,
+            bool(scene.render.use_border),
+            bool(scene.render.use_crop_to_border),
+            scene.render.border_min_x,
+            scene.render.border_max_x,
+            scene.render.border_min_y,
+            scene.render.border_max_y,
             bool(scene.render.film_transparent),
             bool(scene.render.use_file_extension),
             bool(scene.render.use_overwrite),
@@ -452,6 +455,14 @@ class SceneStateGuard(AbstractContextManager):
             "resolution_x": scene.render.resolution_x,
             "resolution_y": scene.render.resolution_y,
             "resolution_percentage": scene.render.resolution_percentage,
+            "pixel_aspect_x": scene.render.pixel_aspect_x,
+            "pixel_aspect_y": scene.render.pixel_aspect_y,
+            "use_border": scene.render.use_border,
+            "use_crop_to_border": scene.render.use_crop_to_border,
+            "border_min_x": scene.render.border_min_x,
+            "border_max_x": scene.render.border_max_x,
+            "border_min_y": scene.render.border_min_y,
+            "border_max_y": scene.render.border_max_y,
             "film_transparent": scene.render.film_transparent,
             "use_file_extension": scene.render.use_file_extension,
             "use_overwrite": scene.render.use_overwrite,
@@ -529,6 +540,14 @@ class SceneStateGuard(AbstractContextManager):
         scene.render.resolution_x = self.render["resolution_x"]
         scene.render.resolution_y = self.render["resolution_y"]
         scene.render.resolution_percentage = self.render["resolution_percentage"]
+        scene.render.pixel_aspect_x = self.render["pixel_aspect_x"]
+        scene.render.pixel_aspect_y = self.render["pixel_aspect_y"]
+        scene.render.use_border = self.render["use_border"]
+        scene.render.use_crop_to_border = self.render["use_crop_to_border"]
+        scene.render.border_min_x = self.render["border_min_x"]
+        scene.render.border_max_x = self.render["border_max_x"]
+        scene.render.border_min_y = self.render["border_min_y"]
+        scene.render.border_max_y = self.render["border_max_y"]
         scene.render.film_transparent = self.render["film_transparent"]
         scene.render.use_file_extension = self.render["use_file_extension"]
         scene.render.use_overwrite = self.render["use_overwrite"]
@@ -642,6 +661,14 @@ def _configure_scene(camera_location, target, ortho_scale):
     )
     scene.render.resolution_x, scene.render.resolution_y = RENDER_SIZE
     scene.render.resolution_percentage = 100
+    scene.render.pixel_aspect_x = 1.0
+    scene.render.pixel_aspect_y = 1.0
+    scene.render.use_border = False
+    scene.render.use_crop_to_border = False
+    scene.render.border_min_x = 0.0
+    scene.render.border_max_x = 1.0
+    scene.render.border_min_y = 0.0
+    scene.render.border_max_y = 1.0
     scene.render.film_transparent = False
     scene.render.image_settings.file_format = "PNG"
     scene.render.image_settings.color_mode = "RGB"
@@ -859,6 +886,13 @@ def render_view(view, output_path, inject_failure=False):
     try:
         with SceneStateGuard():
             VIEW_SETUP[view]()
+            if view == "h2_cutaway":
+                clearance, framed, *_points = _h2_projected_clearance()
+                if not framed or clearance < H2_MIN_PROJECTED_SEPARATION_PX:
+                    raise ReviewFailure(
+                        f"ordinary H2 render failed projection gate: "
+                        f"{clearance:.1f} px, framed={framed}"
+                    )
             bpy.context.scene.render.filepath = str(output_path)
             if inject_failure:
                 raise RuntimeError("injected render failure")
