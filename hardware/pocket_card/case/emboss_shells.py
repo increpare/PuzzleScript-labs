@@ -42,6 +42,7 @@ FASTENER_STEMS = tuple(
     for name in (f"nut_{index}", f"screw_{index}")
 )
 TEMPLATE_COMPONENTS = ("Battery", "speaker")
+LEGACY_BACK_TEXTURE = "bricktexture_back"
 MATERIAL_SPECS = {
     "Case Purple": (0.435, 0.235, 0.765, 1.0),
     "Case White": (0.90, 0.90, 0.87, 1.0),
@@ -263,6 +264,28 @@ def replace_mesh_data(target, imported):
     after = (target.name, tuple(mod.name for mod in target.modifiers))
     if after != identity:
         raise FinishError(f"{target.name}: object identity or modifier stack changed")
+
+
+def retire_legacy_back_texture(target):
+    """Disable the finite flat cutter superseded by native rear texture."""
+    matches = [
+        modifier
+        for modifier in target.modifiers
+        if modifier.type == "BOOLEAN"
+        and modifier.object is not None
+        and modifier.object.name == LEGACY_BACK_TEXTURE
+    ]
+    if len(matches) != 1:
+        raise FinishError(
+            f"{target.name}: expected one Boolean using "
+            f"{LEGACY_BACK_TEXTURE!r}, found {len(matches)}"
+        )
+    matches[0].show_render = False
+    matches[0].show_viewport = False
+    print(
+        "FINISH retired legacy flat rear texture: "
+        f"{LEGACY_BACK_TEXTURE}"
+    )
 
 
 def evaluated_mesh(target):
@@ -770,6 +793,8 @@ def finish(paths):
                 f"generated {target_name}",
             )
             replace_mesh_data(targets[target_name], imported)
+            if target_name == "shell_back":
+                retire_legacy_back_texture(targets[target_name])
             staged_path = staging / output_name
             export_shell(
                 targets[target_name], staged_path, original_bounds[target_name]

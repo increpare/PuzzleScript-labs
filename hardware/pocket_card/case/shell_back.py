@@ -9,6 +9,7 @@ as a board outline.
 
 Run:  .venv/bin/python shell_back.py
 """
+import functools
 import os
 
 import cadquery as cq
@@ -239,6 +240,82 @@ def pcb_support_pads():
     return pads
 
 
+@functools.lru_cache(maxsize=1)
+def rear_texture_pattern_prism():
+    """One fused running-bond mortar grid spanning the usable rear field."""
+    x0 = P.REAR_TEX_MARGIN
+    x1 = P.BODY_W - P.REAR_TEX_MARGIN
+    y0 = P.REAR_TEX_MARGIN
+    y1 = P.BODY_H - P.REAR_TEX_MARGIN
+    z0 = -P.DECK_ZONE_T - 1.0
+    z_span = P.DECK_ZONE_T - P.BODY_T + 2.0
+
+    horizontal_y = []
+    y = y0
+    while y < y1 - 1e-9:
+        horizontal_y.append(y)
+        y += P.REAR_TEX_ROW_H
+    horizontal_y.append(y1)
+    horizontal = (
+        cq.Workplane("XY")
+        .workplane(offset=z0)
+        .pushPoints([((x0 + x1) / 2.0, y) for y in horizontal_y])
+        .rect(x1 - x0, P.REAR_TEX_LINE)
+        .extrude(z_span, combine=False)
+    )
+
+    vertical_points = []
+    row = 0
+    y = y0 + P.REAR_TEX_ROW_H / 2.0
+    while y < y1 - P.REAR_TEX_ROW_H / 2.0 + 1e-9:
+        x = x0 + (row % 2) * P.REAR_TEX_BRICK_W / 2.0
+        while x <= x1 + 1e-9:
+            vertical_points.append((x, y))
+            x += P.REAR_TEX_BRICK_W
+        row += 1
+        y += P.REAR_TEX_ROW_H
+    vertical = (
+        cq.Workplane("XY")
+        .workplane(offset=z0)
+        .pushPoints(vertical_points)
+        .rect(
+            P.REAR_TEX_LINE,
+            P.REAR_TEX_ROW_H + P.REAR_TEX_LINE + 0.02,
+        )
+        .extrude(z_span, combine=False)
+    )
+
+    # The slight vertical overlap makes the complete grid one Boolean operand
+    # instead of hundreds of disconnected boxes.
+    pattern = horizontal.union(vertical)
+    keepout_r = P.REAR_TEX_SCREW_CLEAR + joints.HEAD_D / 2.0
+    for joint in joints.back_joints():
+        keepout = (
+            cq.Workplane("XY")
+            .workplane(offset=z0)
+            .center(joint.x, joint.y)
+            .circle(keepout_r)
+            .extrude(z_span)
+        )
+        pattern = pattern.cut(keepout)
+    return pattern
+
+
+@functools.lru_cache(maxsize=1)
+def rear_texture_cutters():
+    """Mortar recesses clipped to the true outer shell skin.
+
+    Subtracting the inward-offset envelope leaves a constant-depth skin that
+    follows the rear deck and perimeter roll.  Intersecting the grid with that
+    skin prevents a flat Z cutter from disappearing into the deep bulge or
+    breaking through the shallower wall.
+    """
+    outer = cq.Workplane(side_arc._envelope(0.0))
+    inner = cq.Workplane(side_arc._envelope(P.REAR_TEX_DEPTH))
+    outer_skin = outer.cut(inner)
+    return rear_texture_pattern_prism().intersect(outer_skin)
+
+
 def to_model_space(shape):
     """See shell_front.to_model_space -- layout y is down, model y is up."""
     return shape.mirror("XZ").translate((0, P.BODY_H, 0))
@@ -259,7 +336,7 @@ def interior_crop():
     return below.union(above)
 
 
-def build_back():
+def build_back(*, apply_rear_texture=True):
     """Fixed pipeline: tray → union ALL material → cut ALL voids → clip.
 
     Screw geometry (lands, seats, pockets, bores) comes entirely from
@@ -277,6 +354,8 @@ def build_back():
         s = s.cut(v)
     # Internals must not poke through the curved side scoops.
     s = side_arc.clip_to_envelope(s)
+    if apply_rear_texture:
+        s = s.cut(rear_texture_cutters())
     return to_model_space(s)
 
 

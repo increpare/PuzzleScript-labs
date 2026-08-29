@@ -457,6 +457,10 @@ class BlenderFinishIntegrationTest(unittest.TestCase):
             output = Path(tmp)
             result = run_pipeline(output)
             self.assertEqual(result.returncode, 0, result.stdout)
+            self.assertIn(
+                "FINISH retired legacy flat rear texture: bricktexture_back",
+                result.stdout,
+            )
 
             for name in (
                 "shell_front_embossed.stl",

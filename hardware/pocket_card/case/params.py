@@ -501,6 +501,17 @@ DECK_TAPER_PHI = _math.degrees(2 * _math.atan(DECK_H / DECK_TAPER_RUN))
 _deck_taper_p = _math.radians(DECK_TAPER_PHI)
 DECK_TAPER_R = DECK_H / (2 * (1 - _math.cos(_deck_taper_p)))
 
+# ------------------------------------------------ rear tactile texture ----
+# A classic running-bond mortar grid is cut only through the outer skin of the
+# actual compound rear envelope.  Unlike the retired flat Blender cutter, this
+# follows both the 2.4 mm deck profile and the spherical perimeter roll.
+REAR_TEX_DEPTH = 0.30             # SLA 8001: visible/tactile, still leaves 1.2 mm wall
+REAR_TEX_LINE = 0.45              # printable recessed mortar width
+REAR_TEX_BRICK_W = 6.0
+REAR_TEX_ROW_H = 3.0
+REAR_TEX_MARGIN = 7.0             # smooth rolled perimeter / handling land
+REAR_TEX_SCREW_CLEAR = 0.80       # beyond the pan-head envelope
+
 # ------------------------------------------------------------ USB-C port ----
 # The module's own receptacle, in the left wall. It is dead centre of the
 # module's 50 mm edge: the outline drawing's bottom dimension chain reads
