@@ -949,6 +949,38 @@ def check_captive_nut_traps(front_model=None):
     return metrics
 
 
+def pcb_front_stop_metrics():
+    """Return the axial and XY support contract for the left front stop."""
+    import cadquery as cq
+    import shell_back
+
+    model_x = P.PCB_FRONT_STOP_X
+    model_y = P.BODY_H - P.PCB_FRONT_STOP_Y
+    probe = (
+        cq.Workplane("XY")
+        .circle(P.PCB_FRONT_STOP_D / 2.0)
+        .extrude(0.2)
+        .translate((model_x, model_y, 0.7))
+    )
+    on_board = (
+        _workplane_volume(shell_back.pcb_outline_wire().intersect(probe))
+        > 0.1
+    )
+    fence_x0 = P.BATT_X - P.BATT_CLEAR - shell_back.FENCE_T
+    fence_x1 = P.BATT_X - P.BATT_CLEAR
+    fence_y0 = P.BATT_Y - P.BATT_CLEAR
+    fence_y1 = P.BATT_Y + P.CELL_H + P.BATT_CLEAR
+    opposes_fence = (
+        fence_x0 <= P.PCB_FRONT_STOP_X <= fence_x1
+        and fence_y0 <= P.PCB_FRONT_STOP_Y <= fence_y1
+    )
+    return {
+        "axial_gap": P.PCB_FRONT_STOP_GAP,
+        "on_board": on_board,
+        "opposes_fence": opposes_fence,
+    }
+
+
 def check_pcb_support():
     """Deflection at each button, and that the support rib clears the cell."""
     print("\nPCB stiffness")
@@ -1011,6 +1043,21 @@ def check_pcb_support():
           f"(rib also retains the cell from above)")
     if not ok:
         FAILURES.append("rib fouls cell")
+
+    stop = pcb_front_stop_metrics()
+    ok = (
+        abs(stop["axial_gap"] - 0.20) <= 1e-9
+        and stop["on_board"]
+        and stop["opposes_fence"]
+    )
+    print(
+        f"   {'PASS' if ok else 'FAIL'}  left front stop gap "
+        f"{stop['axial_gap']:.2f} mm, "
+        f"{'on board' if stop['on_board'] else 'off board'}, "
+        f"{'opposes fence' if stop['opposes_fence'] else 'misses fence'}"
+    )
+    if not ok:
+        FAILURES.append("left PCB front stop")
 
 
 def check_pcb_mounts():

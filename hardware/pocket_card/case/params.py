@@ -308,6 +308,14 @@ PCB_RIB_Y0, PCB_RIB_Y1 = 53.0, 54.4
 # only a locating rib, so it is left open at the top and this rib retains the
 # cell as well as supporting the board. One feature, two jobs.
 
+# Rigid face-side stop opposite the battery fence's left rail.  It does not
+# snap over or pierce the PCB: the board installs straight down and retains a
+# small axial assembly gap, while the stop limits lift/rattle on the otherwise
+# unclamped lower-left side.
+PCB_FRONT_STOP_X, PCB_FRONT_STOP_Y = 8.0, 82.0
+PCB_FRONT_STOP_D = 3.2
+PCB_FRONT_STOP_GAP = 0.20
+
 POWER_SW_X = 20.0                  # DECIDED  bottom edge, far left
 # Mute must sit left of the driver bore (~x 68.7–83.3) and clear Reset/H4
 # courtyards. Pure X at y=88 between Reset@81.6 and the driver is too tight;

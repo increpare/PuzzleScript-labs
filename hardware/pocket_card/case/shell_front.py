@@ -246,6 +246,24 @@ def module_posts():
     return add, cut
 
 
+def pcb_front_stop():
+    """Rigid axial stop opposing the left battery-fence support rail.
+
+    The end remains just in front of the PCB, so assembly is a straight drop
+    with no resin flexure.  Once the right-side screws clamp the board, this
+    limits frontward lift at the unsupported lower-left corner.
+    """
+    z_front = -P.FACE_T + FACE_FUSE
+    z_back = -P.PCB_FRONT_Z + P.PCB_FRONT_STOP_GAP
+    return (
+        cq.Workplane("XY")
+        .workplane(offset=z_front)
+        .center(P.PCB_FRONT_STOP_X, P.PCB_FRONT_STOP_Y)
+        .circle(P.PCB_FRONT_STOP_D / 2.0)
+        .extrude(z_back - z_front)
+    )
+
+
 def _speaker_lead_notch(sign):
     """Return the existing rear lead-notch cutter for one driver end."""
     if sign not in (-1, 1):
@@ -501,6 +519,7 @@ def build(*, apply_speaker_wire_relief=True):
 
     add, cut = module_posts()
     shell = shell.union(add).cut(cut)
+    shell = shell.union(pcb_front_stop())
     shell = shell.union(driver_pocket())
 
     # Fuse every fixed cage before cutting any cavity. This preserves overlap
