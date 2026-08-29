@@ -100,6 +100,23 @@ class CaptiveNutReviewPureTest(unittest.TestCase):
             self.assertEqual((info.width, info.height), self.review.RENDER_SIZE)
             self.assertGreater(info.variance, 100.0)
 
+    def test_spatially_uniform_solid_color_png_is_rejected_as_blank(self):
+        width, height = self.review.RENDER_SIZE
+        def chunk(kind, payload):
+            return (struct.pack(">I", len(payload)) + kind + payload
+                    + struct.pack(">I", zlib.crc32(kind + payload) & 0xffffffff))
+        header = struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)
+        row = b"\x00" + bytes((220, 40, 90)) * width
+        png = (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", header)
+               + chunk(b"IDAT", zlib.compress(row * height))
+               + chunk(b"IEND", b""))
+        with tempfile.TemporaryDirectory(dir="/tmp") as temporary:
+            path = Path(temporary, "solid.png")
+            path.write_bytes(png)
+            with self.assertRaisesRegex(self.png.PngError, "blank"):
+                self.png.validate_review_set(
+                    Path(temporary), {path.name}, self.review.RENDER_SIZE)
+
     def test_make_and_readme_describe_existing_blend_and_transactional_output(self):
         makefile = (REPO_ROOT / "Makefile").read_text()
         self.assertIn("\npocket_card_captive_nut_review:\n", makefile)

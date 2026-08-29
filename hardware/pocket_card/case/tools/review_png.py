@@ -118,9 +118,21 @@ def inspect_png(path):
             current[index] = (value + predictor) & 0xff
         pixels.extend(current)
         prior = current
-    count = len(pixels)
-    total = sum(pixels)
-    variance = sum(value * value for value in pixels) / count - (total / count) ** 2
+    # Measure variation over image positions, independently per channel.  A
+    # flattened-byte statistic mistakes a spatially uniform saturated color
+    # for detail merely because its R/G/B values differ from each other.
+    pixel_count = width * height
+    totals = [0] * channels
+    squared_totals = [0] * channels
+    for index, value in enumerate(pixels):
+        channel = index % channels
+        totals[channel] += value
+        squared_totals[channel] += value * value
+    variance = sum(
+        squared_totals[channel] / pixel_count
+        - (totals[channel] / pixel_count) ** 2
+        for channel in range(channels)
+    )
     return PngInfo(width, height, bytes(pixels), variance)
 
 
