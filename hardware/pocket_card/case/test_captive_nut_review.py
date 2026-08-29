@@ -138,7 +138,15 @@ class CaptiveNutReviewBlenderTest(unittest.TestCase):
         Path(environment["TMPDIR"]).mkdir(parents=True, exist_ok=True)
         return subprocess.run([BLENDER, "--background", str(BLEND), "--python-exit-code", "1", *map(str, args)], cwd=REPO_ROOT, env=environment, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=check)
 
-    def test_preflight_fails_for_missing_hardware_and_displaced_reset(self):
+    def test_preflight_accepts_rebuilt_reset_and_rejects_old_or_displaced_reset(self):
+        current = self.blender("--python", SCRIPT, "--", "--preflight-only")
+        self.assertIn("PASS captive-nut review preflight", current.stdout)
+        old_center = self.blender(
+            "--python-expr",
+            "import bpy; [setattr(vertex.co, 'x', vertex.co.x + 2.0) for vertex in bpy.data.objects['cap_reset'].data.vertices]",
+            "--python", SCRIPT, "--", "--preflight-only", check=False)
+        self.assertNotEqual(old_center.returncode, 0, old_center.stdout)
+        self.assertIn("cap_reset placement changed", old_center.stdout)
         missing = self.blender("--python-expr", "import bpy; bpy.data.objects.remove(bpy.data.objects['nut_4'], do_unlink=True)", "--python", SCRIPT, "--", "--preflight-only", check=False)
         self.assertNotEqual(missing.returncode, 0, missing.stdout)
         self.assertIn("missing required assembly objects", missing.stdout)

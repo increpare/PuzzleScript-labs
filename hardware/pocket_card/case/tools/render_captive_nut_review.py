@@ -67,9 +67,6 @@ H2_REQUIRED_OBJECTS = {
     "screw_6",
 }
 TEMP_PREFIX = "__captive_nut_review_"
-EXPECTED_CAP_RESET_LOCAL_BOUNDS = (
-    51.400002, 61.599998, 8.75, 17.25, -3.0, 1.0,
-)
 EXPECTED_AUTHORED_COMPONENTS = {
     "Battery": {
         "matrix": (
@@ -234,9 +231,25 @@ def _verify_h2_placements(verifier, params, nut_trap_sites):
         CASE_DIR / "out" / "order" / "preview" / "pcb.stl"
     )
     _require_bounds_close(_local_bounds(bpy.data.objects["pcb"]), pcb_source, "pcb")
+    reset_source = verifier.binary_stl_bounds(
+        CASE_DIR / "out" / "sculpted_buttons" / "placed" / "cap_reset.stl"
+    )
+    reset_model_xy = (params.RESET_X, params.BODY_H - params.RESET_Y)
+    reset_source_center = (
+        (reset_source[0] + reset_source[1]) / 2.0,
+        (reset_source[2] + reset_source[3]) / 2.0,
+    )
+    if any(
+        abs(value - expected) > 0.0002
+        for value, expected in zip(reset_source_center, reset_model_xy)
+    ):
+        raise ReviewFailure(
+            "sculpted cap_reset source drifted from authoritative Reset layout: "
+            f"{reset_source_center!r}"
+        )
     _require_bounds_close(
         _local_bounds(bpy.data.objects["cap_reset"]),
-        EXPECTED_CAP_RESET_LOCAL_BOUNDS,
+        reset_source,
         "cap_reset",
     )
 
