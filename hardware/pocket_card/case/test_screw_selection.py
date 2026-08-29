@@ -32,13 +32,13 @@ class MachineScrewGeometrySelectionTest(unittest.TestCase):
 
     def test_shortest_stock_and_seat_boundaries_are_inclusive(self):
         minimum = joints.select_machine_screw(-10.8, -1.5)
-        maximum = joints.select_machine_screw(-11.4, -1.5)
+        maximum = joints.select_machine_screw(-11.6, -1.5)
 
         self.assertEqual(minimum.length, 8.0)
         self.assertAlmostEqual(minimum.seat_depth, 1.5)
         self.assertAlmostEqual(minimum.tip_protrusion, 0.2)
         self.assertEqual(maximum.length, 8.0)
-        self.assertAlmostEqual(maximum.seat_depth, 2.1)
+        self.assertAlmostEqual(maximum.seat_depth, 2.3)
         self.assertAlmostEqual(maximum.tip_protrusion, 0.2)
 
     def test_stock_order_does_not_change_shortest_valid_choice(self):

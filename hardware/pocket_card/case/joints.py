@@ -27,7 +27,10 @@ HEAD_D = 5.0
 HEAD_CLEAR = 0.15           # radial play on the head pocket
 STOCKED_MACHINE_SCREW_LENGTHS = (8.0, 10.0, 12.0, 14.0)
 MIN_HEAD_SEAT_DEPTH = 1.5
-MAX_HEAD_SEAT_DEPTH = 2.1
+# The lower-shifted rear form puts H1/H2 between the old 10/12 mm stock
+# windows.  A 2.30 mm reinforced-land seat retains the same stocked lengths
+# and 0.20..0.60 mm blind-tip engagement without changing the shaft axes.
+MAX_HEAD_SEAT_DEPTH = 2.3
 MIN_TIP_PROTRUSION = 0.2
 MAX_TIP_PROTRUSION = 0.6
 

@@ -462,15 +462,22 @@ DECK_PLATEAU_Y0 = (
     DISPLAY_PLUG_Y - DISPLAY_PLUG_BODY_W / 2
     - DISPLAY_PLUG_CLEAR - WALL
 )
-DECK_PLATEAU_Y1 = (
+_DECK_REQUIRED_PLUG_Y1 = (
     DISPLAY_PLUG_Y + DISPLAY_PLUG_BODY_W / 2
     + DISPLAY_PLUG_CLEAR + WALL
 )
 
-# Move the upper shoulder 5 mm toward the plug while retaining the original
-# 22-degree profile as an explicit reference for the previous start point.
+# Move both visible shoulder boundaries 5 mm south.  The full-depth band's
+# upper edge remains plug-derived: moving that datum would take required wall
+# and cable clearance away from the display connector.  Extending the plateau
+# through the shifted lower shoulder moves the broad rear form without doing
+# that.  See the 2026-08-29 review-corrections design.
+DECK_BUMP_SHIFT_Y = 5.0
+DECK_PLATEAU_Y1 = _DECK_REQUIRED_PLUG_Y1 + DECK_BUMP_SHIFT_Y
+
+# Retain the original 22-degree profile as an explicit reference for the
+# shoulder's pre-review start point.
 DECK_RISE_REFERENCE_PHI = 22.0
-DECK_RISE_START_SHIFT = 5.0
 _deck_rise_reference_p = _math.radians(DECK_RISE_REFERENCE_PHI)
 _deck_rise_reference_r = DECK_H / (
     2 * (1 - _math.cos(_deck_rise_reference_p))
@@ -479,7 +486,7 @@ _deck_rise_reference_run = (
     2 * _deck_rise_reference_r * _math.sin(_deck_rise_reference_p)
 )
 DECK_RISE_Y0 = (
-    DECK_PLATEAU_Y0 - _deck_rise_reference_run + DECK_RISE_START_SHIFT
+    DECK_PLATEAU_Y0 - _deck_rise_reference_run + DECK_BUMP_SHIFT_Y
 )
 DECK_RISE_RUN = DECK_PLATEAU_Y0 - DECK_RISE_Y0
 DECK_RISE_PHI = _math.degrees(2 * _math.atan(DECK_H / DECK_RISE_RUN))

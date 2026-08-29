@@ -54,25 +54,34 @@ class RearDeckProfileTest(unittest.TestCase):
             0.0,
         )
 
-    def test_rise_starts_five_mm_later_without_moving_plug_plateau(self):
+    def test_visible_bump_boundaries_move_five_mm_south(self):
         reference_phi = math.radians(P.DECK_RISE_REFERENCE_PHI)
         reference_radius = P.DECK_H / (
             2 * (1 - math.cos(reference_phi))
         )
         reference_run = 2 * reference_radius * math.sin(reference_phi)
         previous_rise_y0 = P.DECK_PLATEAU_Y0 - reference_run
+        required_plug_y1 = (
+            P.DISPLAY_PLUG_Y + P.DISPLAY_PLUG_BODY_W / 2
+            + P.DISPLAY_PLUG_CLEAR + P.WALL
+        )
 
-        self.assertAlmostEqual(P.DECK_RISE_START_SHIFT, 5.0, places=6)
+        self.assertAlmostEqual(P.DECK_BUMP_SHIFT_Y, 5.0, places=6)
         self.assertAlmostEqual(
             P.DECK_RISE_Y0,
-            previous_rise_y0 + P.DECK_RISE_START_SHIFT,
+            previous_rise_y0 + P.DECK_BUMP_SHIFT_Y,
+            places=9,
+        )
+        self.assertAlmostEqual(
+            P.DECK_PLATEAU_Y1,
+            required_plug_y1 + P.DECK_BUMP_SHIFT_Y,
             places=9,
         )
         self.assertAlmostEqual(P.DECK_RISE_Y0, 31.9811703617, places=9)
         self.assertAlmostEqual(P.DECK_RISE_RUN, 7.3469296383, places=9)
         self.assertAlmostEqual(P.DECK_RISE_PHI, 36.1810208032, places=6)
         self.assertAlmostEqual(P.DECK_PLATEAU_Y0, 39.3281, places=4)
-        self.assertAlmostEqual(P.DECK_PLATEAU_Y1, 46.8281, places=4)
+        self.assertAlmostEqual(P.DECK_PLATEAU_Y1, 51.8281, places=4)
         self.assertEqual(P.DECK_TAPER_Y0, P.DECK_PLATEAU_Y1)
         self.assertEqual(P.DECK_TAPER_Y1, P.BODY_H)
 
