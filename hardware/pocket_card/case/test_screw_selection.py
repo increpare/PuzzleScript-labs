@@ -1,8 +1,11 @@
 import csv
+import math
 import os
 import sys
 import tempfile
 import unittest
+from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -10,93 +13,335 @@ sys.path.insert(0, HERE)
 
 import export_smt  # noqa: E402
 import joints  # noqa: E402
+import nut_traps  # noqa: E402
+import shell_back  # noqa: E402
+
+TRACKED_HARDWARE_BOM = Path(HERE) / "out" / "hardware_BOM.csv"
 
 
-class ScrewLengthSelectionTest(unittest.TestCase):
-    def test_module_pilot_entry_matches_module_post_construction(self):
-        joint = next(j for j in joints.back_joints() if j.kind == "module")
-        self.assertAlmostEqual(
-            joint.pilot_entry_z,
-            -(joints.P.BODY_T - joints.P.LID_T),
+class MachineScrewGeometrySelectionTest(unittest.TestCase):
+    def test_known_profile_selects_twelve_mm_at_shallowest_valid_seat(self):
+        geometry = joints.select_machine_screw(
+            outer_back_z=-15.386,
+            nut_front_z=-1.5,
         )
 
-    def test_pcb_pilot_entry_matches_pcb_post_construction(self):
-        joint = next(j for j in joints.back_joints() if j.kind == "pcb")
-        self.assertAlmostEqual(
-            joint.pilot_entry_z,
-            -(joints.P.PCB_FRONT_Z + joints.P.PCB_T + joints.P.PCB_PIN_TIP),
+        self.assertEqual(geometry.length, 12.0)
+        self.assertAlmostEqual(geometry.seat_depth, 2.086)
+        self.assertAlmostEqual(geometry.tip_protrusion, 0.2)
+
+    def test_shortest_stock_and_seat_boundaries_are_inclusive(self):
+        minimum = joints.select_machine_screw(-10.8, -1.5)
+        maximum = joints.select_machine_screw(-11.6, -1.5)
+
+        self.assertEqual(minimum.length, 8.0)
+        self.assertAlmostEqual(minimum.seat_depth, 1.5)
+        self.assertAlmostEqual(minimum.tip_protrusion, 0.2)
+        self.assertEqual(maximum.length, 8.0)
+        self.assertAlmostEqual(maximum.seat_depth, 2.3)
+        self.assertAlmostEqual(maximum.tip_protrusion, 0.2)
+
+    def test_stock_order_does_not_change_shortest_valid_choice(self):
+        geometry = joints.select_machine_screw(
+            -10.8,
+            -1.5,
+            stocked_lengths=(14.0, 10.0, 8.0, 12.0),
         )
 
-    def test_pcb_pilot_datum_tracks_its_stack_independently_of_module_split(self):
-        module = next(j for j in joints.back_joints() if j.kind == "module")
-        pcb = next(j for j in joints.back_joints() if j.kind == "pcb")
-        module_entry = module.pilot_entry_z
-        changed_tip = joints.P.PCB_PIN_TIP + 0.4
-        with mock.patch.object(joints.P, "PCB_PIN_TIP", changed_tip):
-            self.assertEqual(module.pilot_entry_z, module_entry)
-            self.assertAlmostEqual(
-                pcb.pilot_entry_z,
-                -(joints.P.PCB_FRONT_Z + joints.P.PCB_T + changed_tip),
-            )
+        self.assertEqual(geometry.length, 8.0)
+        self.assertAlmostEqual(geometry.seat_depth, 1.5)
 
-    def test_selects_shortest_stocked_length_with_required_engagement(self):
-        self.assertEqual(joints.select_screw_length(5.5), 8.0)
-        self.assertEqual(joints.select_screw_length(5.51), 10.0)
-        self.assertEqual(joints.select_screw_length(7.5), 10.0)
-        self.assertEqual(joints.select_screw_length(7.51), 12.0)
+    def test_invalid_ranges_and_stock_fail_clearly(self):
+        invalid_calls = (
+            ({"outer_back_z": math.nan}, "outer_back_z must be finite"),
+            ({"outer_back_z": -10.8, "stocked_lengths": ()},
+             "no stocked machine screw"),
+            ({"outer_back_z": -10.8, "stocked_lengths": (8.0, math.inf)},
+             "stocked screw lengths must be positive finite"),
+            ({"outer_back_z": -10.8, "min_seat_depth": 2.2,
+              "max_seat_depth": 2.1}, "seat depth range"),
+            ({"outer_back_z": -10.8, "min_tip_protrusion": 0.7,
+              "max_tip_protrusion": 0.6}, "tip protrusion range"),
+        )
+        for kwargs, message in invalid_calls:
+            with self.subTest(kwargs=kwargs):
+                with self.assertRaisesRegex(ValueError, message):
+                    joints.select_machine_screw(**kwargs)
 
-    def test_fails_clearly_when_no_stocked_length_can_reach(self):
-        with self.assertRaisesRegex(ValueError, "no stocked screw"):
-            joints.select_screw_length(10.0)
+    def test_unsatisfiable_stock_fails_clearly(self):
+        with self.assertRaisesRegex(ValueError, "no stocked machine screw"):
+            joints.select_machine_screw(-11.8, -1.5)
 
-    def test_all_six_joints_are_selected_once_and_pass_engagement(self):
+    def test_caller_cannot_weaken_physical_bounds_with_a_tolerance(self):
+        with self.assertRaises(TypeError):
+            joints.select_machine_screw(-11.4000001, -1.5, tol=1.0)
+
+    def test_near_boundary_results_never_exceed_declared_ranges(self):
+        for outer_back_z in (-10.8, -10.7999999999,
+                             -11.4, -11.4000000001):
+            try:
+                geometry = joints.select_machine_screw(outer_back_z, -1.5)
+            except ValueError:
+                continue
+            with self.subTest(outer_back_z=outer_back_z):
+                self.assertGreaterEqual(
+                    geometry.seat_depth, joints.MIN_HEAD_SEAT_DEPTH)
+                self.assertLessEqual(
+                    geometry.seat_depth, joints.MAX_HEAD_SEAT_DEPTH)
+                self.assertGreaterEqual(
+                    geometry.tip_protrusion, joints.MIN_TIP_PROTRUSION)
+                self.assertLessEqual(
+                    geometry.tip_protrusion, joints.MAX_TIP_PROTRUSION)
+
+
+class RearJointMachineScrewTest(unittest.TestCase):
+    def test_all_six_sites_match_captive_nut_axes_and_kinds_once(self):
         selections = joints.selected_screws()
-        expected = {(j.x, j.y, j.kind) for j in joints.back_joints()}
-        actual = {(s.x, s.y, s.kind) for s in selections}
+        expected = [(site.x, site.y, site.kind) for site in nut_traps.sites()]
+        actual = [(s.x, s.y, s.kind) for s in selections]
 
         self.assertEqual(len(selections), 6)
-        self.assertEqual(len(actual), 6)
+        self.assertEqual(len(set(actual)), 6)
         self.assertEqual(actual, expected)
-        for selection in selections:
-            self.assertIn(selection.length, joints.STOCKED_SCREW_LENGTHS)
-            self.assertGreaterEqual(
-                selection.engagement,
-                joints.MIN_THREAD_ENGAGEMENT - 1e-9,
-            )
-            shorter = [
-                length for length in joints.STOCKED_SCREW_LENGTHS
-                if length < selection.length
-            ]
-            self.assertTrue(all(
-                length - selection.shank_span < joints.MIN_THREAD_ENGAGEMENT
-                for length in shorter
-            ))
 
-        groups = joints.screw_length_groups()
-        grouped = [s for group in groups.values() for s in group]
+        grouped = [s for group in joints.screw_length_groups().values()
+                   for s in group]
         self.assertEqual(len(grouped), 6)
         self.assertEqual(
             {(s.x, s.y, s.kind) for s in grouped},
-            expected,
+            set(expected),
         )
 
-    def test_hardware_bom_is_derived_from_length_groups(self):
+    def test_each_selection_obeys_stock_profile_and_tip_contract(self):
+        joints_by_site = {
+            (joint.x, joint.y, joint.kind): joint
+            for joint in joints.back_joints()
+        }
+        nut_front_z = -joints.P.FACE_T
+
+        for selection in joints.selected_screws():
+            joint = joints_by_site[(selection.x, selection.y, selection.kind)]
+            with self.subTest(site=(selection.x, selection.y, selection.kind)):
+                self.assertIn(
+                    selection.length,
+                    joints.STOCKED_MACHINE_SCREW_LENGTHS,
+                )
+                self.assertGreaterEqual(
+                    selection.seat_depth,
+                    joints.MIN_HEAD_SEAT_DEPTH - 1e-9,
+                )
+                self.assertLessEqual(
+                    selection.seat_depth,
+                    joints.MAX_HEAD_SEAT_DEPTH + 1e-9,
+                )
+                self.assertAlmostEqual(
+                    selection.outer_back_z,
+                    joint.skin_range()[1],
+                )
+                self.assertAlmostEqual(
+                    selection.seat_z,
+                    selection.outer_back_z + selection.seat_depth,
+                )
+                self.assertAlmostEqual(selection.seat_z, joint.seat_z)
+                self.assertAlmostEqual(
+                    selection.tip_protrusion,
+                    (selection.seat_z + selection.length) - nut_front_z,
+                )
+                self.assertGreaterEqual(
+                    selection.tip_protrusion,
+                    joints.MIN_TIP_PROTRUSION - 1e-9,
+                )
+                self.assertLessEqual(
+                    selection.tip_protrusion,
+                    joints.MAX_TIP_PROTRUSION + 1e-9,
+                )
+
+    def test_regression_profile_requires_ten_and_twelve_mm_lengths(self):
+        self.assertEqual(
+            [selection.length for selection in joints.selected_screws()],
+            [10.0, 12.0, 10.0, 12.0, 12.0, 10.0],
+        )
+
+    def test_every_screw_crosses_full_nut_and_stays_in_blind_relief(self):
+        nut_front_z = -joints.P.FACE_T
+        nut_back_z = nut_front_z - joints.P.NUT_MAX_T
+        remaining_front_skin = (
+            joints.P.FACE_T - joints.P.MACHINE_SCREW_TIP_RELIEF
+        )
+
+        self.assertGreaterEqual(remaining_front_skin, 0.9 - 1e-9)
+        for selection in joints.selected_screws():
+            tip_z = selection.seat_z + selection.length
+            with self.subTest(site=(selection.x, selection.y)):
+                self.assertLessEqual(selection.seat_z, nut_back_z)
+                self.assertGreaterEqual(
+                    tip_z,
+                    nut_front_z + joints.MIN_TIP_PROTRUSION - 1e-9,
+                )
+                self.assertLessEqual(
+                    tip_z,
+                    nut_front_z + joints.P.MACHINE_SCREW_TIP_RELIEF + 1e-9,
+                )
+
+
+class BuiltRearScrewGeometryTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        from OCP.BRepClass3d import BRepClass3d_SolidClassifier
+        from OCP.TopAbs import TopAbs_IN, TopAbs_ON
+        from OCP.gp import gp_Pnt
+
+        shape = shell_back.build_back().val()
+
+        def solid(x, y_layout, z):
+            y_model = joints.P.BODY_H - y_layout
+            classifier = BRepClass3d_SolidClassifier(
+                shape.wrapped,
+                gp_Pnt(x, y_model, z),
+                1e-6,
+            )
+            return classifier.State() in (TopAbs_IN, TopAbs_ON)
+
+        cls.solid = staticmethod(solid)
+
+    def test_selected_pockets_reach_seat_and_retain_membrane_land_and_bore(self):
+        selections = {
+            (s.x, s.y, s.kind): s for s in joints.selected_screws()
+        }
+        for joint in joints.back_joints():
+            selection = selections[(joint.x, joint.y, joint.kind)]
+            seat = selection.seat_z
+            with self.subTest(site=(joint.x, joint.y, joint.kind)):
+                ring_r = (joint.bore_r + joint.head_r) / 2.0
+                for dx, dy in ((ring_r, 0.0), (-ring_r, 0.0),
+                               (0.0, ring_r), (0.0, -ring_r)):
+                    self.assertFalse(
+                        self.solid(joint.x + dx, joint.y + dy, seat - 0.05),
+                        "head pocket stops behind the selected seat",
+                    )
+                    self.assertTrue(
+                        self.solid(joint.x + dx, joint.y + dy, seat + 0.05),
+                        "selected seat ring is missing",
+                    )
+                    self.assertTrue(
+                        self.solid(
+                            joint.x + dx,
+                            joint.y + dy,
+                            seat + joints.P.MIN_MEMBRANE - 0.05,
+                        ),
+                        "required seat membrane is missing",
+                    )
+
+                bore_mid_z = (seat + joint.top_z) / 2.0
+                self.assertFalse(
+                    self.solid(joint.x, joint.y, bore_mid_z),
+                    "M2 shaft bore is blocked",
+                )
+                toward = -1.0 if joint.x > joints.P.BODY_W / 2.0 else 1.0
+                self.assertTrue(
+                    self.solid(
+                        joint.x + toward * (joint.land_r - 0.25),
+                        joint.y,
+                        bore_mid_z,
+                    ),
+                    "reinforced rear land is missing",
+                )
+
+
+class HardwareBomTest(unittest.TestCase):
+    def test_hardware_bom_groups_machine_screws_and_adds_six_nuts(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = export_smt.write_hardware_bom(tmp)
             with open(path, newline="", encoding="utf-8") as handle:
-                rows = list(csv.DictReader(handle))
+                reader = csv.DictReader(handle)
+                rows = list(reader)
+                self.assertEqual(
+                    reader.fieldnames,
+                    ["Comment", "Designator", "Qty", "Length_mm",
+                     "Notes", "Sites_xy"],
+                )
 
-        by_length = {float(row["Length_mm"]): row for row in rows}
+        screw_rows = [row for row in rows
+                      if row["Designator"].startswith("SCREW_M2X")]
+        nut_rows = [row for row in rows if row["Designator"] == "NUT_M2"]
         groups = joints.screw_length_groups()
+
+        self.assertEqual(len(screw_rows), len(groups))
+        self.assertEqual(sum(int(row["Qty"]) for row in screw_rows), 6)
+        self.assertEqual(len(nut_rows), 1)
+        self.assertEqual(nut_rows[0], {
+            "Comment": "M2 DIN 934 hex nut",
+            "Designator": "NUT_M2",
+            "Qty": "6",
+            "Length_mm": "1.6",
+            "Notes": "4.0 mm AF nominal; verify against SLA fit coupon",
+            "Sites_xy": ";".join(
+                f"({site.x:g},{site.y:g})" for site in nut_traps.sites()
+            ),
+        })
+
+        by_length = {float(row["Length_mm"]): row for row in screw_rows}
         self.assertEqual(set(by_length), set(groups))
         for length, selections in groups.items():
             row = by_length[length]
-            self.assertEqual(int(row["Qty"]), len(selections))
+            self.assertEqual(row["Comment"],
+                             f"M2x{length:g} pan-head machine screw")
             self.assertEqual(row["Designator"], f"SCREW_M2X{length:g}")
+            self.assertEqual(int(row["Qty"]), len(selections))
+            self.assertEqual(
+                row["Notes"],
+                "Rear machine screw into captive DIN 934 M2 nut",
+            )
             self.assertEqual(
                 row["Sites_xy"],
                 ";".join(f"({s.x:g},{s.y:g})" for s in selections),
             )
+
+        rendered = "\n".join(",".join(row.values()) for row in rows).lower()
+        self.assertNotIn("self" + "-tap", rendered)
+        self.assertNotIn("pi" + "lot", rendered)
+
+    def test_nut_row_owns_sites_and_dimensions_independently_of_screws(self):
+        fake_sites = (
+            SimpleNamespace(x=1.25, y=2.5),
+            SimpleNamespace(x=3.75, y=4.5),
+        )
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch.object(joints, "screw_length_groups", return_value={}), \
+                mock.patch.object(
+                    joints,
+                    "selected_screws",
+                    side_effect=AssertionError("nut row consulted rear screws"),
+                ), \
+                mock.patch.object(nut_traps, "sites", return_value=fake_sites), \
+                mock.patch.object(export_smt.P, "NUT_NOMINAL_AF", 3.9), \
+                mock.patch.object(export_smt.P, "NUT_MAX_T", 1.7):
+            path = export_smt.write_hardware_bom(tmp)
+            with open(path, newline="", encoding="utf-8") as handle:
+                rows = list(csv.DictReader(handle))
+
+        self.assertEqual(rows, [{
+            "Comment": "M2 DIN 934 hex nut",
+            "Designator": "NUT_M2",
+            "Qty": "2",
+            "Length_mm": "1.7",
+            "Notes": "3.9 mm AF nominal; verify against SLA fit coupon",
+            "Sites_xy": "(1.25,2.5);(3.75,4.5)",
+        }])
+
+    def test_tracked_hardware_bom_exactly_matches_deterministic_export(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            generated_path = Path(export_smt.write_hardware_bom(tmp))
+            generated = generated_path.read_bytes()
+
+        canonical = TRACKED_HARDWARE_BOM.read_bytes()
+        self.assertNotIn(b"\r\n", generated)
+        self.assertEqual(generated, canonical)
+
+        stale = canonical.replace(b"SCREW_M2X12", b"SCREW_M2X14", 1)
+        self.assertNotEqual(stale, canonical)
+        with self.assertRaises(AssertionError):
+            self.assertEqual(generated, stale)
 
 
 if __name__ == "__main__":

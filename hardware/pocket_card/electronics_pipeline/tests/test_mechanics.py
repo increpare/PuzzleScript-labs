@@ -747,7 +747,9 @@ class LockMechanicalItemsTest(unittest.TestCase):
         self.assertEqual(path.read_bytes(), before)
 
     def test_cli_rejects_drift_nonzero_and_preserves_bytes(self):
-        text = _unlocked_canonical_text().replace("\n\t\t(at 66 84)", "\n\t\t(at 66.2 84)", 1)
+        text = _unlocked_canonical_text()
+        self.assertEqual(text.count("\n\t\t(at 64.5 84)"), 1)
+        text = text.replace("\n\t\t(at 64.5 84)", "\n\t\t(at 64.7 84)", 1)
         path = self._temporary_board(text)
         before = path.read_bytes()
         result = subprocess.run(

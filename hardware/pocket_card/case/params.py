@@ -27,6 +27,29 @@ WALL   = 1.5           # ASSUMED  shell wall thickness, sides and back
 # and leaves stock for a shaped rim (split-lip design 2026-08-02).
 LID_T  = 6.0           # DECIDED  back tray; front SHELL_DEPTH = BODY_T - LID_T
 FACE_T = 1.5           # DECIDED  front face thickness in the button area
+
+# Captive DIN 934 M2 nut closure, all dimensions in mm. The production cavity
+# is coupon-tuned for JLC SLA 8001; the complete cage envelope remains fixed so
+# every coupon variant is covered by the same shell-clearance contract.
+NUT_NOMINAL_AF = 4.0           # NOMINAL  stocked nut width across flats
+NUT_AF = 4.4                   # DECIDED  production cavity across flats
+NUT_AF_VARIANTS = (4.3, 4.4, 4.5)  # DECIDED  SLA fit-coupon cavities
+NUT_KERNEL_MIN_AF = 0.0001     # KERNEL  minimum reliable across-flats size;
+                               # 50x the smallest verified-valid OCC sweep
+NUT_MAX_T = 1.6                # DIN 934  maximum physical nut thickness
+NUT_CAVITY_T = 1.8             # DECIDED  axial cavity depth
+NUT_ROOF_T = 1.0               # DECIDED  printed load-bearing roof
+NUT_ROOF_TAPER = 0.5           # DECIDED  mm axial/radial, 45-degree inside
+                               # chamfer; leaves 0.5 mm flat exterior-side roof
+NUT_THROAT_W = 4.6             # DECIDED  side-loading throat width
+NUT_WALL = 1.0                 # DECIDED  minimum radial cage wall
+MACHINE_SCREW_CLEAR_D = 2.4    # DECIDED  M2 screw clearance bore diameter
+MACHINE_SCREW_TIP_RELIEF = 0.6  # DECIDED  bore depth into front-face floor
+NUT_ENVELOPE_R = 3.6           # DECIDED  conservative complete cage radius
+CONTROLLER_CHUTE_WALL = 1.2    # DECIDED  rigid U-chute rail/end-wall thickness
+CONTROLLER_CHUTE_END_CLEAR = 0.15  # DECIDED  staged nut to closed end wall
+CONTROLLER_CHUTE_OVERLAP = 1.8  # DECIDED  rail start, fused into round cage
+CONTROLLER_DROP_OVERTRAVEL = 0.1  # PROCESS  open-top drop-path margin
 # Outer "brick" belt (face↔side, back↔side) and screen lip. Keep ≤~0.8 so the
 # 1.5 mm wall/face is not knifed down at the rim.
 EDGE_CHAMFER = 0.8        # DECIDED  softer perimeter (was 0.6)
@@ -166,6 +189,8 @@ COLLAR_DEPTH   = 2.2        # ASSUMED  guide length below the inner face
 HARD_STOP_AT   = 0.35  # DECIDED  flange lands here: past 0.25 actuation,
                        #          before the switch bottoms
 CAP_BOSS_GAP   = 0.5   # ASSUMED  boss end to plunger at rest
+SCULPTED_ROUND_CAP_FLAT_DEPTH = 0.85
+SCULPTED_RESET_RIM_H = 0.55
 
 # Snap-over collar shoulder (production hard stop). Flange clicks in from the
 # PCB side over a ramp; the flat top of the lip stops travel at HARD_STOP_AT.
@@ -216,10 +241,10 @@ DIR_GAP        = (2 ** 0.5) * DIR_RADIUS - DIR_CAP_D # 4.73 between adjacent cap
 UNDO_X,  UNDO_Y  = 60.40, 65.80    # was DMG "B", inboard
 ACT_X,   ACT_Y   = 77.10, 61.10    # was DMG "A"
 # Reset joins the right-hand cluster as a small round cap -- subordinate to
-# Undo/Action by size, which is the hierarchy the July 12 spec asked for.
+# Undo/Action by size. It moves left to free the complete lower-right H2
+# captive-nut envelope.
 # Menu stays a slit: it is the most recessive control on the device.
-RESET_X, RESET_Y = 56.50, 80.00    # was 81.60; north so mute clears courtyard
-                                   # the driver retaining ring by 0.10 mm
+RESET_X, RESET_Y = 54.50, 80.00
 RESET_CAP_D      = DIR_CAP_D       # 8.0, same as a direction button
 MENU_X,  MENU_Y  = 39.60, 85.40    # was DMG "Start", still a pill
 MENU_ANGLE       = 0.0             # DECIDED  straight, not slanted like the DMG
@@ -255,10 +280,9 @@ DECORATIVE_SILK = False
 # pin tip). A rear flare on the front shell made the board impossible to seat.
 # Left mount (4.5,56) dropped: side-arc back land cannot host a shoulder/head
 # left of the cell. Right-strip mounts get rear screws via EXTRA_BOSSES.
-# H1 nudged west so J_BAT_OUT1's courtyard clears its Ø7.7 land; H2 moved
-# south so the land clears J_BAT_IN1's courtyard (the old (66,81) land
-# overlapped it corner-on behind the board).
-PCB_MOUNTS = ((64.5, 56.0), (66.0, 84.0))
+# H1 nudged west so J_BAT_OUT1's courtyard clears its Ø7.7 land. H2 aligns
+# vertically with H1 and its complete captive-nut envelope is clear of Reset.
+PCB_MOUNTS = ((64.5, 56.0), (64.5, 84.0))
 PCB_MOUNT_D    = 2.6   # clearance hole in the board
 PCB_POST_D     = 2.4   # front pin through the hole
 PCB_SHOULDER_D = 4.4   # back-shell column the board rests on
@@ -283,6 +307,14 @@ PCB_RIB_Y0, PCB_RIB_Y1 = 53.0, 54.4
 # 39 mm for a 34 mm cell plus fence -- there is no room for both. The fence is
 # only a locating rib, so it is left open at the top and this rib retains the
 # cell as well as supporting the board. One feature, two jobs.
+
+# Rigid face-side stop opposite the battery fence's left rail.  It does not
+# snap over or pierce the PCB: the board installs straight down and retains a
+# small axial assembly gap, while the stop limits lift/rattle on the otherwise
+# unclamped lower-left side.
+PCB_FRONT_STOP_X, PCB_FRONT_STOP_Y = 8.0, 82.0
+PCB_FRONT_STOP_D = 3.2
+PCB_FRONT_STOP_GAP = 0.20
 
 POWER_SW_X = 20.0                  # DECIDED  bottom edge, far left
 # Mute must sit left of the driver bore (~x 68.7–83.3) and clear Reset/H4
@@ -434,19 +466,25 @@ DECK_ZONE_T = (
 DECK_H = round(DECK_ZONE_T - BODY_T, 3)  # unchanged: 2.40 mm
 DECK_FLOOR_Z = -DECK_ZONE_T + WALL
 
-DECK_PLATEAU_Y0 = (
+_DECK_REQUIRED_PLUG_Y0 = (
     DISPLAY_PLUG_Y - DISPLAY_PLUG_BODY_W / 2
     - DISPLAY_PLUG_CLEAR - WALL
 )
-DECK_PLATEAU_Y1 = (
+_DECK_REQUIRED_PLUG_Y1 = (
     DISPLAY_PLUG_Y + DISPLAY_PLUG_BODY_W / 2
     + DISPLAY_PLUG_CLEAR + WALL
 )
 
-# Move the upper shoulder 5 mm toward the plug while retaining the original
-# 22-degree profile as an explicit reference for the previous start point.
+# Translate the broad rear form 5 mm south.  All three interior profile
+# stations move together; keeping the plateau start at the plug datum was the
+# earlier bug, because it stretched the bump instead of translating its crest.
+DECK_BUMP_SHIFT_Y = 5.0
+DECK_PLATEAU_Y0 = _DECK_REQUIRED_PLUG_Y0 + DECK_BUMP_SHIFT_Y
+DECK_PLATEAU_Y1 = _DECK_REQUIRED_PLUG_Y1 + DECK_BUMP_SHIFT_Y
+
+# Retain the original 22-degree profile as an explicit reference for the
+# shoulder's pre-review start point.
 DECK_RISE_REFERENCE_PHI = 22.0
-DECK_RISE_START_SHIFT = 5.0
 _deck_rise_reference_p = _math.radians(DECK_RISE_REFERENCE_PHI)
 _deck_rise_reference_r = DECK_H / (
     2 * (1 - _math.cos(_deck_rise_reference_p))
@@ -455,10 +493,10 @@ _deck_rise_reference_run = (
     2 * _deck_rise_reference_r * _math.sin(_deck_rise_reference_p)
 )
 DECK_RISE_Y0 = (
-    DECK_PLATEAU_Y0 - _deck_rise_reference_run + DECK_RISE_START_SHIFT
+    DECK_PLATEAU_Y0 - _deck_rise_reference_run
 )
 DECK_RISE_RUN = DECK_PLATEAU_Y0 - DECK_RISE_Y0
-DECK_RISE_PHI = _math.degrees(2 * _math.atan(DECK_H / DECK_RISE_RUN))
+DECK_RISE_PHI = DECK_RISE_REFERENCE_PHI
 _deck_rise_p = _math.radians(DECK_RISE_PHI)
 DECK_RISE_R = DECK_H / (2 * (1 - _math.cos(_deck_rise_p)))
 
@@ -469,6 +507,28 @@ DECK_TAPER_RUN = DECK_TAPER_Y1 - DECK_TAPER_Y0
 DECK_TAPER_PHI = _math.degrees(2 * _math.atan(DECK_H / DECK_TAPER_RUN))
 _deck_taper_p = _math.radians(DECK_TAPER_PHI)
 DECK_TAPER_R = DECK_H / (2 * (1 - _math.cos(_deck_taper_p)))
+
+# ------------------------------------------------ rear tactile texture ----
+# The legacy Blender composition, rebuilt against the compound shell skin:
+# a partial running-bond band, a circular clear ring, and a recessed medallion
+# whose PuzzleScript-man silhouette remains proud.  Coordinates below are the
+# evaluated 2026-08-29 template geometry converted back to layout space.
+REAR_TEX_DEPTH = 0.30             # SLA 8001: visible/tactile, still leaves 1.2 mm wall
+REAR_TEX_LINE = 0.45              # printable recessed mortar width
+REAR_TEX_BRICK_W = 6.0
+REAR_TEX_ROW_H = 3.0
+REAR_TEX_X0 = 0.0
+REAR_TEX_X1 = BODY_W
+REAR_TEX_Y0 = 47.110077
+REAR_TEX_Y1 = 80.330240
+REAR_TEX_MEDALLION_X = 45.0
+REAR_TEX_MEDALLION_Y = 54.905323
+REAR_TEX_MEDALLION_CLEAR_D = 18.700676
+REAR_TEX_MEDALLION_D = 15.590497
+REAR_TEX_LOGO_X = 45.046322
+REAR_TEX_LOGO_Y = 54.689465
+REAR_TEX_LOGO_CELL = 2.0
+REAR_TEX_SCREW_CLEAR = 0.80       # beyond the pan-head envelope
 
 # ------------------------------------------------------------ USB-C port ----
 # The module's own receptacle, in the left wall. It is dead centre of the
@@ -591,9 +651,9 @@ BACK_ROLL_S    = 3.5                   # ASSUMED  cell-limited (check enforces)
 MIN_MEMBRANE = 0.8     # ASSUMED  min solid behind any counterbore seat (mm)
 LAND_WALL    = 1.2     # ASSUMED  radial land material beyond the head pocket
 
-# Assembly screws are M2 pan-head self-tappers into the Ø1.7 front-shell
-# pilots (joints.SHAFT_CLEAR_D = 2.6, HEAD_D = 5.0).  Their lengths are now
-# selected per profile-aware rear seat and grouped in joints.py; see
+# Assembly screws are M2 pan-head machine screws through the 2.4 mm clearance
+# path into captive DIN 934 M2 nuts. Their stocked lengths and variable rear
+# head-seat depths are selected from the compound profile in joints.py; see
 # out/hardware_BOM.csv.
 
 # Switch height is a direct thickness lever: every millimetre of TACT_H is a
@@ -638,6 +698,11 @@ DRIVER_PILL = True                 # MEASURED  stadium profile, not a box
 # the back of the wall only and the front 2.0 mm stays continuous as a locator.
 DRIVER_CABLE_W = 5.0               # MEASURED  notch width
 DRIVER_CABLE_CLR = 1.5             # MEASURED  notch height, from the driver's back
+# The stadium locator is symmetric, so production installs the driver rotated
+# 180 degrees with its physical lead tabs facing south.  The north notch remains
+# a harmless candidate opening, but is not a usable route: it enters the Action
+# collar's moving envelope and could pinch or chafe the leads.
+DRIVER_LEAD_EXIT = "south"          # DECIDED  approved installed orientation
 # The adhesive is a perimeter ring, so what matters is solid face under the RIM,
 # not over the whole footprint. Ring bond measured at 94-95% for 1.0-2.0 mm ring
 # widths; the missing 5% is the two points where the arm slot crosses the rim.

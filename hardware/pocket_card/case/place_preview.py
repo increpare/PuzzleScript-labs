@@ -11,6 +11,8 @@ Parts are separate files (not unioned) so they stay selectable.
   out/order/preview/tip_power.stl
   out/order/preview/tip_mute.stl
   out/order/preview/cap_*.stl
+  out/order/preview/nut_*.stl
+  out/order/preview/screw_*.stl
   out/order/pcb_placed.stl      (+ .step) — same PCB in shell model space
 
 Run:  .venv/bin/python place_preview.py
@@ -165,8 +167,41 @@ def place_caps():
           f"(clear {clr:.2f})")
 
 
+def _model_fasteners():
+    """Return named hardware after the one layout-to-model conversion."""
+    _, _, _, shell_front, _ = _load_modules()
+    package = __package__
+    nut_traps = importlib.import_module(
+        ".nut_traps" if package else "nut_traps", package
+    )
+    return tuple(
+        (name, shell_front.to_model_space(shape))
+        for name, shape in nut_traps.preview_fasteners()
+    )
+
+
+def place_fasteners():
+    """Export all separable preview nuts and screws in shell model space."""
+    _ensure_output_dirs()
+    cq, _, _, _, _ = _load_modules()
+    fasteners = _model_fasteners()
+    solids = []
+    for name, placed in fasteners:
+        solids.append(_as_shape(placed))
+        _export(placed, PREV / f"{name}.stl")
+        _export(placed, PREV / f"{name}.step")
+    compound = cq.Compound.makeCompound(solids)
+    _export(compound, PREV / "fasteners_placed.step")
+    _export(compound, ORDER / "fasteners_placed.step")
+    print(
+        f"fasteners    {len(solids)} separate STL/STEP + "
+        "fasteners_placed.step"
+    )
+    return fasteners
+
+
 def assemble():
-    """One STEP/STL with front + back + PCB in shell model space (showable)."""
+    """One STEP/STL with shells, PCB/components, and separable hardware."""
     _require_exports()
     _ensure_output_dirs()
     cq, _, _, shell_front, _ = _load_modules()
@@ -187,6 +222,8 @@ def assemble():
     _export(placed, PREV / "pcb.stl")
     _export(placed, PREV / "pcb.step")
 
+    parts.extend(_as_shape(shape) for _name, shape in _model_fasteners())
+
     compound = cq.Compound.makeCompound(parts)
     for folder, name in (
         (PREV, "assembly.step"),
@@ -196,7 +233,7 @@ def assemble():
     ):
         _export(compound, folder / name)
     bb = _bbox(compound)
-    print(f"assembly    {len(parts)} solids  "
+    print(f"assembly    {len(parts)} parts / {len(compound.Solids())} solids  "
           f"X[{bb.xmin:.2f},{bb.xmax:.2f}] "
           f"Y[{bb.ymin:.2f},{bb.ymax:.2f}] "
           f"Z[{bb.zmin:.2f},{bb.zmax:.2f}]")
@@ -209,6 +246,7 @@ def main():
     place_pcb()
     place_tips()
     place_caps()
+    place_fasteners()
     assemble()
     print("drag from out/order/preview/ — already in shell model space")
     print("PCB also at out/order/pcb_placed.stl")

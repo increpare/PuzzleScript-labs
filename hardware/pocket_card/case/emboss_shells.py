@@ -36,12 +36,19 @@ BUTTON_STEMS = (
     "cap_undo", "cap_action", "cap_reset", "cap_menu",
     "tip_power", "tip_mute",
 )
+FASTENER_STEMS = tuple(
+    name
+    for index in range(1, 7)
+    for name in (f"nut_{index}", f"screw_{index}")
+)
 TEMPLATE_COMPONENTS = ("Battery", "speaker")
+LEGACY_BACK_TEXTURE = "bricktexture_back"
 MATERIAL_SPECS = {
     "Case Purple": (0.435, 0.235, 0.765, 1.0),
     "Case White": (0.90, 0.90, 0.87, 1.0),
     "Button Yellow": (0.96, 0.67, 0.12, 1.0),
     "PCB Green": (0.12, 0.48, 0.20, 1.0),
+    "Fastener Steel": (0.38, 0.40, 0.43, 1.0),
 }
 
 
@@ -203,6 +210,8 @@ def preflight(paths):
     require_file(paths.back_input, "back input")
     for stem in BUTTON_STEMS:
         require_file(paths.preview / f"{stem}.stl", stem)
+    for stem in FASTENER_STEMS:
+        require_file(paths.preview / f"{stem}.stl", stem)
     require_file(paths.preview / "pcb.stl", "pcb")
 
     if Path(bpy.data.filepath).resolve() != paths.template:
@@ -255,6 +264,28 @@ def replace_mesh_data(target, imported):
     after = (target.name, tuple(mod.name for mod in target.modifiers))
     if after != identity:
         raise FinishError(f"{target.name}: object identity or modifier stack changed")
+
+
+def retire_legacy_back_texture(target):
+    """Disable the finite flat cutter superseded by native rear texture."""
+    matches = [
+        modifier
+        for modifier in target.modifiers
+        if modifier.type == "BOOLEAN"
+        and modifier.object is not None
+        and modifier.object.name == LEGACY_BACK_TEXTURE
+    ]
+    if len(matches) != 1:
+        raise FinishError(
+            f"{target.name}: expected one Boolean using "
+            f"{LEGACY_BACK_TEXTURE!r}, found {len(matches)}"
+        )
+    matches[0].show_render = False
+    matches[0].show_viewport = False
+    print(
+        "FINISH retired legacy flat rear texture: "
+        f"{LEGACY_BACK_TEXTURE}"
+    )
 
 
 def evaluated_mesh(target):
@@ -327,6 +358,8 @@ def make_material(name, colour):
     principled = material.node_tree.nodes.get("Principled BSDF")
     principled.inputs["Base Color"].default_value = colour
     principled.inputs["Roughness"].default_value = 0.45
+    if name == "Fastener Steel":
+        principled.inputs["Metallic"].default_value = 0.75
     return material
 
 
@@ -426,7 +459,7 @@ def build_clean_assembly(paths, staged_front, staged_back, staged_blend):
     bpy.context.preferences.filepaths.save_version = 0
 
     collections = {}
-    for name in ("Case", "Buttons", "Electronics", "Display"):
+    for name in ("Case", "Buttons", "Electronics", "Display", "Fasteners"):
         collection = bpy.data.collections.new(name)
         scene.collection.children.link(collection)
         collections[name] = collection
@@ -451,6 +484,11 @@ def build_clean_assembly(paths, staged_front, staged_back, staged_blend):
             paths.preview / f"{stem}.stl", stem, collections["Buttons"],
             materials["Button Yellow"],
         )
+    for stem in FASTENER_STEMS:
+        import_assembly_part(
+            paths.preview / f"{stem}.stl", stem, collections["Fasteners"],
+            materials["Fastener Steel"],
+        )
     import_assembly_part(
         paths.preview / "pcb.stl", "pcb", collections["Electronics"],
         materials["PCB Green"],
@@ -460,7 +498,7 @@ def build_clean_assembly(paths, staged_front, staged_back, staged_blend):
 
     expected = {
         "shell_front_embossed", "shell_back_embossed", "pcb", "es3c28p_3d",
-        *BUTTON_STEMS, *TEMPLATE_COMPONENTS,
+        *BUTTON_STEMS, *FASTENER_STEMS, *TEMPLATE_COMPONENTS,
     }
     actual = {obj.name for obj in bpy.data.objects if obj.type == "MESH"}
     if actual != expected:
@@ -530,6 +568,7 @@ def replace_assembly_mesh_data(target, imported):
             collection.name for collection in target.users_collection
         )),
         "materials": tuple(target.data.materials),
+        "data_name": target.data.name,
     }
     old_mesh = target.data
     new_mesh = imported.data
@@ -540,7 +579,7 @@ def replace_assembly_mesh_data(target, imported):
     bpy.data.objects.remove(imported, do_unlink=True)
     if old_mesh.users == 0:
         bpy.data.meshes.remove(old_mesh)
-    target.data.name = f"{target.name}_generated"
+    target.data.name = identity["data_name"]
 
     collections = tuple(sorted(
         collection.name for collection in target.users_collection
@@ -556,8 +595,75 @@ def replace_assembly_mesh_data(target, imported):
         raise FinishError(f"{target.name}: authored object state changed")
 
 
+def _fastener_material():
+    name = "Fastener Steel"
+    material = bpy.data.materials.get(name)
+    if material is None:
+        material = make_material(name, MATERIAL_SPECS[name])
+    else:
+        colour = MATERIAL_SPECS[name]
+        material.diffuse_color = colour
+        if material.node_tree:
+            principled = material.node_tree.nodes.get("Principled BSDF")
+            if principled:
+                principled.inputs["Base Color"].default_value = colour
+                principled.inputs["Roughness"].default_value = 0.45
+                principled.inputs["Metallic"].default_value = 0.75
+    return material
+
+
+def update_fasteners(paths, assembly_transform):
+    """Replace/create the twelve generated hardware meshes and placements.
+
+    Fastener transforms are pipeline-owned placement data, unlike authored
+    lookdev object transforms, so every refresh reapplies the shell assembly
+    matrix even when the named object already exists.
+    """
+    collection = bpy.data.collections.get("Fasteners")
+    if collection is None:
+        collection = bpy.data.collections.new("Fasteners")
+        bpy.context.scene.collection.children.link(collection)
+    material = _fastener_material()
+
+    for stem in FASTENER_STEMS:
+        target = bpy.data.objects.get(stem)
+        imported = import_one_stl(paths.preview / f"{stem}.stl", stem)
+        if target is None:
+            imported.name = stem
+            imported.data.name = f"{stem}_mesh"
+            move_to_collection(imported, collection)
+            assign_material(imported, material)
+            target = imported
+        else:
+            if target.type != "MESH":
+                raise FinishError(
+                    f"existing fastener {stem!r} is not a mesh"
+                )
+            move_to_collection(target, collection)
+            assign_material(target, material)
+            replace_assembly_mesh_data(target, imported)
+        target.matrix_world = assembly_transform.copy()
+
+    members = {obj.name for obj in collection.objects}
+    expected = set(FASTENER_STEMS)
+    if members != expected:
+        raise FinishError(
+            "Fasteners collection mismatch: "
+            f"missing={sorted(expected - members)}, "
+            f"extra={sorted(members - expected)}"
+        )
+    for stem in FASTENER_STEMS:
+        obj = bpy.data.objects[stem]
+        memberships = {item.name for item in obj.users_collection}
+        if memberships != {"Fasteners"}:
+            raise FinishError(
+                f"{stem}: expected exclusive Fasteners membership, "
+                f"got {sorted(memberships)}"
+            )
+
+
 def update_existing_assembly(
-    source, staged_front, staged_back, staged_blend
+    paths, source, staged_front, staged_back, staged_blend
 ):
     result = bpy.ops.wm.open_mainfile(filepath=str(source))
     if "FINISHED" not in result:
@@ -577,7 +683,14 @@ def update_existing_assembly(
         validate_object(target, f"existing assembly {name}", require_manifold=False)
         targets[name] = target
 
-    protected = preserved_object_state(excluded=targets)
+    pcb = bpy.data.objects.get("pcb")
+    if pcb is None or pcb.type != "MESH":
+        raise FinishError("existing assembly lacks mesh object 'pcb'")
+    validate_object(pcb, "existing assembly pcb")
+
+    protected = preserved_object_state(
+        excluded=set(targets) | set(FASTENER_STEMS) | {"pcb"}
+    )
     for name, staged_path in (
         ("shell_front_embossed", staged_front),
         ("shell_back_embossed", staged_back),
@@ -590,6 +703,15 @@ def update_existing_assembly(
             f"assembly replacement {name} local bounds", axes=(0, 1),
         )
         replace_assembly_mesh_data(targets[name], imported)
+
+    imported_pcb = import_one_stl(paths.preview / "pcb.stl", "assembly pcb")
+    assert_bounds_close(
+        local_bounds(imported_pcb), local_bounds(pcb),
+        "assembly replacement pcb local bounds",
+    )
+    replace_assembly_mesh_data(pcb, imported_pcb)
+
+    update_fasteners(paths, targets["shell_front_embossed"].matrix_world)
 
     assert_preserved_object_state(protected)
     bpy.context.preferences.filepaths.save_version = 0
@@ -614,7 +736,7 @@ def build_assembly(
         shutil.copy2(existing, staged_source)
         require_file(staged_source, "staged existing assembly")
         update_existing_assembly(
-            staged_source, staged_front, staged_back, staged_blend
+            paths, staged_source, staged_front, staged_back, staged_blend
         )
     else:
         build_clean_assembly(
@@ -671,6 +793,8 @@ def finish(paths):
                 f"generated {target_name}",
             )
             replace_mesh_data(targets[target_name], imported)
+            if target_name == "shell_back":
+                retire_legacy_back_texture(targets[target_name])
             staged_path = staging / output_name
             export_shell(
                 targets[target_name], staged_path, original_bounds[target_name]

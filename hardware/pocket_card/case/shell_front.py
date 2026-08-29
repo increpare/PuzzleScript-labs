@@ -17,6 +17,7 @@ import os
 
 import cadquery as cq
 
+import nut_traps
 import params as P
 import side_arc
 import slide_tip
@@ -31,7 +32,10 @@ FLAT_DEPTH = 0.8
 POST_D = 3.0                           # through the module's Ø3.2 holes
 SHOULDER_D = 5.5                       # module rests its PCB on this
 BOSS_D = 4.2                           # corner bosses, nothing to thread through
-POST_PILOT_D = 1.7                     # self-tapping screw pilot
+DRIVER_POCKET_WALL = 1.2
+DRIVER_POCKET_CLEAR = 0.6
+SPEAKER_WIRE_SERVICE = 0.4             # local bend pocket beyond locator wall
+SPEAKER_WIRE_RELIEF_CLEAR = 0.05       # boolean/process clearance around route
 # Bosses start this far INSIDE the face rather than on it. Landing a column
 # exactly on the cavity roof is a coincident-plane union, which OCC leaves
 # unfused: build() came out as seven solids, six of them loose pillars.
@@ -200,15 +204,14 @@ def button_station(hole_d=None, pill=False, keyed=True):
 
 
 def module_posts():
-    """Six screw bosses.
+    """Four locating sleeves plus any independent corner bosses.
 
     Four pass through the module's own Ø3.2 holes, so one feature locates the
-    module, retains it and closes the case. Two more sit in the bottom corners,
-    because those four are all in the upper 50 mm and the lower half -- the half
-    with the cell pressing outward -- would otherwise be held by the rim alone.
+    module, retains it and closes the case. Their Ø2.4 machine-screw bore runs
+    through the complete sleeve while the captive-nut void supplies the blind
+    tip relief behind the outer face. Independent corner bosses, when present,
+    are unthreaded lands rather than legacy self-tapper pilots.
     """
-    xs = (P.MOD_X + P.MOUNT_INSET, P.MOD_X + P.MOD_W - P.MOUNT_INSET)
-    ys = (P.MOD_Y + P.MOUNT_INSET, P.MOD_Y + P.MOD_H - P.MOUNT_INSET)
     add = cq.Workplane("XY")
     cut = cq.Workplane("XY")
 
@@ -216,28 +219,22 @@ def module_posts():
     # plane, then Ø3.0 through the module's own Ø3.2 hole. The shoulder is what
     # sets the module axially -- without it the board would come to rest against
     # the bezel, which must never touch the touch/LCD stack.
-    for x in xs:
-        for y in ys:
-            add = add.union(
-                cq.Workplane("XY").circle(SHOULDER_D / 2)
-                .extrude(-(MOD_PCB_FRONT - P.FACE_T + FACE_FUSE))
-                .translate((x, y, -P.FACE_T + FACE_FUSE)))
-            add = add.union(
-                cq.Workplane("XY").circle(POST_D / 2)
-                .extrude(-(SHELL_DEPTH - MOD_PCB_FRONT))
-                .translate((x, y, -MOD_PCB_FRONT)))
-            # Pilot up into the post AND shoulder: the old depth
-            # (SHELL_DEPTH - MOD_PCB_FRONT - 1.2 = 0.2 mm) gave the rear screw
-            # nothing to bite. Match the corner-boss engagement, capped 1.2
-            # short of the face.
-            cut = cut.union(
-                cq.Workplane("XY").circle(POST_PILOT_D / 2)
-                .extrude(SHELL_DEPTH - P.FACE_T - 1.2)
-                .translate((x, y, -SHELL_DEPTH)))
+    for site in nut_traps.sites()[:4]:
+        add = add.union(
+            cq.Workplane("XY").circle(SHOULDER_D / 2)
+            .extrude(-(MOD_PCB_FRONT - P.FACE_T + FACE_FUSE))
+            .translate((site.x, site.y, -P.FACE_T + FACE_FUSE)))
+        add = add.union(
+            cq.Workplane("XY").circle(POST_D / 2)
+            .extrude(-(SHELL_DEPTH - MOD_PCB_FRONT))
+            .translate((site.x, site.y, -MOD_PCB_FRONT)))
+        cut = cut.union(
+            nut_traps.screw_path(site, -SHELL_DEPTH - 0.1))
 
     # Corner bosses that do NOT coincide with a PCB mount can be fat (they
-    # pass through nothing). Sites that are also PCB_MOUNTS get a thin pin +
-    # pilot from pcb_posts() instead — a Ø4.2 column cannot go through Ø2.6.
+    # pass through nothing). Sites that are also PCB_MOUNTS are now wholly
+    # supplied by their captive-nut cages — a Ø4.2 column cannot go through
+    # the controller board's Ø2.6 hole.
     pcb_mounts = set(P.PCB_MOUNTS)
     for x, y in P.EXTRA_BOSSES:
         if (x, y) in pcb_mounts:
@@ -246,10 +243,149 @@ def module_posts():
             cq.Workplane("XY").circle(BOSS_D / 2)
             .extrude(-(SHELL_DEPTH - P.FACE_T + FACE_FUSE))
             .translate((x, y, -P.FACE_T + FACE_FUSE)))
-        cut = cut.union(
-            cq.Workplane("XY").circle(POST_PILOT_D / 2)
-            .extrude(SHELL_DEPTH - P.FACE_T - 1.2).translate((x, y, -SHELL_DEPTH)))
     return add, cut
+
+
+def pcb_front_stop():
+    """Rigid axial stop opposing the left battery-fence support rail.
+
+    The end remains just in front of the PCB, so assembly is a straight drop
+    with no resin flexure.  Once the right-side screws clamp the board, this
+    limits frontward lift at the unsupported lower-left corner.
+    """
+    z_front = -P.FACE_T + FACE_FUSE
+    z_back = -P.PCB_FRONT_Z + P.PCB_FRONT_STOP_GAP
+    return (
+        cq.Workplane("XY")
+        .workplane(offset=z_front)
+        .center(P.PCB_FRONT_STOP_X, P.PCB_FRONT_STOP_Y)
+        .circle(P.PCB_FRONT_STOP_D / 2.0)
+        .extrude(z_back - z_front)
+    )
+
+
+def _speaker_lead_notch(sign):
+    """Return the existing rear lead-notch cutter for one driver end."""
+    if sign not in (-1, 1):
+        raise ValueError("speaker lead notch sign must be -1 or 1")
+    driver_h = P.DRIVER_H + DRIVER_POCKET_CLEAR
+    driver_back_z = -P.FACE_T - P.DRIVER_T
+    return (
+        cq.Workplane("XY")
+        .box(
+            P.DRIVER_CABLE_W,
+            2.0 * (DRIVER_POCKET_WALL + SPEAKER_WIRE_SERVICE),
+            P.DRIVER_CABLE_CLR + SPEAKER_WIRE_SERVICE,
+            centered=(True, True, False),
+        )
+        .translate((
+            P.GRILLE_X,
+            P.GRILLE_Y + sign * driver_h / 2.0,
+            driver_back_z - SPEAKER_WIRE_SERVICE,
+        ))
+    )
+
+
+def _south_speaker_wire_route_specs():
+    """Box specs for the exit, strain-relief drop, and interior return."""
+    driver_back_z = -P.FACE_T - P.DRIVER_T
+    driver_end_y = P.GRILLE_Y + P.DRIVER_H / 2.0
+    locator_crossing = (
+        (P.DRIVER_H + DRIVER_POCKET_CLEAR
+         + 2.0 * DRIVER_POCKET_WALL) / 2.0
+        - P.DRIVER_H / 2.0
+    )
+    lead_length = locator_crossing + SPEAKER_WIRE_SERVICE
+    drop_length = 2.0 * SPEAKER_WIRE_SERVICE
+    # Keep the deeper bend wholly inboard of the perimeter wall; only the
+    # shallow exit leg needs the intentional perimeter service pocket.
+    drop_outer_y = (
+        driver_end_y + locator_crossing - SPEAKER_WIRE_SERVICE / 4.0
+    )
+    drop_center_y = drop_outer_y - drop_length / 2.0
+    return_length = P.DRIVER_CABLE_CLR + 2.0 * SPEAKER_WIRE_SERVICE
+    return_center_y = drop_center_y - return_length / 2.0
+    return (
+        (P.DRIVER_CABLE_W, lead_length, P.DRIVER_CABLE_CLR,
+         P.GRILLE_X, driver_end_y + lead_length / 2.0, driver_back_z),
+        (P.DRIVER_CABLE_W, drop_length, 2.0 * P.DRIVER_CABLE_CLR,
+         P.GRILLE_X, drop_center_y,
+         driver_back_z - P.DRIVER_CABLE_CLR),
+        (P.DRIVER_CABLE_W, return_length, P.DRIVER_CABLE_CLR,
+         P.GRILLE_X, return_center_y,
+         driver_back_z - P.DRIVER_CABLE_CLR),
+    )
+
+
+def _speaker_wire_route_box(spec, clear=0.0):
+    width, length, height, x, y, z = spec
+    return (
+        cq.Workplane("XY")
+        .box(width + 2.0 * clear, length + 2.0 * clear,
+             height + 2.0 * clear, centered=(True, True, False))
+        .translate((x, y, z - clear))
+    )
+
+
+def speaker_wire_envelopes():
+    """Return the north candidate and approved south local lead envelopes.
+
+    Both start at the measured driver body and cross the complete locator-wall
+    thickness near the driver's rear.  North retains the original analytical
+    candidate through its notch, but is explicitly unapproved because it runs
+    into the Action collar.  The symmetric driver is installed rotated 180
+    degrees so its tabs face south; that route continues into a small internal
+    bend/service pocket relieved in the perimeter wall.  Neither envelope
+    claims to model the remote harness route.
+    """
+    driver_back_z = -P.FACE_T - P.DRIVER_T
+    locator_outer_half_h = (
+        P.DRIVER_H + DRIVER_POCKET_CLEAR
+        + 2.0 * DRIVER_POCKET_WALL
+    ) / 2.0
+    locator_crossing = locator_outer_half_h - P.DRIVER_H / 2.0
+    pcb_front_z = -P.PCB_FRONT_Z
+    z_back = min(driver_back_z, pcb_front_z)
+    z_front = max(driver_back_z + P.DRIVER_CABLE_CLR, pcb_front_z)
+    north_length = locator_crossing + 1.0
+    north = (cq.Workplane("XY")
+             .box(P.DRIVER_CABLE_W, north_length, z_front - z_back,
+                  centered=(True, True, False))
+             .translate((
+                 P.GRILLE_X,
+                 P.GRILLE_Y - (P.DRIVER_H / 2.0 + north_length / 2.0),
+                 z_back,
+             )))
+
+    # Give the installed leads a truthful local path: after crossing the south
+    # locator wall they turn behind the driver, then return north underneath
+    # its measured rear plane into the open PCB notch.  This is only the
+    # strain-relief bend, not a connector route.
+    south = cq.Workplane("XY")
+    for spec in _south_speaker_wire_route_specs():
+        south = south.union(_speaker_wire_route_box(spec))
+    return north, south
+
+
+def speaker_wire_service_relief():
+    """Exact production cutter for the approved south local service route.
+
+    A 0.05 mm boolean/process margin prevents coincident faces.  The route
+    crosses the south locator wall and opens a 0.4 mm bend pocket into the
+    internal face of the bottom perimeter.  That shallow perimeter cut stops
+    behind a 1.0+ mm exterior skin and above the split-lap engagement band;
+    the deeper return leg remains wholly in the ordinary interior void.
+    """
+    if P.DRIVER_LEAD_EXIT != "south":
+        raise ValueError("front-shell speaker relief is authored for south exit")
+    clear = SPEAKER_WIRE_RELIEF_CLEAR
+    # Offset the three orthogonal legs separately rather than expanding the
+    # route's overall bounding box: a bounding box would needlessly cut the
+    # split skirt beneath the perimeter bend.
+    relief = cq.Workplane("XY")
+    for spec in _south_speaker_wire_route_specs():
+        relief = relief.union(_speaker_wire_route_box(spec, clear))
+    return relief
 
 
 def driver_pocket():
@@ -269,8 +405,9 @@ def driver_pocket():
     These walls only square the driver up, which is why they can be freely
     interrupted for the collars and the lead notches.
     """
-    wall = 1.2
-    w, h = P.DRIVER_W + 0.6, P.DRIVER_H + 0.6
+    wall = DRIVER_POCKET_WALL
+    w = P.DRIVER_W + DRIVER_POCKET_CLEAR
+    h = P.DRIVER_H + DRIVER_POCKET_CLEAR
     z_face = -P.FACE_T                      # driver's front, on the face
     z_back = z_face - P.DRIVER_T            # driver's back
     z_stop = -(P.PCB_FRONT_Z - 0.2)         # walls end above the board front
@@ -287,18 +424,14 @@ def driver_pocket():
     walls = outer.cut(bore)
 
     # Lead notches through BOTH end walls. North is -y in layout space, which
-    # to_model_space() turns into the top of the finished part. The driver's
-    # leads leave on the north edge, but the north route passes under the Action
-    # collar, where the lead could be pinched or chafed by the moving cap; the
-    # south notch is the escape if that turns out to be so. An unused notch
-    # costs nothing -- these walls are only a locator, and they are already
-    # discontinuous where the collars relieve them.
+    # to_model_space() turns into the top of the finished part. The symmetric
+    # driver is installed with its physical tabs facing the approved south
+    # exit. North remains an unapproved analytical candidate because it passes
+    # under the Action collar, where a moving cap could pinch or chafe a lead.
+    # The unused notch costs nothing: these walls only locate the driver and
+    # are already discontinuous where collars relieve them.
     for sign in (-1, 1):
-        walls = walls.cut(
-            cq.Workplane("XY")
-            .box(P.DRIVER_CABLE_W, 2 * (wall + 1.0),
-                 P.DRIVER_CABLE_CLR + 1, centered=(True, True, False))
-            .translate((P.GRILLE_X, P.GRILLE_Y + sign * h / 2, z_back - 1)))
+        walls = walls.cut(_speaker_lead_notch(sign))
 
     # Relieve the wall wherever a button collar encroaches. Action's collar
     # reaches y=69.1 and the pocket wall starts at 68.5, so a full box would
@@ -312,32 +445,6 @@ def driver_pocket():
             cq.Workplane("XY").circle(r).extrude(-(P.FACE_T + P.DRIVER_T + 2))
             .translate((cx, cy, 0)))
     return walls
-
-
-def pcb_posts():
-    """Thin pins the controller PCB drops onto (no rear flare).
-
-    Pin runs from the face through the board hole and a short tip past the PCB
-    back into the back-shell shoulder bore. Wide shoulders live on shell_back
-    so the board can be seated from the front.
-    """
-    pcb_back = P.PCB_FRONT_Z + P.PCB_T
-    pin_end = pcb_back + P.PCB_PIN_TIP
-    screw_sites = set(P.EXTRA_BOSSES)
-    add = cq.Workplane("XY")
-    cut = None
-    for x, y in P.PCB_MOUNTS:
-        add = add.union(
-            cq.Workplane("XY").circle(P.PCB_POST_D / 2)
-            .extrude(-(pin_end - P.FACE_T + FACE_FUSE))
-            .translate((x, y, -P.FACE_T + FACE_FUSE)))
-        if (x, y) in screw_sites:
-            # Pilot for a self-tapper from the back lid through the board hole.
-            pilot = (cq.Workplane("XY").circle(POST_PILOT_D / 2)
-                     .extrude(pin_end - P.FACE_T - 1.0)
-                     .translate((x, y, -pin_end)))
-            cut = pilot if cut is None else cut.union(pilot)
-    return add if cut is None else add.cut(cut)
 
 
 def edge_openings():
@@ -388,7 +495,7 @@ def to_model_space(shape):
     return shape.mirror("XZ").translate((0, P.BODY_H, 0))
 
 
-def build():
+def build(*, apply_speaker_wire_relief=True):
     shell = outer_body().cut(cavity())
     shell = shell.cut(screen_aperture())
     shell = _chamfer_aperture_lip(shell)
@@ -412,8 +519,37 @@ def build():
 
     add, cut = module_posts()
     shell = shell.union(add).cut(cut)
-    shell = shell.union(pcb_posts())
+    shell = shell.union(pcb_front_stop())
     shell = shell.union(driver_pocket())
+
+    # Fuse every fixed cage before cutting any cavity. This preserves overlap
+    # for robust booleans at the module sleeves and button-collar neighbours.
+    for site in nut_traps.sites():
+        shell = shell.union(nut_traps.front_material(site))
+    for site in nut_traps.sites():
+        shell = shell.cut(nut_traps.front_voids(site))
+    # Module nuts slide directly in from the open interior. Controller nuts
+    # instead drop into rigid open-top staging chutes, then slide under the
+    # cage roof. The installed PCB caps those chutes without carrying clamp
+    # load. Cut all loading motion first, then add the fixed rails/end walls so
+    # the path stays open but cannot be reversed after board installation.
+    for site in nut_traps.sites():
+        loading = (
+            nut_traps.insertion_sweep(site)
+            if site.kind == "module"
+            else nut_traps.controller_loading_voids(site)
+        )
+        shell = shell.cut(loading)
+    for site in nut_traps.sites():
+        if site.kind == "pcb":
+            shell = shell.union(nut_traps.controller_chute_material(site))
+
+    # All fixed internal material is present before opening the approved local
+    # speaker-lead route, so no later collar/cage union can refill it.  Envelope
+    # clipping remains last and preserves the compound-rounded exterior.
+    if apply_speaker_wire_relief:
+        shell = shell.cut(speaker_wire_service_relief())
+
     shell = shell.cut(edge_openings())
     shell = shell.cut(grille_slots())
     # Keep posts/collars from ever sitting outside the curved envelope.

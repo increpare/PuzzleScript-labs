@@ -542,11 +542,14 @@ def check_driver_vs_collars():
 
 
 def check_pcb_posts_vs_collars():
-    """Front pins rise through the button cavity — must miss the collars.
+    """Controller M2 axes must miss the button collars.
 
-    Clearance uses the thin pin Ø (shoulders are on the back shell now).
+    The complete H1 cage intentionally fuses into the fixed Undo collar; that
+    is not a component collision. The exact moving nut/sweep clearance through
+    the finished solid is measured by check_captive_nut_traps immediately
+    below this legacy axis-placement check.
     """
-    print("\nPCB pillars vs button collars")
+    print("\nPCB M2 axes vs button collars")
     collars = [("dir up", P.DIR_CX, P.DIR_CY - P.DIR_RADIUS, P.DIR_CAP_D),
                ("dir down", P.DIR_CX, P.DIR_CY + P.DIR_RADIUS, P.DIR_CAP_D),
                ("dir left", P.DIR_CX - P.DIR_RADIUS, P.DIR_CY, P.DIR_CAP_D),
@@ -558,16 +561,424 @@ def check_pcb_posts_vs_collars():
     which = "?"
     for px, py in P.PCB_MOUNTS:
         for nm, cx, cy, d in collars:
-            r = d / 2 + P.CAP_FLANGE_OS + P.COLLAR_CLEAR + 1.2
-            gap = ((px - cx) ** 2 + (py - cy) ** 2) ** 0.5 - r - P.PCB_POST_D / 2
+            r = (d / 2 + P.CAP_FLANGE_OS + P.COLLAR_CLEAR
+                 + shell_front.COLLAR_WALL)
+            gap = (((px - cx) ** 2 + (py - cy) ** 2) ** 0.5
+                   - r - P.MACHINE_SCREW_CLEAR_D / 2)
             if gap < worst:
                 worst, which = gap, "(%.1f,%.1f) vs %s" % (px, py, nm)
     ok = worst >= 0
     print(f"   {'PASS' if ok else 'FAIL'}  tightest {which} {worst:+.2f} mm")
     if not ok:
-        FAILURES.append("PCB pillar fouls a collar")
-    # Assembly: no rear flare on the front — shoulder Ø only on the back.
-    print(f"   ok    PCB shoulders on back shell (front pins Ø{P.PCB_POST_D})")
+        FAILURES.append("PCB M2 axis fouls a collar")
+    print("   ok    controller front locating pins removed; M2 axes locate H1/H2")
+
+
+def _workplane_volume(shape):
+    return sum(solid.Volume() for solid in shape.solids().vals())
+
+
+def check_captive_nut_traps(front_model=None):
+    """Inspect all six captive-nut traps in the assembled front solid.
+
+    ``front_model`` is injectable so the unit test can reuse its one expensive
+    front build. Normal checks intentionally build the production solid here.
+    Geometry is converted back to layout space, where params, nut_traps and
+    the existing component/envelope helpers are authored.
+    """
+    import cadquery as cq
+
+    import joints
+    import nut_traps
+    import place_preview
+    import shell_back
+
+    print("\ncaptive-nut traps (built front)")
+    if front_model is None:
+        front_model = shell_front.build()
+    solids = front_model.solids().vals()
+    valid = bool(solids) and front_model.val().isValid()
+    one = len(solids) == 1
+    print(f"   {'PASS' if valid and one else 'FAIL'}  front valid and one solid "
+          f"(valid={valid}, solids={len(solids)})")
+    if not valid or not one:
+        FAILURES.append(
+            f"captive nuts: invalid/multiple front solid ({len(solids)})")
+
+    front = shell_front.to_model_space(front_model)
+    outer = shell_front.outer_body()
+    sites = nut_traps.sites()
+    metrics = {}
+
+    actual_traps = []
+    for index, site in enumerate(sites, start=1):
+        label = f"{site.kind} {index} ({site.x:.1f},{site.y:.1f})"
+        nut_overlap = _workplane_volume(
+            front.intersect(nut_traps.nut_solid(site)))
+        sweep_overlap = _workplane_volume(
+            front.intersect(nut_traps.insertion_sweep(site)))
+        screw_overlap = _workplane_volume(
+            front.intersect(nut_traps.screw_path(
+                site, -shell_front.SHELL_DEPTH - 0.1)))
+        metrics[(site.x, site.y)] = {
+            "nut_overlap": nut_overlap,
+            "sweep_overlap": sweep_overlap,
+            "screw_overlap": screw_overlap,
+        }
+        print(f"   {'PASS' if max(nut_overlap, sweep_overlap, screw_overlap) < 1e-5 else 'FAIL'}  "
+              f"{label}: nut {nut_overlap:.6f}, sweep {sweep_overlap:.6f}, "
+              f"M2 path {screw_overlap:.6f} mm^3")
+        if nut_overlap >= 1e-5:
+            FAILURES.append(f"captive nut collision at ({site.x},{site.y})")
+        if sweep_overlap >= 1e-5:
+            FAILURES.append(
+                f"captive nut insertion sweep collision at ({site.x},{site.y})")
+        if screw_overlap >= 1e-5:
+            FAILURES.append(
+                f"captive nut M2 screw path blocked at ({site.x},{site.y})")
+
+        material = nut_traps.front_material(site)
+        actual = front.intersect(material)
+        actual_traps.append(actual)
+        outside = _workplane_volume(material.cut(outer))
+        required = material.cut(nut_traps.front_voids(site))
+        missing = _workplane_volume(required.cut(front))
+
+        skin = (cq.Workplane("XY").circle(P.NUT_ENVELOPE_R)
+                .extrude(0.05).translate((site.x, site.y, -0.50)))
+        required_skin = skin.intersect(outer)
+        skin_missing = _workplane_volume(required_skin.cut(front))
+        retained_ok = missing < 1e-5
+        envelope_ok = outside < 1e-8 and skin_missing < 1e-5
+        print(f"   {'PASS' if envelope_ok else 'FAIL'}  {label}: compound-envelope "
+              f"outside {outside:.6f}, outer-skin missing "
+              f"{skin_missing:.6f} mm^3")
+        print(f"   {'PASS' if retained_ok else 'FAIL'}  {label}: retained "
+              f"roof/taper/load missing {missing:.6f} mm^3")
+        if outside >= 1e-8:
+            FAILURES.append(
+                f"captive nut cage outside compound envelope at ({site.x},{site.y})")
+        if skin_missing >= 1e-5:
+            FAILURES.append(
+                f"captive nut exterior skin breach at ({site.x},{site.y})")
+        if not retained_ok:
+            FAILURES.append(
+                f"captive nut roof/taper/load clipped at ({site.x},{site.y})")
+
+    # The two controller mouths terminate in rigid U-chutes. Before the PCB is
+    # installed the nut drops through an open top and slides inward; afterward
+    # the actual FR4 caps that complete opening while the rails and end wall
+    # stop every low lateral escape route.
+    raw_controller = cq.importers.importStep(
+        str(place_preview.PCB_DIR / "pocket_card_controller.step")
+    )
+    actual_controller = place_preview.kicad_pcb_to_model_space(raw_controller)
+    actual_controller = (
+        actual_controller.val()
+        if hasattr(actual_controller, "val")
+        else actual_controller
+    )
+    actual_board = max(
+        actual_controller.Solids(), key=lambda solid: solid.Volume()
+    )
+    for index, site in enumerate(sites[4:], start=5):
+        loading_overlap = _workplane_volume(
+            front.intersect(nut_traps.controller_loading_sweep(site))
+        )
+        chute = nut_traps.controller_chute_material(site)
+        material_missing = _workplane_volume(chute.cut(front))
+        model_chute = shell_front.to_model_space(chute).val()
+        component_overlap = sum(
+            solid.Volume()
+            for solid in model_chute.intersect(actual_controller).Solids()
+        )
+        opening = shell_front.to_model_space(
+            nut_traps.controller_stage_opening(site)
+        ).val()
+        opening_missing = sum(
+            solid.Volume() for solid in opening.cut(actual_board).Solids()
+        )
+        pcb_gap = abs(-P.PCB_FRONT_Z - chute.val().BoundingBox().zmin)
+        metrics.update({
+            f"controller_chute_{index}_loading_overlap": loading_overlap,
+            f"controller_chute_{index}_material_missing": material_missing,
+            f"controller_chute_{index}_pcb_opening_missing": opening_missing,
+            f"controller_chute_{index}_component_overlap": component_overlap,
+            f"controller_chute_{index}_pcb_gap": pcb_gap,
+        })
+        ok = (
+            max(
+                loading_overlap,
+                material_missing,
+                opening_missing,
+                component_overlap,
+            ) < 1e-5
+            and 0.15 <= pcb_gap < P.NUT_MAX_T
+        )
+        print(
+            f"   {'PASS' if ok else 'FAIL'}  controller chute {index}: "
+            f"loading {loading_overlap:.6f}, material missing "
+            f"{material_missing:.6f}, PCB opening missing "
+            f"{opening_missing:.6f}, components {component_overlap:.6f} "
+            f"mm^3; PCB cap gap {pcb_gap:.3f} mm"
+        )
+        if not ok:
+            FAILURES.append(
+                f"controller captive-nut chute invalid at ({site.x},{site.y})"
+            )
+
+    # Physical component envelopes. The purchased display's mounting datum is
+    # its real PCB, not a fictitious solid block filling the glass-to-PCB gap.
+    display_pcb = (cq.Workplane("XY")
+                   .box(P.MOD_W, P.MOD_H, P.MOD_PCB_T, centered=False)
+                   .translate((P.MOD_X, P.MOD_Y,
+                               -(P.MODULE_Z + P.MOD_FRONT_STACK)))
+                   .edges("|Z").fillet(P.MOD_CORNER_R))
+    controller_pcb = shell_front.to_model_space(
+        shell_back.pcb_outline_wire()).translate(
+            (0, 0, -(P.PCB_FRONT_Z + P.PCB_T)))
+    battery_front = -(P.PCB_FRONT_Z + P.PCB_T + P.PET_T)
+    battery_depth = P.CELL_T + P.CELL_SWELL
+    battery = (cq.Workplane("XY")
+               .box(P.CELL_W, P.CELL_H, battery_depth, centered=False)
+               .translate((P.BATT_X, P.BATT_Y,
+                           battery_front - battery_depth)))
+    speaker = (cq.Workplane("XY")
+               .slot2D(P.DRIVER_H, P.DRIVER_W, 90)
+               .extrude(-P.DRIVER_T)
+               .translate((P.GRILLE_X, P.GRILLE_Y, -P.FACE_T)))
+    reset_guide, _ = shell_front.button_station(
+        hole_d=P.RESET_CAP_D, pill=False)
+    reset_guide = shell_front._dev(reset_guide, P.RESET_X, P.RESET_Y)
+    reset_flange_r = P.RESET_CAP_D / 2 + P.CAP_FLANGE_OS
+    reset_travel = (cq.Workplane("XY").circle(reset_flange_r)
+                    .extrude(-(P.FACE_T + P.COLLAR_DEPTH + P.CAP_PROUD))
+                    .translate((P.RESET_X, P.RESET_Y, P.CAP_PROUD)))
+
+    components = (
+        ("display module PCB", display_pcb),
+        ("controller PCB", controller_pcb),
+        ("battery", battery),
+        ("Reset guide", reset_guide),
+        ("Reset cap travel", reset_travel),
+        ("vertical-stadium speaker", speaker),
+    )
+    for name, component in components:
+        overlap = sum(
+            _workplane_volume(trap.intersect(component))
+            for trap in actual_traps
+        )
+        ok = overlap < 1e-5
+        print(f"   {'PASS' if ok else 'FAIL'}  traps vs {name}: "
+              f"{overlap:.6f} mm^3")
+        if not ok:
+            FAILURES.append(f"captive nut trap collides with {name}")
+
+    trap_envelopes = [nut_traps.front_material(site) for site in sites]
+    wires = dict(zip(
+        ("north", "south"), shell_front.speaker_wire_envelopes()
+    ))
+    for exit_name, wire in wires.items():
+        envelope_overlap = sum(
+            _workplane_volume(trap.intersect(wire))
+            for trap in trap_envelopes
+        )
+        actual_overlap = sum(
+            _workplane_volume(trap.intersect(wire))
+            for trap in actual_traps
+        )
+        clearance = min(
+            trap.val().distance(wire.val())
+            for trap in trap_envelopes
+        )
+        metrics[f"speaker_wire_{exit_name}_overlap"] = max(
+            envelope_overlap,
+            actual_overlap,
+        )
+        metrics[f"speaker_wire_{exit_name}_clearance"] = clearance
+        ok = max(envelope_overlap, actual_overlap) < 1e-5
+        print(f"   {'PASS' if ok else 'FAIL'}  traps vs speaker lead "
+              f"{exit_name}: envelope {envelope_overlap:.6f}, actual "
+              f"{actual_overlap:.6f} mm^3; minimum {clearance:.3f} mm")
+        if not ok:
+            FAILURES.append(
+                f"captive nut trap collides with speaker lead {exit_name}")
+
+        front_overlap = _workplane_volume(front.intersect(wire))
+        metrics[f"speaker_wire_{exit_name}_front_overlap"] = front_overlap
+        if exit_name == P.DRIVER_LEAD_EXIT:
+            route_ok = front_overlap < 1e-5
+            print(f"   {'PASS' if route_ok else 'FAIL'}  approved speaker lead "
+                  f"{exit_name} route vs finished front: "
+                  f"{front_overlap:.6f} mm^3")
+            if not route_ok:
+                FAILURES.append(
+                    f"approved speaker lead {exit_name} route blocked by front")
+        else:
+            print(f"   INFO  speaker lead {exit_name} candidate unavailable: "
+                  f"finished-front overlap {front_overlap:.6f} mm^3 "
+                  "(Action collar/pinch risk)")
+
+    relief = shell_front.speaker_wire_service_relief()
+    relief_bounds = relief.val().BoundingBox()
+    base = outer.cut(shell_front.cavity())
+    cut_material = base.intersect(relief)
+    cut_bounds = cut_material.val().BoundingBox()
+    relief_cut = _workplane_volume(cut_material)
+    radial_skin = P.BODY_H - cut_bounds.ymax
+    face_skin = -relief_bounds.zmax
+    rebate_top = -shell_front.SHELL_DEPTH + P.LAP_H + P.LAP_OVER
+    split_gap = cut_bounds.zmin - rebate_top
+    metrics.update({
+        "speaker_wire_relief_volume": relief_cut,
+        "speaker_wire_radial_skin": radial_skin,
+        "speaker_wire_face_skin": face_skin,
+        "speaker_wire_split_gap": split_gap,
+    })
+    print("   INFO  approved south relief route extent: "
+          f"{relief_bounds.xlen:.2f} x {relief_bounds.ylen:.2f} x "
+          f"{relief_bounds.zlen:.2f} mm; perimeter cut "
+          f"{cut_bounds.xlen:.2f} x {cut_bounds.ylen:.2f} x "
+          f"{cut_bounds.zlen:.2f} mm, {relief_cut:.6f} mm^3")
+
+    skin_probe = (cq.Workplane("XY")
+                  .box(cut_bounds.xlen, radial_skin, cut_bounds.zlen,
+                       centered=(True, True, False))
+                  .translate((
+                      (cut_bounds.xmin + cut_bounds.xmax) / 2.0,
+                      cut_bounds.ymax + radial_skin / 2.0,
+                      cut_bounds.zmin,
+                  )))
+    required_skin = base.intersect(skin_probe)
+    skin_missing = _workplane_volume(required_skin.cut(front))
+    skin_ok = (
+        radial_skin >= P.NUT_ROOF_T - 1e-9
+        and face_skin >= P.FACE_T - 1e-9
+        and skin_missing < 1e-5
+    )
+    print(f"   {'PASS' if skin_ok else 'FAIL'}  speaker relief retains "
+          f"{radial_skin:.3f} mm rounded perimeter skin and "
+          f"{face_skin:.3f} mm face-side skin; missing "
+          f"{skin_missing:.6f} mm^3")
+    if not skin_ok:
+        FAILURES.append("speaker lead relief breaches exterior skin")
+
+    lip_probe = (cq.Workplane("XY")
+                 .box(cut_bounds.xlen, P.WALL,
+                      P.LAP_H + P.LAP_OVER,
+                      centered=(True, True, False))
+                 .translate((
+                     (cut_bounds.xmin + cut_bounds.xmax) / 2.0,
+                     P.BODY_H - P.WALL / 2.0,
+                     -shell_front.SHELL_DEPTH,
+                 )))
+    required_lip = base.intersect(lip_probe)
+    lip_missing = _workplane_volume(required_lip.cut(front))
+    lip_ok = split_gap >= P.LAP_FRONT_T - 1e-9 and lip_missing < 1e-5
+    print(f"   {'PASS' if lip_ok else 'FAIL'}  speaker relief remains "
+          f"{split_gap:.3f} mm above split rebate; retained-lip missing "
+          f"{lip_missing:.6f} mm^3")
+    if not lip_ok:
+        FAILURES.append("speaker lead relief weakens split lip")
+
+    # Rear joint material is authored by the shared joint helper. Side walls,
+    # collars and the front split lip are already included in the built-front
+    # nut/sweep/path intersection above, so those clearances are measured on
+    # the real finished solid rather than on separate analytic surrogates.
+    joint_overlap = 0.0
+    for joint in joints.back_joints():
+        joint_solid = joint.material().cut(joint.voids())
+        joint_overlap += sum(
+            _workplane_volume(trap.intersect(joint_solid))
+            for trap in actual_traps
+        )
+    ok = joint_overlap < 1e-5
+    print(f"   {'PASS' if ok else 'FAIL'}  traps vs matching rear joint "
+          f"material: {joint_overlap:.6f} mm^3")
+    if not ok:
+        FAILURES.append("captive nut trap collides with matching joint volume")
+    moving_clear = all(
+        max(site_metrics[name] for name in (
+            "nut_overlap", "sweep_overlap", "screw_overlap")) < 1e-5
+        for site_key, site_metrics in metrics.items()
+        if isinstance(site_key, tuple)
+    )
+    print(f"   {'PASS' if moving_clear else 'FAIL'}  nut/sweep/M2 probes include "
+          "real side walls, collars and split lip")
+
+    h2_x, h2_y = P.PCB_MOUNTS[1]
+    radius = P.NUT_ENVELOPE_R
+    battery_gap = h2_x - (P.BATT_X + P.CELL_W) - radius
+    cap_offset = (P.DRIVER_H - P.DRIVER_W) / 2.0
+    closest_cap_y = max(
+        P.GRILLE_Y - cap_offset,
+        min(h2_y, P.GRILLE_Y + cap_offset),
+    )
+    speaker_gap = (
+        math.hypot(h2_x - P.GRILLE_X, h2_y - closest_cap_y)
+        - P.DRIVER_W / 2.0
+        - radius
+    )
+    reset_outer_r = (
+        P.RESET_CAP_D / 2.0
+        + P.CAP_FLANGE_OS
+        + P.COLLAR_CLEAR
+        + shell_front.COLLAR_WALL
+    )
+    reset_gap = (
+        math.hypot(h2_x - P.RESET_X, h2_y - P.RESET_Y)
+        - radius
+        - reset_outer_r
+    )
+    metrics.update({
+        "h2_battery_gap": battery_gap,
+        "h2_speaker_gap": speaker_gap,
+        "h2_reset_gap": reset_gap,
+    })
+    for name, gap, minimum in (
+        ("battery right edge", battery_gap, 1.8),
+        ("vertical-stadium speaker left arc", speaker_gap, 0.9),
+        ("Reset guide/cap outer envelope", reset_gap, 0.6),
+    ):
+        ok = gap >= minimum - 1e-9
+        print(f"   {'PASS' if ok else 'FAIL'}  H2 to {name}: "
+              f"{gap:.3f} mm (minimum {minimum:.1f})")
+        if not ok:
+            FAILURES.append(
+                f"captive nut H2 {name} gap {gap:.3f} < {minimum:.1f} mm")
+    return metrics
+
+
+def pcb_front_stop_metrics():
+    """Return the axial and XY support contract for the left front stop."""
+    import cadquery as cq
+    import shell_back
+
+    model_x = P.PCB_FRONT_STOP_X
+    model_y = P.BODY_H - P.PCB_FRONT_STOP_Y
+    probe = (
+        cq.Workplane("XY")
+        .circle(P.PCB_FRONT_STOP_D / 2.0)
+        .extrude(0.2)
+        .translate((model_x, model_y, 0.7))
+    )
+    on_board = (
+        _workplane_volume(shell_back.pcb_outline_wire().intersect(probe))
+        > 0.1
+    )
+    fence_x0 = P.BATT_X - P.BATT_CLEAR - shell_back.FENCE_T
+    fence_x1 = P.BATT_X - P.BATT_CLEAR
+    fence_y0 = P.BATT_Y - P.BATT_CLEAR
+    fence_y1 = P.BATT_Y + P.CELL_H + P.BATT_CLEAR
+    opposes_fence = (
+        fence_x0 <= P.PCB_FRONT_STOP_X <= fence_x1
+        and fence_y0 <= P.PCB_FRONT_STOP_Y <= fence_y1
+    )
+    return {
+        "axial_gap": P.PCB_FRONT_STOP_GAP,
+        "on_board": on_board,
+        "opposes_fence": opposes_fence,
+    }
 
 
 def check_pcb_support():
@@ -632,6 +1043,21 @@ def check_pcb_support():
           f"(rib also retains the cell from above)")
     if not ok:
         FAILURES.append("rib fouls cell")
+
+    stop = pcb_front_stop_metrics()
+    ok = (
+        abs(stop["axial_gap"] - 0.20) <= 1e-9
+        and stop["on_board"]
+        and stop["opposes_fence"]
+    )
+    print(
+        f"   {'PASS' if ok else 'FAIL'}  left front stop gap "
+        f"{stop['axial_gap']:.2f} mm, "
+        f"{'on board' if stop['on_board'] else 'off board'}, "
+        f"{'opposes fence' if stop['opposes_fence'] else 'misses fence'}"
+    )
+    if not ok:
+        FAILURES.append("left PCB front stop")
 
 
 def check_pcb_mounts():
@@ -1087,6 +1513,7 @@ def check_display_plug():
     import cadquery as cq
 
     import shell_back
+    import side_arc
 
     back = shell_back.to_model_space(shell_back.build_back())
     rear = -(P.MODULE_Z + P.MOD_FRONT_STACK)
@@ -1126,17 +1553,22 @@ def check_display_plug():
     if not ok:
         FAILURES.append("no room for the display-plug cable exit")
 
-    # 3. Both footprint ends, including clearance and the wall, must land on
-    #    the full-depth plateau rather than either transition.
-    north = (P.DISPLAY_PLUG_Y - P.DISPLAY_PLUG_BODY_W / 2
-             - P.DISPLAY_PLUG_CLEAR - P.WALL)
-    south = (P.DISPLAY_PLUG_Y + P.DISPLAY_PLUG_BODY_W / 2
-             + P.DISPLAY_PLUG_CLEAR + P.WALL)
-    ok = P.DECK_PLATEAU_Y0 <= north and south <= P.DECK_PLATEAU_Y1
-    print(f"   {'PASS' if ok else 'FAIL'}  pocket y {north:.2f}..{south:.2f} "
-          f"inside plateau {P.DECK_PLATEAU_Y0:.2f}..{P.DECK_PLATEAU_Y1:.2f}")
+    # 3. The real 3D collision probes above show the translated 22-degree rise
+    #    already clears the connector.  Lock the broad crest to the translated
+    #    datum so a future "clearance" edit cannot anchor it at the old Y again.
+    original_crest = (
+        P.DISPLAY_PLUG_Y - P.DISPLAY_PLUG_BODY_W / 2
+        - P.DISPLAY_PLUG_CLEAR - P.WALL
+    )
+    ok = (
+        abs(P.DECK_PLATEAU_Y0 - (original_crest + P.DECK_BUMP_SHIFT_Y)) < 1e-9
+        and side_arc.rear_deck_extra_at(P.DISPLAY_PLUG_Y) < P.DECK_H
+    )
+    print(f"   {'PASS' if ok else 'FAIL'}  broad crest translated from y "
+          f"{original_crest:.2f} to {P.DECK_PLATEAU_Y0:.2f}; connector lies "
+          f"on the {side_arc.rear_deck_extra_at(P.DISPLAY_PLUG_Y):.3f} mm rise")
     if not ok:
-        FAILURES.append("display-plug pocket runs into a deck transition")
+        FAILURES.append("rear crest is still anchored at the display plug")
 
     # 4. Nothing else on the module needs the added depth, which is why the
     #    upper screen region can return to the normal rear plane.
@@ -1428,10 +1860,36 @@ def check_screw_joints():
         seat = j.seat_z
         errs = []
         selection = selections[(j.x, j.y, j.kind)]
-        if selection.engagement < joints.MIN_THREAD_ENGAGEMENT - 1e-9:
+        nut_front_z = -P.FACE_T
+        nut_back_z = nut_front_z - P.NUT_MAX_T
+        tip_z = selection.seat_z + selection.length
+        outer_back_z = j.skin_range()[1]
+        if selection.length not in joints.STOCKED_MACHINE_SCREW_LENGTHS:
+            errs.append(f"M2x{selection.length:g} is not an approved stock length")
+        if not (joints.MIN_HEAD_SEAT_DEPTH - 1e-9
+                <= selection.seat_depth
+                <= joints.MAX_HEAD_SEAT_DEPTH + 1e-9):
+            errs.append(f"seat depth {selection.seat_depth:.3f} outside range")
+        if abs(selection.outer_back_z - outer_back_z) > 1e-9:
+            errs.append("selected outer-back profile datum is inconsistent")
+        if abs(selection.seat_z
+               - (selection.outer_back_z + selection.seat_depth)) > 1e-9:
+            errs.append("selected seat/profile arithmetic is inconsistent")
+        if abs(selection.seat_z - seat) > 1e-9:
+            errs.append("selected seat does not match rear joint geometry")
+        if seat > nut_back_z + 1e-9:
+            errs.append("screw does not cross the complete 1.6 mm nut")
+        if not (joints.MIN_TIP_PROTRUSION - 1e-9
+                <= selection.tip_protrusion
+                <= joints.MAX_TIP_PROTRUSION + 1e-9):
             errs.append(
-                f"M2x{selection.length:g} engagement "
-                f"{selection.engagement:.2f} < {joints.MIN_THREAD_ENGAGEMENT:.2f}")
+                f"tip protrusion {selection.tip_protrusion:.3f} outside range")
+        if abs(selection.tip_protrusion - (tip_z - nut_front_z)) > 1e-9:
+            errs.append("selected tip/seat arithmetic is inconsistent")
+        if tip_z > nut_front_z + P.MACHINE_SCREW_TIP_RELIEF + 1e-9:
+            errs.append("screw tip exceeds the blind front relief")
+        if P.FACE_T - P.MACHINE_SCREW_TIP_RELIEF < 0.9 - 1e-9:
+            errs.append("less than 0.9 mm exterior front skin remains")
         # 1. pocket open: skin -> seat across the footprint
         for dx in (-0.7 * j.head_r, 0.0, 0.7 * j.head_r):
             xx = j.x + dx
@@ -1460,8 +1918,9 @@ def check_screw_joints():
             errs.append(f"land missing inboard at z={z_mid:.2f}")
         ok = not errs
         print(f"   {'PASS' if ok else 'FAIL'}  {j.kind:6} ({j.x:5.1f},{j.y:5.1f}) "
-              f"seat z={seat:6.2f}, M2x{selection.length:g} engagement "
-              f"{selection.engagement:.2f}, membrane>={P.MIN_MEMBRANE}")
+              f"seat z={seat:6.2f} depth={selection.seat_depth:.3f}, "
+              f"M2x{selection.length:g} tip={selection.tip_protrusion:.3f}, "
+              f"membrane>={P.MIN_MEMBRANE}")
         for e in errs:
             print(f"          {e}")
         if not ok:
@@ -1957,6 +2416,7 @@ def main():
     check_pcb_mounts()
     check_pcb_support()
     check_pcb_posts_vs_collars()
+    check_captive_nut_traps()
     check_driver_vs_collars()
     check_grille_vs_driver()
     check_cap_fits_collar()

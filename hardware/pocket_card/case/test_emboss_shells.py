@@ -16,19 +16,26 @@ CASE = ROOT / "hardware/pocket_card/case"
 TEMPLATE = ROOT / "hardware/card/case/case_updated.blend"
 DISPLAY = ROOT / "hardware/card/case/es3c28p_3d.blend"
 SCRIPT = CASE / "emboss_shells.py"
+VERIFY = CASE / "tools/verify_complete_rear_profile.py"
 BLENDER_TIMEOUT = 180
 SHELL_OBJECTS = {"shell_front_embossed", "shell_back_embossed"}
 
-EXPECTED_COLLECTIONS = {"Case", "Buttons", "Electronics", "Display"}
+EXPECTED_COLLECTIONS = {"Case", "Buttons", "Electronics", "Display", "Fasteners"}
 EXPECTED_TEMPLATE_COMPONENTS = {"Battery", "speaker"}
 EXPECTED_BUTTONS = {
     "cap_up", "cap_down", "cap_left", "cap_right",
     "cap_undo", "cap_action", "cap_reset", "cap_menu",
     "tip_power", "tip_mute",
 }
+EXPECTED_FASTENERS = {
+    name
+    for index in range(1, 7)
+    for name in (f"nut_{index}", f"screw_{index}")
+}
+GENERATED_MESH_OBJECTS = SHELL_OBJECTS | EXPECTED_FASTENERS | {"pcb"}
 EXPECTED_OBJECTS = EXPECTED_BUTTONS | {
     "shell_front_embossed", "shell_back_embossed", "pcb", "es3c28p_3d",
-} | EXPECTED_TEMPLATE_COMPONENTS
+} | EXPECTED_TEMPLATE_COMPONENTS | EXPECTED_FASTENERS
 
 
 def blender_bin():
@@ -117,6 +124,16 @@ def run_blender_expression(path, expression):
     if result.returncode:
         raise AssertionError(result.stdout)
     return result.stdout
+
+
+def run_verifier(path):
+    return run_bounded(
+        [
+            blender_bin(), "--background", str(path),
+            "--python-exit-code", "1", "--python", str(VERIFY),
+        ],
+        "complete assembly verifier",
+    )
 
 
 def inspect_blend(path):
@@ -363,6 +380,25 @@ for name in {sorted(SHELL_OBJECTS)!r}:
     obj = bpy.data.objects[name]
     obj.data.vertices[0].co.z += 0.013
 
+pcb = bpy.data.objects["pcb"]
+pcb.data.vertices[0].co.z += 0.019
+
+for name in {sorted(EXPECTED_FASTENERS)!r}:
+    obj = bpy.data.objects[name]
+    obj.data.vertices[0].co.z += 0.021
+
+# Fastener mesh and placement are generated.  Disturb both a nut and screw so
+# the second run must restore the authoritative assembly placement rather than
+# accidentally preserving authored-looking transforms on generated hardware.
+nut = bpy.data.objects["nut_1"]
+nut.location.x += 100.0
+nut.rotation_euler = (0.31, -0.27, 0.19)
+nut.scale = (1.4, 0.7, 1.2)
+screw = bpy.data.objects["screw_6"]
+screw.location = (-17.0, 23.0, 41.0)
+screw.rotation_euler = (-0.42, 0.18, 0.73)
+screw.scale = (0.6, 1.3, 0.8)
+
 if {mutate_buttons!r}:
     for name in {button_names!r}:
         obj = bpy.data.objects[name]
@@ -421,6 +457,10 @@ class BlenderFinishIntegrationTest(unittest.TestCase):
             output = Path(tmp)
             result = run_pipeline(output)
             self.assertEqual(result.returncode, 0, result.stdout)
+            self.assertIn(
+                "FINISH retired legacy flat rear texture: bricktexture_back",
+                result.stdout,
+            )
 
             for name in (
                 "shell_front_embossed.stl",
@@ -446,6 +486,9 @@ class BlenderFinishIntegrationTest(unittest.TestCase):
             )
             for name in EXPECTED_BUTTONS:
                 self.assertEqual(inventory["materials"][name], ["Button Yellow"])
+            for name in EXPECTED_FASTENERS:
+                self.assertEqual(inventory["materials"][name], ["Fastener Steel"])
+                self.assertEqual(inventory["memberships"][name], ["Fasteners"])
             self.assertEqual(inventory["materials"]["pcb"], ["PCB Green"])
             for name in EXPECTED_TEMPLATE_COMPONENTS:
                 self.assertEqual(
@@ -482,7 +525,7 @@ class BlenderFinishIntegrationTest(unittest.TestCase):
 
         self.assertEqual((sha256(TEMPLATE), TEMPLATE.stat().st_mtime_ns), before)
 
-    def test_second_run_replaces_only_shell_mesh_data_in_existing_assembly(self):
+    def test_second_run_replaces_only_generated_mesh_data_in_existing_assembly(self):
         with tempfile.TemporaryDirectory() as tmp:
             output = Path(tmp)
             first = run_pipeline(output)
@@ -538,15 +581,40 @@ class BlenderFinishIntegrationTest(unittest.TestCase):
 
             for key in (
                 "collections", "collection_children", "objects", "materials",
-                "transforms", "modifiers", "memberships", "world_matrices",
-                "parents", "custom_properties", "display_transform",
+                "modifiers", "memberships", "parents", "custom_properties",
+                "display_transform",
                 "display_material_count", "display_images", "scene", "world",
                 "cameras", "lights", "relative_resources",
             ):
                 self.assertEqual(after[key], before[key], key)
 
+            expected_fastener_matrix = before["world_matrices"][
+                "shell_front_embossed"
+            ]
+            for name in EXPECTED_FASTENERS:
+                for row, (actual_row, expected_row) in enumerate(zip(
+                    after["world_matrices"][name], expected_fastener_matrix
+                )):
+                    for column, (actual, expected) in enumerate(zip(
+                        actual_row, expected_row
+                    )):
+                        self.assertAlmostEqual(
+                            actual, expected, places=6,
+                            msg=f"{name} matrix [{row},{column}]",
+                        )
+            for key in ("transforms", "world_matrices"):
+                before_authored = {
+                    name: value for name, value in before[key].items()
+                    if name not in EXPECTED_FASTENERS
+                }
+                after_authored = {
+                    name: value for name, value in after[key].items()
+                    if name not in EXPECTED_FASTENERS
+                }
+                self.assertEqual(after_authored, before_authored, key)
+
             for name, mesh_hash in before["mesh_hashes"].items():
-                if name in SHELL_OBJECTS:
+                if name in GENERATED_MESH_OBJECTS:
                     self.assertNotEqual(after["mesh_hashes"][name], mesh_hash, name)
                 else:
                     self.assertEqual(after["mesh_hashes"][name], mesh_hash, name)
@@ -604,6 +672,71 @@ class BlenderFinishIntegrationTest(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0, result.stdout)
             for name, contents in sentinels.items():
                 self.assertEqual((output / name).read_bytes(), contents)
+
+    def test_missing_fastener_fails_preflight_and_preserves_previous_outputs(self):
+        sentinels = {
+            "shell_front_embossed.stl": b"old-front",
+            "shell_back_embossed.stl": b"old-back",
+            "pocket_card_complete.blend": b"old-blend",
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp)
+            preview = output / "preview"
+            shutil.copytree(CASE / "out/order/preview", preview)
+            (preview / "nut_4.stl").unlink()
+            for name, contents in sentinels.items():
+                (output / name).write_bytes(contents)
+
+            result = run_pipeline(output, "--preview-dir", preview)
+            self.assertNotEqual(result.returncode, 0, result.stdout)
+            self.assertIn("nut_4: missing or empty file", result.stdout)
+            for name, contents in sentinels.items():
+                self.assertEqual((output / name).read_bytes(), contents)
+
+    def test_verifier_rejects_invalid_fastener_inventory_and_placement(self):
+        canonical = CASE / "out/order/pocket_card_complete.blend"
+        mutations = {
+            "missing": ("inventory", (
+                'bpy.data.objects.remove(bpy.data.objects["nut_1"], '
+                'do_unlink=True)'
+            )),
+            "miscollected": ("inventory", "\n".join((
+                'obj = bpy.data.objects["screw_2"]',
+                'bpy.data.collections["Fasteners"].objects.unlink(obj)',
+                'bpy.data.collections["Case"].objects.link(obj)',
+            ))),
+            "mismaterial": ("inventory", "\n".join((
+                'obj = bpy.data.objects["nut_3"]',
+                'obj.data.materials.clear()',
+                'obj.data.materials.append(bpy.data.materials["Case White"])',
+            ))),
+            "displaced_nut": ("fasteners", (
+                'bpy.data.objects["nut_1"].location.x += 100.0'
+            )),
+            "rotated_scaled_screw": ("fasteners", "\n".join((
+                'obj = bpy.data.objects["screw_4"]',
+                'obj.rotation_euler.z += 0.4',
+                'obj.scale = (1.0, 0.7, 1.3)',
+            ))),
+            "swapped_sites": ("fasteners", "\n".join((
+                'first = bpy.data.objects["nut_1"]',
+                'second = bpy.data.objects["nut_2"]',
+                'first.data, second.data = second.data, first.data',
+            ))),
+        }
+        for label, (failure, mutation) in mutations.items():
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as tmp:
+                candidate = Path(tmp) / "candidate.blend"
+                shutil.copy2(canonical, candidate)
+                run_blender_expression(
+                    candidate,
+                    "import bpy\n" + mutation + "\n"
+                    "bpy.context.preferences.filepaths.save_version = 0\n"
+                    "bpy.ops.wm.save_as_mainfile(check_existing=False)\n",
+                )
+                result = run_verifier(candidate)
+                self.assertNotEqual(result.returncode, 0, result.stdout)
+                self.assertIn(f"FAIL {failure}", result.stdout)
 
 
 class MakeIntegrationTest(unittest.TestCase):

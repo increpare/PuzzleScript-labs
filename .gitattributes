@@ -11,6 +11,12 @@ src/standalone_inlined.txt linguist-generated
 bin/** linguist-generated
 build/** linguist-generated
 
+# Generated OCCT/KiCad STEP files retain exporter-emitted trailing spaces.
+hardware/pocket_card/case/out/*.step -whitespace
+hardware/pocket_card/case/out/order/*.step -whitespace
+hardware/pocket_card/case/out/order/preview/*.step -whitespace
+hardware/pocket_card/case/out/pcb/*.step -whitespace
+
 # Firmware fixture is byte-copied PuzzleScript source for ESP-IDF embedding.
 firmware/esp32p4/main/sokoban_basic.txt conflict-marker-size=32 -whitespace
 

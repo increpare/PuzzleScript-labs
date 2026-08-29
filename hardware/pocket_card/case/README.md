@@ -41,6 +41,7 @@ Or from this directory:
 ```
 .venv/bin/python params.py        # print the derived stack-up
 .venv/bin/python coupon.py        # build the clearance-ladder coupon
+.venv/bin/python nut_trap_coupon.py  # build the captive M2 nut fit coupon
 .venv/bin/python checks.py        # verify the exported STL
 .venv/bin/python build_variants.py  # shells, caps, tips, assembly
 ```
@@ -108,6 +109,39 @@ make pocket_card_case_sculpted
 The Makefile finds `blender` on `PATH`, then checks the standard macOS app
 location. Override either with `BLENDER=/absolute/path/to/blender`.
 
+### Captive-nut digital review checkpoint
+
+From the repository root, render the checked existing complete assembly into
+four deterministic closure-review views with:
+
+```
+make pocket_card_captive_nut_review
+```
+
+The command renders the checked existing complete assembly; it does not run
+the case build or replace the `.blend` first.
+
+The target writes 1200 x 900 PNGs without saving or modifying the canonical
+`out/order/pocket_card_complete.blend`. It renders and validates all four in a
+staging directory, strips path/time PNG metadata, then publishes the complete
+set transactionally so a failed run cannot leave mixed generations:
+
+- `out/order/review/captive_nuts_assembled.png` — rear three-quarter closure,
+  all six rear screw heads, and the compound-rounded shell surface.
+- `out/order/review/captive_nuts_exploded.png` — back and six screws moved
+  exactly 18 mm rearward while the front, electronics, and nuts stay fixed.
+- `out/order/review/captive_nuts_h2_cutaway.png` — the real H2 board
+  pass-through and nut cage beside the moved Reset guide, battery right edge,
+  and actual vertical-stadium speaker, with the screw axis clear of the driver.
+- `out/order/review/captive_nuts_trap_closeups.png` — actual module and
+  controller shell sections side by side, with each nut partly withdrawn along
+  its authoritative loading mouth and the roof, bore, and screw alignment
+  visible.
+
+These renders are a digital inspection checkpoint, not physical validation.
+The SLA captive-nut coupon, a complete shell print, and the documented
+ten-cycle assembly/service test are still required before production approval.
+
 When no complete assembly exists, the clean fallback creates four generated
 collections:
 
@@ -126,6 +160,48 @@ and render settings therefore remain alongside the four generated part
 collections listed above.
 
 ## What to print first
+
+### Captive-nut closure
+
+**`out/order/nut_trap_coupon.stl`** (with a STEP copy beside it) is the first
+closure print. Its left-to-right stations are engraved **4.3**, **4.4**, and
+**4.5** for the cavity width across flats. Each station includes the production
+1.5 mm face/floor stack, 1.8 mm cavity, 1.0 mm roof (a 0.5 mm 45-degree
+transition followed by 0.5 mm straight roof), 4.6 mm side-loading throat, Ø2.4
+screw path, and 0.6 mm blind tip relief. The mouths run through the coupon edge
+so a real DIN 934 M2 nut follows the same outside-to-seated path as it will in
+the four display-module traps in the front shell. The controller traps use a
+different rigid loading sequence: drop each nut into an open-top U-shaped
+stage, then slide it laterally beneath the cage roof before fitting the PCB.
+H1 stages westward and H2 stages northward. Each stage has 1.2 mm full-height
+side rails and a closed outer end wall; the installed controller PCB caps the
+complete opening with a nominal 0.2 mm gap, smaller than the 1.6 mm nut, so the
+nut cannot lift back out after screw removal. The PCB is only the anti-escape
+cap—the printed cage roof carries screw clamp load.
+
+Print the coupon in the same JLC3DP SLA 8001 resin, process, and orientation as
+the front shell, and wash and cure it identically. Keep the exported z=0
+exterior/front face toward the build plate, matching the front-shell face-down
+orientation; if the production setup adds a support tilt, apply the same tilt
+to both parts.
+
+Try a clean stocked M2 nut by hand at each station, starting with **4.3**. Do
+not force it and do not use the screw to self-tap or pull it into place. Choose
+the smallest station where the nut:
+
+1. slides laterally from the edge;
+2. seats flat without spinning;
+3. accepts the M2 screw by hand; and
+4. does not crack the 1.0 mm roof.
+
+Record that measured value in `params.NUT_AF` before ordering the complete
+front shell. The production default remains 4.4 mm until this physical result
+is recorded. A tiny epoxy dot may be used later only as optional anti-rattle
+retention; it must not be structural and must stay clear of the threads. The
+full enclosure still needs the separate ten-cycle physical service test; the
+coupon does not claim that test has passed.
+
+### Control clearances
 
 **`out/coupon_plate.stl` + `out/coupon_caps.stl`.**
 
@@ -179,17 +255,25 @@ Writes `out/pcb/BOM.csv` + `out/pcb/CPL.csv`, and the case-assembly fastener
 list `out/hardware_BOM.csv`. Upload the SMT pair with
 `out/pcb/pocket_card_controller_gerbers.zip`.
 
-Case screws are selected from stocked M2×8 / ×10 / ×12 pan-head self-tappers.
-Each screw bridges its profile-aware rear seat to the Ø1.7 front-shell pilot
-and retains at least 2.5 mm of thread engagement:
+Case closure uses pan-head M2 machine screws threaded into six mechanically
+captive DIN 934 M2 nuts in the front shell. Print and qualify the SLA 8001 nut
+fit coupon first, record the selected cavity in `params.NUT_AF`, and only then
+order the complete front shell. `joints.selected_screws()` derives each screw
+length and profile-aware rear seat from the compound rear surface and approved
+seat-depth range, keeping the screw tip inside the front nut trap's blind
+relief.
 
 | Qty | Part | Sites |
 |---|---|---|
-| 3 | M2×8 pan self-tap | module `(6, 6.5)`, `(84, 6.5)`; PCB `(66, 84)` |
-| 3 | M2×10 pan self-tap | module `(6, 48.5)`, `(84, 48.5)`; PCB `(64.5, 56)` |
+| 3 | M2×10 pan-head machine screw | module `(6, 6.5)`, `(84, 6.5)`; PCB `(64.5, 84)` |
+| 3 | M2×12 pan-head machine screw | module `(6, 48.5)`, `(84, 48.5)`; PCB `(64.5, 56)` |
+| 6 | DIN 934 M2 captive nut | all six sites above |
 
 Selection and derived length groups: `joints.selected_screws()` /
-`joints.screw_length_groups()`.
+`joints.screw_length_groups()`. Hand-start every screw into its nut; never use
+the screw to self-tap printed resin or pull a reluctant nut into its cavity. A
+tiny epoxy dot is optional only as anti-rattle retention, must not be
+structural, and must stay clear of the threads.
 
 Connector populate (land stays KiCad JST GH; parts are GH-compatible XUNPU
 wafers — genuine JST often OOS):
