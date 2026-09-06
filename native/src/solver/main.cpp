@@ -34,6 +34,7 @@
 #include "puzzlescript/puzzlescript.h"
 #include "runtime/compiled_rules.hpp"
 #include "runtime/core.hpp"
+#include "runtime/future_rules.hpp"
 #include "runtime/json.hpp"
 #include "search/search_common.hpp"
 #include "solver/heuristics.hpp"
@@ -1303,6 +1304,12 @@ uint64_t applyWinRelevancePruning(
     prunedGame->specializedRulegroups = nullptr;
     prunedGame->specializedFullTurn = nullptr;
     prunedGame->specializedCompactTurn = nullptr;
+    // Removing rules changes both creation closure and ordered rule indices.
+    // Rebuild once for the transformed ruleset; sharing its predecessor's
+    // cache could skip a surviving rule or index past a shortened group.
+    if (prunedGame->futureRuleCache) {
+        prunedGame->futureRuleCache = std::make_shared<puzzlescript::FutureRuleCache>(*prunedGame);
+    }
     loadedGame.information = std::move(prunedGame);
     return removed;
 }

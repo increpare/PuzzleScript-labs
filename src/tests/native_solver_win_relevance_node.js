@@ -49,6 +49,7 @@ function runNative(extraArgs = [], runHintsPath = hintsPath, run = {}) {
         ...extraArgs,
     ], {
         cwd: rootDir,
+        env: { ...process.env, ...run.env },
         encoding: 'utf8',
         maxBuffer: 128 * 1024 * 1024,
     });
@@ -107,6 +108,27 @@ assert.strictEqual(
     'native win-relevance pass should be inert until JS win_relevance hints are supplied'
 );
 assert.strictEqual(noHintsOptimizedPayload.totals.removed_win_irrelevant_rules, 0);
+
+// Deleting an impossible rule ahead of a surviving rule changes eligible-list
+// indices. A copied future cache must be rebuilt after win-relevance pruning.
+// Keep the rules in one group so stale indices cannot hide in an empty group.
+const futureCorpusDir = path.join(tmpDir, 'future-corpus');
+const futureHintsPath = path.join(tmpDir, 'future-static-analysis-hints.json');
+fs.mkdirSync(futureCorpusDir);
+const futureSource = fs.readFileSync(path.join(corpusDir, gameName), 'utf8')
+    .replace(/\r\n/g, '\n')
+    .replace('[ player ] -> [ goal ]\n[ deco ] -> [ no deco ]', '[ deco ] -> [ no deco ]\n+ [ player ] -> [ goal ]')
+    .replace('PD.', 'P..');
+assert(futureSource.includes('+ [ player ]'));
+fs.writeFileSync(path.join(futureCorpusDir, gameName), futureSource);
+fs.writeFileSync(futureHintsPath, JSON.stringify(buildStaticAnalysisHintsManifest(futureCorpusDir)));
+const futureRun = { corpusDir: futureCorpusDir, env: { PUZZLESCRIPT_FUTURE_RULE_PRUNE: '1' } };
+const futureBaseline = onlyResult(runNative([], futureHintsPath, futureRun));
+const futureOptimized = onlyResult(runNative(['--solver-opt', 'win-relevance'], futureHintsPath, futureRun));
+assert.strictEqual(futureBaseline.status, 'solved');
+assert.strictEqual(futureOptimized.status, futureBaseline.status);
+assert.deepStrictEqual(futureOptimized.solution, futureBaseline.solution);
+assert(futureOptimized.removed_win_irrelevant_rules > 0);
 
 const movementGameName = 'the red ring of immortality.txt';
 const movementCorpusDir = path.join(tmpDir, 'movement-corpus');

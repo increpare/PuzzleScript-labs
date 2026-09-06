@@ -1,4 +1,5 @@
 #include "runtime/core.hpp"
+#include "runtime/future_rules.hpp"
 
 #include <algorithm>
 #include <atomic>
@@ -5560,14 +5561,25 @@ bool applyRuleGroup(FullState& session, const std::vector<Rule>& group, CommandS
     const Game& game = *session.game;
     const size_t objectWordCount = game.wordCount;
     const size_t movementWordCount = game.movementWordCount;
-    const size_t groupLength = group.size();
+    // Traverse only future-eligible rules, in their original order. This saves
+    // the repeated mask/wake probes for impossible rules; the existing input
+    // and incremental sleep checks still operate on every retained rule.
+    const auto& selection = session.scratch.futureRuleSelection;
+    const std::vector<uint32_t>* eligible = selection
+        ? &(late ? selection->late : selection->early).at(static_cast<size_t>(groupIndex)) : nullptr;
+    // Unaffected groups retain direct traversal rather than paying an index
+    // indirection merely because another group lost a rule.
+    if (eligible && eligible->size() == group.size()) eligible = nullptr;
+    const size_t groupLength = eligible ? eligible->size() : group.size();
+    if (groupLength == 0) return false;
     const bool useIncrementalPrune = incrementalPruneEnabled();
     const bool useInputSpecialization = inputSpecializationEnabled();
     const uint8_t currentInputMask = session.scratch.currentInputMask;
     size_t activeGroupLength = groupLength;
     if (useInputSpecialization) {
         activeGroupLength = 0;
-        for (const Rule& rule : group) {
+        for (size_t i = 0; i < groupLength; ++i) {
+            const Rule& rule = group[eligible ? (*eligible)[i] : i];
             if ((rule.activeInputsMask & currentInputMask) != 0) {
                 ++activeGroupLength;
             }
@@ -5599,7 +5611,8 @@ bool applyRuleGroup(FullState& session, const std::vector<Rule>& group, CommandS
             ? nullptr
             : session.scratch.incrementalPriorMovements.data();
 
-        for (const auto& rule : group) {
+        for (size_t i = 0; i < groupLength; ++i) {
+            const Rule& rule = group[eligible ? (*eligible)[i] : i];
             if (useInputSpecialization
                 && (rule.activeInputsMask & currentInputMask) == 0) {
                 addCounter(gRuntimeCounters.rulesSkippedByMask);
@@ -7028,6 +7041,7 @@ std::unique_ptr<Error> loadGameFromJson(std::string_view jsonText, LoadedGame& o
         if (sourceHash.has_value()) {
             attachLinkedCompiledRules(*game, *sourceHash);
         }
+        configureFutureRulePruning(*game);
         outGame.information = std::move(game);
         return nullptr;
     } catch (const std::exception& error) {
@@ -7414,6 +7428,25 @@ TurnResult executeTurn(FullState& session, int32_t directionMask, ExecuteTurnOpt
         }
         rebuildMasks(session);
         bool ruleChangedThisPass = false;
+        // Reuse the exact board union already maintained by rebuildMasks.
+        // This forward closure covers the whole turn, including later groups
+        // and movement; rigid retries rebind after restoration. Never retain a
+        // branch's exclusions across a solver restore or another level start.
+        session.scratch.futureRuleSelection.reset();
+        const auto& cache = session.game->futureRuleCache;
+        if (cache && cache->supported()) {
+            // Ordinary movement usually preserves presence. A single local
+            // memo avoids locking the shared generator cache on every turn;
+            // exact-key validation makes it safe after arbitrary restoration.
+            auto& scratch = session.scratch;
+            if (scratch.futureRuleMemoOwner != cache || !scratch.futureRuleMemo
+                || scratch.futureRuleMemoPresence != scratch.boardMask) {
+                scratch.futureRuleMemo = cache->lookup(scratch.boardMask);
+                scratch.futureRuleMemoPresence = scratch.boardMask;
+                scratch.futureRuleMemoOwner = cache;
+            }
+            if (scratch.futureRuleMemo->excludedRules) scratch.futureRuleSelection = scratch.futureRuleMemo;
+        }
         if (options.applyEarlyRules != nullptr) {
             const SpecializedRulegroupsForInterpretedTurnOutcome outcome = options.applyEarlyRules(session, commands, &bannedGroups);
             if (outcome.handled) {

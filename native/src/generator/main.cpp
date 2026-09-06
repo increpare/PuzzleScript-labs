@@ -38,6 +38,7 @@
 #include "compiler/diagnostic.hpp"
 #include "compiler/lower_to_runtime.hpp"
 #include "compiler/parser.hpp"
+#include "runtime/future_rules.hpp"
 #include "generator/block_scheduler.hpp"
 #include "generator/duration_parse.hpp"
 #include "generator/generation_rules.hpp"
@@ -969,7 +970,12 @@ std::string finalJson(const Options& options, const Game& game, SharedState& sha
         out << "]}";
         out << (i + 1 == top.size() ? "\n" : ",\n");
     }
-    out << "  ]\n";
+    out << "  ]";
+    if (game.futureRuleCache) {
+        out << ",\n  \"future_rule_filter\":{\"supported\":" << (game.futureRuleCache->supported() ? "true" : "false")
+            << ",\"queries\":" << game.futureRuleCache->queries() << ",\"misses\":" << game.futureRuleCache->misses() << '}';
+    }
+    out << '\n';
     out << "}\n";
     return out.str();
 }
@@ -1067,7 +1073,12 @@ int runLevelSetFromBlockSpecs(
         }
         out << "],\"evaluation_cache\":{\"hits\":" << cache.hits
             << ",\"searches\":" << cache.searches << ",\"waits\":" << cache.waits
-            << ",\"entries\":" << cache.entries << ",\"retained_bytes\":" << cache.retainedBytes << "}}\n";
+            << ",\"entries\":" << cache.entries << ",\"retained_bytes\":" << cache.retainedBytes << '}';
+        if (game->futureRuleCache) {
+            out << ",\"future_rule_filter\":{\"supported\":" << (game->futureRuleCache->supported() ? "true" : "false")
+                << ",\"queries\":" << game->futureRuleCache->queries() << ",\"misses\":" << game->futureRuleCache->misses() << '}';
+        }
+        out << "}\n";
         writeFile(options.jsonOut, out.str());
     }
     return 0;

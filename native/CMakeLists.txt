@@ -98,6 +98,7 @@ set(PUZZLESCRIPT_NATIVE_SOURCES
   src/runtime/compiled_rules.cpp
   src/runtime/c_api.cpp
   src/runtime/core.cpp
+  src/runtime/future_rules.cpp
   src/runtime/hash.cpp
   src/runtime/json.cpp
   src/runtime/layout_metrics.cpp
@@ -1560,6 +1561,17 @@ add_test(NAME push_prototype_js_replay COMMAND ${NODE_EXECUTABLE}
 set_tests_properties(push_prototype_js_replay PROPERTIES TIMEOUT 30)
 
 add_executable(solver_generated_replay tests/solver_generated_replay.cpp)
+add_executable(future_rule_prune tests/future_rule_prune.cpp)
+target_include_directories(future_rule_prune PRIVATE src)
+target_link_libraries(future_rule_prune PRIVATE puzzlescript_native puzzlescript_compiler)
+add_test(NAME future_rule_prune COMMAND future_rule_prune)
+set_tests_properties(future_rule_prune PROPERTIES TIMEOUT 90)
+add_test(NAME future_rule_prune_no_wake COMMAND future_rule_prune)
+set_tests_properties(future_rule_prune_no_wake PROPERTIES TIMEOUT 90 ENVIRONMENT "PUZZLESCRIPT_INCREMENTAL_PRUNE=0")
+add_test(NAME future_rule_prune_no_input_specialization COMMAND future_rule_prune)
+set_tests_properties(future_rule_prune_no_input_specialization PROPERTIES TIMEOUT 90 ENVIRONMENT "PUZZLESCRIPT_INPUT_SPECIALIZATION=0")
+add_test(NAME future_rule_prune_plain COMMAND future_rule_prune)
+set_tests_properties(future_rule_prune_plain PROPERTIES TIMEOUT 90 ENVIRONMENT "PUZZLESCRIPT_INCREMENTAL_PRUNE=0;PUZZLESCRIPT_INPUT_SPECIALIZATION=0")
 target_include_directories(solver_generated_replay PRIVATE src)
 target_link_libraries(solver_generated_replay PRIVATE puzzlescript_native puzzlescript_compiler)
 add_test(NAME solver_generated_replay COMMAND solver_generated_replay
