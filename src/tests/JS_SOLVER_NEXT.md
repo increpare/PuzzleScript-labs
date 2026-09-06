@@ -40,6 +40,20 @@ Reasonable next moves only with fresh evidence:
 
 ## Status / progress log
 
+- **2026-09-06: native future-rule eligibility, opt-in experiment.**
+  Native compilation and runtime-IR loading share a ruleset-owned creation plan
+  and bounded population cache. Ordered eligible indices preserve original
+  groups and compose with existing input/wake pruning. The maintained board union
+  and a validated session memo avoid extra scans and unchanged-population locks.
+  Focused differential tests pass all four scheduler configurations with 32/64-bit
+  mask words; native source coverage compares 37,002 transitions in 184 games.
+  Replay visits fall 8,614,606 -> 8,451,332, but final three-pair median wall time
+  is 9,573 -> 9,608 ms; single-worker generation is neutral/slightly worse.
+  Keep `PUZZLESCRIPT_FUTURE_RULE_PRUNE=1` experimental, not default-on. The initial
+  apparently positive replay timing is retained alongside the final result.
+  See `docs/native-future-rule-pruning-2026-09-06.md` for safety boundaries,
+  reference-harness failures, measurements and input-specific turn-code follow-up.
+
 - **2026-09-06: share future-object plans across candidate levels.**
   Retain one ruleset proof and bounded caches across levels; request only count
   and conserved-sum fact families. Keep actual single-player certification out
