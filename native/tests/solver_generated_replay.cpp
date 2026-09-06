@@ -21,13 +21,15 @@ std::string read(const char* name) {
     std::ifstream file(name);
     std::stringstream source; source << file.rdbuf(); return source.str();
 }
-auto solve(const puzzlescript::LoadedGame& loaded, const puzzlescript::LevelTemplate& level) {
+auto solve(const puzzlescript::LoadedGame& loaded, const puzzlescript::LevelTemplate& level,
+    const ps_solve_options* overrideOptions = nullptr) {
     ps_game game; game.impl = loaded;
     auto grid = puzzlescript::search::levelTemplateToLayerCellObjectIds(*loaded.information, level);
     auto options = ps_solve_default_options();
     options.random_seed = "generated-replay-test";
     options.timeout_ms = 2000;
     options.compact_node_storage = true;
+    if (overrideOptions) options = *overrideOptions;
     ps_solve_result* result = nullptr;
     assert(ps_solve_level_layer_cell_object_ids(&game, level.width, level.height,
         grid.data(), grid.size(), &options, &result, nullptr));
@@ -39,6 +41,12 @@ puzzlescript::SpecializedCompactTurnOutcome falseWin(
     puzzlescript::SpecializedCompactTurnOutcome result;
     if (options.solverMode) { result.handled = true; result.result.won = true; }
     return result;
+}
+bool replayStarted = false;
+puzzlescript::SpecializedFullTurnOutcome observeReplay(
+    puzzlescript::FullState&, ps_input, puzzlescript::RuntimeStepOptions options) {
+    if (!options.solverMode) replayStarted = true;
+    return {}; // Fall back to the real runtime; only observe the replay boundary.
 }
 }
 
@@ -55,6 +63,38 @@ int main() {
     auto wider = compile(widerSource);
     result = solve(loaded, wider.information->levels[0]);
     assert(result->status == PS_SOLVE_STATUS_SOLVED && result->solution_count == 2);
+
+    auto longSource = source;
+    longSource.replace(longSource.rfind("PT"), 2, "P....................T");
+    auto longGame = compile(longSource);
+    for (auto strategy : {PS_SOLVE_STRATEGY_BFS, PS_SOLVE_STRATEGY_WEIGHTED_ASTAR,
+            PS_SOLVE_STRATEGY_WEIGHTED_ASTAR_DEEP, PS_SOLVE_STRATEGY_GREEDY,
+            PS_SOLVE_STRATEGY_PORTFOLIO}) {
+        auto options = ps_solve_default_options();
+        options.strategy = strategy;
+        options.timeout_ms = 60000;
+        options.max_expanded = 1;
+        result = solve(longGame, longGame.information->levels[0], &options);
+        assert(result->status == PS_SOLVE_STATUS_TIMEOUT && result->expanded == 1);
+        options.max_expanded = 0;
+        int polls = 0;
+        options.cancel_context = &polls;
+        options.should_cancel = [](void* p) { return ++*static_cast<int*>(p) >= 10; };
+        result = solve(longGame, longGame.information->levels[0], &options);
+        assert(result->status == PS_SOLVE_STATUS_TIMEOUT && result->solution_count == 0);
+        assert(result->generated > 0 && result->expanded < 10);
+        polls = 10;
+        result = solve(longGame, longGame.information->levels[0], &options);
+        assert(result->status == PS_SOLVE_STATUS_TIMEOUT && result->expanded == 0);
+    }
+    puzzlescript::SpecializedFullTurnBackend replayObserver;
+    replayObserver.step = observeReplay;
+    std::const_pointer_cast<puzzlescript::Game>(longGame.information)->specializedFullTurn = &replayObserver;
+    auto replayOptions = ps_solve_default_options();
+    replayOptions.timeout_ms = 2000;
+    replayOptions.should_cancel = [](void*) { return replayStarted; };
+    result = solve(longGame, longGame.information->levels[0], &replayOptions);
+    assert(replayStarted && result->status == PS_SOLVE_STATUS_TIMEOUT && result->solution_count == 0);
 
     auto impossible = compile(read("src/tests/solver_smoke_tests/impossible.txt"));
     puzzlescript::SpecializedCompactTurnBackend liar;

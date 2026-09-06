@@ -12,8 +12,27 @@ Run one manually with:
 build/native/puzzlescript_generator src/demo/sokoban_basic.txt src/tests/generator_presets/sokoban_room_scatter.gen --samples 20 --quiet
 ```
 
-`run_generator_benchmark.js` measures the legacy room-scatter and transform-pair
-recipes with a fixed sample count. It reports `sokoban_levelset_tiny.gen` as
-skipped: level-set generation uses `--out`, inactivity budgets and repeated
-passes, and is covered separately by `run_generator_levelset_smoke.js`. Legacy
-throughput numbers do not measure level-set throughput.
+`run_generator_benchmark.js` defaults to the legacy room-scatter and transform-pair
+recipes. Use `--mode level-set` to measure `sokoban_levelset_tiny.gen` separately.
+Each mode reports incompatible recipes as skipped; their metrics are not pooled.
+`--run-timeout-ms` bounds each run, with a separate watchdog for a stuck runtime.
+
+```sh
+node src/tests/run_generator_benchmark.js build/native/puzzlescript_generator src/demo/sokoban_basic.txt --mode level-set --samples 200 --runs 3 --run-timeout-ms 5000 --out levelset-benchmark.json
+```
+
+Level-set generation accepts an optional total `--samples N` budget, divided
+evenly across recipe blocks (earlier blocks receive the remainder). Already
+started candidates finish when sample slots run out. `--time-ms N`, when given,
+applies across blocks and all primary/supplemental solver lanes; deadlines and
+user stops cooperatively interrupt active work between runtime turns. Without
+either limit, the existing inactivity/pass policy applies. Exhaustion or a
+deadline can end a run before its sample budget is used.
+
+Use `--out generated.txt --json-out summary.json` to save both the game and its
+run summary. It reports the stop reason, per-block samples, candidate assessments,
+cache hits, interruptions and retained keepers. Keepers are not a count of every
+solved candidate. The assessment uses the portfolio primary plus supplemental
+lanes; non-portfolio `--solver-strategy` and `--events-jsonl` are rejected in this
+mode rather than silently ignored. Changing solver schedules or time budgets
+can change keeper selection even when generated samples have the same seeds.

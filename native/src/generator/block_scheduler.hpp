@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <deque>
 #include <mutex>
+#include <optional>
 #include <unordered_set>
 #include <vector>
 
@@ -28,6 +29,7 @@ struct GlobalDedupe {
 
 bool insertGlobalDedupe(GlobalDedupe& dedupe, uint64_t hash, size_t dedupeMax);
 bool containsGlobalDedupe(GlobalDedupe& dedupe, uint64_t hash);
+void eraseGlobalDedupe(GlobalDedupe& dedupe, uint64_t hash);
 
 struct BlockState {
     BlockSpec spec;
@@ -36,6 +38,9 @@ struct BlockState {
     mutable std::mutex keeperMutex;
     std::atomic<uint64_t> nextSampleId{0};
     std::atomic<uint64_t> samplesAttempted{0};
+    std::atomic<uint64_t> solverSearches{0};
+    std::atomic<uint64_t> deduped{0};
+    std::atomic<uint64_t> interruptedAssessments{0};
     uint64_t samplesAtPassStart = 0;
     int64_t inactivityTimeoutMs = 10000;
     TimePoint idleSince{};
@@ -59,6 +64,8 @@ struct LevelSetOptions {
     int64_t inactivityStartMs = 60000;
     size_t exhaustPasses = 3;
     std::atomic<bool>* cancel = nullptr;
+    std::optional<uint64_t> samples;
+    std::optional<TimePoint> deadline;
     bool quiet = false;
     std::string modeLabel = "level-set";
     std::string outPath;

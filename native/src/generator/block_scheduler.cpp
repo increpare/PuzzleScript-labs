@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <exception>
+#include <condition_variable>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -15,6 +16,27 @@ namespace {
 
 using puzzlescript::search::assessGeneratedLevelDifficulty;
 using puzzlescript::search::DifficultyOptions;
+
+bool runStopped(const LevelSetOptions& options) {
+    return (options.cancel && options.cancel->load(std::memory_order_relaxed))
+        || (options.deadline && Clock::now() >= *options.deadline);
+}
+
+std::optional<uint64_t> sampleLimit(const LevelSetOptions& options, size_t block, size_t count) {
+    if (!options.samples) return {};
+    // Divide the total budget fairly and deterministically among recipe blocks.
+    // Otherwise the first block consumes every sample before later blocks run.
+    return *options.samples / count + (block < *options.samples % count ? 1 : 0);
+}
+
+bool samplesComplete(const LevelSetOptions& options, const std::deque<BlockState>& blocks) {
+    if (!options.samples) return false;
+    for (const auto& block : blocks) {
+        if (block.samplesAttempted.load(std::memory_order_relaxed)
+            < *sampleLimit(options, block.blockIndex, blocks.size())) return false;
+    }
+    return true;
+}
 
 bool keeperLessDifficulty(const Keeper& a, const Keeper& b) {
     if (a.difficulty != b.difficulty) {
@@ -108,6 +130,9 @@ void logLevelSetStartup(
         out << " exhaust_passes=" << options.exhaustPasses;
     }
     out << " seed=" << options.globalSeed;
+    if (options.samples) out << " sample_budget=" << *options.samples;
+    if (options.deadline) out << " time_limit_ms=" << std::max<int64_t>(0,
+        std::chrono::duration_cast<std::chrono::milliseconds>(*options.deadline - Clock::now()).count());
     if (!options.outPath.empty()) {
         out << " output=" << options.outPath;
     }
@@ -308,9 +333,11 @@ void workerMain(
     const auto& game = *loadedGame.information;
     const uint64_t blockSeed = blockSeedFor(block, options.globalSeed);
 
-    while (!blockCancel.load(std::memory_order_relaxed)) {
-        block.samplesAttempted.fetch_add(1, std::memory_order_relaxed);
+    const auto limit = sampleLimit(options, block.blockIndex, allBlocks.size());
+    while (!blockCancel.load(std::memory_order_relaxed) && !runStopped(options)) {
         const uint64_t sampleId = block.nextSampleId.fetch_add(1, std::memory_order_relaxed);
+        if (limit && sampleId >= *limit) break;
+        block.samplesAttempted.fetch_add(1, std::memory_order_relaxed);
         const uint64_t sampleSeed = splitmix64(blockSeed ^ (sampleId + 0x9e3779b97f4a7c15ULL));
         Rng rng(sampleSeed);
 
@@ -323,18 +350,34 @@ void workerMain(
         // Already-solved duplicates used to pay for another primary search.
         // Only successful primaries enter this cache, so timeouts remain
         // retryable. The later insertion still arbitrates simultaneous solves.
-        if (containsGlobalDedupe(dedupe, levelHash)) continue;
+        if (containsGlobalDedupe(dedupe, levelHash)) {
+            block.deduped.fetch_add(1, std::memory_order_relaxed);
+            continue;
+        }
 
         DifficultyOptions assessmentOptions;
         assessmentOptions.timeoutMs = options.solverTimeoutMs;
+        assessmentOptions.deadline = options.deadline;
+        assessmentOptions.shouldCancel = [&] {
+            return blockCancel.load(std::memory_order_relaxed) || runStopped(options);
+        };
+        bool claimed = false;
         // Gate the supplemental lanes inside the same assessment. Re-running
         // primary here used to pay for a fifth search on every contender and
         // could even discard it when that second timed run failed to solve.
         assessmentOptions.supplementalGate = [&](int64_t primaryExpanded) {
-            return insertGlobalDedupe(dedupe, levelHash, options.dedupeMax)
-                && canImproveKeeper(block, primaryExpanded);
+            claimed = insertGlobalDedupe(dedupe, levelHash, options.dedupeMax);
+            return claimed && canImproveKeeper(block, primaryExpanded);
         };
+        block.solverSearches.fetch_add(1, std::memory_order_relaxed);
         const auto assessed = assessGeneratedLevelDifficulty(loadedGame, candidateLevel, assessmentOptions);
+        if (assessed.interrupted) {
+            // A partial minimum can overstate difficulty. Do not rank it, and
+            // release our cache claim so a later pass may finish assessment.
+            if (claimed) eraseGlobalDedupe(dedupe, levelHash);
+            block.interruptedAssessments.fetch_add(1, std::memory_order_relaxed);
+            continue;
+        }
         if (!assessed.solved || !assessed.supplementalRan) {
             continue;
         }
@@ -377,6 +420,14 @@ void workerMain(
 }
 
 } // namespace
+
+void eraseGlobalDedupe(GlobalDedupe& dedupe, uint64_t hash) {
+    const size_t shard = static_cast<size_t>(hash % dedupe.sets.size());
+    std::lock_guard<std::mutex> lock(dedupe.mutexes[shard]);
+    dedupe.sets[shard].erase(hash);
+    auto& order = dedupe.order[shard];
+    order.erase(std::remove(order.begin(), order.end(), hash), order.end());
+}
 
 bool containsGlobalDedupe(GlobalDedupe& dedupe, uint64_t hash) {
     const size_t shard = static_cast<size_t>(hash % dedupe.sets.size());
@@ -517,24 +568,27 @@ void runBlockUntilIdle(
     }
 
     std::atomic<bool> blockCancel{false};
+    std::atomic<size_t> workersRemaining{options.jobs};
+    std::mutex errorMutex;
+    std::exception_ptr workerError;
     std::vector<std::thread> workers;
     workers.reserve(options.jobs);
     for (size_t workerIndex = 0; workerIndex < options.jobs; ++workerIndex) {
-        workers.emplace_back(
-            workerMain,
-            std::cref(loadedGame),
-            std::ref(block),
-            std::ref(dedupe),
-            std::ref(outputCoordinator),
-            std::cref(allBlocks),
-            std::cref(options),
-            std::ref(blockCancel));
+        workers.emplace_back([&] {
+            try {
+                workerMain(loadedGame, block, dedupe, outputCoordinator, allBlocks, options, blockCancel);
+            } catch (...) {
+                std::lock_guard<std::mutex> lock(errorMutex);
+                if (!workerError) workerError = std::current_exception();
+                blockCancel.store(true, std::memory_order_relaxed);
+            }
+            workersRemaining.fetch_sub(1, std::memory_order_release);
+        });
     }
 
     while (true) {
-        if (options.cancel != nullptr && options.cancel->load(std::memory_order_relaxed)) {
-            break;
-        }
+        if (runStopped(options) || blockCancel.load(std::memory_order_relaxed)
+            || workersRemaining.load(std::memory_order_acquire) == 0) break;
         TimePoint idleSince;
         {
             std::lock_guard<std::mutex> lock(block.keeperMutex);
@@ -551,12 +605,15 @@ void runBlockUntilIdle(
         worker.join();
     }
 
+    if (workerError) std::rethrow_exception(workerError);
+
     if (!options.quiet) {
         logBlockSearchIdle(std::cerr, block, allBlocks.size(), passIndex);
     }
 
     const bool wasExhausted = block.permanentlyExhausted;
-    notePassOutcome(block, passStart, options);
+    // A user stop/global deadline is not a completed no-improvement pass.
+    if (!runStopped(options)) notePassOutcome(block, passStart, options);
     if (!wasExhausted && block.permanentlyExhausted && !options.quiet) {
         logBlockExhausted(std::cerr, block, allBlocks.size(), passIndex);
     }
@@ -597,13 +654,20 @@ void runLevelSetForever(
     std::atomic<bool> progressCancel{false};
     ProgressTickState progressTick;
     std::thread progressThread;
+    std::mutex progressMutex;
+    std::condition_variable progressWake;
     if (!options.quiet) {
         progressThread = std::thread([&]() {
+            std::unique_lock<std::mutex> lock(progressMutex);
             while (!progressCancel.load(std::memory_order_relaxed)) {
                 if (options.cancel != nullptr && options.cancel->load(std::memory_order_relaxed)) {
                     break;
                 }
-                std::this_thread::sleep_for(std::chrono::seconds(10));
+                // Wake on shutdown; short runs previously waited up to ten
+                // seconds just to join the progress reporter.
+                progressWake.wait_for(lock, std::chrono::seconds(10), [&] {
+                    return progressCancel.load(std::memory_order_relaxed);
+                });
                 if (progressCancel.load(std::memory_order_relaxed)) {
                     break;
                 }
@@ -618,42 +682,50 @@ void runLevelSetForever(
         });
     }
 
-    while (options.cancel == nullptr || !options.cancel->load(std::memory_order_relaxed)) {
-        const size_t currentPass = passIndex.load(std::memory_order_relaxed);
-        for (BlockState& block : blocks) {
-            if (block.permanentlyExhausted) {
-                block.passPhase = BlockState::PassPhase::Exhausted;
-            } else {
-                block.passPhase = BlockState::PassPhase::Queued;
+    std::exception_ptr runError;
+    try {
+        while (!runStopped(options) && !samplesComplete(options, blocks)) {
+            const size_t currentPass = passIndex.load(std::memory_order_relaxed);
+            for (BlockState& block : blocks) {
+                if (block.permanentlyExhausted) {
+                    block.passPhase = BlockState::PassPhase::Exhausted;
+                } else {
+                    block.passPhase = BlockState::PassPhase::Queued;
+                }
             }
-        }
-        for (BlockState& block : blocks) {
-            if (options.cancel != nullptr && options.cancel->load(std::memory_order_relaxed)) {
+            for (BlockState& block : blocks) {
+                if (runStopped(options)) break;
+                if (block.permanentlyExhausted) {
+                    continue;
+                }
+                runBlockUntilIdle(loadedGame, block, dedupe, outputCoordinator, blocks, options, currentPass);
+            }
+            const bool allExhausted = std::all_of(
+                blocks.begin(),
+                blocks.end(),
+                [](const BlockState& block) { return block.permanentlyExhausted; });
+            if (allExhausted) {
+                if (!options.quiet) {
+                    std::cerr << "levelset_complete all blocks exhausted\n";
+                }
                 break;
             }
-            if (block.permanentlyExhausted) {
-                continue;
-            }
-            runBlockUntilIdle(loadedGame, block, dedupe, outputCoordinator, blocks, options, currentPass);
+            passIndex.fetch_add(1, std::memory_order_relaxed);
         }
-        const bool allExhausted = std::all_of(
-            blocks.begin(),
-            blocks.end(),
-            [](const BlockState& block) { return block.permanentlyExhausted; });
-        if (allExhausted) {
-            if (!options.quiet) {
-                std::cerr << "levelset_complete all blocks exhausted\n";
-            }
-            break;
-        }
-        passIndex.fetch_add(1, std::memory_order_relaxed);
-    }
 
-    progressCancel.store(true, std::memory_order_relaxed);
+    } catch (...) {
+        runError = std::current_exception();
+    }
+    {
+        std::lock_guard<std::mutex> lock(progressMutex);
+        progressCancel.store(true, std::memory_order_relaxed);
+    }
+    progressWake.notify_all();
     if (progressThread.joinable()) {
         progressThread.join();
     }
 
+    if (runError) std::rethrow_exception(runError);
     if (!options.quiet) {
         logLevelSetProgress(
             std::cerr,

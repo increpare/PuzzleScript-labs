@@ -5,7 +5,9 @@
 #include "puzzlescript/puzzlescript.h"
 
 #include <cstdint>
+#include <chrono>
 #include <functional>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -26,6 +28,10 @@ struct DifficultyOptions {
     std::function<bool(int64_t primaryExpanded)> supplementalGate;
     int64_t supplementalCap = -1;
     int64_t supplementalTimeoutMs = 60000;
+    // Shared across all lanes; individual lane timeouts are additionally capped
+    // by this deadline. Cancellation is cooperative between runtime turns.
+    std::optional<std::chrono::steady_clock::time_point> deadline;
+    std::function<bool()> shouldCancel;
 };
 
 enum class DifficultyStage {
@@ -41,6 +47,7 @@ struct DifficultyResult {
     ps_solve_status primaryStatus = PS_SOLVE_STATUS_ERROR;
     std::string primaryError;
     bool supplementalRan = false;
+    bool interrupted = false;
     std::vector<ps_input> solution;
     DifficultyBreakdown breakdown;
     int64_t primaryExpanded = 0;

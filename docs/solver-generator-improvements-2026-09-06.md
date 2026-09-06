@@ -90,10 +90,37 @@ through standalone native targets.
 
 ## Next implementation priorities
 
-1. **Bounded, interruptible assessment across every lane.** Thread cancellation
-   and one deadline through primary and supplemental searches. Make level-set
-   `--samples`, time and strategy behavior explicit, then add a genuinely bounded
-   level-set benchmark. The current legacy benchmark deliberately excludes it.
+1. **Completed in the second pass: bounded, interruptible assessment.** The
+   generated-board C API now polls a borrowed cancellation callback before work,
+   between search edges and during replay. Its seeded portfolio also honors
+   `max_expanded`. Shared difficulty assessment carries one deadline across all
+   lanes and marks interrupted refinement, which is never admitted as a completed
+   difficulty score. Both native generator modes and MIS stop/request flags are
+   wired through; inactive work no longer waits out every solver timeout.
+
+   Level-set `--samples` is a total budget divided across blocks; started
+   candidates finish when sample slots run out. Explicit `--time-ms` applies
+   across the run. Interrupted candidates release dedupe claims for retry.
+   `--out` and `--json-out` can produce both the game and a run summary. Strategy
+   and event options unsupported by level-set assessment fail clearly. The
+   progress reporter wakes at shutdown, and signal handlers only set a lock-free
+   flag rather than flushing a mutex-protected writer.
+
+   `run_generator_benchmark.js --mode level-set` now measures compatible recipes
+   separately, with per-run deadlines and an outer watchdog. Three 200-sample
+   runs of the tiny preset each produced 100 samples per block, two retained
+   keepers and zero interrupted assessments. Their end-to-end durations were
+   224/212/211 ms on this machine with compiled Sokoban kernels. This is a new
+   bounded-run baseline, **not a speedup comparison**; see
+   [the recorded runs](benchmarks/2026-09-06-generator-levelset-bounded.json).
+
+   Tests cover all five solver strategies, cancellation before and during
+   search/replay, shared lane budgets, seven samples distributed 4/3 with eight
+   workers, zero samples, and 120 ms run limits with 60-second solver budgets.
+   Existing parity, keeper, difficulty, legacy/event, level-set and remix checks
+   pass. C API clients must rebuild for the callback fields. Runtime turns and
+   startup rule drains remain non-preemptible, so these are cooperative
+   deadlines, not hard real-time guarantees. The full MIS GUI was not built.
 2. **A shared evaluation record and exact candidate cache.** Store board identity,
    rule/runtime version, gameplay seed, budget, outcome and solution independently
    from difficulty policy. Reserve in-flight work, compare full boards after hash

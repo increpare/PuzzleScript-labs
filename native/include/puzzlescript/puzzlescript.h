@@ -71,6 +71,12 @@ typedef struct ps_solve_options {
     const char* solver_heuristic;
     /* Optional gameplay RNG seed, borrowed for the duration of the call. */
     const char* random_seed;
+    /* Optional cooperative stop callback; return true to stop. Borrowed with
+       its context for this call. Must not throw; synchronize shared state.
+       Checked between turns (including replay). A stopped search reports
+       TIMEOUT, never EXHAUSTED. A single runtime turn is not preemptible. */
+    bool (*should_cancel)(void* context);
+    void* cancel_context;
 } ps_solve_options;
 
 typedef struct ps_solve_result {
