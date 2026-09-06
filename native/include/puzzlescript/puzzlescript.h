@@ -69,6 +69,8 @@ typedef struct ps_solve_options {
     int32_t astar_weight;
     uint64_t max_expanded;
     const char* solver_heuristic;
+    /* Optional gameplay RNG seed, borrowed for the duration of the call. */
+    const char* random_seed;
 } ps_solve_options;
 
 typedef struct ps_solve_result {

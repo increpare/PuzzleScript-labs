@@ -1539,6 +1539,12 @@ add_executable(generator_difficulty_contract
 target_include_directories(generator_difficulty_contract PRIVATE src include)
 add_test(NAME generator_difficulty_contract COMMAND generator_difficulty_contract)
 
+add_executable(solver_generated_replay tests/solver_generated_replay.cpp)
+target_include_directories(solver_generated_replay PRIVATE src)
+target_link_libraries(solver_generated_replay PRIVATE puzzlescript_native puzzlescript_compiler)
+add_test(NAME solver_generated_replay COMMAND solver_generated_replay
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT})
+
 target_link_libraries(generator_difficulty_assessment
   PRIVATE
     puzzlescript_native

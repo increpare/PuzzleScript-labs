@@ -4014,9 +4014,11 @@ std::unique_ptr<FullState> createSeededSolverSession(
     int32_t height,
     const int32_t* layerCellObjectIds,
     size_t count,
-    Result& result
+    Result& result,
+    const std::string& randomSeed = {},
+    bool solverMode = true
 ) {
-    const std::string seed = "solver:" + gameName + ":generated";
+    const std::string seed = randomSeed.empty() ? "solver:" + gameName + ":generated" : randomSeed;
     auto initial = puzzlescript::createFullStateWithLoadedLevelSeed(loadedGame, seed);
     initial->meta.suppressRuleMessages = true;
     if (!layerCellObjectIds) {
@@ -4085,7 +4087,7 @@ std::unique_ptr<FullState> createSeededSolverSession(
     puzzlescript::RuntimeStepOptions loadOptions;
     loadOptions.playableUndo = false;
     loadOptions.emitAudio = false;
-    loadOptions.solverMode = true;
+    loadOptions.solverMode = solverMode;
     loadOptions.againPolicy = puzzlescript::AgainPolicy::Drain;
     if (auto error = puzzlescript::loadLevelTemplate(*initial, levelTemplate, 0, loadOptions)) {
         result.status = "level_error";
@@ -4114,7 +4116,8 @@ Result solveSeededLevel(
     int32_t astarWeight,
     size_t portfolioJobs,
     puzzlescript::solver::HeuristicKind heuristicKind,
-    uint64_t maxExpanded = 0
+    uint64_t maxExpanded = 0,
+    const std::string& randomSeed = {}
 ) {
     const TimePoint searchStart = Clock::now();
     const int64_t effectiveTimeoutMs = std::max<int64_t>(1, timeoutMs);
@@ -4124,6 +4127,34 @@ Result solveSeededLevel(
         || (strategy == Strategy::Portfolio && !fullNodeStorage);
 
     auto finish = [&](Result result) {
+        if (result.status == "solved") {
+            // Generated boards need the same player-runtime validation as CLI
+            // levels. Reload the candidate (not game.levels[0]) with the same
+            // seed, so solver-only command handling cannot certify a bad path.
+            Result replayLoad;
+            auto replay = createSeededSolverSession(loadedGame, gameName, width, height,
+                layerCellObjectIds, count, replayLoad, randomSeed, false);
+            bool won = replay && (replay->meta.currentLevelIndex != 0 || replay->meta.titleScreen);
+            if (won) result.solution.clear();
+            if (replay && !won) {
+                constexpr puzzlescript::RuntimeStepOptions replayOptions{
+                    .playableUndo = false, .emitAudio = false, .solverMode = false,
+                    .againPolicy = puzzlescript::AgainPolicy::Drain,
+                };
+                for (const auto& token : result.solution) {
+                    const auto input = solutionInputFromName(token);
+                    if (!input) break;
+                    const auto step = puzzlescript::turn(*replay, *input, replayOptions);
+                    if (step.won || replay->meta.currentLevelIndex != 0) { won = true; break; }
+                }
+            }
+            if (!won) {
+                result.status = "level_error";
+                result.error = "solver produced a non-replayable generated solution";
+                if (!replayLoad.error.empty()) result.error += ": " + replayLoad.error;
+                result.solution.clear();
+            }
+        }
         result.strategy = result.status == "solved" ? result.strategy : strategyName(strategy);
         result.elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - searchStart).count();
         return result;
@@ -4144,8 +4175,14 @@ Result solveSeededLevel(
         height,
         layerCellObjectIds,
         count,
-        loadResult);
+        loadResult,
+        randomSeed);
     if (!initial) {
+        return finish(std::move(loadResult));
+    }
+    // Completing the last level wraps its index to zero and shows the title.
+    if (initial->meta.currentLevelIndex != 0 || initial->meta.titleScreen) {
+        loadResult.status = "solved";
         return finish(std::move(loadResult));
     }
 
@@ -5254,7 +5291,8 @@ extern "C" bool ps_solve_level_layer_cell_object_ids(
         effective.astar_weight,
         effective.portfolio_jobs,
         heuristicKindFromApiOptions(effective),
-        effective.max_expanded);
+        effective.max_expanded,
+        effective.random_seed ? effective.random_seed : "");
     *out_result = makeApiSolveResult(result);
     return true;
 }
