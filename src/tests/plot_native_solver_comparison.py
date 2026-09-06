@@ -78,6 +78,10 @@ fig.text(.105, .025, "Lines: medians. Shading: observed run ranges, not confiden
 fig.subplots_adjust(left=.105, right=.97, top=.87, bottom=.14)
 for extension in ("png", "svg"):
     fig.savefig(prefix.with_suffix("." + extension), dpi=180, facecolor=fig.get_facecolor())
+svg = prefix.with_suffix(".svg")
+# Matplotlib emits spaces before path-data newlines; retain the separators but
+# normalize line endings so the checked-in export passes repository diff checks.
+svg.write_text("\n".join(line.rstrip() for line in svg.read_text(encoding="utf-8").splitlines()) + "\n", encoding="utf-8")
 summary = {
     "pairs": [{"before": int(curves["before"][i, -1]), "after": int(curves["after"][i, -1])} for i in range(pair_count)],
     "threshold_medians": {str(t): {side: int(np.median(curves[side][:, t])) for side in curves} for t in (10, 50, 100, limit) if t <= limit},
