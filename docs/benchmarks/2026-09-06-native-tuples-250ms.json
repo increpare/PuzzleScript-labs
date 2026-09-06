@@ -1,0 +1,77 @@
+{
+  "pairs": [
+    {
+      "before": 733,
+      "after": 739
+    },
+    {
+      "before": 734,
+      "after": 751
+    },
+    {
+      "before": 729,
+      "after": 758
+    }
+  ],
+  "threshold_medians": {
+    "10": {
+      "before": 263,
+      "after": 276
+    },
+    "50": {
+      "before": 493,
+      "after": 509
+    },
+    "100": {
+      "before": 603,
+      "after": 627
+    },
+    "250": {
+      "before": 733,
+      "after": 751
+    }
+  },
+  "stable_gains": [
+    [
+      "BIAXIAL INVASION OF SATURN.txt",
+      13
+    ],
+    [
+      "Match-Maker.txt",
+      7
+    ],
+    [
+      "alternatey.txt",
+      4
+    ],
+    [
+      "car crash.txt",
+      2
+    ],
+    [
+      "collapse.txt",
+      2
+    ],
+    [
+      "hedgehog stimulator.txt",
+      5
+    ],
+    [
+      "hedgehog stimulator.txt",
+      13
+    ],
+    [
+      "heroes_of_sokoban_2.txt",
+      13
+    ],
+    [
+      "heroes_of_sokoban_2.txt",
+      26
+    ],
+    [
+      "pipe puffer.txt",
+      8
+    ]
+  ],
+  "stable_losses": []
+}
