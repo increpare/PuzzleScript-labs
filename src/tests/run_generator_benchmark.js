@@ -11,7 +11,9 @@ function usage() {
     'Usage: run_generator_benchmark.js <puzzlescript_generator> <game.txt> [options]',
     '',
     'Options:',
-    '  --presets-dir PATH        Directory of .gen presets (legacy mode only; reports skipped level-set recipes)',
+    '  --presets-dir PATH        Directory of .gen presets',
+    '  --mode MODE               legacy|level-set (default: legacy; reports incompatible recipes)',
+    '  --run-timeout-ms N        Global budget per run (default: 60000)',
     '  --samples N               Samples per run (default: 200)',
     '  --runs N                  Runs per preset (default: 3)',
     '  --jobs N|auto             Generator jobs (default: 1)',
@@ -31,6 +33,8 @@ function parseArgs(argv) {
     generatorPath: path.resolve(argv[2]),
     gamePath: path.resolve(argv[3]),
     presetsDir: path.resolve(__dirname, 'generator_presets'),
+    mode: 'legacy',
+    runTimeoutMs: 60000,
     samples: 200,
     runs: 3,
     jobs: '1',
@@ -43,6 +47,8 @@ function parseArgs(argv) {
   for (let i = 4; i < argv.length; ++i) {
     const arg = argv[i];
     if (arg === '--presets-dir' && i + 1 < argv.length) options.presetsDir = path.resolve(argv[++i]);
+    else if (arg === '--mode' && i + 1 < argv.length) options.mode = argv[++i];
+    else if (arg === '--run-timeout-ms' && i + 1 < argv.length) options.runTimeoutMs = Number(argv[++i]);
     else if (arg === '--samples' && i + 1 < argv.length) options.samples = Number.parseInt(argv[++i], 10);
     else if (arg === '--runs' && i + 1 < argv.length) options.runs = Number.parseInt(argv[++i], 10);
     else if (arg === '--jobs' && i + 1 < argv.length) options.jobs = argv[++i];
@@ -55,8 +61,12 @@ function parseArgs(argv) {
     else throw new Error(`Unexpected argument: ${arg}\n\n${usage()}`);
   }
   if (options.help) return options;
-  for (const [name, value] of [['samples', options.samples], ['runs', options.runs], ['solver-timeout-ms', options.solverTimeoutMs], ['top-k', options.topK]]) {
-    if (!Number.isFinite(value) || value <= 0) {
+  if (!['legacy', 'level-set'].includes(options.mode)) throw new Error('mode must be legacy or level-set');
+  if (options.mode === 'level-set' && options.solverStrategy !== 'portfolio') {
+    throw new Error('level-set difficulty assessment requires portfolio');
+  }
+  for (const [name, value] of [['samples', options.samples], ['runs', options.runs], ['solver-timeout-ms', options.solverTimeoutMs], ['top-k', options.topK], ['run-timeout-ms', options.runTimeoutMs]]) {
+    if (!Number.isSafeInteger(value) || value <= 0) {
       throw new Error(`${name} must be a positive integer`);
     }
   }
@@ -93,18 +103,23 @@ function runGenerator(options, presetPath, outPath) {
     options.gamePath,
     presetPath,
     '--samples', String(options.samples),
+    '--time-ms', String(options.runTimeoutMs),
     '--jobs', String(options.jobs),
     '--seed', String(options.seed),
     '--solver-timeout-ms', String(options.solverTimeoutMs),
     '--solver-strategy', options.solverStrategy,
-    '--top-k', String(options.topK),
     '--quiet',
     '--json-out', outPath,
   ];
+  if (options.mode === 'legacy') args.push('--top-k', String(options.topK));
+  else args.push('--out', `${outPath}.game.txt`);
   const started = process.hrtime.bigint();
-  const result = spawnSync(options.generatorPath, args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  // The native deadline is cooperative between turns. Keep a separate watchdog
+  // so a stuck runtime cannot hang the entire benchmark suite indefinitely.
+  const result = spawnSync(options.generatorPath, args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024,
+    timeout: options.runTimeoutMs + 10000, windowsHide: true });
   const elapsedMs = Number(process.hrtime.bigint() - started) / 1e6;
-  if (result.status !== 0) {
+  if (result.error || result.status !== 0) {
     throw new Error(`generator failed for ${path.basename(presetPath)} status=${result.status}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
   }
   const json = JSON.parse(fs.readFileSync(outPath, 'utf8'));
@@ -156,20 +171,19 @@ function main() {
   const allPresetFiles = fs.readdirSync(options.presetsDir)
     .filter(name => name.endsWith('.gen'))
     .sort();
-  // Level-set recipes need --out and an inactivity/pass budget, whereas this
-  // benchmark measures a fixed sample count and expects legacy JSON output.
-  // Report their exclusion explicitly instead of passing them to the wrong
-  // parser (or silently presenting this as coverage of both generator modes).
+  // Recipes use different parsers and reports. Keep each mode's measurements
+  // separate: retained keepers are not the legacy mode's count of solved boards.
   const skippedPresets = allPresetFiles.filter(name => {
     const source = fs.readFileSync(path.join(options.presetsDir, name), 'utf8');
-    return /^\s*dimensions\s*:/im.test(source) || /^\s*===/m.test(source);
+    const levelSet = /^\s*dimensions\s*:/im.test(source) || /^\s*===/m.test(source);
+    return levelSet !== (options.mode === 'level-set');
   });
   const presetFiles = allPresetFiles.filter(name => !skippedPresets.includes(name));
   for (const name of skippedPresets) {
-    process.stderr.write(`generator_benchmark skipped=${name} reason=level-set-recipe\n`);
+    process.stderr.write(`generator_benchmark skipped=${name} reason=incompatible-with-${options.mode}\n`);
   }
   if (presetFiles.length === 0) {
-    throw new Error(`No legacy .gen presets found in ${options.presetsDir}`);
+    throw new Error(`No ${options.mode} .gen presets found in ${options.presetsDir}`);
   }
 
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'psgen-benchmark-'));
@@ -183,6 +197,13 @@ function main() {
         const outPath = path.join(tempDir, `${presetFile}.${runIndex}.json`);
         const result = runGenerator(options, presetPath, outPath);
         const json = result.json;
+        if (options.mode === 'level-set') {
+          runs.push({ run_index: runIndex, elapsed_ms: result.elapsedMs,
+            samples_per_second: rate(json.totals.samples_attempted, result.elapsedMs),
+            stop_reason: json.stop_reason, totals: json.totals, blocks: json.blocks });
+          process.stderr.write(`generator_benchmark preset=${presetFile} mode=level-set run=${runIndex + 1}/${options.runs} samples=${json.totals.samples_attempted} keepers=${json.totals.keepers} stop=${json.stop_reason}\n`);
+          continue;
+        }
         const run = {
           run_index: runIndex,
           elapsed_ms: result.elapsedMs,
@@ -201,14 +222,20 @@ function main() {
           `samples_per_s=${run.samples_per_second.toFixed(2)} solved=${run.totals.solved}\n`
         );
       }
-      presets.push(summarizePreset(presetFile, runs));
+      presets.push(options.mode === 'legacy' ? summarizePreset(presetFile, runs) : {
+        preset: presetFile, run_count: runs.length,
+        elapsed_ms: summary(runs.map(r => r.elapsed_ms)),
+        samples_per_second: summary(runs.map(r => r.samples_per_second)),
+        keepers: summary(runs.map(r => r.totals.keepers)), runs,
+      });
     }
 
     const output = {
       started_at: startedAt,
       finished_at: new Date().toISOString(),
       config: {
-        mode: 'legacy',
+        mode: options.mode,
+        run_timeout_ms: options.runTimeoutMs,
         generator: options.generatorPath,
         game: options.gamePath,
         presets_dir: options.presetsDir,
@@ -221,7 +248,7 @@ function main() {
         top_k: options.topK,
       },
       presets,
-      skipped_presets: skippedPresets.map(preset => ({ preset, reason: 'level-set-recipe' })),
+      skipped_presets: skippedPresets.map(preset => ({ preset, reason: `incompatible-with-${options.mode}` })),
     };
     const text = `${JSON.stringify(output, null, 2)}\n`;
     if (options.outPath) {

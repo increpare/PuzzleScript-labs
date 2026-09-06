@@ -1,0 +1,139 @@
+{
+  "started_at": "2026-09-06T11:59:02.499Z",
+  "finished_at": "2026-09-06T11:59:03.157Z",
+  "config": {
+    "mode": "level-set",
+    "run_timeout_ms": 5000,
+    "generator": "puzzlescript_generator (this branch, second implementation pass)",
+    "game": "src/demo/sokoban_basic.txt",
+    "presets_dir": "src/tests/generator_presets",
+    "samples": 200,
+    "runs": 3,
+    "jobs": "1",
+    "seed": "11",
+    "solver_timeout_ms": 50,
+    "solver_strategy": "portfolio",
+    "top_k": 10
+  },
+  "presets": [
+    {
+      "preset": "sokoban_levelset_tiny.gen",
+      "run_count": 3,
+      "elapsed_ms": {
+        "min": 211.0263,
+        "p50": 211.9771,
+        "p90": 211.9771,
+        "max": 223.5512,
+        "mean": 215.51819999999998
+      },
+      "samples_per_second": {
+        "min": 894.649637309037,
+        "p50": 943.4981420162839,
+        "p90": 943.4981420162839,
+        "max": 947.7491668100138,
+        "mean": 928.6323153784448
+      },
+      "keepers": {
+        "min": 2,
+        "p50": 2,
+        "p90": 2,
+        "max": 2,
+        "mean": 2
+      },
+      "runs": [
+        {
+          "run_index": 0,
+          "elapsed_ms": 223.5512,
+          "samples_per_second": 894.649637309037,
+          "stop_reason": "samples",
+          "totals": {
+            "samples_attempted": 200,
+            "solver_searches": 196,
+            "deduped": 4,
+            "interrupted_assessments": 0,
+            "keepers": 2
+          },
+          "blocks": [
+            {
+              "name": "tiny",
+              "samples_attempted": 100,
+              "solver_searches": 96,
+              "keepers": 1
+            },
+            {
+              "name": "small",
+              "samples_attempted": 100,
+              "solver_searches": 100,
+              "keepers": 1
+            }
+          ]
+        },
+        {
+          "run_index": 1,
+          "elapsed_ms": 211.9771,
+          "samples_per_second": 943.4981420162839,
+          "stop_reason": "samples",
+          "totals": {
+            "samples_attempted": 200,
+            "solver_searches": 196,
+            "deduped": 4,
+            "interrupted_assessments": 0,
+            "keepers": 2
+          },
+          "blocks": [
+            {
+              "name": "tiny",
+              "samples_attempted": 100,
+              "solver_searches": 96,
+              "keepers": 1
+            },
+            {
+              "name": "small",
+              "samples_attempted": 100,
+              "solver_searches": 100,
+              "keepers": 1
+            }
+          ]
+        },
+        {
+          "run_index": 2,
+          "elapsed_ms": 211.0263,
+          "samples_per_second": 947.7491668100138,
+          "stop_reason": "samples",
+          "totals": {
+            "samples_attempted": 200,
+            "solver_searches": 196,
+            "deduped": 4,
+            "interrupted_assessments": 0,
+            "keepers": 2
+          },
+          "blocks": [
+            {
+              "name": "tiny",
+              "samples_attempted": 100,
+              "solver_searches": 96,
+              "keepers": 1
+            },
+            {
+              "name": "small",
+              "samples_attempted": 100,
+              "solver_searches": 100,
+              "keepers": 1
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "skipped_presets": [
+    {
+      "preset": "sokoban_room_scatter.gen",
+      "reason": "incompatible-with-level-set"
+    },
+    {
+      "preset": "sokoban_transform_pairs.gen",
+      "reason": "incompatible-with-level-set"
+    }
+  ],
+  "validation_scope": "Initial bounded-run baseline, not a before/after speed comparison; MSVC x64 Release with linked Sokoban compiler-mode kernels."
+}
