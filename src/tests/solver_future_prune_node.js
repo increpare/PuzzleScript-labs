@@ -35,6 +35,8 @@ for (let i = 0; i < baseline.length; i++) {
     assert.strictEqual(b.replay_rejected || 0, 0);
 }
 const a = solver.totals(baseline), b = solver.totals(pruned);
+assert.strictEqual(b.future_ruleset_setups, 2, 'one reusable session per game, not 128 per-level plans');
+assert.strictEqual(b.future_single_player_levels, 128, 'fixed player count plus actual one-player starts');
 assert(b.future_pruned > 0, 'exercise actual dead-end pruning');
 assert(b.expanded < a.expanded, 'pruning removes search work');
 const portfolio = run(['--solver-future-prune'], 'portfolio');
@@ -43,4 +45,5 @@ for (let i = 0; i < baseline.length; i++) {
     assert.strictEqual(portfolio[i].replay_rejected || 0, 0);
 }
 assert(solver.totals(portfolio).future_pruned > 0, 'exercise the shared portfolio consumer');
+assert.strictEqual(solver.totals(portfolio).future_ruleset_setups, 2, 'portfolio also reuses the compiled ruleset');
 console.log(`solver_future_prune_node: ok (128 exact BFS comparisons; expanded ${a.expanded} -> ${b.expanded}, pruned ${b.future_pruned})`);

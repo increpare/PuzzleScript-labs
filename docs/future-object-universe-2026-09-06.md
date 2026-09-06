@@ -4,6 +4,8 @@ The solver can now prove that an object type, and the mechanics depending on it,
 
 This first implementation supplies a reusable JS analyser, a per-level single-player certificate, an observational survey, and an **opt-in JS dead-end pruning consumer** (`--solver-future-prune`). It does not yet delete rules dynamically or enable a native/MIS consumer. Timing results do not justify a default-on decision.
 
+Follow-up: [ruleset reuse and candidate-batch measurements](future-ruleset-reuse-2026-09-06.md) remove per-level plan rebuilding, share verdicts across levels and separate the actual player count from its ruleset conservation proof. The survey and initial timing results below retain their original scope.
+
 ## Coverage and meaning
 
 The survey reads the bundled solver tests, good-games collection and demos. It removes exact duplicate source contents: **456 files become 228 distinct source versions**, containing **1,444 playable levels**. Versions differing in source text remain separate; this is not semantic deduplication of game titles. All 228 sources analysed and all surveyed levels completed without harness/proof-check errors. Six sources with rule-driven restart/checkpoint commands use a conservative fallback.

@@ -40,6 +40,18 @@ Reasonable next moves only with fresh evidence:
 
 ## Status / progress log
 
+- **2026-09-06: share future-object plans across candidate levels.**
+  Retain one ruleset proof and bounded caches across levels; request only count
+  and conserved-sum fact families. Keep actual single-player certification out
+  of the presence cache. The 128-level differential fixture now uses two sessions
+  with unchanged results. Analysis-only 1,000-candidate medians improve from
+  351/552/1,798 ms to 2.74/3.74/3.30 ms for Chaos Wizard/Cake Monsters/Drop Swap.
+  End-to-end focused comparisons against the previous pruning revision give
+  solves 27->29, 28->29, 29->29 and median process wall time 13,896->13,151 ms.
+  This supports the refactor, not default-on pruning or a native generator gain.
+  Exact presence still requires a board scan. See
+  `docs/future-ruleset-reuse-2026-09-06.md` for measurements and remaining costs.
+
 - **2026-09-06: remaining-future-object certificates and opt-in pruning.**
   Reuse the existing conservative creation closure at stable state boundaries
   to prove unavailable types, disabled rules and impossible winning continuations.

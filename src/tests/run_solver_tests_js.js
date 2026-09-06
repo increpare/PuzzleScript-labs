@@ -23,7 +23,7 @@ const {
     attachCertifiedWakeMasksToRuntimeRules,
 } = require('./lib/certified_wake_prune');
 const { analyzeSource } = require('./ps_static_analysis');
-const { createFutureObjectAnalyzer, createRuntimeObjectCounter } = require('./lib/future_object_universe');
+const { FUTURE_OBJECT_FACT_FAMILIES, getFutureObjectSession } = require('./lib/future_object_universe');
 const {
     resolveSolverPasses,
     createSolverOptimizationHook,
@@ -3969,6 +3969,7 @@ function attachSolverHashProjectionMetrics(result, solverOps) {
 function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
     const result = createSolverResult(game, levelIndex, timeoutMs, compileMs);
     let futurePrune = null;
+    let futureLevelMetrics = null;
     if (options.solverWakePruneCounters) {
         process.env.PUZZLESCRIPT_WAKE_PRUNE_COUNTERS = '1';
     }
@@ -4011,32 +4012,22 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
     }
 
     if (options.solverFuturePrune) {
-        const analyzer = createFutureObjectAnalyzer(options.staticAnalysisReport);
-        if (!analyzer.blockers.length) {
-            const countObjects = createRuntimeObjectCounter(options.staticAnalysisReport, state);
-            const verdicts = new Map();
-            const presence = new Int32Array(STRIDE_OBJ);
+        // Keep the compiled plan and bounded verdict cache across all candidate
+        // levels in this ruleset. Only the settled player count belongs to the
+        // level: its conservation proof is already in the reusable plan.
+        const session = getFutureObjectSession(options.staticAnalysisReport, state);
+        const firstLevel = session.counters.player_checks === 0;
+        const player = session.certifyPlayer(level.objects, STRIDE_OBJ);
+        futureLevelMetrics = {
+            future_ruleset_setups: firstLevel ? 1 : 0,
+            future_player_count: player.player_count,
+            future_single_player_certified: player.single_player_certified,
+        };
+        Object.assign(result, futureLevelMetrics);
+        if (!session.analyzer.blockers.length) {
             futurePrune = (metrics) => {
                 const start = performance.now();
-                // The current dead-end predicates use only zero/positive
-                // counts, never resource thresholds. Exact board-wide presence
-                // therefore keys the entire verdict. Most moves preserve it:
-                // OR words cheaply and avoid counting objects/rechecking goals.
-                // Future numeric bounds must extend this key before using it.
-                presence.fill(0);
-                for (let tile = 0; tile < level.objects.length; tile += STRIDE_OBJ) {
-                    for (let word = 0; word < STRIDE_OBJ; word++) presence[word] |= level.objects[tile + word];
-                }
-                const key = presence.join(',');
-                let impossible;
-                if (verdicts.has(key)) {
-                    impossible = verdicts.get(key);
-                    metrics.future_presence_cache_hits = (metrics.future_presence_cache_hits || 0) + 1;
-                } else {
-                    impossible = analyzer.inspect(countObjects(level.objects, STRIDE_OBJ)).prevents_completion;
-                    if (verdicts.size >= 256) verdicts.delete(verdicts.keys().next().value);
-                    verdicts.set(key, impossible);
-                }
+                const impossible = session.preventsCompletion(level.objects, STRIDE_OBJ, metrics);
                 metrics.future_prune_checks = (metrics.future_prune_checks || 0) + 1;
                 metrics.future_prune_ms = (metrics.future_prune_ms || 0) + performance.now() - start;
                 if (impossible) metrics.future_pruned = (metrics.future_pruned || 0) + 1;
@@ -4067,6 +4058,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
 
     const runMode = (mode, modeDeadline) => {
         const modeResult = createSolverResult(game, levelIndex, timeoutMs, compileMs);
+        Object.assign(modeResult, futureLevelMetrics);
         resetSolverWakePruneCountersForMode();
         if (SOLVER_RULE_HOTSPOTS) {
             modeResult._ruleHotspots = new Map();
@@ -4431,6 +4423,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
 
     const runAdaptivePortfolio = (modeDeadline) => {
         const modeResult = createSolverResult(game, levelIndex, timeoutMs, compileMs);
+        Object.assign(modeResult, futureLevelMetrics);
         resetSolverWakePruneCountersForMode();
         if (SOLVER_RULE_HOTSPOTS) {
             modeResult._ruleHotspots = new Map();
@@ -4883,7 +4876,7 @@ function runGame(root, file, options = {}) {
         || passes.action
         || passes.winRelevance
         || options.solverOptParity;
-    const useFullStaticFamilies = options.solverFuturePrune || solverPassesNeedFullStaticReport(passes)
+    const useFullStaticFamilies = solverPassesNeedFullStaticReport(passes)
         || passes.inert
         || options.solverOptimizeStatic
         || options.solverOptParity;
@@ -4895,6 +4888,7 @@ function runGame(root, file, options = {}) {
         const familyFilter = useFullStaticFamilies
             ? undefined
             : [
+                ...(options.solverFuturePrune ? FUTURE_OBJECT_FACT_FAMILIES : []),
                 options.solverStaticHash ? 'count_layer_invariants' : null,
                 options.solverHashProjection ? 'solver_hash_projection' : null,
                 options.solverCertifiedWakePrune ? 'certified_wake_masks' : null,
@@ -4903,7 +4897,7 @@ function runGame(root, file, options = {}) {
             ].filter(Boolean);
         staticAnalysisReport = analyzeSource(source, {
             sourcePath: game,
-            familyFilter: familyFilter && familyFilter.length === 1 ? familyFilter[0] : familyFilter,
+            familyFilter: familyFilter ? [...new Set(familyFilter)] : undefined,
         });
         staticAnalysisMs = performance.now() - staticAnalysisStart;
     }
@@ -5579,6 +5573,8 @@ function totals(results) {
         out.future_prune_checks = (out.future_prune_checks || 0) + (result.future_prune_checks || 0);
         out.future_pruned = (out.future_pruned || 0) + (result.future_pruned || 0);
         out.future_prune_ms = (out.future_prune_ms || 0) + (result.future_prune_ms || 0);
+        out.future_ruleset_setups = (out.future_ruleset_setups || 0) + (result.future_ruleset_setups || 0);
+        out.future_single_player_levels = (out.future_single_player_levels || 0) + (result.future_single_player_certified ? 1 : 0);
         out.future_presence_cache_hits = (out.future_presence_cache_hits || 0) + (result.future_presence_cache_hits || 0);
         out.certified_wake_prune_attached_rules += result.certified_wake_prune_attached_rules || 0;
         if (result.certified_wake_prune_complete) {

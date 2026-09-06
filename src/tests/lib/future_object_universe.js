@@ -5,6 +5,10 @@ const {
     ruleRequirementsReachable, playerObjectNameSet,
 } = require('../ps_static_analysis');
 
+// These are ruleset facts. In particular, generating another board must not
+// derive per_level_object_universe or unrelated rule-flow families again.
+const FUTURE_OBJECT_FACT_FAMILIES = ['count_layer_invariants', 'linear_count_invariants'];
+
 // A state-conditioned certificate for forward, stable-boundary search in one
 // level. This does not approximate the board used by the engine: it proves a
 // superset of types that any future board may contain. Once the superset
@@ -12,7 +16,7 @@ const {
 // Reset/checkpoint games fail closed until restored-state roots are modelled.
 function createFutureObjectAnalyzer(report, { cacheLimit = 256 } = {}) {
     if (!report || report.status !== 'ok' || !report.ps_tagged) {
-        throw new Error('Future-object analysis requires a successful full static report');
+        throw new Error('Future-object analysis requires a successful tagged static report');
     }
     const tagged = report.ps_tagged;
     const rules = compileObjectUniversePlan(tagged);
@@ -31,6 +35,17 @@ function createFutureObjectAnalyzer(report, { cacheLimit = 256 } = {}) {
     );
     const cache = new Map();
     const counters = { queries: 0, closures: 0, cache_hits: 0 };
+
+    function certifyPlayerCount(count) {
+        if (!Number.isInteger(count) || count < 0) throw new Error('Invalid player count');
+        // Conservation is proved once from rules. A candidate supplies only its
+        // settled count; no creation closure or per-level proof is needed.
+        return {
+            player_count: count,
+            player_count_conserved: playerCountConserved,
+            single_player_certified: !blockers.length && playerCountConserved && count === 1,
+        };
+    }
 
     function universe(counts) {
         const present = names.filter(n => (counts[n] || 0) > 0);
@@ -52,9 +67,9 @@ function createFutureObjectAnalyzer(report, { cacheLimit = 256 } = {}) {
             reachable,
         };
         // Presence determines the relaxed closure, so share it across boards
-        // with different geometry/counts. Goal lower bounds are evaluated below
-        // per query: caching those by presence would be incorrect. Bound retained
-        // closures; eviction changes cost only, never the certificate.
+        // with different geometry/counts. Keep actual-count outputs such as the
+        // single-player certificate outside this cache. Bound retained closures;
+        // eviction changes cost only, never the certificate.
         if (cacheLimit > 0) {
             if (cache.size >= cacheLimit) cache.delete(cache.keys().next().value);
             cache.set(key, out);
@@ -118,13 +133,92 @@ function createFutureObjectAnalyzer(report, { cacheLimit = 256 } = {}) {
             goal_requires_absence: u.possible_explicit_win ? [] : [...requiredAbsences].sort(),
             necessary_extinctions: u.possible_explicit_win ? [] : [...requiredAbsences]
                 .filter(n => (counts[n] || 0) > 0 && quantity.get(n).never_increases).sort(),
-            player_count: playerCount,
-            player_count_conserved: playerCountConserved,
-            single_player_certified: !blockers.length && playerCountConserved && playerCount === 1,
+            ...certifyPlayerCount(playerCount),
         };
     }
 
-    return { inspect, counters, players, names, blockers };
+    return { inspect, certifyPlayerCount, counters, players, names, blockers };
+}
+
+// Bind a reusable ruleset plan to one runtime object-ID layout. Keep this
+// session across candidate boards: neither geometry nor positive multiplicity
+// affects the current dead-end predicates, so their verdict cache is shared.
+function createFutureObjectSession(report, runtimeState, { cacheLimit = 256, analyzer = createFutureObjectAnalyzer(report, { cacheLimit }) } = {}) {
+    const entries = report.ps_tagged.objects.map(o => {
+        const runtime = runtimeState.objects[o.canonical_name];
+        if (!runtime) throw new Error(`Missing runtime object ${o.canonical_name}`);
+        return { name: o.name, word: runtime.id >>> 5, bit: 1 << (runtime.id & 31) };
+    });
+    const playerEntries = entries.filter(e => analyzer.players.includes(e.name));
+    const requiredStride = entries.reduce((n, e) => Math.max(n, e.word + 1), 0);
+    const knownWords = new Int32Array(requiredStride);
+    for (const e of entries) knownWords[e.word] |= e.bit;
+    const verdicts = new Map();
+    const counters = { queries: 0, cache_hits: 0, cache_misses: 0, player_checks: 0 };
+    let presence = new Int32Array(0);
+    function validateBoard(board, stride) {
+        if (!Number.isInteger(stride) || stride <= 0 || board.length % stride !== 0
+            || stride < requiredStride) throw new Error('Invalid board stride for future-object analysis');
+    }
+    function certifyPlayer(board, stride) {
+        validateBoard(board, stride);
+        let count = 0;
+        for (let tile = 0; tile < board.length; tile += stride) {
+            for (const e of playerEntries) if (board[tile + e.word] & e.bit) count++;
+        }
+        counters.player_checks++;
+        return analyzer.certifyPlayerCount(count);
+    }
+    function preventsCompletion(board, stride, metrics = {}) {
+        validateBoard(board, stride);
+        counters.queries++;
+        if (presence.length !== stride) presence = new Int32Array(stride);
+        else presence.fill(0);
+        for (let tile = 0; tile < board.length; tile += stride) {
+            for (let word = 0; word < stride; word++) presence[word] |= board[tile + word];
+        }
+        const key = presence.join(',');
+        if (verdicts.has(key)) {
+            counters.cache_hits++;
+            metrics.future_presence_cache_hits = (metrics.future_presence_cache_hits || 0) + 1;
+            return verdicts.get(key);
+        }
+        counters.cache_misses++;
+        for (let word = 0; word < stride; word++) {
+            if (presence[word] & ~(knownWords[word] || 0)) throw new Error('Runtime board contains an unanalysed object');
+        }
+        // Only the dead-end boolean is cached. Its proofs use zero/positive
+        // counts, so decode the presence mask once instead of counting every
+        // object on every tile on misses. Never use these synthetic counts for
+        // the single-player certificate or future numeric resource bounds.
+        const counts = Object.fromEntries(entries.filter(e => presence[e.word] & e.bit).map(e => [e.name, 1]));
+        const dead = analyzer.inspect(counts).prevents_completion;
+        if (cacheLimit > 0) {
+            if (verdicts.size >= cacheLimit) verdicts.delete(verdicts.keys().next().value);
+            verdicts.set(key, dead);
+        }
+        return dead;
+    }
+    return { analyzer, counters, certifyPlayer, preventsCompletion };
+}
+
+// Reports and compiled runtime object tables are immutable for a compilation.
+// Weak ownership releases plans on recompilation rather than accumulating a
+// process-global cache of game sources. Different ID layouts get separate
+// verdict caches, while sharing the name-based ruleset proof and closure cache.
+const rulesetSessions = new WeakMap();
+function getFutureObjectSession(report, runtimeState) {
+    let ruleset = rulesetSessions.get(report);
+    if (!ruleset) {
+        ruleset = { analyzer: createFutureObjectAnalyzer(report), bindings: new WeakMap() };
+        rulesetSessions.set(report, ruleset);
+    }
+    let session = ruleset.bindings.get(runtimeState.objects);
+    if (!session) {
+        session = createFutureObjectSession(report, runtimeState, { analyzer: ruleset.analyzer });
+        ruleset.bindings.set(runtimeState.objects, session);
+    }
+    return session;
 }
 
 // Match by canonical names, not object IDs: semantic compilation and runtime
@@ -163,4 +257,5 @@ function createRuntimeObjectCounter(report, runtimeState) {
     };
 }
 
-module.exports = { createFutureObjectAnalyzer, createRuntimeObjectCounter };
+module.exports = { FUTURE_OBJECT_FACT_FAMILIES, createFutureObjectAnalyzer, createRuntimeObjectCounter,
+    createFutureObjectSession, getFutureObjectSession };
