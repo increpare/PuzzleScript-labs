@@ -10,12 +10,15 @@ namespace {
 std::vector<ps_solve_status> outcomes;
 size_t calls = 0;
 bool failCall = false;
+bool stop = false;
+std::vector<int64_t> budgets;
 }
 extern "C" ps_solve_options ps_solve_default_options() { return {}; }
 extern "C" bool ps_solve_level_layer_cell_object_ids(
     const ps_game*, int32_t, int32_t, const int32_t*, size_t,
-    const ps_solve_options*, ps_solve_result** out, ps_error**) {
+    const ps_solve_options* options, ps_solve_result** out, ps_error**) {
     ++calls;
+    budgets.push_back(options->timeout_ms);
     if (failCall) return false;
     assert(calls <= outcomes.size());
     auto* result = new ps_solve_result{};
@@ -63,4 +66,26 @@ int main() {
     options.supplementalGate = [](int64_t) { return false; };
     auto gated = puzzlescript::search::assessGeneratedLevelDifficulty(loaded, level, options);
     assert(gated.solved && !gated.supplementalRan && calls == 1);
+
+    options.supplementalGate = {};
+    options.shouldCancel = [] { return stop; };
+    calls = 0; stop = true;
+    auto cancelled = puzzlescript::search::assessGeneratedLevelDifficulty(loaded, level, options);
+    assert(cancelled.interrupted && !cancelled.solved && calls == 0);
+    stop = false; calls = 0;
+    cancelled = puzzlescript::search::assessGeneratedLevelDifficulty(loaded, level, options,
+        [](auto stage, const auto&) {
+            if (stage == puzzlescript::search::DifficultyStage::GreedyComplete) stop = true;
+        });
+    assert(cancelled.interrupted && cancelled.solved && calls == 2);
+    assert(cancelled.breakdown.difficulty == 50); // retains the valid partial minimum
+    stop = false; calls = 0; budgets.clear();
+    options.deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(100);
+    auto bounded = puzzlescript::search::assessGeneratedLevelDifficulty(loaded, level, options);
+    assert(bounded.solved && calls == 4);
+    for (auto budget : budgets) assert(budget >= 1 && budget <= 100);
+    calls = 0;
+    options.deadline = std::chrono::steady_clock::now() - std::chrono::milliseconds(1);
+    bounded = puzzlescript::search::assessGeneratedLevelDifficulty(loaded, level, options);
+    assert(bounded.interrupted && calls == 0);
 }

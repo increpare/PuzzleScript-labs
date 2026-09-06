@@ -42,6 +42,11 @@ struct SolveAttempt {
     std::vector<ps_input> solution;
 };
 
+bool assessmentStopped(const DifficultyOptions& options) {
+    return (options.shouldCancel && options.shouldCancel())
+        || (options.deadline && std::chrono::steady_clock::now() >= *options.deadline);
+}
+
 SolveAttempt runStrategy(
     const ps_game* game,
     int32_t width,
@@ -52,8 +57,23 @@ SolveAttempt runStrategy(
     uint64_t maxExpanded,
     const char* solverHeuristic = nullptr) {
     SolveAttempt attempt;
+    if (assessmentStopped(options)) {
+        attempt.status = PS_SOLVE_STATUS_TIMEOUT;
+        return attempt;
+    }
     ps_solve_options solveOptions = ps_solve_default_options();
     solveOptions.timeout_ms = std::max<int64_t>(1, options.timeoutMs);
+    if (options.deadline) {
+        const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(
+            *options.deadline - std::chrono::steady_clock::now()).count();
+        solveOptions.timeout_ms = std::min(solveOptions.timeout_ms, std::max<int64_t>(1, remaining));
+    }
+    if (options.deadline || options.shouldCancel) {
+        solveOptions.should_cancel = [](void* context) {
+            return assessmentStopped(*static_cast<const DifficultyOptions*>(context));
+        };
+        solveOptions.cancel_context = const_cast<DifficultyOptions*>(&options);
+    }
     solveOptions.strategy = strategy;
     solveOptions.portfolio_jobs = 1;
     solveOptions.max_expanded = maxExpanded;
@@ -219,6 +239,7 @@ DifficultyResult assessGeneratedLevelDifficulty(
     // generation uses this distinction to retry with a larger solve budget.
     result.primaryStatus = primary.status;
     result.primaryError = primary.error;
+    result.interrupted = assessmentStopped(options);
 
     if (!primary.solved) {
         if (onProgress) {
@@ -236,6 +257,14 @@ DifficultyResult assessGeneratedLevelDifficulty(
         onProgress(DifficultyStage::PrimaryComplete, result);
     }
 
+    auto finishIfStopped = [&]() {
+        if (!assessmentStopped(options)) return false;
+        result.interrupted = true;
+        if (onProgress) onProgress(DifficultyStage::Complete, result);
+        return true;
+    };
+    if (finishIfStopped()) return result;
+
     const bool runSupplemental = options.supplementalGate
         ? options.supplementalGate(result.primaryExpanded)
         : options.runSupplemental;
@@ -245,6 +274,7 @@ DifficultyResult assessGeneratedLevelDifficulty(
         }
         return result;
     }
+    if (finishIfStopped()) return result;
 
     DifficultyOptions supplementalOptions = options;
     if (supplementalOptions.supplementalCap < 0) {
@@ -254,8 +284,8 @@ DifficultyResult assessGeneratedLevelDifficulty(
     supplementalOptions.timeoutMs = std::max<int64_t>(1, supplementalOptions.supplementalTimeoutMs);
 
     result.supplementalRan = true;
-    result.breakdown.difficulty = -1;
-    result.breakdown.difficultyAlgorithm.clear();
+    // Keep the validated primary score while lanes run. If interrupted, the
+    // caller can show a partial result but must not rank it as fully assessed.
 
     const uint64_t cap = static_cast<uint64_t>(supplementalOptions.supplementalCap);
     const SolveAttempt greedy = runStrategy(
@@ -274,6 +304,7 @@ DifficultyResult assessGeneratedLevelDifficulty(
     if (onProgress) {
         onProgress(DifficultyStage::GreedyComplete, result);
     }
+    if (finishIfStopped()) return result;
 
     const SolveAttempt weighted = runStrategy(
         game,
@@ -290,6 +321,7 @@ DifficultyResult assessGeneratedLevelDifficulty(
     if (onProgress) {
         onProgress(DifficultyStage::WeightedAStarComplete, result);
     }
+    if (finishIfStopped()) return result;
 
     const SolveAttempt bfs = runStrategy(
         game,
@@ -306,6 +338,7 @@ DifficultyResult assessGeneratedLevelDifficulty(
     if (onProgress) {
         onProgress(DifficultyStage::BfsComplete, result);
     }
+    if (finishIfStopped()) return result;
 
     updateDifficultyMin(result.breakdown, result.breakdown.expandedPortfolio, "Portfolio");
 

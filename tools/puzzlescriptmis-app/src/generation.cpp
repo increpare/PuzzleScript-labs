@@ -208,6 +208,9 @@ static void generating() {
             const long long budgetMs = timeToSolve;
             nativebridge::DifficultyAssessmentOptions assessOptions;
             assessOptions.primaryTimeoutMs = timeToSolve;
+            // Stop an active primary or supplemental search when generation is
+            // disabled, instead of joining up to three 60-second lane waits.
+            assessOptions.shouldCancel = [] { return !requestGenerating.load(std::memory_order_relaxed); };
             assessOptions.runSupplemental = false;
             assessOptions.supplementalGate = [&](long long primaryExpanded) {
                 bool runSupplemental = false;
@@ -221,6 +224,7 @@ static void generating() {
 
             const nativebridge::DifficultyAssessmentResult assessed =
                 nativebridge::assessDifficulty(*solverContext, candidateState, assessOptions);
+            if (assessed.interrupted) break;
 
             const long long primaryExpanded = MAX(0LL, assessed.primaryExpanded);
             const long long primaryElapsedMs = MAX(0LL, assessed.primaryElapsedMs);

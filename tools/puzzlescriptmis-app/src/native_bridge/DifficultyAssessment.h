@@ -24,6 +24,7 @@ struct DifficultyAssessmentOptions {
     std::function<bool(long long primaryExpanded)> supplementalGate;
     long long supplementalCap = -1;
     long long supplementalTimeoutMs = 60000;
+    std::function<bool()> shouldCancel;
 };
 
 struct DifficultyAssessmentResult {
@@ -35,6 +36,7 @@ struct DifficultyAssessmentResult {
     std::vector<short> solution;
     DifficultyBreakdown breakdown;
     bool supplementalRan = false;
+    bool interrupted = false;
 };
 
 enum class DifficultyAssessmentStage {

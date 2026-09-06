@@ -95,6 +95,10 @@ void solvingLoop(uint64_t requestHash, vvvs state) {
         options.primaryTimeoutMs = timeoutMs;
         options.runSupplemental = true;
         options.supplementalTimeoutMs = 60000;
+        options.shouldCancel = [requestHash] {
+            return !keepSolving.load(std::memory_order_relaxed)
+                || activeRequestHash.load() != requestHash;
+        };
 
         const nativebridge::DifficultyAssessmentResult assessed = nativebridge::assessDifficulty(
             *context,
@@ -130,6 +134,7 @@ void solvingLoop(uint64_t requestHash, vvvs state) {
                 }
             });
 
+        if (assessed.interrupted) break;
         synchronized(solveMutex) {
             if (activeRequestHash.load() != requestHash) {
                 break;

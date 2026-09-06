@@ -81,6 +81,7 @@ DifficultyAssessmentResult toBridgeResult(const puzzlescript::search::Difficulty
     result.solution = toEditorSolution(assessed.solution);
     result.breakdown = toBridgeBreakdown(assessed.breakdown);
     result.supplementalRan = assessed.supplementalRan;
+    result.interrupted = assessed.interrupted;
     return result;
 }
 
@@ -104,6 +105,7 @@ DifficultyAssessmentResult assessDifficulty(
     }
     sharedOptions.supplementalCap = options.supplementalCap;
     sharedOptions.supplementalTimeoutMs = options.supplementalTimeoutMs;
+    sharedOptions.shouldCancel = options.shouldCancel;
 
     DifficultyAssessmentResult result;
     const auto assessed = puzzlescript::search::assessGeneratedLevelDifficulty(
