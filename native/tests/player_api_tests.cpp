@@ -348,6 +348,61 @@ void assertPersistentStateMatches(
     }
 }
 
+void runMovementScratchRegression() {
+    // Multiple movers reuse the same buffers, action aliases source/target,
+    // and a token can move on a different layer while the player is blocked.
+    // Repeat after undo/restart and a dimension change, with both narrow and
+    // multiword object/movement masks. Check sound identity before the next turn.
+    for (int dummyCount : {0, 130}) {
+        std::string objects, layers;
+        for (int i = 0; i < dummyCount; ++i) {
+            const auto name = "Dummy" + std::to_string(i);
+            objects += name + "\nblue\n\n";
+            layers += name + "\n";
+        }
+        const std::string source =
+            "title Movement scratch regression\n\nobjects\nBackground\nblack\n\n"
+            "Player\nwhite\n\nWall\nred\n\nToken\ngreen\n\n" + objects +
+            "legend\n. = Background\nP = Player\n# = Wall\nX = Player and Token\n\n"
+            "sounds\nPlayer move 123111\nPlayer cantmove 123112\nPlayer action 123113\nToken move 123114\n\n"
+            "collisionlayers\nBackground\nPlayer, Wall\n" + layers + "Token\n\n"
+            "rules\n[ > Player Token ] -> [ > Player > Token ]\n\n"
+            "winconditions\n\nlevels\nPX.#\n\nP\nX\n.\n#\n";
+        CompileHandle compiled;
+        require(ps_compile_source(source.data(), source.size(), &compiled.result), "movement regression compile failed");
+        GameHandle game{ps_compile_result_game(compiled.result)};
+        SessionHandle session;
+        ps_error* error = nullptr;
+        require(ps_full_state_create(game.game, &session.state, &error), "movement regression session failed");
+        const int32_t player = findObjectIdByName(game.game, "player");
+        const int32_t token = findObjectIdByName(game.game, "token");
+        for (int level : {0, 1, 0}) {
+            require(ps_full_state_load_level(session.state, level, &error), "movement regression load failed");
+            const auto initial = serializedState(session);
+            const auto forward = level == 0 ? PS_INPUT_RIGHT : PS_INPUT_DOWN;
+            auto has = [&](int cell, int object) {
+                return ps_full_state_cell_has_object(session.state, level == 0 ? cell : 0, level == 0 ? 0 : cell, object);
+            };
+            const auto moved = ps_full_state_turn(session.state, forward);
+            require(moved.changed && !has(0, player) && has(1, player) && has(2, player) && has(2, token),
+                "movement chain did not settle in order");
+            require(moved.audio_event_count == 2 && moved.audio_events[0].seed == 123111
+                && moved.audio_events[1].seed == 123114, "movement sound identity changed");
+            const auto beforeAction = serializedState(session);
+            const auto action = ps_full_state_turn(session.state, PS_INPUT_ACTION);
+            require(serializedState(session) == beforeAction, "action lost objects when source equals target");
+            require(action.audio_event_count == 1 && action.audio_events[0].seed == 123113, "action sound changed");
+            const auto blocked = ps_full_state_turn(session.state, forward);
+            require(has(1, player) && has(2, player) && !has(2, token) && has(3, token),
+                "blocked player corrupted another moving layer");
+            require(blocked.audio_event_count == 2 && blocked.audio_events[0].seed == 123112
+                && blocked.audio_events[1].seed == 123114, "blocked movement sounds changed");
+            require(ps_full_state_undo(session.state) && serializedState(session) == beforeAction, "movement undo changed board");
+            require(ps_full_state_restart(session.state) && serializedState(session) == initial, "movement restart changed board");
+        }
+    }
+}
+
 void runLayerCellSnapshotApiTest() {
     CompileHandle compiled;
     require(ps_compile_source(kSnapshotSource, std::strlen(kSnapshotSource), &compiled.result), "snapshot api compile failed");
@@ -667,6 +722,7 @@ int main() {
     }
     runLayerCellSnapshotApiTest();
     runLegendApiTest();
+    runMovementScratchRegression();
 
     CompileHandle compiled;
     if (!ps_compile_source(kSource, std::strlen(kSource), &compiled.result)) {

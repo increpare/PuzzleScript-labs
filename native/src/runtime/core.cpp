@@ -3201,25 +3201,34 @@ bool resolveOneLayerMovement(FullState& session, TurnResult& out, int32_t tileIn
     const Game& game = *session.game;
     const MaskWord* layerMask = maskPtr(game, game.layerMaskOffsets[static_cast<size_t>(layer)]);
     const uint32_t wordCount = game.wordCount;
-    MaskVector sourceMask = getCellObjects(session, tileIndex);
-    const MaskVector sourceMaskBeforeMove = sourceMask;
-    MaskVector targetMask = getCellObjects(session, targetIndex);
-    if (directionMask != 16 && anyBitsInCommon(targetMask.data(), targetMask.size(), layerMask, wordCount)) {
+    const MaskWord* sourceBeforeMove = getCellObjectsPtr(session, tileIndex);
+    const MaskWord* targetBeforeMove = getCellObjectsPtr(session, targetIndex);
+    // Reject blocked movement before copying either cell. Reuse session-local
+    // buffers for successful attempts; sound matching can read the unchanged
+    // board until both replacement masks have been prepared. In particular,
+    // action may have source == target and still needs two separate snapshots.
+    if (directionMask != 16 && anyBitsInCommon(targetBeforeMove, wordCount, layerMask, wordCount)) {
         return false;
     }
 
-    MaskVector movingEntities = sourceMask;
-    for (size_t word = 0; word < movingEntities.size() && word < wordCount; ++word) {
-        movingEntities[word] &= layerMask[word];
-        sourceMask[word] &= ~layerMask[word];
-        targetMask[word] |= movingEntities[word];
+    // Rule replacement and movement resolution do not overlap. Their setters
+    // and audio collection do not call back into replacement, so reuse its
+    // buffers rather than enlarge Scratch or allocate more per-session vectors.
+    MaskVector& sourceMask = session.scratch.replacementObjectsScratch;
+    MaskVector& targetMask = session.scratch.replacementOldObjectsScratch;
+    sourceMask.resize(wordCount);
+    targetMask.resize(wordCount);
+    for (uint32_t word = 0; word < wordCount; ++word) {
+        const MaskWord moving = sourceBeforeMove[word] & layerMask[word];
+        sourceMask[word] = sourceBeforeMove[word] & ~layerMask[word];
+        targetMask[word] = targetBeforeMove[word] | moving;
     }
 
     if (emitAudio && static_cast<size_t>(layer) < game.sfxMovementMasks.size()) {
         for (const auto& entry : game.sfxMovementMasks[static_cast<size_t>(layer)]) {
             const MaskWord* entryObjectMask = maskPtr(game, entry.objectMask);
             if (entryObjectMask == nullptr) continue;
-            if (!anyBitsInCommon(sourceMaskBeforeMove.data(), sourceMaskBeforeMove.size(),
+            if (!anyBitsInCommon(sourceBeforeMove, wordCount,
                                  entryObjectMask, wordCount)) {
                 continue;
             }
@@ -3237,6 +3246,8 @@ bool resolveOneLayerMovement(FullState& session, TurnResult& out, int32_t tileIn
     }
 
     if (movementDebugEnabled()) {
+        MaskVector movingEntities(wordCount);
+        for (uint32_t word = 0; word < wordCount; ++word) movingEntities[word] = sourceBeforeMove[word] & layerMask[word];
         std::ostringstream stream;
         stream << "resolve tile=(" << x << "," << y << ")"
                << " target=(" << targetX << "," << targetY << ")"
@@ -3263,7 +3274,10 @@ MovementResolveOutcome resolveMovements(FullState& session, TurnResult& out, std
             if (!anyBitsSet(movementMaskPtr, movementStride)) {
                 continue;
             }
-            MaskVector movementMask(movementMaskPtr, movementMaskPtr + movementStride);
+            // Both movement scans finish between rule phases. Reusing this
+            // storage avoids a heap allocation for each moving/unresolved cell.
+            MaskVector& movementMask = session.scratch.replacementMovementsScratch;
+            movementMask.assign(movementMaskPtr, movementMaskPtr + movementStride);
             bool changedTile = false;
             bool preventAggregateSplit = false;
 
@@ -3394,7 +3408,8 @@ MovementResolveOutcome resolveMovements(FullState& session, TurnResult& out, std
         if (!anyBitsSet(movementMaskPtr2, failureMovementStride)) {
             continue;
         }
-        MaskVector movementMask(movementMaskPtr2, movementMaskPtr2 + failureMovementStride);
+        MaskVector& movementMask = session.scratch.replacementMovementsScratch;
+        movementMask.assign(movementMaskPtr2, movementMaskPtr2 + failureMovementStride);
 
         if (session.game->rigid) {
             MaskVector rigidMovementAppliedMask = getCellRigidMovementAppliedMask(session, tileIndex);
