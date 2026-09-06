@@ -1,0 +1,52 @@
+{
+  "native": {
+    "playable": 1346,
+    "strict_counts": {
+      "before": [
+        714,
+        734,
+        733
+      ],
+      "after": [
+        705,
+        721,
+        740
+      ]
+    },
+    "median_strict": {
+      "before": 733,
+      "after": 721
+    },
+    "delta_of_medians": -12,
+    "paired_deltas": [
+      -9,
+      -13,
+      7
+    ]
+  },
+  "js": {
+    "playable": 1346,
+    "strict_counts": {
+      "before": [
+        557,
+        579,
+        589
+      ],
+      "after": [
+        559,
+        560,
+        589
+      ]
+    },
+    "median_strict": {
+      "before": 579,
+      "after": 560
+    },
+    "delta_of_medians": -19,
+    "paired_deltas": [
+      2,
+      -19,
+      0
+    ]
+  }
+}

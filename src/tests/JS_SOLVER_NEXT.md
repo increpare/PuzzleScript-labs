@@ -40,6 +40,21 @@ Reasonable next moves only with fresh evidence:
 
 ## Status / progress log
 
+- **2026-09-06: whole-day 250ms battery does not establish a broad solve-count gain.**
+  Compare pre-day `528bdf78` with `a12a20c1`, same 184 sources / 1,346 playable
+  levels, native interpreter portfolio and JS weighted A*. Strict `<250ms`
+  native pairs: **714->705, 734->721, 733->740**; JS: **557->559, 579->560,
+  589->589**. Separate medians are 733->721 and 579->560, but paired deltas
+  are mixed and ranges overlap; do not claim a precise universal regression
+  from the separate medians. Native Gapfiller source-level index 3 is lost in
+  all three observations (about 220ms before, timeouts after). No source level
+  is newly solved in all after runs while unsolved in all before runs. All
+  twelve passes finish without compiler/solver errors or reported JS replay
+  rejections. Preserve every observation, full solutions, overlaid cumulative
+  graphs and per-level changes in `docs/solver-day-250ms-2026-09-06.md`.
+  This is the direct corpus acceptance metric; earlier localized throughput
+  improvements do not establish an improvement on it.
+
 - **2026-09-06: refine per-input flow; reject new native schedulers.** Preserve
   positive movement AND/OR requirements, propagate through original group/loop
   edges, and stop using `forceAlwaysRun` to seed impossible movement writes.
