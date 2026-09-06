@@ -5,41 +5,53 @@
 #include <algorithm>
 #include <memory>
 
-#if defined(__GNUC__) || defined(__clang__)
-#define PS_WEAK_SYMBOL __attribute__((weak))
+#if defined(_MSC_VER)
+// MSVC has no weak function attribute. Give each null backend a distinct
+// fallback symbol and resolve it only if generated code supplies no backend.
+// Ordinary definitions here caused duplicate-symbol errors in compiled builds.
+#if defined(_M_IX86)
+#define PS_C_SYMBOL_PREFIX "_"
 #else
-#define PS_WEAK_SYMBOL
+#define PS_C_SYMBOL_PREFIX ""
+#endif
+#define PS_BACKEND_FALLBACK(Type, Name) \
+    extern "C" const puzzlescript::Type* Name(uint64_t); \
+    __pragma(comment(linker, "/alternatename:" PS_C_SYMBOL_PREFIX #Name "=" PS_C_SYMBOL_PREFIX #Name "_fallback")) \
+    extern "C" const puzzlescript::Type* Name##_fallback(uint64_t)
+#elif defined(__GNUC__) || defined(__clang__)
+#define PS_BACKEND_FALLBACK(Type, Name) extern "C" __attribute__((weak)) const puzzlescript::Type* Name(uint64_t)
+#else
+#define PS_BACKEND_FALLBACK(Type, Name) extern "C" const puzzlescript::Type* Name(uint64_t)
 #endif
 
-extern "C" PS_WEAK_SYMBOL
-const puzzlescript::SpecializedRulegroupsBackend* ps_specialized_rulegroups_find_backend(uint64_t) {
+PS_BACKEND_FALLBACK(SpecializedRulegroupsBackend, ps_specialized_rulegroups_find_backend) {
     return nullptr;
 }
 
-extern "C" PS_WEAK_SYMBOL
-const puzzlescript::SpecializedRulegroupsBackend* ps_compiled_rules_find_backend(uint64_t) {
+PS_BACKEND_FALLBACK(SpecializedRulegroupsBackend, ps_compiled_rules_find_backend) {
     return nullptr;
 }
 
-extern "C" PS_WEAK_SYMBOL
-const puzzlescript::SpecializedFullTurnBackend* ps_specialized_full_turn_find_backend(uint64_t) {
+PS_BACKEND_FALLBACK(SpecializedFullTurnBackend, ps_specialized_full_turn_find_backend) {
     return nullptr;
 }
 
-extern "C" PS_WEAK_SYMBOL
-const puzzlescript::SpecializedFullTurnBackend* ps_compiled_tick_find_backend(uint64_t) {
+PS_BACKEND_FALLBACK(SpecializedFullTurnBackend, ps_compiled_tick_find_backend) {
     return nullptr;
 }
 
-extern "C" PS_WEAK_SYMBOL
-const puzzlescript::SpecializedCompactTurnBackend* ps_specialized_compact_turn_find_backend(uint64_t) {
+PS_BACKEND_FALLBACK(SpecializedCompactTurnBackend, ps_specialized_compact_turn_find_backend) {
     return nullptr;
 }
 
-extern "C" PS_WEAK_SYMBOL
-const puzzlescript::SpecializedCompactTurnBackend* ps_compiled_compact_tick_find_backend(uint64_t) {
+PS_BACKEND_FALLBACK(SpecializedCompactTurnBackend, ps_compiled_compact_tick_find_backend) {
     return nullptr;
 }
+
+#undef PS_BACKEND_FALLBACK
+#if defined(PS_C_SYMBOL_PREFIX)
+#undef PS_C_SYMBOL_PREFIX
+#endif
 
 namespace puzzlescript {
 

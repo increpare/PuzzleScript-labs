@@ -1545,6 +1545,11 @@ target_link_libraries(solver_generated_replay PRIVATE puzzlescript_native puzzle
 add_test(NAME solver_generated_replay COMMAND solver_generated_replay
   WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT})
 
+add_executable(compiled_backend_linkage tests/compiled_backend_linkage.cpp)
+target_include_directories(compiled_backend_linkage PRIVATE src)
+target_link_libraries(compiled_backend_linkage PRIVATE puzzlescript_native)
+add_test(NAME compiled_backend_linkage COMMAND compiled_backend_linkage)
+
 target_link_libraries(generator_difficulty_assessment
   PRIVATE
     puzzlescript_native
