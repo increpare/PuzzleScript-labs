@@ -27,6 +27,7 @@ struct GlobalDedupe {
 };
 
 bool insertGlobalDedupe(GlobalDedupe& dedupe, uint64_t hash, size_t dedupeMax);
+bool containsGlobalDedupe(GlobalDedupe& dedupe, uint64_t hash);
 
 struct BlockState {
     BlockSpec spec;

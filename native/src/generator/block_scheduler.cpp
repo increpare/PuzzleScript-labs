@@ -320,6 +320,10 @@ void workerMain(
         }
 
         const uint64_t levelHash = hashLevel(candidateLevel);
+        // Already-solved duplicates used to pay for another primary search.
+        // Only successful primaries enter this cache, so timeouts remain
+        // retryable. The later insertion still arbitrates simultaneous solves.
+        if (containsGlobalDedupe(dedupe, levelHash)) continue;
 
         DifficultyOptions assessmentOptions;
         assessmentOptions.timeoutMs = options.solverTimeoutMs;
@@ -373,6 +377,12 @@ void workerMain(
 }
 
 } // namespace
+
+bool containsGlobalDedupe(GlobalDedupe& dedupe, uint64_t hash) {
+    const size_t shard = static_cast<size_t>(hash % dedupe.sets.size());
+    std::lock_guard<std::mutex> lock(dedupe.mutexes[shard]);
+    return dedupe.sets[shard].find(hash) != dedupe.sets[shard].end();
+}
 
 bool insertGlobalDedupe(GlobalDedupe& dedupe, uint64_t hash, size_t dedupeMax) {
     const size_t shard = static_cast<size_t>(hash % dedupe.sets.size());
