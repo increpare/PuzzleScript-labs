@@ -1,10 +1,16 @@
-# Native future-rule eligibility: implementation and measurements
+# Rejected experiment: native future-rule eligibility
 
-The native interpreter can now omit rules whose necessary object types cannot
-exist again along the current continuation. This is an opt-in experiment:
-`PUZZLESCRIPT_FUTURE_RULE_PRUNE=1` must be set when compiling or loading the game.
-The final measurements establish fewer rule visits, **not a repeatable overall
-speedup**. Do not enable it by default on the strength of these results.
+**Rejected and removed from the PR's implementation.** The final measurements
+established fewer rule visits, not a repeatable speedup. Retaining added runtime
+complexity behind an opt-in flag did not meet the required performance gate.
+The runtime/compiler changes, cache, option, integration changes, dedicated tests
+and benchmark drivers have been removed. Raw measurements and this record remain.
+
+The sections below describe the historical prototype at commit `f70bc505`, not
+features in the current tree. To reproduce it, use an isolated checkout of that
+commit; its benchmark drivers and `PUZZLESCRIPT_FUTURE_RULE_PRUNE=1` option exist
+there. Further implementations must demonstrate a repeatable end-to-end benefit
+before being included in the PR; fewer visits alone are insufficient.
 
 ## Relationship to wake/sleep and group splitting
 

@@ -1,5 +1,4 @@
 #include "compiler/lower_to_runtime.hpp"
-#include "runtime/future_rules.hpp"
 
 #include <algorithm>
 #include <array>
@@ -5161,7 +5160,6 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
     }
 
     publishParserGlyphs(*game, state);
-    configureFutureRulePruning(*game);
     outGame.information = std::move(game);
     outGame.initialMetaGameState = std::move(initialMetaGameState);
     return nullptr;

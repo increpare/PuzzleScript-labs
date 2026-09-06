@@ -26,9 +26,6 @@
 
 namespace puzzlescript {
 
-class FutureRuleCache;
-struct FutureRuleSelection;
-
 struct Error {
     explicit Error(std::string messageText)
         : message(std::move(messageText)) {}
@@ -460,7 +457,6 @@ struct GameMetadata {
 // the generated function. Metagame/session context stays outside turn core.
 
 struct GameInformation {
-    std::shared_ptr<FutureRuleCache> futureRuleCache;
     int32_t schemaVersion = 1;
     int32_t strideObject = 1;
     int32_t strideMovement = 1;
@@ -559,12 +555,6 @@ private:
 MaskOffset storeMaskWords(Game& game, const MaskVector& words);
 
 struct Scratch {
-    std::shared_ptr<const FutureRuleSelection> futureRuleSelection;
-    // Keep one memo across derived-state resets. It is revalidated against
-    // both the ruleset owner and exact current presence before every use.
-    std::shared_ptr<FutureRuleCache> futureRuleMemoOwner;
-    std::shared_ptr<const FutureRuleSelection> futureRuleMemo;
-    MaskVector futureRuleMemoPresence;
     MaskVector liveMovements;
     bool liveMovementsClean = false;
     MaskVector rowMasks;
@@ -708,7 +698,6 @@ inline void resetScratchForLevel(Scratch& scratch) {
     scratch.incrementalNextObjects.clear();
     scratch.incrementalNextMovements.clear();
     scratch.incrementalPriorAllOnes = true;
-    scratch.futureRuleSelection.reset();
     scratch.currentInputMask = 0x3f;
     scratch.ellipsisLinePossibleScratch.clear();
     scratch.ellipsisMinConcreteSuffixScratch.clear();
