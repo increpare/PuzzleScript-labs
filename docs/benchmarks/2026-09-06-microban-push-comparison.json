@@ -1,0 +1,921 @@
+{
+  "config": {
+    "game": "src/demo/microban.txt",
+    "levels": [
+      5,
+      7,
+      9,
+      11,
+      13,
+      15,
+      17,
+      19
+    ],
+    "pairs": 5,
+    "timeout_ms": 500,
+    "timing": "process launch through exit, including compilation and native replay; alternating order",
+    "limitation": "eight additional levels from one standard Sokoban set; different search objectives; no general PuzzleScript claim",
+    "build": "Windows MSVC 19.44 x64 Release, 64-bit masks; native portfolio and push search both interpret Microban rules",
+    "revision": "63e1f064 (unchanged solver code)"
+  },
+  "runs": [
+    {
+      "pair": 0,
+      "level": 5,
+      "solver": "portfolio",
+      "status": "solved",
+      "elapsed_ms": 50.57939999999999,
+      "expanded": 1259,
+      "solution_length": 41,
+      "solution_sha256": "36e763ded295cbe58aa095e8cc3f53a450c93aac42b4a6efa2f604fbba8e6351"
+    },
+    {
+      "pair": 0,
+      "level": 5,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 25.70429999999999,
+      "expanded": 80,
+      "pushes": 13,
+      "solution_length": 41,
+      "solution_sha256": "36e763ded295cbe58aa095e8cc3f53a450c93aac42b4a6efa2f604fbba8e6351"
+    },
+    {
+      "pair": 0,
+      "level": 7,
+      "solver": "portfolio",
+      "status": "solved",
+      "elapsed_ms": 41.97539999999998,
+      "expanded": 920,
+      "solution_length": 31,
+      "solution_sha256": "cb236685ea1764230e67ab3a8e3479556c678ebebe4109407d75eddc1d907c66"
+    },
+    {
+      "pair": 0,
+      "level": 7,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 23.947000000000003,
+      "expanded": 55,
+      "pushes": 7,
+      "solution_length": 31,
+      "solution_sha256": "2a6429875381f8fe4a9ecd0172b4c3263e11cbc401ab9afcf729a4a40bf05f8a"
+    },
+    {
+      "pair": 0,
+      "level": 9,
+      "solver": "portfolio",
+      "status": "timeout",
+      "elapsed_ms": 526.1966,
+      "expanded": 26144,
+      "solution_length": 0,
+      "solution_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "pair": 0,
+      "level": 9,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 27.750400000000013,
+      "expanded": 380,
+      "pushes": 6,
+      "solution_length": 29,
+      "solution_sha256": "7b8d0b44ed205d026e080a623e0bf82ec4884a4ea6997f213a781292389f1ba4"
+    },
+    {
+      "pair": 0,
+      "level": 11,
+      "solver": "portfolio",
+      "status": "solved",
+      "elapsed_ms": 464.42640000000006,
+      "expanded": 22317,
+      "solution_length": 107,
+      "solution_sha256": "12b7dac5dcec3626ab0ec85fe9deafccdb9398641df71870a9f478a85a6aaec7"
+    },
+    {
+      "pair": 0,
+      "level": 11,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 26.39630000000011,
+      "expanded": 462,
+      "pushes": 29,
+      "solution_length": 143,
+      "solution_sha256": "cbdc2d6ca29b88c7cb924ea5c55d708b2a84548d1994456585145f2e8733d5dd"
+    },
+    {
+      "pair": 0,
+      "level": 13,
+      "solver": "portfolio",
+      "status": "solved",
+      "elapsed_ms": 112.3927000000001,
+      "expanded": 4701,
+      "solution_length": 44,
+      "solution_sha256": "44139220551358a61d50d1f51bac0b85d9093fd2e2c358e4e6d3cc03869bebaa"
+    },
+    {
+      "pair": 0,
+      "level": 13,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 32.01700000000005,
+      "expanded": 840,
+      "pushes": 6,
+      "solution_length": 40,
+      "solution_sha256": "cd4923b45849cf7b6598255b24f6f3e9e03b3a4914c25de05ae6a712f74eea93"
+    },
+    {
+      "pair": 0,
+      "level": 15,
+      "solver": "portfolio",
+      "status": "solved",
+      "elapsed_ms": 85.20820000000003,
+      "expanded": 2839,
+      "solution_length": 97,
+      "solution_sha256": "e477e673d5199500423686c6c96b866357b14c4a5e821eaac30029e05fdcbfdc"
+    },
+    {
+      "pair": 0,
+      "level": 15,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 24.45569999999998,
+      "expanded": 132,
+      "pushes": 32,
+      "solution_length": 97,
+      "solution_sha256": "e477e673d5199500423686c6c96b866357b14c4a5e821eaac30029e05fdcbfdc"
+    },
+    {
+      "pair": 0,
+      "level": 17,
+      "solver": "portfolio",
+      "status": "solved",
+      "elapsed_ms": 32.21340000000009,
+      "expanded": 489,
+      "solution_length": 30,
+      "solution_sha256": "f38a860c80d1b4f77d12306acd9ac1230fe795b1b045c7534dc3f9d1b9add2c5"
+    },
+    {
+      "pair": 0,
+      "level": 17,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 23.332799999999907,
+      "expanded": 18,
+      "pushes": 10,
+      "solution_length": 30,
+      "solution_sha256": "f38a860c80d1b4f77d12306acd9ac1230fe795b1b045c7534dc3f9d1b9add2c5"
+    },
+    {
+      "pair": 0,
+      "level": 19,
+      "solver": "portfolio",
+      "status": "solved",
+      "elapsed_ms": 102.8125,
+      "expanded": 3797,
+      "solution_length": 89,
+      "solution_sha256": "13b6a61e0b31f80838efbb998867e94504c132d15b558d058e3aacd9e978c355"
+    },
+    {
+      "pair": 0,
+      "level": 19,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 25.3425000000002,
+      "expanded": 160,
+      "pushes": 21,
+      "solution_length": 109,
+      "solution_sha256": "3a49c76e3d062b3f350514017539bfb29eeec9388a4776b044a837746203a2fb"
+    },
+    {
+      "pair": 1,
+      "level": 5,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 22.383899999999812,
+      "expanded": 80,
+      "pushes": 13,
+      "solution_length": 41,
+      "solution_sha256": "36e763ded295cbe58aa095e8cc3f53a450c93aac42b4a6efa2f604fbba8e6351"
+    },
+    {
+      "pair": 1,
+      "level": 5,
+      "solver": "portfolio",
+      "status": "solved",
+      "elapsed_ms": 45.72550000000001,
+      "expanded": 1259,
+      "solution_length": 41,
+      "solution_sha256": "36e763ded295cbe58aa095e8cc3f53a450c93aac42b4a6efa2f604fbba8e6351"
+    },
+    {
+      "pair": 1,
+      "level": 7,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 20.9679000000001,
+      "expanded": 55,
+      "pushes": 7,
+      "solution_length": 31,
+      "solution_sha256": "2a6429875381f8fe4a9ecd0172b4c3263e11cbc401ab9afcf729a4a40bf05f8a"
+    },
+    {
+      "pair": 1,
+      "level": 7,
+      "solver": "portfolio",
+      "status": "solved",
+      "elapsed_ms": 39.47389999999996,
+      "expanded": 920,
+      "solution_length": 31,
+      "solution_sha256": "cb236685ea1764230e67ab3a8e3479556c678ebebe4109407d75eddc1d907c66"
+    },
+    {
+      "pair": 1,
+      "level": 9,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 23.784599999999955,
+      "expanded": 380,
+      "pushes": 6,
+      "solution_length": 29,
+      "solution_sha256": "7b8d0b44ed205d026e080a623e0bf82ec4884a4ea6997f213a781292389f1ba4"
+    },
+    {
+      "pair": 1,
+      "level": 9,
+      "solver": "portfolio",
+      "status": "timeout",
+      "elapsed_ms": 524.1920999999998,
+      "expanded": 26153,
+      "solution_length": 0,
+      "solution_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "pair": 1,
+      "level": 11,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 23.296400000000176,
+      "expanded": 462,
+      "pushes": 29,
+      "solution_length": 143,
+      "solution_sha256": "cbdc2d6ca29b88c7cb924ea5c55d708b2a84548d1994456585145f2e8733d5dd"
+    },
+    {
+      "pair": 1,
+      "level": 11,
+      "solver": "portfolio",
+      "status": "solved",
+      "elapsed_ms": 470.6710000000003,
+      "expanded": 22317,
+      "solution_length": 107,
+      "solution_sha256": "12b7dac5dcec3626ab0ec85fe9deafccdb9398641df71870a9f478a85a6aaec7"
+    },
+    {
+      "pair": 1,
+      "level": 13,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 28.13919999999962,
+      "expanded": 840,
+      "pushes": 6,
+      "solution_length": 40,
+      "solution_sha256": "cd4923b45849cf7b6598255b24f6f3e9e03b3a4914c25de05ae6a712f74eea93"
+    },
+    {
+      "pair": 1,
+      "level": 13,
+      "solver": "portfolio",
+      "status": "solved",
+      "elapsed_ms": 126.76629999999977,
+      "expanded": 4701,
+      "solution_length": 44,
+      "solution_sha256": "44139220551358a61d50d1f51bac0b85d9093fd2e2c358e4e6d3cc03869bebaa"
+    },
+    {
+      "pair": 1,
+      "level": 15,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 23.07990000000018,
+      "expanded": 132,
+      "pushes": 32,
+      "solution_length": 97,
+      "solution_sha256": "e477e673d5199500423686c6c96b866357b14c4a5e821eaac30029e05fdcbfdc"
+    },
+    {
+      "pair": 1,
+      "level": 15,
+      "solver": "portfolio",
+      "status": "solved",
+      "elapsed_ms": 87.75889999999981,
+      "expanded": 2839,
+      "solution_length": 97,
+      "solution_sha256": "e477e673d5199500423686c6c96b866357b14c4a5e821eaac30029e05fdcbfdc"
+    },
+    {
+      "pair": 1,
+      "level": 17,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 23.252500000000055,
+      "expanded": 18,
+      "pushes": 10,
+      "solution_length": 30,
+      "solution_sha256": "f38a860c80d1b4f77d12306acd9ac1230fe795b1b045c7534dc3f9d1b9add2c5"
+    },
+    {
+      "pair": 1,
+      "level": 17,
+      "solver": "portfolio",
+      "status": "solved",
+      "elapsed_ms": 30.19080000000031,
+      "expanded": 489,
+      "solution_length": 30,
+      "solution_sha256": "f38a860c80d1b4f77d12306acd9ac1230fe795b1b045c7534dc3f9d1b9add2c5"
+    },
+    {
+      "pair": 1,
+      "level": 19,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 21.458599999999933,
+      "expanded": 160,
+      "pushes": 21,
+      "solution_length": 109,
+      "solution_sha256": "3a49c76e3d062b3f350514017539bfb29eeec9388a4776b044a837746203a2fb"
+    },
+    {
+      "pair": 1,
+      "level": 19,
+      "solver": "portfolio",
+      "status": "solved",
+      "elapsed_ms": 110.60580000000027,
+      "expanded": 3797,
+      "solution_length": 89,
+      "solution_sha256": "13b6a61e0b31f80838efbb998867e94504c132d15b558d058e3aacd9e978c355"
+    },
+    {
+      "pair": 2,
+      "level": 5,
+      "solver": "portfolio",
+      "status": "solved",
+      "elapsed_ms": 46.456199999999626,
+      "expanded": 1259,
+      "solution_length": 41,
+      "solution_sha256": "36e763ded295cbe58aa095e8cc3f53a450c93aac42b4a6efa2f604fbba8e6351"
+    },
+    {
+      "pair": 2,
+      "level": 5,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 21.373799999999846,
+      "expanded": 80,
+      "pushes": 13,
+      "solution_length": 41,
+      "solution_sha256": "36e763ded295cbe58aa095e8cc3f53a450c93aac42b4a6efa2f604fbba8e6351"
+    },
+    {
+      "pair": 2,
+      "level": 7,
+      "solver": "portfolio",
+      "status": "solved",
+      "elapsed_ms": 36.84780000000001,
+      "expanded": 920,
+      "solution_length": 31,
+      "solution_sha256": "cb236685ea1764230e67ab3a8e3479556c678ebebe4109407d75eddc1d907c66"
+    },
+    {
+      "pair": 2,
+      "level": 7,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 20.63989999999967,
+      "expanded": 55,
+      "pushes": 7,
+      "solution_length": 31,
+      "solution_sha256": "2a6429875381f8fe4a9ecd0172b4c3263e11cbc401ab9afcf729a4a40bf05f8a"
+    },
+    {
+      "pair": 2,
+      "level": 9,
+      "solver": "portfolio",
+      "status": "timeout",
+      "elapsed_ms": 526.0964999999997,
+      "expanded": 25813,
+      "solution_length": 0,
+      "solution_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "pair": 2,
+      "level": 9,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 25.290199999999913,
+      "expanded": 380,
+      "pushes": 6,
+      "solution_length": 29,
+      "solution_sha256": "7b8d0b44ed205d026e080a623e0bf82ec4884a4ea6997f213a781292389f1ba4"
+    },
+    {
+      "pair": 2,
+      "level": 11,
+      "solver": "portfolio",
+      "status": "solved",
+      "elapsed_ms": 487.65129999999954,
+      "expanded": 22317,
+      "solution_length": 107,
+      "solution_sha256": "12b7dac5dcec3626ab0ec85fe9deafccdb9398641df71870a9f478a85a6aaec7"
+    },
+    {
+      "pair": 2,
+      "level": 11,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 24.854299999999967,
+      "expanded": 462,
+      "pushes": 29,
+      "solution_length": 143,
+      "solution_sha256": "cbdc2d6ca29b88c7cb924ea5c55d708b2a84548d1994456585145f2e8733d5dd"
+    },
+    {
+      "pair": 2,
+      "level": 13,
+      "solver": "portfolio",
+      "status": "solved",
+      "elapsed_ms": 120.09860000000026,
+      "expanded": 4701,
+      "solution_length": 44,
+      "solution_sha256": "44139220551358a61d50d1f51bac0b85d9093fd2e2c358e4e6d3cc03869bebaa"
+    },
+    {
+      "pair": 2,
+      "level": 13,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 28.772100000000137,
+      "expanded": 840,
+      "pushes": 6,
+      "solution_length": 40,
+      "solution_sha256": "cd4923b45849cf7b6598255b24f6f3e9e03b3a4914c25de05ae6a712f74eea93"
+    },
+    {
+      "pair": 2,
+      "level": 15,
+      "solver": "portfolio",
+      "status": "solved",
+      "elapsed_ms": 84.94270000000051,
+      "expanded": 2839,
+      "solution_length": 97,
+      "solution_sha256": "e477e673d5199500423686c6c96b866357b14c4a5e821eaac30029e05fdcbfdc"
+    },
+    {
+      "pair": 2,
+      "level": 15,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 22.786799999999857,
+      "expanded": 132,
+      "pushes": 32,
+      "solution_length": 97,
+      "solution_sha256": "e477e673d5199500423686c6c96b866357b14c4a5e821eaac30029e05fdcbfdc"
+    },
+    {
+      "pair": 2,
+      "level": 17,
+      "solver": "portfolio",
+      "status": "solved",
+      "elapsed_ms": 31.257900000000518,
+      "expanded": 489,
+      "solution_length": 30,
+      "solution_sha256": "f38a860c80d1b4f77d12306acd9ac1230fe795b1b045c7534dc3f9d1b9add2c5"
+    },
+    {
+      "pair": 2,
+      "level": 17,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 20.003899999999703,
+      "expanded": 18,
+      "pushes": 10,
+      "solution_length": 30,
+      "solution_sha256": "f38a860c80d1b4f77d12306acd9ac1230fe795b1b045c7534dc3f9d1b9add2c5"
+    },
+    {
+      "pair": 2,
+      "level": 19,
+      "solver": "portfolio",
+      "status": "solved",
+      "elapsed_ms": 104.19939999999951,
+      "expanded": 3797,
+      "solution_length": 89,
+      "solution_sha256": "13b6a61e0b31f80838efbb998867e94504c132d15b558d058e3aacd9e978c355"
+    },
+    {
+      "pair": 2,
+      "level": 19,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 22.258200000000215,
+      "expanded": 160,
+      "pushes": 21,
+      "solution_length": 109,
+      "solution_sha256": "3a49c76e3d062b3f350514017539bfb29eeec9388a4776b044a837746203a2fb"
+    },
+    {
+      "pair": 3,
+      "level": 5,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 21.616500000000087,
+      "expanded": 80,
+      "pushes": 13,
+      "solution_length": 41,
+      "solution_sha256": "36e763ded295cbe58aa095e8cc3f53a450c93aac42b4a6efa2f604fbba8e6351"
+    },
+    {
+      "pair": 3,
+      "level": 5,
+      "solver": "portfolio",
+      "status": "solved",
+      "elapsed_ms": 47.16559999999936,
+      "expanded": 1259,
+      "solution_length": 41,
+      "solution_sha256": "36e763ded295cbe58aa095e8cc3f53a450c93aac42b4a6efa2f604fbba8e6351"
+    },
+    {
+      "pair": 3,
+      "level": 7,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 23.20769999999993,
+      "expanded": 55,
+      "pushes": 7,
+      "solution_length": 31,
+      "solution_sha256": "2a6429875381f8fe4a9ecd0172b4c3263e11cbc401ab9afcf729a4a40bf05f8a"
+    },
+    {
+      "pair": 3,
+      "level": 7,
+      "solver": "portfolio",
+      "status": "solved",
+      "elapsed_ms": 39.429299999999785,
+      "expanded": 920,
+      "solution_length": 31,
+      "solution_sha256": "cb236685ea1764230e67ab3a8e3479556c678ebebe4109407d75eddc1d907c66"
+    },
+    {
+      "pair": 3,
+      "level": 9,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 26.02349999999933,
+      "expanded": 380,
+      "pushes": 6,
+      "solution_length": 29,
+      "solution_sha256": "7b8d0b44ed205d026e080a623e0bf82ec4884a4ea6997f213a781292389f1ba4"
+    },
+    {
+      "pair": 3,
+      "level": 9,
+      "solver": "portfolio",
+      "status": "timeout",
+      "elapsed_ms": 524.7407000000003,
+      "expanded": 25427,
+      "solution_length": 0,
+      "solution_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "pair": 3,
+      "level": 11,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 24.81840000000011,
+      "expanded": 462,
+      "pushes": 29,
+      "solution_length": 143,
+      "solution_sha256": "cbdc2d6ca29b88c7cb924ea5c55d708b2a84548d1994456585145f2e8733d5dd"
+    },
+    {
+      "pair": 3,
+      "level": 11,
+      "solver": "portfolio",
+      "status": "solved",
+      "elapsed_ms": 472.4507000000003,
+      "expanded": 22317,
+      "solution_length": 107,
+      "solution_sha256": "12b7dac5dcec3626ab0ec85fe9deafccdb9398641df71870a9f478a85a6aaec7"
+    },
+    {
+      "pair": 3,
+      "level": 13,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 37.667599999999766,
+      "expanded": 840,
+      "pushes": 6,
+      "solution_length": 40,
+      "solution_sha256": "cd4923b45849cf7b6598255b24f6f3e9e03b3a4914c25de05ae6a712f74eea93"
+    },
+    {
+      "pair": 3,
+      "level": 13,
+      "solver": "portfolio",
+      "status": "solved",
+      "elapsed_ms": 123.95960000000014,
+      "expanded": 4701,
+      "solution_length": 44,
+      "solution_sha256": "44139220551358a61d50d1f51bac0b85d9093fd2e2c358e4e6d3cc03869bebaa"
+    },
+    {
+      "pair": 3,
+      "level": 15,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 22.95139999999992,
+      "expanded": 132,
+      "pushes": 32,
+      "solution_length": 97,
+      "solution_sha256": "e477e673d5199500423686c6c96b866357b14c4a5e821eaac30029e05fdcbfdc"
+    },
+    {
+      "pair": 3,
+      "level": 15,
+      "solver": "portfolio",
+      "status": "solved",
+      "elapsed_ms": 86.72589999999946,
+      "expanded": 2839,
+      "solution_length": 97,
+      "solution_sha256": "e477e673d5199500423686c6c96b866357b14c4a5e821eaac30029e05fdcbfdc"
+    },
+    {
+      "pair": 3,
+      "level": 17,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 21.5617000000002,
+      "expanded": 18,
+      "pushes": 10,
+      "solution_length": 30,
+      "solution_sha256": "f38a860c80d1b4f77d12306acd9ac1230fe795b1b045c7534dc3f9d1b9add2c5"
+    },
+    {
+      "pair": 3,
+      "level": 17,
+      "solver": "portfolio",
+      "status": "solved",
+      "elapsed_ms": 30.621899999999187,
+      "expanded": 489,
+      "solution_length": 30,
+      "solution_sha256": "f38a860c80d1b4f77d12306acd9ac1230fe795b1b045c7534dc3f9d1b9add2c5"
+    },
+    {
+      "pair": 3,
+      "level": 19,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 21.95680000000084,
+      "expanded": 160,
+      "pushes": 21,
+      "solution_length": 109,
+      "solution_sha256": "3a49c76e3d062b3f350514017539bfb29eeec9388a4776b044a837746203a2fb"
+    },
+    {
+      "pair": 3,
+      "level": 19,
+      "solver": "portfolio",
+      "status": "solved",
+      "elapsed_ms": 102.52099999999973,
+      "expanded": 3797,
+      "solution_length": 89,
+      "solution_sha256": "13b6a61e0b31f80838efbb998867e94504c132d15b558d058e3aacd9e978c355"
+    },
+    {
+      "pair": 4,
+      "level": 5,
+      "solver": "portfolio",
+      "status": "solved",
+      "elapsed_ms": 47.40859999999975,
+      "expanded": 1259,
+      "solution_length": 41,
+      "solution_sha256": "36e763ded295cbe58aa095e8cc3f53a450c93aac42b4a6efa2f604fbba8e6351"
+    },
+    {
+      "pair": 4,
+      "level": 5,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 22.631000000000313,
+      "expanded": 80,
+      "pushes": 13,
+      "solution_length": 41,
+      "solution_sha256": "36e763ded295cbe58aa095e8cc3f53a450c93aac42b4a6efa2f604fbba8e6351"
+    },
+    {
+      "pair": 4,
+      "level": 7,
+      "solver": "portfolio",
+      "status": "solved",
+      "elapsed_ms": 37.78049999999985,
+      "expanded": 920,
+      "solution_length": 31,
+      "solution_sha256": "cb236685ea1764230e67ab3a8e3479556c678ebebe4109407d75eddc1d907c66"
+    },
+    {
+      "pair": 4,
+      "level": 7,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 23.14889999999923,
+      "expanded": 55,
+      "pushes": 7,
+      "solution_length": 31,
+      "solution_sha256": "2a6429875381f8fe4a9ecd0172b4c3263e11cbc401ab9afcf729a4a40bf05f8a"
+    },
+    {
+      "pair": 4,
+      "level": 9,
+      "solver": "portfolio",
+      "status": "timeout",
+      "elapsed_ms": 524.5443999999998,
+      "expanded": 25636,
+      "solution_length": 0,
+      "solution_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "pair": 4,
+      "level": 9,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 25.506099999999606,
+      "expanded": 380,
+      "pushes": 6,
+      "solution_length": 29,
+      "solution_sha256": "7b8d0b44ed205d026e080a623e0bf82ec4884a4ea6997f213a781292389f1ba4"
+    },
+    {
+      "pair": 4,
+      "level": 11,
+      "solver": "portfolio",
+      "status": "solved",
+      "elapsed_ms": 481.5676999999996,
+      "expanded": 22317,
+      "solution_length": 107,
+      "solution_sha256": "12b7dac5dcec3626ab0ec85fe9deafccdb9398641df71870a9f478a85a6aaec7"
+    },
+    {
+      "pair": 4,
+      "level": 11,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 24.421900000000278,
+      "expanded": 462,
+      "pushes": 29,
+      "solution_length": 143,
+      "solution_sha256": "cbdc2d6ca29b88c7cb924ea5c55d708b2a84548d1994456585145f2e8733d5dd"
+    },
+    {
+      "pair": 4,
+      "level": 13,
+      "solver": "portfolio",
+      "status": "solved",
+      "elapsed_ms": 114.29420000000027,
+      "expanded": 4701,
+      "solution_length": 44,
+      "solution_sha256": "44139220551358a61d50d1f51bac0b85d9093fd2e2c358e4e6d3cc03869bebaa"
+    },
+    {
+      "pair": 4,
+      "level": 13,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 27.995199999999386,
+      "expanded": 840,
+      "pushes": 6,
+      "solution_length": 40,
+      "solution_sha256": "cd4923b45849cf7b6598255b24f6f3e9e03b3a4914c25de05ae6a712f74eea93"
+    },
+    {
+      "pair": 4,
+      "level": 15,
+      "solver": "portfolio",
+      "status": "solved",
+      "elapsed_ms": 84.89829999999984,
+      "expanded": 2839,
+      "solution_length": 97,
+      "solution_sha256": "e477e673d5199500423686c6c96b866357b14c4a5e821eaac30029e05fdcbfdc"
+    },
+    {
+      "pair": 4,
+      "level": 15,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 22.320200000000114,
+      "expanded": 132,
+      "pushes": 32,
+      "solution_length": 97,
+      "solution_sha256": "e477e673d5199500423686c6c96b866357b14c4a5e821eaac30029e05fdcbfdc"
+    },
+    {
+      "pair": 4,
+      "level": 17,
+      "solver": "portfolio",
+      "status": "solved",
+      "elapsed_ms": 31.36409999999978,
+      "expanded": 489,
+      "solution_length": 30,
+      "solution_sha256": "f38a860c80d1b4f77d12306acd9ac1230fe795b1b045c7534dc3f9d1b9add2c5"
+    },
+    {
+      "pair": 4,
+      "level": 17,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 20.79399999999987,
+      "expanded": 18,
+      "pushes": 10,
+      "solution_length": 30,
+      "solution_sha256": "f38a860c80d1b4f77d12306acd9ac1230fe795b1b045c7534dc3f9d1b9add2c5"
+    },
+    {
+      "pair": 4,
+      "level": 19,
+      "solver": "portfolio",
+      "status": "solved",
+      "elapsed_ms": 105.87109999999939,
+      "expanded": 3797,
+      "solution_length": 89,
+      "solution_sha256": "13b6a61e0b31f80838efbb998867e94504c132d15b558d058e3aacd9e978c355"
+    },
+    {
+      "pair": 4,
+      "level": 19,
+      "solver": "push",
+      "status": "solved",
+      "elapsed_ms": 23.39350000000013,
+      "expanded": 160,
+      "pushes": 21,
+      "solution_length": 109,
+      "solution_sha256": "3a49c76e3d062b3f350514017539bfb29eeec9388a4776b044a837746203a2fb"
+    }
+  ],
+  "js_replayed_distinct_solutions": 12,
+  "pair_totals": [
+    {
+      "portfolio": {
+        "elapsed_ms": 1415.8046000000002,
+        "solved": 7
+      },
+      "push": {
+        "elapsed_ms": 208.94600000000025,
+        "solved": 8
+      }
+    },
+    {
+      "portfolio": {
+        "elapsed_ms": 1435.3843000000002,
+        "solved": 7
+      },
+      "push": {
+        "elapsed_ms": 186.36299999999983,
+        "solved": 8
+      }
+    },
+    {
+      "portfolio": {
+        "elapsed_ms": 1437.5503999999996,
+        "solved": 7
+      },
+      "push": {
+        "elapsed_ms": 185.9791999999993,
+        "solved": 8
+      }
+    },
+    {
+      "portfolio": {
+        "elapsed_ms": 1427.6146999999983,
+        "solved": 7
+      },
+      "push": {
+        "elapsed_ms": 199.8036000000002,
+        "solved": 8
+      }
+    },
+    {
+      "portfolio": {
+        "elapsed_ms": 1427.7288999999982,
+        "solved": 7
+      },
+      "push": {
+        "elapsed_ms": 190.21079999999893,
+        "solved": 8
+      }
+    }
+  ],
+  "summary": {
+    "portfolio_median_batch_ms": 1427.7288999999982,
+    "push_median_batch_ms": 190.21079999999893,
+    "batch_speedup": 7.506034883403078
+  }
+}

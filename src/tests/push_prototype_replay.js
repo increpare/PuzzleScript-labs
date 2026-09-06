@@ -5,9 +5,11 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 const { replaySolutionOnGameFile } = require('./run_solver_tests_js');
 const binary = path.resolve(process.argv[2]);
-const game = path.resolve(__dirname, '../demo/sokoban_basic.txt');
+const game = path.resolve(__dirname, '../demo/microban.txt');
 const inputs = ['up', 'left', 'down', 'right', 'action', 'tick'];
-for (const level of [0, 1]) {
+// All ten original Microban levels, including eight multi-crate levels beyond
+// the initial prototype fixtures. Even-numbered entries are message screens.
+for (const level of [1, 3, 5, 7, 9, 11, 13, 15, 17, 19]) {
     const run = spawnSync(binary, [game, String(level), '5000'],
         { encoding: 'utf8', timeout: 10000, windowsHide: true });
     assert(!run.error, String(run.error));

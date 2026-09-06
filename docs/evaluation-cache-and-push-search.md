@@ -45,12 +45,66 @@ Level-set JSON includes `evaluation_cache`: `hits`, `searches` (owner attempts),
 Existing `totals.solver_searches` continues to count candidate assessments;
 `totals.deduped` now counts exact duplicates of retained keepers in that block.
 
-Three [recorded 200-sample runs](benchmarks/2026-09-06-generator-evaluation-cache.json)
+**Initial cache-only measurement, superseded by the follow-up below:** three
+[recorded 200-sample runs](benchmarks/2026-09-06-generator-evaluation-cache.json)
 each reused 32 lanes, performed 182 lane attempts, retained two keepers and had
 no interrupted assessments. End-to-end times were 220/215/212 ms. The earlier
 bounded-run baseline was 224/212/211 ms: this small preset does **not** demonstrate
 a wall-clock speedup. Reuse and correctness improve, but generation overhead,
 scheduling and tiny searches dominate this example.
+
+## Follow-up: measured improvements against GitHub master
+
+The coordinator still slept for up to 50 ms after each level-set block finished,
+and the legacy generator could sleep for 250 ms after completing a sample quota.
+Workers now notify a condition variable when they finish. The completion updates
+and waiting predicates synchronize through a mutex to prevent lost wakeups.
+External stop polling remains bounded; legacy deadlines wake at the deadline
+instead of the next dashboard tick. Already-admitted samples still finish.
+
+The [paired generator comparison](benchmarks/2026-09-06-generator-master-comparison.json)
+uses a fresh build of master `fb1fd820`, matching MSVC Release flags, 64-bit masks
+and the same linked Sokoban kernels. Each case has a warmup per executable and
+five alternating before/after pairs. Times include process startup, compilation,
+generation, solving, output writing and shutdown. Seed 11, 50 ms solver budgets
+and 60-second run limits are identical.
+
+| Recipe / samples / workers | Master median | Updated median | Speedup | Identical retained output |
+| --- | ---: | ---: | ---: | --- |
+| Level-set / 200 / 1 | 215 ms | 117 ms | 1.84x | Yes |
+| Level-set / 2,000 / 1 | 888 ms | 595 ms | 1.49x | Yes |
+| Level-set / 200 / 4 | 146 ms | 56 ms | 2.61x | No: scheduling varies |
+| Legacy / 20 / 1 | 545 ms | 374 ms | 1.46x | Yes |
+| Legacy / 200 / 1 | 3,424 ms | 3,242 ms | 1.06x | Yes |
+
+Output equality includes boards, scores and solution sequences, not merely
+keeper counts. The parallel case has two keepers in every run but different
+output hashes in both versions; do not describe it as an identical-output
+comparison. These timings demonstrate a real gain for bounded jobs; completion
+wakeups alone do not accelerate steady-state search during an unbounded run.
+
+The independent [push comparison](benchmarks/2026-09-06-microban-push-comparison.json)
+covers Microban levels 3–10 from the unchanged repository source, excluding the
+first two prototype fixtures. At 500 ms per level, the normal native portfolio
+solves 7/8 and push search solves 8/8 in each of five alternating pairs. Median
+whole-batch process time falls from **1,428 ms to 190 ms (7.51x)**. Every distinct
+solution from either solver passes JavaScript replay outside the measured
+interval; native replay is included. This establishes a benefit on eight further
+standard Sokoban levels, not broad coverage of arbitrary PuzzleScript mechanics.
+The push implementation remains opt-in through its dedicated executable and
+does not change generator difficulty scores.
+
+Reproduce with:
+
+```sh
+node src/tests/compare_generator_performance.js BASE_GENERATOR NEW_GENERATOR generator-comparison.json 5
+node src/tests/compare_push_performance.js NATIVE_SOLVER PUSH_SOLVER push-comparison.json 5
+```
+
+The generator benchmark hashes each binary and records output hashes and full
+per-run counters. The push benchmark stores outcomes, expansion counts, solution
+lengths and solution hashes. Hardware and compiler settings should accompany
+new records; these scripts do not enforce machine-specific timing thresholds.
 
 ## Push-search experiment
 
