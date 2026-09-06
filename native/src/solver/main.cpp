@@ -58,6 +58,18 @@ using StateKeyHash = puzzlescript::search::StateKeyHash;
 using SearchMode = puzzlescript::search::SearchMode;
 using puzzlescript::search::priorityFor;
 
+// One cheap optional callback lets generators stop work inside a solve,
+// instead of waiting for each primary/supplemental timeout to elapse.
+struct SearchControl {
+    bool (*shouldCancel)(void*) = nullptr;
+    void* context = nullptr;
+    uint64_t maxExpanded = 0;
+    const char* stopReason(TimePoint deadline) const {
+        if (shouldCancel && shouldCancel(context)) return "cancelled";
+        return Clock::now() >= deadline ? "timeout" : nullptr;
+    }
+};
+
 enum class Strategy {
     Portfolio,
     Bfs,
@@ -2442,7 +2454,8 @@ Result runSearch(
     bool solverHashProjection,
     const std::atomic_bool* cancelRequested = nullptr,
     std::unique_ptr<FullState> initialOverride = nullptr,
-    uint64_t maxExpanded = 0
+    uint64_t maxExpanded = 0,
+    SearchControl control = {}
 ) {
     const std::shared_ptr<const Game>& game = loadedGame.information;
     Result result;
@@ -2556,10 +2569,7 @@ Result runSearch(
         if (cancelRequested && cancelRequested->load(std::memory_order_relaxed)) {
             return "cancelled";
         }
-        if (Clock::now() >= deadline) {
-            return "timeout";
-        }
-        return nullptr;
+        return control.stopReason(deadline);
     };
 
     while (!frontier.empty()) {
@@ -2776,7 +2786,8 @@ Result runAdaptivePortfolioSearch(
     puzzlescript::solver::HeuristicKind heuristicKind,
     const puzzlescript::solver::StaticAnalysisHints* staticAnalysisHints,
     bool solverHashProjection,
-    std::unique_ptr<FullState> initialOverride = nullptr
+    std::unique_ptr<FullState> initialOverride = nullptr,
+    SearchControl control = {}
 ) {
     const std::shared_ptr<const Game>& game = loadedGame.information;
     Result result;
@@ -2950,13 +2961,13 @@ Result runAdaptivePortfolioSearch(
     };
 
     while (totalFrontier > 0) {
-        bool timedOut = false;
+        const char* stop = nullptr;
         {
             ScopedTimer timer(result.timing.timeoutCheckNs);
-            timedOut = Clock::now() >= deadline;
+            stop = control.stopReason(deadline);
         }
-        if (timedOut) {
-            result.status = "timeout";
+        if (stop) {
+            result.status = stop;
             break;
         }
 
@@ -3012,6 +3023,12 @@ Result runAdaptivePortfolioSearch(
             parentDepth = parentNode.depth;
         }
         const FullState& parentSession = *parentSessionPtr;
+        // Apply the same deterministic expansion budget as single-mode
+        // search; the seeded portfolio previously ignored max_expanded.
+        if (control.maxExpanded > 0 && result.expanded >= control.maxExpanded) {
+            result.status = "timeout";
+            break;
+        }
         ++result.expanded;
         if (allowWeightedAStarLock && !lockedToWeightedAStar && result.expanded >= 128 && result.generated > 0) {
             const double stepMsPerGenerated = ms(result.timing.stepNs) / static_cast<double>(result.generated);
@@ -3025,13 +3042,13 @@ Result runAdaptivePortfolioSearch(
         }
 
         for (const ps_input input : inputs) {
-            timedOut = false;
+            stop = nullptr;
             {
                 ScopedTimer timer(result.timing.timeoutCheckNs);
-                timedOut = Clock::now() >= deadline;
+                stop = control.stopReason(deadline);
             }
-            if (timedOut) {
-                result.status = "timeout";
+            if (stop) {
+                result.status = stop;
                 break;
             }
 
@@ -4117,7 +4134,8 @@ Result solveSeededLevel(
     size_t portfolioJobs,
     puzzlescript::solver::HeuristicKind heuristicKind,
     uint64_t maxExpanded = 0,
-    const std::string& randomSeed = {}
+    const std::string& randomSeed = {},
+    SearchControl control = {}
 ) {
     const TimePoint searchStart = Clock::now();
     const int64_t effectiveTimeoutMs = std::max<int64_t>(1, timeoutMs);
@@ -4127,6 +4145,12 @@ Result solveSeededLevel(
         || (strategy == Strategy::Portfolio && !fullNodeStorage);
 
     auto finish = [&](Result result) {
+        if (result.status == "solved") {
+            if (const char* reason = control.stopReason(deadline)) {
+                result.status = reason;
+                result.solution.clear();
+            }
+        }
         if (result.status == "solved") {
             // Generated boards need the same player-runtime validation as CLI
             // levels. Reload the candidate (not game.levels[0]) with the same
@@ -4142,19 +4166,24 @@ Result solveSeededLevel(
                     .againPolicy = puzzlescript::AgainPolicy::Drain,
                 };
                 for (const auto& token : result.solution) {
+                    if (const char* reason = control.stopReason(deadline)) {
+                        result.status = reason;
+                        break;
+                    }
                     const auto input = solutionInputFromName(token);
                     if (!input) break;
                     const auto step = puzzlescript::turn(*replay, *input, replayOptions);
                     if (step.won || replay->meta.currentLevelIndex != 0) { won = true; break; }
                 }
             }
-            if (!won) {
+            if (!won && result.status == "solved") {
                 result.status = "level_error";
                 result.error = "solver produced a non-replayable generated solution";
                 if (!replayLoad.error.empty()) result.error += ": " + replayLoad.error;
                 result.solution.clear();
             }
         }
+        if (result.status != "solved") result.solution.clear();
         result.strategy = result.status == "solved" ? result.strategy : strategyName(strategy);
         result.elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - searchStart).count();
         return result;
@@ -4168,6 +4197,10 @@ Result solveSeededLevel(
     loadResult.timeoutMs = effectiveTimeoutMs;
     loadResult.workerId = workerId;
     loadResult.astarWeight = astarWeight;
+    if (const char* reason = control.stopReason(deadline)) {
+        loadResult.status = reason;
+        return finish(std::move(loadResult));
+    }
     std::unique_ptr<FullState> initial = createSeededSolverSession(
         loadedGame,
         gameName,
@@ -4208,7 +4241,7 @@ Result solveSeededLevel(
             false,
             nullptr,
             std::move(initial),
-            maxExpanded));
+            maxExpanded, control));
     }
     if (strategy == Strategy::WeightedAStar) {
         return finish(runSearch(
@@ -4230,7 +4263,7 @@ Result solveSeededLevel(
             false,
             nullptr,
             std::move(initial),
-            maxExpanded));
+            maxExpanded, control));
     }
     if (strategy == Strategy::WeightedAStarDeep) {
         return finish(runSearch(
@@ -4252,7 +4285,7 @@ Result solveSeededLevel(
             false,
             nullptr,
             std::move(initial),
-            maxExpanded));
+            maxExpanded, control));
     }
     if (strategy == Strategy::Greedy) {
         return finish(runSearch(
@@ -4274,7 +4307,7 @@ Result solveSeededLevel(
             false,
             nullptr,
             std::move(initial),
-            maxExpanded));
+            maxExpanded, control));
     }
 
     Result result = runAdaptivePortfolioSearch(
@@ -4293,7 +4326,7 @@ Result solveSeededLevel(
         heuristicKind,
         nullptr,
         false,
-        std::move(initial));
+        std::move(initial), control);
     result.portfolioJobs = static_cast<uint32_t>(std::max<size_t>(1, std::min<size_t>(
         portfolioJobs,
         static_cast<size_t>(std::numeric_limits<uint32_t>::max()))));
@@ -5292,7 +5325,8 @@ extern "C" bool ps_solve_level_layer_cell_object_ids(
         effective.portfolio_jobs,
         heuristicKindFromApiOptions(effective),
         effective.max_expanded,
-        effective.random_seed ? effective.random_seed : "");
+        effective.random_seed ? effective.random_seed : "",
+        SearchControl{effective.should_cancel, effective.cancel_context, effective.max_expanded});
     *out_result = makeApiSolveResult(result);
     return true;
 }
