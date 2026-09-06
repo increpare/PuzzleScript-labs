@@ -40,6 +40,21 @@ Reasonable next moves only with fresh evidence:
 
 ## Status / progress log
 
+- **2026-09-06: refine per-input flow; reject new native schedulers.** Preserve
+  positive movement AND/OR requirements, propagate through original group/loop
+  edges, and stop using `forceAlwaysRun` to seed impossible movement writes.
+  Both compilers reuse existing input execution paths; native runtime and data
+  structures stay unchanged. Analysis runs once per ruleset, with no player-count
+  assumption. Static eligibility falls 20.6% across 184 source files (106 affected),
+  but native corpus timings are only modest/mixed. Robot Arm validates at
+  **9.2% less time for identical BFS work (7/7 pairs)** and **6.3% less time for
+  200 generator candidate evaluations (5/5)**; the latter keeps zero candidates
+  at the 10ms search budget and is not a quality/solve-count result. JS full
+  simulation improves **2.9% (5/5)**. Standard generation cases remain mixed or
+  slower. Remove native rule-list and group-skipping prototypes after they fail
+  the performance gate. See `docs/input-flow-2026-09-06.md` and its raw evidence
+  for all pairs, controls, scope, correctness checks and rejected approaches.
+
 - **2026-09-06: native movement buffer reuse passes the performance gate.**
   Reject blocked moves before copying cells and reuse existing replacement
   buffers during the separate movement phase; add no scratch fields or flags.
