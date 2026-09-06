@@ -25,6 +25,7 @@ struct DifficultyAssessmentOptions {
     long long supplementalCap = -1;
     long long supplementalTimeoutMs = 60000;
     std::function<bool()> shouldCancel;
+    std::string randomSeed;
 };
 
 struct DifficultyAssessmentResult {

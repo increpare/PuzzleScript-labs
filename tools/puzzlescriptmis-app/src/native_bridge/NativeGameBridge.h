@@ -10,6 +10,7 @@
 
 namespace puzzlescript {
 struct LoadedGame;
+namespace search { class DifficultyEvaluator; }
 }
 
 namespace psbridge {
@@ -118,6 +119,7 @@ public:
         const char* solverHeuristic = nullptr) const;
 
     const puzzlescript::LoadedGame& loadedGame() const;
+    puzzlescript::search::DifficultyEvaluator& difficultyEvaluator() const;
 
 private:
     struct CompileResultDeleter { void operator()(ps_compile_result* value) const { ps_free_compile_result(value); } };
@@ -141,6 +143,7 @@ private:
     GamePtr game_;
     StatePtr state_;
     Diagnostic lastDiagnostic_;
+    std::shared_ptr<puzzlescript::search::DifficultyEvaluator> evaluator_;
 };
 
 ps_input toNativeInput(int moveDir);

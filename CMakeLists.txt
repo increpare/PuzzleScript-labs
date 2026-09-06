@@ -44,4 +44,18 @@ if(PUZZLESCRIPT_BUILD_NATIVE)
   target_include_directories(puzzlescriptmis_generation_random PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/tools/puzzlescriptmis-app/src)
   add_test(NAME puzzlescriptmis_generation_random COMMAND puzzlescriptmis_generation_random)
+
+  add_executable(puzzlescriptmis_difficulty_integration
+    tools/puzzlescriptmis-app/src/native_bridge/NativeGameBridge.cpp
+    tools/puzzlescriptmis-app/src/native_bridge/DifficultyAssessment.cpp
+    tools/puzzlescriptmis-app/tests/difficulty_integration.cpp)
+  set_target_properties(puzzlescriptmis_difficulty_integration PROPERTIES CXX_STANDARD 20)
+  target_compile_definitions(puzzlescriptmis_difficulty_integration PRIVATE compiledWithoutOpenframeworks)
+  target_compile_options(puzzlescriptmis_difficulty_integration PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/Zc:__cplusplus>)
+  target_include_directories(puzzlescriptmis_difficulty_integration PRIVATE
+    tools/puzzlescriptmis-app/src native/src)
+  target_link_libraries(puzzlescriptmis_difficulty_integration PRIVATE puzzlescript_native puzzlescript_compiler)
+  add_test(NAME puzzlescriptmis_difficulty_integration COMMAND puzzlescriptmis_difficulty_integration)
+  set_tests_properties(puzzlescriptmis_difficulty_integration PROPERTIES
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} TIMEOUT 30)
 endif()

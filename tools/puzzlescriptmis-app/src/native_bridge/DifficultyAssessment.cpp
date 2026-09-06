@@ -1,7 +1,7 @@
 #include "native_bridge/DifficultyAssessment.h"
 
 #include "macros.h"
-#include "native_bridge/NativeGameFacade.h"
+#include "native_bridge/CandidateSolverContext.h"
 #include "search/difficulty.hpp"
 
 namespace nativebridge {
@@ -92,8 +92,7 @@ DifficultyAssessmentResult assessDifficulty(
     const vvvs& state,
     const DifficultyAssessmentOptions& options,
     DifficultyAssessmentProgressCallback onProgress) {
-    const puzzlescript::LoadedGame& loadedGame = candidateLoadedGame(context);
-    const puzzlescript::LevelTemplate level = candidateLevelTemplate(context, state);
+    const puzzlescript::LevelTemplate level = context.levelTemplateFromState(state);
 
     puzzlescript::search::DifficultyOptions sharedOptions;
     sharedOptions.timeoutMs = options.primaryTimeoutMs;
@@ -106,10 +105,10 @@ DifficultyAssessmentResult assessDifficulty(
     sharedOptions.supplementalCap = options.supplementalCap;
     sharedOptions.supplementalTimeoutMs = options.supplementalTimeoutMs;
     sharedOptions.shouldCancel = options.shouldCancel;
+    sharedOptions.randomSeed = options.randomSeed;
 
     DifficultyAssessmentResult result;
-    const auto assessed = puzzlescript::search::assessGeneratedLevelDifficulty(
-        loadedGame,
+    const auto assessed = context.bridge().difficultyEvaluator().assess(
         level,
         sharedOptions,
         onProgress

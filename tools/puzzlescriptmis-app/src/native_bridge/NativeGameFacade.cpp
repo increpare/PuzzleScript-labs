@@ -1,4 +1,5 @@
 #include "native_bridge/NativeGameFacade.h"
+#include "native_bridge/CandidateSolverContext.h"
 
 #include "colors.h"
 #include "game.h"
@@ -448,59 +449,6 @@ void logLastDiagnostic(Logger& logger) {
 
 } // namespace
 
-class CandidateSolverContext {
-public:
-    explicit CandidateSolverContext(std::unique_ptr<psbridge::NativeGameBridge> bridge)
-        : bridge_(std::move(bridge)) {}
-
-    CandidateSolveResult solveGeneratedState(
-        const vvvs& state,
-        long long timeoutMs,
-        ps_solve_strategy strategy = PS_SOLVE_STRATEGY_PORTFOLIO,
-        uint64_t maxExpanded = 0,
-        const char* solverHeuristic = nullptr) {
-        if (!bridge_) {
-            CandidateSolveResult result;
-            result.error = "Native solver context is not initialized";
-            return result;
-        }
-        return nativeResultToCandidateSolveResult(
-            bridge_->solveLayerGrid(layerGridFromState(state), timeoutMs, strategy, maxExpanded, solverHeuristic));
-    }
-
-    const puzzlescript::LoadedGame& loadedGame() const {
-        static const puzzlescript::LoadedGame kEmpty;
-        if (!bridge_) {
-            return kEmpty;
-        }
-        return bridge_->loadedGame();
-    }
-
-    puzzlescript::LevelTemplate levelTemplateFromState(const vvvs& state) const {
-        if (!bridge_) {
-            return {};
-        }
-        const psbridge::LayerGrid grid = layerGridFromState(state);
-        const puzzlescript::LoadedGame& loaded = bridge_->loadedGame();
-        if (!loaded.information || grid.width <= 0 || grid.height <= 0) {
-            return {};
-        }
-        std::vector<int32_t> nativeIds;
-        nativeIds.reserve(grid.displayObjectIds.size());
-        for (int32_t displayId : grid.displayObjectIds) {
-            nativeIds.push_back(displayId <= 0 ? -1 : displayId - 1);
-        }
-        return puzzlescript::search::levelTemplateFromLayerCellObjectIds(
-            *loaded.information,
-            grid.width,
-            grid.height,
-            nativeIds);
-    }
-
-private:
-    std::unique_ptr<psbridge::NativeGameBridge> bridge_;
-};
-
 bool compileSourceLines(const vector<string>& sourceLines, Game& displayGame, Logger& logger) {
     std::lock_guard<std::recursive_mutex> lock(bridgeMutex);
     logger.reset();
@@ -587,11 +535,12 @@ CandidateSolveResult solveGeneratedState(
     ps_solve_strategy strategy,
     uint64_t maxExpanded,
     const char* solverHeuristic) {
-    return context.solveGeneratedState(state, timeoutMs, strategy, maxExpanded, solverHeuristic);
+    return nativeResultToCandidateSolveResult(context.bridge().solveLayerGrid(
+        layerGridFromState(state), timeoutMs, strategy, maxExpanded, solverHeuristic));
 }
 
 CandidateSolveResult solveGeneratedState(CandidateSolverContext& context, const vvvs& state, long long timeoutMs) {
-    return context.solveGeneratedState(state, timeoutMs);
+    return nativeResultToCandidateSolveResult(context.bridge().solveLayerGrid(layerGridFromState(state), timeoutMs));
 }
 
 CandidateSolveResult solveGeneratedState(const vvvs& state, long long timeoutMs) {
