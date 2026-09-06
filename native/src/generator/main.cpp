@@ -43,7 +43,9 @@
 #include "generator/output_writer.hpp"
 #include "generator/spec_parser.hpp"
 #include "generator/templatize.hpp"
+#include "runtime/c_api_internal.hpp"
 #include "runtime/compiled_rules.hpp"
+#include "search/difficulty.hpp"
 #include "runtime/core.hpp"
 #include "search/search_common.hpp"
 
@@ -51,17 +53,11 @@ namespace {
 
 using Clock = std::chrono::steady_clock;
 using TimePoint = Clock::time_point;
-using puzzlescript::FullState;
 using puzzlescript::Game;
 using puzzlescript::LevelTemplate;
 using puzzlescript::MaskVector;
 using puzzlescript::MaskWord;
-using puzzlescript::MaskWordUnsigned;
-using StateKey = puzzlescript::search::StateKey;
-using StateKeyHash = puzzlescript::search::StateKeyHash;
 using SearchMode = puzzlescript::search::SearchMode;
-using puzzlescript::search::maskPtr;
-using puzzlescript::search::priorityFor;
 using puzzlescript::generator::GenerationProgram;
 using puzzlescript::generator::NameResolver;
 using puzzlescript::generator::Rng;
@@ -179,40 +175,6 @@ struct CounterValues {
     uint64_t timeouts = 0;
     uint64_t exhausted = 0;
     uint64_t levelErrors = 0;
-};
-
-struct StateHashProjection {
-    MaskVector objectMask;
-    bool enabled = false;
-};
-
-struct SolverMetadata {
-    std::vector<ps_input> inputs;
-    bool includeRandomState = false;
-    StateHashProjection projection;
-};
-
-struct Node {
-    std::unique_ptr<FullState> session;
-    StateKey key;
-    int32_t parent = -1;
-    ps_input input = PS_INPUT_UP;
-    uint32_t depth = 0;
-};
-
-struct QueueEntry {
-    int32_t priority = 0;
-    uint64_t tie = 0;
-    uint32_t nodeIndex = 0;
-};
-
-struct QueueEntryGreater {
-    bool operator()(const QueueEntry& a, const QueueEntry& b) const {
-        if (a.priority != b.priority) {
-            return a.priority > b.priority;
-        }
-        return a.tie > b.tie;
-    }
 };
 
 struct SolveResult {
@@ -484,26 +446,6 @@ bool betterCandidate(const Candidate& a, const Candidate& b) {
     return a.sampleId < b.sampleId;
 }
 
-bool maskHasBit(const MaskVector& words, int32_t bitIndex) {
-    if (bitIndex < 0) return false;
-    const uint32_t word = puzzlescript::maskWordIndex(static_cast<uint32_t>(bitIndex));
-    return word < words.size() && (words[word] & puzzlescript::maskBit(static_cast<uint32_t>(bitIndex))) != 0;
-}
-
-void orMask(MaskVector& target, const MaskVector& source) {
-    for (size_t i = 0; i < target.size() && i < source.size(); ++i) {
-        target[i] |= source[i];
-    }
-}
-
-void orMaskOffset(MaskVector& target, const Game& game, puzzlescript::MaskOffset offset) {
-    const MaskWord* source = maskPtr(game, offset);
-    if (source == nullptr) return;
-    for (uint32_t i = 0; i < game.wordCount && i < target.size(); ++i) {
-        target[i] |= source[i];
-    }
-}
-
 puzzlescript::LoadedGame compileGame(const std::string& source, puzzlescript::compiler::ParserState* outState = nullptr) {
     puzzlescript::compiler::DiagnosticSink diagnostics;
     auto state = puzzlescript::compiler::parseSource(source, diagnostics);
@@ -561,244 +503,61 @@ std::string inputName(ps_input input) {
     return "unknown";
 }
 
-std::vector<ps_input> solverInputsForGame(const Game& game) {
-    std::vector<ps_input> inputs{PS_INPUT_RIGHT, PS_INPUT_UP, PS_INPUT_DOWN, PS_INPUT_LEFT};
-    if (game.metadata.values.find("noaction") == game.metadata.values.end()) {
-        inputs.push_back(PS_INPUT_ACTION);
-    }
-    return inputs;
-}
-
-bool gameUsesRandomnessInRules(const std::vector<std::vector<puzzlescript::Rule>>& groups) {
-    for (const auto& group : groups) {
-        for (const auto& rule : group) {
-            if (rule.isRandom) return true;
-            for (const auto& row : rule.patterns) {
-                for (const auto& pattern : row) {
-                    if (!pattern.replacement) continue;
-                    if (pattern.replacement->hasRandomEntityMask || pattern.replacement->hasRandomDirMask) return true;
-                }
-            }
-        }
-    }
-    return false;
-}
-
-bool gameUsesRandomness(const Game& game) {
-    return gameUsesRandomnessInRules(game.rules) || gameUsesRandomnessInRules(game.lateRules);
-}
-
-void collectPatternReferences(MaskVector& referenced, const Game& game, const puzzlescript::Pattern& pattern) {
-    orMaskOffset(referenced, game, pattern.objectsPresent);
-    orMaskOffset(referenced, game, pattern.objectsMissing);
-    for (uint32_t index = 0; index < pattern.anyObjectsCount; ++index) {
-        const uint32_t arenaIndex = pattern.anyObjectsFirst + index;
-        if (arenaIndex < game.anyObjectOffsets.size()) {
-            orMaskOffset(referenced, game, game.anyObjectOffsets[arenaIndex]);
-        }
-    }
-    if (!pattern.replacement) return;
-    orMaskOffset(referenced, game, pattern.replacement->objectsClear);
-    orMaskOffset(referenced, game, pattern.replacement->objectsSet);
-}
-
-void collectRuleReferences(MaskVector& referenced, const Game& game, const std::vector<std::vector<puzzlescript::Rule>>& groups) {
-    for (const auto& group : groups) {
-        for (const auto& rule : group) {
-            orMaskOffset(referenced, game, rule.ruleMask);
-            for (const auto& row : rule.patterns) {
-                for (const auto& pattern : row) collectPatternReferences(referenced, game, pattern);
-            }
-        }
-    }
-}
-
-StateHashProjection buildStateHashProjection(const Game& game) {
-    StateHashProjection projection;
-    projection.objectMask.assign(static_cast<size_t>(game.wordCount), 0);
-    MaskVector referenced(static_cast<size_t>(game.wordCount), 0);
-    collectRuleReferences(referenced, game, game.rules);
-    collectRuleReferences(referenced, game, game.lateRules);
-    orMaskOffset(referenced, game, game.playerMask);
-    for (const auto& condition : game.winConditions) {
-        orMaskOffset(referenced, game, condition.filter1);
-        orMaskOffset(referenced, game, condition.filter2);
-    }
-    bool hasReference = false;
-    for (int32_t objectId = 0; objectId < game.objectCount; ++objectId) {
-        if (!maskHasBit(referenced, objectId)) continue;
-        hasReference = true;
-        const int32_t layer = game.objectsById[static_cast<size_t>(objectId)].layer;
-        if (layer >= 0 && static_cast<size_t>(layer) < game.layerMaskOffsets.size()) {
-            orMaskOffset(projection.objectMask, game, game.layerMaskOffsets[static_cast<size_t>(layer)]);
-        }
-    }
-    if (!hasReference) return projection;
-    for (int32_t objectId = 0; objectId < game.objectCount; ++objectId) {
-        if (!maskHasBit(projection.objectMask, objectId)) {
-            projection.enabled = true;
-            break;
-        }
-    }
-    return projection;
-}
-
-StateKey solverStateKey(const FullState& session, bool includeRandomState, const StateHashProjection& projection) {
-    const uint32_t stride = session.game->strideObject;
-    return puzzlescript::search::fullStateKey(session, includeRandomState, [&](size_t index, MaskWord word) {
-        if (projection.enabled && stride > 0) {
-            word &= projection.objectMask[index % stride];
-        }
-        return word;
-    });
-}
-
-int32_t heuristicScore(const FullState& session) {
-    return puzzlescript::search::winConditionHeuristicScore(session);
-}
-
-std::vector<std::string> reconstructSolution(const std::vector<Node>& nodes, uint32_t nodeIndex, ps_input finalInput) {
-    std::vector<std::string> reversed;
-    reversed.push_back(inputName(finalInput));
-    int32_t cursor = static_cast<int32_t>(nodeIndex);
-    while (cursor >= 0) {
-        const Node& node = nodes[static_cast<size_t>(cursor)];
-        if (node.parent >= 0) reversed.push_back(inputName(node.input));
-        cursor = node.parent;
-    }
-    std::reverse(reversed.begin(), reversed.end());
-    return reversed;
-}
-
-bool solvedByStep(const ps_step_result& stepResult, const FullState& session, int32_t levelIndex) {
-    return stepResult.won || session.meta.currentLevelIndex != levelIndex;
-}
-
-SolveResult runSearch(
-    const puzzlescript::LoadedGame& loadedGame,
-    const LevelTemplate& generatedLevel,
-    const SolverMetadata& metadata,
-    uint64_t sampleId,
-    SearchMode mode,
-    TimePoint deadline
-) {
-    const std::shared_ptr<const Game>& game = loadedGame.information;
-    SolveResult result;
-    auto initial = puzzlescript::createFullStateWithLoadedLevelSeed(loadedGame, "generator:" + std::to_string(sampleId));
-    initial->meta.suppressRuleMessages = true;
-    constexpr puzzlescript::RuntimeStepOptions solverStepOptions{
-        .playableUndo = false,
-        .emitAudio = false,
-        .againPolicy = puzzlescript::AgainPolicy::Drain,
-    };
-    if (auto error = puzzlescript::loadLevelTemplate(*initial, generatedLevel, 0, solverStepOptions)) {
-        result.status = SolveStatus::LevelError;
-        return result;
-    }
-
-    std::vector<Node> nodes;
-    nodes.reserve(8192);
-    std::unordered_map<StateKey, uint32_t, StateKeyHash> bestDepth;
-    bestDepth.reserve(16384);
-    const StateKey initialKey = solverStateKey(*initial, metadata.includeRandomState, metadata.projection);
-    bestDepth.emplace(initialKey, 0);
-    result.uniqueStates = 1;
-    const int32_t initialHeuristic = mode == SearchMode::Bfs ? 0 : heuristicScore(*initial);
-    nodes.push_back(Node{std::move(initial), initialKey, -1, PS_INPUT_UP, 0});
-
-    std::priority_queue<QueueEntry, std::vector<QueueEntry>, QueueEntryGreater> frontier;
-    frontier.push(QueueEntry{priorityFor(mode, 0, initialHeuristic), 0, 0});
-    uint64_t nextTie = 1;
-
-    while (!frontier.empty()) {
-        if (Clock::now() >= deadline) {
-            result.status = SolveStatus::Timeout;
-            break;
-        }
-        const QueueEntry entry = frontier.top();
-        frontier.pop();
-        const StateKey parentKey = nodes[entry.nodeIndex].key;
-        const uint32_t parentDepth = nodes[entry.nodeIndex].depth;
-        const auto best = bestDepth.find(parentKey);
-        if (best != bestDepth.end() && best->second < parentDepth) {
-            ++result.duplicates;
-            continue;
-        }
-        FullState* parentSession = nodes[entry.nodeIndex].session.get();
-        if (parentSession == nullptr) {
-            ++result.duplicates;
-            continue;
-        }
-        ++result.expanded;
-        for (const ps_input input : metadata.inputs) {
-            if (Clock::now() >= deadline) {
-                result.status = SolveStatus::Timeout;
-                break;
-            }
-            auto child = std::make_unique<FullState>(*parentSession);
-            ps_step_result stepResult = puzzlescript::turn(*child, input, solverStepOptions);
-            ++result.generated;
-            if (solvedByStep(stepResult, *child, 0)) {
-                result.status = SolveStatus::Solved;
-                result.solution = reconstructSolution(nodes, entry.nodeIndex, input);
-                return result;
-            }
-            if (!stepResult.changed) continue;
-            const StateKey key = solverStateKey(*child, metadata.includeRandomState, metadata.projection);
-            const uint32_t childDepth = parentDepth + 1;
-            const auto found = bestDepth.find(key);
-            if (found != bestDepth.end() && found->second <= childDepth) {
-                ++result.duplicates;
-                continue;
-            }
-            bestDepth[key] = childDepth;
-            result.uniqueStates = bestDepth.size();
-            const int32_t childHeuristic = mode == SearchMode::Bfs ? 0 : heuristicScore(*child);
-            const uint32_t childIndex = static_cast<uint32_t>(nodes.size());
-            nodes.push_back(Node{std::move(child), key, static_cast<int32_t>(entry.nodeIndex), input, childDepth});
-            frontier.push(QueueEntry{priorityFor(mode, childDepth, childHeuristic), nextTie++, childIndex});
-        }
-        nodes[entry.nodeIndex].session.reset();
-        if (result.status == SolveStatus::Timeout) {
-            break;
-        }
-    }
-    return result;
-}
-
-void mergeStats(SolveResult& target, const SolveResult& source) {
-    target.expanded += source.expanded;
-    target.generated += source.generated;
-    target.uniqueStates += source.uniqueStates;
-    target.duplicates += source.duplicates;
-}
-
+// Use the maintained solver instead of keeping a third search implementation.
+// Compact nodes avoid cloning FullState scratch buffers on every edge; exact
+// visited keys and normal-runtime replay now protect generator results too.
 SolveResult solveGeneratedLevel(
     const puzzlescript::LoadedGame& loadedGame,
     const LevelTemplate& generatedLevel,
-    const SolverMetadata& metadata,
     uint64_t sampleId,
     int64_t timeoutMs,
     std::optional<SearchMode> mode
 ) {
-    const std::shared_ptr<const Game>& game = loadedGame.information;
-    const TimePoint start = Clock::now();
-    const TimePoint deadline = start + std::chrono::milliseconds(timeoutMs);
-    if (mode) return runSearch(loadedGame, generatedLevel, metadata, sampleId, *mode, deadline);
-
-    SolveResult combined;
-    combined.status = SolveStatus::Timeout;
-    const TimePoint bfsDeadline = start + std::chrono::milliseconds(std::max<int64_t>(1, timeoutMs / 6));
-    SolveResult bfs = runSearch(loadedGame, generatedLevel, metadata, sampleId, SearchMode::Bfs, std::min(bfsDeadline, deadline));
-    mergeStats(combined, bfs);
-    if (bfs.status == SolveStatus::Solved || bfs.status == SolveStatus::LevelError) return bfs;
-    if (Clock::now() < deadline) {
-        SolveResult weighted = runSearch(loadedGame, generatedLevel, metadata, sampleId, SearchMode::WeightedAStar, deadline);
-        mergeStats(combined, weighted);
-        if (weighted.status == SolveStatus::Solved || weighted.status == SolveStatus::LevelError) return weighted;
-        combined.status = weighted.status == SolveStatus::Exhausted ? SolveStatus::Exhausted : SolveStatus::Timeout;
+    ps_game game;
+    game.impl = loadedGame;
+    const auto grid = puzzlescript::search::levelTemplateToLayerCellObjectIds(
+        *loadedGame.information, generatedLevel);
+    const std::string seed = "generator:" + std::to_string(sampleId);
+    auto options = ps_solve_default_options();
+    options.timeout_ms = timeoutMs;
+    options.random_seed = seed.c_str();
+    options.compact_node_storage = true;
+    // Candidate-level jobs already supply parallelism. Avoid multiplying them
+    // by an inner portfolio thread pool and competing for the same CPU cores.
+    options.portfolio_jobs = 1;
+    if (mode) {
+        switch (*mode) {
+            case SearchMode::Bfs: options.strategy = PS_SOLVE_STRATEGY_BFS; break;
+            case SearchMode::WeightedAStar: options.strategy = PS_SOLVE_STRATEGY_WEIGHTED_ASTAR; break;
+            case SearchMode::WeightedAStarDeep: options.strategy = PS_SOLVE_STRATEGY_WEIGHTED_ASTAR_DEEP; break;
+            case SearchMode::Greedy: options.strategy = PS_SOLVE_STRATEGY_GREEDY; break;
+        }
     }
-    return combined;
+    ps_solve_result* raw = nullptr;
+    ps_error* rawError = nullptr;
+    const bool ok = ps_solve_level_layer_cell_object_ids(&game,
+        generatedLevel.width, generatedLevel.height, grid.data(), grid.size(),
+        &options, &raw, &rawError);
+    const std::unique_ptr<ps_error, decltype(&ps_free_error)> error(rawError, ps_free_error);
+    const std::unique_ptr<ps_solve_result, decltype(&ps_solve_result_free)> result(raw, ps_solve_result_free);
+    SolveResult out;
+    if (!ok || !result) {
+        out.status = SolveStatus::LevelError;
+        return out;
+    }
+    switch (result->status) {
+        case PS_SOLVE_STATUS_SOLVED: out.status = SolveStatus::Solved; break;
+        case PS_SOLVE_STATUS_EXHAUSTED: out.status = SolveStatus::Exhausted; break;
+        case PS_SOLVE_STATUS_TIMEOUT: out.status = SolveStatus::Timeout; break;
+        case PS_SOLVE_STATUS_ERROR: out.status = SolveStatus::LevelError; break;
+    }
+    for (size_t i = 0; i < result->solution_count; ++i) out.solution.push_back(inputName(result->solution[i]));
+    out.expanded = result->expanded;
+    out.generated = result->generated;
+    out.uniqueStates = result->unique_states;
+    out.duplicates = result->duplicates;
+    out.solveMs = result->elapsed_ms;
+    return out;
 }
 
 bool insertDedupe(SharedState& shared, uint64_t hash, size_t maxEntries) {
@@ -835,18 +594,9 @@ void maybeInsertTop(SharedState& shared, Candidate candidate, size_t topK) {
     }
 }
 
-SolverMetadata buildSolverMetadata(const Game& game) {
-    SolverMetadata metadata;
-    metadata.inputs = solverInputsForGame(game);
-    metadata.includeRandomState = gameUsesRandomness(game);
-    metadata.projection = buildStateHashProjection(game);
-    return metadata;
-}
-
 void workerMain(
     const Options& options,
     const puzzlescript::LoadedGame& loadedGame,
-    const SolverMetadata& solverMetadata,
     const GenerationProgram& program,
     const LevelTemplate& initLevel,
     SharedState& shared,
@@ -879,7 +629,7 @@ void workerMain(
                 continue;
             }
             const TimePoint solveStart = Clock::now();
-            SolveResult solved = solveGeneratedLevel(loadedGame, candidateLevel, solverMetadata, sampleId, options.solverTimeoutMs, options.solverMode);
+            SolveResult solved = solveGeneratedLevel(loadedGame, candidateLevel, sampleId, options.solverTimeoutMs, options.solverMode);
             solved.solveMs = std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - solveStart).count();
             shared.counters.solverSearches.fetch_add(1, std::memory_order_relaxed);
             shared.counters.solverExpanded.fetch_add(solved.expanded, std::memory_order_relaxed);
@@ -1066,6 +816,7 @@ std::string candidateEventJson(
     out << ",\"seed_hex\":" << jsonString(uint64Hex(sampleSeed));
     out << ",\"sample_seed\":" << sampleSeed;
     out << ",\"sample_seed_hex\":" << jsonString(uint64Hex(sampleSeed));
+    out << ",\"gameplay_seed\":" << jsonString("generator:" + std::to_string(sampleId));
     out << ",\"level_hash\":" << levelHash;
     out << ",\"level_hash_hex\":" << jsonString(uint64Hex(levelHash));
     out << ",\"status\":" << jsonString(solveStatusName(solved.status));
@@ -1140,6 +891,7 @@ std::string finalJson(const Options& options, const Game& game, SharedState& sha
     const CounterValues counters = snapshotCounters(shared);
     std::ostringstream out;
     out << "{\n";
+    out << "  \"solver\":{\"implementation\":\"shared-native-v1\",\"compact_nodes\":true,\"solution_replay\":true},\n";
     out << "  \"totals\":{";
     out << "\"samples_attempted\":" << counters.samplesAttempted;
     out << ",\"valid_generated\":" << counters.validGenerated;
@@ -1175,6 +927,7 @@ std::string finalJson(const Options& options, const Game& game, SharedState& sha
         out << ",\"level_hash\":" << c.levelHash;
         out << ",\"sample_id\":" << c.sampleId;
         out << ",\"seed\":" << c.seed;
+        out << ",\"gameplay_seed\":" << jsonString("generator:" + std::to_string(c.sampleId));
         out << ",\"width\":" << c.level.width;
         out << ",\"height\":" << c.level.height;
         out << ",\"solution\":[";
@@ -1345,7 +1098,6 @@ int main(int argc, char** argv) {
         }
         NameResolver resolver(*game, parserState);
         const GenerationProgram program = compileGenerationProgram(spec.ruleLines, *game, resolver);
-        const SolverMetadata solverMetadata = buildSolverMetadata(*game);
         initializeEventsJsonl(options);
 
         SharedState shared;
@@ -1358,7 +1110,7 @@ int main(int argc, char** argv) {
         std::vector<std::thread> workers;
         workers.reserve(options.jobs);
         for (size_t i = 0; i < options.jobs; ++i) {
-            workers.emplace_back(workerMain, std::cref(options), std::cref(loadedGame), std::cref(solverMetadata), std::cref(program), std::cref(game->levels.front()), std::ref(shared), deadline);
+            workers.emplace_back(workerMain, std::cref(options), std::cref(loadedGame), std::cref(program), std::cref(game->levels.front()), std::ref(shared), deadline);
         }
 
         const bool dashboard = !options.quiet && stdoutIsTerminal();
