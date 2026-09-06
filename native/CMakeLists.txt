@@ -1559,6 +1559,10 @@ add_test(NAME push_prototype_js_replay COMMAND ${NODE_EXECUTABLE}
   ${PUZZLESCRIPT_REPO_ROOT}/src/tests/push_prototype_replay.js $<TARGET_FILE:puzzlescript_push_solver>)
 set_tests_properties(push_prototype_js_replay PROPERTIES TIMEOUT 30)
 
+add_executable(solver_fixed_work_bench tests/solver_fixed_work_bench.cpp)
+target_include_directories(solver_fixed_work_bench PRIVATE src)
+target_link_libraries(solver_fixed_work_bench PRIVATE puzzlescript_native puzzlescript_compiler)
+
 add_executable(solver_generated_replay tests/solver_generated_replay.cpp)
 target_include_directories(solver_generated_replay PRIVATE src)
 target_link_libraries(solver_generated_replay PRIVATE puzzlescript_native puzzlescript_compiler)

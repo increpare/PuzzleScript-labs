@@ -40,6 +40,19 @@ Reasonable next moves only with fresh evidence:
 
 ## Status / progress log
 
+- **2026-09-06: native movement buffer reuse passes the performance gate.**
+  Reject blocked moves before copying cells and reuse existing replacement
+  buffers during the separate movement phase; add no scratch fields or flags.
+  Five pairs give fixed-work native candidate BFS **8,505.6 -> 8,272.5 ms (2.74%)**
+  with all 78 level results, search counts and solutions identical. Full replay
+  improves **11,078.5 -> 10,722.9 ms (3.21%)** with unchanged visits/replacements;
+  Chaos Wizard generation improves **1,091.5 -> 1,065.8 ms (2.36%)** with identical
+  output. Other generation cases are mostly neutral. Time-limited portfolios
+  remain mixed (40->40, 41->36, 40->40); no solve-count gain is claimed.
+  Movement/sound/restoration regressions pass with 32/64-bit mask words.
+  Two group-counting probes were removed after neutral/regressive timings.
+  See `docs/native-movement-buffers-2026-09-06.md` for full results and limits.
+
 - **2026-09-06: native future-rule eligibility rejected and removed.**
   The prototype shared a ruleset-owned creation plan across native compilation
   and runtime-IR loading, with a bounded population cache. Ordered indices retained
