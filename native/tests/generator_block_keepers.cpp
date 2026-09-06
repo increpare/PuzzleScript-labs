@@ -47,5 +47,14 @@ int main() {
     assert(block.keepers.size() == 2);
     assert(block.keepers.front().difficulty == 200);
     assert(block.keepers.back().difficulty == 250);
+
+    puzzlescript::generator::BlockState gate;
+    gate.spec.header.take = 1;
+    assert(puzzlescript::generator::canImproveKeeper(gate, 0));
+    assert(puzzlescript::generator::tryInsertKeeper(gate, makeKeeper(20, 10, 1000)));
+    assert(puzzlescript::generator::canImproveKeeper(gate, 500));
+    assert(!puzzlescript::generator::canImproveKeeper(gate, 10));
+    assert(puzzlescript::generator::tryInsertKeeper(gate, makeKeeper(21, 100, 500)));
+    assert(!puzzlescript::generator::canImproveKeeper(gate, 99));
     return 0;
 }

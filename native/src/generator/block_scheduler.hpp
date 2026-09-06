@@ -64,6 +64,7 @@ struct LevelSetOptions {
 };
 
 bool tryInsertKeeper(BlockState& block, Keeper candidate);
+bool canImproveKeeper(const BlockState& block, int64_t primaryExpanded);
 
 struct BlockBestSnapshot {
     int64_t difficulty = -1;
