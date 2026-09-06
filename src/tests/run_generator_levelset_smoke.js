@@ -168,17 +168,20 @@ async function main() {
     assert.strictEqual(parsedIndex, levels.length, 'every parsed generated level should replay on a compiled grid level');
 
     const crashOutPath = path.join(tempDir, 'generated_game_crash.txt');
-    const crashRun = spawn(generatorPath, [
-        ...commonArgs.slice(0, -1),
-        crashOutPath,
-        '--seed', '9',
-    ], { stdio: 'ignore' });
+    const crashArgs = commonArgs.slice();
+    crashArgs[crashArgs.indexOf('--out') + 1] = crashOutPath;
+    crashArgs[crashArgs.indexOf('--seed') + 1] = '9';
+    const crashRun = spawn(generatorPath, crashArgs, { stdio: 'ignore' });
+    // Register before waiting: argument errors and naturally exhausted runs
+    // may exit before the stop timer, otherwise this test waits forever.
+    const crashClosed = new Promise((resolve, reject) => {
+        crashRun.once('error', reject);
+        crashRun.once('close', resolve);
+    });
 
     await new Promise((resolve) => setTimeout(resolve, Math.ceil(2500 * timeScale)));
-    crashRun.kill('SIGTERM');
-    await new Promise((resolve) => {
-        crashRun.on('close', resolve);
-    });
+    if (crashRun.exitCode === null) crashRun.kill('SIGTERM');
+    await crashClosed;
 
     assert.ok(fs.existsSync(crashOutPath), 'SIGTERM should leave a valid output file');
     compileGameFile(crashOutPath, { quiet: true });
