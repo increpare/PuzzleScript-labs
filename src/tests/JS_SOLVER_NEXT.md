@@ -40,6 +40,22 @@ Reasonable next moves only with fresh evidence:
 
 ## Status / progress log
 
+- **2026-09-06: remaining-future-object certificates and opt-in pruning.**
+  Reuse the existing conservative creation closure at stable state boundaries
+  to prove unavailable types, disabled rules and impossible winning continuations.
+  `--solver-future-prune` preserves the board and caches exact presence-based
+  dead-end verdicts. Reset/checkpoint games fall back to ordinary search.
+  Exhaustive BFS differential checks cover 128 cases with identical solvability
+  and shortest input lengths (845 -> 829 expansions, 20 pruned states).
+  Three serial focused 250ms pairs produced **27 -> 30**, **29 -> 26** and
+  **29 -> 29** solves despite approximately 99% verdict-cache hits: keep opt-in;
+  neither solve counts nor wall times establish a consistent speed improvement.
+  A fixed-expansion survey of 228 source versions / 1,444 levels found irreversible
+  losses in 473 levels across 63 versions, including 88 startup losses. Existing
+  conservation facts plus actual counts certify exactly one player in 567 levels.
+  See `docs/future-object-universe-2026-09-06.md` for witnesses, classifications,
+  validation, timing data and the proposed active-rule-plan consumer.
+
 - **T4 / TX3 sibling-solution Markov prior rejected for the general solver.**
   The experiment was explicitly a warm-start cache: a prior solver JSON supplied
   solved sibling levels, and each target excluded its own solution. `action` was

@@ -142,7 +142,11 @@ function buildWinconditions(state) {
     const objectCount = Object.keys(state.objects).length;
     return Array.from(state.winconditions, (condition, index) => {
         const targetNames = condition[2] ? objectInternalNamesFromMask(state, condition[2]) : [];
-        const plainCondition = targetNames.length === objectCount;
+        // Bare conditions use an ANY-all-objects target. An aggregate naming
+        // every type is not that tautology: it requires simultaneous presence.
+        // Keeping this distinction prevents false impossibility proofs for
+        // e.g. NO Player ON (Background AND Player AND Seed ...).
+        const plainCondition = !condition[5] && targetNames.length === objectCount;
         const subjects = objectNamesFromMask(state, condition[1]);
         const targets = plainCondition ? [] : targetNames.map(name => displayName(state, name));
         const isNo = condition[0] === -1;
@@ -152,6 +156,8 @@ function buildWinconditions(state) {
             source_line: condition[3],
             subjects,
             targets,
+            aggregate_subjects: !!condition[4],
+            aggregate_targets: !!condition[5],
             tags: {
                 plain: plainCondition,
                 objects_matched: uniqueSorted((isNo ? [] : subjects).concat(targets)),
@@ -2325,19 +2331,25 @@ function ruleRequirementsReachable(requirements, reachableObjects) {
     );
 }
 
-function computeLevelObjectUniverse(psTagged, level) {
-    const initialObjects = new Set(level.objects_present || []);
+// Compile the dependency model once, so future-state queries reuse the same
+// conservative creation semantics as initial-level analysis. Positive object
+// requirements are necessary, not sufficient: forgetting positions, counts,
+// negative tests and movement only admits extra possibilities, never removes
+// a real creation. Keep command-only rules for alternate-win/reset checks.
+function compileObjectUniversePlan(psTagged) {
+    return allRuleEntries(psTagged).map(entry => ({
+        id: entry.rule.id,
+        active: !!entry.rule.tags.solver_state_active,
+        requirements: rulePositiveObjectRequirementAlternatives(psTagged, entry.rule),
+        writes: entry.rule.tags.solver_state_active && entry.rule.tags.object_mutating
+            ? uniqueSorted(ruleFlowWrites(psTagged, entry.rule).object_present) : [],
+        commands: entry.rule.summary.semantic_commands.slice(),
+    }));
+}
+
+function closeObjectUniverse(ruleData, initialObjects) {
     const reachableObjects = new Set(initialObjects);
     const creatorRuleIds = new Set();
-    const activeEntries = allRuleEntries(psTagged).filter(entry =>
-        entry.rule.tags.solver_state_active && entry.rule.tags.object_mutating
-    );
-    const ruleData = activeEntries.map(entry => ({
-        rule: entry.rule,
-        requirements: rulePositiveObjectRequirementAlternatives(psTagged, entry.rule),
-        writes: uniqueSorted(ruleFlowWrites(psTagged, entry.rule).object_present),
-    })).filter(entry => entry.writes.length > 0);
-
     let changed = true;
     while (changed) {
         changed = false;
@@ -2350,10 +2362,15 @@ function computeLevelObjectUniverse(psTagged, level) {
                 changed = true;
                 added = true;
             }
-            if (added) creatorRuleIds.add(entry.rule.id);
+            if (added) creatorRuleIds.add(entry.id);
         }
     }
+    return { reachableObjects, creatorRuleIds };
+}
 
+function computeLevelObjectUniverse(psTagged, level, ruleData = compileObjectUniversePlan(psTagged)) {
+    const initialObjects = new Set(level.objects_present || []);
+    const { reachableObjects, creatorRuleIds } = closeObjectUniverse(ruleData, initialObjects);
     const allObjects = uniqueSorted((psTagged.objects || []).map(object => object.name));
     const initial = uniqueSorted(initialObjects);
     const reachable = uniqueSorted(reachableObjects);
@@ -2370,9 +2387,10 @@ function computeLevelObjectUniverse(psTagged, level) {
 
 function derivePerLevelObjectUniverseFacts(psTagged) {
     const results = [];
+    const ruleData = compileObjectUniversePlan(psTagged);
     for (const level of psTagged.levels || []) {
         if (level.kind !== 'level') continue;
-        const value = computeLevelObjectUniverse(psTagged, level);
+        const value = computeLevelObjectUniverse(psTagged, level, ruleData);
         level.tags.reachable_objects = value.reachable_objects.slice();
         level.tags.unreachable_objects = value.unreachable_objects.slice();
         results.push(fact('per_level_object_universe', `level_${level.index}_object_universe`, 'proved', {
@@ -3656,4 +3674,8 @@ module.exports = {
     analyzePaths,
     analyzeSource,
     discoverInputFiles,
+    compileObjectUniversePlan,
+    closeObjectUniverse,
+    ruleRequirementsReachable,
+    playerObjectNameSet,
 };
