@@ -1,0 +1,954 @@
+{
+  "baseline_commit": "049248de",
+  "integration_commit": "d8a018cb",
+  "upstream_sync": "528bdf78 (no solver/generator differences from baseline)",
+  "platform": "Windows x64, MSVC 19.44, Release /O2, 64-bit masks",
+  "method": "200 fixed samples per preset, 3 repetitions, seed 11, 1 job, 50ms solve budget; no linked kernels. Baseline and integration runs sequential, not interleaved.",
+  "scope": "Shared-solver integration only, before source-identity/Windows compiled-backend fixes. Repeated samples are not independent puzzle populations.",
+  "measurements": [
+    {
+      "variant": "baseline_portfolio",
+      "preset": "sokoban_room_scatter.gen",
+      "started_at": "2026-09-06T11:27:30.638Z",
+      "samples_per_second": {
+        "min": 39.85688031987219,
+        "p50": 40.07029210782138,
+        "p90": 40.07029210782138,
+        "max": 40.16586251932179,
+        "mean": 40.031011649005116
+      },
+      "totals": {
+        "samples_attempted": 600,
+        "valid_generated": 600,
+        "solved": 31,
+        "rejected": 0,
+        "deduped": 0,
+        "timeouts": 156,
+        "exhausted": 413,
+        "invalid_generation": 0,
+        "duplicate_levels": 0,
+        "unsolved": 413,
+        "solver_timeouts": 156,
+        "solver_searches": 600
+      },
+      "runs": [
+        {
+          "run_index": 0,
+          "elapsed_ms": 5017.9542,
+          "samples_per_second": 39.85688031987219,
+          "valid_per_second": 39.85688031987219,
+          "totals": {
+            "samples_attempted": 200,
+            "valid_generated": 200,
+            "solved": 11,
+            "rejected": 0,
+            "deduped": 0,
+            "timeouts": 52,
+            "exhausted": 137,
+            "invalid_generation": 0,
+            "duplicate_levels": 0,
+            "unsolved": 137,
+            "solver_timeouts": 52,
+            "solver_searches": 200
+          },
+          "solver_totals": {
+            "searches": 200,
+            "expanded": 268913,
+            "generated": 1344212,
+            "unique_states": 264767,
+            "duplicates": 1050770,
+            "timeouts": 52,
+            "exhausted": 137,
+            "level_errors": 0
+          }
+        },
+        {
+          "run_index": 1,
+          "elapsed_ms": 4991.2289,
+          "samples_per_second": 40.07029210782138,
+          "valid_per_second": 40.07029210782138,
+          "totals": {
+            "samples_attempted": 200,
+            "valid_generated": 200,
+            "solved": 10,
+            "rejected": 0,
+            "deduped": 0,
+            "timeouts": 53,
+            "exhausted": 137,
+            "invalid_generation": 0,
+            "duplicate_levels": 0,
+            "unsolved": 137,
+            "solver_timeouts": 53,
+            "solver_searches": 200
+          },
+          "solver_totals": {
+            "searches": 200,
+            "expanded": 276576,
+            "generated": 1382526,
+            "unique_states": 273574,
+            "duplicates": 1080519,
+            "timeouts": 53,
+            "exhausted": 137,
+            "level_errors": 0
+          }
+        },
+        {
+          "run_index": 2,
+          "elapsed_ms": 4979.3528,
+          "samples_per_second": 40.16586251932179,
+          "valid_per_second": 40.16586251932179,
+          "totals": {
+            "samples_attempted": 200,
+            "valid_generated": 200,
+            "solved": 10,
+            "rejected": 0,
+            "deduped": 0,
+            "timeouts": 51,
+            "exhausted": 139,
+            "invalid_generation": 0,
+            "duplicate_levels": 0,
+            "unsolved": 139,
+            "solver_timeouts": 51,
+            "solver_searches": 200
+          },
+          "solver_totals": {
+            "searches": 200,
+            "expanded": 278901,
+            "generated": 1394203,
+            "unique_states": 274922,
+            "duplicates": 1089448,
+            "timeouts": 51,
+            "exhausted": 139,
+            "level_errors": 0
+          }
+        }
+      ]
+    },
+    {
+      "variant": "baseline_portfolio",
+      "preset": "sokoban_transform_pairs.gen",
+      "started_at": "2026-09-06T11:27:30.638Z",
+      "samples_per_second": {
+        "min": 33.00356664594208,
+        "p50": 33.12523343973103,
+        "p90": 33.12523343973103,
+        "max": 33.313618888901864,
+        "mean": 33.14747299152499
+      },
+      "totals": {
+        "samples_attempted": 600,
+        "valid_generated": 600,
+        "solved": 3,
+        "rejected": 0,
+        "deduped": 0,
+        "timeouts": 234,
+        "exhausted": 363,
+        "invalid_generation": 0,
+        "duplicate_levels": 0,
+        "unsolved": 363,
+        "solver_timeouts": 234,
+        "solver_searches": 600
+      },
+      "runs": [
+        {
+          "run_index": 0,
+          "elapsed_ms": 6003.5507,
+          "samples_per_second": 33.313618888901864,
+          "valid_per_second": 33.313618888901864,
+          "totals": {
+            "samples_attempted": 200,
+            "valid_generated": 200,
+            "solved": 1,
+            "rejected": 0,
+            "deduped": 0,
+            "timeouts": 78,
+            "exhausted": 121,
+            "invalid_generation": 0,
+            "duplicate_levels": 0,
+            "unsolved": 121,
+            "solver_timeouts": 78,
+            "solver_searches": 200
+          },
+          "solver_totals": {
+            "searches": 200,
+            "expanded": 339193,
+            "generated": 1695530,
+            "unique_states": 335344,
+            "duplicates": 1316515,
+            "timeouts": 78,
+            "exhausted": 121,
+            "level_errors": 0
+          }
+        },
+        {
+          "run_index": 1,
+          "elapsed_ms": 6059.9511,
+          "samples_per_second": 33.00356664594208,
+          "valid_per_second": 33.00356664594208,
+          "totals": {
+            "samples_attempted": 200,
+            "valid_generated": 200,
+            "solved": 1,
+            "rejected": 0,
+            "deduped": 0,
+            "timeouts": 78,
+            "exhausted": 121,
+            "invalid_generation": 0,
+            "duplicate_levels": 0,
+            "unsolved": 121,
+            "solver_timeouts": 78,
+            "solver_searches": 200
+          },
+          "solver_totals": {
+            "searches": 200,
+            "expanded": 338976,
+            "generated": 1694434,
+            "unique_states": 335479,
+            "duplicates": 1315911,
+            "timeouts": 78,
+            "exhausted": 121,
+            "level_errors": 0
+          }
+        },
+        {
+          "run_index": 2,
+          "elapsed_ms": 6037.6933,
+          "samples_per_second": 33.12523343973103,
+          "valid_per_second": 33.12523343973103,
+          "totals": {
+            "samples_attempted": 200,
+            "valid_generated": 200,
+            "solved": 1,
+            "rejected": 0,
+            "deduped": 0,
+            "timeouts": 78,
+            "exhausted": 121,
+            "invalid_generation": 0,
+            "duplicate_levels": 0,
+            "unsolved": 121,
+            "solver_timeouts": 78,
+            "solver_searches": 200
+          },
+          "solver_totals": {
+            "searches": 200,
+            "expanded": 336517,
+            "generated": 1682130,
+            "unique_states": 332732,
+            "duplicates": 1306164,
+            "timeouts": 78,
+            "exhausted": 121,
+            "level_errors": 0
+          }
+        }
+      ]
+    },
+    {
+      "variant": "shared_portfolio",
+      "preset": "sokoban_room_scatter.gen",
+      "started_at": "2026-09-06T11:39:05.543Z",
+      "samples_per_second": {
+        "min": 47.35269322941248,
+        "p50": 47.78612840371633,
+        "p90": 47.78612840371633,
+        "max": 47.80751737355061,
+        "mean": 47.648779668893134
+      },
+      "totals": {
+        "samples_attempted": 600,
+        "valid_generated": 600,
+        "solved": 30,
+        "rejected": 0,
+        "deduped": 0,
+        "timeouts": 148,
+        "exhausted": 422,
+        "invalid_generation": 0,
+        "duplicate_levels": 0,
+        "unsolved": 422,
+        "solver_timeouts": 148,
+        "solver_searches": 600
+      },
+      "runs": [
+        {
+          "run_index": 0,
+          "elapsed_ms": 4223.6246,
+          "samples_per_second": 47.35269322941248,
+          "valid_per_second": 47.35269322941248,
+          "totals": {
+            "samples_attempted": 200,
+            "valid_generated": 200,
+            "solved": 10,
+            "rejected": 0,
+            "deduped": 0,
+            "timeouts": 49,
+            "exhausted": 141,
+            "invalid_generation": 0,
+            "duplicate_levels": 0,
+            "unsolved": 141,
+            "solver_timeouts": 49,
+            "solver_searches": 200
+          },
+          "solver_totals": {
+            "searches": 200,
+            "expanded": 246352,
+            "generated": 1231638,
+            "unique_states": 215803,
+            "duplicates": 979418,
+            "timeouts": 49,
+            "exhausted": 141,
+            "level_errors": 0
+          }
+        },
+        {
+          "run_index": 1,
+          "elapsed_ms": 4185.315,
+          "samples_per_second": 47.78612840371633,
+          "valid_per_second": 47.78612840371633,
+          "totals": {
+            "samples_attempted": 200,
+            "valid_generated": 200,
+            "solved": 10,
+            "rejected": 0,
+            "deduped": 0,
+            "timeouts": 50,
+            "exhausted": 140,
+            "invalid_generation": 0,
+            "duplicate_levels": 0,
+            "unsolved": 140,
+            "solver_timeouts": 50,
+            "solver_searches": 200
+          },
+          "solver_totals": {
+            "searches": 200,
+            "expanded": 242832,
+            "generated": 1214015,
+            "unique_states": 212151,
+            "duplicates": 965353,
+            "timeouts": 50,
+            "exhausted": 140,
+            "level_errors": 0
+          }
+        },
+        {
+          "run_index": 2,
+          "elapsed_ms": 4183.4425,
+          "samples_per_second": 47.80751737355061,
+          "valid_per_second": 47.80751737355061,
+          "totals": {
+            "samples_attempted": 200,
+            "valid_generated": 200,
+            "solved": 10,
+            "rejected": 0,
+            "deduped": 0,
+            "timeouts": 49,
+            "exhausted": 141,
+            "invalid_generation": 0,
+            "duplicate_levels": 0,
+            "unsolved": 141,
+            "solver_timeouts": 49,
+            "solver_searches": 200
+          },
+          "solver_totals": {
+            "searches": 200,
+            "expanded": 244259,
+            "generated": 1221156,
+            "unique_states": 214330,
+            "duplicates": 971001,
+            "timeouts": 49,
+            "exhausted": 141,
+            "level_errors": 0
+          }
+        }
+      ]
+    },
+    {
+      "variant": "shared_portfolio",
+      "preset": "sokoban_transform_pairs.gen",
+      "started_at": "2026-09-06T11:39:05.543Z",
+      "samples_per_second": {
+        "min": 36.2277283699993,
+        "p50": 36.641882829958135,
+        "p90": 36.641882829958135,
+        "max": 37.98835189757611,
+        "mean": 36.952654365844516
+      },
+      "totals": {
+        "samples_attempted": 600,
+        "valid_generated": 600,
+        "solved": 3,
+        "rejected": 0,
+        "deduped": 0,
+        "timeouts": 226,
+        "exhausted": 371,
+        "invalid_generation": 0,
+        "duplicate_levels": 0,
+        "unsolved": 371,
+        "solver_timeouts": 226,
+        "solver_searches": 600
+      },
+      "runs": [
+        {
+          "run_index": 0,
+          "elapsed_ms": 5264.7717,
+          "samples_per_second": 37.98835189757611,
+          "valid_per_second": 37.98835189757611,
+          "totals": {
+            "samples_attempted": 200,
+            "valid_generated": 200,
+            "solved": 1,
+            "rejected": 0,
+            "deduped": 0,
+            "timeouts": 75,
+            "exhausted": 124,
+            "invalid_generation": 0,
+            "duplicate_levels": 0,
+            "unsolved": 124,
+            "solver_timeouts": 75,
+            "solver_searches": 200
+          },
+          "solver_totals": {
+            "searches": 200,
+            "expanded": 304977,
+            "generated": 1524729,
+            "unique_states": 283631,
+            "duplicates": 1205193,
+            "timeouts": 75,
+            "exhausted": 124,
+            "level_errors": 0
+          }
+        },
+        {
+          "run_index": 1,
+          "elapsed_ms": 5520.6332,
+          "samples_per_second": 36.2277283699993,
+          "valid_per_second": 36.2277283699993,
+          "totals": {
+            "samples_attempted": 200,
+            "valid_generated": 200,
+            "solved": 1,
+            "rejected": 0,
+            "deduped": 0,
+            "timeouts": 75,
+            "exhausted": 124,
+            "invalid_generation": 0,
+            "duplicate_levels": 0,
+            "unsolved": 124,
+            "solver_timeouts": 75,
+            "solver_searches": 200
+          },
+          "solver_totals": {
+            "searches": 200,
+            "expanded": 296523,
+            "generated": 1482456,
+            "unique_states": 275957,
+            "duplicates": 1171472,
+            "timeouts": 75,
+            "exhausted": 124,
+            "level_errors": 0
+          }
+        },
+        {
+          "run_index": 2,
+          "elapsed_ms": 5458.2348,
+          "samples_per_second": 36.641882829958135,
+          "valid_per_second": 36.641882829958135,
+          "totals": {
+            "samples_attempted": 200,
+            "valid_generated": 200,
+            "solved": 1,
+            "rejected": 0,
+            "deduped": 0,
+            "timeouts": 76,
+            "exhausted": 123,
+            "invalid_generation": 0,
+            "duplicate_levels": 0,
+            "unsolved": 123,
+            "solver_timeouts": 76,
+            "solver_searches": 200
+          },
+          "solver_totals": {
+            "searches": 200,
+            "expanded": 301932,
+            "generated": 1509491,
+            "unique_states": 280473,
+            "duplicates": 1192622,
+            "timeouts": 76,
+            "exhausted": 123,
+            "level_errors": 0
+          }
+        }
+      ]
+    },
+    {
+      "variant": "baseline_bfs",
+      "preset": "sokoban_room_scatter.gen",
+      "started_at": "2026-09-06T11:39:40.262Z",
+      "samples_per_second": {
+        "min": 44.99926943686069,
+        "p50": 45.21485125195628,
+        "p90": 45.21485125195628,
+        "max": 45.462536528579825,
+        "mean": 45.225552405798936
+      },
+      "totals": {
+        "samples_attempted": 600,
+        "valid_generated": 600,
+        "solved": 9,
+        "rejected": 0,
+        "deduped": 0,
+        "timeouts": 158,
+        "exhausted": 433,
+        "invalid_generation": 0,
+        "duplicate_levels": 0,
+        "unsolved": 433,
+        "solver_timeouts": 158,
+        "solver_searches": 600
+      },
+      "runs": [
+        {
+          "run_index": 0,
+          "elapsed_ms": 4399.2266,
+          "samples_per_second": 45.462536528579825,
+          "valid_per_second": 45.462536528579825,
+          "totals": {
+            "samples_attempted": 200,
+            "valid_generated": 200,
+            "solved": 3,
+            "rejected": 0,
+            "deduped": 0,
+            "timeouts": 53,
+            "exhausted": 144,
+            "invalid_generation": 0,
+            "duplicate_levels": 0,
+            "unsolved": 144,
+            "solver_timeouts": 53,
+            "solver_searches": 200
+          },
+          "solver_totals": {
+            "searches": 200,
+            "expanded": 261174,
+            "generated": 1305753,
+            "unique_states": 292632,
+            "duplicates": 1013318,
+            "timeouts": 53,
+            "exhausted": 144,
+            "level_errors": 0
+          }
+        },
+        {
+          "run_index": 1,
+          "elapsed_ms": 4423.3254,
+          "samples_per_second": 45.21485125195628,
+          "valid_per_second": 45.21485125195628,
+          "totals": {
+            "samples_attempted": 200,
+            "valid_generated": 200,
+            "solved": 3,
+            "rejected": 0,
+            "deduped": 0,
+            "timeouts": 53,
+            "exhausted": 144,
+            "invalid_generation": 0,
+            "duplicate_levels": 0,
+            "unsolved": 144,
+            "solver_timeouts": 53,
+            "solver_searches": 200
+          },
+          "solver_totals": {
+            "searches": 200,
+            "expanded": 261694,
+            "generated": 1308369,
+            "unique_states": 293135,
+            "duplicates": 1015431,
+            "timeouts": 53,
+            "exhausted": 144,
+            "level_errors": 0
+          }
+        },
+        {
+          "run_index": 2,
+          "elapsed_ms": 4444.5166,
+          "samples_per_second": 44.99926943686069,
+          "valid_per_second": 44.99926943686069,
+          "totals": {
+            "samples_attempted": 200,
+            "valid_generated": 200,
+            "solved": 3,
+            "rejected": 0,
+            "deduped": 0,
+            "timeouts": 52,
+            "exhausted": 145,
+            "invalid_generation": 0,
+            "duplicate_levels": 0,
+            "unsolved": 145,
+            "solver_timeouts": 52,
+            "solver_searches": 200
+          },
+          "solver_totals": {
+            "searches": 200,
+            "expanded": 261384,
+            "generated": 1306808,
+            "unique_states": 292504,
+            "duplicates": 1014501,
+            "timeouts": 52,
+            "exhausted": 145,
+            "level_errors": 0
+          }
+        }
+      ]
+    },
+    {
+      "variant": "baseline_bfs",
+      "preset": "sokoban_transform_pairs.gen",
+      "started_at": "2026-09-06T11:39:40.262Z",
+      "samples_per_second": {
+        "min": 38.03116536104726,
+        "p50": 38.35972216897147,
+        "p90": 38.35972216897147,
+        "max": 39.9996024039521,
+        "mean": 38.79682997799028
+      },
+      "totals": {
+        "samples_attempted": 600,
+        "valid_generated": 600,
+        "solved": 3,
+        "rejected": 0,
+        "deduped": 0,
+        "timeouts": 214,
+        "exhausted": 383,
+        "invalid_generation": 0,
+        "duplicate_levels": 0,
+        "unsolved": 383,
+        "solver_timeouts": 214,
+        "solver_searches": 600
+      },
+      "runs": [
+        {
+          "run_index": 0,
+          "elapsed_ms": 5258.8449,
+          "samples_per_second": 38.03116536104726,
+          "valid_per_second": 38.03116536104726,
+          "totals": {
+            "samples_attempted": 200,
+            "valid_generated": 200,
+            "solved": 1,
+            "rejected": 0,
+            "deduped": 0,
+            "timeouts": 72,
+            "exhausted": 127,
+            "invalid_generation": 0,
+            "duplicate_levels": 0,
+            "unsolved": 127,
+            "solver_timeouts": 72,
+            "solver_searches": 200
+          },
+          "solver_totals": {
+            "searches": 200,
+            "expanded": 308168,
+            "generated": 1540689,
+            "unique_states": 349839,
+            "duplicates": 1191049,
+            "timeouts": 72,
+            "exhausted": 127,
+            "level_errors": 0
+          }
+        },
+        {
+          "run_index": 1,
+          "elapsed_ms": 5213.8021,
+          "samples_per_second": 38.35972216897147,
+          "valid_per_second": 38.35972216897147,
+          "totals": {
+            "samples_attempted": 200,
+            "valid_generated": 200,
+            "solved": 1,
+            "rejected": 0,
+            "deduped": 0,
+            "timeouts": 71,
+            "exhausted": 128,
+            "invalid_generation": 0,
+            "duplicate_levels": 0,
+            "unsolved": 128,
+            "solver_timeouts": 71,
+            "solver_searches": 200
+          },
+          "solver_totals": {
+            "searches": 200,
+            "expanded": 313648,
+            "generated": 1568119,
+            "unique_states": 354718,
+            "duplicates": 1213600,
+            "timeouts": 71,
+            "exhausted": 128,
+            "level_errors": 0
+          }
+        },
+        {
+          "run_index": 2,
+          "elapsed_ms": 5000.0497,
+          "samples_per_second": 39.9996024039521,
+          "valid_per_second": 39.9996024039521,
+          "totals": {
+            "samples_attempted": 200,
+            "valid_generated": 200,
+            "solved": 1,
+            "rejected": 0,
+            "deduped": 0,
+            "timeouts": 71,
+            "exhausted": 128,
+            "invalid_generation": 0,
+            "duplicate_levels": 0,
+            "unsolved": 128,
+            "solver_timeouts": 71,
+            "solver_searches": 200
+          },
+          "solver_totals": {
+            "searches": 200,
+            "expanded": 314174,
+            "generated": 1570710,
+            "unique_states": 355090,
+            "duplicates": 1215819,
+            "timeouts": 71,
+            "exhausted": 128,
+            "level_errors": 0
+          }
+        }
+      ]
+    },
+    {
+      "variant": "shared_bfs",
+      "preset": "sokoban_room_scatter.gen",
+      "started_at": "2026-09-06T11:40:27.185Z",
+      "samples_per_second": {
+        "min": 44.74887301641391,
+        "p50": 44.787397471290106,
+        "p90": 44.787397471290106,
+        "max": 44.94224573121135,
+        "mean": 44.82617207297179
+      },
+      "totals": {
+        "samples_attempted": 600,
+        "valid_generated": 600,
+        "solved": 8,
+        "rejected": 0,
+        "deduped": 0,
+        "timeouts": 160,
+        "exhausted": 432,
+        "invalid_generation": 0,
+        "duplicate_levels": 0,
+        "unsolved": 432,
+        "solver_timeouts": 160,
+        "solver_searches": 600
+      },
+      "runs": [
+        {
+          "run_index": 0,
+          "elapsed_ms": 4465.5419,
+          "samples_per_second": 44.787397471290106,
+          "valid_per_second": 44.787397471290106,
+          "totals": {
+            "samples_attempted": 200,
+            "valid_generated": 200,
+            "solved": 3,
+            "rejected": 0,
+            "deduped": 0,
+            "timeouts": 53,
+            "exhausted": 144,
+            "invalid_generation": 0,
+            "duplicate_levels": 0,
+            "unsolved": 144,
+            "solver_timeouts": 53,
+            "solver_searches": 200
+          },
+          "solver_totals": {
+            "searches": 200,
+            "expanded": 261208,
+            "generated": 1305916,
+            "unique_states": 292791,
+            "duplicates": 1013322,
+            "timeouts": 53,
+            "exhausted": 144,
+            "level_errors": 0
+          }
+        },
+        {
+          "run_index": 1,
+          "elapsed_ms": 4450.1559,
+          "samples_per_second": 44.94224573121135,
+          "valid_per_second": 44.94224573121135,
+          "totals": {
+            "samples_attempted": 200,
+            "valid_generated": 200,
+            "solved": 3,
+            "rejected": 0,
+            "deduped": 0,
+            "timeouts": 53,
+            "exhausted": 144,
+            "invalid_generation": 0,
+            "duplicate_levels": 0,
+            "unsolved": 144,
+            "solver_timeouts": 53,
+            "solver_searches": 200
+          },
+          "solver_totals": {
+            "searches": 200,
+            "expanded": 253342,
+            "generated": 1266602,
+            "unique_states": 284756,
+            "duplicates": 982043,
+            "timeouts": 53,
+            "exhausted": 144,
+            "level_errors": 0
+          }
+        },
+        {
+          "run_index": 2,
+          "elapsed_ms": 4469.3863,
+          "samples_per_second": 44.74887301641391,
+          "valid_per_second": 44.74887301641391,
+          "totals": {
+            "samples_attempted": 200,
+            "valid_generated": 200,
+            "solved": 2,
+            "rejected": 0,
+            "deduped": 0,
+            "timeouts": 54,
+            "exhausted": 144,
+            "invalid_generation": 0,
+            "duplicate_levels": 0,
+            "unsolved": 144,
+            "solver_timeouts": 54,
+            "solver_searches": 200
+          },
+          "solver_totals": {
+            "searches": 200,
+            "expanded": 256935,
+            "generated": 1284558,
+            "unique_states": 288744,
+            "duplicates": 996012,
+            "timeouts": 54,
+            "exhausted": 144,
+            "level_errors": 0
+          }
+        }
+      ]
+    },
+    {
+      "variant": "shared_bfs",
+      "preset": "sokoban_transform_pairs.gen",
+      "started_at": "2026-09-06T11:40:27.185Z",
+      "samples_per_second": {
+        "min": 38.050967787363426,
+        "p50": 38.08597195962209,
+        "p90": 38.08597195962209,
+        "max": 38.25945203588492,
+        "mean": 38.132130594290146
+      },
+      "totals": {
+        "samples_attempted": 600,
+        "valid_generated": 600,
+        "solved": 3,
+        "rejected": 0,
+        "deduped": 0,
+        "timeouts": 215,
+        "exhausted": 382,
+        "invalid_generation": 0,
+        "duplicate_levels": 0,
+        "unsolved": 382,
+        "solver_timeouts": 215,
+        "solver_searches": 600
+      },
+      "runs": [
+        {
+          "run_index": 0,
+          "elapsed_ms": 5227.4664,
+          "samples_per_second": 38.25945203588492,
+          "valid_per_second": 38.25945203588492,
+          "totals": {
+            "samples_attempted": 200,
+            "valid_generated": 200,
+            "solved": 1,
+            "rejected": 0,
+            "deduped": 0,
+            "timeouts": 72,
+            "exhausted": 127,
+            "invalid_generation": 0,
+            "duplicate_levels": 0,
+            "unsolved": 127,
+            "solver_timeouts": 72,
+            "solver_searches": 200
+          },
+          "solver_totals": {
+            "searches": 200,
+            "expanded": 303476,
+            "generated": 1517241,
+            "unique_states": 344724,
+            "duplicates": 1172716,
+            "timeouts": 72,
+            "exhausted": 127,
+            "level_errors": 0
+          }
+        },
+        {
+          "run_index": 1,
+          "elapsed_ms": 5251.2773,
+          "samples_per_second": 38.08597195962209,
+          "valid_per_second": 38.08597195962209,
+          "totals": {
+            "samples_attempted": 200,
+            "valid_generated": 200,
+            "solved": 1,
+            "rejected": 0,
+            "deduped": 0,
+            "timeouts": 71,
+            "exhausted": 128,
+            "invalid_generation": 0,
+            "duplicate_levels": 0,
+            "unsolved": 128,
+            "solver_timeouts": 71,
+            "solver_searches": 200
+          },
+          "solver_totals": {
+            "searches": 200,
+            "expanded": 302785,
+            "generated": 1513782,
+            "unique_states": 343993,
+            "duplicates": 1169988,
+            "timeouts": 71,
+            "exhausted": 128,
+            "level_errors": 0
+          }
+        },
+        {
+          "run_index": 2,
+          "elapsed_ms": 5256.1081,
+          "samples_per_second": 38.050967787363426,
+          "valid_per_second": 38.050967787363426,
+          "totals": {
+            "samples_attempted": 200,
+            "valid_generated": 200,
+            "solved": 1,
+            "rejected": 0,
+            "deduped": 0,
+            "timeouts": 72,
+            "exhausted": 127,
+            "invalid_generation": 0,
+            "duplicate_levels": 0,
+            "unsolved": 127,
+            "solver_timeouts": 72,
+            "solver_searches": 200
+          },
+          "solver_totals": {
+            "searches": 200,
+            "expanded": 292591,
+            "generated": 1462820,
+            "unique_states": 334203,
+            "duplicates": 1128816,
+            "timeouts": 72,
+            "exhausted": 127,
+            "level_errors": 0
+          }
+        }
+      ]
+    }
+  ]
+}
