@@ -892,6 +892,11 @@ std::string finalJson(const Options& options, const Game& game, SharedState& sha
     std::ostringstream out;
     out << "{\n";
     out << "  \"solver\":{\"implementation\":\"shared-native-v1\",\"compact_nodes\":true,\"solution_replay\":true},\n";
+    // These describe attached backends, not profiled execution counts: a
+    // partial specialization can still fall back to the interpreter.
+    out << "  \"attached_backends\":{\"rulegroups\":" << (game.specializedRulegroups ? "true" : "false");
+    out << ",\"full_turn\":" << (game.specializedFullTurn ? "true" : "false");
+    out << ",\"native_compact_turn\":" << (game.specializedCompactTurn && game.specializedCompactTurn->nativeKernel ? "true" : "false") << "},\n";
     out << "  \"totals\":{";
     out << "\"samples_attempted\":" << counters.samplesAttempted;
     out << ",\"valid_generated\":" << counters.validGenerated;
@@ -1091,11 +1096,28 @@ int main(int argc, char** argv) {
         const LegacySpec spec = parseLegacySpec(specText);
         puzzlescript::compiler::ParserState parserState;
         const std::string initSource = sourceWithInitLevel(gameSource, spec.initRows);
-        auto loadedGame = compileGame(initSource, &parserState);
+        auto initGame = compileGame(initSource);
+        // Linked kernels are keyed by the original game source. Replacing its
+        // LEVELS section before compilation silently lost every specialization.
+        // Compile the execution game unchanged and lower the recipe's board
+        // separately, preserving the compiler's glyph/background semantics.
+        auto loadedGame = compileGame(gameSource, &parserState);
         const auto& game = loadedGame.information;
-        if (game->levels.empty() || game->levels.front().isMessage) {
+        if (initGame.information->levels.empty() || initGame.information->levels.front().isMessage) {
             throw std::runtime_error("Compiled init level did not produce a playable level");
         }
+        const auto& initInfo = *initGame.information;
+        if (game->idDict != initInfo.idDict || game->strideObject != initInfo.strideObject
+            || game->wordCount != initInfo.wordCount || game->layerCount != initInfo.layerCount
+            || game->objectsById.size() != initInfo.objectsById.size()) {
+            throw std::runtime_error("Generated init level changed the game's object layout");
+        }
+        for (size_t id = 0; id < game->objectsById.size(); ++id) {
+            if (game->objectsById[id].layer != initInfo.objectsById[id].layer) {
+                throw std::runtime_error("Generated init level changed the game's collision layers");
+            }
+        }
+        const LevelTemplate initLevel = initInfo.levels.front();
         NameResolver resolver(*game, parserState);
         const GenerationProgram program = compileGenerationProgram(spec.ruleLines, *game, resolver);
         initializeEventsJsonl(options);
@@ -1110,7 +1132,7 @@ int main(int argc, char** argv) {
         std::vector<std::thread> workers;
         workers.reserve(options.jobs);
         for (size_t i = 0; i < options.jobs; ++i) {
-            workers.emplace_back(workerMain, std::cref(options), std::cref(loadedGame), std::cref(program), std::cref(game->levels.front()), std::ref(shared), deadline);
+            workers.emplace_back(workerMain, std::cref(options), std::cref(loadedGame), std::cref(program), std::cref(initLevel), std::ref(shared), deadline);
         }
 
         const bool dashboard = !options.quiet && stdoutIsTerminal();
