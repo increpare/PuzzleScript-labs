@@ -4050,45 +4050,74 @@ function buildPlayerMoveMask(layers, dirBit, strideMov) {
     return mask;
 }
 
-function computeInputActiveSet(flatRules, seedMovements, strideObj) {
-    const included = new Array(flatRules.length).fill(false);
-    const possibleWriteMovements = seedMovements.clone();
-
-    function readMovementsPresent(rule) {
-        return rule.inputSpecReadMovementsPresent || rule.readMovements;
+function inputRequirementsPossible(rule, possible) {
+    // Necessary positive requirements only. Keep AND/OR structure; object and
+    // absence tests remain possible on arbitrary generated boards. Movement
+    // clearing can enable stationary/negative clauses, so never exclude on them.
+    // Runtime forceAlwaysRun protects side effects on repeated matches. It
+    // does not make a positive movement requirement satisfiable; propagating
+    // those impossible writes would unnecessarily activate downstream rules.
+    function contains(mask) {
+        if (!mask) return true;
+        for (let w = 0; w < possible.data.length; w++)
+            if ((mask.data[w] & possible.data[w]) !== mask.data[w]) return false;
+        return true;
     }
-
-    function writeMovementsSet(rule) {
-        return rule.inputSpecWriteMovementsSet || rule.writeMovements;
-    }
-
-    for (let index = 0; index < flatRules.length; index++) {
-        const rule = flatRules[index];
-        const readPresent = readMovementsPresent(rule);
-        if (rule.forceAlwaysRun
-            || readPresent.iszero()
-            || readPresent.anyBitsInCommon(seedMovements)) {
-            included[index] = true;
-            possibleWriteMovements.ior(writeMovementsSet(rule));
+    for (const row of rule.patterns) for (const cell of row) {
+        if (cell === ellipsisPattern) continue;
+        if (!contains(cell.movementsPresent)) return false;
+        for (const any of cell.anyMovementsPresent || [])
+            if (!possible.anyBitsInCommon(any)) return false;
+        for (const term of cell.layerCoupledMovementMasks || []) {
+            if (!term.layers.some(layer => contains(layer.movementsPresent)
+                && (!layer.movementsAny || layer.movementsAny.iszero()
+                    || possible.anyBitsInCommon(layer.movementsAny)))) return false;
         }
     }
+    return true;
+}
 
+function computeInputActiveSet(state, seedMovements, inputBit) {
+    // Propagate through actual group/loop edges, instead of allowing later
+    // groups to wake earlier ones without a loop. Union without kills is a
+    // conservative bound across fixed-point passes and rigid retries. Plans
+    // are compiled once per ruleset and reused across candidate levels.
+    const groups = state.rules || [];
+    const incoming = Array.from({length: groups.length + 1}, () => new BitVec(state.STRIDE_MOV));
+    incoming[0] = seedMovements.clone();
     let changed = true;
     while (changed) {
         changed = false;
-        for (let index = 0; index < flatRules.length; index++) {
-            if (included[index]) continue;
-            const rule = flatRules[index];
-            const readPresent = readMovementsPresent(rule);
-            if (readPresent.anyBitsInCommon(possibleWriteMovements)) {
-                included[index] = true;
-                possibleWriteMovements.ior(writeMovementsSet(rule));
-                changed = true;
+        for (let g = 0; g <= groups.length; g++) {
+            const possible = incoming[g].clone();
+            if (g < groups.length) {
+                let grew = true;
+                while (grew) {
+                    grew = false;
+                    for (const rule of groups[g]) {
+                        if (!inputRequirementsPossible(rule, possible)) continue;
+                        rule.activeInputsMask |= inputBit;
+                        const writes = rule.inputSpecWriteMovementsSet || rule.writeMovements;
+                        for (let w = 0; w < possible.data.length; w++) {
+                            const next = possible.data[w] | writes.data[w];
+                            grew = grew || next !== possible.data[w];
+                            possible.data[w] = next;
+                        }
+                    }
+                }
             }
+            function propagate(target) {
+                if (!Number.isInteger(target) || target < 0 || target >= incoming.length) return;
+                for (let w = 0; w < possible.data.length; w++) {
+                    const next = incoming[target].data[w] | possible.data[w];
+                    changed = changed || next !== incoming[target].data[w];
+                    incoming[target].data[w] = next;
+                }
+            }
+            if (g < groups.length) propagate(g + 1);
+            propagate(state.loopPoint && state.loopPoint[g]);
         }
     }
-
-    return included;
 }
 
 function attachInputSpecializationMasks(state) {
@@ -4105,27 +4134,14 @@ function attachInputSpecializationMasks(state) {
         group.inputSpecializedRuleSets = null;
     }
 
-    const flatRules = [];
-    for (const group of state.rules || []) {
-        for (const rule of group) {
-            flatRules.push(rule);
-        }
-    }
-
     const playerLayers = playerLayerSet(state);
     for (let arg = 0; arg < INPUT_SPEC_ARG_TO_DIRBIT.length; arg++) {
         const seed = buildPlayerMoveMask(playerLayers, INPUT_SPEC_ARG_TO_DIRBIT[arg], state.STRIDE_MOV);
-        const active = computeInputActiveSet(flatRules, seed, state.STRIDE_OBJ);
-        for (let index = 0; index < flatRules.length; index++) {
-            if (active[index]) flatRules[index].activeInputsMask |= (1 << arg);
-        }
+        computeInputActiveSet(state, seed, 1 << arg);
     }
 
     const tickSeed = new BitVec(state.STRIDE_MOV);
-    const tickActive = computeInputActiveSet(flatRules, tickSeed, state.STRIDE_OBJ);
-    for (let index = 0; index < flatRules.length; index++) {
-        if (tickActive[index]) flatRules[index].activeInputsMask |= (1 << INPUT_SPEC_TICK_BIT);
-    }
+    computeInputActiveSet(state, tickSeed, 1 << INPUT_SPEC_TICK_BIT);
 
     for (const group of state.rules || []) {
         group.inputSpecializationUseful = group.some(rule => rule.activeInputsMask !== INPUT_SPEC_ALL);
@@ -5164,7 +5180,6 @@ function loadFile(str) {
     collapseRules(state.lateRules, state);
 
     generateRigidGroupList(state);
-    attachInputSpecializationMasks(state);
 
     processWinConditions(state);
     checkObjectsAreLayered(state);
@@ -5172,6 +5187,7 @@ function loadFile(str) {
     twiddleMetaData(state);
 
     generateLoopPoints(state);
+    attachInputSpecializationMasks(state);
 
     generateSoundData(state);
 

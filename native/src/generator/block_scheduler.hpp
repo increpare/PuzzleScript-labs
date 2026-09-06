@@ -5,6 +5,7 @@
 #include "generator/output_writer.hpp"
 #include "generator/spec_parser.hpp"
 #include "runtime/core.hpp"
+#include "search/difficulty.hpp"
 
 #include <array>
 #include <atomic>
@@ -20,16 +21,6 @@ namespace puzzlescript::generator {
 
 using Clock = std::chrono::steady_clock;
 using TimePoint = Clock::time_point;
-
-struct GlobalDedupe {
-    std::array<std::mutex, 64> mutexes;
-    std::array<std::unordered_set<uint64_t>, 64> sets;
-    std::array<std::deque<uint64_t>, 64> order;
-};
-
-bool insertGlobalDedupe(GlobalDedupe& dedupe, uint64_t hash, size_t dedupeMax);
-bool containsGlobalDedupe(GlobalDedupe& dedupe, uint64_t hash);
-void eraseGlobalDedupe(GlobalDedupe& dedupe, uint64_t hash);
 
 struct BlockState {
     BlockSpec spec;
@@ -89,13 +80,13 @@ std::vector<Keeper> snapshotAllKeepers(const std::deque<BlockState>& blocks);
 void runBlockUntilIdle(
     const puzzlescript::LoadedGame& loadedGame,
     BlockState& block,
-    GlobalDedupe& dedupe,
+    puzzlescript::search::DifficultyEvaluator& evaluator,
     OutputCoordinator& outputCoordinator,
     const std::deque<BlockState>& allBlocks,
     const LevelSetOptions& options,
     size_t passIndex);
 
-void runLevelSetForever(
+puzzlescript::search::DifficultyCacheStats runLevelSetForever(
     const puzzlescript::LoadedGame& loadedGame,
     const std::string& gameSource,
     std::deque<BlockState>& blocks,

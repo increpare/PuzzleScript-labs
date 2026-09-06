@@ -1,10 +1,12 @@
 #include "native_bridge/NativeGameBridge.h"
 
 #include "runtime/c_api_internal.hpp"
+#include "search/difficulty.hpp"
 
 #include <algorithm>
 #include <cstddef>
 #include <string>
+#include <stdexcept>
 #include <utility>
 
 namespace psbridge {
@@ -53,6 +55,7 @@ bool NativeGameBridge::compileSource(const std::string& source) {
     compileResult_.reset(rawResult);
     game_.reset();
     state_.reset();
+    evaluator_.reset();
     lastDiagnostic_ = {};
 
     if (!compiled) {
@@ -86,6 +89,7 @@ bool NativeGameBridge::compileSource(const std::string& source) {
         return false;
     }
 
+    evaluator_ = std::make_shared<puzzlescript::search::DifficultyEvaluator>(loadedGame());
     if (!createState()) {
         return false;
     }
@@ -366,6 +370,9 @@ std::unique_ptr<NativeGameBridge> NativeGameBridge::createSolverBridge() const {
 
     std::unique_ptr<NativeGameBridge> solverBridge(new NativeGameBridge());
     solverBridge->game_.reset(rawGame);
+    // Workers cloned from one compilation share completed and pending lane
+    // evaluations. Recompilation installs a new cache; old workers stay valid.
+    solverBridge->evaluator_ = evaluator_;
     if (!solverBridge->createState()) {
         return nullptr;
     }
@@ -476,6 +483,11 @@ const puzzlescript::LoadedGame& NativeGameBridge::loadedGame() const {
         return kEmpty;
     }
     return game_->impl;
+}
+
+puzzlescript::search::DifficultyEvaluator& NativeGameBridge::difficultyEvaluator() const {
+    if (!evaluator_) throw std::logic_error("Cannot assess without a compiled game");
+    return *evaluator_;
 }
 
 void NativeGameBridge::setError(const char* message, int32_t line) {

@@ -1,0 +1,362 @@
+{
+  "scope": "Analysis-only batch benchmark, not generation or solving throughput. Each candidate is an existing template with cyclically shifted tiles; all retain their template population. Fresh reproduces the previous per-level plan/count/inspect path; shared retains a ruleset session and also checks the actual player count. One cold session per measured batch. Full/filtered static analysis is measured separately. Warmup then serial alternating pairs.",
+  "node": "v22.12.0",
+  "candidates": 1000,
+  "pairs": 5,
+  "games": [
+    {
+      "game": "chaos wizard",
+      "templates": 22,
+      "static_pairs": [
+        {
+          "full_ms": 75.2281999999999,
+          "filtered_ms": 48.414499999999975
+        },
+        {
+          "filtered_ms": 46.54449999999997,
+          "full_ms": 67.13519999999994
+        },
+        {
+          "full_ms": 61.251000000000204,
+          "filtered_ms": 42.30750000000012
+        },
+        {
+          "filtered_ms": 38.94380000000001,
+          "full_ms": 60.72640000000001
+        },
+        {
+          "full_ms": 60.59280000000035,
+          "filtered_ms": 42.990999999999985
+        }
+      ],
+      "batch_pairs": [
+        {
+          "fresh": {
+            "ms": 363.57719999999995,
+            "dead": 0,
+            "single": 0,
+            "plan_builds": 1000,
+            "closures": 1000,
+            "cache_hits": 0
+          },
+          "shared": {
+            "ms": 1.8742999999999483,
+            "dead": 0,
+            "single": 0,
+            "plan_builds": 1,
+            "closures": 12,
+            "cache_hits": 988
+          }
+        },
+        {
+          "shared": {
+            "ms": 1.920699999999897,
+            "dead": 0,
+            "single": 0,
+            "plan_builds": 1,
+            "closures": 12,
+            "cache_hits": 988
+          },
+          "fresh": {
+            "ms": 348.1867000000002,
+            "dead": 0,
+            "single": 0,
+            "plan_builds": 1000,
+            "closures": 1000,
+            "cache_hits": 0
+          }
+        },
+        {
+          "fresh": {
+            "ms": 372.8462000000002,
+            "dead": 0,
+            "single": 0,
+            "plan_builds": 1000,
+            "closures": 1000,
+            "cache_hits": 0
+          },
+          "shared": {
+            "ms": 2.7382000000002336,
+            "dead": 0,
+            "single": 0,
+            "plan_builds": 1,
+            "closures": 12,
+            "cache_hits": 988
+          }
+        },
+        {
+          "shared": {
+            "ms": 3.622100000000046,
+            "dead": 0,
+            "single": 0,
+            "plan_builds": 1,
+            "closures": 12,
+            "cache_hits": 988
+          },
+          "fresh": {
+            "ms": 351.4858999999997,
+            "dead": 0,
+            "single": 0,
+            "plan_builds": 1000,
+            "closures": 1000,
+            "cache_hits": 0
+          }
+        },
+        {
+          "fresh": {
+            "ms": 342.2278000000001,
+            "dead": 0,
+            "single": 0,
+            "plan_builds": 1000,
+            "closures": 1000,
+            "cache_hits": 0
+          },
+          "shared": {
+            "ms": 3.4528999999997723,
+            "dead": 0,
+            "single": 0,
+            "plan_builds": 1,
+            "closures": 12,
+            "cache_hits": 988
+          }
+        }
+      ]
+    },
+    {
+      "game": "cakemonsters",
+      "templates": 36,
+      "static_pairs": [
+        {
+          "full_ms": 45.22619999999961,
+          "filtered_ms": 20.492599999999584
+        },
+        {
+          "filtered_ms": 21.523199999999633,
+          "full_ms": 51.212000000000444
+        },
+        {
+          "full_ms": 46.634399999999914,
+          "filtered_ms": 22.269900000000234
+        },
+        {
+          "filtered_ms": 18.808100000000195,
+          "full_ms": 38.55450000000019
+        },
+        {
+          "full_ms": 40.44580000000042,
+          "filtered_ms": 20.48909999999978
+        }
+      ],
+      "batch_pairs": [
+        {
+          "fresh": {
+            "ms": 562.8990000000003,
+            "dead": 0,
+            "single": 0,
+            "plan_builds": 1000,
+            "closures": 1000,
+            "cache_hits": 0
+          },
+          "shared": {
+            "ms": 2.5832000000000335,
+            "dead": 0,
+            "single": 0,
+            "plan_builds": 1,
+            "closures": 29,
+            "cache_hits": 971
+          }
+        },
+        {
+          "shared": {
+            "ms": 2.6779999999998836,
+            "dead": 0,
+            "single": 0,
+            "plan_builds": 1,
+            "closures": 29,
+            "cache_hits": 971
+          },
+          "fresh": {
+            "ms": 551.7998000000007,
+            "dead": 0,
+            "single": 0,
+            "plan_builds": 1000,
+            "closures": 1000,
+            "cache_hits": 0
+          }
+        },
+        {
+          "fresh": {
+            "ms": 555.6506000000008,
+            "dead": 0,
+            "single": 0,
+            "plan_builds": 1000,
+            "closures": 1000,
+            "cache_hits": 0
+          },
+          "shared": {
+            "ms": 3.774999999999636,
+            "dead": 0,
+            "single": 0,
+            "plan_builds": 1,
+            "closures": 29,
+            "cache_hits": 971
+          }
+        },
+        {
+          "shared": {
+            "ms": 6.637899999999718,
+            "dead": 0,
+            "single": 0,
+            "plan_builds": 1,
+            "closures": 29,
+            "cache_hits": 971
+          },
+          "fresh": {
+            "ms": 543.1553999999996,
+            "dead": 0,
+            "single": 0,
+            "plan_builds": 1000,
+            "closures": 1000,
+            "cache_hits": 0
+          }
+        },
+        {
+          "fresh": {
+            "ms": 529.5974999999999,
+            "dead": 0,
+            "single": 0,
+            "plan_builds": 1000,
+            "closures": 1000,
+            "cache_hits": 0
+          },
+          "shared": {
+            "ms": 3.7377000000005864,
+            "dead": 0,
+            "single": 0,
+            "plan_builds": 1,
+            "closures": 29,
+            "cache_hits": 971
+          }
+        }
+      ]
+    },
+    {
+      "game": "dropswap",
+      "templates": 5,
+      "static_pairs": [
+        {
+          "full_ms": 69.28489999999874,
+          "filtered_ms": 40.24989999999889
+        },
+        {
+          "filtered_ms": 31.977500000000873,
+          "full_ms": 69.47259999999915
+        },
+        {
+          "full_ms": 67.64569999999912,
+          "filtered_ms": 27.10019999999895
+        },
+        {
+          "filtered_ms": 27.49369999999908,
+          "full_ms": 63.42740000000049
+        },
+        {
+          "full_ms": 72.50799999999799,
+          "filtered_ms": 29.8666000000012
+        }
+      ],
+      "batch_pairs": [
+        {
+          "fresh": {
+            "ms": 2054.5419999999995,
+            "dead": 0,
+            "single": 0,
+            "plan_builds": 1000,
+            "closures": 1000,
+            "cache_hits": 0
+          },
+          "shared": {
+            "ms": 2.5538000000015018,
+            "dead": 0,
+            "single": 0,
+            "plan_builds": 1,
+            "closures": 4,
+            "cache_hits": 996
+          }
+        },
+        {
+          "shared": {
+            "ms": 3.4307000000007974,
+            "dead": 0,
+            "single": 0,
+            "plan_builds": 1,
+            "closures": 4,
+            "cache_hits": 996
+          },
+          "fresh": {
+            "ms": 1939.307999999999,
+            "dead": 0,
+            "single": 0,
+            "plan_builds": 1000,
+            "closures": 1000,
+            "cache_hits": 0
+          }
+        },
+        {
+          "fresh": {
+            "ms": 1798.1702999999998,
+            "dead": 0,
+            "single": 0,
+            "plan_builds": 1000,
+            "closures": 1000,
+            "cache_hits": 0
+          },
+          "shared": {
+            "ms": 3.019800000000032,
+            "dead": 0,
+            "single": 0,
+            "plan_builds": 1,
+            "closures": 4,
+            "cache_hits": 996
+          }
+        },
+        {
+          "shared": {
+            "ms": 3.2968999999993684,
+            "dead": 0,
+            "single": 0,
+            "plan_builds": 1,
+            "closures": 4,
+            "cache_hits": 996
+          },
+          "fresh": {
+            "ms": 1729.0613999999987,
+            "dead": 0,
+            "single": 0,
+            "plan_builds": 1000,
+            "closures": 1000,
+            "cache_hits": 0
+          }
+        },
+        {
+          "fresh": {
+            "ms": 1755.9781999999977,
+            "dead": 0,
+            "single": 0,
+            "plan_builds": 1000,
+            "closures": 1000,
+            "cache_hits": 0
+          },
+          "shared": {
+            "ms": 3.620500000000902,
+            "dead": 0,
+            "single": 0,
+            "plan_builds": 1,
+            "closures": 4,
+            "cache_hits": 996
+          }
+        }
+      ]
+    }
+  ]
+}

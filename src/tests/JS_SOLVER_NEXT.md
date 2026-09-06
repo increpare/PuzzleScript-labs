@@ -40,6 +40,92 @@ Reasonable next moves only with fresh evidence:
 
 ## Status / progress log
 
+- **2026-09-06: whole-day 250ms battery does not establish a broad solve-count gain.**
+  Compare pre-day `528bdf78` with `a12a20c1`, same 184 sources / 1,346 playable
+  levels, native interpreter portfolio and JS weighted A*. Strict `<250ms`
+  native pairs: **714->705, 734->721, 733->740**; JS: **557->559, 579->560,
+  589->589**. Separate medians are 733->721 and 579->560, but paired deltas
+  are mixed and ranges overlap; do not claim a precise universal regression
+  from the separate medians. Native Gapfiller source-level index 3 is lost in
+  all three observations (about 220ms before, timeouts after). No source level
+  is newly solved in all after runs while unsolved in all before runs. All
+  twelve passes finish without compiler/solver errors or reported JS replay
+  rejections. Preserve every observation, full solutions, overlaid cumulative
+  graphs and per-level changes in `docs/solver-day-250ms-2026-09-06.md`.
+  This is the direct corpus acceptance metric; earlier localized throughput
+  improvements do not establish an improvement on it.
+
+- **2026-09-06: refine per-input flow; reject new native schedulers.** Preserve
+  positive movement AND/OR requirements, propagate through original group/loop
+  edges, and stop using `forceAlwaysRun` to seed impossible movement writes.
+  Both compilers reuse existing input execution paths; native runtime and data
+  structures stay unchanged. Analysis runs once per ruleset, with no player-count
+  assumption. Static eligibility falls 20.6% across 184 source files (106 affected),
+  but native corpus timings are only modest/mixed. Robot Arm validates at
+  **9.2% less time for identical BFS work (7/7 pairs)** and **6.3% less time for
+  200 generator candidate evaluations (5/5)**; the latter keeps zero candidates
+  at the 10ms search budget and is not a quality/solve-count result. JS full
+  simulation improves **2.9% (5/5)**. Standard generation cases remain mixed or
+  slower. Remove native rule-list and group-skipping prototypes after they fail
+  the performance gate. See `docs/input-flow-2026-09-06.md` and its raw evidence
+  for all pairs, controls, scope, correctness checks and rejected approaches.
+
+- **2026-09-06: native movement buffer reuse passes the performance gate.**
+  Reject blocked moves before copying cells and reuse existing replacement
+  buffers during the separate movement phase; add no scratch fields or flags.
+  Five pairs give fixed-work native candidate BFS **8,505.6 -> 8,272.5 ms (2.74%)**
+  with all 78 level results, search counts and solutions identical. Full replay
+  improves **11,078.5 -> 10,722.9 ms (3.21%)** with unchanged visits/replacements;
+  Chaos Wizard generation improves **1,091.5 -> 1,065.8 ms (2.36%)** with identical
+  output. Other generation cases are mostly neutral. Time-limited portfolios
+  remain mixed (40->40, 41->36, 40->40); no solve-count gain is claimed.
+  Movement/sound/restoration regressions pass with 32/64-bit mask words.
+  Two group-counting probes were removed after neutral/regressive timings.
+  See `docs/native-movement-buffers-2026-09-06.md` for full results and limits.
+
+- **2026-09-06: native future-rule eligibility rejected and removed.**
+  The prototype shared a ruleset-owned creation plan across native compilation
+  and runtime-IR loading, with a bounded population cache. Ordered indices retained
+  original groups and existing input/wake pruning. The maintained board union and
+  a session memo avoided extra scans and unchanged-population locks. Differential
+  tests passed four scheduler configurations at 32/64 mask bits; native source
+  coverage compared 37,002 transitions in 184 games. Replay visits fell
+  8,614,606 -> 8,451,332, but final three-pair median wall time was
+  9,573 -> 9,608 ms; single-worker generation was neutral/slightly worse.
+  The performance gate failed: the implementation, flag, integration changes,
+  dedicated tests and benchmark drivers were removed. Initial and final timing
+  evidence remains; historical prototype and drivers are at `f70bc505`.
+  See `docs/native-future-rule-pruning-2026-09-06.md` for safety boundaries,
+  reference-harness failures, measurements and input-specific turn-code follow-up.
+
+- **2026-09-06: share future-object plans across candidate levels.**
+  Retain one ruleset proof and bounded caches across levels; request only count
+  and conserved-sum fact families. Keep actual single-player certification out
+  of the presence cache. The 128-level differential fixture now uses two sessions
+  with unchanged results. Analysis-only 1,000-candidate medians improve from
+  351/552/1,798 ms to 2.74/3.74/3.30 ms for Chaos Wizard/Cake Monsters/Drop Swap.
+  End-to-end focused comparisons against the previous pruning revision give
+  solves 27->29, 28->29, 29->29 and median process wall time 13,896->13,151 ms.
+  This supports the refactor, not default-on pruning or a native generator gain.
+  Exact presence still requires a board scan. See
+  `docs/future-ruleset-reuse-2026-09-06.md` for measurements and remaining costs.
+
+- **2026-09-06: remaining-future-object certificates and opt-in pruning.**
+  Reuse the existing conservative creation closure at stable state boundaries
+  to prove unavailable types, disabled rules and impossible winning continuations.
+  `--solver-future-prune` preserves the board and caches exact presence-based
+  dead-end verdicts. Reset/checkpoint games fall back to ordinary search.
+  Exhaustive BFS differential checks cover 128 cases with identical solvability
+  and shortest input lengths (845 -> 829 expansions, 20 pruned states).
+  Three serial focused 250ms pairs produced **27 -> 30**, **29 -> 26** and
+  **29 -> 29** solves despite approximately 99% verdict-cache hits: keep opt-in;
+  neither solve counts nor wall times establish a consistent speed improvement.
+  A fixed-expansion survey of 228 source versions / 1,444 levels found irreversible
+  losses in 473 levels across 63 versions, including 88 startup losses. Existing
+  conservation facts plus actual counts certify exactly one player in 567 levels.
+  See `docs/future-object-universe-2026-09-06.md` for witnesses, classifications,
+  validation, timing data and the proposed active-rule-plan consumer.
+
 - **T4 / TX3 sibling-solution Markov prior rejected for the general solver.**
   The experiment was explicitly a warm-start cache: a prior solver JSON supplied
   solved sibling levels, and each target excluded its own solution. `action` was

@@ -36,3 +36,9 @@ solved candidate. The assessment uses the portfolio primary plus supplemental
 lanes; non-portfolio `--solver-strategy` and `--events-jsonl` are rejected in this
 mode rather than silently ignored. Changing solver schedules or time budgets
 can change keeper selection even when generated samples have the same seeds.
+
+Level-set reports now include `evaluation_cache` lane hits, owner search attempts,
+wait iterations, entries and estimated retained bytes. The benchmark preserves
+these counters. `--dedupe-max` limits retained lane entries in this mode, subject
+to a separate 32 MiB cache budget. Candidate-assessment counts and lane-search
+counts are different; see [cache semantics](../../../docs/evaluation-cache-and-push-search.md).

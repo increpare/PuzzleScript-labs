@@ -48,6 +48,17 @@ try {
     assert(!legacy.error, String(legacy.error));
     assert.strictEqual(legacy.status, 0, legacy.stderr);
     assert(JSON.parse(fs.readFileSync(legacyReport, 'utf8')).totals.samples_attempted < 100000);
+    // Completion can race ahead of the coordinator's first wait. Exercise
+    // immediate completion and a quota smaller than the worker count; joins
+    // must preserve the last admitted samples instead of cancelling their work.
+    for (const samples of [0, 3]) {
+        const completed = spawnSync(binary, [game, path.join(__dirname, 'generator_presets/sokoban_room_scatter.gen'),
+            '--samples', String(samples), '--jobs', '8', '--solver-timeout-ms', '100',
+            '--json-out', legacyReport, '--quiet'], { encoding: 'utf8', timeout: 6000, windowsHide: true });
+        assert(!completed.error, String(completed.error));
+        assert.strictEqual(completed.status, 0, completed.stderr);
+        assert.strictEqual(JSON.parse(fs.readFileSync(legacyReport, 'utf8')).totals.samples_attempted, samples);
+    }
     console.log('Generator sample/deadline/report contracts pass.');
 } finally {
     fs.rmSync(tmp, { recursive: true, force: true });

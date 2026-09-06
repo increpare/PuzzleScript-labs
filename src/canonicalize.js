@@ -373,6 +373,9 @@ globalThis.__ps_exports = {
         if (!result.state) {
             return output;
         }
+        // This partial compiler skips loadFile's tail. Input-flow analysis now
+        // needs its actual loop edges before it can rule out backward triggers.
+        generateLoopPoints(result.state);
         attachInputSpecializationMasks(result.state);
         function appendRules(groups, target) {
             for (let groupIndex = 0; groupIndex < groups.length; groupIndex++) {

@@ -121,17 +121,21 @@ through standalone native targets.
    pass. C API clients must rebuild for the callback fields. Runtime turns and
    startup rule drains remain non-preemptible, so these are cooperative
    deadlines, not hard real-time guarantees. The full MIS GUI was not built.
-2. **A shared evaluation record and exact candidate cache.** Store board identity,
-   rule/runtime version, gameplay seed, budget, outcome and solution independently
-   from difficulty policy. Reserve in-flight work, compare full boards after hash
-   lookup, and retain timeout results as budget-specific unknowns. The existing
-   candidate dedupe is still hash based; exact search-state equality does not fix
-   candidate hash collisions.
+2. **Implemented for level-set generation and MIS: shared exact lane evaluation.**
+   See [the cache and push-search report](evaluation-cache-and-push-search.md).
+   Complete boards, gameplay seeds and assessment budgets identify cached work;
+   concurrent workers share pending searches, and unknown/error results retry.
+   The legacy single-recipe generator retains its separate dedupe policy.
 3. **Separate profiling from search decisions.** Both JS and native portfolio
    policies should make the same decisions with detailed timing enabled or
    disabled. Use cheap, consistently sampled measurements and record the chosen
    schedule before comparing optimizations.
-4. **Certify puzzle structure before specializing search.** A conservative
+4. **Prototype implemented; production routing remains pending.** A separate
+   `puzzlescript_push_solver` accepts a strictly certified standard Sokoban
+   subset, passes 1,920 exhaustive small-board differential checks and replays
+   solutions in native and JS runtimes. See the report linked above.
+
+   **Certify puzzle structure before specializing search.** A conservative
    Sokoban-like detector can enable push-space search, player-region
    canonicalization, reverse-push reachability and deadlock tables. Fall back to
    general search when rules can teleport, create/destroy objects, depend on

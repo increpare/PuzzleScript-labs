@@ -88,4 +88,32 @@ int main() {
     options.deadline = std::chrono::steady_clock::now() - std::chrono::milliseconds(1);
     bounded = puzzlescript::search::assessGeneratedLevelDifficulty(loaded, level, options);
     assert(bounded.interrupted && calls == 0);
+
+    options = {};
+    puzzlescript::search::DifficultyEvaluator evaluator(loaded);
+    outcomes.assign(20, PS_SOLVE_STATUS_SOLVED); calls = 0;
+    assert(evaluator.assess(level, options).solved && calls == 1);
+    assert(evaluator.assess(level, options).solved && calls == 1);
+    options.supplementalGate = [&](int64_t) { ++gates; return true; };
+    gates = 0;
+    assert(evaluator.assess(level, options).supplementalRan && calls == 4 && gates == 1);
+    assert(evaluator.assess(level, options).supplementalRan && calls == 4 && gates == 2);
+    options.supplementalGate = {};
+    options.randomSeed = "different gameplay";
+    assert(evaluator.assess(level, options).solved && calls == 5);
+    ++options.timeoutMs;
+    assert(evaluator.assess(level, options).solved && calls == 6);
+    auto differentBoard = level; differentBoard.objects = {0};
+    assert(evaluator.assess(differentBoard, options).solved && calls == 7);
+    auto differentShape = level; differentShape.width = 2; differentShape.objects = {1, 1};
+    assert(evaluator.assess(differentShape, options).solved && calls == 8);
+    options.shouldCancel = [] { return true; };
+    assert(evaluator.assess(level, options).interrupted && calls == 8);
+    options.shouldCancel = {};
+    options.randomSeed = "retry";
+    outcomes[8] = PS_SOLVE_STATUS_TIMEOUT;
+    assert(!evaluator.assess(level, options).solved && calls == 9);
+    assert(evaluator.assess(level, options).solved && calls == 10);
+    puzzlescript::search::DifficultyEvaluator recompiled(loaded);
+    assert(recompiled.assess(level, options).solved && calls == 11);
 }

@@ -1361,6 +1361,8 @@ tests_js:
 
 static_analysis_tests:
 	$(NODE) src/tests/ps_static_analysis_node.js
+	$(NODE) src/tests/future_object_universe_node.js
+	$(NODE) src/tests/solver_future_prune_node.js
 	$(NODE) src/tests/action_noop_candidates_node.js
 	$(NODE) src/tests/static_analysis_testdata_runner.js
 	$(NODE) src/tests/static_analysis_testdata_runner_node.js

@@ -1,5 +1,6 @@
 #undef NDEBUG  // keep assert() live under the Release -DNDEBUG build
 #include <cassert>
+#include <algorithm>
 #include <cstdint>
 #include <iostream>
 #include <map>
@@ -181,7 +182,107 @@ bool ruleRequiresPlayerMovement(
 
 } // namespace
 
+void checkFlow(const std::string& rules, const std::string& observed, uint8_t expected, int dummyCount = 0) {
+    std::string objects, layers;
+    for (int i = 0; i < dummyCount; ++i) {
+        const auto name = "Dummy" + std::to_string(i);
+        objects += name + "\nblue\n\n";
+        layers += name + "\n";
+    }
+    const std::string source =
+        "title Input flow\n\nobjects\nBackground\nblack\n\n" + objects + "Player\nwhite\n\n"
+        "A\nred\n\nB\nblue\n\nWall\ngrey\n\n"
+        "legend\n. = Background\nP = Player\nX = Player and A and B\n# = Wall\n"
+        "Thing = A or B\n\nsounds\n\ncollisionlayers\nBackground\n" + layers + "Player, Wall\nA\nB\n\n"
+        "rules\n" + rules + "\n\nwinconditions\n\nlevels\n.....\n.XP#.\n.....\n";
+    puzzlescript::compiler::DiagnosticSink diagnostics;
+    const auto parsed = puzzlescript::compiler::parseSource(source, diagnostics);
+    puzzlescript::LoadedGame loaded;
+    const auto error = puzzlescript::compiler::lowerToRuntimeGame(parsed, loaded);
+    assert(!error);
+    const auto pos = source.find(observed);
+    assert(pos != std::string::npos);
+    const auto line = 1 + std::count(source.begin(), source.begin() + pos, '\n');
+    bool found = false;
+    uint8_t active = 0;
+    for (const auto* rule : flattenMainRules(*loaded.information)) if (rule->lineNumber == line) {
+        active |= rule->activeInputsMask;
+        found = true;
+    }
+    assert(found);
+    if (active != expected) {
+        std::cerr << observed << ": expected " << int(expected) << " got " << int(active) << '\n';
+        assert(false);
+    }
+    // Exercise actual turns against an unfiltered copy, including every
+    // length-three sequence of directions, action and tick. Comparing full
+    // snapshots also checks random/meta state, beyond visible object positions.
+    auto baseline = loaded;
+    auto allRules = std::make_shared<puzzlescript::Game>(*loaded.information);
+    for (auto& group : allRules->rules) for (auto& rule : group) rule.activeInputsMask = kInputAll;
+    baseline.information = allRules;
+    for (int sequence = 0; sequence < 216; ++sequence) {
+        auto a = puzzlescript::createFullStateWithLoadedLevelSeed(loaded, "input-flow");
+        auto b = puzzlescript::createFullStateWithLoadedLevelSeed(baseline, "input-flow");
+        assert(!puzzlescript::loadLevel(*a, 0) && !puzzlescript::loadLevel(*b, 0));
+        int remaining = sequence;
+        for (int depth = 0; depth < 3; ++depth) {
+            const auto input = static_cast<ps_input>(remaining % 6);
+            remaining /= 6;
+            const auto ra = puzzlescript::step(*a, input);
+            // Audio borrows thread-local turn storage, invalidated by step(b).
+            std::vector<int32_t> audio;
+            for (size_t event = 0; event < ra.audio_event_count; ++event)
+                audio.push_back(ra.audio_events[event].seed);
+            const auto rb = puzzlescript::step(*b, input);
+            assert(ra.changed == rb.changed && ra.won == rb.won
+                && ra.transitioned == rb.transitioned && ra.restarted == rb.restarted
+                && ra.audio_event_count == rb.audio_event_count);
+            for (size_t event = 0; event < ra.audio_event_count; ++event)
+                assert(audio[event] == rb.audio_events[event].seed);
+            assert(puzzlescript::exportSnapshot(*a) == puzzlescript::exportSnapshot(*b));
+        }
+    }
+}
+
+void checkFlowCases() {
+    checkFlow("right [ up A ] -> [ right A ] win\nright [ right A ] -> [ right A ]", "right [ right A ]", 0);
+    checkFlow("right [ right Player up A ] -> [ right Player up A ]", "right [", 0);
+    checkFlow("right [ action Player ] -> [ right Player ]\nright [ right Player ] -> [ right Player ]",
+        "right [ right Player ]", kInputRight | kInputAction);
+    checkFlow("right [ right Player ] -> [ right Player ]\nright [ action Player ] -> [ right Player ]",
+        "right [ right Player ]", kInputRight);
+    checkFlow("startloop\nright [ right Player ] -> [ right Player ]\nright [ action Player ] -> [ right Player ]\nendloop",
+        "right [ right Player ]", kInputRight | kInputAction);
+    checkFlow("right [ right Player ] -> [ right Player ]\n+ right [ action Player ] -> [ right Player ]",
+        "right [ right Player ]", kInputRight | kInputAction);
+    checkFlow("right [ stationary A ] -> [ up A ]\nright [ up A ] -> [ up A ]",
+        "right [ up A ]", kInputAll);
+    checkFlow("right [ action Player A ] -> [ action Player right A ]\nright [ right A B ] -> [ right A up B ]\nright [ up B ] -> [ up B ]",
+        "right [ up B ]", kInputAction);
+    checkFlow("right [ right Player ] -> [ stationary Player ]\nright [ stationary Player A ] -> [ Player up A ]\nright [ up A ] -> [ up A ]",
+        "right [ up A ]", kInputAll);
+    checkFlow("right [ no A B ] -> [ no A up B ]\nright [ up B ] -> [ up B ]",
+        "right [ up B ]", kInputAll);
+    checkFlow("right [ action Player A ] -> [ action Player right A ]\nright [ moving Thing ] -> [ moving Thing ]",
+        "right [ moving Thing ]", kInputAction);
+    checkFlow("right [ A ] -> [ randomdir A ]\nright [ up A ] -> [ up A ]",
+        "right [ up A ]", kInputAll);
+    checkFlow("rigid right [ action Player A ] -> [ right Player right A ]\nright [ right A ] -> [ right A ]",
+        "right [ right A ]", kInputAction);
+    checkFlow("random right [ action Player A ] -> [ Player right A ]\nright [ right A ] -> [ right A ]",
+        "right [ right A ]", kInputAction);
+    checkFlow("right [ up A ] -> [ up A ]\nlate [ A ] -> [ B ]", "right [ up A ]", 0);
+    checkFlow("right [ action Player A ] -> [ Player B ] again\nright [ B ] -> [ up B ]\nright [ up B ] -> [ up B ]",
+        "right [ up B ]", kInputAll);
+    checkFlow("right [ action Player A ] -> [ action Player right A ]\nright [ right A B ] -> [ right A up B ]\nright [ up B ] -> [ up B ]",
+        "right [ up B ]", kInputAction, 130);
+    checkFlow("startloop\nright [ up Player ] -> [ left Player ]\nright [ action Player ] -> [ up Player ]\nright [ left A ] -> [ left A ]\nendloop",
+        "right [ up Player ]", kInputUp | kInputAction);
+}
+
 int main() {
+    checkFlowCases();
     puzzlescript::compiler::DiagnosticSink diagnostics;
     const auto state = puzzlescript::compiler::parseSource(kSource, diagnostics);
     assert(diagnostics.diagnostics().empty());

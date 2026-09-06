@@ -1,0 +1,3800 @@
+{
+  "timeout_ms": 250,
+  "pairs": 3,
+  "source_files": 184,
+  "engines": {
+    "native": {
+      "playable": 1346,
+      "strict_counts": {
+        "before": [
+          714,
+          734,
+          733
+        ],
+        "after": [
+          705,
+          721,
+          740
+        ]
+      },
+      "median_strict": {
+        "before": 733,
+        "after": 721
+      },
+      "budget_solved": {
+        "before": [
+          717,
+          736,
+          735
+        ],
+        "after": [
+          706,
+          725,
+          742
+        ]
+      },
+      "late_solved": {
+        "before": [
+          3,
+          2,
+          2
+        ],
+        "after": [
+          1,
+          4,
+          2
+        ]
+      },
+      "errors": [
+        {
+          "side": "before",
+          "pair": 1,
+          "errors": [],
+          "replay_rejected": 0
+        },
+        {
+          "side": "after",
+          "pair": 1,
+          "errors": [],
+          "replay_rejected": 0
+        },
+        {
+          "side": "after",
+          "pair": 2,
+          "errors": [],
+          "replay_rejected": 0
+        },
+        {
+          "side": "before",
+          "pair": 2,
+          "errors": [],
+          "replay_rejected": 0
+        },
+        {
+          "side": "before",
+          "pair": 3,
+          "errors": [],
+          "replay_rejected": 0
+        },
+        {
+          "side": "after",
+          "pair": 3,
+          "errors": [],
+          "replay_rejected": 0
+        }
+      ],
+      "pairs": [
+        {
+          "pair": 1,
+          "before": 714,
+          "after": 705,
+          "delta": -9,
+          "gained": [
+            [
+              "Attractor Net.txt",
+              13
+            ],
+            [
+              "cakemonsters.txt",
+              38
+            ],
+            [
+              "icecrates.txt",
+              7
+            ],
+            [
+              "limerick.txt",
+              3
+            ],
+            [
+              "limerick.txt",
+              9
+            ],
+            [
+              "slidings.txt",
+              13
+            ]
+          ],
+          "lost": [
+            [
+              "Any hole is a goal.txt",
+              3
+            ],
+            [
+              "CODEX LUBRICUS.txt",
+              40
+            ],
+            [
+              "Cucumber Surprise.txt",
+              27
+            ],
+            [
+              "a clear view of the sky.txt",
+              22
+            ],
+            [
+              "atlas shrank.txt",
+              4
+            ],
+            [
+              "castlemouse.txt",
+              7
+            ],
+            [
+              "dropswap.txt",
+              5
+            ],
+            [
+              "easyenigma.txt",
+              2
+            ],
+            [
+              "easyenigma.txt",
+              5
+            ],
+            [
+              "flesh-handed hot casserole delivery bot.txt",
+              10
+            ],
+            [
+              "gapfiller.txt",
+              3
+            ],
+            [
+              "gem soketeer.txt",
+              1
+            ],
+            [
+              "gem soketeer.txt",
+              9
+            ],
+            [
+              "mazezam.txt",
+              29
+            ],
+            [
+              "paint everything everywhere.txt",
+              29
+            ]
+          ]
+        },
+        {
+          "pair": 2,
+          "before": 734,
+          "after": 721,
+          "delta": -13,
+          "gained": [
+            [
+              "Cucumber Surprise.txt",
+              27
+            ],
+            [
+              "Put the logs in the water, elephant.txt",
+              7
+            ],
+            [
+              "Recondite Star Sector Sigma.txt",
+              17
+            ],
+            [
+              "coincounter.txt",
+              7
+            ]
+          ],
+          "lost": [
+            [
+              "Any hole is a goal.txt",
+              3
+            ],
+            [
+              "Any hole is a goal.txt",
+              7
+            ],
+            [
+              "Bicycle-Kick Football.txt",
+              7
+            ],
+            [
+              "CODEX LUBRICUS.txt",
+              40
+            ],
+            [
+              "Cucumber Surprise.txt",
+              11
+            ],
+            [
+              "Cucumber Surprise.txt",
+              21
+            ],
+            [
+              "Wand Spinner.txt",
+              23
+            ],
+            [
+              "big dog and little dog.txt",
+              1
+            ],
+            [
+              "dropswap.txt",
+              5
+            ],
+            [
+              "easyenigma.txt",
+              2
+            ],
+            [
+              "easyenigma.txt",
+              5
+            ],
+            [
+              "flesh-handed hot casserole delivery bot.txt",
+              10
+            ],
+            [
+              "flesh-handed hot casserole delivery bot.txt",
+              16
+            ],
+            [
+              "gapfiller.txt",
+              3
+            ],
+            [
+              "gem soketeer.txt",
+              1
+            ],
+            [
+              "gem soketeer.txt",
+              9
+            ],
+            [
+              "paint everything everywhere.txt",
+              27
+            ]
+          ]
+        },
+        {
+          "pair": 3,
+          "before": 733,
+          "after": 740,
+          "delta": 7,
+          "gained": [
+            [
+              "Any hole is a goal.txt",
+              3
+            ],
+            [
+              "Any hole is a goal.txt",
+              7
+            ],
+            [
+              "Hole-Stuffer.txt",
+              3
+            ],
+            [
+              "Match-Maker.txt",
+              15
+            ],
+            [
+              "Muraphilic Monophobic Multiban.txt",
+              9
+            ],
+            [
+              "Put the logs in the water, elephant.txt",
+              7
+            ],
+            [
+              "big dog and little dog.txt",
+              1
+            ],
+            [
+              "die schoene steinmetzin.txt",
+              5
+            ],
+            [
+              "smother.txt",
+              28
+            ]
+          ],
+          "lost": [
+            [
+              "cakemonsters.txt",
+              49
+            ],
+            [
+              "gapfiller.txt",
+              3
+            ]
+          ]
+        }
+      ],
+      "thresholds": [
+        {
+          "threshold_ms": 1,
+          "before": [
+            75,
+            82,
+            87
+          ],
+          "after": [
+            76,
+            83,
+            88
+          ],
+          "before_median": 82,
+          "after_median": 83
+        },
+        {
+          "threshold_ms": 5,
+          "before": [
+            197,
+            206,
+            206
+          ],
+          "after": [
+            190,
+            201,
+            210
+          ],
+          "before_median": 206,
+          "after_median": 201
+        },
+        {
+          "threshold_ms": 10,
+          "before": [
+            254,
+            266,
+            266
+          ],
+          "after": [
+            247,
+            259,
+            273
+          ],
+          "before_median": 266,
+          "after_median": 259
+        },
+        {
+          "threshold_ms": 25,
+          "before": [
+            368,
+            391,
+            389
+          ],
+          "after": [
+            362,
+            380,
+            402
+          ],
+          "before_median": 389,
+          "after_median": 380
+        },
+        {
+          "threshold_ms": 50,
+          "before": [
+            474,
+            491,
+            487
+          ],
+          "after": [
+            463,
+            484,
+            500
+          ],
+          "before_median": 487,
+          "after_median": 484
+        },
+        {
+          "threshold_ms": 100,
+          "before": [
+            583,
+            603,
+            598
+          ],
+          "after": [
+            564,
+            579,
+            612
+          ],
+          "before_median": 598,
+          "after_median": 579
+        },
+        {
+          "threshold_ms": 150,
+          "before": [
+            646,
+            668,
+            665
+          ],
+          "after": [
+            635,
+            654,
+            669
+          ],
+          "before_median": 665,
+          "after_median": 654
+        },
+        {
+          "threshold_ms": 200,
+          "before": [
+            683,
+            707,
+            704
+          ],
+          "after": [
+            676,
+            694,
+            711
+          ],
+          "before_median": 704,
+          "after_median": 694
+        },
+        {
+          "threshold_ms": 250,
+          "before": [
+            714,
+            734,
+            733
+          ],
+          "after": [
+            705,
+            721,
+            740
+          ],
+          "before_median": 733,
+          "after_median": 721
+        }
+      ],
+      "stable_gains": [],
+      "stable_losses": [
+        [
+          "gapfiller.txt",
+          3
+        ]
+      ],
+      "changed_levels": [
+        {
+          "engine": "native",
+          "game": "Any hole is a goal.txt",
+          "level_index": 3,
+          "before_solved_runs": 2,
+          "after_solved_runs": 1,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "solved",
+              "elapsed_ms": 225
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 214
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 211
+            }
+          ]
+        },
+        {
+          "engine": "native",
+          "game": "Any hole is a goal.txt",
+          "level_index": 7,
+          "before_solved_runs": 1,
+          "after_solved_runs": 1,
+          "classification": "mixed_same_frequency",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 203
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 203
+            }
+          ]
+        },
+        {
+          "engine": "native",
+          "game": "Attractor Net.txt",
+          "level_index": 13,
+          "before_solved_runs": 2,
+          "after_solved_runs": 3,
+          "classification": "more_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 254
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 127
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 132
+            }
+          ],
+          "after": [
+            {
+              "status": "solved",
+              "elapsed_ms": 121
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 139
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 95
+            }
+          ]
+        },
+        {
+          "engine": "native",
+          "game": "Bicycle-Kick Football.txt",
+          "level_index": 7,
+          "before_solved_runs": 3,
+          "after_solved_runs": 2,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "solved",
+              "elapsed_ms": 202
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 178
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 190
+            }
+          ],
+          "after": [
+            {
+              "status": "solved",
+              "elapsed_ms": 225
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 175
+            }
+          ]
+        },
+        {
+          "engine": "native",
+          "game": "CODEX LUBRICUS.txt",
+          "level_index": 40,
+          "before_solved_runs": 3,
+          "after_solved_runs": 1,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "solved",
+              "elapsed_ms": 237
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 237
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 248
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 251
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 222
+            }
+          ]
+        },
+        {
+          "engine": "native",
+          "game": "Cucumber Surprise.txt",
+          "level_index": 11,
+          "before_solved_runs": 2,
+          "after_solved_runs": 1,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 251
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 219
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 213
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 251
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 251
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 207
+            }
+          ]
+        },
+        {
+          "engine": "native",
+          "game": "Cucumber Surprise.txt",
+          "level_index": 21,
+          "before_solved_runs": 2,
+          "after_solved_runs": 1,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 251
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 235
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 228
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 251
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 224
+            }
+          ]
+        },
+        {
+          "engine": "native",
+          "game": "Cucumber Surprise.txt",
+          "level_index": 27,
+          "before_solved_runs": 2,
+          "after_solved_runs": 2,
+          "classification": "mixed_same_frequency",
+          "before": [
+            {
+              "status": "solved",
+              "elapsed_ms": 211
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 204
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 228
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 206
+            }
+          ]
+        },
+        {
+          "engine": "native",
+          "game": "Hole-Stuffer.txt",
+          "level_index": 3,
+          "before_solved_runs": 0,
+          "after_solved_runs": 1,
+          "classification": "more_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 228
+            }
+          ]
+        },
+        {
+          "engine": "native",
+          "game": "Match-Maker.txt",
+          "level_index": 15,
+          "before_solved_runs": 0,
+          "after_solved_runs": 1,
+          "classification": "more_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 249
+            }
+          ]
+        },
+        {
+          "engine": "native",
+          "game": "Muraphilic Monophobic Multiban.txt",
+          "level_index": 9,
+          "before_solved_runs": 0,
+          "after_solved_runs": 1,
+          "classification": "more_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 252
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 252
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 251
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 252
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 252
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 245
+            }
+          ]
+        },
+        {
+          "engine": "native",
+          "game": "Put the logs in the water, elephant.txt",
+          "level_index": 7,
+          "before_solved_runs": 0,
+          "after_solved_runs": 2,
+          "classification": "more_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 225
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 240
+            }
+          ]
+        },
+        {
+          "engine": "native",
+          "game": "Recondite Star Sector Sigma.txt",
+          "level_index": 17,
+          "before_solved_runs": 1,
+          "after_solved_runs": 2,
+          "classification": "more_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 251
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 251
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 248
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 251
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 240
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 236
+            }
+          ]
+        },
+        {
+          "engine": "native",
+          "game": "Wand Spinner.txt",
+          "level_index": 23,
+          "before_solved_runs": 2,
+          "after_solved_runs": 1,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 251
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 242
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 242
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 251
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 243
+            }
+          ]
+        },
+        {
+          "engine": "native",
+          "game": "a clear view of the sky.txt",
+          "level_index": 22,
+          "before_solved_runs": 3,
+          "after_solved_runs": 2,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "solved",
+              "elapsed_ms": 219
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 220
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 216
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 236
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 234
+            }
+          ]
+        },
+        {
+          "engine": "native",
+          "game": "atlas shrank.txt",
+          "level_index": 4,
+          "before_solved_runs": 3,
+          "after_solved_runs": 2,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "solved",
+              "elapsed_ms": 229
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 216
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 218
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 215
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 207
+            }
+          ]
+        },
+        {
+          "engine": "native",
+          "game": "big dog and little dog.txt",
+          "level_index": 1,
+          "before_solved_runs": 1,
+          "after_solved_runs": 1,
+          "classification": "mixed_same_frequency",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 241
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 248
+            }
+          ]
+        },
+        {
+          "engine": "native",
+          "game": "cakemonsters.txt",
+          "level_index": 38,
+          "before_solved_runs": 2,
+          "after_solved_runs": 3,
+          "classification": "more_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 167
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 224
+            }
+          ],
+          "after": [
+            {
+              "status": "solved",
+              "elapsed_ms": 213
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 185
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 177
+            }
+          ]
+        },
+        {
+          "engine": "native",
+          "game": "cakemonsters.txt",
+          "level_index": 49,
+          "before_solved_runs": 2,
+          "after_solved_runs": 1,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 251
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 246
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 229
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 251
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 234
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            }
+          ]
+        },
+        {
+          "engine": "native",
+          "game": "castlemouse.txt",
+          "level_index": 7,
+          "before_solved_runs": 3,
+          "after_solved_runs": 2,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "solved",
+              "elapsed_ms": 70
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 66
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 67
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 68
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 67
+            }
+          ]
+        },
+        {
+          "engine": "native",
+          "game": "coincounter.txt",
+          "level_index": 7,
+          "before_solved_runs": 0,
+          "after_solved_runs": 1,
+          "classification": "more_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 134
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            }
+          ]
+        },
+        {
+          "engine": "native",
+          "game": "die schoene steinmetzin.txt",
+          "level_index": 5,
+          "before_solved_runs": 0,
+          "after_solved_runs": 1,
+          "classification": "more_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 224
+            }
+          ]
+        },
+        {
+          "engine": "native",
+          "game": "dropswap.txt",
+          "level_index": 5,
+          "before_solved_runs": 3,
+          "after_solved_runs": 1,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "solved",
+              "elapsed_ms": 137
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 117
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 117
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 117
+            }
+          ]
+        },
+        {
+          "engine": "native",
+          "game": "easyenigma.txt",
+          "level_index": 2,
+          "before_solved_runs": 3,
+          "after_solved_runs": 1,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "solved",
+              "elapsed_ms": 240
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 149
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 145
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 251
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 251
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 139
+            }
+          ]
+        },
+        {
+          "engine": "native",
+          "game": "easyenigma.txt",
+          "level_index": 5,
+          "before_solved_runs": 3,
+          "after_solved_runs": 1,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "solved",
+              "elapsed_ms": 235
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 225
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 218
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 251
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 251
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 201
+            }
+          ]
+        },
+        {
+          "engine": "native",
+          "game": "flesh-handed hot casserole delivery bot.txt",
+          "level_index": 10,
+          "before_solved_runs": 3,
+          "after_solved_runs": 1,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "solved",
+              "elapsed_ms": 193
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 195
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 232
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 251
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 186
+            }
+          ]
+        },
+        {
+          "engine": "native",
+          "game": "flesh-handed hot casserole delivery bot.txt",
+          "level_index": 16,
+          "before_solved_runs": 3,
+          "after_solved_runs": 2,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "solved",
+              "elapsed_ms": 197
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 201
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 197
+            }
+          ],
+          "after": [
+            {
+              "status": "solved",
+              "elapsed_ms": 244
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 196
+            }
+          ]
+        },
+        {
+          "engine": "native",
+          "game": "gapfiller.txt",
+          "level_index": 3,
+          "before_solved_runs": 3,
+          "after_solved_runs": 0,
+          "classification": "stable_loss",
+          "before": [
+            {
+              "status": "solved",
+              "elapsed_ms": 221
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 219
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 220
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 251
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            }
+          ]
+        },
+        {
+          "engine": "native",
+          "game": "gem soketeer.txt",
+          "level_index": 1,
+          "before_solved_runs": 3,
+          "after_solved_runs": 1,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "solved",
+              "elapsed_ms": 195
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 192
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 196
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 198
+            }
+          ]
+        },
+        {
+          "engine": "native",
+          "game": "gem soketeer.txt",
+          "level_index": 9,
+          "before_solved_runs": 3,
+          "after_solved_runs": 1,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "solved",
+              "elapsed_ms": 172
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 176
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 174
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 168
+            }
+          ]
+        },
+        {
+          "engine": "native",
+          "game": "icecrates.txt",
+          "level_index": 7,
+          "before_solved_runs": 2,
+          "after_solved_runs": 3,
+          "classification": "more_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 258
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 103
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 102
+            }
+          ],
+          "after": [
+            {
+              "status": "solved",
+              "elapsed_ms": 154
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 103
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 101
+            }
+          ]
+        },
+        {
+          "engine": "native",
+          "game": "limerick.txt",
+          "level_index": 3,
+          "before_solved_runs": 2,
+          "after_solved_runs": 3,
+          "classification": "more_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 139
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 140
+            }
+          ],
+          "after": [
+            {
+              "status": "solved",
+              "elapsed_ms": 160
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 146
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 170
+            }
+          ]
+        },
+        {
+          "engine": "native",
+          "game": "limerick.txt",
+          "level_index": 9,
+          "before_solved_runs": 2,
+          "after_solved_runs": 3,
+          "classification": "more_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 71
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 67
+            }
+          ],
+          "after": [
+            {
+              "status": "solved",
+              "elapsed_ms": 102
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 69
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 72
+            }
+          ]
+        },
+        {
+          "engine": "native",
+          "game": "mazezam.txt",
+          "level_index": 29,
+          "before_solved_runs": 3,
+          "after_solved_runs": 2,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "solved",
+              "elapsed_ms": 209
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 208
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 205
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 231
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 195
+            }
+          ]
+        },
+        {
+          "engine": "native",
+          "game": "paint everything everywhere.txt",
+          "level_index": 27,
+          "before_solved_runs": 2,
+          "after_solved_runs": 1,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "solved",
+              "elapsed_ms": 267
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 243
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 243
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 251
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 260
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 246
+            }
+          ]
+        },
+        {
+          "engine": "native",
+          "game": "paint everything everywhere.txt",
+          "level_index": 29,
+          "before_solved_runs": 3,
+          "after_solved_runs": 2,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "solved",
+              "elapsed_ms": 243
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 226
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 233
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 239
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 232
+            }
+          ]
+        },
+        {
+          "engine": "native",
+          "game": "slidings.txt",
+          "level_index": 13,
+          "before_solved_runs": 2,
+          "after_solved_runs": 3,
+          "classification": "more_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 186
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 186
+            }
+          ],
+          "after": [
+            {
+              "status": "solved",
+              "elapsed_ms": 228
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 198
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 176
+            }
+          ]
+        },
+        {
+          "engine": "native",
+          "game": "smother.txt",
+          "level_index": 28,
+          "before_solved_runs": 1,
+          "after_solved_runs": 2,
+          "classification": "more_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 188
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 198
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 188
+            }
+          ]
+        }
+      ]
+    },
+    "js": {
+      "playable": 1346,
+      "strict_counts": {
+        "before": [
+          557,
+          579,
+          589
+        ],
+        "after": [
+          559,
+          560,
+          589
+        ]
+      },
+      "median_strict": {
+        "before": 579,
+        "after": 560
+      },
+      "budget_solved": {
+        "before": [
+          557,
+          581,
+          593
+        ],
+        "after": [
+          561,
+          564,
+          591
+        ]
+      },
+      "late_solved": {
+        "before": [
+          0,
+          2,
+          4
+        ],
+        "after": [
+          2,
+          4,
+          2
+        ]
+      },
+      "errors": [
+        {
+          "side": "before",
+          "pair": 1,
+          "errors": [],
+          "replay_rejected": 0
+        },
+        {
+          "side": "after",
+          "pair": 1,
+          "errors": [],
+          "replay_rejected": 0
+        },
+        {
+          "side": "after",
+          "pair": 2,
+          "errors": [],
+          "replay_rejected": 0
+        },
+        {
+          "side": "before",
+          "pair": 2,
+          "errors": [],
+          "replay_rejected": 0
+        },
+        {
+          "side": "before",
+          "pair": 3,
+          "errors": [],
+          "replay_rejected": 0
+        },
+        {
+          "side": "after",
+          "pair": 3,
+          "errors": [],
+          "replay_rejected": 0
+        }
+      ],
+      "pairs": [
+        {
+          "pair": 1,
+          "before": 557,
+          "after": 559,
+          "delta": 2,
+          "gained": [
+            [
+              "15 push pull levels.txt",
+              5
+            ],
+            [
+              "Don't let your goals slip away.txt",
+              3
+            ],
+            [
+              "Two-Tone Tango.txt",
+              15
+            ],
+            [
+              "Varifocal Nightmare.txt",
+              5
+            ],
+            [
+              "Wand Spinner.txt",
+              17
+            ],
+            [
+              "Yellow Box.txt",
+              13
+            ],
+            [
+              "crate guardian.txt",
+              5
+            ],
+            [
+              "dollyban.txt",
+              1
+            ],
+            [
+              "dollyban.txt",
+              13
+            ],
+            [
+              "flesh-handed hot casserole delivery bot.txt",
+              6
+            ],
+            [
+              "gobble_rush.txt",
+              12
+            ]
+          ],
+          "lost": [
+            [
+              "Recondite Star Sector Sigma.txt",
+              5
+            ],
+            [
+              "Schleimban.txt",
+              7
+            ],
+            [
+              "Van-to-Mobile-Living-Space-Conversion Window.txt",
+              23
+            ],
+            [
+              "cakemonsters.txt",
+              37
+            ],
+            [
+              "diesinthelight.txt",
+              1
+            ],
+            [
+              "dropswap.txt",
+              12
+            ],
+            [
+              "easyenigma.txt",
+              8
+            ],
+            [
+              "it dies in the light.txt",
+              1
+            ],
+            [
+              "the red ring of immortality.txt",
+              17
+            ]
+          ]
+        },
+        {
+          "pair": 2,
+          "before": 579,
+          "after": 560,
+          "delta": -19,
+          "gained": [
+            [
+              "dollyban.txt",
+              1
+            ]
+          ],
+          "lost": [
+            [
+              "CODEX LUBRICUS.txt",
+              38
+            ],
+            [
+              "Muraphilic Monophobic Multiban.txt",
+              7
+            ],
+            [
+              "Pushy-V Pully-H.txt",
+              1
+            ],
+            [
+              "Resin-Caster.txt",
+              8
+            ],
+            [
+              "S-tercourse.txt",
+              3
+            ],
+            [
+              "S-tercourse.txt",
+              5
+            ],
+            [
+              "Subway upholstry snot smearing championship.txt",
+              10
+            ],
+            [
+              "Van-to-Mobile-Living-Space-Conversion Window.txt",
+              17
+            ],
+            [
+              "Van-to-Mobile-Living-Space-Conversion Window.txt",
+              23
+            ],
+            [
+              "Yellow Box.txt",
+              9
+            ],
+            [
+              "cakemonsters.txt",
+              37
+            ],
+            [
+              "chaos wizard.txt",
+              2
+            ],
+            [
+              "crate guardian.txt",
+              5
+            ],
+            [
+              "heroes_of_sokoban.txt",
+              13
+            ],
+            [
+              "limerick.txt",
+              3
+            ],
+            [
+              "no heroes necessary.txt",
+              9
+            ],
+            [
+              "slide pull.txt",
+              5
+            ],
+            [
+              "sokobond demake.txt",
+              26
+            ],
+            [
+              "take heart lass.txt",
+              21
+            ],
+            [
+              "the exit is under my left foot.txt",
+              1
+            ]
+          ]
+        },
+        {
+          "pair": 3,
+          "before": 589,
+          "after": 589,
+          "delta": 0,
+          "gained": [
+            [
+              "Any hole is a goal.txt",
+              7
+            ],
+            [
+              "Don't let your goals slip away.txt",
+              11
+            ],
+            [
+              "a clear view of the sky.txt",
+              8
+            ]
+          ],
+          "lost": [
+            [
+              "Subway upholstry snot smearing championship.txt",
+              10
+            ],
+            [
+              "Two-Tone Tango.txt",
+              13
+            ],
+            [
+              "icecrates.txt",
+              9
+            ]
+          ]
+        }
+      ],
+      "thresholds": [
+        {
+          "threshold_ms": 1,
+          "before": [
+            9,
+            10,
+            8
+          ],
+          "after": [
+            6,
+            6,
+            13
+          ],
+          "before_median": 9,
+          "after_median": 6
+        },
+        {
+          "threshold_ms": 5,
+          "before": [
+            89,
+            87,
+            87
+          ],
+          "after": [
+            92,
+            89,
+            91
+          ],
+          "before_median": 87,
+          "after_median": 91
+        },
+        {
+          "threshold_ms": 10,
+          "before": [
+            138,
+            141,
+            145
+          ],
+          "after": [
+            138,
+            137,
+            151
+          ],
+          "before_median": 141,
+          "after_median": 138
+        },
+        {
+          "threshold_ms": 25,
+          "before": [
+            221,
+            236,
+            235
+          ],
+          "after": [
+            233,
+            225,
+            237
+          ],
+          "before_median": 235,
+          "after_median": 233
+        },
+        {
+          "threshold_ms": 50,
+          "before": [
+            305,
+            323,
+            333
+          ],
+          "after": [
+            315,
+            307,
+            335
+          ],
+          "before_median": 323,
+          "after_median": 315
+        },
+        {
+          "threshold_ms": 100,
+          "before": [
+            419,
+            439,
+            448
+          ],
+          "after": [
+            429,
+            422,
+            448
+          ],
+          "before_median": 439,
+          "after_median": 429
+        },
+        {
+          "threshold_ms": 150,
+          "before": [
+            481,
+            497,
+            512
+          ],
+          "after": [
+            492,
+            479,
+            511
+          ],
+          "before_median": 497,
+          "after_median": 492
+        },
+        {
+          "threshold_ms": 200,
+          "before": [
+            520,
+            538,
+            556
+          ],
+          "after": [
+            528,
+            521,
+            555
+          ],
+          "before_median": 538,
+          "after_median": 528
+        },
+        {
+          "threshold_ms": 250,
+          "before": [
+            557,
+            579,
+            589
+          ],
+          "after": [
+            559,
+            560,
+            589
+          ],
+          "before_median": 579,
+          "after_median": 560
+        }
+      ],
+      "stable_gains": [],
+      "stable_losses": [],
+      "changed_levels": [
+        {
+          "engine": "js",
+          "game": "15 push pull levels.txt",
+          "level_index": 5,
+          "before_solved_runs": 2,
+          "after_solved_runs": 3,
+          "classification": "more_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 171
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 167
+            }
+          ],
+          "after": [
+            {
+              "status": "solved",
+              "elapsed_ms": 196
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 179
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 167
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "Any hole is a goal.txt",
+          "level_index": 7,
+          "before_solved_runs": 0,
+          "after_solved_runs": 1,
+          "classification": "more_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 217
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "CODEX LUBRICUS.txt",
+          "level_index": 38,
+          "before_solved_runs": 3,
+          "after_solved_runs": 2,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "solved",
+              "elapsed_ms": 121
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 101
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 95
+            }
+          ],
+          "after": [
+            {
+              "status": "solved",
+              "elapsed_ms": 111
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 307
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 94
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "Don't let your goals slip away.txt",
+          "level_index": 3,
+          "before_solved_runs": 1,
+          "after_solved_runs": 2,
+          "classification": "more_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 244
+            }
+          ],
+          "after": [
+            {
+              "status": "solved",
+              "elapsed_ms": 242
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 197
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "Don't let your goals slip away.txt",
+          "level_index": 11,
+          "before_solved_runs": 0,
+          "after_solved_runs": 1,
+          "classification": "more_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 208
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "Muraphilic Monophobic Multiban.txt",
+          "level_index": 7,
+          "before_solved_runs": 3,
+          "after_solved_runs": 2,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "solved",
+              "elapsed_ms": 236
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 203
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 224
+            }
+          ],
+          "after": [
+            {
+              "status": "solved",
+              "elapsed_ms": 222
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 181
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "Pushy-V Pully-H.txt",
+          "level_index": 1,
+          "before_solved_runs": 3,
+          "after_solved_runs": 2,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "solved",
+              "elapsed_ms": 141
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 129
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 113
+            }
+          ],
+          "after": [
+            {
+              "status": "solved",
+              "elapsed_ms": 136
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 128
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "Recondite Star Sector Sigma.txt",
+          "level_index": 5,
+          "before_solved_runs": 2,
+          "after_solved_runs": 1,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "solved",
+              "elapsed_ms": 246
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 227
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 209
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "Resin-Caster.txt",
+          "level_index": 8,
+          "before_solved_runs": 3,
+          "after_solved_runs": 2,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "solved",
+              "elapsed_ms": 151
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 157
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 130
+            }
+          ],
+          "after": [
+            {
+              "status": "solved",
+              "elapsed_ms": 148
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 122
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "S-tercourse.txt",
+          "level_index": 3,
+          "before_solved_runs": 3,
+          "after_solved_runs": 2,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "solved",
+              "elapsed_ms": 182
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 186
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 184
+            }
+          ],
+          "after": [
+            {
+              "status": "solved",
+              "elapsed_ms": 176
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 202
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "S-tercourse.txt",
+          "level_index": 5,
+          "before_solved_runs": 3,
+          "after_solved_runs": 2,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "solved",
+              "elapsed_ms": 118
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 130
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 127
+            }
+          ],
+          "after": [
+            {
+              "status": "solved",
+              "elapsed_ms": 125
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 136
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "Schleimban.txt",
+          "level_index": 7,
+          "before_solved_runs": 3,
+          "after_solved_runs": 2,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "solved",
+              "elapsed_ms": 237
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 231
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 180
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 243
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 183
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "Subway upholstry snot smearing championship.txt",
+          "level_index": 10,
+          "before_solved_runs": 2,
+          "after_solved_runs": 0,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 208
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 196
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "Two-Tone Tango.txt",
+          "level_index": 13,
+          "before_solved_runs": 1,
+          "after_solved_runs": 0,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 247
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "Two-Tone Tango.txt",
+          "level_index": 15,
+          "before_solved_runs": 2,
+          "after_solved_runs": 3,
+          "classification": "more_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 178
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 171
+            }
+          ],
+          "after": [
+            {
+              "status": "solved",
+              "elapsed_ms": 201
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 235
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 165
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "Van-to-Mobile-Living-Space-Conversion Window.txt",
+          "level_index": 17,
+          "before_solved_runs": 2,
+          "after_solved_runs": 1,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 219
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 194
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 203
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "Van-to-Mobile-Living-Space-Conversion Window.txt",
+          "level_index": 23,
+          "before_solved_runs": 3,
+          "after_solved_runs": 1,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "solved",
+              "elapsed_ms": 242
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 214
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 196
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 205
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "Varifocal Nightmare.txt",
+          "level_index": 5,
+          "before_solved_runs": 2,
+          "after_solved_runs": 3,
+          "classification": "more_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 292
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 126
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 102
+            }
+          ],
+          "after": [
+            {
+              "status": "solved",
+              "elapsed_ms": 122
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 144
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 108
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "Wand Spinner.txt",
+          "level_index": 17,
+          "before_solved_runs": 2,
+          "after_solved_runs": 3,
+          "classification": "more_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 222
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 208
+            }
+          ],
+          "after": [
+            {
+              "status": "solved",
+              "elapsed_ms": 239
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 247
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 188
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "Yellow Box.txt",
+          "level_index": 9,
+          "before_solved_runs": 2,
+          "after_solved_runs": 1,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 247
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 222
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 226
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "Yellow Box.txt",
+          "level_index": 13,
+          "before_solved_runs": 2,
+          "after_solved_runs": 3,
+          "classification": "more_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 206
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 180
+            }
+          ],
+          "after": [
+            {
+              "status": "solved",
+              "elapsed_ms": 217
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 226
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 184
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "a clear view of the sky.txt",
+          "level_index": 8,
+          "before_solved_runs": 0,
+          "after_solved_runs": 1,
+          "classification": "more_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 237
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "cakemonsters.txt",
+          "level_index": 37,
+          "before_solved_runs": 3,
+          "after_solved_runs": 1,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "solved",
+              "elapsed_ms": 246
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 225
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 195
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 254
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 193
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "chaos wizard.txt",
+          "level_index": 2,
+          "before_solved_runs": 2,
+          "after_solved_runs": 1,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 235
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 236
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 224
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "crate guardian.txt",
+          "level_index": 5,
+          "before_solved_runs": 2,
+          "after_solved_runs": 2,
+          "classification": "mixed_same_frequency",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 247
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 230
+            }
+          ],
+          "after": [
+            {
+              "status": "solved",
+              "elapsed_ms": 227
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 232
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "diesinthelight.txt",
+          "level_index": 1,
+          "before_solved_runs": 3,
+          "after_solved_runs": 2,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "solved",
+              "elapsed_ms": 239
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 205
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 204
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 202
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 203
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "dollyban.txt",
+          "level_index": 1,
+          "before_solved_runs": 1,
+          "after_solved_runs": 3,
+          "classification": "more_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 225
+            }
+          ],
+          "after": [
+            {
+              "status": "solved",
+              "elapsed_ms": 208
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 236
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 232
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "dollyban.txt",
+          "level_index": 13,
+          "before_solved_runs": 2,
+          "after_solved_runs": 3,
+          "classification": "more_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 206
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 206
+            }
+          ],
+          "after": [
+            {
+              "status": "solved",
+              "elapsed_ms": 197
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 236
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 205
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "dropswap.txt",
+          "level_index": 12,
+          "before_solved_runs": 3,
+          "after_solved_runs": 2,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "solved",
+              "elapsed_ms": 227
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 212
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 178
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 178
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 183
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "easyenigma.txt",
+          "level_index": 8,
+          "before_solved_runs": 3,
+          "after_solved_runs": 2,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "solved",
+              "elapsed_ms": 228
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 192
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 166
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 251
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 172
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 166
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "flesh-handed hot casserole delivery bot.txt",
+          "level_index": 6,
+          "before_solved_runs": 1,
+          "after_solved_runs": 2,
+          "classification": "more_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 234
+            }
+          ],
+          "after": [
+            {
+              "status": "solved",
+              "elapsed_ms": 220
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 236
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "gobble_rush.txt",
+          "level_index": 12,
+          "before_solved_runs": 0,
+          "after_solved_runs": 1,
+          "classification": "more_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            }
+          ],
+          "after": [
+            {
+              "status": "solved",
+              "elapsed_ms": 215
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "heroes_of_sokoban.txt",
+          "level_index": 13,
+          "before_solved_runs": 3,
+          "after_solved_runs": 2,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "solved",
+              "elapsed_ms": 208
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 214
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 228
+            }
+          ],
+          "after": [
+            {
+              "status": "solved",
+              "elapsed_ms": 211
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 167
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "icecrates.txt",
+          "level_index": 9,
+          "before_solved_runs": 1,
+          "after_solved_runs": 0,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 234
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "it dies in the light.txt",
+          "level_index": 1,
+          "before_solved_runs": 3,
+          "after_solved_runs": 2,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "solved",
+              "elapsed_ms": 247
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 209
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 196
+            }
+          ],
+          "after": [
+            {
+              "status": "solved",
+              "elapsed_ms": 253
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 236
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 204
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "limerick.txt",
+          "level_index": 3,
+          "before_solved_runs": 2,
+          "after_solved_runs": 1,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 237
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 213
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 213
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "no heroes necessary.txt",
+          "level_index": 9,
+          "before_solved_runs": 2,
+          "after_solved_runs": 1,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 222
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 212
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 202
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "slide pull.txt",
+          "level_index": 5,
+          "before_solved_runs": 3,
+          "after_solved_runs": 2,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "solved",
+              "elapsed_ms": 222
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 183
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 178
+            }
+          ],
+          "after": [
+            {
+              "status": "solved",
+              "elapsed_ms": 227
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 203
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "sokobond demake.txt",
+          "level_index": 26,
+          "before_solved_runs": 2,
+          "after_solved_runs": 1,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 248
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 227
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 221
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "take heart lass.txt",
+          "level_index": 21,
+          "before_solved_runs": 2,
+          "after_solved_runs": 1,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 203
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 199
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 209
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "the exit is under my left foot.txt",
+          "level_index": 1,
+          "before_solved_runs": 2,
+          "after_solved_runs": 1,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 251
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 229
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 218
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 255
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 235
+            }
+          ]
+        },
+        {
+          "engine": "js",
+          "game": "the red ring of immortality.txt",
+          "level_index": 17,
+          "before_solved_runs": 3,
+          "after_solved_runs": 2,
+          "classification": "less_often_solved",
+          "before": [
+            {
+              "status": "solved",
+              "elapsed_ms": 246
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 212
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 190
+            }
+          ],
+          "after": [
+            {
+              "status": "timeout",
+              "elapsed_ms": 250
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 204
+            },
+            {
+              "status": "solved",
+              "elapsed_ms": 177
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

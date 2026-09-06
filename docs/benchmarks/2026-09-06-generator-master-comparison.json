@@ -1,0 +1,878 @@
+{
+  "binaries": [
+    {
+      "file": "puzzlescript_generator.exe",
+      "sha256": "f7dd86643e855eb1dd02c146a6b825b779074f05e7bceb6678b92cdf13b5f0f5"
+    },
+    {
+      "file": "puzzlescript_generator.exe",
+      "sha256": "71365a3c80f7d39df63d28f486b056e9d63a7415776d837e4c31f646b996ba79"
+    }
+  ],
+  "config": {
+    "pairs": 5,
+    "seed": 11,
+    "solver_timeout_ms": 50,
+    "time_limit_ms": 60000,
+    "timing": "process launch through exit; compilation and replay included; alternating order; one warmup per binary/case",
+    "before_revision": "fb1fd820 (origin/master, freshly built)",
+    "after_revision": "63e1f064 plus generator completion-wakeup changes",
+    "build": "Windows MSVC 19.44 x64 Release; /O2 /Ob2 /DNDEBUG; 64-bit masks; identical linked Sokoban kernels",
+    "notes": [
+      "Single-worker outputs match exactly, including boards, scores, seeds and solutions.",
+      "The four-worker case retains two keepers per run but output identity varies with scheduling in both binaries."
+    ]
+  },
+  "cases": [
+    {
+      "mode": "level-set",
+      "samples": 200,
+      "jobs": 1,
+      "before_median_ms": 214.9203,
+      "after_median_ms": 116.70860000000005,
+      "speedup": 1.8415121079337762,
+      "identical_outputs": true,
+      "runs": [
+        [
+          {
+            "elapsed_ms": 217.24170000000004,
+            "output_sha256": "1d226d28d889c49adbb6e15827221f55ab53bec1e90633aa8458b687d586afbc",
+            "totals": {
+              "samples_attempted": 200,
+              "solver_searches": 196,
+              "deduped": 4,
+              "interrupted_assessments": 0,
+              "keepers": 2
+            }
+          },
+          {
+            "elapsed_ms": 206.3202,
+            "output_sha256": "1d226d28d889c49adbb6e15827221f55ab53bec1e90633aa8458b687d586afbc",
+            "totals": {
+              "samples_attempted": 200,
+              "solver_searches": 196,
+              "deduped": 4,
+              "interrupted_assessments": 0,
+              "keepers": 2
+            }
+          },
+          {
+            "elapsed_ms": 215.46040000000016,
+            "output_sha256": "1d226d28d889c49adbb6e15827221f55ab53bec1e90633aa8458b687d586afbc",
+            "totals": {
+              "samples_attempted": 200,
+              "solver_searches": 196,
+              "deduped": 4,
+              "interrupted_assessments": 0,
+              "keepers": 2
+            }
+          },
+          {
+            "elapsed_ms": 214.9203,
+            "output_sha256": "1d226d28d889c49adbb6e15827221f55ab53bec1e90633aa8458b687d586afbc",
+            "totals": {
+              "samples_attempted": 200,
+              "solver_searches": 196,
+              "deduped": 4,
+              "interrupted_assessments": 0,
+              "keepers": 2
+            }
+          },
+          {
+            "elapsed_ms": 214.25510000000008,
+            "output_sha256": "1d226d28d889c49adbb6e15827221f55ab53bec1e90633aa8458b687d586afbc",
+            "totals": {
+              "samples_attempted": 200,
+              "solver_searches": 196,
+              "deduped": 4,
+              "interrupted_assessments": 0,
+              "keepers": 2
+            }
+          }
+        ],
+        [
+          {
+            "elapsed_ms": 114.26530000000002,
+            "output_sha256": "1d226d28d889c49adbb6e15827221f55ab53bec1e90633aa8458b687d586afbc",
+            "totals": {
+              "samples_attempted": 200,
+              "solver_searches": 199,
+              "deduped": 1,
+              "interrupted_assessments": 0,
+              "keepers": 2
+            },
+            "evaluation_cache": {
+              "hits": 32,
+              "searches": 182,
+              "waits": 0,
+              "entries": 177,
+              "retained_bytes": 95144
+            }
+          },
+          {
+            "elapsed_ms": 116.70860000000005,
+            "output_sha256": "1d226d28d889c49adbb6e15827221f55ab53bec1e90633aa8458b687d586afbc",
+            "totals": {
+              "samples_attempted": 200,
+              "solver_searches": 199,
+              "deduped": 1,
+              "interrupted_assessments": 0,
+              "keepers": 2
+            },
+            "evaluation_cache": {
+              "hits": 32,
+              "searches": 182,
+              "waits": 0,
+              "entries": 177,
+              "retained_bytes": 95144
+            }
+          },
+          {
+            "elapsed_ms": 120.17510000000016,
+            "output_sha256": "1d226d28d889c49adbb6e15827221f55ab53bec1e90633aa8458b687d586afbc",
+            "totals": {
+              "samples_attempted": 200,
+              "solver_searches": 199,
+              "deduped": 1,
+              "interrupted_assessments": 0,
+              "keepers": 2
+            },
+            "evaluation_cache": {
+              "hits": 32,
+              "searches": 182,
+              "waits": 0,
+              "entries": 177,
+              "retained_bytes": 95144
+            }
+          },
+          {
+            "elapsed_ms": 119.17359999999985,
+            "output_sha256": "1d226d28d889c49adbb6e15827221f55ab53bec1e90633aa8458b687d586afbc",
+            "totals": {
+              "samples_attempted": 200,
+              "solver_searches": 199,
+              "deduped": 1,
+              "interrupted_assessments": 0,
+              "keepers": 2
+            },
+            "evaluation_cache": {
+              "hits": 32,
+              "searches": 182,
+              "waits": 0,
+              "entries": 177,
+              "retained_bytes": 95144
+            }
+          },
+          {
+            "elapsed_ms": 115.93199999999979,
+            "output_sha256": "1d226d28d889c49adbb6e15827221f55ab53bec1e90633aa8458b687d586afbc",
+            "totals": {
+              "samples_attempted": 200,
+              "solver_searches": 199,
+              "deduped": 1,
+              "interrupted_assessments": 0,
+              "keepers": 2
+            },
+            "evaluation_cache": {
+              "hits": 32,
+              "searches": 182,
+              "waits": 0,
+              "entries": 177,
+              "retained_bytes": 95144
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "mode": "level-set",
+      "samples": 2000,
+      "jobs": 1,
+      "before_median_ms": 888.2752,
+      "after_median_ms": 594.6198999999997,
+      "speedup": 1.493853804758301,
+      "identical_outputs": true,
+      "runs": [
+        [
+          {
+            "elapsed_ms": 887.7026000000005,
+            "output_sha256": "42ecffbb19757840c758109f829f047b6b851563c85c9fa3133e10e4f238402c",
+            "totals": {
+              "samples_attempted": 2000,
+              "solver_searches": 1856,
+              "deduped": 144,
+              "interrupted_assessments": 0,
+              "keepers": 2
+            }
+          },
+          {
+            "elapsed_ms": 941.2341999999999,
+            "output_sha256": "42ecffbb19757840c758109f829f047b6b851563c85c9fa3133e10e4f238402c",
+            "totals": {
+              "samples_attempted": 2000,
+              "solver_searches": 1856,
+              "deduped": 144,
+              "interrupted_assessments": 0,
+              "keepers": 2
+            }
+          },
+          {
+            "elapsed_ms": 892.9271000000008,
+            "output_sha256": "42ecffbb19757840c758109f829f047b6b851563c85c9fa3133e10e4f238402c",
+            "totals": {
+              "samples_attempted": 2000,
+              "solver_searches": 1856,
+              "deduped": 144,
+              "interrupted_assessments": 0,
+              "keepers": 2
+            }
+          },
+          {
+            "elapsed_ms": 888.2752,
+            "output_sha256": "42ecffbb19757840c758109f829f047b6b851563c85c9fa3133e10e4f238402c",
+            "totals": {
+              "samples_attempted": 2000,
+              "solver_searches": 1856,
+              "deduped": 144,
+              "interrupted_assessments": 0,
+              "keepers": 2
+            }
+          },
+          {
+            "elapsed_ms": 887.6605,
+            "output_sha256": "42ecffbb19757840c758109f829f047b6b851563c85c9fa3133e10e4f238402c",
+            "totals": {
+              "samples_attempted": 2000,
+              "solver_searches": 1856,
+              "deduped": 144,
+              "interrupted_assessments": 0,
+              "keepers": 2
+            }
+          }
+        ],
+        [
+          {
+            "elapsed_ms": 593.4503999999997,
+            "output_sha256": "42ecffbb19757840c758109f829f047b6b851563c85c9fa3133e10e4f238402c",
+            "totals": {
+              "samples_attempted": 2000,
+              "solver_searches": 1993,
+              "deduped": 7,
+              "interrupted_assessments": 0,
+              "keepers": 2
+            },
+            "evaluation_cache": {
+              "hits": 971,
+              "searches": 1049,
+              "waits": 0,
+              "entries": 1039,
+              "retained_bytes": 581720
+            }
+          },
+          {
+            "elapsed_ms": 591.7061000000003,
+            "output_sha256": "42ecffbb19757840c758109f829f047b6b851563c85c9fa3133e10e4f238402c",
+            "totals": {
+              "samples_attempted": 2000,
+              "solver_searches": 1993,
+              "deduped": 7,
+              "interrupted_assessments": 0,
+              "keepers": 2
+            },
+            "evaluation_cache": {
+              "hits": 971,
+              "searches": 1049,
+              "waits": 0,
+              "entries": 1039,
+              "retained_bytes": 581720
+            }
+          },
+          {
+            "elapsed_ms": 596.0007000000005,
+            "output_sha256": "42ecffbb19757840c758109f829f047b6b851563c85c9fa3133e10e4f238402c",
+            "totals": {
+              "samples_attempted": 2000,
+              "solver_searches": 1993,
+              "deduped": 7,
+              "interrupted_assessments": 0,
+              "keepers": 2
+            },
+            "evaluation_cache": {
+              "hits": 971,
+              "searches": 1049,
+              "waits": 0,
+              "entries": 1039,
+              "retained_bytes": 581720
+            }
+          },
+          {
+            "elapsed_ms": 599.4042,
+            "output_sha256": "42ecffbb19757840c758109f829f047b6b851563c85c9fa3133e10e4f238402c",
+            "totals": {
+              "samples_attempted": 2000,
+              "solver_searches": 1993,
+              "deduped": 7,
+              "interrupted_assessments": 0,
+              "keepers": 2
+            },
+            "evaluation_cache": {
+              "hits": 971,
+              "searches": 1049,
+              "waits": 0,
+              "entries": 1039,
+              "retained_bytes": 581720
+            }
+          },
+          {
+            "elapsed_ms": 594.6198999999997,
+            "output_sha256": "42ecffbb19757840c758109f829f047b6b851563c85c9fa3133e10e4f238402c",
+            "totals": {
+              "samples_attempted": 2000,
+              "solver_searches": 1993,
+              "deduped": 7,
+              "interrupted_assessments": 0,
+              "keepers": 2
+            },
+            "evaluation_cache": {
+              "hits": 971,
+              "searches": 1049,
+              "waits": 0,
+              "entries": 1039,
+              "retained_bytes": 581720
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "mode": "level-set",
+      "samples": 200,
+      "jobs": 4,
+      "before_median_ms": 145.6189000000013,
+      "after_median_ms": 55.865899999998874,
+      "speedup": 2.6065793265660133,
+      "identical_outputs": false,
+      "runs": [
+        [
+          {
+            "elapsed_ms": 145.6189000000013,
+            "output_sha256": "1d226d28d889c49adbb6e15827221f55ab53bec1e90633aa8458b687d586afbc",
+            "totals": {
+              "samples_attempted": 200,
+              "solver_searches": 197,
+              "deduped": 3,
+              "interrupted_assessments": 0,
+              "keepers": 2
+            }
+          },
+          {
+            "elapsed_ms": 141.15029999999933,
+            "output_sha256": "1d226d28d889c49adbb6e15827221f55ab53bec1e90633aa8458b687d586afbc",
+            "totals": {
+              "samples_attempted": 200,
+              "solver_searches": 197,
+              "deduped": 3,
+              "interrupted_assessments": 0,
+              "keepers": 2
+            }
+          },
+          {
+            "elapsed_ms": 151.08839999999873,
+            "output_sha256": "2a5c666268314416721ad167e13bb7246b391a40a07a12b266e352c4032c3bd0",
+            "totals": {
+              "samples_attempted": 200,
+              "solver_searches": 197,
+              "deduped": 3,
+              "interrupted_assessments": 0,
+              "keepers": 2
+            }
+          },
+          {
+            "elapsed_ms": 143.39819999999963,
+            "output_sha256": "1d226d28d889c49adbb6e15827221f55ab53bec1e90633aa8458b687d586afbc",
+            "totals": {
+              "samples_attempted": 200,
+              "solver_searches": 197,
+              "deduped": 3,
+              "interrupted_assessments": 0,
+              "keepers": 2
+            }
+          },
+          {
+            "elapsed_ms": 151.3234999999986,
+            "output_sha256": "1d226d28d889c49adbb6e15827221f55ab53bec1e90633aa8458b687d586afbc",
+            "totals": {
+              "samples_attempted": 200,
+              "solver_searches": 197,
+              "deduped": 3,
+              "interrupted_assessments": 0,
+              "keepers": 2
+            }
+          }
+        ],
+        [
+          {
+            "elapsed_ms": 55.865899999998874,
+            "output_sha256": "1d226d28d889c49adbb6e15827221f55ab53bec1e90633aa8458b687d586afbc",
+            "totals": {
+              "samples_attempted": 200,
+              "solver_searches": 200,
+              "deduped": 0,
+              "interrupted_assessments": 0,
+              "keepers": 2
+            },
+            "evaluation_cache": {
+              "hits": 36,
+              "searches": 191,
+              "waits": 5,
+              "entries": 185,
+              "retained_bytes": 99640
+            }
+          },
+          {
+            "elapsed_ms": 55.87249999999949,
+            "output_sha256": "1d226d28d889c49adbb6e15827221f55ab53bec1e90633aa8458b687d586afbc",
+            "totals": {
+              "samples_attempted": 200,
+              "solver_searches": 200,
+              "deduped": 0,
+              "interrupted_assessments": 0,
+              "keepers": 2
+            },
+            "evaluation_cache": {
+              "hits": 36,
+              "searches": 188,
+              "waits": 4,
+              "entries": 182,
+              "retained_bytes": 97884
+            }
+          },
+          {
+            "elapsed_ms": 57.79579999999987,
+            "output_sha256": "1d226d28d889c49adbb6e15827221f55ab53bec1e90633aa8458b687d586afbc",
+            "totals": {
+              "samples_attempted": 200,
+              "solver_searches": 200,
+              "deduped": 0,
+              "interrupted_assessments": 0,
+              "keepers": 2
+            },
+            "evaluation_cache": {
+              "hits": 36,
+              "searches": 191,
+              "waits": 4,
+              "entries": 185,
+              "retained_bytes": 99640
+            }
+          },
+          {
+            "elapsed_ms": 54.92149999999856,
+            "output_sha256": "1d226d28d889c49adbb6e15827221f55ab53bec1e90633aa8458b687d586afbc",
+            "totals": {
+              "samples_attempted": 200,
+              "solver_searches": 200,
+              "deduped": 0,
+              "interrupted_assessments": 0,
+              "keepers": 2
+            },
+            "evaluation_cache": {
+              "hits": 36,
+              "searches": 191,
+              "waits": 4,
+              "entries": 185,
+              "retained_bytes": 99640
+            }
+          },
+          {
+            "elapsed_ms": 54.60659999999916,
+            "output_sha256": "1d226d28d889c49adbb6e15827221f55ab53bec1e90633aa8458b687d586afbc",
+            "totals": {
+              "samples_attempted": 200,
+              "solver_searches": 200,
+              "deduped": 0,
+              "interrupted_assessments": 0,
+              "keepers": 2
+            },
+            "evaluation_cache": {
+              "hits": 36,
+              "searches": 191,
+              "waits": 4,
+              "entries": 185,
+              "retained_bytes": 99640
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "mode": "legacy",
+      "samples": 20,
+      "jobs": 1,
+      "before_median_ms": 545.3186999999998,
+      "after_median_ms": 373.72000000000116,
+      "speedup": 1.4591638124799264,
+      "identical_outputs": true,
+      "runs": [
+        [
+          {
+            "elapsed_ms": 542.8346000000001,
+            "output_sha256": "c6a30a91c06187d8b04d4578599cd4dc253c0f137624c48436fda68e642f9a04",
+            "totals": {
+              "samples_attempted": 20,
+              "valid_generated": 20,
+              "solved": 2,
+              "rejected": 0,
+              "deduped": 0,
+              "timeouts": 5,
+              "exhausted": 13,
+              "invalid_generation": 0,
+              "duplicate_levels": 0,
+              "unsolved": 13,
+              "solver_timeouts": 5
+            }
+          },
+          {
+            "elapsed_ms": 541.6779999999999,
+            "output_sha256": "c6a30a91c06187d8b04d4578599cd4dc253c0f137624c48436fda68e642f9a04",
+            "totals": {
+              "samples_attempted": 20,
+              "valid_generated": 20,
+              "solved": 2,
+              "rejected": 0,
+              "deduped": 0,
+              "timeouts": 5,
+              "exhausted": 13,
+              "invalid_generation": 0,
+              "duplicate_levels": 0,
+              "unsolved": 13,
+              "solver_timeouts": 5
+            }
+          },
+          {
+            "elapsed_ms": 548.3078999999998,
+            "output_sha256": "c6a30a91c06187d8b04d4578599cd4dc253c0f137624c48436fda68e642f9a04",
+            "totals": {
+              "samples_attempted": 20,
+              "valid_generated": 20,
+              "solved": 2,
+              "rejected": 0,
+              "deduped": 0,
+              "timeouts": 5,
+              "exhausted": 13,
+              "invalid_generation": 0,
+              "duplicate_levels": 0,
+              "unsolved": 13,
+              "solver_timeouts": 5
+            }
+          },
+          {
+            "elapsed_ms": 545.3186999999998,
+            "output_sha256": "c6a30a91c06187d8b04d4578599cd4dc253c0f137624c48436fda68e642f9a04",
+            "totals": {
+              "samples_attempted": 20,
+              "valid_generated": 20,
+              "solved": 2,
+              "rejected": 0,
+              "deduped": 0,
+              "timeouts": 5,
+              "exhausted": 13,
+              "invalid_generation": 0,
+              "duplicate_levels": 0,
+              "unsolved": 13,
+              "solver_timeouts": 5
+            }
+          },
+          {
+            "elapsed_ms": 549.8637999999992,
+            "output_sha256": "c6a30a91c06187d8b04d4578599cd4dc253c0f137624c48436fda68e642f9a04",
+            "totals": {
+              "samples_attempted": 20,
+              "valid_generated": 20,
+              "solved": 2,
+              "rejected": 0,
+              "deduped": 0,
+              "timeouts": 5,
+              "exhausted": 13,
+              "invalid_generation": 0,
+              "duplicate_levels": 0,
+              "unsolved": 13,
+              "solver_timeouts": 5
+            }
+          }
+        ],
+        [
+          {
+            "elapsed_ms": 373.04399999999987,
+            "output_sha256": "c6a30a91c06187d8b04d4578599cd4dc253c0f137624c48436fda68e642f9a04",
+            "totals": {
+              "samples_attempted": 20,
+              "valid_generated": 20,
+              "solved": 2,
+              "rejected": 0,
+              "deduped": 0,
+              "timeouts": 5,
+              "exhausted": 13,
+              "invalid_generation": 0,
+              "duplicate_levels": 0,
+              "unsolved": 13,
+              "solver_timeouts": 5
+            }
+          },
+          {
+            "elapsed_ms": 376.52690000000075,
+            "output_sha256": "c6a30a91c06187d8b04d4578599cd4dc253c0f137624c48436fda68e642f9a04",
+            "totals": {
+              "samples_attempted": 20,
+              "valid_generated": 20,
+              "solved": 2,
+              "rejected": 0,
+              "deduped": 0,
+              "timeouts": 5,
+              "exhausted": 13,
+              "invalid_generation": 0,
+              "duplicate_levels": 0,
+              "unsolved": 13,
+              "solver_timeouts": 5
+            }
+          },
+          {
+            "elapsed_ms": 373.72000000000116,
+            "output_sha256": "c6a30a91c06187d8b04d4578599cd4dc253c0f137624c48436fda68e642f9a04",
+            "totals": {
+              "samples_attempted": 20,
+              "valid_generated": 20,
+              "solved": 2,
+              "rejected": 0,
+              "deduped": 0,
+              "timeouts": 5,
+              "exhausted": 13,
+              "invalid_generation": 0,
+              "duplicate_levels": 0,
+              "unsolved": 13,
+              "solver_timeouts": 5
+            }
+          },
+          {
+            "elapsed_ms": 374.2897000000012,
+            "output_sha256": "c6a30a91c06187d8b04d4578599cd4dc253c0f137624c48436fda68e642f9a04",
+            "totals": {
+              "samples_attempted": 20,
+              "valid_generated": 20,
+              "solved": 2,
+              "rejected": 0,
+              "deduped": 0,
+              "timeouts": 5,
+              "exhausted": 13,
+              "invalid_generation": 0,
+              "duplicate_levels": 0,
+              "unsolved": 13,
+              "solver_timeouts": 5
+            }
+          },
+          {
+            "elapsed_ms": 371.8679000000011,
+            "output_sha256": "c6a30a91c06187d8b04d4578599cd4dc253c0f137624c48436fda68e642f9a04",
+            "totals": {
+              "samples_attempted": 20,
+              "valid_generated": 20,
+              "solved": 2,
+              "rejected": 0,
+              "deduped": 0,
+              "timeouts": 5,
+              "exhausted": 13,
+              "invalid_generation": 0,
+              "duplicate_levels": 0,
+              "unsolved": 13,
+              "solver_timeouts": 5
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "mode": "legacy",
+      "samples": 200,
+      "jobs": 1,
+      "before_median_ms": 3423.8184000000037,
+      "after_median_ms": 3241.8896000000022,
+      "speedup": 1.0561181355466274,
+      "identical_outputs": true,
+      "runs": [
+        [
+          {
+            "elapsed_ms": 3415.9648000000016,
+            "output_sha256": "0948767d49d994bad6ebdef135209e5dc89ee864f9a8ac77b588dff09d689535",
+            "totals": {
+              "samples_attempted": 200,
+              "valid_generated": 200,
+              "solved": 12,
+              "rejected": 0,
+              "deduped": 0,
+              "timeouts": 36,
+              "exhausted": 152,
+              "invalid_generation": 0,
+              "duplicate_levels": 0,
+              "unsolved": 152,
+              "solver_timeouts": 36
+            }
+          },
+          {
+            "elapsed_ms": 3396.479299999999,
+            "output_sha256": "0948767d49d994bad6ebdef135209e5dc89ee864f9a8ac77b588dff09d689535",
+            "totals": {
+              "samples_attempted": 200,
+              "valid_generated": 200,
+              "solved": 12,
+              "rejected": 0,
+              "deduped": 0,
+              "timeouts": 36,
+              "exhausted": 152,
+              "invalid_generation": 0,
+              "duplicate_levels": 0,
+              "unsolved": 152,
+              "solver_timeouts": 36
+            }
+          },
+          {
+            "elapsed_ms": 3423.8184000000037,
+            "output_sha256": "0948767d49d994bad6ebdef135209e5dc89ee864f9a8ac77b588dff09d689535",
+            "totals": {
+              "samples_attempted": 200,
+              "valid_generated": 200,
+              "solved": 12,
+              "rejected": 0,
+              "deduped": 0,
+              "timeouts": 36,
+              "exhausted": 152,
+              "invalid_generation": 0,
+              "duplicate_levels": 0,
+              "unsolved": 152,
+              "solver_timeouts": 36
+            }
+          },
+          {
+            "elapsed_ms": 3428.1085999999996,
+            "output_sha256": "0948767d49d994bad6ebdef135209e5dc89ee864f9a8ac77b588dff09d689535",
+            "totals": {
+              "samples_attempted": 200,
+              "valid_generated": 200,
+              "solved": 12,
+              "rejected": 0,
+              "deduped": 0,
+              "timeouts": 35,
+              "exhausted": 153,
+              "invalid_generation": 0,
+              "duplicate_levels": 0,
+              "unsolved": 153,
+              "solver_timeouts": 35
+            }
+          },
+          {
+            "elapsed_ms": 3427.2225000000035,
+            "output_sha256": "0948767d49d994bad6ebdef135209e5dc89ee864f9a8ac77b588dff09d689535",
+            "totals": {
+              "samples_attempted": 200,
+              "valid_generated": 200,
+              "solved": 12,
+              "rejected": 0,
+              "deduped": 0,
+              "timeouts": 34,
+              "exhausted": 154,
+              "invalid_generation": 0,
+              "duplicate_levels": 0,
+              "unsolved": 154,
+              "solver_timeouts": 34
+            }
+          }
+        ],
+        [
+          {
+            "elapsed_ms": 3241.8896000000022,
+            "output_sha256": "0948767d49d994bad6ebdef135209e5dc89ee864f9a8ac77b588dff09d689535",
+            "totals": {
+              "samples_attempted": 200,
+              "valid_generated": 200,
+              "solved": 12,
+              "rejected": 0,
+              "deduped": 0,
+              "timeouts": 34,
+              "exhausted": 154,
+              "invalid_generation": 0,
+              "duplicate_levels": 0,
+              "unsolved": 154,
+              "solver_timeouts": 34
+            }
+          },
+          {
+            "elapsed_ms": 3260.769500000002,
+            "output_sha256": "0948767d49d994bad6ebdef135209e5dc89ee864f9a8ac77b588dff09d689535",
+            "totals": {
+              "samples_attempted": 200,
+              "valid_generated": 200,
+              "solved": 12,
+              "rejected": 0,
+              "deduped": 0,
+              "timeouts": 34,
+              "exhausted": 154,
+              "invalid_generation": 0,
+              "duplicate_levels": 0,
+              "unsolved": 154,
+              "solver_timeouts": 34
+            }
+          },
+          {
+            "elapsed_ms": 3224.824800000002,
+            "output_sha256": "0948767d49d994bad6ebdef135209e5dc89ee864f9a8ac77b588dff09d689535",
+            "totals": {
+              "samples_attempted": 200,
+              "valid_generated": 200,
+              "solved": 12,
+              "rejected": 0,
+              "deduped": 0,
+              "timeouts": 34,
+              "exhausted": 154,
+              "invalid_generation": 0,
+              "duplicate_levels": 0,
+              "unsolved": 154,
+              "solver_timeouts": 34
+            }
+          },
+          {
+            "elapsed_ms": 3221.794399999999,
+            "output_sha256": "0948767d49d994bad6ebdef135209e5dc89ee864f9a8ac77b588dff09d689535",
+            "totals": {
+              "samples_attempted": 200,
+              "valid_generated": 200,
+              "solved": 12,
+              "rejected": 0,
+              "deduped": 0,
+              "timeouts": 33,
+              "exhausted": 155,
+              "invalid_generation": 0,
+              "duplicate_levels": 0,
+              "unsolved": 155,
+              "solver_timeouts": 33
+            }
+          },
+          {
+            "elapsed_ms": 3250.2634999999937,
+            "output_sha256": "0948767d49d994bad6ebdef135209e5dc89ee864f9a8ac77b588dff09d689535",
+            "totals": {
+              "samples_attempted": 200,
+              "valid_generated": 200,
+              "solved": 12,
+              "rejected": 0,
+              "deduped": 0,
+              "timeouts": 34,
+              "exhausted": 154,
+              "invalid_generation": 0,
+              "duplicate_levels": 0,
+              "unsolved": 154,
+              "solver_timeouts": 34
+            }
+          }
+        ]
+      ]
+    }
+  ]
+}

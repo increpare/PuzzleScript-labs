@@ -1537,7 +1537,45 @@ add_executable(generator_difficulty_contract
   tests/generator_difficulty_contract.cpp
   src/search/difficulty.cpp)
 target_include_directories(generator_difficulty_contract PRIVATE src include)
+target_link_libraries(generator_difficulty_contract PRIVATE Threads::Threads)
 add_test(NAME generator_difficulty_contract COMMAND generator_difficulty_contract)
+
+add_executable(evaluation_cache tests/evaluation_cache.cpp)
+target_include_directories(evaluation_cache PRIVATE src include)
+target_link_libraries(evaluation_cache PRIVATE Threads::Threads)
+add_test(NAME evaluation_cache COMMAND evaluation_cache)
+set_tests_properties(evaluation_cache PROPERTIES TIMEOUT 15)
+
+add_library(puzzlescript_push_prototype STATIC src/search/push_prototype.cpp)
+target_include_directories(puzzlescript_push_prototype PUBLIC src)
+target_link_libraries(puzzlescript_push_prototype PUBLIC puzzlescript_native puzzlescript_compiler)
+add_executable(puzzlescript_push_solver src/solver/push_main.cpp)
+target_link_libraries(puzzlescript_push_solver PRIVATE puzzlescript_push_prototype)
+add_executable(push_prototype tests/push_prototype.cpp)
+target_link_libraries(push_prototype PRIVATE puzzlescript_push_prototype)
+add_test(NAME push_prototype COMMAND push_prototype)
+set_tests_properties(push_prototype PROPERTIES WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT} TIMEOUT 45)
+add_test(NAME push_prototype_js_replay COMMAND ${NODE_EXECUTABLE}
+  ${PUZZLESCRIPT_REPO_ROOT}/src/tests/push_prototype_replay.js $<TARGET_FILE:puzzlescript_push_solver>)
+set_tests_properties(push_prototype_js_replay PROPERTIES TIMEOUT 30)
+
+add_executable(solver_fixed_work_bench tests/solver_fixed_work_bench.cpp)
+target_include_directories(solver_fixed_work_bench PRIVATE src)
+target_link_libraries(solver_fixed_work_bench PRIVATE puzzlescript_native puzzlescript_compiler)
+
+add_executable(input_flow_survey tests/input_flow_survey.cpp)
+target_include_directories(input_flow_survey PRIVATE src)
+target_link_libraries(input_flow_survey PRIVATE puzzlescript_native puzzlescript_compiler)
+
+add_executable(input_flow_same_binary_bench tests/input_flow_same_binary_bench.cpp)
+target_include_directories(input_flow_same_binary_bench PRIVATE src)
+target_link_libraries(input_flow_same_binary_bench PRIVATE puzzlescript_native puzzlescript_compiler)
+
+add_executable(input_flow_generated_boards tests/input_flow_generated_boards.cpp)
+target_include_directories(input_flow_generated_boards PRIVATE src)
+target_link_libraries(input_flow_generated_boards PRIVATE puzzlescript_native puzzlescript_compiler)
+add_test(NAME input_flow_generated_boards COMMAND input_flow_generated_boards
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT})
 
 add_executable(solver_generated_replay tests/solver_generated_replay.cpp)
 target_include_directories(solver_generated_replay PRIVATE src)

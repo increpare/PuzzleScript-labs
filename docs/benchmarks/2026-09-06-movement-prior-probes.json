@@ -1,0 +1,687 @@
+{
+  "baseline_revision": "e8fa3354",
+  "scope": "Compact record of prior probes. These group-count changes and additional buffer fields are absent from the final implementation.",
+  "experiments": [
+    {
+      "name": "group-count-initial",
+      "decision": "Rejected: removing the all-inactive shortcut increased setup work.",
+      "cases": [
+        {
+          "name": "replay",
+          "binary_hashes": [
+            "dce4812ccc71eca39455032fc0e9e2bddae34cb1dcf2ed5344af557ff8ba0d9f",
+            "8dc69fe3d374f3bb51ea1e2c26c98e23f2ce290601d50e3a037f7857f5657c02"
+          ],
+          "baseline_median_ms": 9695.887600000002,
+          "candidate_median_ms": 9879.8073,
+          "pairs": [
+            {
+              "baseline": {
+                "wall_ms": 9335.8465,
+                "rules_visited": 8614606,
+                "replacements": 7154630,
+                "mask_rebuild_calls": 2969370
+              },
+              "candidate": {
+                "wall_ms": 9584.877400000001,
+                "rules_visited": 8614606,
+                "replacements": 7154630,
+                "mask_rebuild_calls": 3117404
+              }
+            },
+            {
+              "baseline": {
+                "wall_ms": 9695.887600000002,
+                "rules_visited": 8614606,
+                "replacements": 7154630,
+                "mask_rebuild_calls": 2969370
+              },
+              "candidate": {
+                "wall_ms": 10453.6293,
+                "rules_visited": 8614606,
+                "replacements": 7154630,
+                "mask_rebuild_calls": 3117404
+              }
+            },
+            {
+              "baseline": {
+                "wall_ms": 9961.270899999996,
+                "rules_visited": 8614606,
+                "replacements": 7154630,
+                "mask_rebuild_calls": 2969370
+              },
+              "candidate": {
+                "wall_ms": 9879.8073,
+                "rules_visited": 8614606,
+                "replacements": 7154630,
+                "mask_rebuild_calls": 3117404
+              }
+            }
+          ]
+        },
+        {
+          "name": "cakemonsters",
+          "binary_hashes": [
+            "a23809b408c8793862b9e2cafcddeaf4c06a3a67b93a6c527699598c6bd84471",
+            "d1cd789f0505a35b229afd740470c81e17531bdb94bafb7d696b14f086767e76"
+          ],
+          "baseline_median_ms": 1601.4898000000103,
+          "candidate_median_ms": 1614.125899999999,
+          "identical_outputs": true,
+          "pairs": [
+            {
+              "baseline": {
+                "wall_ms": 1600.931700000001,
+                "output_hash": "ace2ece7906aa039432608ec97b0abc338f2afbae49980b49bc1e82d5562d499"
+              },
+              "candidate": {
+                "wall_ms": 1614.125899999999,
+                "output_hash": "ace2ece7906aa039432608ec97b0abc338f2afbae49980b49bc1e82d5562d499"
+              }
+            },
+            {
+              "baseline": {
+                "wall_ms": 1610.0536999999895,
+                "output_hash": "ace2ece7906aa039432608ec97b0abc338f2afbae49980b49bc1e82d5562d499"
+              },
+              "candidate": {
+                "wall_ms": 1621.908500000005,
+                "output_hash": "ace2ece7906aa039432608ec97b0abc338f2afbae49980b49bc1e82d5562d499"
+              }
+            },
+            {
+              "baseline": {
+                "wall_ms": 1601.4898000000103,
+                "output_hash": "ace2ece7906aa039432608ec97b0abc338f2afbae49980b49bc1e82d5562d499"
+              },
+              "candidate": {
+                "wall_ms": 1601.3378999999986,
+                "output_hash": "ace2ece7906aa039432608ec97b0abc338f2afbae49980b49bc1e82d5562d499"
+              }
+            }
+          ]
+        },
+        {
+          "name": "chaos wizard",
+          "binary_hashes": [
+            "a23809b408c8793862b9e2cafcddeaf4c06a3a67b93a6c527699598c6bd84471",
+            "d1cd789f0505a35b229afd740470c81e17531bdb94bafb7d696b14f086767e76"
+          ],
+          "baseline_median_ms": 1048.0570000000007,
+          "candidate_median_ms": 1044.4656000000105,
+          "identical_outputs": true,
+          "pairs": [
+            {
+              "baseline": {
+                "wall_ms": 1048.0570000000007,
+                "output_hash": "707062f348ebfa777a91fba56c0ac07e85d38e9969c4123cf071c86e5299063e"
+              },
+              "candidate": {
+                "wall_ms": 1045.1505000000034,
+                "output_hash": "707062f348ebfa777a91fba56c0ac07e85d38e9969c4123cf071c86e5299063e"
+              }
+            },
+            {
+              "baseline": {
+                "wall_ms": 1039.3317000000097,
+                "output_hash": "707062f348ebfa777a91fba56c0ac07e85d38e9969c4123cf071c86e5299063e"
+              },
+              "candidate": {
+                "wall_ms": 1044.4656000000105,
+                "output_hash": "707062f348ebfa777a91fba56c0ac07e85d38e9969c4123cf071c86e5299063e"
+              }
+            },
+            {
+              "baseline": {
+                "wall_ms": 1048.478500000012,
+                "output_hash": "707062f348ebfa777a91fba56c0ac07e85d38e9969c4123cf071c86e5299063e"
+              },
+              "candidate": {
+                "wall_ms": 1044.2929000000004,
+                "output_hash": "707062f348ebfa777a91fba56c0ac07e85d38e9969c4123cf071c86e5299063e"
+              }
+            }
+          ]
+        },
+        {
+          "name": "dropswap",
+          "binary_hashes": [
+            "a23809b408c8793862b9e2cafcddeaf4c06a3a67b93a6c527699598c6bd84471",
+            "d1cd789f0505a35b229afd740470c81e17531bdb94bafb7d696b14f086767e76"
+          ],
+          "baseline_median_ms": 1203.624100000001,
+          "candidate_median_ms": 1191.5846999999922,
+          "identical_outputs": true,
+          "pairs": [
+            {
+              "baseline": {
+                "wall_ms": 1207.215000000011,
+                "output_hash": "9a7556d14c686c9367d2cca20e3f578c0f83e6ed9a7ee5c722be5184f33f107c"
+              },
+              "candidate": {
+                "wall_ms": 1191.2658999999985,
+                "output_hash": "9a7556d14c686c9367d2cca20e3f578c0f83e6ed9a7ee5c722be5184f33f107c"
+              }
+            },
+            {
+              "baseline": {
+                "wall_ms": 1201.3616000000038,
+                "output_hash": "9a7556d14c686c9367d2cca20e3f578c0f83e6ed9a7ee5c722be5184f33f107c"
+              },
+              "candidate": {
+                "wall_ms": 1191.5846999999922,
+                "output_hash": "9a7556d14c686c9367d2cca20e3f578c0f83e6ed9a7ee5c722be5184f33f107c"
+              }
+            },
+            {
+              "baseline": {
+                "wall_ms": 1203.624100000001,
+                "output_hash": "9a7556d14c686c9367d2cca20e3f578c0f83e6ed9a7ee5c722be5184f33f107c"
+              },
+              "candidate": {
+                "wall_ms": 1211.1313000000082,
+                "output_hash": "9a7556d14c686c9367d2cca20e3f578c0f83e6ed9a7ee5c722be5184f33f107c"
+              }
+            }
+          ]
+        },
+        {
+          "name": "midas",
+          "binary_hashes": [
+            "a23809b408c8793862b9e2cafcddeaf4c06a3a67b93a6c527699598c6bd84471",
+            "d1cd789f0505a35b229afd740470c81e17531bdb94bafb7d696b14f086767e76"
+          ],
+          "baseline_median_ms": 1918.6018999999942,
+          "candidate_median_ms": 1923.633400000006,
+          "identical_outputs": true,
+          "pairs": [
+            {
+              "baseline": {
+                "wall_ms": 1918.6018999999942,
+                "output_hash": "ae798bcd218cc5660c2d469206bebed220287c54c63f225d5238393e5e048bd1"
+              },
+              "candidate": {
+                "wall_ms": 1923.633400000006,
+                "output_hash": "ae798bcd218cc5660c2d469206bebed220287c54c63f225d5238393e5e048bd1"
+              }
+            },
+            {
+              "baseline": {
+                "wall_ms": 1925.0706999999966,
+                "output_hash": "ae798bcd218cc5660c2d469206bebed220287c54c63f225d5238393e5e048bd1"
+              },
+              "candidate": {
+                "wall_ms": 1914.5650000000023,
+                "output_hash": "ae798bcd218cc5660c2d469206bebed220287c54c63f225d5238393e5e048bd1"
+              }
+            },
+            {
+              "baseline": {
+                "wall_ms": 1916.332500000004,
+                "output_hash": "ae798bcd218cc5660c2d469206bebed220287c54c63f225d5238393e5e048bd1"
+              },
+              "candidate": {
+                "wall_ms": 1924.4657000000007,
+                "output_hash": "ae798bcd218cc5660c2d469206bebed220287c54c63f225d5238393e5e048bd1"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "group-count-any-active",
+      "decision": "Rejected: retaining the shortcut while removing redundant counting was still neutral.",
+      "cases": [
+        {
+          "name": "replay",
+          "binary_hashes": [
+            "dce4812ccc71eca39455032fc0e9e2bddae34cb1dcf2ed5344af557ff8ba0d9f",
+            "3a347a66a4bc44c9c3469946e231737bfaf7bf97d8c466a16f32522c3c025116"
+          ],
+          "baseline_median_ms": 10067.028000000002,
+          "candidate_median_ms": 10092.8338,
+          "pairs": [
+            {
+              "baseline": {
+                "wall_ms": 10067.028000000002,
+                "rules_visited": 8614606,
+                "replacements": 7154630,
+                "mask_rebuild_calls": 2969370
+              },
+              "candidate": {
+                "wall_ms": 10553.003500000003,
+                "rules_visited": 8614606,
+                "replacements": 7154630,
+                "mask_rebuild_calls": 2969370
+              }
+            },
+            {
+              "baseline": {
+                "wall_ms": 10334.9332,
+                "rules_visited": 8614606,
+                "replacements": 7154630,
+                "mask_rebuild_calls": 2969370
+              },
+              "candidate": {
+                "wall_ms": 10092.8338,
+                "rules_visited": 8614606,
+                "replacements": 7154630,
+                "mask_rebuild_calls": 2969370
+              }
+            },
+            {
+              "baseline": {
+                "wall_ms": 9951.5824,
+                "rules_visited": 8614606,
+                "replacements": 7154630,
+                "mask_rebuild_calls": 2969370
+              },
+              "candidate": {
+                "wall_ms": 9801.760200000004,
+                "rules_visited": 8614606,
+                "replacements": 7154630,
+                "mask_rebuild_calls": 2969370
+              }
+            }
+          ]
+        },
+        {
+          "name": "cakemonsters",
+          "binary_hashes": [
+            "a23809b408c8793862b9e2cafcddeaf4c06a3a67b93a6c527699598c6bd84471",
+            "e6b3cc1f99e53bffc3518a1cd1b17c6252a3fea517bac99b194b8e3f5821c5ea"
+          ],
+          "baseline_median_ms": 1604.9098999999987,
+          "candidate_median_ms": 1601.3083999999944,
+          "identical_outputs": false,
+          "pairs": [
+            {
+              "baseline": {
+                "wall_ms": 1604.9098999999987,
+                "output_hash": "ace2ece7906aa039432608ec97b0abc338f2afbae49980b49bc1e82d5562d499"
+              },
+              "candidate": {
+                "wall_ms": 1590.022100000002,
+                "output_hash": "ace2ece7906aa039432608ec97b0abc338f2afbae49980b49bc1e82d5562d499"
+              }
+            },
+            {
+              "baseline": {
+                "wall_ms": 1607.175900000002,
+                "output_hash": "1335003907c1ca95e4240cdd58f7b31bb3e03482c64608a989f5d7472fee1435"
+              },
+              "candidate": {
+                "wall_ms": 1601.3083999999944,
+                "output_hash": "ace2ece7906aa039432608ec97b0abc338f2afbae49980b49bc1e82d5562d499"
+              }
+            },
+            {
+              "baseline": {
+                "wall_ms": 1596.3826000000117,
+                "output_hash": "ace2ece7906aa039432608ec97b0abc338f2afbae49980b49bc1e82d5562d499"
+              },
+              "candidate": {
+                "wall_ms": 1618.5761000000057,
+                "output_hash": "ace2ece7906aa039432608ec97b0abc338f2afbae49980b49bc1e82d5562d499"
+              }
+            }
+          ]
+        },
+        {
+          "name": "chaos wizard",
+          "binary_hashes": [
+            "a23809b408c8793862b9e2cafcddeaf4c06a3a67b93a6c527699598c6bd84471",
+            "e6b3cc1f99e53bffc3518a1cd1b17c6252a3fea517bac99b194b8e3f5821c5ea"
+          ],
+          "baseline_median_ms": 1080.8708000000042,
+          "candidate_median_ms": 1070.7302999999956,
+          "identical_outputs": true,
+          "pairs": [
+            {
+              "baseline": {
+                "wall_ms": 1080.8708000000042,
+                "output_hash": "707062f348ebfa777a91fba56c0ac07e85d38e9969c4123cf071c86e5299063e"
+              },
+              "candidate": {
+                "wall_ms": 1070.7302999999956,
+                "output_hash": "707062f348ebfa777a91fba56c0ac07e85d38e9969c4123cf071c86e5299063e"
+              }
+            },
+            {
+              "baseline": {
+                "wall_ms": 1050.2930000000051,
+                "output_hash": "707062f348ebfa777a91fba56c0ac07e85d38e9969c4123cf071c86e5299063e"
+              },
+              "candidate": {
+                "wall_ms": 1089.9472999999998,
+                "output_hash": "707062f348ebfa777a91fba56c0ac07e85d38e9969c4123cf071c86e5299063e"
+              }
+            },
+            {
+              "baseline": {
+                "wall_ms": 1088.7181999999884,
+                "output_hash": "707062f348ebfa777a91fba56c0ac07e85d38e9969c4123cf071c86e5299063e"
+              },
+              "candidate": {
+                "wall_ms": 1056.954700000002,
+                "output_hash": "707062f348ebfa777a91fba56c0ac07e85d38e9969c4123cf071c86e5299063e"
+              }
+            }
+          ]
+        },
+        {
+          "name": "dropswap",
+          "binary_hashes": [
+            "a23809b408c8793862b9e2cafcddeaf4c06a3a67b93a6c527699598c6bd84471",
+            "e6b3cc1f99e53bffc3518a1cd1b17c6252a3fea517bac99b194b8e3f5821c5ea"
+          ],
+          "baseline_median_ms": 1264.8398000000016,
+          "candidate_median_ms": 1245.7743999999948,
+          "identical_outputs": true,
+          "pairs": [
+            {
+              "baseline": {
+                "wall_ms": 1218.5944000000018,
+                "output_hash": "9a7556d14c686c9367d2cca20e3f578c0f83e6ed9a7ee5c722be5184f33f107c"
+              },
+              "candidate": {
+                "wall_ms": 1214.3068000000058,
+                "output_hash": "9a7556d14c686c9367d2cca20e3f578c0f83e6ed9a7ee5c722be5184f33f107c"
+              }
+            },
+            {
+              "baseline": {
+                "wall_ms": 1282.438599999994,
+                "output_hash": "9a7556d14c686c9367d2cca20e3f578c0f83e6ed9a7ee5c722be5184f33f107c"
+              },
+              "candidate": {
+                "wall_ms": 1245.7743999999948,
+                "output_hash": "9a7556d14c686c9367d2cca20e3f578c0f83e6ed9a7ee5c722be5184f33f107c"
+              }
+            },
+            {
+              "baseline": {
+                "wall_ms": 1264.8398000000016,
+                "output_hash": "9a7556d14c686c9367d2cca20e3f578c0f83e6ed9a7ee5c722be5184f33f107c"
+              },
+              "candidate": {
+                "wall_ms": 1319.2079000000085,
+                "output_hash": "9a7556d14c686c9367d2cca20e3f578c0f83e6ed9a7ee5c722be5184f33f107c"
+              }
+            }
+          ]
+        },
+        {
+          "name": "midas",
+          "binary_hashes": [
+            "a23809b408c8793862b9e2cafcddeaf4c06a3a67b93a6c527699598c6bd84471",
+            "e6b3cc1f99e53bffc3518a1cd1b17c6252a3fea517bac99b194b8e3f5821c5ea"
+          ],
+          "baseline_median_ms": 1929.4195999999938,
+          "candidate_median_ms": 1932.6740999999893,
+          "identical_outputs": true,
+          "pairs": [
+            {
+              "baseline": {
+                "wall_ms": 1932.7847000000038,
+                "output_hash": "ae798bcd218cc5660c2d469206bebed220287c54c63f225d5238393e5e048bd1"
+              },
+              "candidate": {
+                "wall_ms": 1927.6457999999984,
+                "output_hash": "ae798bcd218cc5660c2d469206bebed220287c54c63f225d5238393e5e048bd1"
+              }
+            },
+            {
+              "baseline": {
+                "wall_ms": 1927.7358999999997,
+                "output_hash": "ae798bcd218cc5660c2d469206bebed220287c54c63f225d5238393e5e048bd1"
+              },
+              "candidate": {
+                "wall_ms": 1936.1629000000103,
+                "output_hash": "ae798bcd218cc5660c2d469206bebed220287c54c63f225d5238393e5e048bd1"
+              }
+            },
+            {
+              "baseline": {
+                "wall_ms": 1929.4195999999938,
+                "output_hash": "ae798bcd218cc5660c2d469206bebed220287c54c63f225d5238393e5e048bd1"
+              },
+              "candidate": {
+                "wall_ms": 1932.6740999999893,
+                "output_hash": "ae798bcd218cc5660c2d469206bebed220287c54c63f225d5238393e5e048bd1"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "movement-scratch-initial",
+      "decision": "Superseded: three additional movement buffers; final version reuses existing buffers instead.",
+      "cases": [
+        {
+          "name": "replay",
+          "binary_hashes": [
+            "dce4812ccc71eca39455032fc0e9e2bddae34cb1dcf2ed5344af557ff8ba0d9f",
+            "d21d73dd267711b0d3a15849d8c8375916c268a5903fae1483a09895b41aa126"
+          ],
+          "baseline_median_ms": 10942.986500000006,
+          "candidate_median_ms": 11013.175300000003,
+          "pairs": [
+            {
+              "baseline": {
+                "wall_ms": 11839.870900000002,
+                "rules_visited": 8614606,
+                "replacements": 7154630,
+                "mask_rebuild_calls": 2969370
+              },
+              "candidate": {
+                "wall_ms": 12725.404999999995,
+                "rules_visited": 8614606,
+                "replacements": 7154630,
+                "mask_rebuild_calls": 2969370
+              }
+            },
+            {
+              "baseline": {
+                "wall_ms": 10942.986500000006,
+                "rules_visited": 8614606,
+                "replacements": 7154630,
+                "mask_rebuild_calls": 2969370
+              },
+              "candidate": {
+                "wall_ms": 11013.175300000003,
+                "rules_visited": 8614606,
+                "replacements": 7154630,
+                "mask_rebuild_calls": 2969370
+              }
+            },
+            {
+              "baseline": {
+                "wall_ms": 10585.816599999991,
+                "rules_visited": 8614606,
+                "replacements": 7154630,
+                "mask_rebuild_calls": 2969370
+              },
+              "candidate": {
+                "wall_ms": 10368.527000000002,
+                "rules_visited": 8614606,
+                "replacements": 7154630,
+                "mask_rebuild_calls": 2969370
+              }
+            }
+          ]
+        },
+        {
+          "name": "cakemonsters",
+          "binary_hashes": [
+            "a23809b408c8793862b9e2cafcddeaf4c06a3a67b93a6c527699598c6bd84471",
+            "ab7199fb0829913fa2db007915827b679e78a6cf08cb51937ccb982bc974d1ee"
+          ],
+          "baseline_median_ms": 1618.5158999999985,
+          "candidate_median_ms": 1619.077099999995,
+          "identical_outputs": false,
+          "pairs": [
+            {
+              "baseline": {
+                "wall_ms": 1618.5158999999985,
+                "output_hash": "ace2ece7906aa039432608ec97b0abc338f2afbae49980b49bc1e82d5562d499"
+              },
+              "candidate": {
+                "wall_ms": 1628.4861999999994,
+                "output_hash": "b769b21f30a96b470fa7cf36b3883882da6c34a42803ea3be0a243993eef60d3"
+              }
+            },
+            {
+              "baseline": {
+                "wall_ms": 1623.6637999999948,
+                "output_hash": "ace2ece7906aa039432608ec97b0abc338f2afbae49980b49bc1e82d5562d499"
+              },
+              "candidate": {
+                "wall_ms": 1619.077099999995,
+                "output_hash": "ace2ece7906aa039432608ec97b0abc338f2afbae49980b49bc1e82d5562d499"
+              }
+            },
+            {
+              "baseline": {
+                "wall_ms": 1592.934699999998,
+                "output_hash": "b769b21f30a96b470fa7cf36b3883882da6c34a42803ea3be0a243993eef60d3"
+              },
+              "candidate": {
+                "wall_ms": 1617.1244000000006,
+                "output_hash": "ace2ece7906aa039432608ec97b0abc338f2afbae49980b49bc1e82d5562d499"
+              }
+            }
+          ]
+        },
+        {
+          "name": "chaos wizard",
+          "binary_hashes": [
+            "a23809b408c8793862b9e2cafcddeaf4c06a3a67b93a6c527699598c6bd84471",
+            "ab7199fb0829913fa2db007915827b679e78a6cf08cb51937ccb982bc974d1ee"
+          ],
+          "baseline_median_ms": 1082.8877999999968,
+          "candidate_median_ms": 1035.828999999998,
+          "identical_outputs": true,
+          "pairs": [
+            {
+              "baseline": {
+                "wall_ms": 1069.1912000000011,
+                "output_hash": "707062f348ebfa777a91fba56c0ac07e85d38e9969c4123cf071c86e5299063e"
+              },
+              "candidate": {
+                "wall_ms": 1035.828999999998,
+                "output_hash": "707062f348ebfa777a91fba56c0ac07e85d38e9969c4123cf071c86e5299063e"
+              }
+            },
+            {
+              "baseline": {
+                "wall_ms": 1082.8877999999968,
+                "output_hash": "707062f348ebfa777a91fba56c0ac07e85d38e9969c4123cf071c86e5299063e"
+              },
+              "candidate": {
+                "wall_ms": 1056.3524999999936,
+                "output_hash": "707062f348ebfa777a91fba56c0ac07e85d38e9969c4123cf071c86e5299063e"
+              }
+            },
+            {
+              "baseline": {
+                "wall_ms": 1084.7834000000003,
+                "output_hash": "707062f348ebfa777a91fba56c0ac07e85d38e9969c4123cf071c86e5299063e"
+              },
+              "candidate": {
+                "wall_ms": 1034.6162999999942,
+                "output_hash": "707062f348ebfa777a91fba56c0ac07e85d38e9969c4123cf071c86e5299063e"
+              }
+            }
+          ]
+        },
+        {
+          "name": "dropswap",
+          "binary_hashes": [
+            "a23809b408c8793862b9e2cafcddeaf4c06a3a67b93a6c527699598c6bd84471",
+            "ab7199fb0829913fa2db007915827b679e78a6cf08cb51937ccb982bc974d1ee"
+          ],
+          "baseline_median_ms": 1236.7885999999999,
+          "candidate_median_ms": 1235.6533999999956,
+          "identical_outputs": true,
+          "pairs": [
+            {
+              "baseline": {
+                "wall_ms": 1236.1612999999925,
+                "output_hash": "9a7556d14c686c9367d2cca20e3f578c0f83e6ed9a7ee5c722be5184f33f107c"
+              },
+              "candidate": {
+                "wall_ms": 1234.847299999994,
+                "output_hash": "9a7556d14c686c9367d2cca20e3f578c0f83e6ed9a7ee5c722be5184f33f107c"
+              }
+            },
+            {
+              "baseline": {
+                "wall_ms": 1236.7885999999999,
+                "output_hash": "9a7556d14c686c9367d2cca20e3f578c0f83e6ed9a7ee5c722be5184f33f107c"
+              },
+              "candidate": {
+                "wall_ms": 1240.0387999999948,
+                "output_hash": "9a7556d14c686c9367d2cca20e3f578c0f83e6ed9a7ee5c722be5184f33f107c"
+              }
+            },
+            {
+              "baseline": {
+                "wall_ms": 1243.4438999999984,
+                "output_hash": "9a7556d14c686c9367d2cca20e3f578c0f83e6ed9a7ee5c722be5184f33f107c"
+              },
+              "candidate": {
+                "wall_ms": 1235.6533999999956,
+                "output_hash": "9a7556d14c686c9367d2cca20e3f578c0f83e6ed9a7ee5c722be5184f33f107c"
+              }
+            }
+          ]
+        },
+        {
+          "name": "midas",
+          "binary_hashes": [
+            "a23809b408c8793862b9e2cafcddeaf4c06a3a67b93a6c527699598c6bd84471",
+            "ab7199fb0829913fa2db007915827b679e78a6cf08cb51937ccb982bc974d1ee"
+          ],
+          "baseline_median_ms": 1931.6055000000051,
+          "candidate_median_ms": 1910.3954999999987,
+          "identical_outputs": true,
+          "pairs": [
+            {
+              "baseline": {
+                "wall_ms": 1933.7824999999866,
+                "output_hash": "ae798bcd218cc5660c2d469206bebed220287c54c63f225d5238393e5e048bd1"
+              },
+              "candidate": {
+                "wall_ms": 1910.3954999999987,
+                "output_hash": "ae798bcd218cc5660c2d469206bebed220287c54c63f225d5238393e5e048bd1"
+              }
+            },
+            {
+              "baseline": {
+                "wall_ms": 1925.1229999999923,
+                "output_hash": "ae798bcd218cc5660c2d469206bebed220287c54c63f225d5238393e5e048bd1"
+              },
+              "candidate": {
+                "wall_ms": 1920.787599999996,
+                "output_hash": "ae798bcd218cc5660c2d469206bebed220287c54c63f225d5238393e5e048bd1"
+              }
+            },
+            {
+              "baseline": {
+                "wall_ms": 1931.6055000000051,
+                "output_hash": "ae798bcd218cc5660c2d469206bebed220287c54c63f225d5238393e5e048bd1"
+              },
+              "candidate": {
+                "wall_ms": 1910.276899999997,
+                "output_hash": "ae798bcd218cc5660c2d469206bebed220287c54c63f225d5238393e5e048bd1"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

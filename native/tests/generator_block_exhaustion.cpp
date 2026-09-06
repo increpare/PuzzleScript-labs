@@ -10,6 +10,8 @@ namespace {
 puzzlescript::generator::Keeper makeKeeper(uint64_t hash, int64_t difficulty, int64_t expandedPortfolio) {
     puzzlescript::generator::Keeper keeper;
     keeper.levelHash = hash;
+    keeper.level.width = keeper.level.height = 1;
+    keeper.level.objects = {static_cast<puzzlescript::MaskWord>(hash)};
     keeper.difficulty = difficulty;
     keeper.expandedPortfolio = expandedPortfolio;
     return keeper;

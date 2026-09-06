@@ -568,62 +568,101 @@ puzzlescript::MaskVector computeInputSpecWriteMovementsSet(
     return result;
 }
 
-std::vector<uint8_t> computeInputActiveSet(
+bool inputRequirementsPossible(
     const puzzlescript::Game& game,
-    const std::vector<puzzlescript::Rule*>& flatRules,
-    const puzzlescript::MaskVector& seedMovements
+    const puzzlescript::Rule& rule,
+    const puzzlescript::MaskVector& possible
 ) {
-    std::vector<uint8_t> included(flatRules.size(), 0);
-    puzzlescript::MaskVector possibleWriteMovements = seedMovements;
-
-    auto readOffset = [](const puzzlescript::Rule& rule) {
-        return rule.inputSpecReadMovementsPresent != puzzlescript::kNullMaskOffset
-            ? rule.inputSpecReadMovementsPresent
-            : rule.readMovements;
+    // Keep conjunctions and OR clauses separate. Flattening all requirements
+    // into one OR admits rules when only one required movement is reachable.
+    // Absence/object tests impose no restriction: different candidate boards,
+    // deletions and movement clearing can make them true.
+    // forceAlwaysRun protects repeated execution of a *matchable* random,
+    // rigid or command rule. It cannot make an unavailable positive movement
+    // match. Keep that runtime safeguard, but do not seed fictitious writes
+    // from such rules into this static closure.
+    auto contains = [&](puzzlescript::MaskOffset offset) {
+        const auto* mask = storedMaskPtr(game, offset);
+        if (!mask) return true;
+        for (size_t w = 0; w < possible.size(); ++w)
+            if ((mask[w] & possible[w]) != mask[w]) return false;
+        return true;
     };
-    auto writeOffset = [](const puzzlescript::Rule& rule) {
-        return rule.inputSpecWriteMovementsSet != puzzlescript::kNullMaskOffset
-            ? rule.inputSpecWriteMovementsSet
-            : rule.writeMovements;
+    auto overlaps = [&](puzzlescript::MaskOffset offset) {
+        return storedMaskOverlaps(game, offset, possible, game.movementWordCount);
     };
-
-    for (size_t index = 0; index < flatRules.size(); ++index) {
-        const puzzlescript::Rule& rule = *flatRules[index];
-        const puzzlescript::MaskOffset read = readOffset(rule);
-        if (rule.forceAlwaysRun
-            || storedMaskAllZero(game, read, game.movementWordCount)
-            || storedMaskOverlaps(game, read, seedMovements, game.movementWordCount)) {
-            included[index] = 1;
-            orStoredMaskInto(
-                possibleWriteMovements,
-                game,
-                writeOffset(rule),
-                game.movementWordCount);
+    for (const auto& row : rule.patterns) for (const auto& pattern : row) {
+        if (pattern.kind != puzzlescript::Pattern::Kind::CellPattern) continue;
+        if (!contains(pattern.movementsPresent)) return false;
+        for (uint32_t i = 0; i < pattern.anyMovementsCount; ++i)
+            if (!overlaps(game.anyMovementOffsets[pattern.anyMovementsFirst + i])) return false;
+        for (const auto& term : pattern.layerCoupledMovementMasks) {
+            bool any = false;
+            for (const auto& layer : term.layers) {
+                if (contains(layer.movementsPresent)
+                    && (storedMaskAllZero(game, layer.movementsAny, game.movementWordCount)
+                        || overlaps(layer.movementsAny))) {
+                    any = true;
+                    break;
+                }
+            }
+            if (!any) return false;
         }
     }
+    return true;
+}
 
+void computeInputActiveSet(
+    puzzlescript::Game& game,
+    const puzzlescript::MaskVector& seedMovements,
+    uint8_t inputBit
+) {
+    // Follow the original group graph: later writes reach earlier groups only
+    // via explicit loops. Each group itself reaches a fixed point. Union,
+    // never kill, preserves possibilities across ordering and rigid retries.
+    // The resulting eligibility masks are shared across all candidate levels;
+    // the existing interpreter consumes them without new runtime machinery.
+    auto& groups = game.rules;
+    std::vector<puzzlescript::MaskVector> incoming(groups.size() + 1,
+        puzzlescript::MaskVector(game.movementWordCount, 0));
+    incoming[0] = seedMovements;
     bool changed = true;
     while (changed) {
         changed = false;
-        for (size_t index = 0; index < flatRules.size(); ++index) {
-            if (included[index] != 0) {
-                continue;
+        for (size_t g = 0; g <= groups.size(); ++g) {
+            auto possible = incoming[g];
+            if (g < groups.size()) {
+                bool grew = true;
+                while (grew) {
+                    grew = false;
+                    for (auto& rule : groups[g]) {
+                        if (!inputRequirementsPossible(game, rule, possible)) continue;
+                        rule.activeInputsMask |= inputBit;
+                        const auto offset = rule.inputSpecWriteMovementsSet != puzzlescript::kNullMaskOffset
+                            ? rule.inputSpecWriteMovementsSet : rule.writeMovements;
+                        const auto* writes = storedMaskPtr(game, offset);
+                        if (!writes) continue;
+                        for (size_t w = 0; w < possible.size(); ++w) {
+                            const auto next = possible[w] | writes[w];
+                            grew = grew || next != possible[w];
+                            possible[w] = next;
+                        }
+                    }
+                }
             }
-            const puzzlescript::Rule& rule = *flatRules[index];
-            const puzzlescript::MaskOffset read = readOffset(rule);
-            if (storedMaskOverlaps(game, read, possibleWriteMovements, game.movementWordCount)) {
-                included[index] = 1;
-                orStoredMaskInto(
-                    possibleWriteMovements,
-                    game,
-                    writeOffset(rule),
-                    game.movementWordCount);
-                changed = true;
-            }
+            auto propagate = [&](size_t target) {
+                if (target >= incoming.size()) return;
+                for (size_t w = 0; w < possible.size(); ++w) {
+                    const auto next = incoming[target][w] | possible[w];
+                    changed = changed || next != incoming[target][w];
+                    incoming[target][w] = next;
+                }
+            };
+            if (g < groups.size()) propagate(g + 1);
+            if (g < game.loopPoint.entries.size() && game.loopPoint.entries[g].has_value())
+                propagate(static_cast<size_t>(*game.loopPoint.entries[g]));
         }
     }
-
-    return included;
 }
 
 void attachInputSpecializationMasks(puzzlescript::Game& game) {
@@ -638,13 +677,7 @@ void attachInputSpecializationMasks(puzzlescript::Game& game) {
         }
     }
 
-    std::vector<puzzlescript::Rule*> flatRules;
-    for (auto& group : game.rules) {
-        for (puzzlescript::Rule& rule : group) {
-            flatRules.push_back(&rule);
-        }
-    }
-    if (flatRules.empty()) {
+    if (std::all_of(game.rules.begin(), game.rules.end(), [](const auto& group) { return group.empty(); })) {
         return;
     }
 
@@ -668,22 +701,12 @@ void attachInputSpecializationMasks(puzzlescript::Game& game) {
         for (const int32_t layer : playerLayers) {
             orMovementBitsForLayer(seed, layer, kInputSpecArgToMovementMask[input]);
         }
-        const std::vector<uint8_t> active = computeInputActiveSet(game, flatRules, seed);
-        for (size_t index = 0; index < flatRules.size(); ++index) {
-            if (active[index] != 0) {
-                flatRules[index]->activeInputsMask |= static_cast<uint8_t>(1u << input);
-            }
-        }
+        computeInputActiveSet(game, seed, static_cast<uint8_t>(1u << input));
     }
 
     puzzlescript::MaskVector tickSeed(static_cast<size_t>(game.movementWordCount), 0);
-    const std::vector<uint8_t> tickActive =
-        computeInputActiveSet(game, flatRules, tickSeed);
-    for (size_t index = 0; index < flatRules.size(); ++index) {
-        if (tickActive[index] != 0) {
-            flatRules[index]->activeInputsMask |= static_cast<uint8_t>(1u << kInputSpecTickBit);
-        }
-    }
+    computeInputActiveSet(game, tickSeed, static_cast<uint8_t>(1u << kInputSpecTickBit));
+
 }
 
 } // namespace
@@ -4894,8 +4917,6 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
         }
     }
 
-    attachInputSpecializationMasks(*game);
-
     auto calculateLoopPoints = [](const std::vector<std::pair<int32_t, int32_t>>& loopRanges,
                                   const std::vector<std::vector<puzzlescript::Rule>>& ruleGroups) {
         std::map<int32_t, int32_t> loopPoint;
@@ -4947,6 +4968,7 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
     const auto lateLoopPointMap = calculateLoopPoints(loopRanges, game->lateRules);
     game->loopPoint = buildLoopPointTable(earlyLoopPointMap);
     game->lateLoopPoint = buildLoopPointTable(lateLoopPointMap);
+    attachInputSpecializationMasks(*game);
 
     game->winConditions.clear();
     for (const auto& entry : state.winconditions) {

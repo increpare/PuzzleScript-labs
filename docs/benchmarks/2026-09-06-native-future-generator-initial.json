@@ -1,0 +1,4950 @@
+{
+  "scope": "Same native generator binary, future-rule filter off/on. Generic remix of bundled games, 100 candidates, seed 11, 10ms solver budget, serial alternating pairs after warmup. Process wall includes compilation and output. Retained outputs can differ at time limits; four-worker runs additionally depend on scheduling.",
+  "binary_sha256": "356cd84be43ec3d5f707d92712d35d24a07016c3937275714b85b056814b7e90",
+  "cases": [
+    {
+      "game": "cakemonsters",
+      "jobs": 1,
+      "pairs": [
+        {
+          "baseline": {
+            "wall_ms": 825.1724999999999,
+            "output_sha256": "8943de0dc60949af6fbb50682c788b51b556a1671e77eaf3c4dccdccb4f9b69a",
+            "mode": "remix",
+            "stop_reason": "samples",
+            "elapsed_ms": 790,
+            "totals": {
+              "samples_attempted": 100,
+              "solver_searches": 100,
+              "deduped": 0,
+              "interrupted_assessments": 0,
+              "keepers": 4
+            },
+            "blocks": [
+              {
+                "name": "level 1",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 2",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 3",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 4",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 5",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 6",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 7",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 8",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 9",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 10",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 11",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 12",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 13",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 14",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 15",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 16",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 17",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 18",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 19",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 20",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 21",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 22",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 23",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 24",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 25",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 26",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 27",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 28",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 29",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 30",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 31",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 32",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 33",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 34",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 35",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 36",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              }
+            ],
+            "evaluation_cache": {
+              "hits": 0,
+              "searches": 115,
+              "waits": 0,
+              "entries": 50,
+              "retained_bytes": 63252
+            }
+          },
+          "future": {
+            "wall_ms": 825.1417000000001,
+            "output_sha256": "8943de0dc60949af6fbb50682c788b51b556a1671e77eaf3c4dccdccb4f9b69a",
+            "mode": "remix",
+            "stop_reason": "samples",
+            "elapsed_ms": 792,
+            "totals": {
+              "samples_attempted": 100,
+              "solver_searches": 100,
+              "deduped": 0,
+              "interrupted_assessments": 0,
+              "keepers": 4
+            },
+            "blocks": [
+              {
+                "name": "level 1",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 2",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 3",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 4",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 5",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 6",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 7",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 8",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 9",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 10",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 11",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 12",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 13",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 14",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 15",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 16",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 17",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 18",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 19",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 20",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 21",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 22",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 23",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 24",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 25",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 26",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 27",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 28",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 29",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 30",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 31",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 32",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 33",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 34",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 35",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 36",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              }
+            ],
+            "evaluation_cache": {
+              "hits": 0,
+              "searches": 115,
+              "waits": 0,
+              "entries": 50,
+              "retained_bytes": 63252
+            },
+            "future_rule_filter": {
+              "supported": true,
+              "queries": 72664,
+              "misses": 171
+            }
+          }
+        },
+        {
+          "future": {
+            "wall_ms": 828.6977000000006,
+            "output_sha256": "8943de0dc60949af6fbb50682c788b51b556a1671e77eaf3c4dccdccb4f9b69a",
+            "mode": "remix",
+            "stop_reason": "samples",
+            "elapsed_ms": 795,
+            "totals": {
+              "samples_attempted": 100,
+              "solver_searches": 100,
+              "deduped": 0,
+              "interrupted_assessments": 0,
+              "keepers": 4
+            },
+            "blocks": [
+              {
+                "name": "level 1",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 2",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 3",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 4",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 5",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 6",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 7",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 8",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 9",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 10",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 11",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 12",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 13",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 14",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 15",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 16",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 17",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 18",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 19",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 20",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 21",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 22",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 23",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 24",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 25",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 26",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 27",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 28",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 29",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 30",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 31",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 32",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 33",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 34",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 35",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 36",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              }
+            ],
+            "evaluation_cache": {
+              "hits": 0,
+              "searches": 115,
+              "waits": 0,
+              "entries": 49,
+              "retained_bytes": 62412
+            },
+            "future_rule_filter": {
+              "supported": true,
+              "queries": 70360,
+              "misses": 171
+            }
+          },
+          "baseline": {
+            "wall_ms": 833.0999999999995,
+            "output_sha256": "8943de0dc60949af6fbb50682c788b51b556a1671e77eaf3c4dccdccb4f9b69a",
+            "mode": "remix",
+            "stop_reason": "samples",
+            "elapsed_ms": 799,
+            "totals": {
+              "samples_attempted": 100,
+              "solver_searches": 100,
+              "deduped": 0,
+              "interrupted_assessments": 0,
+              "keepers": 4
+            },
+            "blocks": [
+              {
+                "name": "level 1",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 2",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 3",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 4",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 5",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 6",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 7",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 8",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 9",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 10",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 11",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 12",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 13",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 14",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 15",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 16",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 17",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 18",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 19",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 20",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 21",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 22",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 23",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 24",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 25",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 26",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 27",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 28",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 29",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 30",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 31",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 32",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 33",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 34",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 35",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 36",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              }
+            ],
+            "evaluation_cache": {
+              "hits": 0,
+              "searches": 115,
+              "waits": 0,
+              "entries": 49,
+              "retained_bytes": 62412
+            }
+          }
+        },
+        {
+          "baseline": {
+            "wall_ms": 827.0571,
+            "output_sha256": "8943de0dc60949af6fbb50682c788b51b556a1671e77eaf3c4dccdccb4f9b69a",
+            "mode": "remix",
+            "stop_reason": "samples",
+            "elapsed_ms": 794,
+            "totals": {
+              "samples_attempted": 100,
+              "solver_searches": 100,
+              "deduped": 0,
+              "interrupted_assessments": 0,
+              "keepers": 4
+            },
+            "blocks": [
+              {
+                "name": "level 1",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 2",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 3",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 4",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 5",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 6",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 7",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 8",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 9",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 10",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 11",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 12",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 13",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 14",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 15",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 16",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 17",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 18",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 19",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 20",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 21",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 22",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 23",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 24",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 25",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 26",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 27",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 28",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 29",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 30",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 31",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 32",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 33",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 34",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 35",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 36",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              }
+            ],
+            "evaluation_cache": {
+              "hits": 0,
+              "searches": 115,
+              "waits": 0,
+              "entries": 49,
+              "retained_bytes": 62412
+            }
+          },
+          "future": {
+            "wall_ms": 824.2217,
+            "output_sha256": "8943de0dc60949af6fbb50682c788b51b556a1671e77eaf3c4dccdccb4f9b69a",
+            "mode": "remix",
+            "stop_reason": "samples",
+            "elapsed_ms": 789,
+            "totals": {
+              "samples_attempted": 100,
+              "solver_searches": 100,
+              "deduped": 0,
+              "interrupted_assessments": 0,
+              "keepers": 4
+            },
+            "blocks": [
+              {
+                "name": "level 1",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 2",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 3",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 4",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 5",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 6",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 7",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 8",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 9",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 10",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 11",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 12",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 13",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 14",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 15",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 16",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 17",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 18",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 19",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 20",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 21",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 22",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 23",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 24",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 25",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 26",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 27",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 28",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 29",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 30",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 31",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 32",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 33",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 34",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 35",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 36",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              }
+            ],
+            "evaluation_cache": {
+              "hits": 0,
+              "searches": 115,
+              "waits": 0,
+              "entries": 48,
+              "retained_bytes": 61572
+            },
+            "future_rule_filter": {
+              "supported": true,
+              "queries": 70858,
+              "misses": 175
+            }
+          }
+        }
+      ],
+      "baseline_median_ms": 827.0571,
+      "future_median_ms": 825.1417000000001,
+      "identical_outputs": true
+    },
+    {
+      "game": "chaos wizard",
+      "jobs": 1,
+      "pairs": [
+        {
+          "baseline": {
+            "wall_ms": 539.326,
+            "output_sha256": "ff0f3e5908e9f815bd85b9bae46e724a760c2ed0bee9e366d9684680b632ee84",
+            "mode": "remix",
+            "stop_reason": "samples",
+            "elapsed_ms": 507,
+            "totals": {
+              "samples_attempted": 100,
+              "solver_searches": 100,
+              "deduped": 0,
+              "interrupted_assessments": 0,
+              "keepers": 0
+            },
+            "blocks": [
+              {
+                "name": "level 1",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 2",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 3",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 4",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 5",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 6",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 7",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 8",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 9",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 10",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 11",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 12",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 13",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 14",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 15",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 16",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 17",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 18",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 19",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 20",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 21",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 22",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              }
+            ],
+            "evaluation_cache": {
+              "hits": 0,
+              "searches": 100,
+              "waits": 0,
+              "entries": 77,
+              "retained_bytes": 429708
+            }
+          },
+          "future": {
+            "wall_ms": 551.8801000000003,
+            "output_sha256": "ff0f3e5908e9f815bd85b9bae46e724a760c2ed0bee9e366d9684680b632ee84",
+            "mode": "remix",
+            "stop_reason": "samples",
+            "elapsed_ms": 516,
+            "totals": {
+              "samples_attempted": 100,
+              "solver_searches": 100,
+              "deduped": 0,
+              "interrupted_assessments": 0,
+              "keepers": 0
+            },
+            "blocks": [
+              {
+                "name": "level 1",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 2",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 3",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 4",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 5",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 6",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 7",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 8",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 9",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 10",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 11",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 12",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 13",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 14",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 15",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 16",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 17",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 18",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 19",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 20",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 21",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 22",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              }
+            ],
+            "evaluation_cache": {
+              "hits": 0,
+              "searches": 100,
+              "waits": 0,
+              "entries": 76,
+              "retained_bytes": 424608
+            },
+            "future_rule_filter": {
+              "supported": true,
+              "queries": 20305,
+              "misses": 179
+            }
+          }
+        },
+        {
+          "future": {
+            "wall_ms": 549.7095000000008,
+            "output_sha256": "ff0f3e5908e9f815bd85b9bae46e724a760c2ed0bee9e366d9684680b632ee84",
+            "mode": "remix",
+            "stop_reason": "samples",
+            "elapsed_ms": 516,
+            "totals": {
+              "samples_attempted": 100,
+              "solver_searches": 100,
+              "deduped": 0,
+              "interrupted_assessments": 0,
+              "keepers": 0
+            },
+            "blocks": [
+              {
+                "name": "level 1",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 2",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 3",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 4",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 5",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 6",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 7",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 8",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 9",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 10",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 11",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 12",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 13",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 14",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 15",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 16",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 17",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 18",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 19",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 20",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 21",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 22",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              }
+            ],
+            "evaluation_cache": {
+              "hits": 0,
+              "searches": 100,
+              "waits": 0,
+              "entries": 76,
+              "retained_bytes": 424608
+            },
+            "future_rule_filter": {
+              "supported": true,
+              "queries": 19959,
+              "misses": 176
+            }
+          },
+          "baseline": {
+            "wall_ms": 538.2178000000004,
+            "output_sha256": "ff0f3e5908e9f815bd85b9bae46e724a760c2ed0bee9e366d9684680b632ee84",
+            "mode": "remix",
+            "stop_reason": "samples",
+            "elapsed_ms": 504,
+            "totals": {
+              "samples_attempted": 100,
+              "solver_searches": 100,
+              "deduped": 0,
+              "interrupted_assessments": 0,
+              "keepers": 0
+            },
+            "blocks": [
+              {
+                "name": "level 1",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 2",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 3",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 4",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 5",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 6",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 7",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 8",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 9",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 10",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 11",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 12",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 13",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 14",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 15",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 16",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 17",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 18",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 19",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 20",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 21",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 22",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              }
+            ],
+            "evaluation_cache": {
+              "hits": 0,
+              "searches": 100,
+              "waits": 0,
+              "entries": 77,
+              "retained_bytes": 429708
+            }
+          }
+        },
+        {
+          "baseline": {
+            "wall_ms": 531.1218000000008,
+            "output_sha256": "ff0f3e5908e9f815bd85b9bae46e724a760c2ed0bee9e366d9684680b632ee84",
+            "mode": "remix",
+            "stop_reason": "samples",
+            "elapsed_ms": 499,
+            "totals": {
+              "samples_attempted": 100,
+              "solver_searches": 100,
+              "deduped": 0,
+              "interrupted_assessments": 0,
+              "keepers": 0
+            },
+            "blocks": [
+              {
+                "name": "level 1",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 2",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 3",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 4",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 5",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 6",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 7",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 8",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 9",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 10",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 11",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 12",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 13",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 14",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 15",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 16",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 17",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 18",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 19",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 20",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 21",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 22",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              }
+            ],
+            "evaluation_cache": {
+              "hits": 0,
+              "searches": 100,
+              "waits": 0,
+              "entries": 77,
+              "retained_bytes": 429708
+            }
+          },
+          "future": {
+            "wall_ms": 544.5508000000009,
+            "output_sha256": "ff0f3e5908e9f815bd85b9bae46e724a760c2ed0bee9e366d9684680b632ee84",
+            "mode": "remix",
+            "stop_reason": "samples",
+            "elapsed_ms": 509,
+            "totals": {
+              "samples_attempted": 100,
+              "solver_searches": 100,
+              "deduped": 0,
+              "interrupted_assessments": 0,
+              "keepers": 0
+            },
+            "blocks": [
+              {
+                "name": "level 1",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 2",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 3",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 4",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 5",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 6",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 7",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 8",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 9",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 10",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 11",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 12",
+                "samples_attempted": 5,
+                "solver_searches": 5,
+                "keepers": 0
+              },
+              {
+                "name": "level 13",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 14",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 15",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 16",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 17",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 18",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 19",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 20",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 21",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              },
+              {
+                "name": "level 22",
+                "samples_attempted": 4,
+                "solver_searches": 4,
+                "keepers": 0
+              }
+            ],
+            "evaluation_cache": {
+              "hits": 0,
+              "searches": 100,
+              "waits": 0,
+              "entries": 77,
+              "retained_bytes": 429708
+            },
+            "future_rule_filter": {
+              "supported": true,
+              "queries": 20646,
+              "misses": 174
+            }
+          }
+        }
+      ],
+      "baseline_median_ms": 538.2178000000004,
+      "future_median_ms": 549.7095000000008,
+      "identical_outputs": true
+    },
+    {
+      "game": "dropswap",
+      "jobs": 1,
+      "pairs": [
+        {
+          "baseline": {
+            "wall_ms": 641.5723999999991,
+            "output_sha256": "9a7556d14c686c9367d2cca20e3f578c0f83e6ed9a7ee5c722be5184f33f107c",
+            "mode": "remix",
+            "stop_reason": "samples",
+            "elapsed_ms": 613,
+            "totals": {
+              "samples_attempted": 100,
+              "solver_searches": 100,
+              "deduped": 0,
+              "interrupted_assessments": 0,
+              "keepers": 0
+            },
+            "blocks": [
+              {
+                "name": "level 1",
+                "samples_attempted": 20,
+                "solver_searches": 20,
+                "keepers": 0
+              },
+              {
+                "name": "level 2",
+                "samples_attempted": 20,
+                "solver_searches": 20,
+                "keepers": 0
+              },
+              {
+                "name": "level 3",
+                "samples_attempted": 20,
+                "solver_searches": 20,
+                "keepers": 0
+              },
+              {
+                "name": "level 4",
+                "samples_attempted": 20,
+                "solver_searches": 20,
+                "keepers": 0
+              },
+              {
+                "name": "level 5",
+                "samples_attempted": 20,
+                "solver_searches": 20,
+                "keepers": 0
+              }
+            ],
+            "evaluation_cache": {
+              "hits": 0,
+              "searches": 100,
+              "waits": 0,
+              "entries": 79,
+              "retained_bytes": 165020
+            }
+          },
+          "future": {
+            "wall_ms": 655.0999000000011,
+            "output_sha256": "9a7556d14c686c9367d2cca20e3f578c0f83e6ed9a7ee5c722be5184f33f107c",
+            "mode": "remix",
+            "stop_reason": "samples",
+            "elapsed_ms": 625,
+            "totals": {
+              "samples_attempted": 100,
+              "solver_searches": 100,
+              "deduped": 0,
+              "interrupted_assessments": 0,
+              "keepers": 0
+            },
+            "blocks": [
+              {
+                "name": "level 1",
+                "samples_attempted": 20,
+                "solver_searches": 20,
+                "keepers": 0
+              },
+              {
+                "name": "level 2",
+                "samples_attempted": 20,
+                "solver_searches": 20,
+                "keepers": 0
+              },
+              {
+                "name": "level 3",
+                "samples_attempted": 20,
+                "solver_searches": 20,
+                "keepers": 0
+              },
+              {
+                "name": "level 4",
+                "samples_attempted": 20,
+                "solver_searches": 20,
+                "keepers": 0
+              },
+              {
+                "name": "level 5",
+                "samples_attempted": 20,
+                "solver_searches": 20,
+                "keepers": 0
+              }
+            ],
+            "evaluation_cache": {
+              "hits": 0,
+              "searches": 100,
+              "waits": 0,
+              "entries": 78,
+              "retained_bytes": 162440
+            },
+            "future_rule_filter": {
+              "supported": true,
+              "queries": 8962,
+              "misses": 36
+            }
+          }
+        },
+        {
+          "future": {
+            "wall_ms": 653.6642999999985,
+            "output_sha256": "9a7556d14c686c9367d2cca20e3f578c0f83e6ed9a7ee5c722be5184f33f107c",
+            "mode": "remix",
+            "stop_reason": "samples",
+            "elapsed_ms": 621,
+            "totals": {
+              "samples_attempted": 100,
+              "solver_searches": 100,
+              "deduped": 0,
+              "interrupted_assessments": 0,
+              "keepers": 0
+            },
+            "blocks": [
+              {
+                "name": "level 1",
+                "samples_attempted": 20,
+                "solver_searches": 20,
+                "keepers": 0
+              },
+              {
+                "name": "level 2",
+                "samples_attempted": 20,
+                "solver_searches": 20,
+                "keepers": 0
+              },
+              {
+                "name": "level 3",
+                "samples_attempted": 20,
+                "solver_searches": 20,
+                "keepers": 0
+              },
+              {
+                "name": "level 4",
+                "samples_attempted": 20,
+                "solver_searches": 20,
+                "keepers": 0
+              },
+              {
+                "name": "level 5",
+                "samples_attempted": 20,
+                "solver_searches": 20,
+                "keepers": 0
+              }
+            ],
+            "evaluation_cache": {
+              "hits": 0,
+              "searches": 100,
+              "waits": 0,
+              "entries": 76,
+              "retained_bytes": 157840
+            },
+            "future_rule_filter": {
+              "supported": true,
+              "queries": 8946,
+              "misses": 36
+            }
+          },
+          "baseline": {
+            "wall_ms": 694.7497000000003,
+            "output_sha256": "9a7556d14c686c9367d2cca20e3f578c0f83e6ed9a7ee5c722be5184f33f107c",
+            "mode": "remix",
+            "stop_reason": "samples",
+            "elapsed_ms": 662,
+            "totals": {
+              "samples_attempted": 100,
+              "solver_searches": 100,
+              "deduped": 0,
+              "interrupted_assessments": 0,
+              "keepers": 0
+            },
+            "blocks": [
+              {
+                "name": "level 1",
+                "samples_attempted": 20,
+                "solver_searches": 20,
+                "keepers": 0
+              },
+              {
+                "name": "level 2",
+                "samples_attempted": 20,
+                "solver_searches": 20,
+                "keepers": 0
+              },
+              {
+                "name": "level 3",
+                "samples_attempted": 20,
+                "solver_searches": 20,
+                "keepers": 0
+              },
+              {
+                "name": "level 4",
+                "samples_attempted": 20,
+                "solver_searches": 20,
+                "keepers": 0
+              },
+              {
+                "name": "level 5",
+                "samples_attempted": 20,
+                "solver_searches": 20,
+                "keepers": 0
+              }
+            ],
+            "evaluation_cache": {
+              "hits": 0,
+              "searches": 100,
+              "waits": 0,
+              "entries": 75,
+              "retained_bytes": 156940
+            }
+          }
+        },
+        {
+          "baseline": {
+            "wall_ms": 650.4870999999985,
+            "output_sha256": "9a7556d14c686c9367d2cca20e3f578c0f83e6ed9a7ee5c722be5184f33f107c",
+            "mode": "remix",
+            "stop_reason": "samples",
+            "elapsed_ms": 620,
+            "totals": {
+              "samples_attempted": 100,
+              "solver_searches": 100,
+              "deduped": 0,
+              "interrupted_assessments": 0,
+              "keepers": 0
+            },
+            "blocks": [
+              {
+                "name": "level 1",
+                "samples_attempted": 20,
+                "solver_searches": 20,
+                "keepers": 0
+              },
+              {
+                "name": "level 2",
+                "samples_attempted": 20,
+                "solver_searches": 20,
+                "keepers": 0
+              },
+              {
+                "name": "level 3",
+                "samples_attempted": 20,
+                "solver_searches": 20,
+                "keepers": 0
+              },
+              {
+                "name": "level 4",
+                "samples_attempted": 20,
+                "solver_searches": 20,
+                "keepers": 0
+              },
+              {
+                "name": "level 5",
+                "samples_attempted": 20,
+                "solver_searches": 20,
+                "keepers": 0
+              }
+            ],
+            "evaluation_cache": {
+              "hits": 0,
+              "searches": 100,
+              "waits": 0,
+              "entries": 78,
+              "retained_bytes": 162440
+            }
+          },
+          "future": {
+            "wall_ms": 634.5496000000003,
+            "output_sha256": "9a7556d14c686c9367d2cca20e3f578c0f83e6ed9a7ee5c722be5184f33f107c",
+            "mode": "remix",
+            "stop_reason": "samples",
+            "elapsed_ms": 603,
+            "totals": {
+              "samples_attempted": 100,
+              "solver_searches": 100,
+              "deduped": 0,
+              "interrupted_assessments": 0,
+              "keepers": 0
+            },
+            "blocks": [
+              {
+                "name": "level 1",
+                "samples_attempted": 20,
+                "solver_searches": 20,
+                "keepers": 0
+              },
+              {
+                "name": "level 2",
+                "samples_attempted": 20,
+                "solver_searches": 20,
+                "keepers": 0
+              },
+              {
+                "name": "level 3",
+                "samples_attempted": 20,
+                "solver_searches": 20,
+                "keepers": 0
+              },
+              {
+                "name": "level 4",
+                "samples_attempted": 20,
+                "solver_searches": 20,
+                "keepers": 0
+              },
+              {
+                "name": "level 5",
+                "samples_attempted": 20,
+                "solver_searches": 20,
+                "keepers": 0
+              }
+            ],
+            "evaluation_cache": {
+              "hits": 0,
+              "searches": 100,
+              "waits": 0,
+              "entries": 77,
+              "retained_bytes": 159860
+            },
+            "future_rule_filter": {
+              "supported": true,
+              "queries": 9063,
+              "misses": 36
+            }
+          }
+        }
+      ],
+      "baseline_median_ms": 650.4870999999985,
+      "future_median_ms": 653.6642999999985,
+      "identical_outputs": true
+    },
+    {
+      "game": "midas",
+      "jobs": 1,
+      "pairs": [
+        {
+          "baseline": {
+            "wall_ms": 971.5921999999991,
+            "output_sha256": "ae798bcd218cc5660c2d469206bebed220287c54c63f225d5238393e5e048bd1",
+            "mode": "remix",
+            "stop_reason": "samples",
+            "elapsed_ms": 943,
+            "totals": {
+              "samples_attempted": 100,
+              "solver_searches": 100,
+              "deduped": 0,
+              "interrupted_assessments": 0,
+              "keepers": 1
+            },
+            "blocks": [
+              {
+                "name": "level 1",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 2",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 3",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 4",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 1
+              },
+              {
+                "name": "level 5",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 6",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 7",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 8",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 9",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 10",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 11",
+                "samples_attempted": 6,
+                "solver_searches": 6,
+                "keepers": 0
+              },
+              {
+                "name": "level 12",
+                "samples_attempted": 6,
+                "solver_searches": 6,
+                "keepers": 0
+              },
+              {
+                "name": "level 13",
+                "samples_attempted": 6,
+                "solver_searches": 6,
+                "keepers": 0
+              },
+              {
+                "name": "level 14",
+                "samples_attempted": 6,
+                "solver_searches": 6,
+                "keepers": 0
+              },
+              {
+                "name": "level 15",
+                "samples_attempted": 6,
+                "solver_searches": 6,
+                "keepers": 0
+              }
+            ],
+            "evaluation_cache": {
+              "hits": 0,
+              "searches": 103,
+              "waits": 0,
+              "entries": 17,
+              "retained_bytes": 43008
+            }
+          },
+          "future": {
+            "wall_ms": 969.3394000000008,
+            "output_sha256": "ae798bcd218cc5660c2d469206bebed220287c54c63f225d5238393e5e048bd1",
+            "mode": "remix",
+            "stop_reason": "samples",
+            "elapsed_ms": 943,
+            "totals": {
+              "samples_attempted": 100,
+              "solver_searches": 100,
+              "deduped": 0,
+              "interrupted_assessments": 0,
+              "keepers": 1
+            },
+            "blocks": [
+              {
+                "name": "level 1",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 2",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 3",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 4",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 1
+              },
+              {
+                "name": "level 5",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 6",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 7",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 8",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 9",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 10",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 11",
+                "samples_attempted": 6,
+                "solver_searches": 6,
+                "keepers": 0
+              },
+              {
+                "name": "level 12",
+                "samples_attempted": 6,
+                "solver_searches": 6,
+                "keepers": 0
+              },
+              {
+                "name": "level 13",
+                "samples_attempted": 6,
+                "solver_searches": 6,
+                "keepers": 0
+              },
+              {
+                "name": "level 14",
+                "samples_attempted": 6,
+                "solver_searches": 6,
+                "keepers": 0
+              },
+              {
+                "name": "level 15",
+                "samples_attempted": 6,
+                "solver_searches": 6,
+                "keepers": 0
+              }
+            ],
+            "evaluation_cache": {
+              "hits": 0,
+              "searches": 103,
+              "waits": 0,
+              "entries": 17,
+              "retained_bytes": 43008
+            },
+            "future_rule_filter": {
+              "supported": true,
+              "queries": 50882,
+              "misses": 22
+            }
+          }
+        },
+        {
+          "future": {
+            "wall_ms": 974.7036999999982,
+            "output_sha256": "ae798bcd218cc5660c2d469206bebed220287c54c63f225d5238393e5e048bd1",
+            "mode": "remix",
+            "stop_reason": "samples",
+            "elapsed_ms": 947,
+            "totals": {
+              "samples_attempted": 100,
+              "solver_searches": 100,
+              "deduped": 0,
+              "interrupted_assessments": 0,
+              "keepers": 1
+            },
+            "blocks": [
+              {
+                "name": "level 1",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 2",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 3",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 4",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 1
+              },
+              {
+                "name": "level 5",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 6",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 7",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 8",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 9",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 10",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 11",
+                "samples_attempted": 6,
+                "solver_searches": 6,
+                "keepers": 0
+              },
+              {
+                "name": "level 12",
+                "samples_attempted": 6,
+                "solver_searches": 6,
+                "keepers": 0
+              },
+              {
+                "name": "level 13",
+                "samples_attempted": 6,
+                "solver_searches": 6,
+                "keepers": 0
+              },
+              {
+                "name": "level 14",
+                "samples_attempted": 6,
+                "solver_searches": 6,
+                "keepers": 0
+              },
+              {
+                "name": "level 15",
+                "samples_attempted": 6,
+                "solver_searches": 6,
+                "keepers": 0
+              }
+            ],
+            "evaluation_cache": {
+              "hits": 0,
+              "searches": 103,
+              "waits": 0,
+              "entries": 17,
+              "retained_bytes": 43008
+            },
+            "future_rule_filter": {
+              "supported": true,
+              "queries": 50599,
+              "misses": 22
+            }
+          },
+          "baseline": {
+            "wall_ms": 978.4464000000007,
+            "output_sha256": "ae798bcd218cc5660c2d469206bebed220287c54c63f225d5238393e5e048bd1",
+            "mode": "remix",
+            "stop_reason": "samples",
+            "elapsed_ms": 949,
+            "totals": {
+              "samples_attempted": 100,
+              "solver_searches": 100,
+              "deduped": 0,
+              "interrupted_assessments": 0,
+              "keepers": 1
+            },
+            "blocks": [
+              {
+                "name": "level 1",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 2",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 3",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 4",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 1
+              },
+              {
+                "name": "level 5",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 6",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 7",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 8",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 9",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 10",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 11",
+                "samples_attempted": 6,
+                "solver_searches": 6,
+                "keepers": 0
+              },
+              {
+                "name": "level 12",
+                "samples_attempted": 6,
+                "solver_searches": 6,
+                "keepers": 0
+              },
+              {
+                "name": "level 13",
+                "samples_attempted": 6,
+                "solver_searches": 6,
+                "keepers": 0
+              },
+              {
+                "name": "level 14",
+                "samples_attempted": 6,
+                "solver_searches": 6,
+                "keepers": 0
+              },
+              {
+                "name": "level 15",
+                "samples_attempted": 6,
+                "solver_searches": 6,
+                "keepers": 0
+              }
+            ],
+            "evaluation_cache": {
+              "hits": 0,
+              "searches": 103,
+              "waits": 0,
+              "entries": 17,
+              "retained_bytes": 43008
+            }
+          }
+        },
+        {
+          "baseline": {
+            "wall_ms": 971.4471000000012,
+            "output_sha256": "ae798bcd218cc5660c2d469206bebed220287c54c63f225d5238393e5e048bd1",
+            "mode": "remix",
+            "stop_reason": "samples",
+            "elapsed_ms": 945,
+            "totals": {
+              "samples_attempted": 100,
+              "solver_searches": 100,
+              "deduped": 0,
+              "interrupted_assessments": 0,
+              "keepers": 1
+            },
+            "blocks": [
+              {
+                "name": "level 1",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 2",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 3",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 4",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 1
+              },
+              {
+                "name": "level 5",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 6",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 7",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 8",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 9",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 10",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 11",
+                "samples_attempted": 6,
+                "solver_searches": 6,
+                "keepers": 0
+              },
+              {
+                "name": "level 12",
+                "samples_attempted": 6,
+                "solver_searches": 6,
+                "keepers": 0
+              },
+              {
+                "name": "level 13",
+                "samples_attempted": 6,
+                "solver_searches": 6,
+                "keepers": 0
+              },
+              {
+                "name": "level 14",
+                "samples_attempted": 6,
+                "solver_searches": 6,
+                "keepers": 0
+              },
+              {
+                "name": "level 15",
+                "samples_attempted": 6,
+                "solver_searches": 6,
+                "keepers": 0
+              }
+            ],
+            "evaluation_cache": {
+              "hits": 0,
+              "searches": 103,
+              "waits": 0,
+              "entries": 17,
+              "retained_bytes": 43008
+            }
+          },
+          "future": {
+            "wall_ms": 978.6676999999981,
+            "output_sha256": "ae798bcd218cc5660c2d469206bebed220287c54c63f225d5238393e5e048bd1",
+            "mode": "remix",
+            "stop_reason": "samples",
+            "elapsed_ms": 950,
+            "totals": {
+              "samples_attempted": 100,
+              "solver_searches": 100,
+              "deduped": 0,
+              "interrupted_assessments": 0,
+              "keepers": 1
+            },
+            "blocks": [
+              {
+                "name": "level 1",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 2",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 3",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 4",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 1
+              },
+              {
+                "name": "level 5",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 6",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 7",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 8",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 9",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 10",
+                "samples_attempted": 7,
+                "solver_searches": 7,
+                "keepers": 0
+              },
+              {
+                "name": "level 11",
+                "samples_attempted": 6,
+                "solver_searches": 6,
+                "keepers": 0
+              },
+              {
+                "name": "level 12",
+                "samples_attempted": 6,
+                "solver_searches": 6,
+                "keepers": 0
+              },
+              {
+                "name": "level 13",
+                "samples_attempted": 6,
+                "solver_searches": 6,
+                "keepers": 0
+              },
+              {
+                "name": "level 14",
+                "samples_attempted": 6,
+                "solver_searches": 6,
+                "keepers": 0
+              },
+              {
+                "name": "level 15",
+                "samples_attempted": 6,
+                "solver_searches": 6,
+                "keepers": 0
+              }
+            ],
+            "evaluation_cache": {
+              "hits": 0,
+              "searches": 103,
+              "waits": 0,
+              "entries": 16,
+              "retained_bytes": 40908
+            },
+            "future_rule_filter": {
+              "supported": true,
+              "queries": 48036,
+              "misses": 22
+            }
+          }
+        }
+      ],
+      "baseline_median_ms": 971.5921999999991,
+      "future_median_ms": 974.7036999999982,
+      "identical_outputs": true
+    },
+    {
+      "game": "cakemonsters",
+      "jobs": 4,
+      "pairs": [
+        {
+          "baseline": {
+            "wall_ms": 415.1797000000006,
+            "output_sha256": "8943de0dc60949af6fbb50682c788b51b556a1671e77eaf3c4dccdccb4f9b69a",
+            "mode": "remix",
+            "stop_reason": "samples",
+            "elapsed_ms": 381,
+            "totals": {
+              "samples_attempted": 100,
+              "solver_searches": 100,
+              "deduped": 0,
+              "interrupted_assessments": 0,
+              "keepers": 4
+            },
+            "blocks": [
+              {
+                "name": "level 1",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 2",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 3",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 4",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 5",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 6",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 7",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 8",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 9",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 10",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 11",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 12",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 13",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 14",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 15",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 16",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 17",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 18",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 19",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 20",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 21",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 22",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 23",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 24",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 25",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 26",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 27",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 28",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 29",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 30",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 31",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 32",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 33",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 34",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 35",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 36",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              }
+            ],
+            "evaluation_cache": {
+              "hits": 0,
+              "searches": 118,
+              "waits": 0,
+              "entries": 52,
+              "retained_bytes": 66976
+            }
+          },
+          "future": {
+            "wall_ms": 413.6731,
+            "output_sha256": "8943de0dc60949af6fbb50682c788b51b556a1671e77eaf3c4dccdccb4f9b69a",
+            "mode": "remix",
+            "stop_reason": "samples",
+            "elapsed_ms": 382,
+            "totals": {
+              "samples_attempted": 100,
+              "solver_searches": 100,
+              "deduped": 0,
+              "interrupted_assessments": 0,
+              "keepers": 4
+            },
+            "blocks": [
+              {
+                "name": "level 1",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 2",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 3",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 4",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 5",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 6",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 7",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 8",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 9",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 10",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 11",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 12",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 13",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 14",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 15",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 16",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 17",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 18",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 19",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 20",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 21",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 22",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 23",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 24",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 25",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 26",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 27",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 28",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 29",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 30",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 31",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 32",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 33",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 34",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 35",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 36",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              }
+            ],
+            "evaluation_cache": {
+              "hits": 0,
+              "searches": 118,
+              "waits": 0,
+              "entries": 51,
+              "retained_bytes": 65980
+            },
+            "future_rule_filter": {
+              "supported": true,
+              "queries": 64945,
+              "misses": 168
+            }
+          }
+        },
+        {
+          "future": {
+            "wall_ms": 413.3080000000009,
+            "output_sha256": "8943de0dc60949af6fbb50682c788b51b556a1671e77eaf3c4dccdccb4f9b69a",
+            "mode": "remix",
+            "stop_reason": "samples",
+            "elapsed_ms": 382,
+            "totals": {
+              "samples_attempted": 100,
+              "solver_searches": 100,
+              "deduped": 0,
+              "interrupted_assessments": 0,
+              "keepers": 4
+            },
+            "blocks": [
+              {
+                "name": "level 1",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 2",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 3",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 4",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 5",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 6",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 7",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 8",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 9",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 10",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 11",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 12",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 13",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 14",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 15",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 16",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 17",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 18",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 19",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 20",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 21",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 22",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 23",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 24",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 25",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 26",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 27",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 28",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 29",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 30",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 31",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 32",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 33",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 34",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 35",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 36",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              }
+            ],
+            "evaluation_cache": {
+              "hits": 0,
+              "searches": 118,
+              "waits": 0,
+              "entries": 49,
+              "retained_bytes": 64144
+            },
+            "future_rule_filter": {
+              "supported": true,
+              "queries": 62366,
+              "misses": 169
+            }
+          },
+          "baseline": {
+            "wall_ms": 395.23519999999917,
+            "output_sha256": "37f51970e1e3290c9a3ecc60c51f6d3edd749da6bd1215cd6243ee0652372667",
+            "mode": "remix",
+            "stop_reason": "samples",
+            "elapsed_ms": 362,
+            "totals": {
+              "samples_attempted": 100,
+              "solver_searches": 100,
+              "deduped": 0,
+              "interrupted_assessments": 0,
+              "keepers": 3
+            },
+            "blocks": [
+              {
+                "name": "level 1",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 2",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 3",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 4",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 5",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 6",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 7",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 8",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 9",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 10",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 11",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 12",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 13",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 14",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 15",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 16",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 17",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 18",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 19",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 20",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 21",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 22",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 23",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 24",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 25",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 26",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 27",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 28",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 29",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 30",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 31",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 32",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 33",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 34",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 35",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 36",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              }
+            ],
+            "evaluation_cache": {
+              "hits": 0,
+              "searches": 115,
+              "waits": 0,
+              "entries": 48,
+              "retained_bytes": 62052
+            }
+          }
+        },
+        {
+          "baseline": {
+            "wall_ms": 393.3702000000012,
+            "output_sha256": "37f51970e1e3290c9a3ecc60c51f6d3edd749da6bd1215cd6243ee0652372667",
+            "mode": "remix",
+            "stop_reason": "samples",
+            "elapsed_ms": 357,
+            "totals": {
+              "samples_attempted": 100,
+              "solver_searches": 100,
+              "deduped": 0,
+              "interrupted_assessments": 0,
+              "keepers": 3
+            },
+            "blocks": [
+              {
+                "name": "level 1",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 2",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 3",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 4",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 5",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 6",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 7",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 8",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 9",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 10",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 11",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 12",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 13",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 14",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 15",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 16",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 17",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 18",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 19",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 20",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 21",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 22",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 23",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 24",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 25",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 26",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 27",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 28",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 29",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 30",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 31",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 32",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 33",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 34",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 35",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 36",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              }
+            ],
+            "evaluation_cache": {
+              "hits": 0,
+              "searches": 115,
+              "waits": 0,
+              "entries": 48,
+              "retained_bytes": 62208
+            }
+          },
+          "future": {
+            "wall_ms": 390.27549999999974,
+            "output_sha256": "37f51970e1e3290c9a3ecc60c51f6d3edd749da6bd1215cd6243ee0652372667",
+            "mode": "remix",
+            "stop_reason": "samples",
+            "elapsed_ms": 355,
+            "totals": {
+              "samples_attempted": 100,
+              "solver_searches": 100,
+              "deduped": 0,
+              "interrupted_assessments": 0,
+              "keepers": 3
+            },
+            "blocks": [
+              {
+                "name": "level 1",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 2",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 3",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 4",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 5",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 6",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 7",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 8",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 9",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 10",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 11",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 12",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 13",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 14",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 15",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 16",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 17",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 18",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 19",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 20",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 1
+              },
+              {
+                "name": "level 21",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 22",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 23",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 24",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 25",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 26",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 27",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 28",
+                "samples_attempted": 3,
+                "solver_searches": 3,
+                "keepers": 0
+              },
+              {
+                "name": "level 29",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 30",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 31",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 32",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 33",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 34",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 35",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              },
+              {
+                "name": "level 36",
+                "samples_attempted": 2,
+                "solver_searches": 2,
+                "keepers": 0
+              }
+            ],
+            "evaluation_cache": {
+              "hits": 0,
+              "searches": 115,
+              "waits": 0,
+              "entries": 49,
+              "retained_bytes": 63048
+            },
+            "future_rule_filter": {
+              "supported": true,
+              "queries": 63417,
+              "misses": 170
+            }
+          }
+        }
+      ],
+      "baseline_median_ms": 395.23519999999917,
+      "future_median_ms": 413.3080000000009,
+      "identical_outputs": false
+    }
+  ]
+}

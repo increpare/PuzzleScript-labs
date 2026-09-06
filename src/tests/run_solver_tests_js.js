@@ -23,6 +23,7 @@ const {
     attachCertifiedWakeMasksToRuntimeRules,
 } = require('./lib/certified_wake_prune');
 const { analyzeSource } = require('./ps_static_analysis');
+const { FUTURE_OBJECT_FACT_FAMILIES, getFutureObjectSession } = require('./lib/future_object_universe');
 const {
     resolveSolverPasses,
     createSolverOptimizationHook,
@@ -463,6 +464,7 @@ function parseArgs(argv) {
         solverHashProjection: false,
         solverHashProjectionParity: false,
         solverCertifiedWakePrune: false,
+        solverFuturePrune: false,
         solverWakePruneCounters: false,
         solverOptimizeStatic: false,
         solverOptPasses: null,
@@ -561,6 +563,8 @@ function parseArgs(argv) {
             options.solverOptParity = true;
         } else if (arg === '--force-noaction') {
             options.forceNoaction = true;
+        } else if (arg === '--solver-future-prune') {
+            options.solverFuturePrune = true;
         } else if (arg === '--adaptive-step-cost') {
             options.adaptiveStepCost = true;
         } else if (arg === '--bench-store') {
@@ -593,6 +597,10 @@ function parseArgs(argv) {
     if (options.solverHashProjectionParity) {
         options.solverHashProjection = true;
     }
+    if (options.solverFuturePrune && (options.solverOptPasses || options.solverOptimizeStatic
+        || options.strategy === 'push-space' || options.strategy === 'naive')) {
+        throw new Error('--solver-future-prune currently requires ordinary search without structural solver-opt passes');
+    }
     return options;
 }
 
@@ -608,6 +616,7 @@ function usage(exitCode) {
         '  --solver-focus-manifest: only run (game, level) pairs listed in the JSON manifest targets (corpus dir must contain those .txt files). Ignores --game/--level when set.\n' +
         '  --solver-hash-projection: project certified solver_hash_projection object bits out of visited-state hashes. --solver-hash-projection-parity pairs each run with a baseline solve and replay check.\n' +
         '  --solver-certified-wake-prune: opt into certified movement wake-mask pruning from static analysis facts.\n' +
+        '  --solver-future-prune: opt into goal-impossibility proofs from the remaining future object universe; reset/checkpoint games fall back.\n' +
         '  --solver-wake-prune-counters: copy opt-in incremental/certified wake-prune counters into solver JSON and bench-store rows.\n' +
         '  Static solver optimizations (off by default): --solver-optimize-static enables inert-command-only rule pruning. --solver-opt selects passes (inert, cosmetic, cosmetic-rules, merge, action, win-relevance, or all). --solver-opt-parity re-solves each level without optimizations first and fails on status/solution mismatch vs optimized compile.\n' +
         '  --force-noaction injects noaction metadata before compiling, for A/B candidate vetting.\n' +
@@ -3867,6 +3876,9 @@ function runNaivePsPlusSolver(game, levelIndex, timeoutMs, compileMs, options, r
 
 function createSolverResult(game, levelIndex, timeoutMs, compileMs) {
     const result = {
+        future_prune_checks: 0,
+        future_pruned: 0,
+        future_prune_ms: 0,
         game,
         level: levelIndex,
         status: 'exhausted',
@@ -3956,6 +3968,8 @@ function attachSolverHashProjectionMetrics(result, solverOps) {
 
 function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
     const result = createSolverResult(game, levelIndex, timeoutMs, compileMs);
+    let futurePrune = null;
+    let futureLevelMetrics = null;
     if (options.solverWakePruneCounters) {
         process.env.PUZZLESCRIPT_WAKE_PRUNE_COUNTERS = '1';
     }
@@ -3997,6 +4011,41 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
         return result;
     }
 
+    if (options.solverFuturePrune) {
+        // Keep the compiled plan and bounded verdict cache across all candidate
+        // levels in this ruleset. Only the settled player count belongs to the
+        // level: its conservation proof is already in the reusable plan.
+        const session = getFutureObjectSession(options.staticAnalysisReport, state);
+        const firstLevel = session.counters.player_checks === 0;
+        const player = session.certifyPlayer(level.objects, STRIDE_OBJ);
+        futureLevelMetrics = {
+            future_ruleset_setups: firstLevel ? 1 : 0,
+            future_player_count: player.player_count,
+            future_single_player_certified: player.single_player_certified,
+        };
+        Object.assign(result, futureLevelMetrics);
+        if (!session.analyzer.blockers.length) {
+            futurePrune = (metrics) => {
+                const start = performance.now();
+                const impossible = session.preventsCompletion(level.objects, STRIDE_OBJ, metrics);
+                metrics.future_prune_checks = (metrics.future_prune_checks || 0) + 1;
+                metrics.future_prune_ms = (metrics.future_prune_ms || 0) + performance.now() - start;
+                if (impossible) metrics.future_pruned = (metrics.future_pruned || 0) + 1;
+                return impossible;
+            };
+            // Unlike a heuristic penalty, this proves that no winning route
+            // remains, including reachable explicit win commands. Check settled
+            // states only and keep the actual engine board unchanged. This opt-in
+            // can save entire subtrees; its counting cost is measured separately.
+            if (futurePrune(result)) {
+                result.status = 'exhausted';
+                result.strategy = options.strategy || DEFAULT_STRATEGY;
+                result.elapsed_ms = performance.now() - loadStart;
+                return result;
+            }
+        }
+    }
+
     const searchStarted = Date.now();
     const deadline = Number.isFinite(timeoutMs) ? searchStarted + timeoutMs : Infinity;
     const strategy = options.strategy || DEFAULT_STRATEGY;
@@ -4009,6 +4058,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
 
     const runMode = (mode, modeDeadline) => {
         const modeResult = createSolverResult(game, levelIndex, timeoutMs, compileMs);
+        Object.assign(modeResult, futureLevelMetrics);
         resetSolverWakePruneCountersForMode();
         if (SOLVER_RULE_HOTSPOTS) {
             modeResult._ruleHotspots = new Map();
@@ -4118,6 +4168,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                     }
                     bestDepth.set(key, childDepth);
                 }
+                if (futurePrune && futurePrune(modeResult)) continue;
                 const snapshot = SOLVER_DETAIL_TIMING
                     ? timeBlock(modeResult, 'snapshot_ms', () => solverOps.capture())
                     : solverOps.capture();
@@ -4372,6 +4423,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
 
     const runAdaptivePortfolio = (modeDeadline) => {
         const modeResult = createSolverResult(game, levelIndex, timeoutMs, compileMs);
+        Object.assign(modeResult, futureLevelMetrics);
         resetSolverWakePruneCountersForMode();
         if (SOLVER_RULE_HOTSPOTS) {
             modeResult._ruleHotspots = new Map();
@@ -4578,6 +4630,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                     }
                     bestDepth.set(key, childDepth);
                 }
+                if (futurePrune && futurePrune(modeResult)) continue;
                 // Determine which heuristics we still need to compute. When locked to
                 // weighted-astar we only need the heuristic for the locked entry; otherwise
                 // every heuristic that still has at least one queue entry needs to be evaluated.
@@ -4813,6 +4866,7 @@ function runGame(root, file, options = {}) {
 
     const passes = resolveSolverPasses(options);
     const needsStaticAnalysis = options.solverStaticHash
+        || options.solverFuturePrune
         || options.solverHashProjection
         || options.solverCertifiedWakePrune
         || passes.inert
@@ -4834,6 +4888,7 @@ function runGame(root, file, options = {}) {
         const familyFilter = useFullStaticFamilies
             ? undefined
             : [
+                ...(options.solverFuturePrune ? FUTURE_OBJECT_FACT_FAMILIES : []),
                 options.solverStaticHash ? 'count_layer_invariants' : null,
                 options.solverHashProjection ? 'solver_hash_projection' : null,
                 options.solverCertifiedWakePrune ? 'certified_wake_masks' : null,
@@ -4842,7 +4897,7 @@ function runGame(root, file, options = {}) {
             ].filter(Boolean);
         staticAnalysisReport = analyzeSource(source, {
             sourcePath: game,
-            familyFilter: familyFilter && familyFilter.length === 1 ? familyFilter[0] : familyFilter,
+            familyFilter: familyFilter ? [...new Set(familyFilter)] : undefined,
         });
         staticAnalysisMs = performance.now() - staticAnalysisStart;
     }
@@ -5515,6 +5570,12 @@ function totals(results) {
             out.solver_optimization_gated = true;
         }
         out.solver_hash_projection_projected_objects += result.solver_hash_projection_projected_objects || 0;
+        out.future_prune_checks = (out.future_prune_checks || 0) + (result.future_prune_checks || 0);
+        out.future_pruned = (out.future_pruned || 0) + (result.future_pruned || 0);
+        out.future_prune_ms = (out.future_prune_ms || 0) + (result.future_prune_ms || 0);
+        out.future_ruleset_setups = (out.future_ruleset_setups || 0) + (result.future_ruleset_setups || 0);
+        out.future_single_player_levels = (out.future_single_player_levels || 0) + (result.future_single_player_certified ? 1 : 0);
+        out.future_presence_cache_hits = (out.future_presence_cache_hits || 0) + (result.future_presence_cache_hits || 0);
         out.certified_wake_prune_attached_rules += result.certified_wake_prune_attached_rules || 0;
         if (result.certified_wake_prune_complete) {
             out.certified_wake_prune_complete = true;
@@ -5659,6 +5720,7 @@ function benchStoreConfig(options) {
         solver_hash_projection: options.solverHashProjection,
         solver_hash_projection_parity: options.solverHashProjectionParity,
         solver_certified_wake_prune: options.solverCertifiedWakePrune,
+        solver_future_prune: options.solverFuturePrune,
         solver_wake_prune_counters: options.solverWakePruneCounters,
         solver_optimize_static: options.solverOptimizeStatic,
         solver_opt_passes: options.solverOptPasses,
@@ -5759,6 +5821,11 @@ module.exports = {
     replaySolutionOnCurrentCompiledState,
     replaySolutionOnGameFile,
     __solverSearchInternals: {
+        // Reuse the real solver's snapshot/turn semantics in bounded invariant
+        // surveys, rather than maintaining another miniature engine adapter.
+        createSolverLevelSpecialization,
+        stepSolverAction,
+        solverActionsForGame,
         compareSolverQueueItems,
         createObjectNoveltyTracker,
         createPushSpaceBlockingWords,

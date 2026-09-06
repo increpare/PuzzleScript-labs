@@ -1,4 +1,5 @@
 #include "search/difficulty.hpp"
+#include "search/evaluation_cache.hpp"
 
 #include "runtime/c_api_internal.hpp"
 
@@ -47,7 +48,7 @@ bool assessmentStopped(const DifficultyOptions& options) {
         || (options.deadline && std::chrono::steady_clock::now() >= *options.deadline);
 }
 
-SolveAttempt runStrategy(
+SolveAttempt runStrategyUncached(
     const ps_game* game,
     int32_t width,
     int32_t height,
@@ -55,7 +56,8 @@ SolveAttempt runStrategy(
     const DifficultyOptions& options,
     ps_solve_strategy strategy,
     uint64_t maxExpanded,
-    const char* solverHeuristic = nullptr) {
+    const char* solverHeuristic = nullptr,
+    bool preserveLaneBudget = false) {
     SolveAttempt attempt;
     if (assessmentStopped(options)) {
         attempt.status = PS_SOLVE_STATUS_TIMEOUT;
@@ -63,7 +65,7 @@ SolveAttempt runStrategy(
     }
     ps_solve_options solveOptions = ps_solve_default_options();
     solveOptions.timeout_ms = std::max<int64_t>(1, options.timeoutMs);
-    if (options.deadline) {
+    if (options.deadline && !preserveLaneBudget) {
         const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(
             *options.deadline - std::chrono::steady_clock::now()).count();
         solveOptions.timeout_ms = std::min(solveOptions.timeout_ms, std::max<int64_t>(1, remaining));
@@ -78,6 +80,7 @@ SolveAttempt runStrategy(
     solveOptions.portfolio_jobs = 1;
     solveOptions.max_expanded = maxExpanded;
     solveOptions.solver_heuristic = solverHeuristic;
+    solveOptions.random_seed = options.randomSeed.empty() ? nullptr : options.randomSeed.c_str();
 
     ps_solve_result* rawResult = nullptr;
     ps_error* rawError = nullptr;
@@ -111,6 +114,47 @@ SolveAttempt runStrategy(
         attempt.solution = copySolution(result.get());
     }
     return attempt;
+}
+
+struct LaneKey {
+    int32_t width, height;
+    std::vector<int32_t> cells;
+    std::string seed, heuristic;
+    ps_solve_strategy strategy;
+    uint64_t cap;
+    int64_t timeout;
+    bool operator==(const LaneKey&) const = default;
+};
+struct LaneHash {
+    size_t operator()(const LaneKey& key) const {
+        size_t hash = 0;
+        auto add = [&](size_t value) { hash ^= value + size_t(0x9e3779b9) + (hash << 6) + (hash >> 2); };
+        add(key.width); add(key.height); add(key.strategy); add(key.cap); add(key.timeout);
+        add(std::hash<std::string>{}(key.seed)); add(std::hash<std::string>{}(key.heuristic));
+        for (auto cell : key.cells) add(static_cast<size_t>(cell));
+        return hash;
+    }
+};
+using LaneCache = EvaluationCache<LaneKey, SolveAttempt, LaneHash>;
+
+SolveAttempt runStrategy(const ps_game* game, int32_t width, int32_t height,
+    const std::vector<int32_t>& grid, const DifficultyOptions& options,
+    ps_solve_strategy strategy, uint64_t cap, const char* heuristic, LaneCache* cache) {
+    // Cached lanes keep the requested policy budget stable; the independent
+    // deadline callback still stops work between turns. Shrinking timeout_ms
+    // would change portfolio scheduling and contaminate the measurement key.
+    auto compute = [&] { return runStrategyUncached(game, width, height, grid, options, strategy, cap, heuristic, cache != nullptr); };
+    if (!cache) return compute();
+    const LaneKey key{width, height, grid, options.randomSeed, heuristic ? heuristic : "",
+                      strategy, cap, std::max<int64_t>(1, options.timeoutMs)};
+    return cache->get(key, compute, [&] { return assessmentStopped(options); }, [&](const SolveAttempt& result) {
+        // Timeouts, engine errors and cancelled owners never poison retries.
+        return result.status == PS_SOLVE_STATUS_SOLVED || result.status == PS_SOLVE_STATUS_EXHAUSTED;
+    }, [](const LaneKey& k, const SolveAttempt& v) {
+        return sizeof(k) + sizeof(v) + 128 + k.cells.capacity() * sizeof(int32_t)
+            + k.seed.capacity() + k.heuristic.capacity() + v.solution.capacity() * sizeof(ps_input)
+            + v.error.capacity() + v.strategy.capacity();
+    });
 }
 
 } // namespace
@@ -197,11 +241,11 @@ LevelTemplate levelTemplateFromLayerCellObjectIds(
     return level;
 }
 
-DifficultyResult assessGeneratedLevelDifficulty(
+static DifficultyResult assessDifficultyImpl(
     const LoadedGame& loadedGame,
     const LevelTemplate& level,
     const DifficultyOptions& options,
-    DifficultyProgressCallback onProgress) {
+    DifficultyProgressCallback onProgress, LaneCache* cache) {
     DifficultyResult result;
     if (!loadedGame.information) {
         result.primaryError = "Cannot assess a level without a compiled game";
@@ -231,7 +275,7 @@ DifficultyResult assessGeneratedLevelDifficulty(
         layerGrid,
         options,
         PS_SOLVE_STRATEGY_PORTFOLIO,
-        0);
+        0, nullptr, cache);
     result.primaryExpanded = std::max<int64_t>(0, primary.expanded);
     result.primaryElapsedMs = std::max<int64_t>(0, primary.elapsedMs);
     result.primaryStrategy = primary.strategy;
@@ -296,7 +340,7 @@ DifficultyResult assessGeneratedLevelDifficulty(
         supplementalOptions,
         PS_SOLVE_STRATEGY_GREEDY,
         cap,
-        kMisGreedyHeuristic);
+        kMisGreedyHeuristic, cache);
     if (greedy.solved) {
         result.breakdown.expandedGreedy = greedy.expanded;
         updateDifficultyMin(result.breakdown, greedy.expanded, "Greedy");
@@ -313,7 +357,7 @@ DifficultyResult assessGeneratedLevelDifficulty(
         layerGrid,
         supplementalOptions,
         PS_SOLVE_STRATEGY_WEIGHTED_ASTAR,
-        cap);
+        cap, nullptr, cache);
     if (weighted.solved) {
         result.breakdown.expandedWeightedAStar = weighted.expanded;
         updateDifficultyMin(result.breakdown, weighted.expanded, "WeightedAStar");
@@ -330,7 +374,7 @@ DifficultyResult assessGeneratedLevelDifficulty(
         layerGrid,
         supplementalOptions,
         PS_SOLVE_STRATEGY_BFS,
-        cap);
+        cap, nullptr, cache);
     if (bfs.solved) {
         result.breakdown.expandedBfs = bfs.expanded;
         updateDifficultyMin(result.breakdown, bfs.expanded, "BFS");
@@ -346,6 +390,28 @@ DifficultyResult assessGeneratedLevelDifficulty(
         onProgress(DifficultyStage::Complete, result);
     }
     return result;
+}
+
+struct DifficultyEvaluator::Impl {
+    LoadedGame game;
+    LaneCache cache;
+    Impl(LoadedGame loaded, size_t entries, size_t bytes)
+        : game(std::move(loaded)), cache(entries, bytes) {}
+};
+
+DifficultyEvaluator::DifficultyEvaluator(LoadedGame game, size_t entries, size_t bytes)
+    : impl_(std::make_unique<Impl>(std::move(game), entries, bytes)) {}
+DifficultyEvaluator::~DifficultyEvaluator() = default;
+DifficultyResult DifficultyEvaluator::assess(const LevelTemplate& level, const DifficultyOptions& options,
+                                             DifficultyProgressCallback onProgress) {
+    return assessDifficultyImpl(impl_->game, level, options, std::move(onProgress), &impl_->cache);
+}
+DifficultyCacheStats DifficultyEvaluator::stats() const {
+    return impl_->cache.stats<DifficultyCacheStats>();
+}
+DifficultyResult assessGeneratedLevelDifficulty(const LoadedGame& game, const LevelTemplate& level,
+    const DifficultyOptions& options, DifficultyProgressCallback onProgress) {
+    return assessDifficultyImpl(game, level, options, std::move(onProgress), nullptr);
 }
 
 } // namespace puzzlescript::search
