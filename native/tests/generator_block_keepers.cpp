@@ -10,6 +10,8 @@ namespace {
 puzzlescript::generator::Keeper makeKeeper(uint64_t hash, int64_t difficulty, int64_t expandedPortfolio) {
     puzzlescript::generator::Keeper keeper;
     keeper.levelHash = hash;
+    keeper.level.width = keeper.level.height = 1;
+    keeper.level.objects = {static_cast<puzzlescript::MaskWord>(hash)};
     keeper.difficulty = difficulty;
     keeper.expandedPortfolio = expandedPortfolio;
     return keeper;
@@ -18,30 +20,18 @@ puzzlescript::generator::Keeper makeKeeper(uint64_t hash, int64_t difficulty, in
 } // namespace
 
 int main() {
-    puzzlescript::generator::GlobalDedupe dedupe;
-    const size_t dedupeMax = 128;
-    assert(!puzzlescript::generator::containsGlobalDedupe(dedupe, 1));
-    uint64_t firstInserted = 0;
-    for (uint64_t hash = 1; hash <= static_cast<uint64_t>(dedupeMax + 32); ++hash) {
-        if (puzzlescript::generator::insertGlobalDedupe(dedupe, hash, dedupeMax)) {
-            if (firstInserted == 0) {
-                firstInserted = hash;
-            }
-        }
-    }
-    assert(firstInserted != 0);
-    assert(!puzzlescript::generator::containsGlobalDedupe(dedupe, firstInserted));
-    assert(puzzlescript::generator::insertGlobalDedupe(dedupe, firstInserted, dedupeMax));
-    assert(puzzlescript::generator::containsGlobalDedupe(dedupe, firstInserted));
-    puzzlescript::generator::eraseGlobalDedupe(dedupe, firstInserted);
-    assert(!puzzlescript::generator::containsGlobalDedupe(dedupe, firstInserted));
-    assert(puzzlescript::generator::insertGlobalDedupe(dedupe, firstInserted, dedupeMax));
-    assert(puzzlescript::generator::insertGlobalDedupe(dedupe, dedupeMax + 100, dedupeMax));
-
+    puzzlescript::generator::BlockState collisions;
+    collisions.spec.header.take = 2;
+    auto colliding = makeKeeper(7, 100, 50);
+    assert(puzzlescript::generator::tryInsertKeeper(collisions, colliding));
+    colliding.level.objects = {99};
+    assert(puzzlescript::generator::tryInsertKeeper(collisions, colliding));
+    assert(collisions.keepers.size() == 2); // Same hash, different exact boards.
     puzzlescript::generator::BlockState block;
     block.spec.header.take = 2;
     assert(puzzlescript::generator::tryInsertKeeper(block, makeKeeper(10, 100, 50)));
     assert(block.keepers.size() == 1);
+    assert(!puzzlescript::generator::tryInsertKeeper(block, makeKeeper(10, 100, 50)));
     assert(puzzlescript::generator::tryInsertKeeper(block, makeKeeper(11, 200, 60)));
     assert(block.keepers.size() == 2);
     assert(puzzlescript::generator::tryInsertKeeper(block, makeKeeper(12, 150, 70)));

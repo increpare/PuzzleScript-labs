@@ -1023,7 +1023,7 @@ int runLevelSetFromBlockSpecs(
     levelSetOptions.modeLabel = options.remix ? "remix" : "level-set";
     levelSetOptions.outPath = options.outPath.string();
 
-    runLevelSetForever(loadedGame, gameSource, blocks, outputCoordinator, levelSetOptions);
+    const auto cache = runLevelSetForever(loadedGame, gameSource, blocks, outputCoordinator, levelSetOptions);
 
     outputCoordinator.flush();
     if (!options.jsonOut.empty()) {
@@ -1057,7 +1057,9 @@ int runLevelSetFromBlockSpecs(
                 << ",\"solver_searches\":" << block.solverSearches.load()
                 << ",\"keepers\":" << block.keepers.size() << '}';
         }
-        out << "]}\n";
+        out << "],\"evaluation_cache\":{\"hits\":" << cache.hits
+            << ",\"searches\":" << cache.searches << ",\"waits\":" << cache.waits
+            << ",\"entries\":" << cache.entries << ",\"retained_bytes\":" << cache.retainedBytes << "}}\n";
         writeFile(options.jsonOut, out.str());
     }
     return 0;

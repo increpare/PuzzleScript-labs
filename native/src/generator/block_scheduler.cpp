@@ -325,7 +325,7 @@ void logLevelSetProgress(
 void workerMain(
     const puzzlescript::LoadedGame& loadedGame,
     BlockState& block,
-    GlobalDedupe& dedupe,
+    puzzlescript::search::DifficultyEvaluator& evaluator,
     OutputCoordinator& outputCoordinator,
     const std::deque<BlockState>& allBlocks,
     const LevelSetOptions& options,
@@ -347,12 +347,15 @@ void workerMain(
         }
 
         const uint64_t levelHash = hashLevel(candidateLevel);
-        // Already-solved duplicates used to pay for another primary search.
-        // Only successful primaries enter this cache, so timeouts remain
-        // retryable. The later insertion still arbitrates simultaneous solves.
-        if (containsGlobalDedupe(dedupe, levelHash)) {
-            block.deduped.fetch_add(1, std::memory_order_relaxed);
-            continue;
+        // Compare complete boards: hash collisions must not suppress puzzles.
+        // Eligibility belongs to each block, while search work is shared.
+        {
+            std::lock_guard<std::mutex> lock(block.keeperMutex);
+            const bool duplicate = std::any_of(block.keepers.begin(), block.keepers.end(), [&](const Keeper& k) {
+                return k.level.width == candidateLevel.width && k.level.height == candidateLevel.height
+                    && k.level.objects == candidateLevel.objects;
+            });
+            if (duplicate) { ++block.deduped; continue; }
         }
 
         DifficultyOptions assessmentOptions;
@@ -361,20 +364,17 @@ void workerMain(
         assessmentOptions.shouldCancel = [&] {
             return blockCancel.load(std::memory_order_relaxed) || runStopped(options);
         };
-        bool claimed = false;
         // Gate the supplemental lanes inside the same assessment. Re-running
         // primary here used to pay for a fifth search on every contender and
         // could even discard it when that second timed run failed to solve.
         assessmentOptions.supplementalGate = [&](int64_t primaryExpanded) {
-            claimed = insertGlobalDedupe(dedupe, levelHash, options.dedupeMax);
-            return claimed && canImproveKeeper(block, primaryExpanded);
+            return canImproveKeeper(block, primaryExpanded);
         };
         block.solverSearches.fetch_add(1, std::memory_order_relaxed);
-        const auto assessed = assessGeneratedLevelDifficulty(loadedGame, candidateLevel, assessmentOptions);
+        const auto assessed = evaluator.assess(candidateLevel, assessmentOptions);
         if (assessed.interrupted) {
             // A partial minimum can overstate difficulty. Do not rank it, and
-            // release our cache claim so a later pass may finish assessment.
-            if (claimed) eraseGlobalDedupe(dedupe, levelHash);
+            // leave missing lanes retryable so a later pass may finish assessment.
             block.interruptedAssessments.fetch_add(1, std::memory_order_relaxed);
             continue;
         }
@@ -421,37 +421,6 @@ void workerMain(
 
 } // namespace
 
-void eraseGlobalDedupe(GlobalDedupe& dedupe, uint64_t hash) {
-    const size_t shard = static_cast<size_t>(hash % dedupe.sets.size());
-    std::lock_guard<std::mutex> lock(dedupe.mutexes[shard]);
-    dedupe.sets[shard].erase(hash);
-    auto& order = dedupe.order[shard];
-    order.erase(std::remove(order.begin(), order.end(), hash), order.end());
-}
-
-bool containsGlobalDedupe(GlobalDedupe& dedupe, uint64_t hash) {
-    const size_t shard = static_cast<size_t>(hash % dedupe.sets.size());
-    std::lock_guard<std::mutex> lock(dedupe.mutexes[shard]);
-    return dedupe.sets[shard].find(hash) != dedupe.sets[shard].end();
-}
-
-bool insertGlobalDedupe(GlobalDedupe& dedupe, uint64_t hash, size_t dedupeMax) {
-    const size_t shard = static_cast<size_t>(hash % dedupe.sets.size());
-    std::lock_guard<std::mutex> lock(dedupe.mutexes[shard]);
-    const size_t shardCap = std::max<size_t>(1, dedupeMax / dedupe.sets.size());
-    if (dedupe.sets[shard].find(hash) != dedupe.sets[shard].end()) {
-        return false;
-    }
-    if (dedupe.sets[shard].size() >= shardCap) {
-        const uint64_t evicted = dedupe.order[shard].front();
-        dedupe.order[shard].pop_front();
-        dedupe.sets[shard].erase(evicted);
-    }
-    dedupe.sets[shard].insert(hash);
-    dedupe.order[shard].push_back(hash);
-    return true;
-}
-
 bool canImproveKeeper(const BlockState& block, int64_t primaryExpanded) {
     std::lock_guard<std::mutex> lock(block.keeperMutex);
     if (block.keepers.size() < block.spec.header.take) return true;
@@ -464,6 +433,12 @@ bool canImproveKeeper(const BlockState& block, int64_t primaryExpanded) {
 }
 
 bool tryInsertKeeper(BlockState& block, Keeper candidate) {
+    // Concurrent completions recheck exact identity under keeperMutex.
+    // Hashes are labels, never an equality proof.
+    for (const auto& keeper : block.keepers) {
+        if (keeper.level.width == candidate.level.width && keeper.level.height == candidate.level.height
+            && keeper.level.objects == candidate.level.objects) return false;
+    }
     const size_t take = block.spec.header.take;
     if (block.keepers.size() < take) {
         block.keepers.push_back(std::move(candidate));
@@ -546,7 +521,7 @@ std::vector<Keeper> snapshotAllKeepers(const std::deque<BlockState>& blocks) {
 void runBlockUntilIdle(
     const puzzlescript::LoadedGame& loadedGame,
     BlockState& block,
-    GlobalDedupe& dedupe,
+    puzzlescript::search::DifficultyEvaluator& evaluator,
     OutputCoordinator& outputCoordinator,
     const std::deque<BlockState>& allBlocks,
     const LevelSetOptions& options,
@@ -576,7 +551,7 @@ void runBlockUntilIdle(
     for (size_t workerIndex = 0; workerIndex < options.jobs; ++workerIndex) {
         workers.emplace_back([&] {
             try {
-                workerMain(loadedGame, block, dedupe, outputCoordinator, allBlocks, options, blockCancel);
+                workerMain(loadedGame, block, evaluator, outputCoordinator, allBlocks, options, blockCancel);
             } catch (...) {
                 std::lock_guard<std::mutex> lock(errorMutex);
                 if (!workerError) workerError = std::current_exception();
@@ -627,7 +602,7 @@ void runBlockUntilIdle(
     block.inactivityTimeoutMs *= 2;
 }
 
-void runLevelSetForever(
+puzzlescript::search::DifficultyCacheStats runLevelSetForever(
     const puzzlescript::LoadedGame& loadedGame,
     const std::string& /*gameSource*/,
     std::deque<BlockState>& blocks,
@@ -637,7 +612,7 @@ void runLevelSetForever(
         throw std::runtime_error("Level-set spec produced no blocks");
     }
 
-    GlobalDedupe dedupe;
+    puzzlescript::search::DifficultyEvaluator evaluator(loadedGame, options.dedupeMax);
     for (BlockState& block : blocks) {
         block.inactivityTimeoutMs = options.inactivityStartMs;
     }
@@ -698,7 +673,7 @@ void runLevelSetForever(
                 if (block.permanentlyExhausted) {
                     continue;
                 }
-                runBlockUntilIdle(loadedGame, block, dedupe, outputCoordinator, blocks, options, currentPass);
+                runBlockUntilIdle(loadedGame, block, evaluator, outputCoordinator, blocks, options, currentPass);
             }
             const bool allExhausted = std::all_of(
                 blocks.begin(),
@@ -738,6 +713,7 @@ void runLevelSetForever(
     }
 
     outputCoordinator.flush();
+    return evaluator.stats();
 }
 
 } // namespace puzzlescript::generator

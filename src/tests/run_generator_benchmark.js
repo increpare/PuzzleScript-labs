@@ -200,7 +200,8 @@ function main() {
         if (options.mode === 'level-set') {
           runs.push({ run_index: runIndex, elapsed_ms: result.elapsedMs,
             samples_per_second: rate(json.totals.samples_attempted, result.elapsedMs),
-            stop_reason: json.stop_reason, totals: json.totals, blocks: json.blocks });
+            stop_reason: json.stop_reason, totals: json.totals, blocks: json.blocks,
+            evaluation_cache: json.evaluation_cache });
           process.stderr.write(`generator_benchmark preset=${presetFile} mode=level-set run=${runIndex + 1}/${options.runs} samples=${json.totals.samples_attempted} keepers=${json.totals.keepers} stop=${json.stop_reason}\n`);
           continue;
         }

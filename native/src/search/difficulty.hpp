@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <chrono>
 #include <functional>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -32,6 +33,9 @@ struct DifficultyOptions {
     // by this deadline. Cancellation is cooperative between runtime turns.
     std::optional<std::chrono::steady_clock::time_point> deadline;
     std::function<bool()> shouldCancel;
+    // Gameplay randomness is part of candidate identity, separately from the
+    // generator's sampling seed. Empty preserves the native solver default.
+    std::string randomSeed;
 };
 
 enum class DifficultyStage {
@@ -56,6 +60,27 @@ struct DifficultyResult {
 };
 
 using DifficultyProgressCallback = std::function<void(DifficultyStage stage, const DifficultyResult& partial)>;
+
+struct DifficultyCacheStats {
+    uint64_t hits = 0, searches = 0, waits = 0;
+    size_t entries = 0, retainedBytes = 0;
+};
+
+// A cache owns one immutable compiled game and its initial session state.
+// Share this evaluator between candidate workers; create a new one on recompile.
+// Bounds cover retained lane results, not memory used by active solver calls.
+class DifficultyEvaluator {
+public:
+    explicit DifficultyEvaluator(LoadedGame game, size_t maxEntries = 4096,
+                                 size_t maxBytes = 32 * 1024 * 1024);
+    ~DifficultyEvaluator();
+    DifficultyResult assess(const LevelTemplate& level, const DifficultyOptions& options,
+                            DifficultyProgressCallback onProgress = {});
+    DifficultyCacheStats stats() const;
+private:
+    struct Impl;
+    std::unique_ptr<Impl> impl_;
+};
 
 std::vector<int32_t> levelTemplateToLayerCellObjectIds(const Game& game, const LevelTemplate& level);
 

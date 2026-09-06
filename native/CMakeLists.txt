@@ -1537,7 +1537,14 @@ add_executable(generator_difficulty_contract
   tests/generator_difficulty_contract.cpp
   src/search/difficulty.cpp)
 target_include_directories(generator_difficulty_contract PRIVATE src include)
+target_link_libraries(generator_difficulty_contract PRIVATE Threads::Threads)
 add_test(NAME generator_difficulty_contract COMMAND generator_difficulty_contract)
+
+add_executable(evaluation_cache tests/evaluation_cache.cpp)
+target_include_directories(evaluation_cache PRIVATE src include)
+target_link_libraries(evaluation_cache PRIVATE Threads::Threads)
+add_test(NAME evaluation_cache COMMAND evaluation_cache)
+set_tests_properties(evaluation_cache PROPERTIES TIMEOUT 15)
 
 add_executable(solver_generated_replay tests/solver_generated_replay.cpp)
 target_include_directories(solver_generated_replay PRIVATE src)
