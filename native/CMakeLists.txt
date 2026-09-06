@@ -2376,6 +2376,10 @@ add_test(
           ${PUZZLESCRIPT_REPO_ROOT}/src/demo/sokoban_basic.txt
           ${PUZZLESCRIPT_REPO_ROOT}/src/tests/generator_presets/sokoban_levelset_tiny.gen
 )
+add_test(NAME puzzlescript_generator_budget_smoke
+  COMMAND ${NODE_EXECUTABLE} ${PUZZLESCRIPT_REPO_ROOT}/src/tests/run_generator_budget_smoke.js
+          $<TARGET_FILE:puzzlescript_generator>)
+set_tests_properties(puzzlescript_generator_budget_smoke PROPERTIES TIMEOUT 30)
 set_tests_properties(puzzlescript_generator_levelset_smoke PROPERTIES TIMEOUT 60)
 if(MSVC)
   set_tests_properties(puzzlescript_generator_levelset_smoke PROPERTIES

@@ -33,6 +33,9 @@ int main() {
     assert(!puzzlescript::generator::containsGlobalDedupe(dedupe, firstInserted));
     assert(puzzlescript::generator::insertGlobalDedupe(dedupe, firstInserted, dedupeMax));
     assert(puzzlescript::generator::containsGlobalDedupe(dedupe, firstInserted));
+    puzzlescript::generator::eraseGlobalDedupe(dedupe, firstInserted);
+    assert(!puzzlescript::generator::containsGlobalDedupe(dedupe, firstInserted));
+    assert(puzzlescript::generator::insertGlobalDedupe(dedupe, firstInserted, dedupeMax));
     assert(puzzlescript::generator::insertGlobalDedupe(dedupe, dedupeMax + 100, dedupeMax));
 
     puzzlescript::generator::BlockState block;

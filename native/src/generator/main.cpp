@@ -102,6 +102,7 @@ struct Options {
     std::filesystem::path eventsJsonl;
     std::filesystem::path templatizeOutPath;
     int64_t timeMs = 60000;
+    bool timeLimitSpecified = false;
     int64_t inactivityStartMs = 60000;
     std::optional<uint64_t> samples;
     size_t jobs = 0;
@@ -202,16 +203,13 @@ void initializeEventsJsonl(const Options& options);
 
 void captureWorkerException(SharedState& shared);
 
-std::atomic<bool>* gCancelFlag = nullptr;
-OutputCoordinator* gOutputCoordinator = nullptr;
+std::atomic<bool> gInterruptRequested{false};
+static_assert(std::atomic<bool>::is_always_lock_free);
 
 void handleSignal(int) {
-    if (gCancelFlag != nullptr) {
-        gCancelFlag->store(true, std::memory_order_relaxed);
-    }
-    if (gOutputCoordinator != nullptr) {
-        gOutputCoordinator->flush();
-    }
+    gInterruptRequested.store(true, std::memory_order_relaxed);
+    // Flush on the normal shutdown path. Flushing from a signal handler can
+    // deadlock if it interrupts the thread holding the output writer's mutex.
 }
 
 std::string readFile(const std::filesystem::path& path) {
@@ -364,6 +362,7 @@ Options parseArgs(int argc, char** argv) {
     for (; index < argc; ++index) {
         const std::string arg = argv[index];
         if (arg == "--time-ms" && index + 1 < argc) {
+            options.timeLimitSpecified = true;
             options.timeMs = std::max<int64_t>(1, std::stoll(argv[++index]));
         } else if (arg == "--samples" && index + 1 < argc) {
             options.samples = static_cast<uint64_t>(std::stoull(argv[++index]));
@@ -511,7 +510,8 @@ SolveResult solveGeneratedLevel(
     const LevelTemplate& generatedLevel,
     uint64_t sampleId,
     int64_t timeoutMs,
-    std::optional<SearchMode> mode
+    std::optional<SearchMode> mode,
+    TimePoint runDeadline
 ) {
     ps_game game;
     game.impl = loadedGame;
@@ -522,6 +522,13 @@ SolveResult solveGeneratedLevel(
     options.timeout_ms = timeoutMs;
     options.random_seed = seed.c_str();
     options.compact_node_storage = true;
+    // Sample exhaustion must let already-started candidates finish. Use the
+    // signal/deadline token here, not SharedState::cancel (also used for quotas).
+    options.should_cancel = [](void* context) {
+        return gInterruptRequested.load(std::memory_order_relaxed)
+            || Clock::now() >= *static_cast<TimePoint*>(context);
+    };
+    options.cancel_context = &runDeadline;
     // Candidate-level jobs already supply parallelism. Avoid multiplying them
     // by an inner portfolio thread pool and competing for the same CPU cores.
     options.portfolio_jobs = 1;
@@ -604,7 +611,7 @@ void workerMain(
 ) {
     const std::shared_ptr<const Game>& game = loadedGame.information;
     try {
-        while (!shared.cancel.load(std::memory_order_relaxed)) {
+        while (!shared.cancel.load(std::memory_order_relaxed) && !gInterruptRequested.load(std::memory_order_relaxed)) {
             const uint64_t sampleId = shared.nextSample.fetch_add(1, std::memory_order_relaxed);
             if (options.samples && sampleId >= *options.samples) {
                 shared.cancel.store(true, std::memory_order_relaxed);
@@ -629,7 +636,7 @@ void workerMain(
                 continue;
             }
             const TimePoint solveStart = Clock::now();
-            SolveResult solved = solveGeneratedLevel(loadedGame, candidateLevel, sampleId, options.solverTimeoutMs, options.solverMode);
+            SolveResult solved = solveGeneratedLevel(loadedGame, candidateLevel, sampleId, options.solverTimeoutMs, options.solverMode, deadline);
             solved.solveMs = std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - solveStart).count();
             shared.counters.solverSearches.fetch_add(1, std::memory_order_relaxed);
             shared.counters.solverExpanded.fetch_add(solved.expanded, std::memory_order_relaxed);
@@ -965,8 +972,15 @@ int runLevelSetFromBlockSpecs(
     puzzlescript::LoadedGame loadedGame,
     puzzlescript::compiler::ParserState& parserState,
     std::vector<puzzlescript::generator::BlockSpec> blockSpecs) {
-    if (!options.jsonOut.empty()) {
-        throw std::runtime_error("Cannot combine --out with --json-out");
+    if (options.solverMode) {
+        throw std::runtime_error("Level-set assessment requires --solver-strategy portfolio; other strategies are supported in legacy mode");
+    }
+    if (!options.eventsJsonl.empty()) {
+        throw std::runtime_error("--events-jsonl is supported in legacy mode; use --json-out for a level-set run summary");
+    }
+    if (!options.jsonOut.empty() && std::filesystem::absolute(options.outPath).lexically_normal()
+        == std::filesystem::absolute(options.jsonOut).lexically_normal()) {
+        throw std::runtime_error("--out and --json-out must use different paths");
     }
 
     const auto& game = loadedGame.information;
@@ -987,10 +1001,8 @@ int runLevelSetFromBlockSpecs(
         }
     }
 
-    std::atomic<bool> cancel{false};
-    gCancelFlag = &cancel;
+    auto& cancel = gInterruptRequested;
     OutputCoordinator outputCoordinator(options.outPath, gameSource, *game);
-    gOutputCoordinator = &outputCoordinator;
     std::signal(SIGINT, handleSignal);
     std::signal(SIGTERM, handleSignal);
 
@@ -1002,6 +1014,11 @@ int runLevelSetFromBlockSpecs(
     levelSetOptions.inactivityStartMs = options.inactivityStartMs;
     levelSetOptions.exhaustPasses = options.exhaustPasses;
     levelSetOptions.cancel = &cancel;
+    levelSetOptions.samples = options.samples;
+    const TimePoint started = Clock::now();
+    // Keep unbounded level-set generation as the default. An explicitly
+    // requested wall-clock limit covers every block and assessment lane.
+    if (options.timeLimitSpecified) levelSetOptions.deadline = started + std::chrono::milliseconds(options.timeMs);
     levelSetOptions.quiet = options.quiet;
     levelSetOptions.modeLabel = options.remix ? "remix" : "level-set";
     levelSetOptions.outPath = options.outPath.string();
@@ -1009,8 +1026,40 @@ int runLevelSetFromBlockSpecs(
     runLevelSetForever(loadedGame, gameSource, blocks, outputCoordinator, levelSetOptions);
 
     outputCoordinator.flush();
-    gCancelFlag = nullptr;
-    gOutputCoordinator = nullptr;
+    if (!options.jsonOut.empty()) {
+        std::error_code equivalentError;
+        if (std::filesystem::equivalent(options.outPath, options.jsonOut, equivalentError)) {
+            throw std::runtime_error("--json-out must not overwrite the generated game");
+        }
+        uint64_t samples = 0, searches = 0, duplicates = 0, interrupted = 0, keepers = 0;
+        for (const auto& block : blocks) {
+            samples += block.samplesAttempted.load();
+            searches += block.solverSearches.load();
+            duplicates += block.deduped.load();
+            interrupted += block.interruptedAssessments.load();
+            keepers += block.keepers.size();
+        }
+        const char* reason = cancel.load() ? "cancelled"
+            : levelSetOptions.deadline && Clock::now() >= *levelSetOptions.deadline ? "deadline"
+            : options.samples && samples >= *options.samples ? "samples" : "exhausted";
+        std::ostringstream out;
+        out << "{\"mode\":" << jsonString(levelSetOptions.modeLabel)
+            << ",\"stop_reason\":" << jsonString(reason)
+            << ",\"elapsed_ms\":" << std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - started).count()
+            << ",\"totals\":{\"samples_attempted\":" << samples
+            << ",\"solver_searches\":" << searches << ",\"deduped\":" << duplicates
+            << ",\"interrupted_assessments\":" << interrupted << ",\"keepers\":" << keepers << "},\"blocks\":[";
+        for (size_t i = 0; i < blocks.size(); ++i) {
+            if (i) out << ',';
+            const auto& block = blocks[i];
+            out << "{\"name\":" << jsonString(block.spec.header.name)
+                << ",\"samples_attempted\":" << block.samplesAttempted.load()
+                << ",\"solver_searches\":" << block.solverSearches.load()
+                << ",\"keepers\":" << block.keepers.size() << '}';
+        }
+        out << "]}\n";
+        writeFile(options.jsonOut, out.str());
+    }
     return 0;
 }
 
@@ -1123,7 +1172,6 @@ int main(int argc, char** argv) {
         initializeEventsJsonl(options);
 
         SharedState shared;
-        gCancelFlag = &shared.cancel;
         std::signal(SIGINT, handleSignal);
         std::signal(SIGTERM, handleSignal);
 
@@ -1137,7 +1185,7 @@ int main(int argc, char** argv) {
 
         const bool dashboard = !options.quiet && stdoutIsTerminal();
         TimePoint lastSparse = start;
-        while (!shared.cancel.load(std::memory_order_relaxed)) {
+        while (!shared.cancel.load(std::memory_order_relaxed) && !gInterruptRequested.load(std::memory_order_relaxed)) {
             if (Clock::now() >= deadline) {
                 shared.cancel.store(true, std::memory_order_relaxed);
                 break;
