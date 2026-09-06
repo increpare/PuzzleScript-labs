@@ -38,6 +38,8 @@ enum class DifficultyStage {
 
 struct DifficultyResult {
     bool solved = false;
+    ps_solve_status primaryStatus = PS_SOLVE_STATUS_ERROR;
+    std::string primaryError;
     bool supplementalRan = false;
     std::vector<ps_input> solution;
     DifficultyBreakdown breakdown;

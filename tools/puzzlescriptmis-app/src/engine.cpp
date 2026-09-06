@@ -1,4 +1,5 @@
 #include "engine.h"
+#include "generation_random.h"
 
 #include "game.h"
 #include "global.h"
@@ -695,7 +696,7 @@ vector<vvvs> generateStep(const vvvs & prevState, int maxStates, const Game & ga
             for(int i=0;i<r.choose;++i) {
                 int selectedrule = ri+(rand()%(untilri-ri)); //choose randomly from the rules with equal probability (can be skewed by the option keyword)
                 
-                if( rand()/RAND_MAX <= r.optionProb) { //check whether it will be executed or not
+                if (generationOptionApplies(game.generatorRules[selectedrule].optionProb)) {
                     auto p = executeRuleSingleMatch(game.generatorRules[selectedrule], currentStates, currentMoveStates, maxStates, game, modifyTable);
                     currentStates = p.first;
                     currentMoveStates = p.second;

@@ -5130,7 +5130,9 @@ void emitCollectRowMatches(
             << "                for (size_t wordIndex = 0; wordIndex < cellWordCount; ++wordIndex) {\n"
             << "                    uint64_t bits = session.scratch.objectCellBits[objectBase + wordIndex];\n"
             << "                    while (bits != 0) {\n"
-            << "                        const int32_t bit = __builtin_ctzll(bits);\n"
+            // C++20 keeps the same bit-scan optimization on MSVC as well as
+            // GCC/Clang; the GNU-only builtin made generated kernels unbuildable.
+            << "                        const int32_t bit = static_cast<int32_t>(std::countr_zero(bits));\n"
             << "                        const int32_t anchorTile = static_cast<int32_t>(wordIndex * 64 + static_cast<size_t>(bit));\n"
             << "                        bits &= bits - 1;\n"
             << "                        if (anchorTile >= tileCount) continue;\n"
@@ -5993,6 +5995,7 @@ std::string generateCompiledRulesCpp(
             << "// Source hash: " << sources[0].hash << "\n";
     }
     out << "#include <algorithm>\n"
+        << "#include <bit>\n"
         << "#include <array>\n"
         << "#include <cstddef>\n"
         << "#include <cstdint>\n"

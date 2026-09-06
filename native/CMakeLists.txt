@@ -1533,6 +1533,23 @@ add_executable(generator_difficulty_assessment
   tests/generator_difficulty_assessment.cpp
 )
 
+add_executable(generator_difficulty_contract
+  tests/generator_difficulty_contract.cpp
+  src/search/difficulty.cpp)
+target_include_directories(generator_difficulty_contract PRIVATE src include)
+add_test(NAME generator_difficulty_contract COMMAND generator_difficulty_contract)
+
+add_executable(solver_generated_replay tests/solver_generated_replay.cpp)
+target_include_directories(solver_generated_replay PRIVATE src)
+target_link_libraries(solver_generated_replay PRIVATE puzzlescript_native puzzlescript_compiler)
+add_test(NAME solver_generated_replay COMMAND solver_generated_replay
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT})
+
+add_executable(compiled_backend_linkage tests/compiled_backend_linkage.cpp)
+target_include_directories(compiled_backend_linkage PRIVATE src)
+target_link_libraries(compiled_backend_linkage PRIVATE puzzlescript_native)
+add_test(NAME compiled_backend_linkage COMMAND compiled_backend_linkage)
+
 target_link_libraries(generator_difficulty_assessment
   PRIVATE
     puzzlescript_native

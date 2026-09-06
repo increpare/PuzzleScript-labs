@@ -38,4 +38,10 @@ if(PUZZLESCRIPT_BUILD_NATIVE)
     COMMAND ${NODE_EXECUTABLE}
             ${CMAKE_CURRENT_SOURCE_DIR}/tools/puzzlescriptmis-app/tests/transformer_wiring_static_test.js
   )
+
+  add_executable(puzzlescriptmis_generation_random
+    tools/puzzlescriptmis-app/tests/generation_random.cpp)
+  target_include_directories(puzzlescriptmis_generation_random PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/tools/puzzlescriptmis-app/src)
+  add_test(NAME puzzlescriptmis_generation_random COMMAND puzzlescriptmis_generation_random)
 endif()

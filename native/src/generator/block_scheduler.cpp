@@ -320,44 +320,29 @@ void workerMain(
         }
 
         const uint64_t levelHash = hashLevel(candidateLevel);
+        // Already-solved duplicates used to pay for another primary search.
+        // Only successful primaries enter this cache, so timeouts remain
+        // retryable. The later insertion still arbitrates simultaneous solves.
+        if (containsGlobalDedupe(dedupe, levelHash)) continue;
 
-        DifficultyOptions primaryOpts;
-        primaryOpts.timeoutMs = options.solverTimeoutMs;
-        primaryOpts.runSupplemental = false;
-        const auto primary = assessGeneratedLevelDifficulty(loadedGame, candidateLevel, primaryOpts);
-        if (!primary.solved) {
-            continue;
-        }
-        if (!insertGlobalDedupe(dedupe, levelHash, options.dedupeMax)) {
-            continue;
-        }
-
-        const bool mightAdmit = [&] {
-            std::lock_guard<std::mutex> lock(block.keeperMutex);
-            if (block.keepers.size() < block.spec.header.take) {
-                return true;
-            }
-            const Keeper& weakest = *std::min_element(
-                block.keepers.begin(),
-                block.keepers.end(),
-                keeperLessDifficulty);
-            return primary.breakdown.expandedPortfolio > weakest.expandedPortfolio;
-        }();
-        if (!mightAdmit) {
-            continue;
-        }
-
-        DifficultyOptions fullOpts = primaryOpts;
-        fullOpts.runSupplemental = true;
-        const auto assessed = assessGeneratedLevelDifficulty(loadedGame, candidateLevel, fullOpts);
-        if (!assessed.solved) {
+        DifficultyOptions assessmentOptions;
+        assessmentOptions.timeoutMs = options.solverTimeoutMs;
+        // Gate the supplemental lanes inside the same assessment. Re-running
+        // primary here used to pay for a fifth search on every contender and
+        // could even discard it when that second timed run failed to solve.
+        assessmentOptions.supplementalGate = [&](int64_t primaryExpanded) {
+            return insertGlobalDedupe(dedupe, levelHash, options.dedupeMax)
+                && canImproveKeeper(block, primaryExpanded);
+        };
+        const auto assessed = assessGeneratedLevelDifficulty(loadedGame, candidateLevel, assessmentOptions);
+        if (!assessed.solved || !assessed.supplementalRan) {
             continue;
         }
 
         Keeper candidate;
         candidate.levelHash = levelHash;
         candidate.difficulty = assessed.breakdown.difficulty;
-        candidate.expandedPortfolio = primary.breakdown.expandedPortfolio;
+        candidate.expandedPortfolio = assessed.breakdown.expandedPortfolio;
         candidate.sampleSeed = sampleSeed;
         candidate.blockIndex = block.blockIndex;
         candidate.blockName = block.spec.header.name;
@@ -393,6 +378,12 @@ void workerMain(
 
 } // namespace
 
+bool containsGlobalDedupe(GlobalDedupe& dedupe, uint64_t hash) {
+    const size_t shard = static_cast<size_t>(hash % dedupe.sets.size());
+    std::lock_guard<std::mutex> lock(dedupe.mutexes[shard]);
+    return dedupe.sets[shard].find(hash) != dedupe.sets[shard].end();
+}
+
 bool insertGlobalDedupe(GlobalDedupe& dedupe, uint64_t hash, size_t dedupeMax) {
     const size_t shard = static_cast<size_t>(hash % dedupe.sets.size());
     std::lock_guard<std::mutex> lock(dedupe.mutexes[shard]);
@@ -408,6 +399,17 @@ bool insertGlobalDedupe(GlobalDedupe& dedupe, uint64_t hash, size_t dedupeMax) {
     dedupe.sets[shard].insert(hash);
     dedupe.order[shard].push_back(hash);
     return true;
+}
+
+bool canImproveKeeper(const BlockState& block, int64_t primaryExpanded) {
+    std::lock_guard<std::mutex> lock(block.keeperMutex);
+    if (block.keepers.size() < block.spec.header.take) return true;
+    if (block.keepers.empty()) return false;
+    const auto weakest = std::min_element(block.keepers.begin(), block.keepers.end(), keeperLessDifficulty);
+    // Final difficulty is min(primary, supplemental costs), so primary is an
+    // upper bound. Compare it to the keeper's final score, not its primary:
+    // a keeper with primary=1000/final=10 must not exclude primary=500/final=100.
+    return primaryExpanded > weakest->difficulty;
 }
 
 bool tryInsertKeeper(BlockState& block, Keeper candidate) {

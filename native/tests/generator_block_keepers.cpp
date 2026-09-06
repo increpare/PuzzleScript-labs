@@ -20,6 +20,7 @@ puzzlescript::generator::Keeper makeKeeper(uint64_t hash, int64_t difficulty, in
 int main() {
     puzzlescript::generator::GlobalDedupe dedupe;
     const size_t dedupeMax = 128;
+    assert(!puzzlescript::generator::containsGlobalDedupe(dedupe, 1));
     uint64_t firstInserted = 0;
     for (uint64_t hash = 1; hash <= static_cast<uint64_t>(dedupeMax + 32); ++hash) {
         if (puzzlescript::generator::insertGlobalDedupe(dedupe, hash, dedupeMax)) {
@@ -29,7 +30,9 @@ int main() {
         }
     }
     assert(firstInserted != 0);
+    assert(!puzzlescript::generator::containsGlobalDedupe(dedupe, firstInserted));
     assert(puzzlescript::generator::insertGlobalDedupe(dedupe, firstInserted, dedupeMax));
+    assert(puzzlescript::generator::containsGlobalDedupe(dedupe, firstInserted));
     assert(puzzlescript::generator::insertGlobalDedupe(dedupe, dedupeMax + 100, dedupeMax));
 
     puzzlescript::generator::BlockState block;
@@ -47,5 +50,14 @@ int main() {
     assert(block.keepers.size() == 2);
     assert(block.keepers.front().difficulty == 200);
     assert(block.keepers.back().difficulty == 250);
+
+    puzzlescript::generator::BlockState gate;
+    gate.spec.header.take = 1;
+    assert(puzzlescript::generator::canImproveKeeper(gate, 0));
+    assert(puzzlescript::generator::tryInsertKeeper(gate, makeKeeper(20, 10, 1000)));
+    assert(puzzlescript::generator::canImproveKeeper(gate, 500));
+    assert(!puzzlescript::generator::canImproveKeeper(gate, 10));
+    assert(puzzlescript::generator::tryInsertKeeper(gate, makeKeeper(21, 100, 500)));
+    assert(!puzzlescript::generator::canImproveKeeper(gate, 99));
     return 0;
 }

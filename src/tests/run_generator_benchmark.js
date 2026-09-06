@@ -11,7 +11,7 @@ function usage() {
     'Usage: run_generator_benchmark.js <puzzlescript_generator> <game.txt> [options]',
     '',
     'Options:',
-    '  --presets-dir PATH        Directory of .gen presets',
+    '  --presets-dir PATH        Directory of .gen presets (legacy mode only; reports skipped level-set recipes)',
     '  --samples N               Samples per run (default: 200)',
     '  --runs N                  Runs per preset (default: 3)',
     '  --jobs N|auto             Generator jobs (default: 1)',
@@ -153,11 +153,23 @@ function main() {
     process.stdout.write(`${usage()}\n`);
     return;
   }
-  const presetFiles = fs.readdirSync(options.presetsDir)
+  const allPresetFiles = fs.readdirSync(options.presetsDir)
     .filter(name => name.endsWith('.gen'))
     .sort();
+  // Level-set recipes need --out and an inactivity/pass budget, whereas this
+  // benchmark measures a fixed sample count and expects legacy JSON output.
+  // Report their exclusion explicitly instead of passing them to the wrong
+  // parser (or silently presenting this as coverage of both generator modes).
+  const skippedPresets = allPresetFiles.filter(name => {
+    const source = fs.readFileSync(path.join(options.presetsDir, name), 'utf8');
+    return /^\s*dimensions\s*:/im.test(source) || /^\s*===/m.test(source);
+  });
+  const presetFiles = allPresetFiles.filter(name => !skippedPresets.includes(name));
+  for (const name of skippedPresets) {
+    process.stderr.write(`generator_benchmark skipped=${name} reason=level-set-recipe\n`);
+  }
   if (presetFiles.length === 0) {
-    throw new Error(`No .gen presets found in ${options.presetsDir}`);
+    throw new Error(`No legacy .gen presets found in ${options.presetsDir}`);
   }
 
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'psgen-benchmark-'));
@@ -196,6 +208,7 @@ function main() {
       started_at: startedAt,
       finished_at: new Date().toISOString(),
       config: {
+        mode: 'legacy',
         generator: options.generatorPath,
         game: options.gamePath,
         presets_dir: options.presetsDir,
@@ -208,6 +221,7 @@ function main() {
         top_k: options.topK,
       },
       presets,
+      skipped_presets: skippedPresets.map(preset => ({ preset, reason: 'level-set-recipe' })),
     };
     const text = `${JSON.stringify(output, null, 2)}\n`;
     if (options.outPath) {
