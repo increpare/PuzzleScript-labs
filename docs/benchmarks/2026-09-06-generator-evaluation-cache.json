@@ -1,0 +1,164 @@
+{
+  "started_at": "2026-09-06T12:33:07.453Z",
+  "finished_at": "2026-09-06T12:33:08.112Z",
+  "config": {
+    "mode": "level-set",
+    "run_timeout_ms": 5000,
+    "generator": "puzzlescript_generator (evaluation-cache branch, MSVC Release, 64-bit masks, linked Sokoban kernels)",
+    "game": "src/demo/sokoban_basic.txt",
+    "presets_dir": "src/tests/generator_presets",
+    "samples": 200,
+    "runs": 3,
+    "jobs": "1",
+    "seed": "11",
+    "solver_timeout_ms": 50,
+    "solver_strategy": "portfolio",
+    "top_k": 10
+  },
+  "presets": [
+    {
+      "preset": "sokoban_levelset_tiny.gen",
+      "run_count": 3,
+      "elapsed_ms": {
+        "min": 212.3465,
+        "p50": 214.9862,
+        "p90": 214.9862,
+        "max": 219.5146,
+        "mean": 215.61576666666667
+      },
+      "samples_per_second": {
+        "min": 911.1011294920702,
+        "p50": 930.2922699224416,
+        "p90": 930.2922699224416,
+        "max": 941.8568236349552,
+        "mean": 927.7500743498223
+      },
+      "keepers": {
+        "min": 2,
+        "p50": 2,
+        "p90": 2,
+        "max": 2,
+        "mean": 2
+      },
+      "runs": [
+        {
+          "run_index": 0,
+          "elapsed_ms": 219.5146,
+          "samples_per_second": 911.1011294920702,
+          "stop_reason": "samples",
+          "totals": {
+            "samples_attempted": 200,
+            "solver_searches": 199,
+            "deduped": 1,
+            "interrupted_assessments": 0,
+            "keepers": 2
+          },
+          "blocks": [
+            {
+              "name": "tiny",
+              "samples_attempted": 100,
+              "solver_searches": 99,
+              "keepers": 1
+            },
+            {
+              "name": "small",
+              "samples_attempted": 100,
+              "solver_searches": 100,
+              "keepers": 1
+            }
+          ],
+          "evaluation_cache": {
+            "hits": 32,
+            "searches": 182,
+            "waits": 0,
+            "entries": 177,
+            "retained_bytes": 95144
+          }
+        },
+        {
+          "run_index": 1,
+          "elapsed_ms": 214.9862,
+          "samples_per_second": 930.2922699224416,
+          "stop_reason": "samples",
+          "totals": {
+            "samples_attempted": 200,
+            "solver_searches": 199,
+            "deduped": 1,
+            "interrupted_assessments": 0,
+            "keepers": 2
+          },
+          "blocks": [
+            {
+              "name": "tiny",
+              "samples_attempted": 100,
+              "solver_searches": 99,
+              "keepers": 1
+            },
+            {
+              "name": "small",
+              "samples_attempted": 100,
+              "solver_searches": 100,
+              "keepers": 1
+            }
+          ],
+          "evaluation_cache": {
+            "hits": 32,
+            "searches": 182,
+            "waits": 0,
+            "entries": 177,
+            "retained_bytes": 95144
+          }
+        },
+        {
+          "run_index": 2,
+          "elapsed_ms": 212.3465,
+          "samples_per_second": 941.8568236349552,
+          "stop_reason": "samples",
+          "totals": {
+            "samples_attempted": 200,
+            "solver_searches": 199,
+            "deduped": 1,
+            "interrupted_assessments": 0,
+            "keepers": 2
+          },
+          "blocks": [
+            {
+              "name": "tiny",
+              "samples_attempted": 100,
+              "solver_searches": 99,
+              "keepers": 1
+            },
+            {
+              "name": "small",
+              "samples_attempted": 100,
+              "solver_searches": 100,
+              "keepers": 1
+            }
+          ],
+          "evaluation_cache": {
+            "hits": 32,
+            "searches": 182,
+            "waits": 0,
+            "entries": 177,
+            "retained_bytes": 95144
+          }
+        }
+      ]
+    }
+  ],
+  "skipped_presets": [
+    {
+      "preset": "sokoban_room_scatter.gen",
+      "reason": "incompatible-with-level-set"
+    },
+    {
+      "preset": "sokoban_transform_pairs.gen",
+      "reason": "incompatible-with-level-set"
+    }
+  ],
+  "notes": [
+    "New run record, not a controlled end-to-end speedup claim.",
+    "Candidate-assessment and lane-search counters have different meanings.",
+    "32 cached lane hits per 200-sample run; two keepers and no interrupted assessments."
+  ]
+}
