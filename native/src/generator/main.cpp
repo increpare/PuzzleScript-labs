@@ -2,6 +2,7 @@
 #include <array>
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <cctype>
 #include <cstdlib>
 #include <csignal>
@@ -151,6 +152,8 @@ struct Counters {
 struct SharedState {
     std::atomic<uint64_t> nextSample{0};
     std::atomic<bool> cancel{false};
+    std::mutex completionMutex;
+    std::condition_variable completionWake;
     Counters counters;
     std::mutex topMutex;
     std::vector<Candidate> top;
@@ -670,6 +673,11 @@ void workerMain(
         shared.cancel.store(true, std::memory_order_relaxed);
         captureWorkerException(shared);
     }
+    // Notify under the waiter's mutex so finishing a sample quota/error cannot
+    // race between its predicate check and sleep. Already-admitted solves still
+    // finish in join(); quota completion does not cancel their search callbacks.
+    std::lock_guard<std::mutex> lock(shared.completionMutex);
+    shared.completionWake.notify_one();
 }
 
 std::vector<Candidate> snapshotTop(SharedState& shared) {
@@ -1198,7 +1206,15 @@ int main(int argc, char** argv) {
                 printSparseProgress(options, shared, start);
                 lastSparse = Clock::now();
             }
-            std::this_thread::sleep_for(std::chrono::milliseconds(250));
+            // A short batch used to pay a 250 ms dashboard polling delay even
+            // after all work was done. Completion wakes immediately; an exact
+            // deadline also avoids rounding short time limits up to a poll.
+            std::unique_lock<std::mutex> lock(shared.completionMutex);
+            shared.completionWake.wait_until(lock,
+                std::min(deadline, Clock::now() + std::chrono::milliseconds(250)), [&] {
+                    return shared.cancel.load(std::memory_order_relaxed)
+                        || gInterruptRequested.load(std::memory_order_relaxed);
+                });
         }
         for (auto& worker : workers) {
             worker.join();

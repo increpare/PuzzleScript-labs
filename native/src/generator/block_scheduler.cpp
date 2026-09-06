@@ -544,6 +544,8 @@ void runBlockUntilIdle(
 
     std::atomic<bool> blockCancel{false};
     std::atomic<size_t> workersRemaining{options.jobs};
+    std::mutex completionMutex;
+    std::condition_variable completionWake;
     std::mutex errorMutex;
     std::exception_ptr workerError;
     std::vector<std::thread> workers;
@@ -557,7 +559,11 @@ void runBlockUntilIdle(
                 if (!workerError) workerError = std::current_exception();
                 blockCancel.store(true, std::memory_order_relaxed);
             }
-            workersRemaining.fetch_sub(1, std::memory_order_release);
+            {
+                std::lock_guard<std::mutex> lock(completionMutex);
+                workersRemaining.fetch_sub(1, std::memory_order_release);
+            }
+            completionWake.notify_one();
         });
     }
 
@@ -572,7 +578,15 @@ void runBlockUntilIdle(
         if (Clock::now() - idleSince >= std::chrono::milliseconds(block.inactivityTimeoutMs)) {
             break;
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        // Completed sample batches used to wait out a 50 ms polling sleep per
+        // block, hiding savings in candidate evaluation. Wake on completion or
+        // worker failure; retain the poll bound for external stops/inactivity.
+        // The predicate and completion update share a mutex to avoid lost wakes.
+        std::unique_lock<std::mutex> lock(completionMutex);
+        completionWake.wait_for(lock, std::chrono::milliseconds(50), [&] {
+            return workersRemaining.load(std::memory_order_acquire) == 0
+                || blockCancel.load(std::memory_order_relaxed);
+        });
     }
 
     blockCancel.store(true, std::memory_order_relaxed);
