@@ -34,6 +34,8 @@ std::string copyStrategy(const ps_solve_result* result) {
 
 struct SolveAttempt {
     bool solved = false;
+    ps_solve_status status = PS_SOLVE_STATUS_ERROR;
+    std::string error;
     int64_t expanded = -1;
     int64_t elapsedMs = 0;
     std::string strategy;
@@ -68,11 +70,19 @@ SolveAttempt runStrategy(
             &solveOptions,
             &rawResult,
             &rawError)) {
+        const char* message = rawError ? ps_error_message(rawError) : nullptr;
+        attempt.error = message ? message : "Candidate solver failed without an error message";
         ps_free_error(rawError);
         return attempt;
     }
 
     std::unique_ptr<ps_solve_result, decltype(&ps_solve_result_free)> result(rawResult, ps_solve_result_free);
+    if (!result) {
+        attempt.error = "Candidate solver returned no result";
+        return attempt;
+    }
+    attempt.status = result->status;
+    attempt.error = result->error ? result->error : "";
     attempt.expanded = static_cast<int64_t>(result->expanded);
     attempt.elapsedMs = result->elapsed_ms;
     attempt.strategy = copyStrategy(result.get());
@@ -174,6 +184,7 @@ DifficultyResult assessGeneratedLevelDifficulty(
     DifficultyProgressCallback onProgress) {
     DifficultyResult result;
     if (!loadedGame.information) {
+        result.primaryError = "Cannot assess a level without a compiled game";
         if (onProgress) {
             onProgress(DifficultyStage::Complete, result);
         }
@@ -182,6 +193,7 @@ DifficultyResult assessGeneratedLevelDifficulty(
 
     const std::vector<int32_t> layerGrid = levelTemplateToLayerCellObjectIds(*loadedGame.information, level);
     if (layerGrid.empty()) {
+        result.primaryError = "Candidate level dimensions or object storage are invalid";
         if (onProgress) {
             onProgress(DifficultyStage::Complete, result);
         }
@@ -203,6 +215,10 @@ DifficultyResult assessGeneratedLevelDifficulty(
     result.primaryExpanded = std::max<int64_t>(0, primary.expanded);
     result.primaryElapsedMs = std::max<int64_t>(0, primary.elapsedMs);
     result.primaryStrategy = primary.strategy;
+    // Preserve unknown (timeout) separately from exhausted and engine errors:
+    // generation uses this distinction to retry with a larger solve budget.
+    result.primaryStatus = primary.status;
+    result.primaryError = primary.error;
 
     if (!primary.solved) {
         if (onProgress) {

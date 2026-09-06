@@ -1533,6 +1533,12 @@ add_executable(generator_difficulty_assessment
   tests/generator_difficulty_assessment.cpp
 )
 
+add_executable(generator_difficulty_contract
+  tests/generator_difficulty_contract.cpp
+  src/search/difficulty.cpp)
+target_include_directories(generator_difficulty_contract PRIVATE src include)
+add_test(NAME generator_difficulty_contract COMMAND generator_difficulty_contract)
+
 target_link_libraries(generator_difficulty_assessment
   PRIVATE
     puzzlescript_native

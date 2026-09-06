@@ -7,8 +7,14 @@
 namespace nativebridge {
 namespace {
 
-CandidateSolveStatus toCandidateStatus(bool solved) {
-    return solved ? CandidateSolveStatus::Solved : CandidateSolveStatus::Error;
+CandidateSolveStatus toCandidateStatus(ps_solve_status status) {
+    switch (status) {
+        case PS_SOLVE_STATUS_SOLVED: return CandidateSolveStatus::Solved;
+        case PS_SOLVE_STATUS_EXHAUSTED: return CandidateSolveStatus::Unsolvable;
+        case PS_SOLVE_STATUS_TIMEOUT: return CandidateSolveStatus::Timeout;
+        case PS_SOLVE_STATUS_ERROR: return CandidateSolveStatus::Error;
+    }
+    return CandidateSolveStatus::Error;
 }
 
 DifficultyBreakdown toBridgeBreakdown(const puzzlescript::search::DifficultyBreakdown& breakdown) {
@@ -67,7 +73,8 @@ std::vector<short> toEditorSolution(const std::vector<ps_input>& solution) {
 
 DifficultyAssessmentResult toBridgeResult(const puzzlescript::search::DifficultyResult& assessed) {
     DifficultyAssessmentResult result;
-    result.primaryStatus = toCandidateStatus(assessed.solved);
+    result.primaryStatus = toCandidateStatus(assessed.primaryStatus);
+    result.primaryError = assessed.primaryError;
     result.primaryExpanded = assessed.primaryExpanded;
     result.primaryElapsedMs = assessed.primaryElapsedMs;
     result.primaryStrategy = assessed.primaryStrategy;
