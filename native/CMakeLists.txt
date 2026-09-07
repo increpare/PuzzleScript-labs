@@ -19,6 +19,8 @@ endif()
 # reporting; enabling those flags would require a large rewrite outside the
 # scope of this perf phase.
 option(PS_ENABLE_LTO "Enable Release-build link-time optimization" ON)
+option(PS_SPATIAL_MATCH_CACHE "Experimental phase-local spatial match cache" OFF)
+option(PS_SPATIAL_MATCH_VERIFY "Compare every spatial cache reuse with a fresh match scan" OFF)
 option(PS_ENABLE_LINK_DEDUP "Enable Darwin ld64 duplicate-code folding in Release builds" ON)
 option(PS_ENABLE_EXPORTED_SYMBOLS "Enable exported symbols from Release main executables on Darwin" ON)
 option(PS_ENABLE_MARCH_NATIVE "Enable -march=native in Release builds" ON)
@@ -250,6 +252,8 @@ target_link_libraries(puzzlescript_native
 
 target_compile_definitions(puzzlescript_native
   PUBLIC
+    PS_SPATIAL_MATCH_CACHE=$<BOOL:${PS_SPATIAL_MATCH_CACHE}>
+    PS_SPATIAL_MATCH_VERIFY=$<BOOL:${PS_SPATIAL_MATCH_VERIFY}>
     PS_MASK_WORD_BITS=${PS_MASK_WORD_BITS}
     PS_INTERPRETER_OBJECT_CELL_INDEX=$<BOOL:${PS_INTERPRETER_OBJECT_CELL_INDEX}>
 )
