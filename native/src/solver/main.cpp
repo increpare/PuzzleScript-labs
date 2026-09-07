@@ -37,6 +37,9 @@
 #include "runtime/json.hpp"
 #include "search/search_common.hpp"
 #include "solver/heuristics.hpp"
+#ifdef PS_PORTFOLIO_DIAGNOSTICS
+#include "solver/portfolio_diagnostics.hpp"
+#endif
 
 #ifdef PUZZLESCRIPT_SOLVER_C_API
 #include "runtime/c_api_internal.hpp"
@@ -2778,6 +2781,9 @@ Result runAdaptivePortfolioSearch(
     bool solverHashProjection,
     std::unique_ptr<FullState> initialOverride = nullptr
 ) {
+#ifdef PS_PORTFOLIO_DIAGNOSTICS
+    auto* diagnosis = puzzlescript::solver::activePortfolioDiagnosis;
+#endif
     const std::shared_ptr<const Game>& game = loadedGame.information;
     Result result;
     result.game = gameName;
@@ -2878,6 +2884,12 @@ Result runAdaptivePortfolioSearch(
     for (const PortfolioLaneConfig& config : portfolioLaneConfigs(portfolioProfile, astarWeight)) {
         modes.push_back(PortfolioMode{config.name, config.mode, config.weight, config.expansionSlice, {}});
     }
+#ifdef PS_PORTFOLIO_DIAGNOSTICS
+    if (diagnosis) {
+        diagnosis->initialHeuristic = diagnosis->bestHeuristic = initialHeuristic;
+        for (const auto& mode : modes) diagnosis->lanes.push_back({mode.name});
+    }
+#endif
 
     uint64_t nextTie = 0;
     uint64_t totalFrontier = 0;
@@ -2933,6 +2945,9 @@ Result runAdaptivePortfolioSearch(
     };
 
     auto advanceMode = [&]() -> bool {
+#ifdef PS_PORTFOLIO_DIAGNOSTICS
+        const size_t oldMode = modeIndex;
+#endif
         if (modes.empty()) {
             return false;
         }
@@ -2943,6 +2958,10 @@ Result runAdaptivePortfolioSearch(
             }
             if (!modes[modeIndex].frontier.empty()) {
                 sliceExpansionsLeft = modes[modeIndex].expansionSlice;
+#ifdef PS_PORTFOLIO_DIAGNOSTICS
+                if (diagnosis) diagnosis->event("advance", oldMode, modeIndex,
+                    result.expanded, result.generated, result.timing.stepNs);
+#endif
                 return true;
             }
         }
@@ -2950,6 +2969,12 @@ Result runAdaptivePortfolioSearch(
     };
 
     while (totalFrontier > 0) {
+#ifdef PS_PORTFOLIO_DIAGNOSTICS
+        if (diagnosis && diagnosis->maxExpanded && result.expanded >= diagnosis->maxExpanded) {
+            result.status = "expansion_limit";
+            break;
+        }
+#endif
         bool timedOut = false;
         {
             ScopedTimer timer(result.timing.timeoutCheckNs);
@@ -3013,7 +3038,18 @@ Result runAdaptivePortfolioSearch(
         }
         const FullState& parentSession = *parentSessionPtr;
         ++result.expanded;
-        if (allowWeightedAStarLock && !lockedToWeightedAStar && result.expanded >= 128 && result.generated > 0) {
+#ifdef PS_PORTFOLIO_DIAGNOSTICS
+        // Credit the lane that selected the node, even when the lock below
+        // changes the scheduler before this node's successors are generated.
+        const size_t selectingMode = modeIndex;
+        const int32_t selectingHeuristic = nodes[entry.nodeIndex].heuristic;
+        if (diagnosis) diagnosis->expanded(selectingMode, nodes[entry.nodeIndex].key.lo, nodes[entry.nodeIndex].key.hi);
+#endif
+        if (allowWeightedAStarLock && !lockedToWeightedAStar && result.expanded >= 128 && result.generated > 0
+#ifdef PS_PORTFOLIO_DIAGNOSTICS
+            && (!diagnosis || !diagnosis->disableLock)
+#endif
+        ) {
             const double stepMsPerGenerated = ms(result.timing.stepNs) / static_cast<double>(result.generated);
             if (stepMsPerGenerated > 0.05) {
                 lockedToWeightedAStar = true;
@@ -3021,6 +3057,12 @@ Result runAdaptivePortfolioSearch(
                     modeIndex = *weightedModeIndex;
                     sliceExpansionsLeft = modes[*weightedModeIndex].expansionSlice;
                 }
+#ifdef PS_PORTFOLIO_DIAGNOSTICS
+                if (diagnosis) {
+                    diagnosis->lockExpanded = result.expanded;
+                    diagnosis->event("lock", selectingMode, modeIndex, result.expanded, result.generated, result.timing.stepNs);
+                }
+#endif
             }
         }
 
@@ -3035,6 +3077,9 @@ Result runAdaptivePortfolioSearch(
                 break;
             }
 
+#ifdef PS_PORTFOLIO_DIAGNOSTICS
+            const int64_t stepBefore = result.timing.stepNs;
+#endif
             SolverEdgeStep edge = stepSolverEdge(
                 game,
                 // Re-fetch by index: a previous input's push_back below may have
@@ -3060,6 +3105,12 @@ Result runAdaptivePortfolioSearch(
             }
             const ps_step_result& stepResult = edge.stepResult;
             ++result.generated;
+#ifdef PS_PORTFOLIO_DIAGNOSTICS
+            if (diagnosis && diagnosis->collect) {
+                ++diagnosis->lanes[selectingMode].generated;
+                diagnosis->lanes[selectingMode].stepNs += result.timing.stepNs - stepBefore;
+            }
+#endif
 
             if ((edge.compactTurn.handled && edge.compactTurn.discard) || stepResult.restarted) {
                 continue;
@@ -3077,6 +3128,9 @@ Result runAdaptivePortfolioSearch(
                 return result;
             }
             if (!stepResult.changed) {
+#ifdef PS_PORTFOLIO_DIAGNOSTICS
+                if (diagnosis && diagnosis->collect) ++diagnosis->lanes[selectingMode].noops;
+#endif
                 continue;
             }
 
@@ -3099,6 +3153,9 @@ Result runAdaptivePortfolioSearch(
             }
             if (!shouldStore) {
                 ++result.duplicates;
+#ifdef PS_PORTFOLIO_DIAGNOSTICS
+                if (diagnosis && diagnosis->collect) ++diagnosis->lanes[selectingMode].duplicates;
+#endif
                 continue;
             }
 
@@ -3107,6 +3164,9 @@ Result runAdaptivePortfolioSearch(
                 ScopedTimer timer(result.timing.heuristicNs);
                 childHeuristic = heuristicContext.score(childState.board.objects.data());
             }
+#ifdef PS_PORTFOLIO_DIAGNOSTICS
+            if (diagnosis) diagnosis->child(selectingMode, selectingHeuristic, childHeuristic, result.expanded);
+#endif
 
             std::unique_ptr<FullState> ownedChild;
             if (!compactNodeStorage) {
