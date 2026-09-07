@@ -1,0 +1,7282 @@
+{
+  "schema": 1,
+  "deadline_ms": 250,
+  "source_level_indices": "zero-based, including message entries",
+  "corpus_games": 184,
+  "eligible_games": 16,
+  "eligible_levels": 102,
+  "portfolio_active_games": 12,
+  "portfolio_active_levels": 47,
+  "total_ruleset_setup_ms": 7.6716999999999995,
+  "maximum_ruleset_setup_ms": 1.0016,
+  "compaction_score_checks": 1632,
+  "pairs": [
+    {
+      "before": 20,
+      "after": 22
+    },
+    {
+      "before": 20,
+      "after": 23
+    },
+    {
+      "before": 20,
+      "after": 22
+    }
+  ],
+  "consistent_gains": [
+    {
+      "game": "Hole-Stuffer.txt",
+      "level": 1
+    },
+    {
+      "game": "midas.txt",
+      "level": 29
+    }
+  ],
+  "consistent_losses": [],
+  "cases": [
+    {
+      "game": "Any hole is a goal.txt",
+      "level": 1,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          8,
+          8,
+          8
+        ],
+        "expanded": [
+          17,
+          17,
+          17
+        ],
+        "generated": [
+          81,
+          81,
+          81
+        ],
+        "solution_length": [
+          5,
+          5,
+          5
+        ],
+        "heuristic_ms": [
+          0.0366,
+          0.0567,
+          0.0328
+        ],
+        "median_ms": 8
+      },
+      "after": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          7,
+          8,
+          8
+        ],
+        "expanded": [
+          17,
+          17,
+          17
+        ],
+        "generated": [
+          81,
+          81,
+          81
+        ],
+        "solution_length": [
+          5,
+          5,
+          5
+        ],
+        "heuristic_ms": [
+          0.0423,
+          0.0343,
+          0.0322
+        ],
+        "median_ms": 8
+      }
+    },
+    {
+      "game": "Any hole is a goal.txt",
+      "level": 3,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          224,
+          227,
+          213
+        ],
+        "expanded": [
+          802,
+          802,
+          802
+        ],
+        "generated": [
+          4006,
+          4006,
+          4006
+        ],
+        "solution_length": [
+          24,
+          24,
+          24
+        ],
+        "heuristic_ms": [
+          1.0049,
+          0.8384,
+          0.8718
+        ],
+        "median_ms": 224
+      },
+      "after": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          206,
+          217,
+          210
+        ],
+        "expanded": [
+          802,
+          802,
+          802
+        ],
+        "generated": [
+          4006,
+          4006,
+          4006
+        ],
+        "solution_length": [
+          24,
+          24,
+          24
+        ],
+        "heuristic_ms": [
+          0.8208,
+          0.8638,
+          0.8526
+        ],
+        "median_ms": 210
+      }
+    },
+    {
+      "game": "Any hole is a goal.txt",
+      "level": 5,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          733,
+          684,
+          756
+        ],
+        "generated": [
+          3661,
+          3419,
+          3779
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.3885,
+          1.3378,
+          1.4119
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          797,
+          771,
+          737
+        ],
+        "generated": [
+          3981,
+          3854,
+          3683
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.3378,
+          1.3508,
+          1.3013
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "Any hole is a goal.txt",
+      "level": 7,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          218,
+          239,
+          203
+        ],
+        "expanded": [
+          748,
+          748,
+          748
+        ],
+        "generated": [
+          3736,
+          3736,
+          3736
+        ],
+        "solution_length": [
+          23,
+          23,
+          23
+        ],
+        "heuristic_ms": [
+          0.8407,
+          0.9974,
+          0.9394
+        ],
+        "median_ms": 218
+      },
+      "after": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          192,
+          203,
+          201
+        ],
+        "expanded": [
+          748,
+          748,
+          748
+        ],
+        "generated": [
+          3736,
+          3736,
+          3736
+        ],
+        "solution_length": [
+          23,
+          23,
+          23
+        ],
+        "heuristic_ms": [
+          0.7378,
+          0.82,
+          0.7865
+        ],
+        "median_ms": 201
+      }
+    },
+    {
+      "game": "Any hole is a goal.txt",
+      "level": 9,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          833,
+          941,
+          926
+        ],
+        "generated": [
+          4165,
+          4703,
+          4629
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.3639,
+          1.2626,
+          1.3203
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          927,
+          924,
+          907
+        ],
+        "generated": [
+          4635,
+          4618,
+          4532
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.3356,
+          1.4872,
+          1.3344
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "Any hole is a goal.txt",
+      "level": 11,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          866,
+          835,
+          888
+        ],
+        "generated": [
+          4327,
+          4175,
+          4436
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.1362,
+          1.0743,
+          1.1185
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          889,
+          885,
+          884
+        ],
+        "generated": [
+          4444,
+          4422,
+          4419
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.0791,
+          1.096,
+          1.0966
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "Any hole is a goal.txt",
+      "level": 13,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          796,
+          748,
+          823
+        ],
+        "generated": [
+          3978,
+          3736,
+          4115
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.3579,
+          1.2235,
+          1.3385
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          847,
+          823,
+          821
+        ],
+        "generated": [
+          4235,
+          4111,
+          4101
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.2538,
+          1.3394,
+          1.2921
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "Any hole is a goal.txt",
+      "level": 15,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          680,
+          673,
+          703
+        ],
+        "generated": [
+          3397,
+          3361,
+          3511
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.1059,
+          1.0397,
+          1.1405
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          723,
+          745,
+          688
+        ],
+        "generated": [
+          3610,
+          3725,
+          3440
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.0937,
+          1.0834,
+          1.1056
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "Any hole is a goal.txt",
+      "level": 17,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          820,
+          796,
+          868
+        ],
+        "generated": [
+          4096,
+          3976,
+          4337
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.6572,
+          1.2359,
+          1.3291
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          864,
+          915,
+          875
+        ],
+        "generated": [
+          4319,
+          4575,
+          4372
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.3767,
+          1.2771,
+          1.3896
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "Any hole is a goal.txt",
+      "level": 19,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          859,
+          786,
+          858
+        ],
+        "generated": [
+          4294,
+          3926,
+          4288
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.343,
+          1.3535,
+          1.3384
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          841,
+          916,
+          852
+        ],
+        "generated": [
+          4204,
+          4576,
+          4259
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.2979,
+          1.3072,
+          1.3409
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "Any hole is a goal.txt",
+      "level": 21,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          820,
+          757,
+          829
+        ],
+        "generated": [
+          4099,
+          3784,
+          4142
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.5374,
+          1.5308,
+          1.6729
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          872,
+          857,
+          858
+        ],
+        "generated": [
+          4360,
+          4282,
+          4289
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.4518,
+          1.4308,
+          1.7382
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "Any hole is a goal.txt",
+      "level": 23,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          1018,
+          602,
+          995
+        ],
+        "generated": [
+          5087,
+          3006,
+          4972
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.9236,
+          1.0773,
+          0.9841
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "solved",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          248,
+          250
+        ],
+        "expanded": [
+          1017,
+          1037,
+          988
+        ],
+        "generated": [
+          5081,
+          5181,
+          4938
+        ],
+        "solution_length": [
+          0,
+          18,
+          0
+        ],
+        "heuristic_ms": [
+          0.93,
+          0.9161,
+          0.9658
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "Any hole is a goal.txt",
+      "level": 25,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          818,
+          545,
+          867
+        ],
+        "generated": [
+          4088,
+          2721,
+          4334
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.3852,
+          1.3406,
+          1.1928
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          835,
+          863,
+          854
+        ],
+        "generated": [
+          4174,
+          4315,
+          4268
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.1659,
+          1.1777,
+          1.1933
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "Any hole is a goal.txt",
+      "level": 27,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          425,
+          472,
+          483
+        ],
+        "generated": [
+          2122,
+          2360,
+          2414
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.4313,
+          1.4152,
+          1.5087
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          527,
+          501,
+          498
+        ],
+        "generated": [
+          2632,
+          2505,
+          2487
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.3907,
+          1.4248,
+          1.4511
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "Any hole is a goal.txt",
+      "level": 29,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          799,
+          863,
+          792
+        ],
+        "generated": [
+          3994,
+          4312,
+          3957
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.4846,
+          1.4255,
+          1.4642
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          970,
+          884,
+          853
+        ],
+        "generated": [
+          4849,
+          4417,
+          4261
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.3884,
+          1.4424,
+          1.5695
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "Any hole is a goal.txt",
+      "level": 31,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          819,
+          839,
+          839
+        ],
+        "generated": [
+          4091,
+          4193,
+          4194
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.352,
+          1.3211,
+          1.5128
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          944,
+          835,
+          803
+        ],
+        "generated": [
+          4716,
+          4171,
+          4015
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.2927,
+          1.3769,
+          1.4289
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "Any hole is a goal.txt",
+      "level": 33,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          556,
+          810,
+          806
+        ],
+        "generated": [
+          2777,
+          4047,
+          4029
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.2804,
+          1.4039,
+          1.328
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          935,
+          842,
+          771
+        ],
+        "generated": [
+          4671,
+          4209,
+          3851
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.2772,
+          1.3501,
+          1.3385
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "Any hole is a goal.txt",
+      "level": 35,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          515,
+          585,
+          707
+        ],
+        "generated": [
+          2573,
+          2922,
+          3535
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.3025,
+          1.2054,
+          1.258
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          760,
+          716,
+          618
+        ],
+        "generated": [
+          3796,
+          3578,
+          3089
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.1838,
+          1.2622,
+          1.245
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "Any hole is a goal.txt",
+      "level": 37,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          424,
+          398,
+          374
+        ],
+        "generated": [
+          2118,
+          1989,
+          1870
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.6245,
+          1.5525,
+          1.6535
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          443,
+          417,
+          400
+        ],
+        "generated": [
+          2215,
+          2082,
+          1997
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.6224,
+          1.6767,
+          1.6583
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "Any hole is a goal.txt",
+      "level": 39,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          765,
+          637,
+          733
+        ],
+        "generated": [
+          3821,
+          3184,
+          3663
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.4699,
+          1.6593,
+          1.4807
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          794,
+          724,
+          700
+        ],
+        "generated": [
+          3969,
+          3618,
+          3498
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.4651,
+          1.5276,
+          1.4801
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "Any hole is a goal.txt",
+      "level": 41,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          961,
+          887,
+          863
+        ],
+        "generated": [
+          4801,
+          4433,
+          4311
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.2824,
+          1.2734,
+          1.3863
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          970,
+          818,
+          829
+        ],
+        "generated": [
+          4848,
+          4090,
+          4143
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.2739,
+          1.3322,
+          1.3667
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "Any hole is a goal.txt",
+      "level": 43,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          486,
+          454,
+          481
+        ],
+        "generated": [
+          2430,
+          2270,
+          2402
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.2664,
+          1.3064,
+          1.3454
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          513,
+          469,
+          442
+        ],
+        "generated": [
+          2562,
+          2342,
+          2207
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.2644,
+          1.4022,
+          1.3463
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "Any hole is a goal.txt",
+      "level": 45,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          418,
+          370,
+          382
+        ],
+        "generated": [
+          2086,
+          1846,
+          1907
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.3497,
+          1.4634,
+          1.4235
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          438,
+          427,
+          386
+        ],
+        "generated": [
+          2186,
+          2134,
+          1929
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.3279,
+          1.4315,
+          1.4431
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "Any hole is a goal.txt",
+      "level": 47,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          948,
+          754,
+          914
+        ],
+        "generated": [
+          4737,
+          3768,
+          4566
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.3382,
+          1.3564,
+          1.4159
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          962,
+          878,
+          820
+        ],
+        "generated": [
+          4810,
+          4388,
+          4098
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.3623,
+          1.3817,
+          1.3988
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "Any hole is a goal.txt",
+      "level": 49,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          888,
+          861,
+          871
+        ],
+        "generated": [
+          4436,
+          4303,
+          4355
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.4356,
+          1.4225,
+          1.4515
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          931,
+          833,
+          822
+        ],
+        "generated": [
+          4652,
+          4165,
+          4107
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.3816,
+          1.489,
+          1.4871
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "Any hole is a goal.txt",
+      "level": 51,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          676,
+          588,
+          656
+        ],
+        "generated": [
+          3377,
+          2936,
+          3278
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.222,
+          1.284,
+          1.3336
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          687,
+          671,
+          639
+        ],
+        "generated": [
+          3433,
+          3355,
+          3194
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.197,
+          1.2808,
+          1.3139
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "Any hole is a goal.txt",
+      "level": 53,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          774,
+          677,
+          644
+        ],
+        "generated": [
+          3869,
+          3385,
+          3216
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.2716,
+          1.5928,
+          1.3243
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          822,
+          710,
+          741
+        ],
+        "generated": [
+          4109,
+          3548,
+          3703
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.2379,
+          1.4535,
+          1.2918
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "Any hole is a goal.txt",
+      "level": 55,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          892,
+          617,
+          881
+        ],
+        "generated": [
+          4459,
+          3084,
+          4402
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.3985,
+          1.3191,
+          1.4469
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          925,
+          867,
+          850
+        ],
+        "generated": [
+          4625,
+          4333,
+          4248
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.3835,
+          1.4149,
+          1.4365
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "Any hole is a goal.txt",
+      "level": 57,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          966,
+          677,
+          904
+        ],
+        "generated": [
+          4826,
+          3384,
+          4519
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.3949,
+          1.3469,
+          1.3989
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          987,
+          842,
+          824
+        ],
+        "generated": [
+          4934,
+          4209,
+          4117
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.3716,
+          1.4569,
+          1.4399
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "Any hole is a goal.txt",
+      "level": 59,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          810,
+          816,
+          809
+        ],
+        "generated": [
+          4047,
+          4078,
+          4041
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.3142,
+          1.2892,
+          1.3791
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          909,
+          874,
+          838
+        ],
+        "generated": [
+          4541,
+          4366,
+          4186
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.2381,
+          1.3068,
+          1.3394
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "Any hole is a goal.txt",
+      "level": 61,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          787,
+          783,
+          706
+        ],
+        "generated": [
+          3933,
+          3912,
+          3527
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.4797,
+          1.4902,
+          1.5064
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          862,
+          802,
+          766
+        ],
+        "generated": [
+          4310,
+          4008,
+          3830
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.4592,
+          1.5307,
+          1.6253
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "Any hole is a goal.txt",
+      "level": 63,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          879,
+          740,
+          810
+        ],
+        "generated": [
+          4393,
+          3699,
+          4049
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.2012,
+          1.2481,
+          1.2635
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          903,
+          784,
+          695
+        ],
+        "generated": [
+          4512,
+          3920,
+          3471
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.1835,
+          1.2588,
+          1.2838
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "Any hole is a goal.txt",
+      "level": 65,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          958,
+          817,
+          863
+        ],
+        "generated": [
+          4789,
+          4085,
+          4312
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.1767,
+          1.275,
+          1.3086
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          955,
+          798,
+          854
+        ],
+        "generated": [
+          4774,
+          3986,
+          4268
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.2549,
+          1.403,
+          1.2841
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "Any hole is a goal.txt",
+      "level": 67,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          832,
+          744,
+          755
+        ],
+        "generated": [
+          4159,
+          3718,
+          3772
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.4061,
+          1.4462,
+          1.4588
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          853,
+          756,
+          735
+        ],
+        "generated": [
+          4261,
+          3776,
+          3672
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.3856,
+          1.5207,
+          1.5032
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "Any hole is a goal.txt",
+      "level": 69,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          917,
+          874,
+          788
+        ],
+        "generated": [
+          4583,
+          4368,
+          3940
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.4258,
+          1.5043,
+          1.5128
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          894,
+          868,
+          853
+        ],
+        "generated": [
+          4466,
+          4339,
+          4261
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.4639,
+          1.5249,
+          1.5654
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "Hole-Stuffer.txt",
+      "level": 1,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          2938,
+          2516,
+          2859
+        ],
+        "generated": [
+          14689,
+          12576,
+          14293
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          7.4226,
+          7.2727,
+          7.5797
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          199,
+          203,
+          240
+        ],
+        "expanded": [
+          2219,
+          2219,
+          2219
+        ],
+        "generated": [
+          11093,
+          11093,
+          11093
+        ],
+        "solution_length": [
+          20,
+          20,
+          20
+        ],
+        "heuristic_ms": [
+          12.5124,
+          12.817,
+          14.7958
+        ],
+        "median_ms": 203
+      }
+    },
+    {
+      "game": "Hole-Stuffer.txt",
+      "level": 3,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          3213,
+          2995,
+          2484
+        ],
+        "generated": [
+          16065,
+          14973,
+          12419
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          4.3126,
+          4.6393,
+          4.804
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          3158,
+          3118,
+          2628
+        ],
+        "generated": [
+          15789,
+          15588,
+          13136
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          8.1887,
+          8.0526,
+          8.3403
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "Hole-Stuffer.txt",
+      "level": 5,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          17,
+          13,
+          22
+        ],
+        "expanded": [
+          178,
+          178,
+          178
+        ],
+        "generated": [
+          888,
+          888,
+          888
+        ],
+        "solution_length": [
+          14,
+          14,
+          14
+        ],
+        "heuristic_ms": [
+          0.2768,
+          0.2304,
+          0.388
+        ],
+        "median_ms": 17
+      },
+      "after": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          12,
+          11,
+          15
+        ],
+        "expanded": [
+          146,
+          146,
+          146
+        ],
+        "generated": [
+          728,
+          728,
+          728
+        ],
+        "solution_length": [
+          14,
+          14,
+          14
+        ],
+        "heuristic_ms": [
+          0.4228,
+          0.3857,
+          0.5219
+        ],
+        "median_ms": 12
+      }
+    },
+    {
+      "game": "Hole-Stuffer.txt",
+      "level": 7,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          251,
+          250
+        ],
+        "expanded": [
+          2990,
+          2639,
+          2429
+        ],
+        "generated": [
+          14947,
+          13195,
+          12142
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          8.9664,
+          8.5243,
+          8.7255
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          251,
+          250,
+          250
+        ],
+        "expanded": [
+          2730,
+          2677,
+          2364
+        ],
+        "generated": [
+          13647,
+          13381,
+          11817
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          19.2941,
+          18.7606,
+          18.6445
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "Voitex Rasteriser 2.txt",
+      "level": 1,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          251,
+          251,
+          252
+        ],
+        "expanded": [
+          4456,
+          3982,
+          3916
+        ],
+        "generated": [
+          22277,
+          19909,
+          19579
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          19.0022,
+          18.0928,
+          18.8976
+        ],
+        "median_ms": 251
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          251,
+          252,
+          251
+        ],
+        "expanded": [
+          4341,
+          4455,
+          4190
+        ],
+        "generated": [
+          21704,
+          22272,
+          20946
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          18.4213,
+          18.7537,
+          18.9002
+        ],
+        "median_ms": 251
+      }
+    },
+    {
+      "game": "Voitex Rasteriser.txt",
+      "level": 0,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          253,
+          252,
+          252
+        ],
+        "expanded": [
+          8096,
+          6976,
+          7316
+        ],
+        "generated": [
+          40477,
+          34877,
+          36578
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          22.1458,
+          22.5339,
+          22.2327
+        ],
+        "median_ms": 252
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          253,
+          252,
+          253
+        ],
+        "expanded": [
+          8373,
+          6837,
+          7382
+        ],
+        "generated": [
+          41865,
+          34181,
+          36908
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          22.3677,
+          22.4882,
+          22.1176
+        ],
+        "median_ms": 253
+      }
+    },
+    {
+      "game": "Voitex Rasteriser.txt",
+      "level": 2,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          0,
+          0,
+          0
+        ],
+        "expanded": [
+          1,
+          1,
+          1
+        ],
+        "generated": [
+          1,
+          1,
+          1
+        ],
+        "solution_length": [
+          1,
+          1,
+          1
+        ],
+        "heuristic_ms": [
+          0.0025,
+          0.0016,
+          0.0015
+        ],
+        "median_ms": 0
+      },
+      "after": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          0,
+          0,
+          0
+        ],
+        "expanded": [
+          1,
+          1,
+          1
+        ],
+        "generated": [
+          1,
+          1,
+          1
+        ],
+        "solution_length": [
+          1,
+          1,
+          1
+        ],
+        "heuristic_ms": [
+          0.0016,
+          0.0055,
+          0.0024
+        ],
+        "median_ms": 0
+      }
+    },
+    {
+      "game": "castlecloset.txt",
+      "level": 0,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          162,
+          183,
+          185
+        ],
+        "expanded": [
+          2695,
+          2695,
+          2695
+        ],
+        "generated": [
+          13475,
+          13475,
+          13475
+        ],
+        "solution_length": [
+          26,
+          26,
+          26
+        ],
+        "heuristic_ms": [
+          0.071,
+          0.0758,
+          0.0773
+        ],
+        "median_ms": 183
+      },
+      "after": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          7,
+          8,
+          8
+        ],
+        "expanded": [
+          55,
+          55,
+          55
+        ],
+        "generated": [
+          275,
+          275,
+          275
+        ],
+        "solution_length": [
+          26,
+          26,
+          26
+        ],
+        "heuristic_ms": [
+          2.4526,
+          2.7005,
+          2.706
+        ],
+        "median_ms": 8
+      }
+    },
+    {
+      "game": "cratopia.txt",
+      "level": 2,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          6,
+          8,
+          7
+        ],
+        "expanded": [
+          70,
+          70,
+          70
+        ],
+        "generated": [
+          347,
+          347,
+          347
+        ],
+        "solution_length": [
+          23,
+          23,
+          23
+        ],
+        "heuristic_ms": [
+          0.0015,
+          0.003,
+          0.0023
+        ],
+        "median_ms": 7
+      },
+      "after": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          6,
+          9,
+          7
+        ],
+        "expanded": [
+          70,
+          70,
+          70
+        ],
+        "generated": [
+          347,
+          347,
+          347
+        ],
+        "solution_length": [
+          23,
+          23,
+          23
+        ],
+        "heuristic_ms": [
+          0.0016,
+          0.0024,
+          0.0024
+        ],
+        "median_ms": 7
+      }
+    },
+    {
+      "game": "cratopia.txt",
+      "level": 3,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          2551,
+          2224,
+          2238
+        ],
+        "generated": [
+          12751,
+          11116,
+          11188
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.0591,
+          0.0652,
+          0.0653
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          2650,
+          2405,
+          2297
+        ],
+        "generated": [
+          13247,
+          12024,
+          11480
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.0667,
+          0.0723,
+          0.0653
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "cratopia.txt",
+      "level": 5,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          67,
+          74,
+          73
+        ],
+        "expanded": [
+          764,
+          764,
+          764
+        ],
+        "generated": [
+          3816,
+          3816,
+          3816
+        ],
+        "solution_length": [
+          43,
+          43,
+          43
+        ],
+        "heuristic_ms": [
+          0.0159,
+          0.0194,
+          0.0213
+        ],
+        "median_ms": 73
+      },
+      "after": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          74,
+          93,
+          74
+        ],
+        "expanded": [
+          764,
+          764,
+          764
+        ],
+        "generated": [
+          3816,
+          3816,
+          3816
+        ],
+        "solution_length": [
+          43,
+          43,
+          43
+        ],
+        "heuristic_ms": [
+          0.0177,
+          0.0218,
+          0.0235
+        ],
+        "median_ms": 74
+      }
+    },
+    {
+      "game": "cratopia.txt",
+      "level": 9,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          251,
+          251,
+          251
+        ],
+        "expanded": [
+          1888,
+          1627,
+          1701
+        ],
+        "generated": [
+          9438,
+          8133,
+          8505
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.0813,
+          0.0824,
+          0.0891
+        ],
+        "median_ms": 251
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          251,
+          251,
+          250
+        ],
+        "expanded": [
+          1653,
+          1356,
+          1705
+        ],
+        "generated": [
+          8265,
+          6777,
+          8525
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.0881,
+          0.081,
+          0.0858
+        ],
+        "median_ms": 251
+      }
+    },
+    {
+      "game": "cratopia.txt",
+      "level": 11,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          3524,
+          3000,
+          3058
+        ],
+        "generated": [
+          17620,
+          14999,
+          15289
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.0853,
+          0.0857,
+          0.0886
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          3139,
+          3164,
+          3111
+        ],
+        "generated": [
+          15695,
+          15818,
+          15553
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.0834,
+          0.0894,
+          0.0889
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "cratopia.txt",
+      "level": 12,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          251,
+          251,
+          250
+        ],
+        "expanded": [
+          2897,
+          2729,
+          2690
+        ],
+        "generated": [
+          14480,
+          13643,
+          13446
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.1389,
+          0.1159,
+          0.1177
+        ],
+        "median_ms": 251
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          251,
+          250,
+          250
+        ],
+        "expanded": [
+          2783,
+          2506,
+          2607
+        ],
+        "generated": [
+          13912,
+          12528,
+          13033
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.1207,
+          0.1147,
+          0.1165
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "cratopia.txt",
+      "level": 13,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          1580,
+          1301,
+          1286
+        ],
+        "generated": [
+          7897,
+          6505,
+          6426
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.0695,
+          0.0675,
+          0.0681
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          1524,
+          1285,
+          1438
+        ],
+        "generated": [
+          7620,
+          6423,
+          7189
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.0721,
+          0.1119,
+          0.0754
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "cratopia.txt",
+      "level": 14,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          2665,
+          2145,
+          2511
+        ],
+        "generated": [
+          13322,
+          10723,
+          12554
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.1053,
+          0.1039,
+          0.1102
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          2684,
+          2402,
+          2362
+        ],
+        "generated": [
+          13420,
+          12008,
+          11806
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.1069,
+          0.1099,
+          0.1111
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "cratopia.txt",
+      "level": 15,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          2741,
+          2497,
+          2524
+        ],
+        "generated": [
+          13704,
+          12483,
+          12619
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.1017,
+          0.1031,
+          0.1063
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          2816,
+          2621,
+          2363
+        ],
+        "generated": [
+          14079,
+          13105,
+          11812
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.106,
+          0.1039,
+          0.0989
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "cratopia.txt",
+      "level": 16,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          251,
+          250
+        ],
+        "expanded": [
+          2537,
+          2233,
+          2175
+        ],
+        "generated": [
+          12683,
+          11165,
+          10875
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.1126,
+          0.1087,
+          0.1071
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          2468,
+          2200,
+          2164
+        ],
+        "generated": [
+          12340,
+          10997,
+          10818
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.1082,
+          0.1064,
+          0.1065
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "cratopia.txt",
+      "level": 17,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          3294,
+          2789,
+          2715
+        ],
+        "generated": [
+          16469,
+          13945,
+          13575
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.1395,
+          0.1335,
+          0.1203
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          3065,
+          3074,
+          2982
+        ],
+        "generated": [
+          15322,
+          15370,
+          14909
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.13,
+          0.1911,
+          0.1345
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "cratopia.txt",
+      "level": 18,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          3161,
+          2862,
+          2980
+        ],
+        "generated": [
+          15804,
+          14306,
+          14896
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.1164,
+          0.1361,
+          0.1236
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          253,
+          250,
+          250
+        ],
+        "expanded": [
+          2899,
+          2955,
+          3012
+        ],
+        "generated": [
+          14495,
+          14774,
+          15057
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.1179,
+          0.1172,
+          0.1208
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "cratopia.txt",
+      "level": 19,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          2730,
+          2515,
+          2641
+        ],
+        "generated": [
+          13650,
+          12573,
+          13202
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.0682,
+          0.0664,
+          0.0734
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          1555,
+          2661,
+          2430
+        ],
+        "generated": [
+          7775,
+          13305,
+          12146
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.0902,
+          0.0734,
+          0.0756
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "cratopia.txt",
+      "level": 20,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          28,
+          33,
+          29
+        ],
+        "expanded": [
+          31,
+          31,
+          31
+        ],
+        "generated": [
+          151,
+          151,
+          151
+        ],
+        "solution_length": [
+          17,
+          17,
+          17
+        ],
+        "heuristic_ms": [
+          0.0006,
+          0.001,
+          0.0008
+        ],
+        "median_ms": 29
+      },
+      "after": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          40,
+          37,
+          37
+        ],
+        "expanded": [
+          31,
+          31,
+          31
+        ],
+        "generated": [
+          151,
+          151,
+          151
+        ],
+        "solution_length": [
+          17,
+          17,
+          17
+        ],
+        "heuristic_ms": [
+          0.0016,
+          0.0007,
+          0.0013
+        ],
+        "median_ms": 37
+      }
+    },
+    {
+      "game": "cratopia.txt",
+      "level": 21,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          46,
+          47,
+          49
+        ],
+        "expanded": [
+          0,
+          0,
+          0
+        ],
+        "generated": [
+          0,
+          0,
+          0
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0,
+          0,
+          0
+        ],
+        "median_ms": 47
+      },
+      "after": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          66,
+          52,
+          54
+        ],
+        "expanded": [
+          0,
+          0,
+          0
+        ],
+        "generated": [
+          0,
+          0,
+          0
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0,
+          0,
+          0
+        ],
+        "median_ms": 54
+      }
+    },
+    {
+      "game": "cratopia.txt",
+      "level": 22,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          43,
+          40,
+          38
+        ],
+        "expanded": [
+          0,
+          0,
+          0
+        ],
+        "generated": [
+          0,
+          0,
+          0
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0,
+          0,
+          0
+        ],
+        "median_ms": 40
+      },
+      "after": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          47,
+          53,
+          46
+        ],
+        "expanded": [
+          0,
+          0,
+          0
+        ],
+        "generated": [
+          0,
+          0,
+          0
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0,
+          0,
+          0
+        ],
+        "median_ms": 47
+      }
+    },
+    {
+      "game": "cratopia.txt",
+      "level": 23,
+      "profile": "breadth-first",
+      "before": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          36,
+          38,
+          39
+        ],
+        "expanded": [
+          0,
+          0,
+          0
+        ],
+        "generated": [
+          0,
+          0,
+          0
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0,
+          0,
+          0
+        ],
+        "median_ms": 38
+      },
+      "after": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          38,
+          56,
+          44
+        ],
+        "expanded": [
+          0,
+          0,
+          0
+        ],
+        "generated": [
+          0,
+          0,
+          0
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0,
+          0,
+          0
+        ],
+        "median_ms": 44
+      }
+    },
+    {
+      "game": "gabelstapler.txt",
+      "level": 1,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          147,
+          166,
+          168
+        ],
+        "expanded": [
+          936,
+          936,
+          936
+        ],
+        "generated": [
+          4679,
+          4679,
+          4679
+        ],
+        "solution_length": [
+          32,
+          32,
+          32
+        ],
+        "heuristic_ms": [
+          0.0266,
+          0.0281,
+          0.0288
+        ],
+        "median_ms": 166
+      },
+      "after": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          155,
+          208,
+          163
+        ],
+        "expanded": [
+          936,
+          936,
+          936
+        ],
+        "generated": [
+          4679,
+          4679,
+          4679
+        ],
+        "solution_length": [
+          32,
+          32,
+          32
+        ],
+        "heuristic_ms": [
+          7.5782,
+          10.6511,
+          8.1485
+        ],
+        "median_ms": 163
+      }
+    },
+    {
+      "game": "gabelstapler.txt",
+      "level": 3,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          1063,
+          966,
+          1029
+        ],
+        "generated": [
+          5314,
+          4830,
+          5145
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.0327,
+          0.0383,
+          0.0395
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          1014,
+          733,
+          919
+        ],
+        "generated": [
+          5067,
+          3662,
+          4591
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          17.312,
+          17.1502,
+          17.602
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "gabelstapler.txt",
+      "level": 5,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          962,
+          838,
+          956
+        ],
+        "generated": [
+          4807,
+          4190,
+          4778
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.0288,
+          0.0331,
+          0.0354
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          920,
+          902,
+          868
+        ],
+        "generated": [
+          4599,
+          4507,
+          4336
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          16.7257,
+          16.9625,
+          16.5147
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "midas.txt",
+      "level": 0,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          6,
+          7,
+          6
+        ],
+        "expanded": [
+          105,
+          105,
+          105
+        ],
+        "generated": [
+          521,
+          521,
+          521
+        ],
+        "solution_length": [
+          7,
+          7,
+          7
+        ],
+        "heuristic_ms": [
+          0.1782,
+          0.2011,
+          0.1683
+        ],
+        "median_ms": 6
+      },
+      "after": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          1,
+          1,
+          1
+        ],
+        "expanded": [
+          7,
+          7,
+          7
+        ],
+        "generated": [
+          31,
+          31,
+          31
+        ],
+        "solution_length": [
+          7,
+          7,
+          7
+        ],
+        "heuristic_ms": [
+          0.2443,
+          0.4261,
+          0.303
+        ],
+        "median_ms": 1
+      }
+    },
+    {
+      "game": "midas.txt",
+      "level": 2,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          20,
+          25,
+          22
+        ],
+        "expanded": [
+          318,
+          318,
+          318
+        ],
+        "generated": [
+          1586,
+          1586,
+          1586
+        ],
+        "solution_length": [
+          11,
+          11,
+          11
+        ],
+        "heuristic_ms": [
+          0.5649,
+          0.7372,
+          0.7283
+        ],
+        "median_ms": 22
+      },
+      "after": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          3,
+          4,
+          3
+        ],
+        "expanded": [
+          39,
+          39,
+          39
+        ],
+        "generated": [
+          191,
+          191,
+          191
+        ],
+        "solution_length": [
+          11,
+          11,
+          11
+        ],
+        "heuristic_ms": [
+          0.8387,
+          0.9695,
+          0.838
+        ],
+        "median_ms": 3
+      }
+    },
+    {
+      "game": "midas.txt",
+      "level": 4,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          19,
+          20,
+          22
+        ],
+        "expanded": [
+          285,
+          285,
+          285
+        ],
+        "generated": [
+          1421,
+          1421,
+          1421
+        ],
+        "solution_length": [
+          11,
+          11,
+          11
+        ],
+        "heuristic_ms": [
+          0.4932,
+          0.5218,
+          0.5816
+        ],
+        "median_ms": 20
+      },
+      "after": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          7,
+          8,
+          8
+        ],
+        "expanded": [
+          90,
+          90,
+          90
+        ],
+        "generated": [
+          446,
+          446,
+          446
+        ],
+        "solution_length": [
+          11,
+          11,
+          11
+        ],
+        "heuristic_ms": [
+          1.7831,
+          1.8501,
+          1.8914
+        ],
+        "median_ms": 8
+      }
+    },
+    {
+      "game": "midas.txt",
+      "level": 6,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          41,
+          39,
+          41
+        ],
+        "expanded": [
+          681,
+          681,
+          681
+        ],
+        "generated": [
+          3404,
+          3404,
+          3404
+        ],
+        "solution_length": [
+          11,
+          11,
+          11
+        ],
+        "heuristic_ms": [
+          1.0918,
+          1.0428,
+          1.0873
+        ],
+        "median_ms": 41
+      },
+      "after": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          35,
+          34,
+          39
+        ],
+        "expanded": [
+          435,
+          435,
+          435
+        ],
+        "generated": [
+          2174,
+          2174,
+          2174
+        ],
+        "solution_length": [
+          11,
+          11,
+          11
+        ],
+        "heuristic_ms": [
+          7.0425,
+          7.2206,
+          8.0889
+        ],
+        "median_ms": 35
+      }
+    },
+    {
+      "game": "midas.txt",
+      "level": 8,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          3540,
+          3313,
+          3088
+        ],
+        "generated": [
+          17698,
+          16561,
+          15437
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          7.7227,
+          7.784,
+          7.8729
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          2374,
+          2338,
+          2214
+        ],
+        "generated": [
+          11869,
+          11688,
+          11066
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          57.6004,
+          60.1412,
+          58.4225
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "midas.txt",
+      "level": 11,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          251,
+          251,
+          251
+        ],
+        "expanded": [
+          2472,
+          2348,
+          2366
+        ],
+        "generated": [
+          12360,
+          11737,
+          11828
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          18.8722,
+          19.2755,
+          19.6431
+        ],
+        "median_ms": 251
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          251,
+          250,
+          250
+        ],
+        "expanded": [
+          1348,
+          1290,
+          1250
+        ],
+        "generated": [
+          6738,
+          6449,
+          6250
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          112.255,
+          114.683,
+          114.69
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "midas.txt",
+      "level": 13,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          251,
+          250,
+          250
+        ],
+        "expanded": [
+          2937,
+          2537,
+          2607
+        ],
+        "generated": [
+          14682,
+          12684,
+          13033
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          13.9802,
+          14.0158,
+          14.3297
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          1856,
+          1705,
+          1832
+        ],
+        "generated": [
+          9277,
+          8521,
+          9156
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          93.4378,
+          95.9162,
+          95.7044
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "midas.txt",
+      "level": 15,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          2673,
+          2404,
+          2497
+        ],
+        "generated": [
+          13361,
+          12017,
+          12483
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          9.0412,
+          8.7352,
+          9.124
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          1963,
+          1863,
+          1856
+        ],
+        "generated": [
+          9813,
+          9312,
+          9279
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          63.2615,
+          64.9534,
+          64.482
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "midas.txt",
+      "level": 17,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          251,
+          251,
+          251
+        ],
+        "expanded": [
+          2553,
+          2419,
+          2317
+        ],
+        "generated": [
+          12764,
+          12094,
+          11585
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          14.2054,
+          13.4615,
+          13.7966
+        ],
+        "median_ms": 251
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          1588,
+          1541,
+          1380
+        ],
+        "generated": [
+          7936,
+          7703,
+          6896
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          93.2434,
+          95.3061,
+          95.914
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "midas.txt",
+      "level": 19,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          2265,
+          2139,
+          1780
+        ],
+        "generated": [
+          11325,
+          10691,
+          8899
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          9.5305,
+          9.3456,
+          9.9868
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          1581,
+          1564,
+          1431
+        ],
+        "generated": [
+          7902,
+          7817,
+          7154
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          75.7359,
+          79.3804,
+          77.5227
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "midas.txt",
+      "level": 21,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          251,
+          251,
+          251
+        ],
+        "expanded": [
+          2082,
+          1806,
+          1655
+        ],
+        "generated": [
+          10406,
+          9026,
+          8273
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          23.6355,
+          22.4249,
+          22.7287
+        ],
+        "median_ms": 251
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          1315,
+          1328,
+          1251
+        ],
+        "generated": [
+          6574,
+          6637,
+          6254
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          106.549,
+          108.994,
+          108.758
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "midas.txt",
+      "level": 23,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          251,
+          251,
+          251
+        ],
+        "expanded": [
+          2823,
+          2544,
+          2537
+        ],
+        "generated": [
+          14114,
+          12719,
+          12681
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          13.6703,
+          13.7193,
+          14.1207
+        ],
+        "median_ms": 251
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          1614,
+          1505,
+          1506
+        ],
+        "generated": [
+          8066,
+          7524,
+          7526
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          95.7316,
+          98.8726,
+          96.5582
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "midas.txt",
+      "level": 25,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          147,
+          171,
+          172
+        ],
+        "expanded": [
+          1609,
+          1609,
+          1609
+        ],
+        "generated": [
+          8042,
+          8042,
+          8042
+        ],
+        "solution_length": [
+          10,
+          10,
+          10
+        ],
+        "heuristic_ms": [
+          8.2281,
+          9.3945,
+          9.6983
+        ],
+        "median_ms": 171
+      },
+      "after": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          123,
+          124,
+          138
+        ],
+        "expanded": [
+          774,
+          774,
+          774
+        ],
+        "generated": [
+          3867,
+          3867,
+          3867
+        ],
+        "solution_length": [
+          13,
+          13,
+          13
+        ],
+        "heuristic_ms": [
+          49.1167,
+          50.8464,
+          56.513
+        ],
+        "median_ms": 124
+      }
+    },
+    {
+      "game": "midas.txt",
+      "level": 27,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          251,
+          251,
+          251
+        ],
+        "expanded": [
+          2214,
+          2189,
+          2006
+        ],
+        "generated": [
+          11068,
+          10941,
+          10028
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          21.5993,
+          21.8713,
+          22.5191
+        ],
+        "median_ms": 251
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          251,
+          250,
+          250
+        ],
+        "expanded": [
+          1233,
+          1236,
+          1174
+        ],
+        "generated": [
+          6164,
+          6179,
+          5867
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          120.339,
+          123.137,
+          122.456
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "midas.txt",
+      "level": 29,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          251,
+          251,
+          251
+        ],
+        "expanded": [
+          2479,
+          1928,
+          2306
+        ],
+        "generated": [
+          12393,
+          9637,
+          11526
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          19.2558,
+          19.031,
+          19.0445
+        ],
+        "median_ms": 251
+      },
+      "after": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          191,
+          162,
+          165
+        ],
+        "expanded": [
+          794,
+          794,
+          794
+        ],
+        "generated": [
+          3969,
+          3969,
+          3969
+        ],
+        "solution_length": [
+          25,
+          25,
+          25
+        ],
+        "heuristic_ms": [
+          77.3403,
+          70.6677,
+          70.4008
+        ],
+        "median_ms": 165
+      }
+    },
+    {
+      "game": "no forbidden symbols 2.txt",
+      "level": 1,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          6482,
+          5675,
+          5169
+        ],
+        "generated": [
+          32407,
+          28372,
+          25844
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.1548,
+          0.1513,
+          0.1477
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          5567,
+          5545,
+          5810
+        ],
+        "generated": [
+          27833,
+          27724,
+          29046
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          2.8333,
+          2.8032,
+          2.783
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "realtime dog mountain rescue.txt",
+      "level": 1,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          641,
+          581,
+          538
+        ],
+        "generated": [
+          3205,
+          2904,
+          2688
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.0235,
+          0.025,
+          0.0285
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          184,
+          186,
+          176
+        ],
+        "generated": [
+          918,
+          927,
+          877
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          163.877,
+          163.35,
+          163.113
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "realtime dog mountain rescue.txt",
+      "level": 4,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          590,
+          466,
+          520
+        ],
+        "generated": [
+          2950,
+          2328,
+          2600
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.0225,
+          0.0269,
+          0.0275
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          251,
+          250
+        ],
+        "expanded": [
+          143,
+          105,
+          147
+        ],
+        "generated": [
+          715,
+          525,
+          735
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          178.067,
+          178.364,
+          177.894
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "realtime dog mountain rescue.txt",
+      "level": 7,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          365,
+          257,
+          344
+        ],
+        "generated": [
+          1823,
+          1285,
+          1719
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.0149,
+          0.0189,
+          0.0209
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          252,
+          250,
+          250
+        ],
+        "expanded": [
+          64,
+          57,
+          67
+        ],
+        "generated": [
+          320,
+          285,
+          335
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          198.936,
+          198.134,
+          196.353
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "riverpuzzle.txt",
+      "level": 0,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          251,
+          251,
+          251
+        ],
+        "expanded": [
+          26,
+          19,
+          24
+        ],
+        "generated": [
+          127,
+          94,
+          120
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.0049,
+          0.0054,
+          0.0062
+        ],
+        "median_ms": 251
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          253,
+          252,
+          250
+        ],
+        "expanded": [
+          25,
+          25,
+          24
+        ],
+        "generated": [
+          122,
+          122,
+          120
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          2.5251,
+          2.7015,
+          2.651
+        ],
+        "median_ms": 252
+      }
+    },
+    {
+      "game": "seize the flag.txt",
+      "level": 1,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          646,
+          566,
+          544
+        ],
+        "generated": [
+          3230,
+          2828,
+          2720
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.0389,
+          0.0581,
+          0.0482
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          314,
+          291,
+          286
+        ],
+        "generated": [
+          1570,
+          1453,
+          1426
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          102.73,
+          101.07,
+          100.931
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "seize the flag.txt",
+      "level": 3,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          2,
+          2,
+          4
+        ],
+        "expanded": [
+          1,
+          1,
+          1
+        ],
+        "generated": [
+          5,
+          5,
+          5
+        ],
+        "solution_length": [
+          1,
+          1,
+          1
+        ],
+        "heuristic_ms": [
+          0.0001,
+          0.0001,
+          0.0001
+        ],
+        "median_ms": 2
+      },
+      "after": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          2,
+          4,
+          2
+        ],
+        "expanded": [
+          1,
+          1,
+          1
+        ],
+        "generated": [
+          5,
+          5,
+          5
+        ],
+        "solution_length": [
+          1,
+          1,
+          1
+        ],
+        "heuristic_ms": [
+          0.0103,
+          0.0173,
+          0.0101
+        ],
+        "median_ms": 2
+      }
+    },
+    {
+      "game": "snkaey makes a sixy.txt",
+      "level": 0,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          251,
+          250
+        ],
+        "expanded": [
+          3093,
+          2415,
+          2754
+        ],
+        "generated": [
+          15461,
+          12075,
+          13769
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.1492,
+          0.1427,
+          0.155
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          2232,
+          2024,
+          2458
+        ],
+        "generated": [
+          11159,
+          10117,
+          12286
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          32.265,
+          34.7469,
+          35.1571
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "snkaey makes a sixy.txt",
+      "level": 2,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "exhausted",
+          "exhausted",
+          "exhausted"
+        ],
+        "elapsed_ms": [
+          0,
+          0,
+          0
+        ],
+        "expanded": [
+          1,
+          1,
+          1
+        ],
+        "generated": [
+          5,
+          5,
+          5
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.0001,
+          0.0001,
+          0.0001
+        ],
+        "median_ms": 0
+      },
+      "after": {
+        "status": [
+          "exhausted",
+          "exhausted",
+          "exhausted"
+        ],
+        "elapsed_ms": [
+          0,
+          0,
+          0
+        ],
+        "expanded": [
+          1,
+          1,
+          1
+        ],
+        "generated": [
+          5,
+          5,
+          5
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.0029,
+          0.0018,
+          0.0018
+        ],
+        "median_ms": 0
+      }
+    },
+    {
+      "game": "witch lifter.txt",
+      "level": 1,
+      "profile": "weighted-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          1146,
+          843,
+          1034
+        ],
+        "generated": [
+          4582,
+          3371,
+          4134
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.0319,
+          0.0355,
+          0.0401
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          988,
+          1018,
+          1039
+        ],
+        "generated": [
+          3952,
+          4071,
+          4155
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          9.2845,
+          9.3164,
+          9.1015
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "witch lifter.txt",
+      "level": 3,
+      "profile": "weighted-first",
+      "before": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          122,
+          142,
+          145
+        ],
+        "expanded": [
+          564,
+          564,
+          564
+        ],
+        "generated": [
+          2254,
+          2254,
+          2254
+        ],
+        "solution_length": [
+          30,
+          30,
+          30
+        ],
+        "heuristic_ms": [
+          0.013,
+          0.0207,
+          0.0214
+        ],
+        "median_ms": 142
+      },
+      "after": {
+        "status": [
+          "solved",
+          "solved",
+          "solved"
+        ],
+        "elapsed_ms": [
+          161,
+          155,
+          144
+        ],
+        "expanded": [
+          564,
+          564,
+          564
+        ],
+        "generated": [
+          2254,
+          2254,
+          2254
+        ],
+        "solution_length": [
+          30,
+          30,
+          30
+        ],
+        "heuristic_ms": [
+          5.542,
+          5.6441,
+          4.9501
+        ],
+        "median_ms": 155
+      }
+    },
+    {
+      "game": "witch lifter.txt",
+      "level": 5,
+      "profile": "weighted-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          1296,
+          1181,
+          1166
+        ],
+        "generated": [
+          5184,
+          4724,
+          4664
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.0396,
+          0.0439,
+          0.0466
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          252,
+          250
+        ],
+        "expanded": [
+          1093,
+          1121,
+          1123
+        ],
+        "generated": [
+          4369,
+          4483,
+          4491
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          12.0801,
+          12.8686,
+          12.607
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "witch lifter.txt",
+      "level": 7,
+      "profile": "weighted-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          1248,
+          1098,
+          1084
+        ],
+        "generated": [
+          4990,
+          4390,
+          4333
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.0341,
+          0.0396,
+          0.04
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          1042,
+          719,
+          1056
+        ],
+        "generated": [
+          4168,
+          2874,
+          4223
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          11.0502,
+          10.9616,
+          11.3315
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "witch lifter.txt",
+      "level": 9,
+      "profile": "weighted-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          1176,
+          986,
+          994
+        ],
+        "generated": [
+          4703,
+          3944,
+          3975
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.0312,
+          0.0373,
+          0.0357
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          860,
+          1069,
+          1078
+        ],
+        "generated": [
+          3439,
+          4276,
+          4309
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          11.9919,
+          12.3582,
+          12.1416
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "witch lifter.txt",
+      "level": 11,
+      "profile": "weighted-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          1491,
+          1324,
+          1314
+        ],
+        "generated": [
+          5963,
+          5293,
+          5256
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.0374,
+          0.0437,
+          0.0452
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          1035,
+          1347,
+          1331
+        ],
+        "generated": [
+          4140,
+          5386,
+          5321
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          10.764,
+          10.2902,
+          10.3651
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "witch lifter.txt",
+      "level": 13,
+      "profile": "weighted-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          756,
+          658,
+          622
+        ],
+        "generated": [
+          3024,
+          2632,
+          2488
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.0235,
+          0.031,
+          0.0296
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          517,
+          623,
+          548
+        ],
+        "generated": [
+          2068,
+          2492,
+          2189
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          12.9305,
+          13.2445,
+          12.1712
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "witch lifter.txt",
+      "level": 15,
+      "profile": "weighted-first",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          852,
+          756,
+          633
+        ],
+        "generated": [
+          3406,
+          3022,
+          2532
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.0303,
+          0.0323,
+          0.0281
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          656,
+          772,
+          625
+        ],
+        "generated": [
+          2624,
+          3087,
+          2500
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          15.4798,
+          15.5286,
+          14.1287
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "wool-clawer.txt",
+      "level": 1,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          742,
+          615,
+          536
+        ],
+        "generated": [
+          3707,
+          3075,
+          2676
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.6908,
+          2.039,
+          1.8293
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          494,
+          661,
+          599
+        ],
+        "generated": [
+          2467,
+          3304,
+          2994
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          11.4182,
+          12.4127,
+          11.0007
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "wool-clawer.txt",
+      "level": 3,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          673,
+          511,
+          597
+        ],
+        "generated": [
+          3361,
+          2555,
+          2982
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.9235,
+          2.1726,
+          2.0776
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          541,
+          500,
+          589
+        ],
+        "generated": [
+          2701,
+          2499,
+          2942
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          12.7202,
+          12.8866,
+          12.4697
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "wool-clawer.txt",
+      "level": 5,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          253,
+          251,
+          260
+        ],
+        "generated": [
+          1264,
+          1253,
+          1296
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.4703,
+          1.4441,
+          1.4885
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          236,
+          265,
+          230
+        ],
+        "generated": [
+          1178,
+          1321,
+          1149
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          12.2938,
+          12.2504,
+          12.2104
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "wool-clawer.txt",
+      "level": 7,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          169,
+          157,
+          158
+        ],
+        "generated": [
+          843,
+          784,
+          790
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          2.7053,
+          2.648,
+          2.5922
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          142,
+          139,
+          144
+        ],
+        "generated": [
+          708,
+          695,
+          717
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          22.9382,
+          22.5458,
+          23.1168
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "wool-clawer.txt",
+      "level": 9,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          246,
+          189,
+          224
+        ],
+        "generated": [
+          1226,
+          941,
+          1119
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          2.9213,
+          2.8552,
+          2.9791
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          211,
+          196,
+          209
+        ],
+        "generated": [
+          1053,
+          976,
+          1042
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          15.4625,
+          15.674,
+          15.6149
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "wool-clawer.txt",
+      "level": 11,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          220,
+          199,
+          199
+        ],
+        "generated": [
+          1100,
+          992,
+          994
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          1.9115,
+          1.7378,
+          1.8649
+        ],
+        "median_ms": 250
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          166,
+          164,
+          177
+        ],
+        "generated": [
+          830,
+          818,
+          882
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          13.673,
+          13.6977,
+          14.2934
+        ],
+        "median_ms": 250
+      }
+    },
+    {
+      "game": "you can't make this up.txt",
+      "level": 1,
+      "profile": "balanced",
+      "before": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          251,
+          251,
+          251
+        ],
+        "expanded": [
+          3922,
+          3067,
+          3311
+        ],
+        "generated": [
+          19609,
+          15334,
+          16554
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          0.1572,
+          0.1469,
+          0.1421
+        ],
+        "median_ms": 251
+      },
+      "after": {
+        "status": [
+          "timeout",
+          "timeout",
+          "timeout"
+        ],
+        "elapsed_ms": [
+          250,
+          250,
+          250
+        ],
+        "expanded": [
+          1962,
+          1942,
+          2238
+        ],
+        "generated": [
+          9806,
+          9709,
+          11188
+        ],
+        "solution_length": [
+          0,
+          0,
+          0
+        ],
+        "heuristic_ms": [
+          62.7867,
+          59.6933,
+          64.0981
+        ],
+        "median_ms": 250
+      }
+    }
+  ]
+}

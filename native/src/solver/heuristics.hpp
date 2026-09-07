@@ -11,6 +11,7 @@
 #include "search/search_common.hpp"
 #include "solver/mis_cost_estimate.hpp"
 #include "solver/static_analysis.hpp"
+#include "solver/rule_goals.hpp"
 
 namespace puzzlescript::solver {
 
@@ -22,6 +23,7 @@ enum class HeuristicKind {
     AllOnPlayer,
     NoPlayerDistance,
     MisCostEstimate,
+    RuleGoals,
 };
 
 struct StaticAnalysisHints {
@@ -43,11 +45,13 @@ inline const char* heuristicName(HeuristicKind kind) {
         case HeuristicKind::AllOnPlayer: return "all-on-player";
         case HeuristicKind::NoPlayerDistance: return "no-player-distance";
         case HeuristicKind::MisCostEstimate: return "mis-cost-estimate";
+        case HeuristicKind::RuleGoals: return "rule-goals";
     }
     return "winconditions";
 }
 
 inline std::optional<HeuristicKind> parseHeuristicName(std::string_view name) {
+    if (name == "rule-goals") return HeuristicKind::RuleGoals;
     if (name == "zero") {
         return HeuristicKind::Zero;
     }
@@ -98,8 +102,11 @@ public:
         int32_t height,
         HeuristicKind kind,
         const MaskWord* initialBoard,
-        const StaticAnalysisHints* staticAnalysisHints = nullptr)
-        : game_(game), width_(width), height_(height), kind_(kind) {
+        const StaticAnalysisHints* staticAnalysisHints = nullptr,
+        std::shared_ptr<const RuleGoalPlan> ruleGoalPlan = nullptr)
+        : game_(game), width_(width), height_(height),
+          kind_(kind == HeuristicKind::RuleGoals ? HeuristicKind::Auto : kind),
+          ruleGoals_(kind == HeuristicKind::RuleGoals ? std::move(ruleGoalPlan) : nullptr, width, height, game.wordCount) {
         if (kind_ == HeuristicKind::Zero) {
             return;
         }
@@ -214,6 +221,7 @@ public:
     }
 
     int32_t score(const MaskWord* board) {
+        if (board != nullptr && ruleGoals_.active()) return ruleGoals_.score(board);
         if (kind_ == HeuristicKind::Zero || game_.winConditions.empty() || board == nullptr) {
             return 0;
         }
@@ -1328,6 +1336,7 @@ private:
     int32_t width_ = 0;
     int32_t height_ = 0;
     HeuristicKind kind_ = HeuristicKind::Winconditions;
+    RuleGoalContext ruleGoals_;
     const MaskWord* playerMask_ = nullptr;
     int32_t singleAllOnIndex_ = -1;
     bool hasNoCondition_ = false;
