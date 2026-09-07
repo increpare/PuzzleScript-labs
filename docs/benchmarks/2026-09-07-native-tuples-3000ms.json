@@ -1,0 +1,97 @@
+{
+  "pairs": [
+    {
+      "before": 940,
+      "after": 957
+    },
+    {
+      "before": 939,
+      "after": 955
+    },
+    {
+      "before": 939,
+      "after": 952
+    }
+  ],
+  "threshold_medians": {
+    "10": {
+      "before": 265,
+      "after": 274
+    },
+    "50": {
+      "before": 492,
+      "after": 511
+    },
+    "100": {
+      "before": 601,
+      "after": 624
+    },
+    "250": {
+      "before": 731,
+      "after": 751
+    },
+    "500": {
+      "before": 804,
+      "after": 827
+    },
+    "1000": {
+      "before": 862,
+      "after": 878
+    },
+    "2000": {
+      "before": 916,
+      "after": 930
+    },
+    "3000": {
+      "before": 939,
+      "after": 955
+    }
+  },
+  "stable_gains": [
+    [
+      "The Monsterous Autoshove.txt",
+      9
+    ],
+    [
+      "The sponge what lights up the seafloor.txt",
+      15
+    ],
+    [
+      "a clear view of the sky.txt",
+      26
+    ],
+    [
+      "cooperacing.txt",
+      8
+    ],
+    [
+      "hedgehog stimulator.txt",
+      3
+    ],
+    [
+      "hedgehog stimulator.txt",
+      17
+    ],
+    [
+      "hedgehog stimulator.txt",
+      19
+    ],
+    [
+      "hedgehog stimulator.txt",
+      23
+    ],
+    [
+      "heroes_of_sokoban_2.txt",
+      27
+    ],
+    [
+      "kreiseln.txt",
+      9
+    ],
+    [
+      "sokogoban.txt",
+      2
+    ]
+  ],
+  "stable_losses": []
+}

@@ -9,18 +9,22 @@ const assert = require('assert');
 const { spawnSync } = require('child_process');
 const { performance } = require('perf_hooks');
 
-if (process.argv.length < 6) throw Error('Usage: compare_native_solver_corpus.js BEFORE_EXE AFTER_EXE CORPUS_DIR OUTPUT_DIR [PAIRS=3] [TIMEOUT_MS=250]');
+if (process.argv.length < 6) throw Error('Usage: compare_native_solver_corpus.js BEFORE_EXE AFTER_EXE CORPUS_DIR OUTPUT_DIR [PAIRS=3] [TIMEOUT_MS=250] [PROCESS_TIMEOUT_MS=7200000]');
 const binaries = process.argv.slice(2, 4).map(p => path.resolve(p));
 const corpus = path.resolve(process.argv[4]), output = path.resolve(process.argv[5]);
 const pairs = Number(process.argv[6] || 3), timeout = Number(process.argv[7] || 250);
+// A multi-second budget across the full corpus can exceed the old 20-minute
+// process guard. Keep this watchdog separate from the per-level search budget.
+const processTimeout = Number(process.argv[8] || 7200000);
 assert(Number.isSafeInteger(pairs) && pairs > 0 && Number.isSafeInteger(timeout) && timeout > 0);
+assert(Number.isSafeInteger(processTimeout) && processTimeout > 0);
 fs.mkdirSync(output, { recursive: true });
 const hash = p => crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
 const env = { ...process.env };
 for (const key of Object.keys(env)) if (key.toUpperCase().startsWith('PUZZLESCRIPT_')) delete env[key];
 const report = {
     scope: 'Native portfolio, interpreter, one worker, normal timing defaults. Serial alternating pairs after smoke warmups. Source compilation excluded from per-level times but included in process wall. Strict cutoff: solved and elapsed_ms < timeout_ms. No PUZZLESCRIPT environment overrides.',
-    timeout_ms: timeout, binaries, binary_hashes: binaries.map(hash),
+    timeout_ms: timeout, process_timeout_ms: processTimeout, binaries, binary_hashes: binaries.map(hash),
     sources: fs.readdirSync(corpus).filter(n => n.endsWith('.txt')).sort().map(name => ({ name, sha256: hash(path.join(corpus, name)) })),
     warmups: [], runs: [],
 };
@@ -32,7 +36,7 @@ function run(side, pair, warmup = false) {
     fs.writeFileSync(path.join(output, 'progress.json'), JSON.stringify({ label, args, started: new Date().toISOString() }));
     console.log(`Starting ${label}`);
     const start = performance.now();
-    const child = spawnSync(binaries[side], args, { env, encoding: 'utf8', windowsHide: true, timeout: 20 * 60 * 1000, maxBuffer: 64 * 1024 * 1024 });
+    const child = spawnSync(binaries[side], args, { env, encoding: 'utf8', windowsHide: true, timeout: processTimeout, maxBuffer: 64 * 1024 * 1024 });
     const wall_ms = performance.now() - start;
     fs.writeFileSync(path.join(output, label + '.json'), child.stdout || '');
     fs.writeFileSync(path.join(output, label + '.stderr.txt'), child.stderr || '');

@@ -84,7 +84,7 @@ svg = prefix.with_suffix(".svg")
 svg.write_text("\n".join(line.rstrip() for line in svg.read_text(encoding="utf-8").splitlines()) + "\n", encoding="utf-8")
 summary = {
     "pairs": [{"before": int(curves["before"][i, -1]), "after": int(curves["after"][i, -1])} for i in range(pair_count)],
-    "threshold_medians": {str(t): {side: int(np.median(curves[side][:, t])) for side in curves} for t in (10, 50, 100, limit) if t <= limit},
+    "threshold_medians": {str(t): {side: int(np.median(curves[side][:, t])) for side in curves} for t in sorted({10, 50, 100, 250, 500, 1000, 2000, limit}) if t <= limit},
     "stable_gains": [], "stable_losses": [],
 }
 for key in sorted(reference):

@@ -9,6 +9,10 @@ capability**. Three fixed-work pairs take **26.6–31.6% less process time**. Th
 native 250 ms battery pairs gain **6, 17, and 29** strict-cutoff solves. The median
 paired gain is 17; separate median totals are **733 → 751 of 1,346 levels**.
 
+The [three-second follow-up](native-rule-match-allocations-3s-2026-09-07.md) reuses
+the exact same binaries and source corpus: medians **939 → 955**, with paired
+gains of 17, 16, and 13 levels.
+
 ## What changed
 
 1. Single-row binding capture previously constructed a nested vector containing
