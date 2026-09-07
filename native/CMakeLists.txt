@@ -267,6 +267,14 @@ add_executable(solver_fixed_work_bench EXCLUDE_FROM_ALL tests/solver_fixed_work_
 target_include_directories(solver_fixed_work_bench PRIVATE src)
 target_link_libraries(solver_fixed_work_bench PRIVATE puzzlescript_native puzzlescript_compiler)
 
+# Bounded search diagnosis; production solver builds contain no probe overhead.
+foreach(diagnostic_target solver_portfolio_diagnosis solver_portfolio_reference)
+  add_executable(${diagnostic_target} EXCLUDE_FROM_ALL tests/solver_portfolio_diagnosis.cpp)
+  target_include_directories(${diagnostic_target} PRIVATE src)
+  target_link_libraries(${diagnostic_target} PRIVATE puzzlescript_native puzzlescript_compiler)
+endforeach()
+target_compile_definitions(solver_portfolio_diagnosis PRIVATE PS_PORTFOLIO_DIAGNOSTICS=1)
+
 set(PS_BENCH_BASELINE_LIB_DIR "" CACHE PATH "Optional matching prebuilt libraries for fixed-work baseline comparisons")
 if(PS_BENCH_BASELINE_LIB_DIR)
   # These libraries must match the current headers, toolchain, mask width, and
