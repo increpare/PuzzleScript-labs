@@ -5,11 +5,25 @@
 #define main unused_solver_cli_main
 #include "../src/solver/main.cpp"
 #undef main
+#if PS_SPATIAL_MATCH_CACHE
+#include "runtime/spatial_match_cache.hpp"
+#endif
 
 int main(int argc, char** argv) {
     std::string currentCase;
     try {
-        if (argc != 3) throw std::runtime_error("Usage: solver_fixed_work_bench CORPUS_DIR MAX_EXPANDED");
+        if (argc != 3
+#if PS_SPATIAL_MATCH_CACHE
+            && argc != 4
+#endif
+        ) throw std::runtime_error("Usage: solver_fixed_work_bench CORPUS_DIR MAX_EXPANDED [cache-on|cache-off]");
+#if PS_SPATIAL_MATCH_CACHE
+        if (argc == 4) {
+            const std::string mode = argv[3];
+            if (mode != "cache-on" && mode != "cache-off") throw std::runtime_error("Invalid cache mode");
+            puzzlescript::setSpatialMatchCacheEnabled(mode == "cache-on");
+        }
+#endif
         const uint64_t cap = std::stoull(argv[2]);
         if (!cap) throw std::runtime_error("Expansion cap must be positive");
         std::vector<std::filesystem::path> paths;
@@ -18,6 +32,10 @@ int main(int argc, char** argv) {
         std::sort(paths.begin(), paths.end());
         if (paths.empty()) throw std::runtime_error("Empty corpus");
         for (const auto& path : paths) {
+#if PS_SPATIAL_MATCH_CACHE
+            const auto gameStart = Clock::now();
+            puzzlescript::resetSpatialMatchStats();
+#endif
             currentCase = path.filename().string();
             std::string source = readFile(path);
             if (source.empty() || source.back() != '\n') source.push_back('\n');
@@ -51,6 +69,14 @@ int main(int argc, char** argv) {
                 }
                 std::cout << "]]\n";
             }
+#if PS_SPATIAL_MATCH_CACHE
+            const auto stats = puzzlescript::spatialMatchStats();
+            std::cerr << "{\"game\":" << jsonString(path.filename().string())
+                      << ",\"ms\":" << std::chrono::duration<double, std::milli>(Clock::now() - gameStart).count()
+                      << ",\"collections\":" << stats.collections << ",\"full\":" << stats.fullCollections
+                      << ",\"cached\":" << stats.cachedCollections << ",\"repairs\":" << stats.repairedPositions
+                      << ",\"dirty_events\":" << stats.dirtyEvents << "}\n";
+#endif
         }
     } catch (const std::exception& error) {
         std::cerr << currentCase << ": " << error.what() << '\n';

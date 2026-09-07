@@ -17,6 +17,9 @@
 
 #include "simdjson.h" // vendored; will replace puzzlescript::json in Task 4
 #include "runtime/compiled_rules.hpp"
+#if PS_SPATIAL_MATCH_CACHE
+#include "runtime/spatial_match_cache.hpp"
+#endif
 
 namespace puzzlescript {
 void runRulesOnLevelStart(FullState& session);
@@ -24,6 +27,74 @@ void runRulesOnLevelStart(FullState& session, RuntimeStepOptions options);
 namespace {
 
 thread_local TurnResult gThreadTurnResult;
+
+#if PS_SPATIAL_MATCH_CACHE
+struct SpatialRowCache {
+    uint64_t epoch = 0;
+    size_t cursor = 0;
+    std::vector<MaskWordUnsigned> matched;
+    std::vector<std::pair<MaskWordUnsigned, MaskWordUnsigned>> reads;
+};
+struct SpatialChange {
+    int32_t tile;
+    bool movement;
+    MaskWordUnsigned bits;
+};
+struct SpatialPhaseCache {
+    const Game* game = nullptr;
+    std::weak_ptr<const GameInformation> owner;
+    const FullState* session = nullptr;
+    uint64_t epoch = 0;
+    std::unordered_map<const Pattern*, SpatialRowCache> rows;
+    std::vector<SpatialChange> changes;
+    std::vector<MaskWordUnsigned> dirty;
+};
+thread_local SpatialPhaseCache gSpatialStorage;
+thread_local SpatialPhaseCache* gSpatialActive = nullptr;
+thread_local SpatialMatchStats gSpatialStats;
+thread_local bool gSpatialEnabled = true;
+
+// One log entry invalidates the start at each fixed pattern offset, including
+// negative/stationary predicates. Record real changes, not potential rule writes.
+void spatialCellChanged(const FullState& session, int32_t tile, bool movement, MaskWordUnsigned bits) {
+    auto* cache = gSpatialActive;
+    if (!cache || cache->session != &session) return;
+    ++gSpatialStats.dirtyEvents;
+    if (cache->changes.size() >= 65536) {
+        // Bound scratch memory during long propagation. Advancing the epoch
+        // invalidates every cached result before discarding its change history.
+        ++cache->epoch;
+        cache->changes.clear();
+    }
+    // Do not coalesce consecutive writes: a row may have consumed the previous
+    // event between two writes to this same tile and still needs the second one.
+    cache->changes.push_back({tile, movement, bits});
+}
+
+struct SpatialPhaseScope {
+    SpatialPhaseCache* previous = gSpatialActive;
+    explicit SpatialPhaseScope(const FullState& session) {
+        gSpatialActive = nullptr;
+        // Generated groups can write through other paths. Nested execution also
+        // uses the uncached path; its caller's cached state is invalidated below.
+        if (!gSpatialEnabled || previous || session.game->specializedRulegroups) return;
+        auto& cache = gSpatialStorage;
+        if (cache.game != session.game.get() || cache.owner.expired()) {
+            cache.rows.clear();
+            cache.game = session.game.get();
+            cache.owner = session.game;
+        }
+        cache.session = &session;
+        ++cache.epoch;
+        cache.changes.clear();
+        gSpatialActive = &cache;
+    }
+    ~SpatialPhaseScope() {
+        if (previous) { ++previous->epoch; previous->changes.clear(); }
+        gSpatialActive = previous;
+    }
+};
+#endif
 
 void rebuildMasks(FullState& session);
 void rebuildObjectCellIndex(FullState& session);
@@ -2741,6 +2812,9 @@ bool rebuildObjectMaskCountsAndMasksFromIndex(FullState& session, int32_t width,
 }
 
 void setCellObjectsFromWords(FullState& session, int32_t tileIndex, const MaskWord* objects) {
+#if PS_SPATIAL_MATCH_CACHE
+    MaskWordUnsigned spatialBits = 0;
+#endif
     const int32_t stride = session.game->strideObject;
     const size_t base = static_cast<size_t>(tileIndex * stride);
     const int32_t height = currentLevelHeight(session);
@@ -2761,6 +2835,9 @@ void setCellObjectsFromWords(FullState& session, int32_t tileIndex, const MaskWo
         const MaskWord value = objects[static_cast<size_t>(word)];
         changedAny = changedAny || oldValue != value;
         const MaskWordUnsigned changedWordBits = static_cast<MaskWordUnsigned>(oldValue ^ value);
+#if PS_SPATIAL_MATCH_CACHE
+        spatialBits |= changedWordBits;
+#endif
         const MaskWordUnsigned clearedWordBits = static_cast<MaskWordUnsigned>(oldValue & ~value);
         if (gRuntimeCountersEnabled) {
             changedBitCount += static_cast<uint64_t>(maskWordPopcount(changedWordBits));
@@ -2799,6 +2876,9 @@ void setCellObjectsFromWords(FullState& session, int32_t tileIndex, const MaskWo
         }
     }
     if (clearedAny != 0 || changedAny) {
+#if PS_SPATIAL_MATCH_CACHE
+        spatialCellChanged(session, tileIndex, false, spatialBits);
+#endif
         addCounter(gRuntimeCounters.maskDirtyObjectCellsChanged);
         addCounter(gRuntimeCounters.maskDirtyObjectBitsChanged, changedBitCount);
         addCounter(gRuntimeCounters.maskDirtyObjectBitsCleared, clearedBitCount);
@@ -2906,6 +2986,9 @@ void clearShiftedMask5(MaskVector& value, int32_t shift) {
 }
 
 void setCellMovementsFromWords(FullState& session, int32_t tileIndex, const MaskWord* movements) {
+#if PS_SPATIAL_MATCH_CACHE
+    MaskWordUnsigned spatialBits = 0;
+#endif
     const int32_t stride = session.game->strideMovement;
     const size_t base = static_cast<size_t>(tileIndex * stride);
     const int32_t columnIndex = tileIndex / currentLevelHeight(session);
@@ -2921,6 +3004,9 @@ void setCellMovementsFromWords(FullState& session, int32_t tileIndex, const Mask
         const MaskWord value = movements[static_cast<size_t>(word)];
         changedAny = changedAny || oldValue != value;
         const MaskWordUnsigned changedWordBits = static_cast<MaskWordUnsigned>(oldValue ^ value);
+#if PS_SPATIAL_MATCH_CACHE
+        spatialBits |= changedWordBits;
+#endif
         const MaskWordUnsigned clearedWordBits = static_cast<MaskWordUnsigned>(oldValue & ~value);
         if (gRuntimeCountersEnabled) {
             changedBitCount += static_cast<uint64_t>(maskWordPopcount(changedWordBits));
@@ -2936,6 +3022,9 @@ void setCellMovementsFromWords(FullState& session, int32_t tileIndex, const Mask
         session.scratch.boardMovementMask[static_cast<size_t>(word)] |= value;
     }
     if (changedAny) {
+#if PS_SPATIAL_MATCH_CACHE
+        spatialCellChanged(session, tileIndex, true, spatialBits);
+#endif
         addCounter(gRuntimeCounters.maskDirtyMovementCellsChanged);
         addCounter(gRuntimeCounters.maskDirtyMovementBitsChanged, changedBitCount);
         addCounter(gRuntimeCounters.maskDirtyMovementBitsCleared, clearedBitCount);
@@ -4525,7 +4614,7 @@ bool collectAnchoredRowMatchesInto(
     return !matches.empty();
 }
 
-void collectRowMatchesInto(
+void collectRowMatchesUncached(
     const FullState& session,
     const std::vector<Pattern>& row,
     int32_t direction,
@@ -4682,6 +4771,141 @@ void collectRowMatchesInto(
             }
         }
     }
+}
+
+void collectRowMatchesInto(
+    const FullState& session,
+    const std::vector<Pattern>& row,
+    int32_t direction,
+    const RowMaskPreconditions& preconditions,
+    std::vector<int32_t>& matches
+) {
+#if PS_SPATIAL_MATCH_CACHE
+    auto* phase = gSpatialActive;
+    if (phase && phase->session == &session && !row.empty()
+        && (direction == 1 || direction == 2 || direction == 4 || direction == 8)) {
+        ++gSpatialStats.collections;
+        // An exact, already-maintained index is cheaper than cache bookkeeping
+        // for very rare anchors. This is a runtime cost choice, not a player or
+        // genre assumption; the normal matcher still decides all matches. If a
+        // cached row later becomes common again, its journal cursor remains old
+        // enough to repair every intervening change before reusing any matches.
+        const auto& firstIds = row.front().objectAnchorIds;
+        if (!session.scratch.objectCellIndexDirty && firstIds.size() == 1
+            && static_cast<size_t>(firstIds.front()) < session.scratch.objectCellCounts.size()
+            && session.scratch.objectCellCounts[static_cast<size_t>(firstIds.front())] <= 4) {
+            collectRowMatchesUncached(session, row, direction, preconditions, matches);
+            return;
+        }
+        const int32_t width = currentLevelWidth(session), height = currentLevelHeight(session);
+        const int32_t length = static_cast<int32_t>(row.size());
+        const bool horizontal = direction > 2;
+        const int32_t tileCount = width * height;
+        const size_t words = (static_cast<size_t>(tileCount) + kMaskWordBits - 1) / kMaskWordBits;
+        const auto [dx, dy] = directionMaskToDelta(direction);
+        const int32_t delta = dx * height + dy;
+        const int32_t xmin = direction == 4 ? length - 1 : 0;
+        const int32_t xmax = direction == 8 ? width - length + 1 : width;
+        const int32_t ymin = direction == 1 ? length - 1 : 0;
+        const int32_t ymax = direction == 2 ? height - length + 1 : height;
+        auto& cache = phase->rows[row.data()];
+        if (cache.reads.empty()) {
+            // Fold mask words into a conservative signature: collisions can only
+            // cause extra repairs. Compute this from the ruleset once, so levels
+            // generated for the same game share the analysis without sharing
+            // board-dependent matches. Include absence and disjunctive reads.
+            const auto fold = [&](MaskOffset offset, uint32_t count) {
+                MaskWordUnsigned bits = 0;
+                if (offset != kNullMaskOffset)
+                    for (uint32_t w = 0; w < count; ++w)
+                        bits |= static_cast<MaskWordUnsigned>(session.game->maskArena[offset + w]);
+                return bits;
+            };
+            for (const auto& pattern : row) {
+                auto objects = fold(pattern.objectsPresent, session.game->wordCount)
+                             | fold(pattern.objectsMissing, session.game->wordCount);
+                auto movements = fold(pattern.movementsPresent, session.game->movementWordCount)
+                               | fold(pattern.movementsMissing, session.game->movementWordCount);
+                for (uint32_t i = 0; i < pattern.anyObjectsCount; ++i)
+                    objects |= fold(session.game->anyObjectOffsets[pattern.anyObjectsFirst + i], session.game->wordCount);
+                for (uint32_t i = 0; i < pattern.anyMovementsCount; ++i)
+                    movements |= fold(session.game->anyMovementOffsets[pattern.anyMovementsFirst + i], session.game->movementWordCount);
+                if (!pattern.layerCoupledMovementMasks.empty()) {
+                    // Coupled property/movement tests read both planes. Until
+                    // these terms are expanded, conservatively wake on any bit.
+                    objects = movements = ~MaskWordUnsigned{0};
+                }
+                cache.reads.emplace_back(objects, movements);
+            }
+        }
+        const auto ordinal = [&](int32_t tile) { return horizontal ? (tile % height) * width + tile / height : tile; };
+        const auto tileFor = [&](int32_t index) { return horizontal ? (index % width) * height + index / width : index; };
+        // If the invalidation frontier is broad, use the existing indexed scan.
+        // A first collection uses it too: caches never assume an initial board
+        // is quiescent and do not eagerly test all starts just to populate bits.
+        if (cache.epoch != phase->epoch || cache.matched.size() != words
+            || (phase->changes.size() - cache.cursor) * row.size() >= static_cast<size_t>(tileCount)) {
+            ++gSpatialStats.fullCollections;
+            collectRowMatchesUncached(session, row, direction, preconditions, matches);
+            cache.matched.assign(words, 0);
+            for (int32_t tile : matches) {
+                const int32_t index = ordinal(tile);
+                cache.matched[static_cast<size_t>(index) / kMaskWordBits] |= MaskWordUnsigned{1} << (index % kMaskWordBits);
+            }
+            cache.epoch = phase->epoch;
+            cache.cursor = phase->changes.size();
+            return;
+        }
+        ++gSpatialStats.cachedCollections;
+        phase->dirty.assign(words, 0);
+        for (size_t event = cache.cursor; event < phase->changes.size(); ++event) {
+            const auto& change = phase->changes[event];
+            const int32_t changed = change.tile;
+            for (int32_t offset = 0; offset < length; ++offset) {
+                const auto& read = cache.reads[static_cast<size_t>(offset)];
+                if (!(change.bits & (change.movement ? read.second : read.first))) continue;
+                const int32_t x = changed / height - offset * dx;
+                const int32_t y = changed % height - offset * dy;
+                if (x < xmin || x >= xmax || y < ymin || y >= ymax) continue;
+                const int32_t index = ordinal(x * height + y);
+                phase->dirty[static_cast<size_t>(index) / kMaskWordBits] |= MaskWordUnsigned{1} << (index % kMaskWordBits);
+            }
+        }
+        cache.cursor = phase->changes.size();
+        matches.clear();
+        for (size_t word = 0; word < words; ++word) {
+            auto dirty = phase->dirty[word];
+            while (dirty) {
+                const int32_t bit = maskWordCountTrailingZeros(dirty);
+                const auto flag = MaskWordUnsigned{1} << bit;
+                const int32_t tile = tileFor(static_cast<int32_t>(word * kMaskWordBits) + bit);
+                ++gSpatialStats.repairedPositions;
+                addCounter(gRuntimeCounters.candidateCellsTested);
+                if (rowStillMatchesAt(session, row, tile, delta)) cache.matched[word] |= flag;
+                else cache.matched[word] &= ~flag;
+                dirty &= dirty - 1;
+            }
+            // Bits are stored in the original scan order. The output is still a
+            // snapshot: replacements must not discover newly enabled matches
+            // until the rule is collected again in its normal execution order.
+            auto matched = cache.matched[word];
+            while (matched) {
+                const int32_t bit = maskWordCountTrailingZeros(matched);
+                matches.push_back(tileFor(static_cast<int32_t>(word * kMaskWordBits) + bit));
+                matched &= matched - 1;
+            }
+        }
+#if PS_SPATIAL_MATCH_VERIFY
+        // Validate the intermediate list, including order and multiplicity:
+        // final-board parity alone can miss transient stale or missing matches.
+        std::vector<int32_t> fresh;
+        collectRowMatchesUncached(session, row, direction, preconditions, fresh);
+        if (matches != fresh) throw std::runtime_error("Spatial match cache differs from fresh scan");
+#endif
+        return;
+    }
+#endif
+    collectRowMatchesUncached(session, row, direction, preconditions, matches);
 }
 
 std::vector<int32_t> collectRowMatches(
@@ -5716,6 +5940,9 @@ bool applyRuleGroups(
     bool late
 ) {
     bool loopPropagated = false;
+#if PS_SPATIAL_MATCH_CACHE
+    SpatialPhaseScope spatialScope(session);
+#endif
     bool hasChanges = false;
     int32_t loopCount = 0;
     int32_t groupIndex = 0;
@@ -6479,6 +6706,12 @@ void resetToPrepared(FullState& session) {
 }
 
 } // namespace
+
+#if PS_SPATIAL_MATCH_CACHE
+SpatialMatchStats spatialMatchStats() { return gSpatialStats; }
+void resetSpatialMatchStats() { gSpatialStats = {}; }
+void setSpatialMatchCacheEnabled(bool enabled) { gSpatialEnabled = enabled; }
+#endif
 
 bool inputSpecializationEnabled() {
     return inputSpecializationEnabledInternal();
