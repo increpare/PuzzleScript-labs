@@ -1,0 +1,41 @@
+{
+  "pairs": [
+    {
+      "before": 754,
+      "after": 753
+    },
+    {
+      "before": 752,
+      "after": 746
+    },
+    {
+      "before": 753,
+      "after": 753
+    }
+  ],
+  "threshold_medians": {
+    "10": {
+      "before": 277,
+      "after": 282
+    },
+    "50": {
+      "before": 518,
+      "after": 513
+    },
+    "100": {
+      "before": 622,
+      "after": 623
+    },
+    "250": {
+      "before": 753,
+      "after": 753
+    }
+  },
+  "stable_gains": [],
+  "stable_losses": [
+    [
+      "paint everything everywhere.txt",
+      29
+    ]
+  ]
+}

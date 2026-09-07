@@ -1,6 +1,6 @@
 """Export cumulative native solve curves from compare_native_solver_corpus.js.
 
-Usage: python plot_native_solver_comparison.py BATTERY_DIR OUTPUT_PREFIX
+Usage: python plot_native_solver_comparison.py BATTERY_DIR OUTPUT_PREFIX [BEFORE_LABEL] [AFTER_LABEL]
 The bands show the observed run range, not a confidence interval.
 """
 import csv
@@ -15,6 +15,8 @@ import numpy as np
 
 battery = pathlib.Path(sys.argv[1])
 prefix = pathlib.Path(sys.argv[2])
+before_label = sys.argv[3] if len(sys.argv) > 3 else "Before · pre-day baseline"
+after_label = sys.argv[4] if len(sys.argv) > 4 else "After · borrowed rule matches"
 manifest = json.loads((battery / "manifest.json").read_text())
 limit = manifest["timeout_ms"]
 pair_count = len(manifest["runs"]) // 2
@@ -53,8 +55,8 @@ for panel in (ax, delta):
     panel.set_facecolor("#f8fafc")
     panel.grid(axis="y", color="#dce2e8", linewidth=.7)
     panel.set_axisbelow(True)
-styles = [("before", "#c8792e", "Before · pre-day baseline", "--"),
-          ("after", "#087f8c", "After · borrowed rule matches", "-")]
+styles = [("before", "#c8792e", before_label, "--"),
+          ("after", "#087f8c", after_label, "-")]
 medians = {}
 for side, color, label, linestyle in styles:
     values = curves[side]

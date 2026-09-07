@@ -1,6 +1,6 @@
 # Native spatial match cache experiment — 7 September 2026
 
-The prototype saves **5.6%, 5.7%, and 9.5%** of whole-process time against the clean PR #13 allocation-improved baseline, at identical search work across 1,346 levels from 184 games. It remains **opt-in**, `PS_SPATIAL_MATCH_CACHE=ON`; normal builds do not include its runtime machinery. This is promising evidence for spatial reuse, not a demonstrated improvement in deadline solve counts or generator throughput.
+The prototype saves **5.6%, 5.7%, and 9.5%** of whole-process time against the clean PR #13 allocation-improved baseline, at identical search work across 1,346 levels from 184 games. It remains **opt-in**, `PS_SPATIAL_MATCH_CACHE=ON`; normal builds do not include its runtime machinery. The subsequent [250 ms deadline battery](native-spatial-match-cache-250ms-2026-09-07.md) finds **no solve-count improvement**: 754→753, 752→746, and 753→753, with no consistent gains and one consistent loss. The throughput result does not meet this deadline acceptance criterion.
 
 ## What is reused
 
@@ -50,7 +50,7 @@ Read filtering reduced repaired positions from 75,916,347 to 43,533,109 at ident
 
 The first prototype exposed a real invalidation bug: coalescing consecutive changes to one tile is unsafe when a collector consumes the first event before the next write. Eleven gameplay recordings failed. Every actual change now gets its own event; the complete suite and intermediate-list oracle pass after the correction. The code comment preserves this reason so future compression does not reintroduce the bug.
 
-Timing builds have the fresh-scan oracle disabled. Verification timings are not performance results. No new deadline battery or generator performance run was performed, and 32-bit-mask/platform-specific builds have not been validated for this experiment.
+Timing builds have the fresh-scan oracle disabled. Verification timings are not performance results. The later deadline battery is documented separately above. No generator performance run was performed, and 32-bit-mask/platform-specific builds have not been validated for this experiment.
 
 ## Reproduction and evidence
 
@@ -72,4 +72,4 @@ solver_fixed_work_bench src/tests/solver_tests 100 cache-on
 
 The [compressed evidence archive](benchmarks/2026-09-07-spatial-match-cache.json.gz) contains exact report/log text with SHA-256 hashes, the V1/V2 development patches, their shared experimental header, the original same-executable orchestration script, and hashes of the retained V1/V2/V3 timing executables. V3 source is this commit with verification disabled. The archive also retains the ordered-list verification results and runner smoke report.
 
-The next useful step is a deadline battery on this isolated option, with per-game regressions reported as well as overall solves. If those gains remain narrow, the stronger architectural direction is to reduce collection/dispatch and journal overhead further, using these dependency signatures to schedule affected rows directly. The current experiment does not yet implement a persistent spatial dependency graph.
+The follow-up deadline battery did not improve overall solves. Further work would need to reduce collection/dispatch and journal overhead, potentially using these dependency signatures to schedule affected rows directly. That remains an untested direction; the current experiment does not implement a persistent spatial dependency graph and should stay disabled by default.
