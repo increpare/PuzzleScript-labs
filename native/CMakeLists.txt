@@ -263,6 +263,31 @@ add_executable(puzzlescript_solver
   src/solver/main.cpp
 )
 
+add_executable(solver_fixed_work_bench EXCLUDE_FROM_ALL tests/solver_fixed_work_bench.cpp)
+target_include_directories(solver_fixed_work_bench PRIVATE src)
+target_link_libraries(solver_fixed_work_bench PRIVATE puzzlescript_native puzzlescript_compiler)
+
+set(PS_BENCH_BASELINE_LIB_DIR "" CACHE PATH "Optional matching prebuilt libraries for fixed-work baseline comparisons")
+if(PS_BENCH_BASELINE_LIB_DIR)
+  # These libraries must match the current headers, toolchain, mask width, and
+  # build configuration. This is for runtime-only experiments, not ABI changes.
+  add_executable(solver_baseline_bench EXCLUDE_FROM_ALL tests/solver_fixed_work_bench.cpp)
+  add_executable(runtime_match_tuples_baseline EXCLUDE_FROM_ALL tests/runtime_match_tuples.cpp)
+  foreach(baseline_target solver_baseline_bench runtime_match_tuples_baseline)
+    target_include_directories(${baseline_target} PRIVATE src include)
+    target_compile_definitions(${baseline_target} PRIVATE PS_MASK_WORD_BITS=${PS_MASK_WORD_BITS})
+    target_link_libraries(${baseline_target} PRIVATE
+      "${PS_BENCH_BASELINE_LIB_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}puzzlescript_native${CMAKE_STATIC_LIBRARY_SUFFIX}"
+      "${PS_BENCH_BASELINE_LIB_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}puzzlescript_compiler${CMAKE_STATIC_LIBRARY_SUFFIX}"
+      Threads::Threads)
+  endforeach()
+endif()
+
+add_executable(runtime_match_tuples tests/runtime_match_tuples.cpp)
+target_include_directories(runtime_match_tuples PRIVATE src)
+target_link_libraries(runtime_match_tuples PRIVATE puzzlescript_native puzzlescript_compiler)
+add_test(NAME runtime_match_tuples COMMAND runtime_match_tuples)
+
 add_executable(puzzlescript_generator
   src/generator/main.cpp
   src/generator/block_scheduler.cpp
