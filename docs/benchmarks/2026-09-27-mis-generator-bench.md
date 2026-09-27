@@ -192,7 +192,10 @@ dead ends sooner.
   growing to 5 s. More candidates get judged in the same time, which fills
   more of the shortlist. Only on the slowest levels are the levels it finds
   less hard. The earlier A/B used only those levels and the mean effort of
-  levels found, hence its opposite verdict. **It is now the default.** The
+  levels found, hence its opposite verdict. **It is now the default.**
+  Confirmed with `make mis_generator_bench MIS_BENCH_REF=8016cf0` (quick set,
+  the commit before the switch vs after): **+10.3% [+3.6%, +18.2%], better**;
+  runs better / worse 146 / 120; candidates/s −5%. The
   generator uses it whenever the caller passes the seed's solve time
   (`seedPrimaryMs`); the app's workers, the survey and the benchmark all do.
   `seedBudget: false` turns it off. An older generator ignores

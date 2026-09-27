@@ -1837,8 +1837,8 @@ mis_generator_profile:
 MIS_BENCH_REF ?= HEAD
 MIS_BENCH_ARGS ?= --quick
 mis_generator_bench:
-	-git worktree remove --force build/mis-bench-ref 2>/dev/null
-	git worktree add --detach build/mis-bench-ref $(MIS_BENCH_REF)
+	@if [ -d build/mis-bench-ref ]; then git worktree remove --force build/mis-bench-ref; fi
+	git worktree add -q --detach build/mis-bench-ref $(MIS_BENCH_REF)
 	$(NODE) src/tests/mis_generator_bench_node.js run $(MIS_BENCH_ARGS) --variant 'ref={"src":"build/mis-bench-ref/src"}' --variant current --out build/mis_generator_bench.json
 
 generator_smoke_tests: $(GENERATOR_TARGET_PREREQ)
