@@ -133,10 +133,10 @@ Two frozen files, built from `src/tests/solver_tests`:
   between. The rule and each game's generators are recorded in the file.
 
 Runs have a candidate budget, not a fixed time: each generator runs until it
-has judged 30 candidate levels, taking at least 3 s and at most 30 s. Slow
+has judged 30 candidate levels, taking at least 3 s and at most 15 s. Slow
 games get the time they need to be judged fairly.
 
-Run every generator on every benchmark level (~2.5 h on 4 threads; see
+Run every generator on every benchmark level (~1 h on 4 threads; see
 `docs/benchmarks/2026-09-27-mis-generator-bench.md`):
 
 ```sh

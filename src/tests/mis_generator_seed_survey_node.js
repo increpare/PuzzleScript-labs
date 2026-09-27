@@ -5,7 +5,7 @@
 //
 //   node src/tests/mis_generator_seed_survey_node.js seeds  [--out seeds.json] [--solve-ms 500]
 //   node src/tests/mis_generator_seed_survey_node.js survey [--seeds seeds.json] [--out survey.json] [--seed 7]
-//        [--candidates 30 --min-seconds 3 --max-seconds 30 | --seconds S] [--rejudge prev.json]
+//        [--candidates 30 --min-seconds 3 --max-seconds 15 | --seconds S] [--rejudge prev.json]
 //   node src/tests/mis_generator_seed_survey_node.js cull survey.json [--cap 4] [--pick spread|productive] [--min-effort 10] [--out bench.json]
 //
 // seeds:  every playable level in src/tests/solver_tests that the native
@@ -285,7 +285,7 @@ async function survey() {
 	// candidate budget: --candidates judged, within --min-seconds..--max-seconds.
 	const fixed = arg('--seconds', null);
 	const budget = fixed ? { candidates: 0, minSeconds: +fixed, maxSeconds: +fixed }
-		: { candidates: +arg('--candidates', 30), minSeconds: +arg('--min-seconds', 3), maxSeconds: +arg('--max-seconds', 30) };
+		: { candidates: +arg('--candidates', 30), minSeconds: +arg('--min-seconds', 3), maxSeconds: +arg('--max-seconds', 15) };
 	const only = arg('--game', null);
 	const rngSeed = +arg('--seed', 7);
 	// --rejudge prev.json: rerun only the levels the cull would drop as
