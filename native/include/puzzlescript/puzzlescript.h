@@ -77,6 +77,10 @@ typedef struct ps_solve_options {
        TIMEOUT, never EXHAUSTED. A single runtime turn is not preemptible. */
     bool (*should_cancel)(void* context);
     void* cancel_context;
+    /* Make the search depend only on its inputs, not on timing: disables the
+       portfolio's clock-based switch to weighted A* (it measures step time).
+       With max_expanded as the budget, results are then reproducible. */
+    bool deterministic;
 } ps_solve_options;
 
 typedef struct ps_solve_result {

@@ -30,7 +30,8 @@ let code = '';
 for (const f of files) code += `\n// ---- ${f} ----\n` + fs.readFileSync(path.join(srcDir, f), 'utf8');
 code += '\nmisAfterEngineLoaded();\n';
 code += fs.readFileSync(path.join(srcDir, 'js/mis/mis_core.js'), 'utf8');
-code += '\nglobal.MISCore = MISCore; global.misCompile = misCompile;\n';
+code += '\n' + fs.readFileSync(path.join(srcDir, 'js/mis/mis_generator.js'), 'utf8');
+code += '\nglobal.MISCore = MISCore; global.misCompile = misCompile; global.MISGenerator = MISGenerator;\n';
 vm.runInThisContext(code, { filename: 'mis_combined.js' });
 
 let passed = 0;
@@ -207,6 +208,20 @@ const wasmJs = path.join(srcDir, 'js/mis/wasm/mis_native.js');
 			assert(r.ok && r.changed > 0 && r.length === 33);
 			for (let t = 0; t < r.board.w * r.board.h; t++) assert(C.hasBit(r.board.cells, t, soko.model.backgroundId, soko.model.stride));
 			assert.strictEqual(C.solve(soko.model, r.board, { strategy: 'bfs', maxExpanded: 400000 }).solution.length, 33);
+		});
+		test('native: work-clock generation is reproducible', () => {
+			// Same seed, same states budget: identical candidates and shortlist,
+			// whatever the timing (the benchmark's --work mode relies on this).
+			const program = C.parseTransform('choose 2 [ Wall ] -> [ ]\nchoose 2 [ no Wall no Crate no Player no Target ] -> [ Wall ]', soko.model);
+			const trace = () => {
+				const gen = MISGenerator.create({ model: soko.model, backend: native, program, base: firstLevel.board, seed: 5, keep: 8, workClock: true, baseEffort: 100 });
+				const out = [];
+				while (gen.work() < 400) { const r = gen.step(); if (r) out.push(r.result.effort + ':' + C.cellsKey(r.board.cells)); }
+				return { out, best: gen.best(), stats: JSON.stringify(gen.stats()) };
+			};
+			const a = trace(), b = trace();
+			assert(a.out.length > 0);
+			assert.deepStrictEqual(a, b);
 		});
 		test('native: unsolvable boards and objects outside collision layers', () => {
 			const lunar = load('demo/lunar_lockout.txt'); // Captain is in no collision layer

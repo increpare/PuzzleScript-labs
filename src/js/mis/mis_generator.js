@@ -12,10 +12,19 @@
 // Every phase is timed (performance.now is cheap in JS) so profiles can split
 // a worker's time into transform / dedupe / primary solves by outcome /
 // refinement.
+//
+// Work clock (opts.workClock): budgets and the step-size bandit count solver
+// states instead of milliseconds (at a nominal WORK_STATES_PER_MS), and the
+// solver makes no timing-based decisions, so a run depends only on its inputs
+// and seed. work() reports the ms-equivalent spent. For benchmarking changes to
+// the loop's choices without timing noise (src/tests/mis_generator_bench_node.js).
 
 const MISGenerator = (function () {
 
 	const now = typeof performance !== 'undefined' ? function () { return performance.now(); } : Date.now;
+	const WORK_STATES_PER_MS = 50;
+	const WORK_TIME_LIMIT_MS = 120000; // safety net only: states budgets bind first
+	const WORK_PER_SAMPLE = 1; // states charged per sampled board (transform + dedupe)
 
 	function create(opts) {
 		const model = opts.model, backend = opts.backend, C = MISCore;
@@ -67,6 +76,18 @@ const MISGenerator = (function () {
 		let budget = Math.min(maxBudget, Math.max(opts.initialBudgetMs || 200, Math.round(basePrimaryMs * 7)));
 		let streak = 0;
 		const legacy = opts.pipeline === 'legacy';
+		const workClock = !!opts.workClock;
+		if (workClock && legacy) throw new Error('workClock needs the lazy pipeline');
+		let workStates = 0;
+		// Solver states an assessment spent: the primary, plus each refinement
+		// lane (capped at primary + 6; a lane that gave up reports no count).
+		function assessStates(r) {
+			let n = r.expanded || 0;
+			if (r.refined) {
+				['greedy', 'astar', 'bfs'].forEach(function (k) { n += r.lanes && r.lanes[k] >= 0 ? r.lanes[k] : (r.expanded || 0) + 6; });
+			}
+			return n;
+		}
 
 		const stats = { generated: 0, duplicates: 0, unchanged: 0, otherShard: 0, solved: 0, unsolvable: 0, timeout: 0, budgetMs: budget };
 		// Profile: milliseconds and counts per phase.
@@ -118,12 +139,12 @@ const MISGenerator = (function () {
 
 		// One unit of work. Returns a solved candidate {board, result} or null.
 		function step() {
-			const t0 = now();
+			const t0 = now(), w0 = workStates;
 			const before = topEfforts.length ? topEfforts[topEfforts.length - 1] : 0;
 			const filled = topEfforts.length >= keepCount;
 			const arm = arms[armIndex];
 			const found = stepWith(arm.program);
-			arm.ms += now() - t0;
+			arm.ms += workClock ? (workStates - w0) / WORK_STATES_PER_MS : now() - t0;
 			arm.pulls++;
 			if (found) {
 				const e = found.result.effort || 0;
@@ -141,6 +162,7 @@ const MISGenerator = (function () {
 			}
 			if (!board) {
 				prof.samples++;
+				workStates += WORK_PER_SAMPLE;
 				let t = now();
 				board = C.runTransform(model, program, base, frozen, rng);
 				prof.transformMs += now() - t;
@@ -187,8 +209,13 @@ const MISGenerator = (function () {
 		function assessLazy(board, retried) {
 			let t = now();
 			const gate = floor();
-			const r = backend.assess(board, { timeMs: budget, maxExpanded: 400000, refineGate: gate, refineTimeMs: Math.max(budget, 1500) });
+			const r = workClock
+				? backend.assess(board, { timeMs: WORK_TIME_LIMIT_MS, primaryMaxExpanded: Math.round(budget * WORK_STATES_PER_MS), deterministic: true,
+					maxExpanded: 400000, refineGate: gate, refineTimeMs: WORK_TIME_LIMIT_MS })
+				: backend.assess(board, { timeMs: budget, maxExpanded: 400000, refineGate: gate, refineTimeMs: Math.max(budget, 1500) });
 			const ms = now() - t;
+			const states = assessStates(r);
+			workStates += states;
 			if (r.status !== 'solved') return recordUnsolved(r, ms, board, retried);
 			stats.solved++;
 			if (retried) stats.timeout--;
@@ -197,10 +224,14 @@ const MISGenerator = (function () {
 			if (r.effort >= gate || topEfforts.length < keepCount) {
 				admit(r.effort);
 				prof.refineAdmitted++;
-				budget = Math.min(maxBudget, Math.max(budget, Math.round((r.primaryMs || r.ms || ms) * 7), 200));
+				const primaryCost = workClock ? (r.expanded || 0) / WORK_STATES_PER_MS : (r.primaryMs || r.ms || ms);
+				budget = Math.min(maxBudget, Math.max(budget, Math.round(primaryCost * 7), 200));
 				if (!r.optimal && optimalCap > 0 && backend.solve) {
 					t = now();
-					const bfs = backend.solve(board, { strategy: 'bfs', maxExpanded: optimalCap, timeMs: Math.max(budget, 1500) });
+					const bfs = workClock
+						? backend.solve(board, { strategy: 'bfs', maxExpanded: optimalCap, timeMs: WORK_TIME_LIMIT_MS, deterministic: true })
+						: backend.solve(board, { strategy: 'bfs', maxExpanded: optimalCap, timeMs: Math.max(budget, 1500) });
+					workStates += bfs.expanded || 0;
 					prof.proofMs += now() - t;
 					prof.proofs++;
 					if (bfs.status === 'solved') { r.solution = bfs.solution; r.length = bfs.solution.length; r.optimal = true; }
@@ -241,13 +272,15 @@ const MISGenerator = (function () {
 			step: step,
 			stats: function () { stats.budgetMs = budget; return stats; },
 			profile: function () { return prof; },
+			// Work clock: ms-equivalent of the solver states spent so far.
+			work: function () { return workStates / WORK_STATES_PER_MS; },
 			exhausted: function () { return streak > 3000; },
 			best: function () { return topEfforts.slice(); },
 			arms: function () { return arms.map(function (a) { return { scale: a.scale, ms: Math.round(a.ms), reward: a.reward, pulls: a.pulls }; }); },
 		};
 	}
 
-	return { create: create };
+	return { create: create, WORK_STATES_PER_MS: WORK_STATES_PER_MS };
 })();
 
 if (typeof module !== 'undefined' && module.exports) module.exports = MISGenerator;

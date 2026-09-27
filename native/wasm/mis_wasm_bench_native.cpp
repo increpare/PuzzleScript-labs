@@ -20,7 +20,7 @@ extern "C" {
 int misw_compile(const char* source, int length);
 const char* misw_error();
 int32_t* misw_grid_buffer(int count);
-int misw_solve(int width, int height, int count, int strategy, double timeoutMs, double maxExpanded);
+int misw_solve(int width, int height, int count, int strategy, double timeoutMs, double maxExpanded, int deterministic);
 double misw_result_expanded();
 double misw_result_elapsed_ms();
 int misw_result_solution_length();
@@ -55,7 +55,7 @@ int main(int argc, char** argv) {
             for (int strategy : {1, 2, 4, 0}) {
                 int32_t* grid = misw_grid_buffer(count);
                 for (int i = 0; i < count; i++) grid[i] = ids[i];
-                const int st = misw_solve(w, h, count, strategy, timeoutMs, strategy == 0 ? 0 : cap);
+                const int st = misw_solve(w, h, count, strategy, timeoutMs, strategy == 0 ? 0 : cap, 0);
                 std::printf("%s %s %s %.0f %.0f %d\n", name.c_str(), names[strategy], statuses[st < 0 || st > 3 ? 3 : st],
                     misw_result_expanded(), misw_result_elapsed_ms(), misw_result_solution_length());
             }

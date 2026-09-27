@@ -123,7 +123,7 @@ EMSCRIPTEN_KEEPALIVE int32_t* misw_grid_buffer(int count) {
 }
 
 // One solver run. strategy: ps_solve_strategy. Returns ps_solve_status.
-EMSCRIPTEN_KEEPALIVE int misw_solve(int width, int height, int count, int strategy, double timeoutMs, double maxExpanded) {
+EMSCRIPTEN_KEEPALIVE int misw_solve(int width, int height, int count, int strategy, double timeoutMs, double maxExpanded, int deterministic) {
     resetLast();
     if (!haveGame()) return PS_SOLVE_STATUS_ERROR;
     ps_solve_options options = ps_solve_default_options();
@@ -131,6 +131,7 @@ EMSCRIPTEN_KEEPALIVE int misw_solve(int width, int height, int count, int strate
     options.timeout_ms = static_cast<int64_t>(timeoutMs);
     options.portfolio_jobs = 1;
     options.max_expanded = maxExpanded > 0 ? static_cast<uint64_t>(maxExpanded) : 0;
+    options.deterministic = deterministic != 0;
     // Standalone strategies otherwise keep a full runtime state per node
     // (~10 KB on a 7x9 board), exhausting wasm32's heap after ~200k states.
     options.compact_node_storage = true;
@@ -164,7 +165,9 @@ EMSCRIPTEN_KEEPALIVE int misw_solve(int width, int height, int count, int strate
 // at least that many states (the primary count bounds the final min from
 // above, so a candidate below the shortlist's floor can't reach it). This is
 // the MIS generator's lazy gate and avoids re-running the primary to refine.
-EMSCRIPTEN_KEEPALIVE int misw_assess(int width, int height, int count, double primaryTimeoutMs, int runSupplemental, double supplementalTimeoutMs, double gateMinExpanded) {
+// primaryMaxExpanded > 0 caps the primary search in states; deterministic
+// turns off timing-based search decisions (the generator's work clock).
+EMSCRIPTEN_KEEPALIVE int misw_assess(int width, int height, int count, double primaryTimeoutMs, int runSupplemental, double supplementalTimeoutMs, double gateMinExpanded, double primaryMaxExpanded, int deterministic) {
     resetLast();
     if (!haveGame()) return PS_SOLVE_STATUS_ERROR;
     try {
@@ -173,6 +176,8 @@ EMSCRIPTEN_KEEPALIVE int misw_assess(int width, int height, int count, double pr
         options.timeoutMs = static_cast<int64_t>(primaryTimeoutMs);
         options.runSupplemental = runSupplemental != 0;
         options.supplementalTimeoutMs = static_cast<int64_t>(supplementalTimeoutMs);
+        options.primaryMaxExpanded = primaryMaxExpanded > 0 ? static_cast<uint64_t>(primaryMaxExpanded) : 0;
+        options.deterministic = deterministic != 0;
         if (runSupplemental && gateMinExpanded >= 0) {
             const int64_t gate = static_cast<int64_t>(gateMinExpanded);
             options.supplementalGate = [gate](int64_t primaryExpanded) { return primaryExpanded >= gate; };

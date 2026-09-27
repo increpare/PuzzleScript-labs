@@ -86,6 +86,8 @@ struct SearchControl {
     bool (*shouldCancel)(void*) = nullptr;
     void* context = nullptr;
     uint64_t maxExpanded = 0;
+    // No timing-based search decisions (ps_solve_options.deterministic).
+    bool deterministic = false;
     const char* stopReason(TimePoint deadline) const {
         if (shouldCancel && shouldCancel(context)) return "cancelled";
 #ifdef PUZZLESCRIPT_SOLVER_C_API
@@ -99,14 +101,15 @@ struct SearchControl {
     // Copies start a fresh poll count (copied controls poll independently).
     mutable std::atomic<uint32_t> polls{0};
     SearchControl() = default;
-    SearchControl(bool (*cancel)(void*), void* cancelContext, uint64_t expandedCap)
-        : shouldCancel(cancel), context(cancelContext), maxExpanded(expandedCap) {}
+    SearchControl(bool (*cancel)(void*), void* cancelContext, uint64_t expandedCap, bool deterministicSearch = false)
+        : shouldCancel(cancel), context(cancelContext), maxExpanded(expandedCap), deterministic(deterministicSearch) {}
     SearchControl(const SearchControl& other)
-        : shouldCancel(other.shouldCancel), context(other.context), maxExpanded(other.maxExpanded) {}
+        : shouldCancel(other.shouldCancel), context(other.context), maxExpanded(other.maxExpanded), deterministic(other.deterministic) {}
     SearchControl& operator=(const SearchControl& other) {
         shouldCancel = other.shouldCancel;
         context = other.context;
         maxExpanded = other.maxExpanded;
+        deterministic = other.deterministic;
         return *this;
     }
 };
@@ -2983,7 +2986,9 @@ Result runAdaptivePortfolioSearch(
     const auto inputs = solverInputsForGame(*game);
     const bool copyRestartSnapshot = gameHasRuleCommand(*game, "restart");
     const bool allowLockedBfsProbe = inputs.size() <= 4;
-    const bool allowWeightedAStarLock = portfolioProfile != PortfolioProfile::BreadthFirst;
+    // The lock is decided from measured step time, so it is off in
+    // deterministic searches.
+    const bool allowWeightedAStarLock = portfolioProfile != PortfolioProfile::BreadthFirst && !control.deterministic;
     size_t modeIndex = 0;
     uint32_t sliceExpansionsLeft = modes.empty() ? 0 : modes[0].expansionSlice;
     constexpr uint32_t kLockedBfsMaxDepth = 8;
@@ -5346,6 +5351,7 @@ extern "C" ps_solve_options ps_solve_default_options(void) {
     options.astar_weight = 2;
     options.max_expanded = 0;
     options.solver_heuristic = nullptr;
+    options.deterministic = false;
     return options;
 }
 
@@ -5400,7 +5406,7 @@ extern "C" bool ps_solve_level_layer_cell_object_ids(
         heuristicKindFromApiOptions(effective),
         effective.max_expanded,
         effective.random_seed ? effective.random_seed : "",
-        SearchControl{effective.should_cancel, effective.cancel_context, effective.max_expanded});
+        SearchControl{effective.should_cancel, effective.cancel_context, effective.max_expanded, effective.deterministic});
     *out_result = makeApiSolveResult(result);
     return true;
 }

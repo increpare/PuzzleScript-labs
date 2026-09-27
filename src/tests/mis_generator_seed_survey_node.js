@@ -33,7 +33,7 @@ const os = require('os');
 const vm = require('vm');
 const path = require('path');
 const crypto = require('crypto');
-const { Worker, isMainThread, parentPort } = require('worker_threads');
+const { Worker, isMainThread, parentPort, workerData } = require('worker_threads');
 
 const srcDir = path.join(__dirname, '..');
 const CORPUS = path.join(srcDir, 'tests/solver_tests');
@@ -43,6 +43,9 @@ const CORPUS = path.join(srcDir, 'tests/solver_tests');
 /////////////////////////////////////////////////////////////////////
 
 if (!isMainThread) {
+	// Engine, generator and wasm come from workerData.srcDir when given (a
+	// reference checkout for A/B benchmarks), otherwise from this checkout.
+	const srcDir = (workerData && workerData.srcDir) || path.join(__dirname, '..');
 	global.window = global;
 	global.document = {
 		URL: 'mis://', body: { classList: { contains() { return false; } }, addEventListener() {}, removeEventListener() {} },
@@ -106,7 +109,11 @@ if (!isMainThread) {
 			if (job.type === 'survey') {
 				const base = lv.board;
 				const tb = Date.now();
-				const baseline = g.native.assess(base, { timeMs: 3000, maxExpanded: 400000, refineGate: 0 });
+				// Work clock (job.workClock): the seed's assessment is deterministic
+				// too (a states cap instead of 3 s).
+				const baseline = job.workClock
+					? g.native.assess(base, { timeMs: 120000, primaryMaxExpanded: 150000, deterministic: true, maxExpanded: 400000, refineGate: 0, refineTimeMs: 120000 })
+					: g.native.assess(base, { timeMs: 3000, maxExpanded: 400000, refineGate: 0 });
 				const baselineMs = Date.now() - tb;
 				const baseEffort = baseline.status === 'solved' ? baseline.effort : 0;
 				const program = C.parseTransform(job.transform, g.model);
@@ -117,10 +124,20 @@ if (!isMainThread) {
 				// --trace: one entry per candidate assessment: [board index (repeats are
 				// retries of parked timeouts), budget ms, primary ms, status, effort].
 				const trace = job.trace ? [] : null, traceIds = new Map();
-				const backend = !trace ? g.native : {
-					solve: (b, o) => g.native.solve(b, o),
+				// job.slowdown s > 1: busy-wait (s - 1) x each solver call's time, to
+				// check that a slower engine shows up in the benchmark score.
+				const slow = job.slowdown > 1 ? (f) => function () {
+					const t = performance.now();
+					const r = f.apply(null, arguments);
+					const until = performance.now() + (performance.now() - t) * (job.slowdown - 1);
+					while (performance.now() < until) { /* spin */ }
+					return r;
+				} : null;
+				const nat = !slow ? g.native : { assess: slow((b, o) => g.native.assess(b, o)), solve: slow((b, o) => g.native.solve(b, o)) };
+				const backend = !trace ? nat : {
+					solve: (b, o) => nat.solve(b, o),
 					assess: (b, o) => {
-						const r = g.native.assess(b, o);
+						const r = nat.assess(b, o);
 						const k = C.cellsKey(b.cells);
 						if (!traceIds.has(k)) traceIds.set(k, traceIds.size);
 						trace.push([traceIds.get(k), o.timeMs, Math.round(r.primaryMs * 10) / 10, r.status[0], r.effort || 0]);
@@ -128,7 +145,10 @@ if (!isMainThread) {
 					},
 				};
 				const gen = MISGenerator.create({ model: g.model, backend, program, base, seed: job.seed, keep: 8, baseEffort,
-					basePrimaryMs: job.seedBudget && baseline.status === 'solved' ? baseline.primaryMs : undefined, retryGrowth: job.retryGrowth });
+					basePrimaryMs: job.seedBudget && baseline.status === 'solved'
+						? (job.workClock ? baseline.expanded / MISGenerator.WORK_STATES_PER_MS : baseline.primaryMs) : undefined,
+					retryGrowth: job.retryGrowth,
+					workClock: !!job.workClock, ...(job.genOpts || {}) });
 				const solvable = new Set(), harder = new Set();
 				let slowest = 0, bestEffort = 0;
 				// Budget: run until job.candidates candidates have been judged (solved,
@@ -136,10 +156,18 @@ if (!isMainThread) {
 				// maxSeconds. Slow-to-judge games get more time; fast ones stop at minSeconds.
 				const t0 = Date.now();
 				const judged = () => { const st = gen.stats(); return st.solved + st.unsolvable + st.timeout; };
+				let hitWall = false;
 				for (;;) {
 					const el = Date.now() - t0;
-					if (el >= job.maxSeconds * 1000) break;
-					if (el >= job.minSeconds * 1000 && judged() >= job.candidates) break;
+					if (job.workClock) {
+						// Stop on work done (ms-equivalent); wall time is only a safety net.
+						if (gen.work() >= job.maxSeconds * 1000) break;
+						if (el >= job.maxSeconds * 1000 * 10) { hitWall = true; break; }
+						// fall through to step
+					} else {
+						if (el >= job.maxSeconds * 1000) break;
+						if (el >= job.minSeconds * 1000 && judged() >= job.candidates) break;
+					}
 					const s = Date.now();
 					const r = gen.step();
 					slowest = Math.max(slowest, Date.now() - s);
@@ -153,10 +181,10 @@ if (!isMainThread) {
 				const st = gen.stats();
 				const top = gen.best();
 				const pr = gen.profile();
-				parentPort.postMessage({ id: job.id, ok: true, secs, baseEffort, baselineMs, trace: trace || undefined,
+				parentPort.postMessage({ id: job.id, ok: true, secs, baseEffort, baselineMs, trace: trace || undefined, top: top.slice(),
 					basePrimaryMs: baseline.status === 'solved' ? baseline.primaryMs : null,
 					budget: { candidates: job.candidates, minSeconds: job.minSeconds, maxSeconds: job.maxSeconds },
-					hitMax: judged() < job.candidates, solverBudgetMs: st.budgetMs,
+					hitMax: judged() < job.candidates, solverBudgetMs: st.budgetMs, work: gen.work ? gen.work() / 1000 : undefined, hitWall,
 					phaseMs: { transform: Math.round(pr.transformMs), dedupe: Math.round(pr.keyMs),
 						primarySolved: Math.round(pr.primarySolvedMs), primaryUnsolvable: Math.round(pr.primaryUnsolvableMs),
 						primaryTimeout: Math.round(pr.primaryTimeoutMs), refine: Math.round(pr.refineMs), proof: Math.round(pr.proofMs) },
@@ -185,12 +213,12 @@ const mode = args[0];
 function arg(name, dflt) { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : dflt; }
 const JOBS = +arg('--jobs', os.cpus().length);
 
-function makePool(size) {
+function makePool(size, workerOpts) {
 	const slots = [];
 	let nextId = 1;
 	const queue = [];
 	function spawn(slot) {
-		slot.worker = new Worker(__filename);
+		slot.worker = new Worker(__filename, workerOpts ? { workerData: workerOpts } : undefined);
 		slot.busy = null;
 		slot.worker.on('message', (m) => {
 			const job = slot.busy;
@@ -464,7 +492,9 @@ function report(rows) {
 	}
 }
 
-(async () => {
+if (require.main !== module) {
+	module.exports = { makePool, CORPUS, srcDir };
+} else (async () => {
 	if (mode === 'seeds') await seeds();
 	else if (mode === 'survey') await survey();
 	else if (mode === 'cull') cull();

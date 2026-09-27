@@ -78,6 +78,7 @@ SolveAttempt runStrategy(
     solveOptions.portfolio_jobs = 1;
     solveOptions.max_expanded = maxExpanded;
     solveOptions.solver_heuristic = solverHeuristic;
+    solveOptions.deterministic = options.deterministic;
 
     ps_solve_result* rawResult = nullptr;
     ps_error* rawError = nullptr;
@@ -231,7 +232,7 @@ DifficultyResult assessGeneratedLevelDifficulty(
         layerGrid,
         options,
         PS_SOLVE_STRATEGY_PORTFOLIO,
-        0);
+        options.primaryMaxExpanded);
     result.primaryExpanded = std::max<int64_t>(0, primary.expanded);
     result.primaryElapsedMs = std::max<int64_t>(0, primary.elapsedMs);
     result.primaryStrategy = primary.strategy;

@@ -101,7 +101,7 @@ const MISNative = (function () {
 			solve: function (board, opts) {
 				opts = opts || {};
 				const count = writeGrid(board);
-				const st = M._misw_solve(board.w, board.h, count, STRATEGY[opts.strategy || 'astar'], opts.timeMs || 60000, opts.maxExpanded || 0);
+				const st = M._misw_solve(board.w, board.h, count, STRATEGY[opts.strategy || 'astar'], opts.timeMs || 60000, opts.maxExpanded || 0, opts.deterministic ? 1 : 0);
 				const res = { status: STATUS[st] || 'error', expanded: M._misw_result_expanded(), ms: M._misw_result_elapsed_ms(), strategy: opts.strategy || 'astar' };
 				if (res.status === 'error') res.error = M.UTF8ToString(M._misw_error());
 				if (res.status === 'solved') res.solution = readSolution();
@@ -115,7 +115,10 @@ const MISNative = (function () {
 				const count = writeGrid(board);
 				const refine = opts.refine !== false;
 				const gate = opts.refineGate !== undefined ? opts.refineGate : -1;
-				const st = M._misw_assess(board.w, board.h, count, opts.timeMs || 1500, refine ? 1 : 0, opts.refineTimeMs || opts.bfsTimeMs || opts.timeMs || 1500, gate);
+				// primaryMaxExpanded caps the primary search in states (work-clock
+				// generation); deterministic turns off timing-based search decisions.
+				const st = M._misw_assess(board.w, board.h, count, opts.timeMs || 1500, refine ? 1 : 0, opts.refineTimeMs || opts.bfsTimeMs || opts.timeMs || 1500, gate,
+					opts.primaryMaxExpanded || 0, opts.deterministic ? 1 : 0);
 				const status = STATUS[st] || 'error';
 				const out = { status: status, expanded: M._misw_result_expanded(), lanes: {}, solution: null, optimal: false, ms: M._misw_result_elapsed_ms() };
 				out.primaryMs = M._misw_result_primary_elapsed_ms();
@@ -131,7 +134,7 @@ const MISNative = (function () {
 				// The native lanes don't carry BFS's path back, so prove the
 				// shortest length with a separate capped BFS when asked.
 				if (opts.bfsFloor) {
-					const bfs = this.solve(board, { strategy: 'bfs', maxExpanded: opts.bfsFloor, timeMs: opts.bfsTimeMs || opts.timeMs || 1500 });
+					const bfs = this.solve(board, { strategy: 'bfs', maxExpanded: opts.bfsFloor, timeMs: opts.bfsTimeMs || opts.timeMs || 1500, deterministic: opts.deterministic });
 					if (bfs.status === 'solved') { out.solution = bfs.solution; out.length = bfs.solution.length; out.optimal = true; }
 				}
 				return out;

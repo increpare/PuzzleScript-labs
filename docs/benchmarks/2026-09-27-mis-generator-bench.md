@@ -120,12 +120,83 @@ current generator:
 | Budget from the seed: start 7×, cap 20× (≥ 1 s) | −5% | +5–7% | **×0.88–0.92** | ×0.91–0.96 | **74 / 112, 79 / 109** |
 | Retry parked timeouts only at 2× their budget | −2–3% | +10–12% | ×0.92–0.95 | ×0.97–1.00 | 89 / 90, 87 / 88 |
 
-The slow solves are where the best levels come from, so capping them makes
-the shortlist worse. Retrying less often finds more harder levels but not
-better ones. **Neither is adopted.** Both stay as generator options for
+On these slow levels the slow solves are where the best levels come from,
+so capping them makes the levels found less hard. Retrying less often finds
+more harder levels but not better ones. **Neither is adopted as the default.**
+But see the benchmark score below: over all kinds of level, the seed-relative
+budget fills more of the shortlist, and it scores +9.5%. Both stay as generator options for
 future experiments (`basePrimaryMs`, `retryGrowth`; survey `--seed-budget`,
 `--retry-growth R`). A time win on slow games would have to come from the
 solver itself, not from giving up on candidates.
+
+## Benchmark score: is generation getting better?
+
+`src/tests/mis_generator_bench_node.js` (or `make mis_generator_bench`) answers
+one question with one number: does a change make the generator better, by any
+route? That covers faster solving, better choices of what to try, or dropping
+dead ends sooner.
+
+- **Fixed time per level.** `calibrate` froze each level's time into the
+  manifest (`benchSeconds`): the time the current generator needed to judge 30
+  candidates in the 30 s baseline, clamped to 3–15 s. The median is 9.5 s.
+  Every version gets the same time, so a faster engine or a smarter loop has
+  the same time to do more with. (The candidate budget used for culling would
+  hide a speedup on the third of runs that stop at 30 candidates.)
+- **Score.** For each run, *lift* = shortlist value ÷ seed effort. The
+  shortlist value is the mean effort over its 8 slots, with an empty slot
+  counting as 0, and lift is floored at 1/16. The score is the geometric mean
+  of lift, averaged per game first. It rewards what the designer sees: a full
+  shortlist of hard levels. Harder-levels-per-run and candidates/s are
+  reported beside it to show why the score moved.
+- **Side by side.** Variants run at the same time on the same machine,
+  interleaved, each on jobs ÷ variants threads. A variant can be another
+  checkout (`"src"`: e.g. a worktree of the commit to compare against),
+  generator options (`"gen"`), or an artificial slowdown. Each is compared with
+  the first variant run by run (same level, generator, repeat and random seed).
+  The change comes with a 95% confidence interval from resampling games.
+- **Sizes.** The full set is 319 levels, 263 thread-minutes per variant: an A/B
+  takes ~2.2 h on 4 cores. `--quick` is one level per game (103 levels, 90
+  thread-minutes per variant). With per-run overheads, a quick 4-variant run
+  took 1 h 50 min on 4 cores.
+- **Deterministic mode (`--work`).** Budgets count solver states (50 per ms of
+  the level's time) instead of time, and the solver makes no timing-based
+  decisions, so identical code gives identical results. It measures the loop's
+  choices with no timing noise; engine speed shows only in the timed mode.
+  This needed a states cap for the primary solve and a `deterministic` solve
+  option. The portfolio solver switches to weighted A* when its measured step
+  time exceeds 0.05 ms per generated state. That is a clock-based decision,
+  so without the flag the same level can be searched differently under load,
+  or on wasm vs x86. The flag turns the switch off.
+
+### Validation (quick set, timed, 4 variants side by side)
+
+| Variant vs current | Score | 95% CI | Verdict | Runs better / worse | Candidates/s |
+| --- | ---: | --- | --- | ---: | ---: |
+| Same code again (A/A) | +1.0% | −2.9% … +5.8% | no significant change | 106 / 113 | −6% |
+| Solver 1.5× slower | **−20.0%** | −24.5% … −15.5% | WORSE | 55 / 276 | −39% |
+| Seed-relative budget | **+9.5%** | +2.5% … +17.1% | BETTER | 155 / 133 | −8% |
+
+- The A/A comparison is null, and a slower engine is clearly detected. In work
+  mode, identical code gave identical runs, and the 1.5× slowdown scored
+  exactly the same, as it should (`mis_core_node.js` checks reproducibility).
+- The seed-relative budget scores better overall. The same runs split by how
+  fast the seed solves:
+
+  | Seed solve time | Score | Mean effort of levels found |
+  | --- | ---: | ---: |
+  | < 30 ms (293 runs) | +8.5% | +0.4% |
+  | 30–150 ms (143) | +10.3% | +3.8% |
+  | ≥ 150 ms (151) | +3.2% | −6.9% |
+
+  Capping the per-candidate budget near the seed's own solve time stops it
+  growing to 5 s. More candidates get judged in the same time, which fills
+  more of the shortlist. Only on the slowest levels are the levels it finds
+  less hard. The earlier A/B used only those levels and the mean effort of
+  levels found, hence its opposite verdict. Whether to switch the default
+  depends on which matters more: a fuller shortlist, or the hardest levels on
+  slow games. The option stays off for now.
+
+Results: `2026-09-27-mis-generator-bench-validation.json`.
 
 ## Reproducing
 
@@ -138,4 +209,9 @@ node $S cull rejudged.json                                  # step 4 (cap 4, spr
 node $S survey --seeds src/tests/mis_generator_bench_seeds.json --seed 11 --out bench.json
 node $S report bench.json
 node $S survey --seeds slow_seeds.json --generator '^(move|mix)' --trace --seed 11 --out trace.json   # candidate trace
+B=src/tests/mis_generator_bench_node.js
+node $B calibrate bench30s.json                                   # freeze benchSeconds (from a candidate-budget survey)
+node $B run --quick --variant current --variant 'slow15={"slowdown":1.5}' --out validate.json
+make mis_generator_bench MIS_BENCH_REF=<commit>                  # this checkout vs <commit>, quick set
+make mis_generator_bench MIS_BENCH_REF=<commit> MIS_BENCH_ARGS="--quick --work"
 ```

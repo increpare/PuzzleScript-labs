@@ -3305,7 +3305,8 @@
     "walls-3"
    ],
    "generators": 3,
-   "lift": 9.493
+   "lift": 9.493,
+   "benchSeconds": 6
   },
   {
    "game": "15 push pull levels.txt",
@@ -3323,7 +3324,8 @@
     "walls-3"
    ],
    "generators": 3,
-   "lift": 0.906
+   "lift": 0.906,
+   "benchSeconds": 4
   },
   {
    "game": "15 push pull levels.txt",
@@ -3341,7 +3343,8 @@
     "walls-3"
    ],
    "generators": 3,
-   "lift": 1.066
+   "lift": 1.066,
+   "benchSeconds": 3
   },
   {
    "game": "15 push pull levels.txt",
@@ -3358,7 +3361,8 @@
     "walls-3"
    ],
    "generators": 3,
-   "lift": 1.906
+   "lift": 1.906,
+   "benchSeconds": 5.5
   },
   {
    "game": "8 happy snakes.txt",
@@ -3374,7 +3378,8 @@
     "walls-2"
    ],
    "generators": 5,
-   "lift": 1.031
+   "lift": 1.031,
+   "benchSeconds": 15
   },
   {
    "game": "8 happy snakes.txt",
@@ -3390,7 +3395,8 @@
     "no-starspawn"
    ],
    "generators": 5,
-   "lift": 1
+   "lift": 1,
+   "benchSeconds": 15
   },
   {
    "game": "8 happy snakes.txt",
@@ -3407,7 +3413,8 @@
     "walls-2"
    ],
    "generators": 5,
-   "lift": 2.689
+   "lift": 2.689,
+   "benchSeconds": 15
   },
   {
    "game": "a clear view of the sky.txt",
@@ -3424,7 +3431,8 @@
     "pair-wall-landbackground"
    ],
    "generators": 7,
-   "lift": 1
+   "lift": 1,
+   "benchSeconds": 6.5
   },
   {
    "game": "a clear view of the sky.txt",
@@ -3441,7 +3449,8 @@
     "pair-wall-landbackground"
    ],
    "generators": 7,
-   "lift": 1.298
+   "lift": 1.298,
+   "benchSeconds": 6
   },
   {
    "game": "a clear view of the sky.txt",
@@ -3459,7 +3468,8 @@
     "pair-wall-landbackground"
    ],
    "generators": 7,
-   "lift": 2.101
+   "lift": 2.101,
+   "benchSeconds": 5
   },
   {
    "game": "a clear view of the sky.txt",
@@ -3475,7 +3485,8 @@
     "move"
    ],
    "generators": 7,
-   "lift": 1.05
+   "lift": 1.05,
+   "benchSeconds": 15
   },
   {
    "game": "a distant sunset.txt",
@@ -3491,7 +3502,8 @@
     "mix"
    ],
    "generators": 3,
-   "lift": 1.004
+   "lift": 1.004,
+   "benchSeconds": 15
   },
   {
    "game": "Acorn Scorchery Paradise.txt",
@@ -3509,7 +3521,8 @@
     "walls-3"
    ],
    "generators": 3,
-   "lift": 2.476
+   "lift": 2.476,
+   "benchSeconds": 3
   },
   {
    "game": "Acorn Scorchery Paradise.txt",
@@ -3527,7 +3540,8 @@
     "walls-3"
    ],
    "generators": 3,
-   "lift": 1.17
+   "lift": 1.17,
+   "benchSeconds": 3
   },
   {
    "game": "Acorn Scorchery Paradise.txt",
@@ -3545,7 +3559,8 @@
     "walls-3"
    ],
    "generators": 3,
-   "lift": 1.456
+   "lift": 1.456,
+   "benchSeconds": 3
   },
   {
    "game": "Acorn Scorchery Paradise.txt",
@@ -3562,7 +3577,8 @@
     "walls-3"
    ],
    "generators": 3,
-   "lift": 1.4
+   "lift": 1.4,
+   "benchSeconds": 3
   },
   {
    "game": "All Green and Blue on Yellow.txt",
@@ -3579,7 +3595,8 @@
     "walls-3"
    ],
    "generators": 3,
-   "lift": 1.788
+   "lift": 1.788,
+   "benchSeconds": 3
   },
   {
    "game": "All Green and Blue on Yellow.txt",
@@ -3597,7 +3614,8 @@
     "walls-3"
    ],
    "generators": 3,
-   "lift": 1.953
+   "lift": 1.953,
+   "benchSeconds": 3
   },
   {
    "game": "All Green and Blue on Yellow.txt",
@@ -3614,7 +3632,8 @@
     "move"
    ],
    "generators": 3,
-   "lift": 0.857
+   "lift": 0.857,
+   "benchSeconds": 3
   },
   {
    "game": "All Green and Blue on Yellow.txt",
@@ -3630,7 +3649,8 @@
     "move"
    ],
    "generators": 3,
-   "lift": 0.949
+   "lift": 0.949,
+   "benchSeconds": 3
   },
   {
    "game": "ALL GREEN TO BLUE.txt",
@@ -3649,7 +3669,8 @@
     "walls-2"
    ],
    "generators": 4,
-   "lift": 9.198
+   "lift": 9.198,
+   "benchSeconds": 3
   },
   {
    "game": "ALL GREEN TO BLUE.txt",
@@ -3665,7 +3686,8 @@
     "move"
    ],
    "generators": 4,
-   "lift": 0.718
+   "lift": 0.718,
+   "benchSeconds": 15
   },
   {
    "game": "ALL GREEN TO BLUE.txt",
@@ -3682,7 +3704,8 @@
     "no-cratev"
    ],
    "generators": 4,
-   "lift": 0.489
+   "lift": 0.489,
+   "benchSeconds": 3.5
   },
   {
    "game": "ALL GREEN TO BLUE.txt",
@@ -3700,7 +3723,8 @@
     "no-cratev"
    ],
    "generators": 4,
-   "lift": 0.853
+   "lift": 0.853,
+   "benchSeconds": 3
   },
   {
    "game": "alternatey.txt",
@@ -3719,7 +3743,8 @@
     "walls-2"
    ],
    "generators": 5,
-   "lift": 1.285
+   "lift": 1.285,
+   "benchSeconds": 3
   },
   {
    "game": "alternatey.txt",
@@ -3735,7 +3760,8 @@
     "walls-2"
    ],
    "generators": 5,
-   "lift": 1.669
+   "lift": 1.669,
+   "benchSeconds": 15
   },
   {
    "game": "an ok multiban level.txt",
@@ -3752,7 +3778,8 @@
     "walls-2"
    ],
    "generators": 5,
-   "lift": 5.021
+   "lift": 5.021,
+   "benchSeconds": 15
   },
   {
    "game": "Any hole is a goal.txt",
@@ -3768,7 +3795,8 @@
     "mix"
    ],
    "generators": 3,
-   "lift": 10.603
+   "lift": 10.603,
+   "benchSeconds": 15
   },
   {
    "game": "Any hole is a goal.txt",
@@ -3784,7 +3812,8 @@
     "move"
    ],
    "generators": 3,
-   "lift": 1.004
+   "lift": 1.004,
+   "benchSeconds": 15
   },
   {
    "game": "Any hole is a goal.txt",
@@ -3800,7 +3829,8 @@
     "mix"
    ],
    "generators": 3,
-   "lift": 3.602
+   "lift": 3.602,
+   "benchSeconds": 15
   },
   {
    "game": "Any hole is a goal.txt",
@@ -3816,7 +3846,8 @@
     "mix"
    ],
    "generators": 3,
-   "lift": 1.04
+   "lift": 1.04,
+   "benchSeconds": 15
   },
   {
    "game": "atlas shrank.txt",
@@ -3834,7 +3865,8 @@
     "walls-26"
    ],
    "generators": 7,
-   "lift": 2.415
+   "lift": 2.415,
+   "benchSeconds": 15
   },
   {
    "game": "atlas shrank.txt",
@@ -3852,7 +3884,8 @@
     "walls-26"
    ],
    "generators": 7,
-   "lift": 1.396
+   "lift": 1.396,
+   "benchSeconds": 15
   },
   {
    "game": "atlas shrank.txt",
@@ -3868,7 +3901,8 @@
     "walls-26"
    ],
    "generators": 7,
-   "lift": 1.124
+   "lift": 1.124,
+   "benchSeconds": 15
   },
   {
    "game": "Attractor Net.txt",
@@ -3884,7 +3918,8 @@
     "pair-crate-target"
    ],
    "generators": 4,
-   "lift": 1.636
+   "lift": 1.636,
+   "benchSeconds": 15
   },
   {
    "game": "Attractor Net.txt",
@@ -3900,7 +3935,8 @@
     "move"
    ],
    "generators": 4,
-   "lift": 1.533
+   "lift": 1.533,
+   "benchSeconds": 7
   },
   {
    "game": "Attractor Net.txt",
@@ -3917,7 +3953,8 @@
     "pair-crate-target"
    ],
    "generators": 4,
-   "lift": 0.941
+   "lift": 0.941,
+   "benchSeconds": 11
   },
   {
    "game": "Attractor Net.txt",
@@ -3934,7 +3971,8 @@
     "pair-crate-target"
    ],
    "generators": 4,
-   "lift": 65
+   "lift": 65,
+   "benchSeconds": 7.5
   },
   {
    "game": "BIAXIAL INVASION OF SATURN.txt",
@@ -3951,7 +3989,8 @@
     "walls-15"
    ],
    "generators": 7,
-   "lift": 1.205
+   "lift": 1.205,
+   "benchSeconds": 15
   },
   {
    "game": "BIAXIAL INVASION OF SATURN.txt",
@@ -3967,7 +4006,8 @@
     "walls-15"
    ],
    "generators": 7,
-   "lift": 1.148
+   "lift": 1.148,
+   "benchSeconds": 15
   },
   {
    "game": "Bicycle-Kick Football.txt",
@@ -3984,7 +4024,8 @@
     "pair-crate-target"
    ],
    "generators": 4,
-   "lift": 0.731
+   "lift": 0.731,
+   "benchSeconds": 15
   },
   {
    "game": "Bicycle-Kick Football.txt",
@@ -4002,7 +4043,8 @@
     "pair-crate-target"
    ],
    "generators": 4,
-   "lift": 2.591
+   "lift": 2.591,
+   "benchSeconds": 5.5
   },
   {
    "game": "Bicycle-Kick Football.txt",
@@ -4019,7 +4061,8 @@
     "pair-crate-target"
    ],
    "generators": 4,
-   "lift": 0.988
+   "lift": 0.988,
+   "benchSeconds": 8
   },
   {
    "game": "Bicycle-Kick Football.txt",
@@ -4035,7 +4078,8 @@
     "pair-crate-target"
    ],
    "generators": 4,
-   "lift": 2.076
+   "lift": 2.076,
+   "benchSeconds": 15
   },
   {
    "game": "big dog and little dog.txt",
@@ -4051,7 +4095,8 @@
     "walls-4"
    ],
    "generators": 4,
-   "lift": 1.074
+   "lift": 1.074,
+   "benchSeconds": 15
   },
   {
    "game": "byyourside.txt",
@@ -4076,7 +4121,8 @@
     "walls-9"
    ],
    "generators": 11,
-   "lift": 1.114
+   "lift": 1.114,
+   "benchSeconds": 9
   },
   {
    "game": "byyourside.txt",
@@ -4102,7 +4148,8 @@
     "walls-9"
    ],
    "generators": 11,
-   "lift": 61.455
+   "lift": 61.455,
+   "benchSeconds": 3.5
   },
   {
    "game": "byyourside.txt",
@@ -4125,7 +4172,8 @@
     "walls-7"
    ],
    "generators": 11,
-   "lift": 1.896
+   "lift": 1.896,
+   "benchSeconds": 5
   },
   {
    "game": "byyourside.txt",
@@ -4150,7 +4198,8 @@
     "walls-9"
    ],
    "generators": 11,
-   "lift": 1.06
+   "lift": 1.06,
+   "benchSeconds": 10
   },
   {
    "game": "cakemonsters.txt",
@@ -4166,7 +4215,8 @@
     "move"
    ],
    "generators": 1,
-   "lift": 1.299
+   "lift": 1.299,
+   "benchSeconds": 3
   },
   {
    "game": "cakemonsters.txt",
@@ -4182,7 +4232,8 @@
     "move"
    ],
    "generators": 1,
-   "lift": 3.02
+   "lift": 3.02,
+   "benchSeconds": 11.5
   },
   {
    "game": "cakemonsters.txt",
@@ -4198,7 +4249,8 @@
     "move"
    ],
    "generators": 1,
-   "lift": 1.169
+   "lift": 1.169,
+   "benchSeconds": 15
   },
   {
    "game": "cakemonsters.txt",
@@ -4214,7 +4266,8 @@
     "move"
    ],
    "generators": 1,
-   "lift": 0.533
+   "lift": 0.533,
+   "benchSeconds": 15
   },
   {
    "game": "castlecloset.txt",
@@ -4254,7 +4307,8 @@
     "walls-9"
    ],
    "generators": 39,
-   "lift": 3.012
+   "lift": 3.012,
+   "benchSeconds": 15
   },
   {
    "game": "castlemouse.txt",
@@ -4277,7 +4331,8 @@
     "walls-28"
    ],
    "generators": 8,
-   "lift": 9.613
+   "lift": 9.613,
+   "benchSeconds": 3
   },
   {
    "game": "castlemouse.txt",
@@ -4295,7 +4350,8 @@
     "walls-27"
    ],
    "generators": 8,
-   "lift": 1.004
+   "lift": 1.004,
+   "benchSeconds": 15
   },
   {
    "game": "castlemouse.txt",
@@ -4315,7 +4371,8 @@
     "walls-28"
    ],
    "generators": 8,
-   "lift": 1.275
+   "lift": 1.275,
+   "benchSeconds": 3
   },
   {
    "game": "castlemouse.txt",
@@ -4331,7 +4388,8 @@
     "walls-27"
    ],
    "generators": 8,
-   "lift": 1.021
+   "lift": 1.021,
+   "benchSeconds": 15
   },
   {
    "game": "chaos wizard.txt",
@@ -4349,7 +4407,8 @@
     "walls-18"
    ],
    "generators": 8,
-   "lift": 1.515
+   "lift": 1.515,
+   "benchSeconds": 15
   },
   {
    "game": "chaos wizard.txt",
@@ -4366,7 +4425,8 @@
     "walls-5"
    ],
    "generators": 8,
-   "lift": 5.919
+   "lift": 5.919,
+   "benchSeconds": 15
   },
   {
    "game": "chaos wizard.txt",
@@ -4385,7 +4445,8 @@
     "walls-5"
    ],
    "generators": 8,
-   "lift": 1.748
+   "lift": 1.748,
+   "benchSeconds": 15
   },
   {
    "game": "chaos wizard.txt",
@@ -4406,7 +4467,8 @@
     "walls-5"
    ],
    "generators": 8,
-   "lift": 6.269
+   "lift": 6.269,
+   "benchSeconds": 15
   },
   {
    "game": "Chevron Lodger.txt",
@@ -4424,7 +4486,8 @@
     "walls-4"
    ],
    "generators": 3,
-   "lift": 2.534
+   "lift": 2.534,
+   "benchSeconds": 3
   },
   {
    "game": "Chevron Lodger.txt",
@@ -4440,7 +4503,8 @@
     "walls-4"
    ],
    "generators": 3,
-   "lift": 1.002
+   "lift": 1.002,
+   "benchSeconds": 15
   },
   {
    "game": "Chevron Lodger.txt",
@@ -4457,7 +4521,8 @@
     "walls-4"
    ],
    "generators": 3,
-   "lift": 1.233
+   "lift": 1.233,
+   "benchSeconds": 3
   },
   {
    "game": "Chevron Lodger.txt",
@@ -4473,7 +4538,8 @@
     "walls-4"
    ],
    "generators": 3,
-   "lift": 1.018
+   "lift": 1.018,
+   "benchSeconds": 13
   },
   {
    "game": "CODEX LUBRICUS.txt",
@@ -4489,7 +4555,8 @@
     "move"
    ],
    "generators": 1,
-   "lift": 1.042
+   "lift": 1.042,
+   "benchSeconds": 15
   },
   {
    "game": "CODEX LUBRICUS.txt",
@@ -4505,7 +4572,8 @@
     "move"
    ],
    "generators": 1,
-   "lift": 2.005
+   "lift": 2.005,
+   "benchSeconds": 15
   },
   {
    "game": "CODEX LUBRICUS.txt",
@@ -4521,7 +4589,8 @@
     "move"
    ],
    "generators": 1,
-   "lift": 0.794
+   "lift": 0.794,
+   "benchSeconds": 15
   },
   {
    "game": "CODEX LUBRICUS.txt",
@@ -4537,7 +4606,8 @@
     "move"
    ],
    "generators": 1,
-   "lift": 0.881
+   "lift": 0.881,
+   "benchSeconds": 15
   },
   {
    "game": "coincounter.txt",
@@ -4557,7 +4627,8 @@
     "walls-25"
    ],
    "generators": 6,
-   "lift": 1.733
+   "lift": 1.733,
+   "benchSeconds": 3
   },
   {
    "game": "coincounter.txt",
@@ -4576,7 +4647,8 @@
     "walls-25"
    ],
    "generators": 6,
-   "lift": 1.187
+   "lift": 1.187,
+   "benchSeconds": 3
   },
   {
    "game": "coincounter.txt",
@@ -4595,7 +4667,8 @@
     "walls-25"
    ],
    "generators": 6,
-   "lift": 1.03
+   "lift": 1.03,
+   "benchSeconds": 8.5
   },
   {
    "game": "coincounter.txt",
@@ -4611,7 +4684,8 @@
     "walls-25"
    ],
    "generators": 6,
-   "lift": 1.084
+   "lift": 1.084,
+   "benchSeconds": 15
   },
   {
    "game": "constellationz.txt",
@@ -4630,7 +4704,8 @@
     "walls-5"
    ],
    "generators": 5,
-   "lift": 1.194
+   "lift": 1.194,
+   "benchSeconds": 3
   },
   {
    "game": "constellationz.txt",
@@ -4646,7 +4721,8 @@
     "move"
    ],
    "generators": 5,
-   "lift": 1.009
+   "lift": 1.009,
+   "benchSeconds": 15
   },
   {
    "game": "constellationz.txt",
@@ -4662,7 +4738,8 @@
     "move"
    ],
    "generators": 5,
-   "lift": 1.21
+   "lift": 1.21,
+   "benchSeconds": 15
   },
   {
    "game": "cooperacing.txt",
@@ -4686,7 +4763,8 @@
     "walls-9"
    ],
    "generators": 23,
-   "lift": 2.77
+   "lift": 2.77,
+   "benchSeconds": 15
   },
   {
    "game": "crate guardian.txt",
@@ -4704,7 +4782,8 @@
     "walls-4"
    ],
    "generators": 5,
-   "lift": 1.244
+   "lift": 1.244,
+   "benchSeconds": 15
   },
   {
    "game": "crate guardian.txt",
@@ -4722,7 +4801,8 @@
     "walls-4"
    ],
    "generators": 5,
-   "lift": 1.048
+   "lift": 1.048,
+   "benchSeconds": 10.5
   },
   {
    "game": "crate guardian.txt",
@@ -4738,7 +4818,8 @@
     "move"
    ],
    "generators": 5,
-   "lift": 1.711
+   "lift": 1.711,
+   "benchSeconds": 15
   },
   {
    "game": "crate swap.txt",
@@ -4760,7 +4841,8 @@
     "walls-4"
    ],
    "generators": 7,
-   "lift": 1.431
+   "lift": 1.431,
+   "benchSeconds": 3
   },
   {
    "game": "crate swap.txt",
@@ -4780,7 +4862,8 @@
     "walls-4"
    ],
    "generators": 7,
-   "lift": 1.115
+   "lift": 1.115,
+   "benchSeconds": 3
   },
   {
    "game": "crate swap.txt",
@@ -4799,7 +4882,8 @@
     "walls-4"
    ],
    "generators": 7,
-   "lift": 1.143
+   "lift": 1.143,
+   "benchSeconds": 3
   },
   {
    "game": "crate swap.txt",
@@ -4821,7 +4905,8 @@
     "walls-4"
    ],
    "generators": 7,
-   "lift": 1.357
+   "lift": 1.357,
+   "benchSeconds": 3
   },
   {
    "game": "Crates move when you move.txt",
@@ -4840,7 +4925,8 @@
     "walls-3"
    ],
    "generators": 5,
-   "lift": 2.514
+   "lift": 2.514,
+   "benchSeconds": 3
   },
   {
    "game": "Crates move when you move.txt",
@@ -4859,7 +4945,8 @@
     "walls-3"
    ],
    "generators": 5,
-   "lift": 1.679
+   "lift": 1.679,
+   "benchSeconds": 3
   },
   {
    "game": "Crates move when you move.txt",
@@ -4878,7 +4965,8 @@
     "walls-3"
    ],
    "generators": 5,
-   "lift": 6.125
+   "lift": 6.125,
+   "benchSeconds": 3
   },
   {
    "game": "Crates move when you move.txt",
@@ -4897,7 +4985,8 @@
     "walls-3"
    ],
    "generators": 5,
-   "lift": 1.133
+   "lift": 1.133,
+   "benchSeconds": 3
   },
   {
    "game": "cratopia.txt",
@@ -4923,7 +5012,8 @@
     "walls-27"
    ],
    "generators": 19,
-   "lift": 3.445
+   "lift": 3.445,
+   "benchSeconds": 3
   },
   {
    "game": "cratopia.txt",
@@ -4946,7 +5036,8 @@
     "walls-27"
    ],
    "generators": 19,
-   "lift": 1.232
+   "lift": 1.232,
+   "benchSeconds": 8.5
   },
   {
    "game": "cratopia.txt",
@@ -4965,7 +5056,8 @@
     "walls-27"
    ],
    "generators": 19,
-   "lift": 2.016
+   "lift": 2.016,
+   "benchSeconds": 3
   },
   {
    "game": "Cucumber Surprise.txt",
@@ -4984,7 +5076,8 @@
     "walls-5"
    ],
    "generators": 5,
-   "lift": 2.218
+   "lift": 2.218,
+   "benchSeconds": 3
   },
   {
    "game": "Cucumber Surprise.txt",
@@ -5000,7 +5093,8 @@
     "walls-5"
    ],
    "generators": 5,
-   "lift": 1.466
+   "lift": 1.466,
+   "benchSeconds": 8.5
   },
   {
    "game": "Cucumber Surprise.txt",
@@ -5018,7 +5112,8 @@
     "walls-5"
    ],
    "generators": 5,
-   "lift": 1.521
+   "lift": 1.521,
+   "benchSeconds": 3
   },
   {
    "game": "Cucumber Surprise.txt",
@@ -5034,7 +5129,8 @@
     "walls-5"
    ],
    "generators": 5,
-   "lift": 3.306
+   "lift": 3.306,
+   "benchSeconds": 15
   },
   {
    "game": "die schoene steinmetzin.txt",
@@ -5050,7 +5146,8 @@
     "move"
    ],
    "generators": 4,
-   "lift": 3.895
+   "lift": 3.895,
+   "benchSeconds": 15
   },
   {
    "game": "diesinthelight.txt",
@@ -5068,7 +5165,8 @@
     "walls-15"
    ],
    "generators": 7,
-   "lift": 2.245
+   "lift": 2.245,
+   "benchSeconds": 4
   },
   {
    "game": "diesinthelight.txt",
@@ -5087,7 +5185,8 @@
     "walls-16"
    ],
    "generators": 7,
-   "lift": 1.432
+   "lift": 1.432,
+   "benchSeconds": 15
   },
   {
    "game": "dollyban.txt",
@@ -5107,7 +5206,8 @@
     "walls-4"
    ],
    "generators": 5,
-   "lift": 1.265
+   "lift": 1.265,
+   "benchSeconds": 11
   },
   {
    "game": "dollyban.txt",
@@ -5123,7 +5223,8 @@
     "move"
    ],
    "generators": 5,
-   "lift": 3.178
+   "lift": 3.178,
+   "benchSeconds": 13
   },
   {
    "game": "dollyban.txt",
@@ -5139,7 +5240,8 @@
     "walls-4"
    ],
    "generators": 5,
-   "lift": 1.005
+   "lift": 1.005,
+   "benchSeconds": 15
   },
   {
    "game": "dollyban.txt",
@@ -5156,7 +5258,8 @@
     "move"
    ],
    "generators": 5,
-   "lift": 0.655
+   "lift": 0.655,
+   "benchSeconds": 15
   },
   {
    "game": "Don't let your goals slip away.txt",
@@ -5176,7 +5279,8 @@
     "walls-3"
    ],
    "generators": 5,
-   "lift": 8.716
+   "lift": 8.716,
+   "benchSeconds": 3
   },
   {
    "game": "Don't let your goals slip away.txt",
@@ -5193,7 +5297,8 @@
     "walls-3"
    ],
    "generators": 5,
-   "lift": 3.061
+   "lift": 3.061,
+   "benchSeconds": 15
   },
   {
    "game": "Don't let your goals slip away.txt",
@@ -5209,7 +5314,8 @@
     "walls-3"
    ],
    "generators": 5,
-   "lift": 1.139
+   "lift": 1.139,
+   "benchSeconds": 3
   },
   {
    "game": "Don't let your goals slip away.txt",
@@ -5226,7 +5332,8 @@
     "walls-3"
    ],
    "generators": 5,
-   "lift": 0.643
+   "lift": 0.643,
+   "benchSeconds": 9
   },
   {
    "game": "Explodoban.txt",
@@ -5245,7 +5352,8 @@
     "walls-4"
    ],
    "generators": 5,
-   "lift": 2.185
+   "lift": 2.185,
+   "benchSeconds": 3
   },
   {
    "game": "Explodoban.txt",
@@ -5263,7 +5371,8 @@
     "walls-4"
    ],
    "generators": 5,
-   "lift": 1.287
+   "lift": 1.287,
+   "benchSeconds": 15
   },
   {
    "game": "Explodoban.txt",
@@ -5279,7 +5388,8 @@
     "walls-4"
    ],
    "generators": 5,
-   "lift": 0.947
+   "lift": 0.947,
+   "benchSeconds": 3
   },
   {
    "game": "Explodoban.txt",
@@ -5295,7 +5405,8 @@
     "move"
    ],
    "generators": 5,
-   "lift": 0.575
+   "lift": 0.575,
+   "benchSeconds": 3
   },
   {
    "game": "Eyeball-watching flowers bloom.txt",
@@ -5313,7 +5424,8 @@
     "walls-13"
    ],
    "generators": 11,
-   "lift": 4.124
+   "lift": 4.124,
+   "benchSeconds": 15
   },
   {
    "game": "fickle fred.txt",
@@ -5332,7 +5444,8 @@
     "walls-4"
    ],
    "generators": 5,
-   "lift": 2.055
+   "lift": 2.055,
+   "benchSeconds": 3
   },
   {
    "game": "fickle fred.txt",
@@ -5350,7 +5463,8 @@
     "walls-4"
    ],
    "generators": 5,
-   "lift": 1.535
+   "lift": 1.535,
+   "benchSeconds": 3
   },
   {
    "game": "fickle fred.txt",
@@ -5367,7 +5481,8 @@
     "walls-4"
    ],
    "generators": 5,
-   "lift": 1.311
+   "lift": 1.311,
+   "benchSeconds": 15
   },
   {
    "game": "fickle fred.txt",
@@ -5385,7 +5500,8 @@
     "walls-4"
    ],
    "generators": 5,
-   "lift": 1.651
+   "lift": 1.651,
+   "benchSeconds": 3
   },
   {
    "game": "flesh-handed hot casserole delivery bot.txt",
@@ -5403,7 +5519,8 @@
     "pair-target-crate"
    ],
    "generators": 5,
-   "lift": 2.256
+   "lift": 2.256,
+   "benchSeconds": 3
   },
   {
    "game": "flesh-handed hot casserole delivery bot.txt",
@@ -5419,7 +5536,8 @@
     "move"
    ],
    "generators": 5,
-   "lift": 2.062
+   "lift": 2.062,
+   "benchSeconds": 15
   },
   {
    "game": "flesh-handed hot casserole delivery bot.txt",
@@ -5436,7 +5554,8 @@
     "walls-5"
    ],
    "generators": 5,
-   "lift": 6.557
+   "lift": 6.557,
+   "benchSeconds": 8.5
   },
   {
    "game": "flesh-handed hot casserole delivery bot.txt",
@@ -5452,7 +5571,8 @@
     "walls-5"
    ],
    "generators": 5,
-   "lift": 0.982
+   "lift": 0.982,
+   "benchSeconds": 5
   },
   {
    "game": "gabelstapler.txt",
@@ -5468,7 +5588,8 @@
     "move"
    ],
    "generators": 1,
-   "lift": 0.923
+   "lift": 0.923,
+   "benchSeconds": 8
   },
   {
    "game": "gapfiller.txt",
@@ -5484,7 +5605,8 @@
     "move"
    ],
    "generators": 1,
-   "lift": 3.845
+   "lift": 3.845,
+   "benchSeconds": 15
   },
   {
    "game": "gapfiller.txt",
@@ -5500,7 +5622,8 @@
     "move"
    ],
    "generators": 1,
-   "lift": 1.308
+   "lift": 1.308,
+   "benchSeconds": 15
   },
   {
    "game": "gapfiller.txt",
@@ -5516,7 +5639,8 @@
     "move"
    ],
    "generators": 1,
-   "lift": 1.789
+   "lift": 1.789,
+   "benchSeconds": 15
   },
   {
    "game": "gapfiller.txt",
@@ -5532,7 +5656,8 @@
     "move"
    ],
    "generators": 1,
-   "lift": 2.947
+   "lift": 2.947,
+   "benchSeconds": 15
   },
   {
    "game": "hairtug.txt",
@@ -5549,7 +5674,8 @@
     "walls-17"
    ],
    "generators": 4,
-   "lift": 9.092
+   "lift": 9.092,
+   "benchSeconds": 15
   },
   {
    "game": "hairtug.txt",
@@ -5565,7 +5691,8 @@
     "walls-17"
    ],
    "generators": 4,
-   "lift": 1.019
+   "lift": 1.019,
+   "benchSeconds": 15
   },
   {
    "game": "head skuller.txt",
@@ -5583,7 +5710,8 @@
     "walls-8"
    ],
    "generators": 3,
-   "lift": 1.976
+   "lift": 1.976,
+   "benchSeconds": 3
   },
   {
    "game": "head skuller.txt",
@@ -5601,7 +5729,8 @@
     "walls-8"
    ],
    "generators": 3,
-   "lift": 1.215
+   "lift": 1.215,
+   "benchSeconds": 4.5
   },
   {
    "game": "head skuller.txt",
@@ -5618,7 +5747,8 @@
     "walls-8"
    ],
    "generators": 3,
-   "lift": 2.425
+   "lift": 2.425,
+   "benchSeconds": 3
   },
   {
    "game": "head skuller.txt",
@@ -5634,7 +5764,8 @@
     "walls-8"
    ],
    "generators": 3,
-   "lift": 10.898
+   "lift": 10.898,
+   "benchSeconds": 15
   },
   {
    "game": "hedgehog stimulator.txt",
@@ -5651,7 +5782,8 @@
     "walls-10"
    ],
    "generators": 3,
-   "lift": 1.212
+   "lift": 1.212,
+   "benchSeconds": 4
   },
   {
    "game": "hedgehog stimulator.txt",
@@ -5668,7 +5800,8 @@
     "move"
    ],
    "generators": 3,
-   "lift": 1.134
+   "lift": 1.134,
+   "benchSeconds": 15
   },
   {
    "game": "heroes_of_sokoban_2.txt",
@@ -5686,7 +5819,8 @@
     "walls-21"
    ],
    "generators": 11,
-   "lift": 1.168
+   "lift": 1.168,
+   "benchSeconds": 3
   },
   {
    "game": "heroes_of_sokoban_2.txt",
@@ -5702,7 +5836,8 @@
     "walls-2"
    ],
    "generators": 11,
-   "lift": 1.031
+   "lift": 1.031,
+   "benchSeconds": 15
   },
   {
    "game": "heroes_of_sokoban_2.txt",
@@ -5724,7 +5859,8 @@
     "walls-9"
    ],
    "generators": 11,
-   "lift": 3.943
+   "lift": 3.943,
+   "benchSeconds": 3
   },
   {
    "game": "heroes_of_sokoban_2.txt",
@@ -5746,7 +5882,8 @@
     "walls-30"
    ],
    "generators": 11,
-   "lift": 5.113
+   "lift": 5.113,
+   "benchSeconds": 3
   },
   {
    "game": "heroes_of_sokoban_3.txt",
@@ -5765,7 +5902,8 @@
     "walls-26"
    ],
    "generators": 8,
-   "lift": 1.037
+   "lift": 1.037,
+   "benchSeconds": 4.5
   },
   {
    "game": "heroes_of_sokoban_3.txt",
@@ -5784,7 +5922,8 @@
     "walls-26"
    ],
    "generators": 8,
-   "lift": 1.195
+   "lift": 1.195,
+   "benchSeconds": 3
   },
   {
    "game": "heroes_of_sokoban_3.txt",
@@ -5806,7 +5945,8 @@
     "walls-26"
    ],
    "generators": 8,
-   "lift": 2.549
+   "lift": 2.549,
+   "benchSeconds": 13
   },
   {
    "game": "heroes_of_sokoban_3.txt",
@@ -5822,7 +5962,8 @@
     "move"
    ],
    "generators": 8,
-   "lift": 2.469
+   "lift": 2.469,
+   "benchSeconds": 15
   },
   {
    "game": "heroes_of_sokoban.txt",
@@ -5840,7 +5981,8 @@
     "walls-17"
    ],
    "generators": 5,
-   "lift": 14.434
+   "lift": 14.434,
+   "benchSeconds": 3
   },
   {
    "game": "heroes_of_sokoban.txt",
@@ -5859,7 +6001,8 @@
     "walls-9"
    ],
    "generators": 5,
-   "lift": 1.219
+   "lift": 1.219,
+   "benchSeconds": 4
   },
   {
    "game": "heroes_of_sokoban.txt",
@@ -5875,7 +6018,8 @@
     "walls-9"
    ],
    "generators": 5,
-   "lift": 0.988
+   "lift": 0.988,
+   "benchSeconds": 15
   },
   {
    "game": "heroes_of_sokoban.txt",
@@ -5894,7 +6038,8 @@
     "walls-9"
    ],
    "generators": 5,
-   "lift": 2.534
+   "lift": 2.534,
+   "benchSeconds": 3
   },
   {
    "game": "Hole-Stuffer.txt",
@@ -5910,7 +6055,8 @@
     "walls-2"
    ],
    "generators": 6,
-   "lift": 1
+   "lift": 1,
+   "benchSeconds": 15
   },
   {
    "game": "Hole-Stuffer.txt",
@@ -5928,7 +6074,8 @@
     "walls-2"
    ],
    "generators": 6,
-   "lift": 3.896
+   "lift": 3.896,
+   "benchSeconds": 4
   },
   {
    "game": "i am a gust of wind.txt",
@@ -5948,7 +6095,8 @@
     "walls-3"
    ],
    "generators": 5,
-   "lift": 3.482
+   "lift": 3.482,
+   "benchSeconds": 5
   },
   {
    "game": "i am a gust of wind.txt",
@@ -5968,7 +6116,8 @@
     "walls-3"
    ],
    "generators": 5,
-   "lift": 6.214
+   "lift": 6.214,
+   "benchSeconds": 14
   },
   {
    "game": "i am a gust of wind.txt",
@@ -5988,7 +6137,8 @@
     "walls-3"
    ],
    "generators": 5,
-   "lift": 103.18
+   "lift": 103.18,
+   "benchSeconds": 15
   },
   {
    "game": "icecrates.txt",
@@ -6013,7 +6163,8 @@
     "walls-31"
    ],
    "generators": 10,
-   "lift": 5.568
+   "lift": 5.568,
+   "benchSeconds": 3
   },
   {
    "game": "icecrates.txt",
@@ -6035,7 +6186,8 @@
     "walls-31"
    ],
    "generators": 10,
-   "lift": 1.097
+   "lift": 1.097,
+   "benchSeconds": 15
   },
   {
    "game": "icecrates.txt",
@@ -6059,7 +6211,8 @@
     "walls-31"
    ],
    "generators": 10,
-   "lift": 3.041
+   "lift": 3.041,
+   "benchSeconds": 15
   },
   {
    "game": "it dies in the light.txt",
@@ -6077,7 +6230,8 @@
     "walls-15"
    ],
    "generators": 7,
-   "lift": 1.726
+   "lift": 1.726,
+   "benchSeconds": 3
   },
   {
    "game": "it dies in the light.txt",
@@ -6095,7 +6249,8 @@
     "walls-15"
    ],
    "generators": 7,
-   "lift": 1.432
+   "lift": 1.432,
+   "benchSeconds": 15
   },
   {
    "game": "kettle.txt",
@@ -6111,7 +6266,8 @@
     "move"
    ],
    "generators": 5,
-   "lift": 3.649
+   "lift": 3.649,
+   "benchSeconds": 15
   },
   {
    "game": "kreiseln.txt",
@@ -6131,7 +6287,8 @@
     "walls-5"
    ],
    "generators": 6,
-   "lift": 24.2
+   "lift": 24.2,
+   "benchSeconds": 15
   },
   {
    "game": "Legend of Swixero.txt",
@@ -6150,7 +6307,8 @@
     "walls-3"
    ],
    "generators": 5,
-   "lift": 4.665
+   "lift": 4.665,
+   "benchSeconds": 3
   },
   {
    "game": "Legend of Swixero.txt",
@@ -6169,7 +6327,8 @@
     "walls-3"
    ],
    "generators": 5,
-   "lift": 4.209
+   "lift": 4.209,
+   "benchSeconds": 3.5
   },
   {
    "game": "Legend of Swixero.txt",
@@ -6188,7 +6347,8 @@
     "walls-3"
    ],
    "generators": 5,
-   "lift": 355.365
+   "lift": 355.365,
+   "benchSeconds": 15
   },
   {
    "game": "Legend of Swixero.txt",
@@ -6205,7 +6365,8 @@
     "walls-3"
    ],
    "generators": 5,
-   "lift": 1.447
+   "lift": 1.447,
+   "benchSeconds": 15
   },
   {
    "game": "limerick.txt",
@@ -6222,7 +6383,8 @@
     "walls-9"
    ],
    "generators": 3,
-   "lift": 1.118
+   "lift": 1.118,
+   "benchSeconds": 15
   },
   {
    "game": "limerick.txt",
@@ -6239,7 +6401,8 @@
     "move"
    ],
    "generators": 3,
-   "lift": 0.986
+   "lift": 0.986,
+   "benchSeconds": 15
   },
   {
    "game": "limerick.txt",
@@ -6257,7 +6420,8 @@
     "walls-9"
    ],
    "generators": 3,
-   "lift": 1.237
+   "lift": 1.237,
+   "benchSeconds": 15
   },
   {
    "game": "limerick.txt",
@@ -6273,7 +6437,8 @@
     "move"
    ],
    "generators": 3,
-   "lift": 1.001
+   "lift": 1.001,
+   "benchSeconds": 15
   },
   {
    "game": "m c eschers armageddon.txt",
@@ -6293,7 +6458,8 @@
     "walls-9"
    ],
    "generators": 9,
-   "lift": 1.818
+   "lift": 1.818,
+   "benchSeconds": 3
   },
   {
    "game": "m c eschers armageddon.txt",
@@ -6317,7 +6483,8 @@
     "walls-9"
    ],
    "generators": 9,
-   "lift": 23.792
+   "lift": 23.792,
+   "benchSeconds": 3
   },
   {
    "game": "m c eschers armageddon.txt",
@@ -6341,7 +6508,8 @@
     "walls-9"
    ],
    "generators": 9,
-   "lift": 1.153
+   "lift": 1.153,
+   "benchSeconds": 4.5
   },
   {
    "game": "make way.txt",
@@ -6358,7 +6526,8 @@
     "walls-4"
    ],
    "generators": 5,
-   "lift": 1.454
+   "lift": 1.454,
+   "benchSeconds": 15
   },
   {
    "game": "manic_ammo.txt",
@@ -6383,7 +6552,8 @@
     "walls-9"
    ],
    "generators": 20,
-   "lift": 1.932
+   "lift": 1.932,
+   "benchSeconds": 15
   },
   {
    "game": "manic_ammo.txt",
@@ -6404,7 +6574,8 @@
     "walls-7"
    ],
    "generators": 20,
-   "lift": 1.802
+   "lift": 1.802,
+   "benchSeconds": 3
   },
   {
    "game": "manic_ammo.txt",
@@ -6436,7 +6607,8 @@
     "walls-9"
    ],
    "generators": 20,
-   "lift": 94.958
+   "lift": 94.958,
+   "benchSeconds": 3
   },
   {
    "game": "manic_ammo.txt",
@@ -6463,7 +6635,8 @@
     "walls-9"
    ],
    "generators": 20,
-   "lift": 4.824
+   "lift": 4.824,
+   "benchSeconds": 9
   },
   {
    "game": "match three billiards.txt",
@@ -6480,7 +6653,8 @@
     "walls-8"
    ],
    "generators": 8,
-   "lift": 2.98
+   "lift": 2.98,
+   "benchSeconds": 15
   },
   {
    "game": "Match-Maker.txt",
@@ -6498,7 +6672,8 @@
     "walls-2"
    ],
    "generators": 3,
-   "lift": 8.681
+   "lift": 8.681,
+   "benchSeconds": 3
   },
   {
    "game": "Match-Maker.txt",
@@ -6516,7 +6691,8 @@
     "walls-2"
    ],
    "generators": 3,
-   "lift": 2.483
+   "lift": 2.483,
+   "benchSeconds": 3
   },
   {
    "game": "Match-Maker.txt",
@@ -6532,7 +6708,8 @@
     "move"
    ],
    "generators": 3,
-   "lift": 0.635
+   "lift": 0.635,
+   "benchSeconds": 12
   },
   {
    "game": "Match-Maker.txt",
@@ -6549,7 +6726,8 @@
     "walls-2"
    ],
    "generators": 3,
-   "lift": 0.543
+   "lift": 0.543,
+   "benchSeconds": 6.5
   },
   {
    "game": "mazezam.txt",
@@ -6568,7 +6746,8 @@
     "walls-8"
    ],
    "generators": 5,
-   "lift": 3.672
+   "lift": 3.672,
+   "benchSeconds": 3
   },
   {
    "game": "mazezam.txt",
@@ -6585,7 +6764,8 @@
     "walls-8"
    ],
    "generators": 5,
-   "lift": 1.017
+   "lift": 1.017,
+   "benchSeconds": 4.5
   },
   {
    "game": "mazezam.txt",
@@ -6604,7 +6784,8 @@
     "walls-8"
    ],
    "generators": 5,
-   "lift": 1.542
+   "lift": 1.542,
+   "benchSeconds": 3
   },
   {
    "game": "mazezam.txt",
@@ -6621,7 +6802,8 @@
     "walls-1"
    ],
    "generators": 5,
-   "lift": 1.152
+   "lift": 1.152,
+   "benchSeconds": 8.5
   },
   {
    "game": "midas.txt",
@@ -6641,7 +6823,8 @@
     "walls-6"
    ],
    "generators": 5,
-   "lift": 11.235
+   "lift": 11.235,
+   "benchSeconds": 4
   },
   {
    "game": "midas.txt",
@@ -6661,7 +6844,8 @@
     "walls-6"
    ],
    "generators": 5,
-   "lift": 1.631
+   "lift": 1.631,
+   "benchSeconds": 5
   },
   {
    "game": "midas.txt",
@@ -6679,7 +6863,8 @@
     "walls-6"
    ],
    "generators": 5,
-   "lift": 1.742
+   "lift": 1.742,
+   "benchSeconds": 15
   },
   {
    "game": "midas.txt",
@@ -6697,7 +6882,8 @@
     "walls-6"
    ],
    "generators": 5,
-   "lift": 2.218
+   "lift": 2.218,
+   "benchSeconds": 15
   },
   {
    "game": "Muraphilic Monophobic Multiban.txt",
@@ -6713,7 +6899,8 @@
     "move"
    ],
    "generators": 4,
-   "lift": 10.013
+   "lift": 10.013,
+   "benchSeconds": 15
   },
   {
    "game": "Muraphilic Monophobic Multiban.txt",
@@ -6729,7 +6916,8 @@
     "backward-target"
    ],
    "generators": 4,
-   "lift": 0.697
+   "lift": 0.697,
+   "benchSeconds": 15
   },
   {
    "game": "Muraphilic Monophobic Multiban.txt",
@@ -6745,7 +6933,8 @@
     "move"
    ],
    "generators": 4,
-   "lift": 1.023
+   "lift": 1.023,
+   "benchSeconds": 15
   },
   {
    "game": "Muraphilic Monophobic Multiban.txt",
@@ -6761,7 +6950,8 @@
     "move"
    ],
    "generators": 4,
-   "lift": 12.629
+   "lift": 12.629,
+   "benchSeconds": 15
   },
   {
    "game": "NIGHTMARECROBAN.txt",
@@ -6780,7 +6970,8 @@
     "pair-crate-ziel"
    ],
    "generators": 5,
-   "lift": 1.534
+   "lift": 1.534,
+   "benchSeconds": 3
   },
   {
    "game": "NIGHTMARECROBAN.txt",
@@ -6798,7 +6989,8 @@
     "pair-crate-ziel"
    ],
    "generators": 5,
-   "lift": 1.197
+   "lift": 1.197,
+   "benchSeconds": 3.5
   },
   {
    "game": "NIGHTMARECROBAN.txt",
@@ -6816,7 +7008,8 @@
     "pair-crate-ziel"
    ],
    "generators": 5,
-   "lift": 3.586
+   "lift": 3.586,
+   "benchSeconds": 15
   },
   {
    "game": "NIGHTMARECROBAN.txt",
@@ -6833,7 +7026,8 @@
     "no-tick"
    ],
    "generators": 5,
-   "lift": 29.041
+   "lift": 29.041,
+   "benchSeconds": 15
   },
   {
    "game": "no heroes necessary.txt",
@@ -6851,7 +7045,8 @@
     "walls-3"
    ],
    "generators": 5,
-   "lift": 1.235
+   "lift": 1.235,
+   "benchSeconds": 15
   },
   {
    "game": "no heroes necessary.txt",
@@ -6870,7 +7065,8 @@
     "walls-3"
    ],
    "generators": 5,
-   "lift": 133.83
+   "lift": 133.83,
+   "benchSeconds": 15
   },
   {
    "game": "no heroes necessary.txt",
@@ -6887,7 +7083,8 @@
     "move"
    ],
    "generators": 5,
-   "lift": 7.648
+   "lift": 7.648,
+   "benchSeconds": 15
   },
   {
    "game": "no heroes necessary.txt",
@@ -6903,7 +7100,8 @@
     "move"
    ],
    "generators": 5,
-   "lift": 1.057
+   "lift": 1.057,
+   "benchSeconds": 15
   },
   {
    "game": "paint everything everywhere.txt",
@@ -6919,7 +7117,8 @@
     "move"
    ],
    "generators": 5,
-   "lift": 1.036
+   "lift": 1.036,
+   "benchSeconds": 15
   },
   {
    "game": "paint everything everywhere.txt",
@@ -6935,7 +7134,8 @@
     "walls-7"
    ],
    "generators": 5,
-   "lift": 1.01
+   "lift": 1.01,
+   "benchSeconds": 15
   },
   {
    "game": "paint everything everywhere.txt",
@@ -6951,7 +7151,8 @@
     "move"
    ],
    "generators": 5,
-   "lift": 10.423
+   "lift": 10.423,
+   "benchSeconds": 15
   },
   {
    "game": "pipe puffer.txt",
@@ -6967,7 +7168,8 @@
     "move"
    ],
    "generators": 1,
-   "lift": 0.995
+   "lift": 0.995,
+   "benchSeconds": 15
   },
   {
    "game": "ponies jumping synchronously.txt",
@@ -6988,7 +7190,8 @@
     "walls-27"
    ],
    "generators": 8,
-   "lift": 13.75
+   "lift": 13.75,
+   "benchSeconds": 3
   },
   {
    "game": "ponies jumping synchronously.txt",
@@ -7009,7 +7212,8 @@
     "walls-27"
    ],
    "generators": 8,
-   "lift": 1.158
+   "lift": 1.158,
+   "benchSeconds": 9
   },
   {
    "game": "ponies jumping synchronously.txt",
@@ -7029,7 +7233,8 @@
     "walls-25"
    ],
    "generators": 8,
-   "lift": 24.638
+   "lift": 24.638,
+   "benchSeconds": 12.5
   },
   {
    "game": "ponies jumping synchronously.txt",
@@ -7049,7 +7254,8 @@
     "walls-27"
    ],
    "generators": 8,
-   "lift": 13.73
+   "lift": 13.73,
+   "benchSeconds": 15
   },
   {
    "game": "push pull.txt",
@@ -7067,7 +7273,8 @@
     "walls-3"
    ],
    "generators": 3,
-   "lift": 2.055
+   "lift": 2.055,
+   "benchSeconds": 3
   },
   {
    "game": "push pull.txt",
@@ -7085,7 +7292,8 @@
     "walls-3"
    ],
    "generators": 3,
-   "lift": 5.119
+   "lift": 5.119,
+   "benchSeconds": 3
   },
   {
    "game": "push pull.txt",
@@ -7102,7 +7310,8 @@
     "move"
    ],
    "generators": 3,
-   "lift": 1.86
+   "lift": 1.86,
+   "benchSeconds": 14
   },
   {
    "game": "push.txt",
@@ -7121,7 +7330,8 @@
     "walls-18"
    ],
    "generators": 4,
-   "lift": 19.673
+   "lift": 19.673,
+   "benchSeconds": 3
   },
   {
    "game": "push.txt",
@@ -7140,7 +7350,8 @@
     "walls-18"
    ],
    "generators": 4,
-   "lift": 2.576
+   "lift": 2.576,
+   "benchSeconds": 3
   },
   {
    "game": "push.txt",
@@ -7159,7 +7370,8 @@
     "walls-18"
    ],
    "generators": 4,
-   "lift": 1.327
+   "lift": 1.327,
+   "benchSeconds": 4.5
   },
   {
    "game": "push.txt",
@@ -7175,7 +7387,8 @@
     "walls-18"
    ],
    "generators": 4,
-   "lift": 0.926
+   "lift": 0.926,
+   "benchSeconds": 15
   },
   {
    "game": "pushit.txt",
@@ -7193,7 +7406,8 @@
     "walls-3"
    ],
    "generators": 5,
-   "lift": 5.838
+   "lift": 5.838,
+   "benchSeconds": 15
   },
   {
    "game": "Pushy-V Pully-H.txt",
@@ -7210,7 +7424,8 @@
     "move"
    ],
    "generators": 5,
-   "lift": 0.922
+   "lift": 0.922,
+   "benchSeconds": 15
   },
   {
    "game": "Pushy-V Pully-H.txt",
@@ -7230,7 +7445,8 @@
     "walls-3"
    ],
    "generators": 5,
-   "lift": 23.205
+   "lift": 23.205,
+   "benchSeconds": 3
   },
   {
    "game": "Pushy-V Pully-H.txt",
@@ -7249,7 +7465,8 @@
     "walls-3"
    ],
    "generators": 5,
-   "lift": 60.479
+   "lift": 60.479,
+   "benchSeconds": 15
   },
   {
    "game": "Pushy-V Pully-H.txt",
@@ -7266,7 +7483,8 @@
     "move"
    ],
    "generators": 5,
-   "lift": 0.978
+   "lift": 0.978,
+   "benchSeconds": 15
   },
   {
    "game": "Put the logs in the water, elephant.txt",
@@ -7284,7 +7502,8 @@
     "walls-2"
    ],
    "generators": 5,
-   "lift": 2.445
+   "lift": 2.445,
+   "benchSeconds": 9.5
   },
   {
    "game": "Put the logs in the water, elephant.txt",
@@ -7300,7 +7519,8 @@
     "move"
    ],
    "generators": 5,
-   "lift": 0.84
+   "lift": 0.84,
+   "benchSeconds": 15
   },
   {
    "game": "Put the logs in the water, elephant.txt",
@@ -7317,7 +7537,8 @@
     "walls-2"
    ],
    "generators": 5,
-   "lift": 8.446
+   "lift": 8.446,
+   "benchSeconds": 15
   },
   {
    "game": "Put the logs in the water, elephant.txt",
@@ -7335,7 +7556,8 @@
     "walls-2"
    ],
    "generators": 5,
-   "lift": 2.732
+   "lift": 2.732,
+   "benchSeconds": 14.5
   },
   {
    "game": "Recondite Star Sector Sigma.txt",
@@ -7351,7 +7573,8 @@
     "walls-2"
    ],
    "generators": 6,
-   "lift": 1.273
+   "lift": 1.273,
+   "benchSeconds": 3
   },
   {
    "game": "Recondite Star Sector Sigma.txt",
@@ -7368,7 +7591,8 @@
     "walls-2"
    ],
    "generators": 6,
-   "lift": 1.388
+   "lift": 1.388,
+   "benchSeconds": 13.5
   },
   {
    "game": "Recondite Star Sector Sigma.txt",
@@ -7386,7 +7610,8 @@
     "walls-2"
    ],
    "generators": 6,
-   "lift": 2.329
+   "lift": 2.329,
+   "benchSeconds": 4.5
   },
   {
    "game": "Recondite Star Sector Sigma.txt",
@@ -7403,7 +7628,8 @@
     "walls-2"
    ],
    "generators": 6,
-   "lift": 1.127
+   "lift": 1.127,
+   "benchSeconds": 15
   },
   {
    "game": "Resin-Caster.txt",
@@ -7421,7 +7647,8 @@
     "walls-2"
    ],
    "generators": 3,
-   "lift": 1.58
+   "lift": 1.58,
+   "benchSeconds": 3
   },
   {
    "game": "Resin-Caster.txt",
@@ -7439,7 +7666,8 @@
     "walls-2"
    ],
    "generators": 3,
-   "lift": 1.37
+   "lift": 1.37,
+   "benchSeconds": 3.5
   },
   {
    "game": "Resin-Caster.txt",
@@ -7457,7 +7685,8 @@
     "walls-2"
    ],
    "generators": 3,
-   "lift": 3.183
+   "lift": 3.183,
+   "benchSeconds": 3
   },
   {
    "game": "Resin-Caster.txt",
@@ -7475,7 +7704,8 @@
     "walls-2"
    ],
    "generators": 3,
-   "lift": 1.771
+   "lift": 1.771,
+   "benchSeconds": 3
   },
   {
    "game": "S-tercourse.txt",
@@ -7491,7 +7721,8 @@
     "move"
    ],
    "generators": 4,
-   "lift": 1.095
+   "lift": 1.095,
+   "benchSeconds": 9.5
   },
   {
    "game": "S-tercourse.txt",
@@ -7507,7 +7738,8 @@
     "move"
    ],
    "generators": 4,
-   "lift": 0.878
+   "lift": 0.878,
+   "benchSeconds": 3.5
   },
   {
    "game": "sacrament of the river god.txt",
@@ -7530,7 +7762,8 @@
     "pair-target-crate"
    ],
    "generators": 10,
-   "lift": 12.583
+   "lift": 12.583,
+   "benchSeconds": 3
   },
   {
    "game": "Schleimban.txt",
@@ -7548,7 +7781,8 @@
     "pair-target-crate"
    ],
    "generators": 4,
-   "lift": 1.003
+   "lift": 1.003,
+   "benchSeconds": 3
   },
   {
    "game": "Schleimban.txt",
@@ -7564,7 +7798,8 @@
     "move"
    ],
    "generators": 4,
-   "lift": 0.984
+   "lift": 0.984,
+   "benchSeconds": 3.5
   },
   {
    "game": "Schleimban.txt",
@@ -7583,7 +7818,8 @@
     "pair-target-crate"
    ],
    "generators": 4,
-   "lift": 8.182
+   "lift": 8.182,
+   "benchSeconds": 15
   },
   {
    "game": "Schleimban.txt",
@@ -7599,7 +7835,8 @@
     "move"
    ],
    "generators": 4,
-   "lift": 1.025
+   "lift": 1.025,
+   "benchSeconds": 6.5
   },
   {
    "game": "slide pull.txt",
@@ -7617,7 +7854,8 @@
     "walls-3"
    ],
    "generators": 3,
-   "lift": 196.329
+   "lift": 196.329,
+   "benchSeconds": 4.5
   },
   {
    "game": "slide pull.txt",
@@ -7635,7 +7873,8 @@
     "walls-3"
    ],
    "generators": 3,
-   "lift": 0.85
+   "lift": 0.85,
+   "benchSeconds": 15
   },
   {
    "game": "slide pull.txt",
@@ -7653,7 +7892,8 @@
     "walls-3"
    ],
    "generators": 3,
-   "lift": 1.597
+   "lift": 1.597,
+   "benchSeconds": 3
   },
   {
    "game": "slide pull.txt",
@@ -7670,7 +7910,8 @@
     "walls-3"
    ],
    "generators": 3,
-   "lift": 1.765
+   "lift": 1.765,
+   "benchSeconds": 15
   },
   {
    "game": "slidings.txt",
@@ -7691,7 +7932,8 @@
     "walls-7"
    ],
    "generators": 11,
-   "lift": 2.59
+   "lift": 2.59,
+   "benchSeconds": 15
   },
   {
    "game": "slidings.txt",
@@ -7714,7 +7956,8 @@
     "walls-8"
    ],
    "generators": 11,
-   "lift": 3.314
+   "lift": 3.314,
+   "benchSeconds": 3
   },
   {
    "game": "slidings.txt",
@@ -7732,7 +7975,8 @@
     "walls-5"
    ],
    "generators": 11,
-   "lift": 3.548
+   "lift": 3.548,
+   "benchSeconds": 5.5
   },
   {
    "game": "slidings.txt",
@@ -7750,7 +7994,8 @@
     "walls-5"
    ],
    "generators": 11,
-   "lift": 2.22
+   "lift": 2.22,
+   "benchSeconds": 15
   },
   {
    "game": "slime vat filler.txt",
@@ -7769,7 +8014,8 @@
     "walls-2"
    ],
    "generators": 5,
-   "lift": 7.519
+   "lift": 7.519,
+   "benchSeconds": 3
   },
   {
    "game": "slime vat filler.txt",
@@ -7786,7 +8032,8 @@
     "walls-2"
    ],
    "generators": 5,
-   "lift": 2.239
+   "lift": 2.239,
+   "benchSeconds": 3
   },
   {
    "game": "slime vat filler.txt",
@@ -7802,7 +8049,8 @@
     "walls-2"
    ],
    "generators": 5,
-   "lift": 1.14
+   "lift": 1.14,
+   "benchSeconds": 15
   },
   {
    "game": "slime vat filler.txt",
@@ -7819,7 +8067,8 @@
     "walls-2"
    ],
    "generators": 5,
-   "lift": 1.646
+   "lift": 1.646,
+   "benchSeconds": 3
   },
   {
    "game": "slot machine.txt",
@@ -7837,7 +8086,8 @@
     "walls-19"
    ],
    "generators": 3,
-   "lift": 2.446
+   "lift": 2.446,
+   "benchSeconds": 15
   },
   {
    "game": "smother.txt",
@@ -7854,7 +8104,8 @@
     "walls-12"
    ],
    "generators": 4,
-   "lift": 1.121
+   "lift": 1.121,
+   "benchSeconds": 9.5
   },
   {
    "game": "smother.txt",
@@ -7872,7 +8123,8 @@
     "no-heart"
    ],
    "generators": 4,
-   "lift": 15.795
+   "lift": 15.795,
+   "benchSeconds": 3
   },
   {
    "game": "smother.txt",
@@ -7890,7 +8142,8 @@
     "walls-12"
    ],
    "generators": 4,
-   "lift": 1.214
+   "lift": 1.214,
+   "benchSeconds": 3.5
   },
   {
    "game": "smother.txt",
@@ -7907,7 +8160,8 @@
     "walls-12"
    ],
    "generators": 4,
-   "lift": 1.126
+   "lift": 1.126,
+   "benchSeconds": 14.5
   },
   {
    "game": "sokobond demake.txt",
@@ -7925,7 +8179,8 @@
     "walls-17"
    ],
    "generators": 3,
-   "lift": 15.475
+   "lift": 15.475,
+   "benchSeconds": 15
   },
   {
    "game": "sokobond demake.txt",
@@ -7943,7 +8198,8 @@
     "walls-17"
    ],
    "generators": 3,
-   "lift": 3.916
+   "lift": 3.916,
+   "benchSeconds": 15
   },
   {
    "game": "sokobond demake.txt",
@@ -7960,7 +8216,8 @@
     "walls-17"
    ],
    "generators": 3,
-   "lift": 6.993
+   "lift": 6.993,
+   "benchSeconds": 15
   },
   {
    "game": "sokobond demake.txt",
@@ -7978,7 +8235,8 @@
     "walls-17"
    ],
    "generators": 3,
-   "lift": 1.874
+   "lift": 1.874,
+   "benchSeconds": 13.5
   },
   {
    "game": "stick_candy_puzzle_saga.txt",
@@ -7996,7 +8254,8 @@
     "pair-yellow-yellowtarget"
    ],
    "generators": 8,
-   "lift": 1.006
+   "lift": 1.006,
+   "benchSeconds": 15
   },
   {
    "game": "Subway upholstry snot smearing championship.txt",
@@ -8012,7 +8271,8 @@
     "move"
    ],
    "generators": 1,
-   "lift": 0.71
+   "lift": 0.71,
+   "benchSeconds": 3
   },
   {
    "game": "Subway upholstry snot smearing championship.txt",
@@ -8028,7 +8288,8 @@
     "move"
    ],
    "generators": 1,
-   "lift": 1.15
+   "lift": 1.15,
+   "benchSeconds": 3
   },
   {
    "game": "Subway upholstry snot smearing championship.txt",
@@ -8044,7 +8305,8 @@
     "move"
    ],
    "generators": 1,
-   "lift": 5.503
+   "lift": 5.503,
+   "benchSeconds": 15
   },
   {
    "game": "take heart lass.txt",
@@ -8063,7 +8325,8 @@
     "walls-6"
    ],
    "generators": 10,
-   "lift": 3.817
+   "lift": 3.817,
+   "benchSeconds": 3
   },
   {
    "game": "take heart lass.txt",
@@ -8082,7 +8345,8 @@
     "walls-8"
    ],
    "generators": 10,
-   "lift": 1.033
+   "lift": 1.033,
+   "benchSeconds": 4.5
   },
   {
    "game": "take heart lass.txt",
@@ -8103,7 +8367,8 @@
     "walls-6"
    ],
    "generators": 10,
-   "lift": 2.042
+   "lift": 2.042,
+   "benchSeconds": 6
   },
   {
    "game": "take heart lass.txt",
@@ -8122,7 +8387,8 @@
     "walls-8"
    ],
    "generators": 10,
-   "lift": 1.633
+   "lift": 1.633,
+   "benchSeconds": 15
   },
   {
    "game": "the exit is under my left foot.txt",
@@ -8138,7 +8404,8 @@
     "move"
    ],
    "generators": 1,
-   "lift": 15.614
+   "lift": 15.614,
+   "benchSeconds": 15
   },
   {
    "game": "The Far Away Danish Pastry is always Delicio.txt",
@@ -8155,7 +8422,8 @@
     "no-fruit"
    ],
    "generators": 3,
-   "lift": 2.258
+   "lift": 2.258,
+   "benchSeconds": 3
   },
   {
    "game": "The Far Away Danish Pastry is always Delicio.txt",
@@ -8173,7 +8441,8 @@
     "no-fruit"
    ],
    "generators": 3,
-   "lift": 4.223
+   "lift": 4.223,
+   "benchSeconds": 3
   },
   {
    "game": "The Far Away Danish Pastry is always Delicio.txt",
@@ -8189,7 +8458,8 @@
     "no-fruit"
    ],
    "generators": 3,
-   "lift": 0.863
+   "lift": 0.863,
+   "benchSeconds": 14
   },
   {
    "game": "The Far Away Danish Pastry is always Delicio.txt",
@@ -8207,7 +8477,8 @@
     "no-fruit"
    ],
    "generators": 3,
-   "lift": 29.385
+   "lift": 29.385,
+   "benchSeconds": 5
   },
   {
    "game": "The Monsterous Autoshove.txt",
@@ -8225,7 +8496,8 @@
     "walls-3"
    ],
    "generators": 5,
-   "lift": 1.003
+   "lift": 1.003,
+   "benchSeconds": 3
   },
   {
    "game": "The Monsterous Autoshove.txt",
@@ -8242,7 +8514,8 @@
     "walls-3"
    ],
    "generators": 5,
-   "lift": 1.644
+   "lift": 1.644,
+   "benchSeconds": 15
   },
   {
    "game": "The Monsterous Autoshove.txt",
@@ -8259,7 +8532,8 @@
     "mix"
    ],
    "generators": 5,
-   "lift": 1.699
+   "lift": 1.699,
+   "benchSeconds": 12.5
   },
   {
    "game": "the red ring of immortality.txt",
@@ -8277,7 +8551,8 @@
     "walls-5"
    ],
    "generators": 5,
-   "lift": 1.499
+   "lift": 1.499,
+   "benchSeconds": 4
   },
   {
    "game": "the red ring of immortality.txt",
@@ -8296,7 +8571,8 @@
     "walls-5"
    ],
    "generators": 5,
-   "lift": 2.345
+   "lift": 2.345,
+   "benchSeconds": 3
   },
   {
    "game": "the red ring of immortality.txt",
@@ -8313,7 +8589,8 @@
     "walls-5"
    ],
    "generators": 5,
-   "lift": 6.653
+   "lift": 6.653,
+   "benchSeconds": 4
   },
   {
    "game": "the red ring of immortality.txt",
@@ -8332,7 +8609,8 @@
     "walls-5"
    ],
    "generators": 5,
-   "lift": 1.951
+   "lift": 1.951,
+   "benchSeconds": 3
   },
   {
    "game": "The sponge what lights up the seafloor.txt",
@@ -8348,7 +8626,8 @@
     "mix"
    ],
    "generators": 3,
-   "lift": 1.958
+   "lift": 1.958,
+   "benchSeconds": 15
   },
   {
    "game": "The sponge what lights up the seafloor.txt",
@@ -8364,7 +8643,8 @@
     "walls-9"
    ],
    "generators": 3,
-   "lift": 1.35
+   "lift": 1.35,
+   "benchSeconds": 15
   },
   {
    "game": "The sponge what lights up the seafloor.txt",
@@ -8380,7 +8660,8 @@
     "mix"
    ],
    "generators": 3,
-   "lift": 1.197
+   "lift": 1.197,
+   "benchSeconds": 15
   },
   {
    "game": "The sponge what lights up the seafloor.txt",
@@ -8396,7 +8677,8 @@
     "walls-9"
    ],
    "generators": 3,
-   "lift": 1.029
+   "lift": 1.029,
+   "benchSeconds": 15
   },
   {
    "game": "the_saga_of_the_candy_scroll.txt",
@@ -8413,7 +8695,8 @@
     "walls-12"
    ],
    "generators": 7,
-   "lift": 0.975
+   "lift": 0.975,
+   "benchSeconds": 15
   },
   {
    "game": "the_saga_of_the_candy_scroll.txt",
@@ -8430,7 +8713,8 @@
     "walls-18"
    ],
    "generators": 7,
-   "lift": 2.303
+   "lift": 2.303,
+   "benchSeconds": 15
   },
   {
    "game": "the_saga_of_the_candy_scroll.txt",
@@ -8452,7 +8736,8 @@
     "walls-20"
    ],
    "generators": 7,
-   "lift": 1.677
+   "lift": 1.677,
+   "benchSeconds": 3
   },
   {
    "game": "the_saga_of_the_candy_scroll.txt",
@@ -8474,7 +8759,8 @@
     "walls-20"
    ],
    "generators": 7,
-   "lift": 1.336
+   "lift": 1.336,
+   "benchSeconds": 6.5
   },
   {
    "game": "Two-Tone Tango.txt",
@@ -8492,7 +8778,8 @@
     "walls-4"
    ],
    "generators": 5,
-   "lift": 1.777
+   "lift": 1.777,
+   "benchSeconds": 4
   },
   {
    "game": "Two-Tone Tango.txt",
@@ -8510,7 +8797,8 @@
     "walls-4"
    ],
    "generators": 5,
-   "lift": 0.5
+   "lift": 0.5,
+   "benchSeconds": 3
   },
   {
    "game": "Two-Tone Tango.txt",
@@ -8528,7 +8816,8 @@
     "walls-4"
    ],
    "generators": 5,
-   "lift": 8.859
+   "lift": 8.859,
+   "benchSeconds": 3.5
   },
   {
    "game": "Two-Tone Tango.txt",
@@ -8547,7 +8836,8 @@
     "walls-4"
    ],
    "generators": 5,
-   "lift": 2.101
+   "lift": 2.101,
+   "benchSeconds": 6
   },
   {
    "game": "unclean residues.txt",
@@ -8563,7 +8853,8 @@
     "move"
    ],
    "generators": 5,
-   "lift": 1.041
+   "lift": 1.041,
+   "benchSeconds": 15
   },
   {
    "game": "unclean residues.txt",
@@ -8579,7 +8870,8 @@
     "pair-target-crate"
    ],
    "generators": 5,
-   "lift": 2.405
+   "lift": 2.405,
+   "benchSeconds": 5.5
   },
   {
    "game": "unclean residues.txt",
@@ -8595,7 +8887,8 @@
     "move"
    ],
    "generators": 5,
-   "lift": 3.377
+   "lift": 3.377,
+   "benchSeconds": 15
   },
   {
    "game": "unewton.txt",
@@ -8613,7 +8906,8 @@
     "walls-4"
    ],
    "generators": 5,
-   "lift": 8.353
+   "lift": 8.353,
+   "benchSeconds": 15
   },
   {
    "game": "Van-to-Mobile-Living-Space-Conversion Window.txt",
@@ -8630,7 +8924,8 @@
     "walls-5"
    ],
    "generators": 5,
-   "lift": 2.202
+   "lift": 2.202,
+   "benchSeconds": 3.5
   },
   {
    "game": "Van-to-Mobile-Living-Space-Conversion Window.txt",
@@ -8646,7 +8941,8 @@
     "walls-5"
    ],
    "generators": 5,
-   "lift": 1.036
+   "lift": 1.036,
+   "benchSeconds": 7
   },
   {
    "game": "Van-to-Mobile-Living-Space-Conversion Window.txt",
@@ -8662,7 +8958,8 @@
     "walls-5"
    ],
    "generators": 5,
-   "lift": 1.047
+   "lift": 1.047,
+   "benchSeconds": 11
   },
   {
    "game": "Van-to-Mobile-Living-Space-Conversion Window.txt",
@@ -8678,7 +8975,8 @@
     "move"
    ],
    "generators": 5,
-   "lift": 0.954
+   "lift": 0.954,
+   "benchSeconds": 3.5
   },
   {
    "game": "Varifocal Nightmare.txt",
@@ -8694,7 +8992,8 @@
     "move"
    ],
    "generators": 3,
-   "lift": 2.033
+   "lift": 2.033,
+   "benchSeconds": 15
   },
   {
    "game": "Varifocal Nightmare.txt",
@@ -8712,7 +9011,8 @@
     "walls-14"
    ],
    "generators": 3,
-   "lift": 1.577
+   "lift": 1.577,
+   "benchSeconds": 8
   },
   {
    "game": "Varifocal Nightmare.txt",
@@ -8728,7 +9028,8 @@
     "move"
    ],
    "generators": 3,
-   "lift": 0.438
+   "lift": 0.438,
+   "benchSeconds": 10
   },
   {
    "game": "Varifocal Nightmare.txt",
@@ -8746,7 +9047,8 @@
     "walls-14"
    ],
    "generators": 3,
-   "lift": 46.36
+   "lift": 46.36,
+   "benchSeconds": 15
   },
   {
    "game": "Vexatious Match 3.txt",
@@ -8764,7 +9066,8 @@
     "walls-2"
    ],
    "generators": 3,
-   "lift": 1.239
+   "lift": 1.239,
+   "benchSeconds": 15
   },
   {
    "game": "Wand Spinner.txt",
@@ -8781,7 +9084,8 @@
     "walls-4"
    ],
    "generators": 3,
-   "lift": 11.465
+   "lift": 11.465,
+   "benchSeconds": 15
   },
   {
    "game": "Wand Spinner.txt",
@@ -8799,7 +9103,8 @@
     "walls-4"
    ],
    "generators": 3,
-   "lift": 2.86
+   "lift": 2.86,
+   "benchSeconds": 3
   },
   {
    "game": "Wand Spinner.txt",
@@ -8815,7 +9120,8 @@
     "walls-4"
    ],
    "generators": 3,
-   "lift": 4.345
+   "lift": 4.345,
+   "benchSeconds": 15
   },
   {
    "game": "Wand Spinner.txt",
@@ -8831,7 +9137,8 @@
     "walls-4"
    ],
    "generators": 3,
-   "lift": 3.097
+   "lift": 3.097,
+   "benchSeconds": 15
   },
   {
    "game": "whaleworld.txt",
@@ -8850,7 +9157,8 @@
     "walls-3"
    ],
    "generators": 4,
-   "lift": 1.479
+   "lift": 1.479,
+   "benchSeconds": 15
   },
   {
    "game": "whaleworld.txt",
@@ -8868,7 +9176,8 @@
     "walls-3"
    ],
    "generators": 4,
-   "lift": 1.535
+   "lift": 1.535,
+   "benchSeconds": 5.5
   },
   {
    "game": "whaleworld.txt",
@@ -8886,7 +9195,8 @@
     "walls-3"
    ],
    "generators": 4,
-   "lift": 1.14
+   "lift": 1.14,
+   "benchSeconds": 15
   },
   {
    "game": "whaleworld.txt",
@@ -8902,7 +9212,8 @@
     "move"
    ],
    "generators": 4,
-   "lift": 0.809
+   "lift": 0.809,
+   "benchSeconds": 15
   },
   {
    "game": "witch lifter.txt",
@@ -8918,7 +9229,8 @@
     "move"
    ],
    "generators": 1,
-   "lift": 2.569
+   "lift": 2.569,
+   "benchSeconds": 15
   },
   {
    "game": "witch lifter.txt",
@@ -8934,7 +9246,8 @@
     "move"
    ],
    "generators": 1,
-   "lift": 1.206
+   "lift": 1.206,
+   "benchSeconds": 15
   },
   {
    "game": "Xorro The Chaos Warden.txt",
@@ -8953,7 +9266,8 @@
     "pair-target-crate"
    ],
    "generators": 4,
-   "lift": 4.369
+   "lift": 4.369,
+   "benchSeconds": 3
   },
   {
    "game": "Xorro The Chaos Warden.txt",
@@ -8970,7 +9284,8 @@
     "pair-target-crate"
    ],
    "generators": 4,
-   "lift": 1.013
+   "lift": 1.013,
+   "benchSeconds": 3.5
   },
   {
    "game": "Yellow Box.txt",
@@ -8986,7 +9301,8 @@
     "mix"
    ],
    "generators": 3,
-   "lift": 0.71
+   "lift": 0.71,
+   "benchSeconds": 3
   },
   {
    "game": "Yellow Box.txt",
@@ -9003,7 +9319,8 @@
     "no-pedestrian"
    ],
    "generators": 3,
-   "lift": 1.924
+   "lift": 1.924,
+   "benchSeconds": 3
   },
   {
    "game": "Yellow Box.txt",
@@ -9019,7 +9336,8 @@
     "no-pedestrian"
    ],
    "generators": 3,
-   "lift": 3.277
+   "lift": 3.277,
+   "benchSeconds": 3.5
   },
   {
    "game": "Yellow Box.txt",
@@ -9035,7 +9353,20 @@
     "no-pedestrian"
    ],
    "generators": 3,
-   "lift": 0.967
+   "lift": 0.967,
+   "benchSeconds": 15
   }
- ]
+ ],
+ "calibration": {
+  "from": "bench2.json",
+  "survey_budget": {
+   "candidates": 30,
+   "minSeconds": 3,
+   "maxSeconds": 30
+  },
+  "generated_at": "2026-09-27T19:57:55.945Z",
+  "rule": "median over the level's generators of the time to judge 30 candidates, clamped to 3-15 s, rounded to 0.5 s",
+  "levels_without_data": 0,
+  "total_run_seconds": 15789
+ }
 }

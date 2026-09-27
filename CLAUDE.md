@@ -77,7 +77,7 @@ PuzzleScript source code flows through three stages:
 - **`src/editor.html`** — the PuzzleScript editor (code editor + game player)
 - **`src/play.html`** — standalone game player
 - **`src/standalone.html`** — template for exported standalone games (compile.js inlines resources into `standalone_inlined.txt`)
-- **`src/mis.html`** — PuzzleScript+MIS web prototype (mixed-initiative level design: transforms, suggestions, simplify). Code in `src/js/mis/`; needs an HTTP server (Web Workers). Solves on the native solver compiled to WebAssembly (`make mis_wasm` rebuilds `src/js/mis/wasm/` from `native/src/wasm/mis_wasm.cpp`; needs Emscripten), falling back to the JS engine. Checks: `node src/tests/mis_core_node.js`. See `docs/puzzlescriptmis-web-prototype.md`.
+- **`src/mis.html`** — PuzzleScript+MIS web prototype (mixed-initiative level design: transforms, suggestions, simplify). Code in `src/js/mis/`; needs an HTTP server (Web Workers). Solves on the native solver compiled to WebAssembly (`make mis_wasm` rebuilds `src/js/mis/wasm/` from `native/src/wasm/mis_wasm.cpp`; needs Emscripten), falling back to the JS engine. Checks: `node src/tests/mis_core_node.js`. Is generation getting better? `make mis_generator_bench MIS_BENCH_REF=<commit>` scores this checkout against a commit (quick set ~2 h on 4 cores; `docs/benchmarks/2026-09-27-mis-generator-bench.md`). See `docs/puzzlescriptmis-web-prototype.md`.
 
 ### Script Loading Order
 

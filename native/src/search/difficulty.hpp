@@ -28,6 +28,10 @@ struct DifficultyOptions {
     std::function<bool(int64_t primaryExpanded)> supplementalGate;
     int64_t supplementalCap = -1;
     int64_t supplementalTimeoutMs = 60000;
+    // States cap for the primary search (0: none) and no timing-based search
+    // decisions: with both, an assessment depends only on the level.
+    uint64_t primaryMaxExpanded = 0;
+    bool deterministic = false;
     // Shared across all lanes; individual lane timeouts are additionally capped
     // by this deadline. Cancellation is cooperative between runtime turns.
     std::optional<std::chrono::steady_clock::time_point> deadline;

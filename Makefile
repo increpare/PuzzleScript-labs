@@ -28,7 +28,7 @@
 	clean-native-32 clean-js-parity-data configure-native build-native js-parity-data lean_parity_smoke lean_clean_sim_candidates
 
 .PHONY: gba gba_export gba_preflight gba_generated_replay_build gba_generated_replay_tests
-.PHONY: mis_wasm mis_tests mis_backend_bench mis_generator_profile
+.PHONY: mis_wasm mis_tests mis_backend_bench mis_generator_profile mis_generator_bench
 .PHONY: gbc gbc_export gbc_smoke gbc_cart gbc_cart_smoke gbc_cart_solutions_bench gbc_eligible gbc_specialized_bench gbc_eligible_solutions_bench
 .PHONY: solution_cache_tests solution_cache_tests_thorough gbc_cart_solution_cache_tests refresh_eligible_solution_cache
 
@@ -1829,6 +1829,17 @@ mis_backend_bench:
 
 mis_generator_profile:
 	$(NODE) src/tests/mis_generator_profile_node.js
+
+# Generator benchmark score: this checkout vs MIS_BENCH_REF (a commit; checked
+# out as a worktree under build/), run side by side. MIS_BENCH_ARGS: --quick
+# (one level per game, ~45 min on 4 cores), --work (deterministic work clock;
+# the reference must support it), --repeats N. See docs/benchmarks/2026-09-27-mis-generator-bench.md.
+MIS_BENCH_REF ?= HEAD
+MIS_BENCH_ARGS ?= --quick
+mis_generator_bench:
+	-git worktree remove --force build/mis-bench-ref 2>/dev/null
+	git worktree add --detach build/mis-bench-ref $(MIS_BENCH_REF)
+	$(NODE) src/tests/mis_generator_bench_node.js run $(MIS_BENCH_ARGS) --variant 'ref={"src":"build/mis-bench-ref/src"}' --variant current --out build/mis_generator_bench.json
 
 generator_smoke_tests: $(GENERATOR_TARGET_PREREQ)
 	@if [ "$(SPECIALIZE)" = "true" ]; then \

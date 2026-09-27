@@ -117,6 +117,7 @@ thesis's findings.
 - `src/tests/mis_backend_bench_node.js`: JS vs wasm solver benchmark (`--dump-grids` feeds `native/wasm/mis_wasm_bench_native.cpp` for x86).
 - `src/tests/mis_generator_profile_node.js`: per-phase / per-state / harder-per-minute generator profile (`make mis_generator_profile`).
 - `src/tests/mis_generator_seed_survey_node.js`: builds the generator benchmark set and runs the generators over it (see below).
+- `src/tests/mis_generator_bench_node.js`: the generator benchmark score, comparing versions side by side (`make mis_generator_bench MIS_BENCH_REF=<commit>`).
 
 ## Generator benchmark set
 
