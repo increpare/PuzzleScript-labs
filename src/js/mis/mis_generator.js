@@ -27,7 +27,17 @@ const MISGenerator = (function () {
 		const seen = opts.seen || new Set();
 		seen.add(baseKey);
 		const keepCount = opts.keep || 8;
-		const maxBudget = opts.maxBudgetMs || 5000;
+		// Solver budget per candidate: starts at 200 ms, doubles on timeouts until
+		// something solves, follows 7x the admitted candidates' solve time, at most
+		// 5 s. Experimental, off by default: basePrimaryMs (the seed level's own
+		// primary solve time) starts it at 7x that and caps it at 20x (at least
+		// 1 s). On the slow benchmark levels timeouts take ~70% of solve time, but
+		// the slow solves include the hardest levels: the cap lowered the top-8
+		// mean effort by ~10% (docs/benchmarks/2026-09-27-mis-generator-bench.md).
+		const basePrimaryMs = opts.basePrimaryMs > 0 ? opts.basePrimaryMs : 0;
+		const maxBudget = basePrimaryMs
+			? Math.min(opts.maxBudgetMs || 5000, Math.max(1000, Math.round(basePrimaryMs * 20)))
+			: opts.maxBudgetMs || 5000;
 		// States a BFS may spend proving a shortlisted candidate's shortest solution.
 		const optimalCap = opts.optimalCap !== undefined ? opts.optimalCap : 20000;
 		// Optional sharding: only assess boards whose hash lands on this worker,
@@ -35,6 +45,10 @@ const MISGenerator = (function () {
 		const shard = opts.shard || null; // { index, count }
 		const topEfforts = [];
 		const parked = [];
+		// A parked timeout is retried once the budget exceeds the one it timed out
+		// at by this factor (1, the default: any growth at all). 2 found ~10% more
+		// harder-than-base levels but no better shortlist in the same time.
+		const retryGrowth = opts.retryGrowth || 1;
 
 		// Adaptive mutation strength. How many changes a transform makes per
 		// sample decides most of the useful yield (big steps are mostly
@@ -50,7 +64,7 @@ const MISGenerator = (function () {
 			arms.push({ scale: scale, program: scaleProgram(program, scale), ms: 0, reward: 0, pulls: 0 });
 		});
 		let armIndex = arms.length > 1 ? 3 : 0; // start at the transform as written
-		let budget = opts.initialBudgetMs || 200;
+		let budget = Math.min(maxBudget, Math.max(opts.initialBudgetMs || 200, Math.round(basePrimaryMs * 7)));
 		let streak = 0;
 		const legacy = opts.pipeline === 'legacy';
 
@@ -123,7 +137,7 @@ const MISGenerator = (function () {
 		function stepWith(program) {
 			let board = null, retried = false;
 			for (let i = 0; i < parked.length; i++) {
-				if (parked[i].budget < budget) { board = parked[i].board; parked.splice(i, 1); retried = true; break; }
+				if (parked[i].budget * retryGrowth < budget || (retryGrowth > 1 && budget >= maxBudget && parked[i].budget < budget)) { board = parked[i].board; parked.splice(i, 1); retried = true; break; }
 			}
 			if (!board) {
 				prof.samples++;

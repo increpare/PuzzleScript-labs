@@ -86,19 +86,46 @@ Generator phases, as a share of generator time:
 | Primary solve that solved | 1% | 0% |
 
 The slow runs are dominated by **timeouts at the generator's solver budget
-cap**. The per-candidate budget starts at 200 ms and doubles on each timeout
-until something solves, up to 5 s (`maxBudgetMs`). In 371 of the 539 runs
-that hit 30 s, it ended at the 5 s cap. Only 15% of those runs' candidates
-time out, but they take 41% of the time, and the generator learns nothing
-from them. The same happens in the app on slow games. Options:
-- Start the budget from the seed's own solve time instead of doubling up
-  from 200 ms.
-- Lower the cap relative to the seed's solve time.
-- Retry parked timeouts less often.
+cap**. The per-candidate budget starts at 200 ms, doubles on each timeout until
+something solves, and follows 7× the admitted candidates' solve time, up to 5 s
+(`maxBudgetMs`). In 371 of the 539 runs that hit 30 s, it ended at the 5 s cap.
+Only 15% of those runs' candidates time out, but they take 41% of the time.
 
-Cheaper benchmark tiers, from the recorded run times: capping runs at 15 s
-would take ~64 min, and at 10 s ~48 min. Slow games would then judge fewer
-candidates.
+The default run length is now 15 s: the recorded run times put a full run at
+~64 min (10 s: ~48 min).
+
+## Are the timeouts wasted? (No)
+
+A per-candidate trace (`survey --trace`) shows each candidate's budget, primary
+solve time, outcome and effort. It covered the 181 benchmark levels whose runs
+hit the time limit, with the *move* and *mix* generators at 15 s (347 runs,
+9,178 solved candidates, 873 harder than the seed):
+
+- Timeouts take **72%** of primary solve time.
+- Retries of parked timeouts take 53%. A parked board is retried whenever the
+  budget grows, typically at 1.5–2× the budget it timed out at. The retries
+  solved 94 candidates, 61 of them harder than the seed (7% of all harder
+  finds).
+- Timed-out solves overrun their budget by ~10% (a turn can't be interrupted).
+- Harder-than-seed candidates usually solve fast. Their solve time ÷ the
+  seed's is 1.3× at the median and 7.9× at p90. But 4% take over 20×, and they
+  are disproportionately the hardest.
+
+Two fixes, measured on the same levels and seed against two runs of the
+current generator:
+
+| vs current generator | Time | Harder levels found | Top-8 mean effort | Best level | Runs with better / worse top-8 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Current, repeated (noise floor) | 0% | ±2% | ×0.95–1.05 | ×0.95–1.05 | 63 / 64 |
+| Budget from the seed: start 7×, cap 20× (≥ 1 s) | −5% | +5–7% | **×0.88–0.92** | ×0.91–0.96 | **74 / 112, 79 / 109** |
+| Retry parked timeouts only at 2× their budget | −2–3% | +10–12% | ×0.92–0.95 | ×0.97–1.00 | 89 / 90, 87 / 88 |
+
+The slow solves are where the best levels come from, so capping them makes
+the shortlist worse. Retrying less often finds more harder levels but not
+better ones. **Neither is adopted.** Both stay as generator options for
+future experiments (`basePrimaryMs`, `retryGrowth`; survey `--seed-budget`,
+`--retry-growth R`). A time win on slow games would have to come from the
+solver itself, not from giving up on candidates.
 
 ## Reproducing
 
@@ -110,4 +137,5 @@ node $S survey --rejudge survey.json --out rejudged.json    # step 3 (candidate 
 node $S cull rejudged.json                                  # step 4 (cap 4, spread)
 node $S survey --seeds src/tests/mis_generator_bench_seeds.json --seed 11 --out bench.json
 node $S report bench.json
+node $S survey --seeds slow_seeds.json --generator '^(move|mix)' --trace --seed 11 --out trace.json   # candidate trace
 ```

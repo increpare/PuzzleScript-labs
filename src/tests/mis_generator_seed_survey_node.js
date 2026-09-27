@@ -5,7 +5,8 @@
 //
 //   node src/tests/mis_generator_seed_survey_node.js seeds  [--out seeds.json] [--solve-ms 500]
 //   node src/tests/mis_generator_seed_survey_node.js survey [--seeds seeds.json] [--out survey.json] [--seed 7]
-//        [--candidates 30 --min-seconds 3 --max-seconds 15 | --seconds S] [--rejudge prev.json]
+//        [--candidates 30 --min-seconds 3 --max-seconds 15 | --seconds S] [--rejudge prev.json] [--seed-budget] [--retry-growth 1]
+//        [--generator REGEX] [--trace]
 //   node src/tests/mis_generator_seed_survey_node.js cull survey.json [--cap 4] [--pick spread|productive] [--min-effort 10] [--out bench.json]
 //
 // seeds:  every playable level in src/tests/solver_tests that the native
@@ -113,7 +114,21 @@ if (!isMainThread) {
 					parentPort.postMessage({ id: job.id, ok: false, reason: 'transform error: ' + (program.errors[0] ? program.errors[0].message : 'empty') });
 					return;
 				}
-				const gen = MISGenerator.create({ model: g.model, backend: g.native, program, base, seed: job.seed, keep: 8, baseEffort });
+				// --trace: one entry per candidate assessment: [board index (repeats are
+				// retries of parked timeouts), budget ms, primary ms, status, effort].
+				const trace = job.trace ? [] : null, traceIds = new Map();
+				const backend = !trace ? g.native : {
+					solve: (b, o) => g.native.solve(b, o),
+					assess: (b, o) => {
+						const r = g.native.assess(b, o);
+						const k = C.cellsKey(b.cells);
+						if (!traceIds.has(k)) traceIds.set(k, traceIds.size);
+						trace.push([traceIds.get(k), o.timeMs, Math.round(r.primaryMs * 10) / 10, r.status[0], r.effort || 0]);
+						return r;
+					},
+				};
+				const gen = MISGenerator.create({ model: g.model, backend, program, base, seed: job.seed, keep: 8, baseEffort,
+					basePrimaryMs: job.seedBudget && baseline.status === 'solved' ? baseline.primaryMs : undefined, retryGrowth: job.retryGrowth });
 				const solvable = new Set(), harder = new Set();
 				let slowest = 0, bestEffort = 0;
 				// Budget: run until job.candidates candidates have been judged (solved,
@@ -138,7 +153,8 @@ if (!isMainThread) {
 				const st = gen.stats();
 				const top = gen.best();
 				const pr = gen.profile();
-				parentPort.postMessage({ id: job.id, ok: true, secs, baseEffort, baselineMs,
+				parentPort.postMessage({ id: job.id, ok: true, secs, baseEffort, baselineMs, trace: trace || undefined,
+					basePrimaryMs: baseline.status === 'solved' ? baseline.primaryMs : null,
 					budget: { candidates: job.candidates, minSeconds: job.minSeconds, maxSeconds: job.maxSeconds },
 					hitMax: judged() < job.candidates, solverBudgetMs: st.budgetMs,
 					phaseMs: { transform: Math.round(pr.transformMs), dedupe: Math.round(pr.keyMs),
@@ -288,6 +304,13 @@ async function survey() {
 		: { candidates: +arg('--candidates', 30), minSeconds: +arg('--min-seconds', 3), maxSeconds: +arg('--max-seconds', 15) };
 	const only = arg('--game', null);
 	const rngSeed = +arg('--seed', 7);
+	// Experimental generator options (see MISGenerator): --seed-budget sets the
+	// solver budget relative to the seed's solve time (basePrimaryMs);
+	// --retry-growth R retries parked timeouts only once the budget grew R-fold.
+	const seedBudget = args.includes('--seed-budget');
+	const retryGrowth = +arg('--retry-growth', 1);
+	const trace = args.includes('--trace');
+	const genFilter = arg('--generator', null) ? new RegExp(arg('--generator', null)) : null;
 	// --rejudge prev.json: rerun only the levels the cull would drop as
 	// unproductive in prev.json (no generator found a harder level, or a run
 	// hung), and merge the new rows over the old ones.
@@ -315,12 +338,12 @@ async function survey() {
 		.then(m => { presetsByGame[g] = m.ok ? m.presets : []; })));
 	const tasks = [];
 	for (const s of seedsList) {
-		for (const p of presetsByGame[s.game] || []) tasks.push({ s, p });
+		for (const p of presetsByGame[s.game] || []) if (!genFilter || genFilter.test(p.id)) tasks.push({ s, p });
 	}
 	process.stderr.write(`${tasks.length} (level, generator) runs on ${seedsList.length} levels, budget ${JSON.stringify(budget)}, ${JOBS} threads\n`);
 	let done = 0;
 	const rows = await Promise.all(tasks.map(({ s, p }) =>
-		pool.run({ type: 'survey', file: path.join(CORPUS, s.game), level: s.level, transform: p.text, candidates: budget.candidates, minSeconds: budget.minSeconds, maxSeconds: budget.maxSeconds, seed: rngSeed }, (budget.maxSeconds + 30) * 1000)
+		pool.run({ type: 'survey', file: path.join(CORPUS, s.game), level: s.level, transform: p.text, candidates: budget.candidates, minSeconds: budget.minSeconds, maxSeconds: budget.maxSeconds, seed: rngSeed, seedBudget, retryGrowth, trace }, (budget.maxSeconds + 30) * 1000)
 			.then((m) => {
 				progress(++done, tasks.length, 'survey');
 				return Object.assign({ game: s.game, level: s.level, generator: p.id, generatorLabel: p.label }, m);
@@ -334,7 +357,7 @@ async function survey() {
 	}
 	fs.writeFileSync(out, JSON.stringify({
 		schema_version: 2, kind: 'mis_generator_survey', generated_at: new Date().toISOString(),
-		seeds: path.relative(process.cwd(), seedsFile), budget, threads: JOBS, rng_seed: rngSeed,
+		seeds: path.relative(process.cwd(), seedsFile), budget, threads: JOBS, rng_seed: rngSeed, seed_relative_solver_budget: seedBudget, retry_growth: retryGrowth,
 		rejudged: prev ? { from: path.relative(process.cwd(), rejudgeFile), levels: seedsList.length, budget_of_other_rows: prev.budget || { seconds: prev.seconds_per_run } } : undefined,
 		generators, rows: allRows,
 	}, null, 1) + '\n');
