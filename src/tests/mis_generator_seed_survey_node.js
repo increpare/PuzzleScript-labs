@@ -4,7 +4,8 @@
 // Seed corpus + productivity survey for the PuzzleScript+MIS level generator.
 //
 //   node src/tests/mis_generator_seed_survey_node.js seeds  [--out seeds.json] [--solve-ms 500]
-//   node src/tests/mis_generator_seed_survey_node.js survey [--seeds seeds.json] [--out survey.json] [--seconds 3]
+//   node src/tests/mis_generator_seed_survey_node.js survey [--seeds seeds.json] [--out survey.json] [--seconds 3] [--seed 7]
+//   node src/tests/mis_generator_seed_survey_node.js cull survey.json [--cap 6] [--min-effort 10] [--out bench.json]
 //
 // seeds:  every playable level in src/tests/solver_tests that the native
 //         portfolio solver solves within --solve-ms (default 500). Games with
@@ -13,6 +14,11 @@
 //         transform presets), run the generator for --seconds and record how
 //         productive it is: distinct new solvable levels, levels harder than
 //         the seed (solver effort), best effort found, slowest single step.
+// cull:   the benchmark set. From the seeds, drop levels with solver effort
+//         <= --min-effort (too trivial to improve on) and levels where no
+//         generator found anything harder. Then keep at most --cap levels per
+//         game, preferring levels where more generators were productive, then
+//         the larger lift (best top-8 mean effort / seed effort).
 //
 // Jobs run on a pool of worker threads (--jobs, default = cores). Each job has
 // a hard deadline; a job that overruns is killed and recorded as "hung".
@@ -258,6 +264,7 @@ async function survey() {
 	const out = arg('--out', 'mis_generator_survey.json');
 	const seconds = +arg('--seconds', 3);
 	const only = arg('--game', null);
+	const rngSeed = +arg('--seed', 7);
 	const manifest = JSON.parse(fs.readFileSync(seedsFile, 'utf8'));
 	const pool = makePool(JOBS);
 	let seedsList = manifest.seeds;
@@ -274,7 +281,7 @@ async function survey() {
 	process.stderr.write(`${tasks.length} (level, generator) runs × ${seconds}s on ${JOBS} threads ≈ ${Math.round(tasks.length * seconds / JOBS / 60)} min\n`);
 	let done = 0;
 	const rows = await Promise.all(tasks.map(({ s, p }) =>
-		pool.run({ type: 'survey', file: path.join(CORPUS, s.game), level: s.level, transform: p.text, seconds, seed: 7 }, (seconds + 30) * 1000)
+		pool.run({ type: 'survey', file: path.join(CORPUS, s.game), level: s.level, transform: p.text, seconds, seed: rngSeed }, (seconds + 30) * 1000)
 			.then((m) => {
 				progress(++done, tasks.length, 'survey');
 				return Object.assign({ game: s.game, level: s.level, generator: p.id, generatorLabel: p.label }, m);
@@ -282,11 +289,62 @@ async function survey() {
 	pool.close();
 	fs.writeFileSync(out, JSON.stringify({
 		schema_version: 1, kind: 'mis_generator_survey', generated_at: new Date().toISOString(),
-		seeds: path.relative(process.cwd(), seedsFile), seconds_per_run: seconds, threads: JOBS,
+		seeds: path.relative(process.cwd(), seedsFile), seconds_per_run: seconds, threads: JOBS, rng_seed: rngSeed,
 		generators: presetsByGame, rows,
 	}, null, 1) + '\n');
 	report(rows);
 	console.log('wrote ' + out);
+}
+
+function cull() {
+	const survey = JSON.parse(fs.readFileSync(args[1], 'utf8'));
+	const seedsFile = arg('--seeds', path.join(srcDir, 'tests/mis_generator_seeds.json'));
+	const out = arg('--out', path.join(srcDir, 'tests/mis_generator_bench_seeds.json'));
+	const cap = +arg('--cap', 6), minEffort = +arg('--min-effort', 10);
+	const manifest = JSON.parse(fs.readFileSync(seedsFile, 'utf8'));
+	const runs = {};
+	for (const r of survey.rows) (runs[r.game + '#' + r.level] || (runs[r.game + '#' + r.level] = [])).push(r);
+	const dropped = { trivial: 0, unproductive: 0, not_surveyed: 0, over_cap: 0 };
+	const byGame = {};
+	for (const s of manifest.seeds) {
+		const rs = (runs[s.game + '#' + s.level] || []).filter(r => r.ok);
+		if (!rs.length) { dropped.not_surveyed++; continue; }
+		const baseEffort = rs[0].baseEffort;
+		if (!(baseEffort > minEffort)) { dropped.trivial++; continue; }
+		const productive = rs.filter(r => r.harder > 0);
+		if (!productive.length) { dropped.unproductive++; continue; }
+		const lift = Math.max(...rs.map(r => r.top8Mean / baseEffort));
+		(byGame[s.game] || (byGame[s.game] = [])).push(Object.assign({}, s, {
+			baseEffort, productiveGenerators: productive.map(r => r.generator).sort(),
+			generators: rs.length, lift: +lift.toFixed(3),
+		}));
+	}
+	const kept = [];
+	for (const list of Object.values(byGame)) {
+		list.sort((a, b) => b.productiveGenerators.length - a.productiveGenerators.length || b.lift - a.lift || a.level - b.level);
+		kept.push(...list.slice(0, cap));
+		dropped.over_cap += Math.max(0, list.length - cap);
+	}
+	kept.sort((a, b) => a.game.localeCompare(b.game) || a.level - b.level);
+	const games = [...new Set(kept.map(s => s.game))];
+	const bench = {
+		schema_version: 1,
+		kind: 'mis_generator_bench_seeds',
+		description: 'Benchmark levels for the MIS generator: seeds from ' + path.relative(process.cwd(), seedsFile) +
+			', minus trivial levels and levels no generator improved on, at most `cap` per game.',
+		generated_at: new Date().toISOString(),
+		corpus: manifest.corpus,
+		solve_ms: manifest.solve_ms,
+		rule: { min_effort_exclusive: minEffort, cap_per_game: cap, rank: 'productive generators desc, lift desc, level asc',
+			survey_seconds_per_run: survey.seconds_per_run, survey_rng_seed: survey.rng_seed || 7 },
+		game_hashes: Object.fromEntries(games.map(g => [g, manifest.game_hashes[g]])),
+		generators: Object.fromEntries(games.map(g => [g, survey.generators[g]])),
+		counts: { seed_levels_in: manifest.seeds.length, dropped, levels: kept.length, games: games.length },
+		seeds: kept,
+	};
+	fs.writeFileSync(out, JSON.stringify(bench, null, 1) + '\n');
+	console.log(JSON.stringify(bench.counts));
+	console.log('wrote ' + path.relative(process.cwd(), out));
 }
 
 function report(rows) {
@@ -326,9 +384,10 @@ function report(rows) {
 (async () => {
 	if (mode === 'seeds') await seeds();
 	else if (mode === 'survey') await survey();
+	else if (mode === 'cull') cull();
 	else if (mode === 'report') report(JSON.parse(fs.readFileSync(args[1], 'utf8')).rows);
 	else {
-		console.log('usage: mis_generator_seed_survey_node.js seeds|survey|report <survey.json> [options]');
+		console.log('usage: mis_generator_seed_survey_node.js seeds|survey|cull <survey.json>|report <survey.json> [options]');
 		process.exit(2);
 	}
 })();

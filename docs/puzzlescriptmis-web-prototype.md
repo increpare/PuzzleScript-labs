@@ -116,6 +116,29 @@ thesis's findings.
 - `src/js/mis/mis_generator.js`: instrumented generation loop (adaptive step size).
 - `src/tests/mis_backend_bench_node.js`: JS vs wasm solver benchmark (`--dump-grids` feeds `native/wasm/mis_wasm_bench_native.cpp` for x86).
 - `src/tests/mis_generator_profile_node.js`: per-phase / per-state / harder-per-minute generator profile (`make mis_generator_profile`).
+- `src/tests/mis_generator_seed_survey_node.js`: builds the generator benchmark set and runs the generators over it (see below).
+
+## Generator benchmark set
+
+Two frozen files, built from `src/tests/solver_tests`:
+
+- `src/tests/mis_generator_seeds.json`: every level the native solver solves
+  in under 500 ms (716 levels, 116 games). Built with `… seeds`.
+- `src/tests/mis_generator_bench_seeds.json`: the benchmark subset (386
+  levels, 97 games). Built with `… cull <survey.json>` from a survey of every
+  generator on every seed. The cull drops levels with effort ≤ 10 (too trivial
+  to improve on) and levels no generator made harder. It then keeps at most 6
+  levels per game (the **cap**), preferring levels where more generators found
+  harder levels, then the larger lift. The rule and each game's generators are
+  recorded in the file.
+
+Run every generator on every benchmark level (3 s each; ~26 min on 4 threads):
+
+```sh
+node src/tests/mis_generator_seed_survey_node.js survey \
+  --seeds src/tests/mis_generator_bench_seeds.json --seed 11 --out bench_survey.json
+node src/tests/mis_generator_seed_survey_node.js report bench_survey.json
+```
 
 Not yet ported from the UX pass: rule-coverage constraints ("the solution must
 use rule N") and user-weighted costs (`COST n`).
