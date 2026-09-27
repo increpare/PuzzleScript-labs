@@ -121,7 +121,7 @@ function recording(backend, points) {
 				const seen = new Set();
 				assessedBy.push(seen);
 				gens.push(MISGenerator.create({ model, backend: rec, program, base, seed: 1000 + w * 7919, keep: 8, seen, pipeline: PIPELINE, optimalCap: OPTIMAL_CAP, adaptive: ADAPTIVE, baseEffort,
-					basePrimaryMs: baseline.status === 'solved' ? baseline.primaryMs : undefined,
+					seedPrimaryMs: baseline.status === 'solved' ? baseline.primaryMs : undefined,
 					shard: SHARD ? { index: w, count: WORKERS } : null }));
 			}
 			const t0 = performance.now();

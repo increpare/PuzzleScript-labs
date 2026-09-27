@@ -33,8 +33,7 @@
 // (same level, generator, repeat and random seed) with a 95% confidence
 // interval from resampling games. A variant's "src" is the src/ directory of
 // another checkout (e.g. a git worktree of the commit to compare against);
-// "gen" passes MISGenerator options; "seedBudget": true sets the generator's
-// basePrimaryMs from the seed; "slowdown" busy-waits to make every solver call
+// "gen" passes MISGenerator options (e.g. {"seedBudget": false}); "slowdown" busy-waits to make every solver call
 // that many times slower (a check that the score can see speed).
 
 const fs = require('fs');
@@ -160,7 +159,7 @@ async function run() {
 			promises.push(pools[vi].run({
 				type: 'survey', file: path.join(CORPUS, s.game), level: s.level, transform: p.text,
 				candidates: 0, minSeconds: s.benchSeconds, maxSeconds: s.benchSeconds, seed: 11 + rep,
-				genOpts: v.gen || null, slowdown: slow, seedBudget: !!v.seedBudget, workClock: work,
+				genOpts: v.gen || null, slowdown: slow, workClock: work,
 			}, ((work ? 10 : 1) * s.benchSeconds + 60) * 1000 * slow).then((m) => {
 				done++;
 				if (done % 50 === 0 || done === total) process.stderr.write(`  ${done}/${total}\n`);

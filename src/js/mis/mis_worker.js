@@ -115,13 +115,18 @@ function generate(msg) {
 	}
 	const base = boardFrom(msg.base);
 	// Baseline for the adaptive step size's reward: the level being improved.
-	let baseEffort = msg.baseEffort;
+	// The base's own primary solve time sets the per-candidate solver budget.
+	let baseEffort = msg.baseEffort, seedPrimaryMs;
 	if (!(baseEffort > 0)) {
 		const r = backend.assess(base, { timeMs: 3000, maxExpanded: 400000, refineGate: 0 });
 		baseEffort = r.status === 'solved' ? r.effort : 0;
+		if (r.status === 'solved') seedPrimaryMs = r.primaryMs;
+	} else {
+		const r = backend.assess(base, { timeMs: 3000, maxExpanded: 400000, refine: false });
+		if (r.status === 'solved') seedPrimaryMs = r.primaryMs;
 	}
 	const gen = MISGenerator.create({
-		model: model, backend: backend, program: program, base: base, baseEffort: baseEffort, adaptive: msg.adaptive !== false,
+		model: model, backend: backend, program: program, base: base, baseEffort: baseEffort, seedPrimaryMs: seedPrimaryMs, adaptive: msg.adaptive !== false,
 		frozen: msg.frozen ? new Uint8Array(msg.frozen) : null, seed: msg.seed, keep: msg.keep || 8,
 		optimalCap: msg.optimalCap, initialBudgetMs: msg.initialBudgetMs, maxBudgetMs: msg.maxBudgetMs,
 		shard: msg.shardCount > 1 ? { index: msg.shardIndex, count: msg.shardCount } : null,

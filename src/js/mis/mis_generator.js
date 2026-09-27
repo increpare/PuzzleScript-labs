@@ -36,14 +36,16 @@ const MISGenerator = (function () {
 		const seen = opts.seen || new Set();
 		seen.add(baseKey);
 		const keepCount = opts.keep || 8;
-		// Solver budget per candidate: starts at 200 ms, doubles on timeouts until
-		// something solves, follows 7x the admitted candidates' solve time, at most
-		// 5 s. Experimental, off by default: basePrimaryMs (the seed level's own
-		// primary solve time) starts it at 7x that and caps it at 20x (at least
-		// 1 s). On the slow benchmark levels timeouts take ~70% of solve time, but
-		// the slow solves include the hardest levels: the cap lowered the top-8
-		// mean effort by ~10% (docs/benchmarks/2026-09-27-mis-generator-bench.md).
-		const basePrimaryMs = opts.basePrimaryMs > 0 ? opts.basePrimaryMs : 0;
+		// Solver budget per candidate: doubles on timeouts until something
+		// solves, then follows 7x the admitted candidates' solve time. Relative to
+		// the seed level (seedPrimaryMs: its own primary solve time; under the work
+		// clock, its states / WORK_STATES_PER_MS) it starts at 7x that and is
+		// capped at 20x (at least 1 s, at most 5 s). Without the seed's time (or
+		// with seedBudget: false) it starts at 200 ms with a 5 s cap. The seed
+		// cap stops slow candidates eating the budget: the benchmark score rose
+		// 9.5% (the shortlist fills up), though on the slowest levels the levels
+		// found are ~7% less hard (docs/benchmarks/2026-09-27-mis-generator-bench.md).
+		const basePrimaryMs = opts.seedBudget !== false && opts.seedPrimaryMs > 0 ? opts.seedPrimaryMs : 0;
 		const maxBudget = basePrimaryMs
 			? Math.min(opts.maxBudgetMs || 5000, Math.max(1000, Math.round(basePrimaryMs * 20)))
 			: opts.maxBudgetMs || 5000;

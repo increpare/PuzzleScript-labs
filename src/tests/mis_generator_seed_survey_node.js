@@ -5,7 +5,7 @@
 //
 //   node src/tests/mis_generator_seed_survey_node.js seeds  [--out seeds.json] [--solve-ms 500]
 //   node src/tests/mis_generator_seed_survey_node.js survey [--seeds seeds.json] [--out survey.json] [--seed 7]
-//        [--candidates 30 --min-seconds 3 --max-seconds 15 | --seconds S] [--rejudge prev.json] [--seed-budget] [--retry-growth 1]
+//        [--candidates 30 --min-seconds 3 --max-seconds 15 | --seconds S] [--rejudge prev.json] [--no-seed-budget] [--retry-growth 1]
 //        [--generator REGEX] [--trace]
 //   node src/tests/mis_generator_seed_survey_node.js cull survey.json [--cap 4] [--pick spread|productive] [--min-effort 10] [--out bench.json]
 //
@@ -145,9 +145,11 @@ if (!isMainThread) {
 					},
 				};
 				const gen = MISGenerator.create({ model: g.model, backend, program, base, seed: job.seed, keep: 8, baseEffort,
-					basePrimaryMs: job.seedBudget && baseline.status === 'solved'
-						? (job.workClock ? baseline.expanded / MISGenerator.WORK_STATES_PER_MS : baseline.primaryMs) : undefined,
-					retryGrowth: job.retryGrowth,
+					// The seed's solve time, for the generator's seed-relative budget
+					// (the generator under test decides whether to use it).
+					seedPrimaryMs: baseline.status === 'solved'
+						? (job.workClock ? baseline.expanded / (MISGenerator.WORK_STATES_PER_MS || 50) : baseline.primaryMs) : undefined,
+					seedBudget: job.seedBudget, retryGrowth: job.retryGrowth,
 					workClock: !!job.workClock, ...(job.genOpts || {}) });
 				const solvable = new Set(), harder = new Set();
 				let slowest = 0, bestEffort = 0;
@@ -182,7 +184,7 @@ if (!isMainThread) {
 				const top = gen.best();
 				const pr = gen.profile();
 				parentPort.postMessage({ id: job.id, ok: true, secs, baseEffort, baselineMs, trace: trace || undefined, top: top.slice(),
-					basePrimaryMs: baseline.status === 'solved' ? baseline.primaryMs : null,
+					seedPrimaryMs: baseline.status === 'solved' ? baseline.primaryMs : null,
 					budget: { candidates: job.candidates, minSeconds: job.minSeconds, maxSeconds: job.maxSeconds },
 					hitMax: judged() < job.candidates, solverBudgetMs: st.budgetMs, work: gen.work ? gen.work() / 1000 : undefined, hitWall,
 					phaseMs: { transform: Math.round(pr.transformMs), dedupe: Math.round(pr.keyMs),
@@ -332,10 +334,10 @@ async function survey() {
 		: { candidates: +arg('--candidates', 30), minSeconds: +arg('--min-seconds', 3), maxSeconds: +arg('--max-seconds', 15) };
 	const only = arg('--game', null);
 	const rngSeed = +arg('--seed', 7);
-	// Experimental generator options (see MISGenerator): --seed-budget sets the
-	// solver budget relative to the seed's solve time (basePrimaryMs);
+	// Generator options (see MISGenerator): --no-seed-budget turns off the
+	// solver budget relative to the seed's solve time (the default);
 	// --retry-growth R retries parked timeouts only once the budget grew R-fold.
-	const seedBudget = args.includes('--seed-budget');
+	const seedBudget = args.includes('--no-seed-budget') ? false : undefined;
 	const retryGrowth = +arg('--retry-growth', 1);
 	const trace = args.includes('--trace');
 	const genFilter = arg('--generator', null) ? new RegExp(arg('--generator', null)) : null;
@@ -385,7 +387,7 @@ async function survey() {
 	}
 	fs.writeFileSync(out, JSON.stringify({
 		schema_version: 2, kind: 'mis_generator_survey', generated_at: new Date().toISOString(),
-		seeds: path.relative(process.cwd(), seedsFile), budget, threads: JOBS, rng_seed: rngSeed, seed_relative_solver_budget: seedBudget, retry_growth: retryGrowth,
+		seeds: path.relative(process.cwd(), seedsFile), budget, threads: JOBS, rng_seed: rngSeed, seed_relative_solver_budget: seedBudget !== false, retry_growth: retryGrowth,
 		rejudged: prev ? { from: path.relative(process.cwd(), rejudgeFile), levels: seedsList.length, budget_of_other_rows: prev.budget || { seconds: prev.seconds_per_run } } : undefined,
 		generators, rows: allRows,
 	}, null, 1) + '\n');

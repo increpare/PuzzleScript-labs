@@ -122,12 +122,12 @@ current generator:
 
 On these slow levels the slow solves are where the best levels come from,
 so capping them makes the levels found less hard. Retrying less often finds
-more harder levels but not better ones. **Neither is adopted as the default.**
-But see the benchmark score below: over all kinds of level, the seed-relative
-budget fills more of the shortlist, and it scores +9.5%. Both stay as generator options for
-future experiments (`basePrimaryMs`, `retryGrowth`; survey `--seed-budget`,
-`--retry-growth R`). A time win on slow games would have to come from the
-solver itself, not from giving up on candidates.
+more harder levels but not better ones. That test covered only slow levels,
+though. Over all kinds of level, the benchmark score below found the
+seed-relative budget **+9.5% better**, because it fills more of the shortlist,
+and it is now the default (`seedPrimaryMs`; off with `seedBudget: false`, or
+survey `--no-seed-budget`). Retrying less often stays an option
+(`retryGrowth`, survey `--retry-growth R`).
 
 ## Benchmark score: is generation getting better?
 
@@ -192,9 +192,12 @@ dead ends sooner.
   growing to 5 s. More candidates get judged in the same time, which fills
   more of the shortlist. Only on the slowest levels are the levels it finds
   less hard. The earlier A/B used only those levels and the mean effort of
-  levels found, hence its opposite verdict. Whether to switch the default
-  depends on which matters more: a fuller shortlist, or the hardest levels on
-  slow games. The option stays off for now.
+  levels found, hence its opposite verdict. **It is now the default.** The
+  generator uses it whenever the caller passes the seed's solve time
+  (`seedPrimaryMs`); the app's workers, the survey and the benchmark all do.
+  `seedBudget: false` turns it off. An older generator ignores
+  `seedPrimaryMs`, so benchmarking an older commit keeps that commit's own
+  behaviour.
 
 Results: `2026-09-27-mis-generator-bench-validation.json`.
 

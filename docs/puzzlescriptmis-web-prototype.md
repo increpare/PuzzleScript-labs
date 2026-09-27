@@ -85,7 +85,10 @@ generator from engine to product, and what changed as a result).
 `src/tests/mis_generator_profile_node.js`. For each candidate it runs one
 assessment: a primary search, plus the difficulty lanes only when the candidate
 could make the shortlist. Only admitted candidates get a shortest-length
-proof. The time budget grows with the primary solve time.
+proof. Each candidate's solver budget starts at 7× the current level's own
+solve time and is capped at 20× it (at least 1 s, at most 5 s). It grows
+toward the solve times of admitted candidates, so slow candidates can't eat
+the run.
 
 Step size adapts automatically: a bandit scales every `choose` count by ⅛–2×
 toward whatever has been finding harder-than-current levels fastest. The meter
