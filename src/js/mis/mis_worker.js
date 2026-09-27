@@ -14,8 +14,40 @@ importScripts(
 );
 misAfterEngineLoaded();
 importScripts('mis_core.js');
+importScripts('mis_native.js');
 
 let model = null;
+// Solver backend: the WebAssembly build of the native solver when available
+// (native/wasm/build_mis_wasm.sh), otherwise the JS engine solver in MISCore.
+let native = null;
+let backendNote = '';
+
+function loadNative() {
+	if (loadNative.promise) return loadNative.promise;
+	loadNative.promise = new Promise(function (resolve) {
+		try {
+			importScripts('wasm/mis_native.js');
+		} catch (e) {
+			resolve(null);
+			return;
+		}
+		createMisNative({ locateFile: function (p) { return 'wasm/' + p; } })
+			.then(function (M) { resolve(M); }, function () { resolve(null); });
+	});
+	return loadNative.promise;
+}
+
+const backend = {
+	assess: function (board, opts) { return native ? native.assess(board, opts) : MISCore.assess(model, board, opts); },
+	simplify: function (board, opts) {
+		// The native simplifier only removes; Tighten stays on the JS path.
+		if (native && (opts.mode || 'simplify') === 'simplify') {
+			const r = native.simplify(board, opts);
+			if (r.ok || !/time budget|in time/.test(r.reason || '')) return r;
+		}
+		return MISCore.simplify(model, board, opts);
+	},
+};
 
 function reply(msg) { self.postMessage(msg); }
 
@@ -36,12 +68,27 @@ self.onmessage = function (e) {
 		if (msg.type === 'init') {
 			const res = misCompile(msg.source);
 			model = res.ok ? MISCore.extractModel(msg.source) : null;
-			reply({ type: 'ready', ok: !!model, errors: res.errors });
+			native = null;
+			if (!model || msg.backend === 'js') {
+				backendNote = msg.backend === 'js' ? 'JS solver (chosen)' : '';
+				reply({ type: 'ready', ok: !!model, errors: res.errors, backend: 'js', note: backendNote });
+				return;
+			}
+			loadNative().then(function (M) {
+				if (!M) { backendNote = 'native solver not built — using JS'; }
+				else {
+					const n = MISNative.create(M);
+					const attached = n.attach(msg.source, model);
+					if (attached.ok) { native = n; backendNote = 'native solver (WebAssembly)'; }
+					else backendNote = attached.reason + ' — using JS';
+				}
+				reply({ type: 'ready', ok: true, errors: res.errors, backend: native ? 'native' : 'js', note: backendNote });
+			});
 		} else if (msg.type === 'assess') {
-			const r = MISCore.assess(model, boardFrom(msg.board), msg.opts || {});
+			const r = backend.assess(boardFrom(msg.board), msg.opts || {});
 			reply({ type: 'assessed', id: msg.id, result: packResult(r) });
 		} else if (msg.type === 'simplify') {
-			const r = MISCore.simplify(model, boardFrom(msg.board), Object.assign({}, msg.opts, {
+			const r = backend.simplify(boardFrom(msg.board), Object.assign({}, msg.opts, {
 				onProgress: function (done, total) { reply({ type: 'progress', id: msg.id, done: done, total: total }); },
 			}));
 			if (r.ok) r.board = { w: r.board.w, h: r.board.h, cells: Array.from(r.board.cells) };
@@ -78,6 +125,8 @@ function generate(msg) {
 	const topEfforts = [];
 	const parked = [];
 	let budget = msg.initialBudgetMs || 200;
+	// States a BFS may spend proving a shortlisted candidate's shortest solution.
+	const optimalCap = msg.optimalCap !== undefined ? msg.optimalCap : 20000;
 	const maxBudget = msg.maxBudgetMs || 5000;
 	const stats = { generated: 0, duplicates: 0, unchanged: 0, solved: 0, unsolvable: 0, timeout: 0, budgetMs: budget };
 	let lastStats = 0;
@@ -112,14 +161,14 @@ function generate(msg) {
 			stats.generated++;
 		}
 		streak = 0;
-		const primary = MISCore.assess(model, board, { timeMs: budget, maxExpanded: 400000, refine: false });
+		const primary = backend.assess(board, { timeMs: budget, maxExpanded: 400000, refine: false });
 		if (primary.status === 'solved') {
 			stats.solved++;
 			if (retried) stats.timeout--;
 			const couldPlace = topEfforts.length < keepCount || primary.effort >= topEfforts[topEfforts.length - 1];
 			let result = primary;
 			if (couldPlace) {
-				result = MISCore.assess(model, board, { timeMs: Math.max(budget, 1500), maxExpanded: 400000, bfsFloor: 20000 });
+				result = backend.assess(board, { timeMs: Math.max(budget, 1500), maxExpanded: 400000, bfsFloor: optimalCap });
 				if (result.status !== 'solved') result = primary;
 			}
 			if (couldPlace && (topEfforts.length < keepCount || result.effort >= topEfforts[topEfforts.length - 1])) {
@@ -142,11 +191,15 @@ function generate(msg) {
 		flushStats();
 	}
 
+	// Yield between slices so messages get through; MessageChannel avoids the
+	// 4ms clamp browsers apply to nested setTimeout(0).
+	const tick = new MessageChannel();
 	function loop() {
 		const until = Date.now() + 40;
 		do { step(); } while (Date.now() < until);
-		setTimeout(loop, 0);
+		tick.port2.postMessage(null);
 	}
+	tick.port1.onmessage = loop;
 	flushStats(true);
 	loop();
 }

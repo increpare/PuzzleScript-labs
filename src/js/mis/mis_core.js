@@ -378,7 +378,8 @@ const MISCore = (function () {
 		let n = 0;
 		for (let t = 0; t < board.w * board.h; t++) {
 			for (let id = 0; id < model.objectCount; id++) {
-				if (model.objects[id].layer !== model.backgroundLayer && hasBit(board.cells, t, id, model.stride)) n++;
+				// hasBit first: objects missing from every collision layer have no entry.
+				if (hasBit(board.cells, t, id, model.stride) && model.objects[id].layer !== model.backgroundLayer) n++;
 			}
 		}
 		return n;
@@ -1203,8 +1204,8 @@ const MISCore = (function () {
 		if (mode === 'simplify') {
 			for (let t = 0; t < board.w * board.h; t++) {
 				for (let id = 0; id < model.objectCount; id++) {
-					if (player[id] || model.objects[id].layer === model.backgroundLayer) continue;
-					if (hasBit(board.cells, t, id, model.stride)) candidates.push([t, id]);
+					if (player[id] || !hasBit(board.cells, t, id, model.stride) || model.objects[id].layer === model.backgroundLayer) continue;
+					candidates.push([t, id]);
 				}
 			}
 		} else {

@@ -1,9 +1,11 @@
 # PuzzleScript+MIS web prototype
 
 A browser version of the PuzzleScript+MIS mixed-initiative level designer. It
-follows the UX pass on `tools/puzzlescriptmis-app`. It runs on the real
-PuzzleScript JavaScript engine: one copy on the page for editing and
-playtesting, and one per Web Worker for solving and generating.
+follows the UX pass on `tools/puzzlescriptmis-app`. The page uses the real
+PuzzleScript JavaScript engine for editing and playtesting. Solving and
+generating run in Web Workers, by default on the **native C++ compiler and
+solver compiled to WebAssembly**, with the JS engine solver as a fallback
+(**Solver** menu, or `?backend=js|native`).
 
 ## Running it
 
@@ -51,24 +53,50 @@ choose 1 [Crate][Target] -> [][]               (separate tiles)
 choose 9 horizontal [Player | no Wall] -> [ | Player]
 ```
 
+## Solver backends
+
+| | Native (WebAssembly), default | JavaScript |
+| --- | --- | --- |
+| Code | `native/src/wasm/mis_wasm.cpp` over the native compiler, solver, `search/difficulty.cpp` and `search/simplify.cpp` | `MISCore.solve` / `assess` / `simplify` stepping the JS engine |
+| Effort metric | The native MIS app's: portfolio primary, then capped greedy / weighted A* / BFS; minimum over the lanes | A* primary, then capped greedy / BFS; minimum over the lanes |
+| Speed in Chromium | ~42k states/s per worker | ~29k states/s per worker |
+
+Both backends share the transform language, board handling and UI. The worker
+checks that native and JS object tables match for each game and falls back to
+JS if they don't, or if the wasm files are missing. Effort numbers aren't
+comparable across backends, so results are cached per backend.
+
+Rebuild the wasm (the built files are committed in `src/js/mis/wasm/`):
+
+```sh
+source /path/to/emsdk/emsdk_env.sh
+make mis_wasm                      # native/wasm/build_mis_wasm.sh
+make mis_tests                     # core + native adapter checks
+make mis_backend_bench             # JS vs wasm solver comparison
+```
+
+Profiling and speed numbers: `docs/benchmarks/2026-09-27-mis-wasm-backend.md`.
+
 ## Difficulty
 
-MIS effort is the number of states explored: weighted A* proves the level
-solvable, then greedy and BFS run capped at the A* count + 6, and the effort is
-the minimum over the three. It measures what the solver finds hard, not what a
-human does. The JS engine explores a few thousand states per second per
-worker, so small levels work best, which matches the thesis's findings.
+MIS effort is the number of states the solver explored: the minimum over
+several search strategies, as in the original MIS. It measures what the solver
+finds hard, not what a human does. Small levels work best, which matches the
+thesis's findings.
 
 ## Code
 
 - `src/mis.html`: layout and styles.
 - `src/js/mis/mis_core.js`: game model, level ⇄ source mapping, transform
   language, solver, presets and simplify. Runs on the page and in workers.
-- `src/js/mis/mis_worker.js`: assess, simplify and generation loops.
+- `src/js/mis/mis_worker.js`: assess, simplify and generation loops, on either backend.
+- `src/js/mis/mis_native.js`: adapter for the WebAssembly native solver (board ⇄ layer-cell grids).
+- `src/js/mis/wasm/`: built `mis_native.js` / `mis_native.wasm` (`native/wasm/build_mis_wasm.sh`).
 - `src/js/mis/mis_app.js`: the page controller.
 - `src/js/mis/mis_shims.js`: headless stand-ins for the graphics/input
   scripts.
-- `src/tests/mis_core_node.js`: Node checks for the core.
+- `src/tests/mis_core_node.js`: Node checks for the core and the native adapter.
+- `src/tests/mis_backend_bench_node.js`: JS vs wasm solver benchmark (`--dump-grids` feeds `native/wasm/mis_wasm_bench_native.cpp` for x86).
 
 Not yet ported from the UX pass: rule-coverage constraints ("the solution must
-use rule N"), user-weighted costs (`COST n`), and the native solver backend.
+use rule N") and user-weighted costs (`COST n`).

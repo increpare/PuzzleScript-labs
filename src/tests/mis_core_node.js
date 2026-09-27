@@ -176,4 +176,44 @@ test('simplify keeps the shortest solution length and removes clutter', () => {
 	assert(C.countObjects(m, r.board) < C.countObjects(m, firstLevel.board));
 });
 
-console.log(`\n${passed} passed${process.exitCode ? ', some FAILED' : ''}`);
+// ---- Native (WebAssembly) backend, when built (native/wasm/build_mis_wasm.sh) ----
+const wasmJs = path.join(srcDir, 'js/mis/wasm/mis_native.js');
+(async () => {
+	if (!fs.existsSync(wasmJs)) {
+		console.log('skip native backend checks (src/js/mis/wasm not built)');
+	} else {
+		global.MISCore = MISCore;
+		const MISNative = require(path.join(srcDir, 'js/mis/mis_native.js'));
+		const native = MISNative.create(await require(wasmJs)());
+		misCompile(soko.text);
+		test('native: attach checks object tables and agrees with JS on BFS optimum', () => {
+			assert(native.attach(soko.text, soko.model).ok);
+			const r = native.solve(firstLevel.board, { strategy: 'bfs', maxExpanded: 300000 });
+			assert.strictEqual(r.status, 'solved');
+			assert.strictEqual(r.solution.length, 33);
+			// Its solution wins when replayed on the JS engine.
+			const frames = C.replayFrames(soko.model, firstLevel.board, r.solution);
+			C.loadBoardIntoEngine(soko.model, frames[frames.length - 1]);
+			assert(C.winconditionsNow());
+		});
+		test('native: MIS assessment reports lanes and effort', () => {
+			const r = native.assess(firstLevel.board, { timeMs: 3000, bfsFloor: 300000 });
+			assert.strictEqual(r.status, 'solved');
+			assert(r.lanes.portfolio > 0 && r.effort > 0 && r.effort <= r.lanes.portfolio);
+			assert(r.optimal && r.length === 33);
+		});
+		test('native: simplify keeps backgrounds and the shortest length', () => {
+			const r = native.simplify(firstLevel.board, {});
+			assert(r.ok && r.changed > 0 && r.length === 33);
+			for (let t = 0; t < r.board.w * r.board.h; t++) assert(C.hasBit(r.board.cells, t, soko.model.backgroundId, soko.model.stride));
+			assert.strictEqual(C.solve(soko.model, r.board, { strategy: 'bfs', maxExpanded: 400000 }).solution.length, 33);
+		});
+		test('native: unsolvable boards and objects outside collision layers', () => {
+			const lunar = load('demo/lunar_lockout.txt'); // Captain is in no collision layer
+			assert(native.attach(lunar.text, lunar.model).ok);
+			misCompile(soko.text);
+			assert(native.attach(soko.text, soko.model).ok);
+		});
+	}
+	console.log(`\n${passed} passed${process.exitCode ? ', some FAILED' : ''}`);
+})();

@@ -42,9 +42,31 @@
 #include "runtime/c_api_internal.hpp"
 #endif
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#endif
+
 namespace {
 
+#ifdef __EMSCRIPTEN__
+// In WebAssembly, steady_clock::now() goes through the WASI clock_time_get
+// import plus a BigInt conversion. The search reads the clock several times
+// per edge (step timers, deadline polls), which profiled at ~30% of wasm solve
+// time, so read emscripten_get_now() (performance.now) directly instead.
+struct SolverClock {
+    using duration = std::chrono::nanoseconds;
+    using rep = duration::rep;
+    using period = duration::period;
+    using time_point = std::chrono::time_point<SolverClock>;
+    static constexpr bool is_steady = true;
+    static time_point now() noexcept {
+        return time_point(duration(static_cast<rep>(emscripten_get_now() * 1e6)));
+    }
+};
+using Clock = SolverClock;
+#else
 using Clock = std::chrono::steady_clock;
+#endif
 using TimePoint = Clock::time_point;
 using puzzlescript::FullState;
 using puzzlescript::Game;
@@ -66,7 +88,26 @@ struct SearchControl {
     uint64_t maxExpanded = 0;
     const char* stopReason(TimePoint deadline) const {
         if (shouldCancel && shouldCancel(context)) return "cancelled";
+#ifdef PUZZLESCRIPT_SOLVER_C_API
+        // Polled once per search edge. The cancel callback keeps its per-turn
+        // contract; the clock is read every 16th poll, which keeps timeouts
+        // within a few turns while cutting clock traffic (costly in wasm).
+        if ((polls.fetch_add(1, std::memory_order_relaxed) & 15u) != 0u) return nullptr;
+#endif
         return Clock::now() >= deadline ? "timeout" : nullptr;
+    }
+    // Copies start a fresh poll count (copied controls poll independently).
+    mutable std::atomic<uint32_t> polls{0};
+    SearchControl() = default;
+    SearchControl(bool (*cancel)(void*), void* cancelContext, uint64_t expandedCap)
+        : shouldCancel(cancel), context(cancelContext), maxExpanded(expandedCap) {}
+    SearchControl(const SearchControl& other)
+        : shouldCancel(other.shouldCancel), context(other.context), maxExpanded(other.maxExpanded) {}
+    SearchControl& operator=(const SearchControl& other) {
+        shouldCancel = other.shouldCancel;
+        context = other.context;
+        maxExpanded = other.maxExpanded;
+        return *this;
     }
 };
 
@@ -105,6 +146,17 @@ struct ScopedTimer {
     bool enabled = false;
     TimePoint start{};
 };
+
+#ifdef PUZZLESCRIPT_SOLVER_C_API
+// C API results carry no timing breakdown. Only the step timer feeds search
+// decisions (the portfolio's weighted-A* lock), so the other per-edge timers
+// are no-ops here: each costs two clock reads, which are expensive in wasm.
+struct DetailTimer {
+    explicit DetailTimer(int64_t&) {}
+};
+#else
+using DetailTimer = ScopedTimer;
+#endif
 
 struct Options {
     std::filesystem::path corpusPath;
@@ -1312,7 +1364,7 @@ StateKey persistentLevelStateKey(
     Timing& timing,
     const MaskVector* ignoredObjectBits = nullptr
 ) {
-    ScopedTimer timer(timing.hashNs);
+    DetailTimer timer(timing.hashNs);
     StateKey key{1469598103934665603ull, 7809847782465536322ull};
     puzzlescript::search::appendStateKeyValue(key, static_cast<uint64_t>(state.board.objects.size()));
     const bool useProjection =
@@ -1335,7 +1387,7 @@ StateKey persistentLevelStateKey(
 }
 
 PersistentLevelState persistentLevelStateWithTiming(const FullState& session, Timing& timing) {
-    ScopedTimer timer(timing.stateCaptureNs);
+    DetailTimer timer(timing.stateCaptureNs);
     return persistentLevelStateFromFullState(session);
 }
 
@@ -1942,7 +1994,7 @@ SolverEdgeStep stepSolverEdge(
                         if (compactTurnOracle && discardReason == "cancel") {
                             ps_step_result oracleStepResult{};
                             {
-                                ScopedTimer timer(result.timing.cloneNs);
+                                DetailTimer timer(result.timing.cloneNs);
                                 prepareSolverChildFullStateFromParent(childScratch, parentSession, trimSolverMeta, copyRestartSnapshot);
                             }
                             {
@@ -1951,7 +2003,7 @@ SolverEdgeStep stepSolverEdge(
                             }
                             PersistentLevelState oracleState;
                             {
-                                ScopedTimer timer(result.timing.stateCaptureNs);
+                                DetailTimer timer(result.timing.stateCaptureNs);
                                 oracleState = persistentLevelStateWithTiming(childScratch, result.timing);
                             }
                             if (oracleStepResult.changed
@@ -1973,7 +2025,7 @@ SolverEdgeStep stepSolverEdge(
                     if (compactTurnOracle) {
                         ++result.compactTurnOracleChecks;
                         {
-                            ScopedTimer timer(result.timing.cloneNs);
+                            DetailTimer timer(result.timing.cloneNs);
                             prepareSolverChildFullStateFromParent(childScratch, parentSession, trimSolverMeta, copyRestartSnapshot);
                         }
                         ps_step_result oracleStepResult{};
@@ -2017,7 +2069,7 @@ SolverEdgeStep stepSolverEdge(
         // Node-owned FullState (non-compact) or a PersistentLevelState (compact).
         // This avoids the per-edge full FullState copy that previously
         // cloned every scratch/mask vector from the parent.
-        ScopedTimer timer(result.timing.cloneNs);
+        DetailTimer timer(result.timing.cloneNs);
         prepareSolverChildFullStateFromParent(childScratch, parentSession, trimSolverMeta, copyRestartSnapshot);
         edge.child = &childScratch;
     }
@@ -2056,7 +2108,7 @@ puzzlescript::LoadedGame compileGame(
 #endif
 
 std::vector<std::string> reconstructSolution(const std::vector<Node>& nodes, uint32_t nodeIndex, ps_input finalInput, Timing& timing) {
-    ScopedTimer timer(timing.reconstructNs);
+    DetailTimer timer(timing.reconstructNs);
     std::vector<std::string> reversed;
     reversed.push_back(inputName(finalInput));
     int32_t cursor = static_cast<int32_t>(nodeIndex);
@@ -2419,7 +2471,7 @@ std::vector<std::string> reconstructHdaSolution(
     ps_input finalInput,
     Timing& timing
 ) {
-    ScopedTimer timer(timing.reconstructNs);
+    DetailTimer timer(timing.reconstructNs);
     std::vector<std::string> reversed;
     reversed.push_back(inputName(finalInput));
     GlobalNodeId cursor = parent;
@@ -2482,7 +2534,7 @@ Result runSearch(
 
     std::unique_ptr<FullState> initial = std::move(initialOverride);
     if (!initial) {
-        ScopedTimer timer(result.timing.loadNs);
+        DetailTimer timer(result.timing.loadNs);
         initial = createLoadedSession(loadedGame, gameName, levelIndex, result);
     }
     if (!initial) {
@@ -2530,21 +2582,21 @@ Result runSearch(
     }
     int32_t initialHeuristic = 0;
     if (mode != SearchMode::Bfs) {
-        ScopedTimer timer(result.timing.heuristicNs);
+        DetailTimer timer(result.timing.heuristicNs);
         initialHeuristic = heuristicContext.score(initialState.board.objects.data());
     }
     {
-        ScopedTimer timer(result.timing.nodeStoreNs);
+        DetailTimer timer(result.timing.nodeStoreNs);
         nodes.push_back(Node{compactNodeStorage ? nullptr : std::move(initial), std::move(initialState), initialKey, -1, PS_INPUT_UP, 0, initialHeuristic});
         recordPersistentLevelStateStorage(result.timing, nodes.back().state);
     }
     {
-        ScopedTimer timer(result.timing.visitedInsertNs);
+        DetailTimer timer(result.timing.visitedInsertNs);
         bestDepth.insertOrAssignIfBetter(initialKey, nodes[0].state, 0, 0, nodes);
     }
     std::priority_queue<QueueEntry, std::vector<QueueEntry>, QueueEntryGreater> frontier;
     {
-        ScopedTimer timer(result.timing.frontierPushNs);
+        DetailTimer timer(result.timing.frontierPushNs);
         frontier.push(QueueEntry{
             priorityFor(mode, 0, initialHeuristic, astarWeight),
             secondaryPriorityFor(mode, 0),
@@ -2575,7 +2627,7 @@ Result runSearch(
     while (!frontier.empty()) {
         const char* reason = nullptr;
         {
-            ScopedTimer timer(result.timing.timeoutCheckNs);
+            DetailTimer timer(result.timing.timeoutCheckNs);
             reason = stopReason();
         }
         if (reason != nullptr) {
@@ -2585,7 +2637,7 @@ Result runSearch(
 
         QueueEntry entry;
         {
-            ScopedTimer timer(result.timing.frontierPopNs);
+            DetailTimer timer(result.timing.frontierPopNs);
             entry = frontier.top();
             frontier.pop();
         }
@@ -2600,7 +2652,7 @@ Result runSearch(
             if (!greedyPermanentClose) {
                 std::optional<uint32_t> best;
                 {
-                    ScopedTimer timer(result.timing.visitedLookupNs);
+                    DetailTimer timer(result.timing.visitedLookupNs);
                     best = bestDepth.find(parentNode.key, parentNode.state, nodes);
                 }
                 if (best && *best < parentNode.depth) {
@@ -2612,7 +2664,7 @@ Result runSearch(
             parentSessionPtr = parentNode.session.get();
             if (parentSessionPtr == nullptr) {
                 {
-                    ScopedTimer timer(result.timing.materializeNs);
+                    DetailTimer timer(result.timing.materializeNs);
                     materializePersistentLevelStateIntoFullState(parentNode.state, *compactSessionBase, *parentScratch);
                 }
                 parentSessionPtr = parentScratch.get();
@@ -2629,7 +2681,7 @@ Result runSearch(
         for (const ps_input input : inputs) {
             reason = nullptr;
             {
-                ScopedTimer timer(result.timing.timeoutCheckNs);
+                DetailTimer timer(result.timing.timeoutCheckNs);
                 reason = stopReason();
             }
             if (reason != nullptr) {
@@ -2679,7 +2731,7 @@ Result runSearch(
 
             bool solved = false;
             {
-                ScopedTimer timer(result.timing.solvedCheckNs);
+                DetailTimer timer(result.timing.solvedCheckNs);
                 solved = edge.compactTurn.handled ? stepResult.won : solvedByStep(stepResult, *edge.child, levelIndex);
             }
             if (solved) {
@@ -2701,7 +2753,7 @@ Result runSearch(
             if (exactStateKeys) {
                 bool shouldStore = false;
                 {
-                    ScopedTimer timer(result.timing.visitedInsertNs);
+                    DetailTimer timer(result.timing.visitedInsertNs);
                     shouldStore = greedyPermanentClose
                         ? bestDepth.insertIfNew(key, childState, childDepth, childIndex, nodes)
                         : bestDepth.insertOrAssignIfBetter(key, childState, childDepth, childIndex, nodes);
@@ -2712,23 +2764,23 @@ Result runSearch(
                     continue;
                 }
                 if (mode != SearchMode::Bfs) {
-                    ScopedTimer timer(result.timing.heuristicNs);
+                    DetailTimer timer(result.timing.heuristicNs);
                     childHeuristic = heuristicContext.score(childState.board.objects.data());
                 }
                 std::unique_ptr<FullState> ownedChild;
                 if (!compactNodeStorage) {
-                    ScopedTimer timer(result.timing.cloneNs);
+                    DetailTimer timer(result.timing.cloneNs);
                     ownedChild = snapshotSolverNodeFullState(*edge.child, true, copyRestartSnapshot);
                 }
                 {
-                    ScopedTimer timer(result.timing.nodeStoreNs);
+                    DetailTimer timer(result.timing.nodeStoreNs);
                     nodes.push_back(Node{std::move(ownedChild), std::move(childState), key, static_cast<int32_t>(entry.nodeIndex), input, childDepth, childHeuristic});
                     recordPersistentLevelStateStorage(result.timing, nodes.back().state);
                 }
             } else {
                 bool shouldStore = false;
                 {
-                    ScopedTimer timer(result.timing.visitedInsertNs);
+                    DetailTimer timer(result.timing.visitedInsertNs);
                     shouldStore = greedyPermanentClose
                         ? bestDepth.insertIfNew(key, childState, childDepth, 0, nodes)
                         : bestDepth.insertOrAssignIfBetter(key, childState, childDepth, 0, nodes);
@@ -2739,23 +2791,23 @@ Result runSearch(
                     continue;
                 }
                 if (mode != SearchMode::Bfs) {
-                    ScopedTimer timer(result.timing.heuristicNs);
+                    DetailTimer timer(result.timing.heuristicNs);
                     childHeuristic = heuristicContext.score(childState.board.objects.data());
                 }
                 childIndex = static_cast<uint32_t>(nodes.size());
                 std::unique_ptr<FullState> ownedChild;
                 if (!compactNodeStorage) {
-                    ScopedTimer timer(result.timing.cloneNs);
+                    DetailTimer timer(result.timing.cloneNs);
                     ownedChild = snapshotSolverNodeFullState(*edge.child, true, copyRestartSnapshot);
                 }
                 {
-                    ScopedTimer timer(result.timing.nodeStoreNs);
+                    DetailTimer timer(result.timing.nodeStoreNs);
                     nodes.push_back(Node{std::move(ownedChild), std::move(childState), key, static_cast<int32_t>(entry.nodeIndex), input, childDepth, childHeuristic});
                     recordPersistentLevelStateStorage(result.timing, nodes.back().state);
                 }
             }
             {
-                ScopedTimer timer(result.timing.frontierPushNs);
+                DetailTimer timer(result.timing.frontierPushNs);
                 frontier.push(QueueEntry{
                     priorityFor(mode, childDepth, childHeuristic, astarWeight),
                     secondaryPriorityFor(mode, childDepth),
@@ -2816,7 +2868,7 @@ Result runAdaptivePortfolioSearch(
 
     std::unique_ptr<FullState> initial = std::move(initialOverride);
     if (!initial) {
-        ScopedTimer timer(result.timing.loadNs);
+        DetailTimer timer(result.timing.loadNs);
         initial = createLoadedSession(loadedGame, gameName, levelIndex, result);
     }
     if (!initial) {
@@ -2863,17 +2915,17 @@ Result runAdaptivePortfolioSearch(
     }
     int32_t initialHeuristic = 0;
     {
-        ScopedTimer timer(result.timing.heuristicNs);
+        DetailTimer timer(result.timing.heuristicNs);
         initialHeuristic = heuristicContext.score(initialState.board.objects.data());
     }
     {
-        ScopedTimer timer(result.timing.nodeStoreNs);
+        DetailTimer timer(result.timing.nodeStoreNs);
         nodes.push_back(Node{compactNodeStorage ? nullptr : std::move(initial), std::move(initialState), initialKey, -1, PS_INPUT_UP, 0, initialHeuristic});
         expanded.push_back(0);
         recordPersistentLevelStateStorage(result.timing, nodes.back().state);
     }
     {
-        ScopedTimer timer(result.timing.visitedInsertNs);
+        DetailTimer timer(result.timing.visitedInsertNs);
         bestDepth.insertOrAssignIfBetter(initialKey, nodes[0].state, 0, 0, nodes);
     }
 
@@ -2893,7 +2945,7 @@ Result runAdaptivePortfolioSearch(
     uint64_t nextTie = 0;
     uint64_t totalFrontier = 0;
     {
-        ScopedTimer timer(result.timing.frontierPushNs);
+        DetailTimer timer(result.timing.frontierPushNs);
         for (PortfolioMode& mode : modes) {
             mode.frontier.push(QueueEntry{
                 priorityFor(mode.mode, 0, initialHeuristic, mode.weight),
@@ -2963,7 +3015,7 @@ Result runAdaptivePortfolioSearch(
     while (totalFrontier > 0) {
         const char* stop = nullptr;
         {
-            ScopedTimer timer(result.timing.timeoutCheckNs);
+            DetailTimer timer(result.timing.timeoutCheckNs);
             stop = control.stopReason(deadline);
         }
         if (stop) {
@@ -2979,7 +3031,7 @@ Result runAdaptivePortfolioSearch(
 
         QueueEntry entry;
         {
-            ScopedTimer timer(result.timing.frontierPopNs);
+            DetailTimer timer(result.timing.frontierPopNs);
             entry = modes[modeIndex].frontier.top();
             modes[modeIndex].frontier.pop();
         }
@@ -3001,7 +3053,7 @@ Result runAdaptivePortfolioSearch(
             }
             std::optional<uint32_t> best;
             {
-                ScopedTimer timer(result.timing.visitedLookupNs);
+                DetailTimer timer(result.timing.visitedLookupNs);
                 best = bestDepth.find(parentNode.key, parentNode.state, nodes);
             }
             if (best && *best < parentNode.depth) {
@@ -3015,7 +3067,7 @@ Result runAdaptivePortfolioSearch(
             parentSessionPtr = parentNode.session.get();
             if (parentSessionPtr == nullptr) {
                 {
-                    ScopedTimer timer(result.timing.materializeNs);
+                    DetailTimer timer(result.timing.materializeNs);
                     materializePersistentLevelStateIntoFullState(parentNode.state, *compactSessionBase, *parentScratch);
                 }
                 parentSessionPtr = parentScratch.get();
@@ -3044,7 +3096,7 @@ Result runAdaptivePortfolioSearch(
         for (const ps_input input : inputs) {
             stop = nullptr;
             {
-                ScopedTimer timer(result.timing.timeoutCheckNs);
+                DetailTimer timer(result.timing.timeoutCheckNs);
                 stop = control.stopReason(deadline);
             }
             if (stop) {
@@ -3084,7 +3136,7 @@ Result runAdaptivePortfolioSearch(
 
             bool solved = false;
             {
-                ScopedTimer timer(result.timing.solvedCheckNs);
+                DetailTimer timer(result.timing.solvedCheckNs);
                 solved = edge.compactTurn.handled ? stepResult.won : solvedByStep(stepResult, *edge.child, levelIndex);
             }
             if (solved) {
@@ -3105,7 +3157,7 @@ Result runAdaptivePortfolioSearch(
             uint32_t childIndex = static_cast<uint32_t>(nodes.size());
             bool shouldStore = false;
             {
-                ScopedTimer timer(result.timing.visitedInsertNs);
+                DetailTimer timer(result.timing.visitedInsertNs);
                 shouldStore = bestDepth.insertOrAssignIfBetter(
                     key,
                     childState,
@@ -3121,23 +3173,23 @@ Result runAdaptivePortfolioSearch(
 
             int32_t childHeuristic = 0;
             {
-                ScopedTimer timer(result.timing.heuristicNs);
+                DetailTimer timer(result.timing.heuristicNs);
                 childHeuristic = heuristicContext.score(childState.board.objects.data());
             }
 
             std::unique_ptr<FullState> ownedChild;
             if (!compactNodeStorage) {
-                ScopedTimer timer(result.timing.cloneNs);
+                DetailTimer timer(result.timing.cloneNs);
                 ownedChild = snapshotSolverNodeFullState(*edge.child, false, copyRestartSnapshot);
             }
             {
-                ScopedTimer timer(result.timing.nodeStoreNs);
+                DetailTimer timer(result.timing.nodeStoreNs);
                 nodes.push_back(Node{std::move(ownedChild), std::move(childState), key, static_cast<int32_t>(entry.nodeIndex), input, childDepth, childHeuristic});
                 expanded.push_back(0);
                 recordPersistentLevelStateStorage(result.timing, nodes.back().state);
             }
             {
-                ScopedTimer timer(result.timing.frontierPushNs);
+                DetailTimer timer(result.timing.frontierPushNs);
                 for (size_t modeIndexForPush = 0; modeIndexForPush < modes.size(); ++modeIndexForPush) {
                     if (!shouldPushModeForChild(modeIndexForPush, childDepth)) {
                         continue;
@@ -3300,7 +3352,7 @@ bool insertHdaNode(
     uint32_t nodeIndex = static_cast<uint32_t>(shard.nodes.size());
     bool shouldStore = false;
     {
-        ScopedTimer timer(shard.timing.visitedInsertNs);
+        DetailTimer timer(shard.timing.visitedInsertNs);
         shouldStore = shard.bestDepth.insertOrAssignIfBetter(
             message.key,
             message.state,
@@ -3315,7 +3367,7 @@ bool insertHdaNode(
     }
 
     {
-        ScopedTimer timer(shard.timing.nodeStoreNs);
+        DetailTimer timer(shard.timing.nodeStoreNs);
         shard.nodes.push_back(HdaNode{
             std::move(message.state),
             message.key,
@@ -3328,7 +3380,7 @@ bool insertHdaNode(
     }
 
     {
-        ScopedTimer timer(shard.timing.frontierPushNs);
+        DetailTimer timer(shard.timing.frontierPushNs);
         shard.frontier.push(QueueEntry{
             priorityFor(SearchMode::WeightedAStar, message.depth, message.heuristic, astarWeight),
             secondaryPriorityFor(SearchMode::WeightedAStar, message.depth),
@@ -3537,7 +3589,7 @@ Result runHashDistributedWeightedAStarSearch(
 
     std::unique_ptr<FullState> initial;
     {
-        ScopedTimer timer(result.timing.loadNs);
+        DetailTimer timer(result.timing.loadNs);
         initial = createLoadedSession(loadedGame, gameName, levelIndex, result);
     }
     if (!initial) {
@@ -3570,7 +3622,7 @@ Result runHashDistributedWeightedAStarSearch(
     }
     int32_t initialHeuristic = 0;
     {
-        ScopedTimer timer(result.timing.heuristicNs);
+        DetailTimer timer(result.timing.heuristicNs);
         initialHeuristic = setupHeuristicContext.score(initialState.board.objects.data());
     }
 
@@ -3642,7 +3694,7 @@ Result runHashDistributedWeightedAStarSearch(
         while (!cancelRequested.load(std::memory_order_acquire)) {
             bool timedOut = false;
             {
-                ScopedTimer timer(shard.timing.timeoutCheckNs);
+                DetailTimer timer(shard.timing.timeoutCheckNs);
                 timedOut = Clock::now() >= deadline;
             }
             if (timedOut) {
@@ -3678,7 +3730,7 @@ Result runHashDistributedWeightedAStarSearch(
 
             QueueEntry entry;
             {
-                ScopedTimer timer(shard.timing.frontierPopNs);
+                DetailTimer timer(shard.timing.frontierPopNs);
                 entry = shard.frontier.top();
                 shard.frontier.pop();
                 shard.frontierCount.fetch_sub(1, std::memory_order_release);
@@ -3691,7 +3743,7 @@ Result runHashDistributedWeightedAStarSearch(
 
             std::optional<uint32_t> best;
             {
-                ScopedTimer timer(shard.timing.visitedLookupNs);
+                DetailTimer timer(shard.timing.visitedLookupNs);
                 best = shard.bestDepth.find(
                     shard.nodes[entry.nodeIndex].key,
                     shard.nodes[entry.nodeIndex].state,
@@ -3704,7 +3756,7 @@ Result runHashDistributedWeightedAStarSearch(
 
             const HdaNode parentNode = shard.nodes[entry.nodeIndex];
             {
-                ScopedTimer timer(shard.timing.materializeNs);
+                DetailTimer timer(shard.timing.materializeNs);
                 materializePersistentLevelStateIntoFullState(
                     parentNode.state,
                     *compactSessionBase,
@@ -3760,7 +3812,7 @@ Result runHashDistributedWeightedAStarSearch(
 
                 bool solved = false;
                 {
-                    ScopedTimer timer(shard.timing.solvedCheckNs);
+                    DetailTimer timer(shard.timing.solvedCheckNs);
                     solved = edge.compactTurn.handled ? stepResult.won : solvedByStep(stepResult, childScratch, levelIndex);
                 }
                 if (solved) {
@@ -3787,14 +3839,14 @@ Result runHashDistributedWeightedAStarSearch(
                     childState = std::move(edge.compactTurn.state);
                 } else {
                     childState = acquirePooledState(shard);
-                    ScopedTimer timer(shard.timing.stateCaptureNs);
+                    DetailTimer timer(shard.timing.stateCaptureNs);
                     fillPersistentLevelStateFromFullState(childState, childScratch);
                 }
                 const StateKey childKey = persistentLevelStateKey(childState, shard.timing, ignoredObjectBits);
                 const uint32_t childDepth = parentNode.depth + 1;
                 int32_t childHeuristic = 0;
                 {
-                    ScopedTimer timer(shard.timing.heuristicNs);
+                    DetailTimer timer(shard.timing.heuristicNs);
                     childHeuristic = heuristicContext.score(childState.board.objects.data());
                 }
 
@@ -5021,7 +5073,7 @@ std::vector<Result> runCorpus(const Options& options) {
 
         std::string compileError;
         {
-            ScopedTimer timer(compiled.compileNs);
+            DetailTimer timer(compiled.compileNs);
             compiled.loadedGame = compileGame(compiled.source, compileError);
             compiled.game = compiled.loadedGame.information;
         }

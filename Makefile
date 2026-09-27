@@ -28,6 +28,7 @@
 	clean-native-32 clean-js-parity-data configure-native build-native js-parity-data lean_parity_smoke lean_clean_sim_candidates
 
 .PHONY: gba gba_export gba_preflight gba_generated_replay_build gba_generated_replay_tests
+.PHONY: mis_wasm mis_tests mis_backend_bench
 .PHONY: gbc gbc_export gbc_smoke gbc_cart gbc_cart_smoke gbc_cart_solutions_bench gbc_eligible gbc_specialized_bench gbc_eligible_solutions_bench
 .PHONY: solution_cache_tests solution_cache_tests_thorough gbc_cart_solution_cache_tests refresh_eligible_solution_cache
 
@@ -1814,6 +1815,17 @@ solver_compact_parity_smoke: $(PUZZLESCRIPT_SOLVER)
 
 solver_compact_parity: $(PUZZLESCRIPT_SOLVER)
 	$(NODE) src/tests/run_solver_compact_parity.js $(PUZZLESCRIPT_SOLVER) $(SOLVER_COMPACT_PARITY_CORPUS) --timeout-ms $(SOLVER_COMPACT_PARITY_TIMEOUT_MS) --strategy $(SOLVER_COMPACT_PARITY_STRATEGY) $(SOLVER_COMPACT_PARITY_GAME_ARG) $(SOLVER_COMPACT_PARITY_LEVEL_ARG) $(SOLVER_COMPACT_PARITY_MAX_GAMES_ARG)
+
+# PuzzleScript+MIS web prototype (src/mis.html). mis_wasm needs Emscripten on PATH
+# (source emsdk_env.sh); it rebuilds src/js/mis/wasm/mis_native.{js,wasm}.
+mis_wasm:
+	native/wasm/build_mis_wasm.sh
+
+mis_tests:
+	$(NODE) src/tests/mis_core_node.js
+
+mis_backend_bench:
+	$(NODE) src/tests/mis_backend_bench_node.js
 
 generator_smoke_tests: $(GENERATOR_TARGET_PREREQ)
 	@if [ "$(SPECIALIZE)" = "true" ]; then \

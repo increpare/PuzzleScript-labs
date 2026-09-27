@@ -46,6 +46,7 @@
 		watching: null,          // {frames, i, timer}
 		play: null,              // {history:[Int32Array], moves}
 		blind: false,
+		backendPref: 'native',   // 'native' (WebAssembly build of the C++ solver) or 'js'
 		revealed: false,
 		dirty: false,
 		undo: [],
@@ -69,6 +70,8 @@
 			const m = e.data;
 			if (m.type === 'ready') {
 				handle.ready = true;
+				handle.backend = m.backend;
+				if (m.ok) showBackend(m.backend, m.note);
 				if (handle.onReady) handle.onReady(m);
 				pump(handle);
 				return;
@@ -85,22 +88,29 @@
 			if (handle.onMessage) handle.onMessage(m);
 		};
 		w.onerror = function (e) { console.error('MIS worker error', e.message); };
-		w.postMessage({ type: 'init', source: source });
+		w.postMessage({ type: 'init', source: source, backend: app.backendPref });
 		return handle;
 	}
 
 	let nextJobId = 1;
 	function pump(handle) {
 		if (!handle.ready || handle.busy || !handle.queue.length || handle.dead) return;
-		const job = handle.queue.shift();
+		// Background (level-health) jobs wait while the transformer runs, so the
+		// generator workers get the CPU.
+		let at = 0;
+		if (app.gen && app.gen.running) {
+			at = handle.queue.findIndex(function (j) { return !j.background; });
+			if (at < 0) return;
+		}
+		const job = handle.queue.splice(at, 1)[0];
 		handle.busy = true;
 		handle.handlers[job.msg.id] = job;
 		handle.current = job;
 		handle.w.postMessage(job.msg);
 	}
-	function enqueue(handle, msg, done, progress, front) {
+	function enqueue(handle, msg, done, progress, front, background) {
 		msg.id = nextJobId++;
-		const job = { msg: msg, done: done, progress: progress };
+		const job = { msg: msg, done: done, progress: progress, background: !!background };
 		if (front) handle.queue.unshift(job); else handle.queue.push(job);
 		pump(handle);
 		return msg.id;
@@ -737,7 +747,15 @@
 	let provisional = null; // quick result (e.g. from a suggestion) shown while the deep solve runs
 	let analyzeStarted = 0;
 
-	function cacheKey(board) { return app.rulesSig + '|' + C.cellsKey(board.cells); }
+	// Backends measure effort differently, so results are cached per backend.
+	function cacheKey(board) { return app.backendPref + '|' + app.rulesSig + '|' + C.cellsKey(board.cells); }
+
+	function showBackend(backend, note) {
+		const el = $('backend-note');
+		el.textContent = backend === 'native' ? '● native' : '● JS';
+		el.className = 'backend-note ' + backend;
+		el.title = note || '';
+	}
 
 	function analyzeCurrent() {
 		currentResult = null;
@@ -887,7 +905,7 @@
 			if (!app.assessCache.has(key)) app.assessCache.set(key, m.result);
 			clearTimeout(queueHealth.t);
 			queueHealth.t = setTimeout(refreshLevelStrip, 150);
-		});
+		}, null, false, true);
 	}
 
 	function selectLevel(i) {
@@ -1069,6 +1087,7 @@
 		s.running = false;
 		s.workers.forEach(kill);
 		s.workers = [];
+		if (bgWorker) pump(bgWorker); // resume level-health checks
 		if (!silent) { updateGenButton(); updateMeter(); }
 	}
 
@@ -1508,6 +1527,16 @@
 		selectLevel(next);
 		toast('Duplicated — you are editing the copy.');
 	};
+	$('backend-select').onchange = function (e) {
+		app.backendPref = e.target.value;
+		try { localStorage.setItem('mis-backend', app.backendPref); } catch (err) { /* ignore */ }
+		const wasRunning = app.gen && app.gen.running;
+		stopGeneration(true);
+		ensureWorkers(true);
+		analyzeCurrent();
+		refreshLevelStrip();
+		if (wasRunning) startGeneration(); else updateGenButton();
+	};
 	$('blind-toggle').onchange = function (e) { app.blind = e.target.checked; app.revealed = false; renderStatus(); refreshLevelStrip(); };
 	$('open-btn').onclick = function () { $('file-input').click(); };
 	$('file-input').onchange = function (e) {
@@ -1544,6 +1573,9 @@
 	window.addEventListener('beforeunload', function (e) { if (app.dirty) { e.preventDefault(); e.returnValue = ''; } });
 
 	// Start.
+	try { app.backendPref = new URLSearchParams(location.search).get('backend') || localStorage.getItem('mis-backend') || 'native'; } catch (e) { app.backendPref = 'native'; }
+	if (app.backendPref !== 'js') app.backendPref = 'native';
+	$('backend-select').value = app.backendPref;
 	initEditors();
 	updateUndoButtons();
 	let restored = null;

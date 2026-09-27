@@ -57,6 +57,9 @@ header {
 .toggle input { accent-color: var(--accent); }
 #dirty-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); display: none; }
 #dirty-dot.on { display: inline-block; }
+.backend-note { font: 11px var(--mono); color: var(--faint); }
+.backend-note.native { color: var(--good); }
+.backend-note.js { color: var(--accent-2); }
 
 /* Main grid */
 main { display: grid; grid-template-columns: 176px minmax(420px, 1fr) minmax(340px, 34%); min-height: 0; }
@@ -208,6 +211,9 @@ aside, section { min-height: 0; }
 	<span id="dirty-dot" title="Unsaved changes"></span>
 	<span class="game-title" id="game-title"></span>
 	<div class="spacer"></div>
+	<label class="toggle" title="Which solver the workers use. Native is the C++ solver compiled to WebAssembly (same code and difficulty metric as the native MIS app); JS drives the PuzzleScript JS engine.">Solver
+		<select id="backend-select"><option value="native">Native (wasm)</option><option value="js">JavaScript</option></select>
+		<span id="backend-note" class="backend-note"></span></label>
 	<label class="toggle" title="Hide solver information about the level you're designing, so you can solve it yourself first"><input type="checkbox" id="blind-toggle"> Blind mode</label>
 	<button class="ghost" id="help-btn">Help</button>
 </header>

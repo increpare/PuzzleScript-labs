@@ -1,0 +1,2010 @@
+{
+  "rows": [
+    {
+      "level": "sokoban_basic #0",
+      "strategy": "bfs",
+      "js": {
+        "status": "solved",
+        "expanded": 559,
+        "ms": 46,
+        "length": 33
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 554,
+        "ms": 26,
+        "length": 33
+      }
+    },
+    {
+      "level": "sokoban_basic #0",
+      "strategy": "astar",
+      "js": {
+        "status": "solved",
+        "expanded": 498,
+        "ms": 43,
+        "length": 33
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 476,
+        "ms": 14,
+        "length": 33
+      }
+    },
+    {
+      "level": "sokoban_basic #0",
+      "strategy": "greedy",
+      "js": {
+        "status": "solved",
+        "expanded": 331,
+        "ms": 18,
+        "length": 33
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 418,
+        "ms": 8,
+        "length": 33
+      }
+    },
+    {
+      "level": "sokoban_basic #0",
+      "strategy": "portfolio",
+      "js": null,
+      "native": {
+        "status": "solved",
+        "expanded": 475,
+        "ms": 15,
+        "length": 33
+      }
+    },
+    {
+      "level": "sokoban_basic #1",
+      "strategy": "bfs",
+      "js": {
+        "status": "solved",
+        "expanded": 901,
+        "ms": 50,
+        "length": 16
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 730,
+        "ms": 13,
+        "length": 16
+      }
+    },
+    {
+      "level": "sokoban_basic #1",
+      "strategy": "astar",
+      "js": {
+        "status": "solved",
+        "expanded": 104,
+        "ms": 6,
+        "length": 16
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 57,
+        "ms": 1,
+        "length": 16
+      }
+    },
+    {
+      "level": "sokoban_basic #1",
+      "strategy": "greedy",
+      "js": {
+        "status": "solved",
+        "expanded": 41,
+        "ms": 2,
+        "length": 16
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 57,
+        "ms": 1,
+        "length": 16
+      }
+    },
+    {
+      "level": "sokoban_basic #1",
+      "strategy": "portfolio",
+      "js": null,
+      "native": {
+        "status": "solved",
+        "expanded": 57,
+        "ms": 1,
+        "length": 16
+      }
+    },
+    {
+      "level": "microban #1",
+      "strategy": "bfs",
+      "js": {
+        "status": "solved",
+        "expanded": 559,
+        "ms": 24,
+        "length": 33
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 554,
+        "ms": 9,
+        "length": 33
+      }
+    },
+    {
+      "level": "microban #1",
+      "strategy": "astar",
+      "js": {
+        "status": "solved",
+        "expanded": 498,
+        "ms": 26,
+        "length": 33
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 476,
+        "ms": 7,
+        "length": 33
+      }
+    },
+    {
+      "level": "microban #1",
+      "strategy": "greedy",
+      "js": {
+        "status": "solved",
+        "expanded": 331,
+        "ms": 13,
+        "length": 33
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 418,
+        "ms": 6,
+        "length": 33
+      }
+    },
+    {
+      "level": "microban #1",
+      "strategy": "portfolio",
+      "js": null,
+      "native": {
+        "status": "solved",
+        "expanded": 475,
+        "ms": 8,
+        "length": 33
+      }
+    },
+    {
+      "level": "microban #3",
+      "strategy": "bfs",
+      "js": {
+        "status": "solved",
+        "expanded": 901,
+        "ms": 42,
+        "length": 16
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 730,
+        "ms": 12,
+        "length": 16
+      }
+    },
+    {
+      "level": "microban #3",
+      "strategy": "astar",
+      "js": {
+        "status": "solved",
+        "expanded": 104,
+        "ms": 4,
+        "length": 16
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 57,
+        "ms": 1,
+        "length": 16
+      }
+    },
+    {
+      "level": "microban #3",
+      "strategy": "greedy",
+      "js": {
+        "status": "solved",
+        "expanded": 41,
+        "ms": 2,
+        "length": 16
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 57,
+        "ms": 1,
+        "length": 16
+      }
+    },
+    {
+      "level": "microban #3",
+      "strategy": "portfolio",
+      "js": null,
+      "native": {
+        "status": "solved",
+        "expanded": 57,
+        "ms": 1,
+        "length": 16
+      }
+    },
+    {
+      "level": "microban #5",
+      "strategy": "bfs",
+      "js": {
+        "status": "solved",
+        "expanded": 1701,
+        "ms": 89,
+        "length": 41
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 1699,
+        "ms": 31,
+        "length": 41
+      }
+    },
+    {
+      "level": "microban #5",
+      "strategy": "astar",
+      "js": {
+        "status": "solved",
+        "expanded": 1276,
+        "ms": 66,
+        "length": 41
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 1317,
+        "ms": 28,
+        "length": 41
+      }
+    },
+    {
+      "level": "microban #5",
+      "strategy": "greedy",
+      "js": {
+        "status": "solved",
+        "expanded": 773,
+        "ms": 64,
+        "length": 41
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 1777,
+        "ms": 32,
+        "length": 43
+      }
+    },
+    {
+      "level": "microban #5",
+      "strategy": "portfolio",
+      "js": null,
+      "native": {
+        "status": "solved",
+        "expanded": 1259,
+        "ms": 23,
+        "length": 41
+      }
+    },
+    {
+      "level": "microban #7",
+      "strategy": "bfs",
+      "js": {
+        "status": "solved",
+        "expanded": 17345,
+        "ms": 986,
+        "length": 23
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 17523,
+        "ms": 424,
+        "length": 23
+      }
+    },
+    {
+      "level": "microban #7",
+      "strategy": "astar",
+      "js": {
+        "status": "solved",
+        "expanded": 3630,
+        "ms": 203,
+        "length": 23
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 936,
+        "ms": 17,
+        "length": 31
+      }
+    },
+    {
+      "level": "microban #7",
+      "strategy": "greedy",
+      "js": {
+        "status": "solved",
+        "expanded": 2687,
+        "ms": 141,
+        "length": 65
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 1658,
+        "ms": 32,
+        "length": 31
+      }
+    },
+    {
+      "level": "microban #7",
+      "strategy": "portfolio",
+      "js": null,
+      "native": {
+        "status": "solved",
+        "expanded": 920,
+        "ms": 17,
+        "length": 31
+      }
+    },
+    {
+      "level": "microban #9",
+      "strategy": "bfs",
+      "js": {
+        "status": "timeout",
+        "expanded": 300000,
+        "ms": 17958,
+        "length": null
+      },
+      "native": {
+        "status": "timeout",
+        "expanded": 300000,
+        "ms": 6296,
+        "length": null
+      }
+    },
+    {
+      "level": "microban #9",
+      "strategy": "astar",
+      "js": {
+        "status": "solved",
+        "expanded": 27102,
+        "ms": 1745,
+        "length": 25
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 175350,
+        "ms": 3793,
+        "length": 31
+      }
+    },
+    {
+      "level": "microban #9",
+      "strategy": "greedy",
+      "js": {
+        "status": "solved",
+        "expanded": 52549,
+        "ms": 3165,
+        "length": 31
+      },
+      "native": {
+        "status": "timeout",
+        "expanded": 300000,
+        "ms": 5718,
+        "length": null
+      }
+    },
+    {
+      "level": "microban #9",
+      "strategy": "portfolio",
+      "js": null,
+      "native": {
+        "status": "solved",
+        "expanded": 31042,
+        "ms": 755,
+        "length": 31
+      }
+    },
+    {
+      "level": "microban #11",
+      "strategy": "bfs",
+      "js": {
+        "status": "solved",
+        "expanded": 54023,
+        "ms": 3561,
+        "length": 107
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 54023,
+        "ms": 1198,
+        "length": 107
+      }
+    },
+    {
+      "level": "microban #11",
+      "strategy": "astar",
+      "js": {
+        "status": "solved",
+        "expanded": 53519,
+        "ms": 3731,
+        "length": 109
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 40260,
+        "ms": 1161,
+        "length": 107
+      }
+    },
+    {
+      "level": "microban #11",
+      "strategy": "greedy",
+      "js": {
+        "status": "solved",
+        "expanded": 12517,
+        "ms": 1165,
+        "length": 113
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 5288,
+        "ms": 117,
+        "length": 113
+      }
+    },
+    {
+      "level": "microban #11",
+      "strategy": "portfolio",
+      "js": null,
+      "native": {
+        "status": "solved",
+        "expanded": 22317,
+        "ms": 537,
+        "length": 107
+      }
+    },
+    {
+      "level": "microban #13",
+      "strategy": "bfs",
+      "js": {
+        "status": "timeout",
+        "expanded": 300000,
+        "ms": 18899,
+        "length": null
+      },
+      "native": {
+        "status": "timeout",
+        "expanded": 300000,
+        "ms": 5918,
+        "length": null
+      }
+    },
+    {
+      "level": "microban #13",
+      "strategy": "astar",
+      "js": {
+        "status": "solved",
+        "expanded": 13364,
+        "ms": 762,
+        "length": 26
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 4701,
+        "ms": 96,
+        "length": 44
+      }
+    },
+    {
+      "level": "microban #13",
+      "strategy": "greedy",
+      "js": {
+        "status": "solved",
+        "expanded": 3928,
+        "ms": 220,
+        "length": 58
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 218,
+        "ms": 4,
+        "length": 50
+      }
+    },
+    {
+      "level": "microban #13",
+      "strategy": "portfolio",
+      "js": null,
+      "native": {
+        "status": "solved",
+        "expanded": 4701,
+        "ms": 82,
+        "length": 44
+      }
+    },
+    {
+      "level": "microban #15",
+      "strategy": "bfs",
+      "js": {
+        "status": "solved",
+        "expanded": 4093,
+        "ms": 260,
+        "length": 97
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 4117,
+        "ms": 105,
+        "length": 97
+      }
+    },
+    {
+      "level": "microban #15",
+      "strategy": "astar",
+      "js": {
+        "status": "solved",
+        "expanded": 3883,
+        "ms": 355,
+        "length": 97
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 2727,
+        "ms": 66,
+        "length": 97
+      }
+    },
+    {
+      "level": "microban #15",
+      "strategy": "greedy",
+      "js": {
+        "status": "solved",
+        "expanded": 3208,
+        "ms": 234,
+        "length": 109
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 3100,
+        "ms": 60,
+        "length": 99
+      }
+    },
+    {
+      "level": "microban #15",
+      "strategy": "portfolio",
+      "js": null,
+      "native": {
+        "status": "solved",
+        "expanded": 2839,
+        "ms": 73,
+        "length": 97
+      }
+    },
+    {
+      "level": "microban #17",
+      "strategy": "bfs",
+      "js": {
+        "status": "solved",
+        "expanded": 628,
+        "ms": 53,
+        "length": 30
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 627,
+        "ms": 9,
+        "length": 30
+      }
+    },
+    {
+      "level": "microban #17",
+      "strategy": "astar",
+      "js": {
+        "status": "solved",
+        "expanded": 487,
+        "ms": 22,
+        "length": 30
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 498,
+        "ms": 6,
+        "length": 30
+      }
+    },
+    {
+      "level": "microban #17",
+      "strategy": "greedy",
+      "js": {
+        "status": "solved",
+        "expanded": 399,
+        "ms": 25,
+        "length": 30
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 436,
+        "ms": 5,
+        "length": 30
+      }
+    },
+    {
+      "level": "microban #17",
+      "strategy": "portfolio",
+      "js": null,
+      "native": {
+        "status": "solved",
+        "expanded": 489,
+        "ms": 6,
+        "length": 30
+      }
+    },
+    {
+      "level": "microban #19",
+      "strategy": "bfs",
+      "js": {
+        "status": "solved",
+        "expanded": 6393,
+        "ms": 408,
+        "length": 89
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 6391,
+        "ms": 138,
+        "length": 89
+      }
+    },
+    {
+      "level": "microban #19",
+      "strategy": "astar",
+      "js": {
+        "status": "solved",
+        "expanded": 6256,
+        "ms": 421,
+        "length": 99
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 3761,
+        "ms": 73,
+        "length": 89
+      }
+    },
+    {
+      "level": "microban #19",
+      "strategy": "greedy",
+      "js": {
+        "status": "solved",
+        "expanded": 2364,
+        "ms": 161,
+        "length": 99
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 3654,
+        "ms": 90,
+        "length": 103
+      }
+    },
+    {
+      "level": "microban #19",
+      "strategy": "portfolio",
+      "js": null,
+      "native": {
+        "status": "solved",
+        "expanded": 3797,
+        "ms": 89,
+        "length": 89
+      }
+    },
+    {
+      "level": "twolittlecrates1 #0",
+      "strategy": "bfs",
+      "js": {
+        "status": "timeout",
+        "expanded": 281376,
+        "ms": 20003,
+        "length": null
+      },
+      "native": {
+        "status": "timeout",
+        "expanded": 300000,
+        "ms": 6025,
+        "length": null
+      }
+    },
+    {
+      "level": "twolittlecrates1 #0",
+      "strategy": "astar",
+      "js": {
+        "status": "timeout",
+        "expanded": 239008,
+        "ms": 20002,
+        "length": null
+      },
+      "native": {
+        "status": "timeout",
+        "expanded": 300000,
+        "ms": 6549,
+        "length": null
+      }
+    },
+    {
+      "level": "twolittlecrates1 #0",
+      "strategy": "greedy",
+      "js": {
+        "status": "timeout",
+        "expanded": 261088,
+        "ms": 20001,
+        "length": null
+      },
+      "native": {
+        "status": "timeout",
+        "expanded": 300000,
+        "ms": 6310,
+        "length": null
+      }
+    },
+    {
+      "level": "twolittlecrates1 #0",
+      "strategy": "portfolio",
+      "js": null,
+      "native": {
+        "status": "timeout",
+        "expanded": 775168,
+        "ms": 20118,
+        "length": null
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #1",
+      "strategy": "bfs",
+      "js": {
+        "status": "solved",
+        "expanded": 455,
+        "ms": 52,
+        "length": 16
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 478,
+        "ms": 11,
+        "length": 16
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #1",
+      "strategy": "astar",
+      "js": {
+        "status": "solved",
+        "expanded": 351,
+        "ms": 26,
+        "length": 16
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 59,
+        "ms": 1,
+        "length": 16
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #1",
+      "strategy": "greedy",
+      "js": {
+        "status": "solved",
+        "expanded": 97,
+        "ms": 8,
+        "length": 16
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 38,
+        "ms": 1,
+        "length": 16
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #1",
+      "strategy": "portfolio",
+      "js": null,
+      "native": {
+        "status": "solved",
+        "expanded": 36,
+        "ms": 1,
+        "length": 16
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #3",
+      "strategy": "bfs",
+      "js": {
+        "status": "solved",
+        "expanded": 29878,
+        "ms": 2504,
+        "length": 92
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 29871,
+        "ms": 598,
+        "length": 92
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #3",
+      "strategy": "astar",
+      "js": {
+        "status": "solved",
+        "expanded": 29855,
+        "ms": 2682,
+        "length": 92
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 7816,
+        "ms": 195,
+        "length": 96
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #3",
+      "strategy": "greedy",
+      "js": {
+        "status": "solved",
+        "expanded": 9283,
+        "ms": 858,
+        "length": 96
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 8241,
+        "ms": 258,
+        "length": 112
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #3",
+      "strategy": "portfolio",
+      "js": null,
+      "native": {
+        "status": "solved",
+        "expanded": 8191,
+        "ms": 181,
+        "length": 96
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #5",
+      "strategy": "bfs",
+      "js": {
+        "status": "solved",
+        "expanded": 2931,
+        "ms": 234,
+        "length": 20
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 2969,
+        "ms": 43,
+        "length": 20
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #5",
+      "strategy": "astar",
+      "js": {
+        "status": "solved",
+        "expanded": 1995,
+        "ms": 160,
+        "length": 20
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 4518,
+        "ms": 82,
+        "length": 20
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #5",
+      "strategy": "greedy",
+      "js": {
+        "status": "solved",
+        "expanded": 3154,
+        "ms": 246,
+        "length": 20
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 5623,
+        "ms": 108,
+        "length": 20
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #5",
+      "strategy": "portfolio",
+      "js": null,
+      "native": {
+        "status": "solved",
+        "expanded": 4892,
+        "ms": 102,
+        "length": 20
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #7",
+      "strategy": "bfs",
+      "js": {
+        "status": "timeout",
+        "expanded": 223200,
+        "ms": 20002,
+        "length": null
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 284167,
+        "ms": 5499,
+        "length": 19
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #7",
+      "strategy": "astar",
+      "js": {
+        "status": "solved",
+        "expanded": 37971,
+        "ms": 2942,
+        "length": 19
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 3591,
+        "ms": 66,
+        "length": 30
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #7",
+      "strategy": "greedy",
+      "js": {
+        "status": "solved",
+        "expanded": 8989,
+        "ms": 692,
+        "length": 30
+      },
+      "native": {
+        "status": "timeout",
+        "expanded": 300000,
+        "ms": 6396,
+        "length": null
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #7",
+      "strategy": "portfolio",
+      "js": null,
+      "native": {
+        "status": "solved",
+        "expanded": 3260,
+        "ms": 63,
+        "length": 30
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #9",
+      "strategy": "bfs",
+      "js": {
+        "status": "timeout",
+        "expanded": 226688,
+        "ms": 20003,
+        "length": null
+      },
+      "native": {
+        "status": "timeout",
+        "expanded": 300000,
+        "ms": 5648,
+        "length": null
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #9",
+      "strategy": "astar",
+      "js": {
+        "status": "solved",
+        "expanded": 158631,
+        "ms": 14441,
+        "length": 23
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 1448,
+        "ms": 28,
+        "length": 53
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #9",
+      "strategy": "greedy",
+      "js": {
+        "status": "solved",
+        "expanded": 1500,
+        "ms": 171,
+        "length": 53
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 153971,
+        "ms": 2844,
+        "length": 53
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #9",
+      "strategy": "portfolio",
+      "js": null,
+      "native": {
+        "status": "solved",
+        "expanded": 1376,
+        "ms": 26,
+        "length": 53
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #11",
+      "strategy": "bfs",
+      "js": {
+        "status": "timeout",
+        "expanded": 198816,
+        "ms": 20003,
+        "length": null
+      },
+      "native": {
+        "status": "timeout",
+        "expanded": 300000,
+        "ms": 7873,
+        "length": null
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #11",
+      "strategy": "astar",
+      "js": {
+        "status": "timeout",
+        "expanded": 200416,
+        "ms": 20004,
+        "length": null
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 95444,
+        "ms": 2517,
+        "length": 37
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #11",
+      "strategy": "greedy",
+      "js": {
+        "status": "solved",
+        "expanded": 162719,
+        "ms": 15846,
+        "length": 37
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 143570,
+        "ms": 3667,
+        "length": 37
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #11",
+      "strategy": "portfolio",
+      "js": null,
+      "native": {
+        "status": "solved",
+        "expanded": 42408,
+        "ms": 1100,
+        "length": 37
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #13",
+      "strategy": "bfs",
+      "js": {
+        "status": "solved",
+        "expanded": 2060,
+        "ms": 110,
+        "length": 16
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 2438,
+        "ms": 33,
+        "length": 16
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #13",
+      "strategy": "astar",
+      "js": {
+        "status": "solved",
+        "expanded": 1232,
+        "ms": 93,
+        "length": 16
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 10352,
+        "ms": 176,
+        "length": 16
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #13",
+      "strategy": "greedy",
+      "js": {
+        "status": "solved",
+        "expanded": 8177,
+        "ms": 532,
+        "length": 16
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 15569,
+        "ms": 222,
+        "length": 16
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #13",
+      "strategy": "portfolio",
+      "js": null,
+      "native": {
+        "status": "solved",
+        "expanded": 10966,
+        "ms": 161,
+        "length": 16
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #15",
+      "strategy": "bfs",
+      "js": {
+        "status": "solved",
+        "expanded": 1992,
+        "ms": 102,
+        "length": 20
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 2159,
+        "ms": 22,
+        "length": 20
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #15",
+      "strategy": "astar",
+      "js": {
+        "status": "solved",
+        "expanded": 1237,
+        "ms": 61,
+        "length": 20
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 330,
+        "ms": 3,
+        "length": 20
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #15",
+      "strategy": "greedy",
+      "js": {
+        "status": "solved",
+        "expanded": 395,
+        "ms": 22,
+        "length": 20
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 121,
+        "ms": 1,
+        "length": 20
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #15",
+      "strategy": "portfolio",
+      "js": null,
+      "native": {
+        "status": "solved",
+        "expanded": 188,
+        "ms": 2,
+        "length": 20
+      }
+    },
+    {
+      "level": "lunar_lockout #1",
+      "strategy": "bfs",
+      "js": {
+        "status": "solved",
+        "expanded": 1495,
+        "ms": 144,
+        "length": 20
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 1434,
+        "ms": 34,
+        "length": 20
+      }
+    },
+    {
+      "level": "lunar_lockout #1",
+      "strategy": "astar",
+      "js": {
+        "status": "solved",
+        "expanded": 1328,
+        "ms": 118,
+        "length": 20
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 328,
+        "ms": 8,
+        "length": 20
+      }
+    },
+    {
+      "level": "lunar_lockout #1",
+      "strategy": "greedy",
+      "js": {
+        "status": "solved",
+        "expanded": 1199,
+        "ms": 111,
+        "length": 20
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 690,
+        "ms": 15,
+        "length": 20
+      }
+    },
+    {
+      "level": "lunar_lockout #1",
+      "strategy": "portfolio",
+      "js": null,
+      "native": {
+        "status": "solved",
+        "expanded": 299,
+        "ms": 7,
+        "length": 20
+      }
+    },
+    {
+      "level": "lunar_lockout #3",
+      "strategy": "bfs",
+      "js": {
+        "status": "solved",
+        "expanded": 4330,
+        "ms": 402,
+        "length": 17
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 4445,
+        "ms": 91,
+        "length": 17
+      }
+    },
+    {
+      "level": "lunar_lockout #3",
+      "strategy": "astar",
+      "js": {
+        "status": "solved",
+        "expanded": 4094,
+        "ms": 382,
+        "length": 17
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 745,
+        "ms": 17,
+        "length": 17
+      }
+    },
+    {
+      "level": "lunar_lockout #3",
+      "strategy": "greedy",
+      "js": {
+        "status": "solved",
+        "expanded": 14487,
+        "ms": 1388,
+        "length": 22
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 3825,
+        "ms": 68,
+        "length": 22
+      }
+    },
+    {
+      "level": "lunar_lockout #3",
+      "strategy": "portfolio",
+      "js": null,
+      "native": {
+        "status": "solved",
+        "expanded": 1160,
+        "ms": 20,
+        "length": 17
+      }
+    },
+    {
+      "level": "lunar_lockout #5",
+      "strategy": "bfs",
+      "js": {
+        "status": "solved",
+        "expanded": 3225,
+        "ms": 304,
+        "length": 16
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 2728,
+        "ms": 70,
+        "length": 16
+      }
+    },
+    {
+      "level": "lunar_lockout #5",
+      "strategy": "astar",
+      "js": {
+        "status": "solved",
+        "expanded": 4627,
+        "ms": 368,
+        "length": 16
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 1338,
+        "ms": 27,
+        "length": 16
+      }
+    },
+    {
+      "level": "lunar_lockout #5",
+      "strategy": "greedy",
+      "js": {
+        "status": "solved",
+        "expanded": 5726,
+        "ms": 539,
+        "length": 22
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 944,
+        "ms": 19,
+        "length": 22
+      }
+    },
+    {
+      "level": "lunar_lockout #5",
+      "strategy": "portfolio",
+      "js": null,
+      "native": {
+        "status": "solved",
+        "expanded": 1828,
+        "ms": 53,
+        "length": 16
+      }
+    },
+    {
+      "level": "lunar_lockout #7",
+      "strategy": "bfs",
+      "js": {
+        "status": "solved",
+        "expanded": 30352,
+        "ms": 2515,
+        "length": 36
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 30385,
+        "ms": 613,
+        "length": 36
+      }
+    },
+    {
+      "level": "lunar_lockout #7",
+      "strategy": "astar",
+      "js": {
+        "status": "solved",
+        "expanded": 30478,
+        "ms": 2505,
+        "length": 36
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 19726,
+        "ms": 388,
+        "length": 36
+      }
+    },
+    {
+      "level": "lunar_lockout #7",
+      "strategy": "greedy",
+      "js": {
+        "status": "solved",
+        "expanded": 32588,
+        "ms": 3025,
+        "length": 36
+      },
+      "native": {
+        "status": "solved",
+        "expanded": 18798,
+        "ms": 449,
+        "length": 36
+      }
+    },
+    {
+      "level": "lunar_lockout #7",
+      "strategy": "portfolio",
+      "js": null,
+      "native": {
+        "status": "solved",
+        "expanded": 28681,
+        "ms": 722,
+        "length": 36
+      }
+    }
+  ],
+  "summary": {
+    "bfs": {
+      "solves": 19,
+      "jsExpanded": 163821,
+      "jsMs": 11886,
+      "nativeExpanded": 163855,
+      "nativeMs": 3480,
+      "jsRate": 13782.685512367492,
+      "nativeRate": 47084.77011494253,
+      "wallSpeedup": 3.4155172413793102
+    },
+    "astar": {
+      "solves": 23,
+      "jsExpanded": 382520,
+      "jsMs": 31162,
+      "nativeExpanded": 280867,
+      "nativeMs": 6254,
+      "jsRate": 12275.206982863745,
+      "nativeRate": 44909.97761432683,
+      "wallSpeedup": 4.982731052126639
+    },
+    "greedy": {
+      "solves": 22,
+      "jsExpanded": 265945,
+      "jsMs": 24791,
+      "nativeExpanded": 368471,
+      "nativeMs": 8008,
+      "jsRate": 10727.481747408334,
+      "nativeRate": 46012.86213786215,
+      "wallSpeedup": 3.095779220779221
+    }
+  },
+  "assessRows": [
+    {
+      "level": "sokoban_basic #0",
+      "js": {
+        "status": "solved",
+        "effort": 331,
+        "ms": 101
+      },
+      "native": {
+        "status": "solved",
+        "effort": 280,
+        "ms": 51,
+        "lanes": {
+          "portfolio": 475,
+          "greedy": 280,
+          "astar": 476
+        }
+      }
+    },
+    {
+      "level": "sokoban_basic #1",
+      "js": {
+        "status": "solved",
+        "effort": 41,
+        "ms": 20
+      },
+      "native": {
+        "status": "solved",
+        "effort": 57,
+        "ms": 9,
+        "lanes": {
+          "portfolio": 57,
+          "greedy": 57,
+          "astar": 57
+        }
+      }
+    },
+    {
+      "level": "microban #1",
+      "js": {
+        "status": "solved",
+        "effort": 331,
+        "ms": 75
+      },
+      "native": {
+        "status": "solved",
+        "effort": 280,
+        "ms": 38,
+        "lanes": {
+          "portfolio": 475,
+          "greedy": 280,
+          "astar": 476
+        }
+      }
+    },
+    {
+      "level": "microban #3",
+      "js": {
+        "status": "solved",
+        "effort": 41,
+        "ms": 10
+      },
+      "native": {
+        "status": "solved",
+        "effort": 57,
+        "ms": 5,
+        "lanes": {
+          "portfolio": 57,
+          "greedy": 57,
+          "astar": 57
+        }
+      }
+    },
+    {
+      "level": "microban #5",
+      "js": {
+        "status": "solved",
+        "effort": 773,
+        "ms": 159
+      },
+      "native": {
+        "status": "solved",
+        "effort": 914,
+        "ms": 73,
+        "lanes": {
+          "portfolio": 1259,
+          "greedy": 914
+        }
+      }
+    },
+    {
+      "level": "microban #7",
+      "js": {
+        "status": "solved",
+        "effort": 2687,
+        "ms": 661
+      },
+      "native": {
+        "status": "solved",
+        "effort": 920,
+        "ms": 74,
+        "lanes": {
+          "portfolio": 920
+        }
+      }
+    },
+    {
+      "level": "microban #9",
+      "js": {
+        "status": "solved",
+        "effort": 27102,
+        "ms": 4699
+      },
+      "native": {
+        "status": "solved",
+        "effort": 31042,
+        "ms": 2810,
+        "lanes": {
+          "portfolio": 31042
+        }
+      }
+    },
+    {
+      "level": "microban #11",
+      "js": {
+        "status": "timeout",
+        "ms": 3002
+      },
+      "native": {
+        "status": "solved",
+        "effort": 6704,
+        "ms": 1728,
+        "lanes": {
+          "portfolio": 22317,
+          "greedy": 6704
+        }
+      }
+    },
+    {
+      "level": "microban #13",
+      "js": {
+        "status": "solved",
+        "effort": 3928,
+        "ms": 1835
+      },
+      "native": {
+        "status": "solved",
+        "effort": 132,
+        "ms": 264,
+        "lanes": {
+          "portfolio": 4701,
+          "greedy": 132,
+          "astar": 4701
+        }
+      }
+    },
+    {
+      "level": "microban #15",
+      "js": {
+        "status": "solved",
+        "effort": 3208,
+        "ms": 675
+      },
+      "native": {
+        "status": "solved",
+        "effort": 2550,
+        "ms": 262,
+        "lanes": {
+          "portfolio": 2839,
+          "greedy": 2550,
+          "astar": 2727
+        }
+      }
+    },
+    {
+      "level": "microban #17",
+      "js": {
+        "status": "solved",
+        "effort": 399,
+        "ms": 72
+      },
+      "native": {
+        "status": "solved",
+        "effort": 398,
+        "ms": 25,
+        "lanes": {
+          "portfolio": 489,
+          "greedy": 398
+        }
+      }
+    },
+    {
+      "level": "microban #19",
+      "js": {
+        "status": "solved",
+        "effort": 2364,
+        "ms": 1036
+      },
+      "native": {
+        "status": "solved",
+        "effort": 2857,
+        "ms": 329,
+        "lanes": {
+          "portfolio": 3797,
+          "greedy": 2857,
+          "astar": 3761
+        }
+      }
+    },
+    {
+      "level": "twolittlecrates1 #0",
+      "js": {
+        "status": "timeout",
+        "ms": 3003
+      },
+      "native": {
+        "status": "timeout",
+        "ms": 3018,
+        "lanes": {}
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #1",
+      "js": {
+        "status": "solved",
+        "effort": 97,
+        "ms": 66
+      },
+      "native": {
+        "status": "solved",
+        "effort": 36,
+        "ms": 4,
+        "lanes": {
+          "portfolio": 36
+        }
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #3",
+      "js": {
+        "status": "solved",
+        "effort": 9283,
+        "ms": 6127
+      },
+      "native": {
+        "status": "solved",
+        "effort": 7816,
+        "ms": 857,
+        "lanes": {
+          "portfolio": 8191,
+          "astar": 7816
+        }
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #5",
+      "js": {
+        "status": "solved",
+        "effort": 1995,
+        "ms": 527
+      },
+      "native": {
+        "status": "solved",
+        "effort": 2969,
+        "ms": 309,
+        "lanes": {
+          "portfolio": 4892,
+          "greedy": 3243,
+          "astar": 4518,
+          "bfs": 2969
+        }
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #7",
+      "js": {
+        "status": "timeout",
+        "ms": 3001
+      },
+      "native": {
+        "status": "solved",
+        "effort": 2258,
+        "ms": 244,
+        "lanes": {
+          "portfolio": 3260,
+          "greedy": 2258
+        }
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #9",
+      "js": {
+        "status": "timeout",
+        "ms": 3002
+      },
+      "native": {
+        "status": "solved",
+        "effort": 1376,
+        "ms": 126,
+        "lanes": {
+          "portfolio": 1376
+        }
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #11",
+      "js": {
+        "status": "timeout",
+        "ms": 3003
+      },
+      "native": {
+        "status": "solved",
+        "effort": 42408,
+        "ms": 4353,
+        "lanes": {
+          "portfolio": 42408
+        }
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #13",
+      "js": {
+        "status": "solved",
+        "effort": 1232,
+        "ms": 201
+      },
+      "native": {
+        "status": "solved",
+        "effort": 2438,
+        "ms": 471,
+        "lanes": {
+          "portfolio": 10966,
+          "greedy": 10653,
+          "astar": 10352,
+          "bfs": 2438
+        }
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #15",
+      "js": {
+        "status": "solved",
+        "effort": 395,
+        "ms": 150
+      },
+      "native": {
+        "status": "solved",
+        "effort": 174,
+        "ms": 10,
+        "lanes": {
+          "portfolio": 188,
+          "greedy": 174
+        }
+      }
+    },
+    {
+      "level": "lunar_lockout #1",
+      "js": {
+        "status": "solved",
+        "effort": 1199,
+        "ms": 339
+      },
+      "native": {
+        "status": "solved",
+        "effort": 299,
+        "ms": 27,
+        "lanes": {
+          "portfolio": 299
+        }
+      }
+    },
+    {
+      "level": "lunar_lockout #3",
+      "js": {
+        "status": "solved",
+        "effort": 4094,
+        "ms": 1014
+      },
+      "native": {
+        "status": "solved",
+        "effort": 745,
+        "ms": 94,
+        "lanes": {
+          "portfolio": 1160,
+          "astar": 745
+        }
+      }
+    },
+    {
+      "level": "lunar_lockout #5",
+      "js": {
+        "status": "solved",
+        "effort": 3225,
+        "ms": 1354
+      },
+      "native": {
+        "status": "solved",
+        "effort": 1338,
+        "ms": 129,
+        "lanes": {
+          "portfolio": 1828,
+          "astar": 1338
+        }
+      }
+    },
+    {
+      "level": "lunar_lockout #7",
+      "js": {
+        "status": "timeout",
+        "ms": 3002
+      },
+      "native": {
+        "status": "solved",
+        "effort": 19726,
+        "ms": 2331,
+        "lanes": {
+          "portfolio": 28681,
+          "astar": 19726
+        }
+      }
+    }
+  ],
+  "simplifyRows": [
+    {
+      "level": "sokoban_basic #0",
+      "js": {
+        "ok": true,
+        "removed": 8,
+        "length": 33,
+        "ms": 990
+      },
+      "native": {
+        "ok": true,
+        "removed": 8,
+        "length": 33,
+        "ms": 630
+      }
+    },
+    {
+      "level": "microban #1",
+      "js": {
+        "ok": true,
+        "removed": 8,
+        "length": 33,
+        "ms": 1225
+      },
+      "native": {
+        "ok": true,
+        "removed": 8,
+        "length": 33,
+        "ms": 701
+      }
+    },
+    {
+      "level": "twolittlecrates1 #0",
+      "js": {
+        "ok": false,
+        "ms": 20002
+      },
+      "native": {
+        "ok": false,
+        "ms": 5029,
+        "reason": "level is not solvable within the time budget"
+      }
+    },
+    {
+      "level": "ALL GREEN TO BLUE #1",
+      "js": {
+        "ok": true,
+        "removed": 18,
+        "length": 16,
+        "ms": 1411
+      },
+      "native": {
+        "ok": true,
+        "removed": 20,
+        "length": 16,
+        "ms": 280
+      }
+    },
+    {
+      "level": "lunar_lockout #1",
+      "js": {
+        "ok": true,
+        "removed": 7,
+        "length": 20,
+        "ms": 12091
+      },
+      "native": {
+        "ok": true,
+        "removed": 7,
+        "length": 20,
+        "ms": 3517
+      }
+    }
+  ],
+  "cap": 300000,
+  "timeMs": 20000,
+  "node": "v22.22.2"
+}
