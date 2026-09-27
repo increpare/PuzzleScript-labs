@@ -124,15 +124,20 @@ Two frozen files, built from `src/tests/solver_tests`:
 
 - `src/tests/mis_generator_seeds.json`: every level the native solver solves
   in under 500 ms (716 levels, 116 games). Built with `… seeds`.
-- `src/tests/mis_generator_bench_seeds.json`: the benchmark subset (386
-  levels, 97 games). Built with `… cull <survey.json>` from a survey of every
+- `src/tests/mis_generator_bench_seeds.json`: the benchmark subset (319
+  levels, 103 games). Built with `… cull <survey.json>` from a survey of every
   generator on every seed. The cull drops levels with effort ≤ 10 (too trivial
-  to improve on) and levels no generator made harder. It then keeps at most 6
-  levels per game (the **cap**), preferring levels where more generators found
-  harder levels, then the larger lift. The rule and each game's generators are
-  recorded in the file.
+  to improve on), levels with a hung run, and levels no generator made harder.
+  It then keeps at most 4 levels per game (the **cap**), spread over the
+  game's difficulty range: the easiest, the hardest and evenly spaced levels
+  between. The rule and each game's generators are recorded in the file.
 
-Run every generator on every benchmark level (3 s each; ~26 min on 4 threads):
+Runs have a candidate budget, not a fixed time: each generator runs until it
+has judged 30 candidate levels, taking at least 3 s and at most 30 s. Slow
+games get the time they need to be judged fairly.
+
+Run every generator on every benchmark level (~2.5 h on 4 threads; see
+`docs/benchmarks/2026-09-27-mis-generator-bench.md`):
 
 ```sh
 node src/tests/mis_generator_seed_survey_node.js survey \

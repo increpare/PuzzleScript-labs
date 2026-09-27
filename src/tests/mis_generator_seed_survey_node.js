@@ -4,21 +4,25 @@
 // Seed corpus + productivity survey for the PuzzleScript+MIS level generator.
 //
 //   node src/tests/mis_generator_seed_survey_node.js seeds  [--out seeds.json] [--solve-ms 500]
-//   node src/tests/mis_generator_seed_survey_node.js survey [--seeds seeds.json] [--out survey.json] [--seconds 3] [--seed 7]
-//   node src/tests/mis_generator_seed_survey_node.js cull survey.json [--cap 6] [--min-effort 10] [--out bench.json]
+//   node src/tests/mis_generator_seed_survey_node.js survey [--seeds seeds.json] [--out survey.json] [--seed 7]
+//        [--candidates 30 --min-seconds 3 --max-seconds 30 | --seconds S] [--rejudge prev.json]
+//   node src/tests/mis_generator_seed_survey_node.js cull survey.json [--cap 4] [--pick spread|productive] [--min-effort 10] [--out bench.json]
 //
 // seeds:  every playable level in src/tests/solver_tests that the native
 //         portfolio solver solves within --solve-ms (default 500). Games with
 //         random rules, or whose native/JS object tables differ, are skipped.
 // survey: for every seed level and every generator (the game's derived
-//         transform presets), run the generator for --seconds and record how
-//         productive it is: distinct new solvable levels, levels harder than
-//         the seed (solver effort), best effort found, slowest single step.
+//         transform presets), run the generator until it has judged
+//         --candidates candidate levels (within --min/--max-seconds; or a fixed
+//         --seconds) and record how productive it is: distinct new solvable
+//         levels, levels harder than the seed (solver effort), best effort
+//         found, slowest single step, and time per generator phase.
 // cull:   the benchmark set. From the seeds, drop levels with solver effort
-//         <= --min-effort (too trivial to improve on) and levels where no
-//         generator found anything harder. Then keep at most --cap levels per
-//         game, preferring levels where more generators were productive, then
-//         the larger lift (best top-8 mean effort / seed effort).
+//         <= --min-effort (too trivial to improve on), levels with a hung run,
+//         and levels where no generator found anything harder. Then keep at most --cap levels per
+//         game: by default spread evenly over the game's seed efforts (easiest,
+//         hardest and between); --pick productive prefers levels where more
+//         generators were productive, then the larger lift.
 //
 // Jobs run on a pool of worker threads (--jobs, default = cores). Each job has
 // a hard deadline; a job that overruns is killed and recorded as "hung".
@@ -100,7 +104,9 @@ if (!isMainThread) {
 			}
 			if (job.type === 'survey') {
 				const base = lv.board;
+				const tb = Date.now();
 				const baseline = g.native.assess(base, { timeMs: 3000, maxExpanded: 400000, refineGate: 0 });
+				const baselineMs = Date.now() - tb;
 				const baseEffort = baseline.status === 'solved' ? baseline.effort : 0;
 				const program = C.parseTransform(job.transform, g.model);
 				if (program.errors.length || !program.statements.length) {
@@ -110,8 +116,15 @@ if (!isMainThread) {
 				const gen = MISGenerator.create({ model: g.model, backend: g.native, program, base, seed: job.seed, keep: 8, baseEffort });
 				const solvable = new Set(), harder = new Set();
 				let slowest = 0, bestEffort = 0;
+				// Budget: run until job.candidates candidates have been judged (solved,
+				// proved unsolvable or timed out), but at least minSeconds and at most
+				// maxSeconds. Slow-to-judge games get more time; fast ones stop at minSeconds.
 				const t0 = Date.now();
-				while (Date.now() - t0 < job.seconds * 1000) {
+				const judged = () => { const st = gen.stats(); return st.solved + st.unsolvable + st.timeout; };
+				for (;;) {
+					const el = Date.now() - t0;
+					if (el >= job.maxSeconds * 1000) break;
+					if (el >= job.minSeconds * 1000 && judged() >= job.candidates) break;
 					const s = Date.now();
 					const r = gen.step();
 					slowest = Math.max(slowest, Date.now() - s);
@@ -124,7 +137,13 @@ if (!isMainThread) {
 				const secs = (Date.now() - t0) / 1000;
 				const st = gen.stats();
 				const top = gen.best();
-				parentPort.postMessage({ id: job.id, ok: true, secs, baseEffort,
+				const pr = gen.profile();
+				parentPort.postMessage({ id: job.id, ok: true, secs, baseEffort, baselineMs,
+					budget: { candidates: job.candidates, minSeconds: job.minSeconds, maxSeconds: job.maxSeconds },
+					hitMax: judged() < job.candidates, solverBudgetMs: st.budgetMs,
+					phaseMs: { transform: Math.round(pr.transformMs), dedupe: Math.round(pr.keyMs),
+						primarySolved: Math.round(pr.primarySolvedMs), primaryUnsolvable: Math.round(pr.primaryUnsolvableMs),
+						primaryTimeout: Math.round(pr.primaryTimeoutMs), refine: Math.round(pr.refineMs), proof: Math.round(pr.proofMs) },
 					samples: st.generated + st.duplicates + st.unchanged, assessed: st.solved + st.unsolvable + st.timeout,
 					solvedPct: (st.solved + st.unsolvable + st.timeout) ? st.solved / (st.solved + st.unsolvable + st.timeout) : 0,
 					timeouts: st.timeout, newSolvable: solvable.size, harder: harder.size,
@@ -262,13 +281,33 @@ async function seeds() {
 async function survey() {
 	const seedsFile = arg('--seeds', path.join(srcDir, 'tests/mis_generator_seeds.json'));
 	const out = arg('--out', 'mis_generator_survey.json');
-	const seconds = +arg('--seconds', 3);
+	// --seconds S: fixed S seconds per run (the original survey). Otherwise a
+	// candidate budget: --candidates judged, within --min-seconds..--max-seconds.
+	const fixed = arg('--seconds', null);
+	const budget = fixed ? { candidates: 0, minSeconds: +fixed, maxSeconds: +fixed }
+		: { candidates: +arg('--candidates', 30), minSeconds: +arg('--min-seconds', 3), maxSeconds: +arg('--max-seconds', 30) };
 	const only = arg('--game', null);
 	const rngSeed = +arg('--seed', 7);
+	// --rejudge prev.json: rerun only the levels the cull would drop as
+	// unproductive in prev.json (no generator found a harder level, or a run
+	// hung), and merge the new rows over the old ones.
+	const rejudgeFile = arg('--rejudge', null);
+	const prev = rejudgeFile ? JSON.parse(fs.readFileSync(rejudgeFile, 'utf8')) : null;
+	const minEffort = +arg('--min-effort', 10);
 	const manifest = JSON.parse(fs.readFileSync(seedsFile, 'utf8'));
 	const pool = makePool(JOBS);
 	let seedsList = manifest.seeds;
 	if (only) seedsList = seedsList.filter(s => s.game.includes(only));
+	if (prev) {
+		const byLevel = {};
+		for (const r of prev.rows) (byLevel[r.game + '#' + r.level] || (byLevel[r.game + '#' + r.level] = [])).push(r);
+		seedsList = seedsList.filter((s) => {
+			const rs = byLevel[s.game + '#' + s.level] || [];
+			const ok = rs.filter(r => r.ok);
+			if (ok.length && !(ok[0].baseEffort > minEffort)) return false; // trivial: culled anyway
+			return !ok.some(r => r.harder > 0) || rs.some(r => r.hung);
+		});
+	}
 	// Generators per game: the derived presets (frozen into the survey output).
 	const games = [...new Set(seedsList.map(s => s.game))];
 	const presetsByGame = {};
@@ -278,21 +317,28 @@ async function survey() {
 	for (const s of seedsList) {
 		for (const p of presetsByGame[s.game] || []) tasks.push({ s, p });
 	}
-	process.stderr.write(`${tasks.length} (level, generator) runs × ${seconds}s on ${JOBS} threads ≈ ${Math.round(tasks.length * seconds / JOBS / 60)} min\n`);
+	process.stderr.write(`${tasks.length} (level, generator) runs on ${seedsList.length} levels, budget ${JSON.stringify(budget)}, ${JOBS} threads\n`);
 	let done = 0;
 	const rows = await Promise.all(tasks.map(({ s, p }) =>
-		pool.run({ type: 'survey', file: path.join(CORPUS, s.game), level: s.level, transform: p.text, seconds, seed: rngSeed }, (seconds + 30) * 1000)
+		pool.run({ type: 'survey', file: path.join(CORPUS, s.game), level: s.level, transform: p.text, candidates: budget.candidates, minSeconds: budget.minSeconds, maxSeconds: budget.maxSeconds, seed: rngSeed }, (budget.maxSeconds + 30) * 1000)
 			.then((m) => {
 				progress(++done, tasks.length, 'survey');
 				return Object.assign({ game: s.game, level: s.level, generator: p.id, generatorLabel: p.label }, m);
 			})));
 	pool.close();
+	let allRows = rows, generators = presetsByGame;
+	if (prev) {
+		const redone = new Set(seedsList.map(s => s.game + '#' + s.level));
+		allRows = prev.rows.filter(r => !redone.has(r.game + '#' + r.level)).concat(rows);
+		generators = Object.assign({}, prev.generators, presetsByGame);
+	}
 	fs.writeFileSync(out, JSON.stringify({
-		schema_version: 1, kind: 'mis_generator_survey', generated_at: new Date().toISOString(),
-		seeds: path.relative(process.cwd(), seedsFile), seconds_per_run: seconds, threads: JOBS, rng_seed: rngSeed,
-		generators: presetsByGame, rows,
+		schema_version: 2, kind: 'mis_generator_survey', generated_at: new Date().toISOString(),
+		seeds: path.relative(process.cwd(), seedsFile), budget, threads: JOBS, rng_seed: rngSeed,
+		rejudged: prev ? { from: path.relative(process.cwd(), rejudgeFile), levels: seedsList.length, budget_of_other_rows: prev.budget || { seconds: prev.seconds_per_run } } : undefined,
+		generators, rows: allRows,
 	}, null, 1) + '\n');
-	report(rows);
+	report(allRows);
 	console.log('wrote ' + out);
 }
 
@@ -300,14 +346,19 @@ function cull() {
 	const survey = JSON.parse(fs.readFileSync(args[1], 'utf8'));
 	const seedsFile = arg('--seeds', path.join(srcDir, 'tests/mis_generator_seeds.json'));
 	const out = arg('--out', path.join(srcDir, 'tests/mis_generator_bench_seeds.json'));
-	const cap = +arg('--cap', 6), minEffort = +arg('--min-effort', 10);
+	const cap = +arg('--cap', 4), minEffort = +arg('--min-effort', 10);
+	const pick = arg('--pick', 'spread');
 	const manifest = JSON.parse(fs.readFileSync(seedsFile, 'utf8'));
 	const runs = {};
 	for (const r of survey.rows) (runs[r.game + '#' + r.level] || (runs[r.game + '#' + r.level] = [])).push(r);
-	const dropped = { trivial: 0, unproductive: 0, not_surveyed: 0, over_cap: 0 };
+	const dropped = { trivial: 0, unproductive: 0, hung: 0, not_surveyed: 0, over_cap: 0 };
 	const byGame = {};
 	for (const s of manifest.seeds) {
-		const rs = (runs[s.game + '#' + s.level] || []).filter(r => r.ok);
+		const all = runs[s.game + '#' + s.level] || [];
+		const rs = all.filter(r => r.ok);
+		// A hung run (a native turn that can't be interrupted) costs the whole
+		// deadline on every benchmark run and measures nothing.
+		if (all.some(r => r.hung)) { dropped.hung++; continue; }
 		if (!rs.length) { dropped.not_surveyed++; continue; }
 		const baseEffort = rs[0].baseEffort;
 		if (!(baseEffort > minEffort)) { dropped.trivial++; continue; }
@@ -321,9 +372,17 @@ function cull() {
 	}
 	const kept = [];
 	for (const list of Object.values(byGame)) {
-		list.sort((a, b) => b.productiveGenerators.length - a.productiveGenerators.length || b.lift - a.lift || a.level - b.level);
-		kept.push(...list.slice(0, cap));
 		dropped.over_cap += Math.max(0, list.length - cap);
+		if (list.length <= cap) { kept.push(...list); continue; }
+		if (pick === 'productive') {
+			list.sort((a, b) => b.productiveGenerators.length - a.productiveGenerators.length || b.lift - a.lift || a.level - b.level);
+			kept.push(...list.slice(0, cap));
+		} else {
+			// spread: the easiest, the hardest and evenly spaced levels between, by
+			// seed solver effort, so the set covers each game's difficulty range.
+			list.sort((a, b) => a.baseEffort - b.baseEffort || a.level - b.level);
+			for (let i = 0; i < cap; i++) kept.push(list[cap === 1 ? 0 : Math.round(i * (list.length - 1) / (cap - 1))]);
+		}
 	}
 	kept.sort((a, b) => a.game.localeCompare(b.game) || a.level - b.level);
 	const games = [...new Set(kept.map(s => s.game))];
@@ -331,12 +390,13 @@ function cull() {
 		schema_version: 1,
 		kind: 'mis_generator_bench_seeds',
 		description: 'Benchmark levels for the MIS generator: seeds from ' + path.relative(process.cwd(), seedsFile) +
-			', minus trivial levels and levels no generator improved on, at most `cap` per game.',
+			', minus trivial levels, levels with a hung run and levels no generator improved on, at most `cap` per game chosen by `rule.pick`.',
 		generated_at: new Date().toISOString(),
 		corpus: manifest.corpus,
 		solve_ms: manifest.solve_ms,
-		rule: { min_effort_exclusive: minEffort, cap_per_game: cap, rank: 'productive generators desc, lift desc, level asc',
-			survey_seconds_per_run: survey.seconds_per_run, survey_rng_seed: survey.rng_seed || 7 },
+		rule: { min_effort_exclusive: minEffort, cap_per_game: cap,
+			pick: pick === 'productive' ? 'productive generators desc, lift desc, level asc' : 'spread: evenly spaced by seed effort (includes easiest and hardest)',
+			survey_budget: survey.budget || { seconds: survey.seconds_per_run }, survey_rejudged: survey.rejudged, survey_rng_seed: survey.rng_seed || 7 },
 		game_hashes: Object.fromEntries(games.map(g => [g, manifest.game_hashes[g]])),
 		generators: Object.fromEntries(games.map(g => [g, survey.generators[g]])),
 		counts: { seed_levels_in: manifest.seeds.length, dropped, levels: kept.length, games: games.length },
