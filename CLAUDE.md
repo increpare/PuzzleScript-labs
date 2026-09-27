@@ -77,6 +77,7 @@ PuzzleScript source code flows through three stages:
 - **`src/editor.html`** — the PuzzleScript editor (code editor + game player)
 - **`src/play.html`** — standalone game player
 - **`src/standalone.html`** — template for exported standalone games (compile.js inlines resources into `standalone_inlined.txt`)
+- **`src/mis.html`** — PuzzleScript+MIS web prototype (mixed-initiative level design: transforms, suggestions, simplify). Code in `src/js/mis/`; needs an HTTP server (Web Workers). Core checks: `node src/tests/mis_core_node.js`. See `docs/puzzlescriptmis-web-prototype.md`.
 
 ### Script Loading Order
 
