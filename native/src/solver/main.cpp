@@ -1426,26 +1426,37 @@ void markMaterializedFullStateDirty(FullState& session) {
 }
 
 void materializePersistentLevelStateIntoFullState(const PersistentLevelState& state, const FullState& base, FullState& session) {
+    const bool warm = session.game == base.game && session.game != nullptr;
     session.game = base.game;
     session.meta = base.meta;
     const int32_t tileCount = currentLevelWidth(session) * currentLevelHeight(session);
-    if (session.game != nullptr) {
-        puzzlescript::setPersistentBoardObjectsFromCellMajor(session, state.board.objects);
-    } else {
-        puzzlescript::clearPersistentBoardObjects(session);
+    // Same incremental retarget as prepareSolverChildFullStateFromParent.
+    const bool retargeted = warm && puzzlescript::retargetSessionBoard(session, state.board.objects);
+    if (!retargeted) {
+        if (session.game != nullptr) {
+            puzzlescript::setPersistentBoardObjectsFromCellMajor(session, state.board.objects);
+        } else {
+            puzzlescript::clearPersistentBoardObjects(session);
+        }
     }
     const size_t movementWordCount = static_cast<size_t>(std::max(tileCount, int32_t{0}) * (session.game ? session.game->strideMovement : 0));
-    session.scratch.liveMovements.assign(movementWordCount, 0);
+    if (!retargeted) {
+        session.scratch.liveMovements.assign(movementWordCount, 0);
+    }
     session.scratch.rigidGroupIndexMasks.assign(session.scratch.liveMovements.size(), 0);
     session.scratch.rigidMovementAppliedMasks.assign(session.scratch.liveMovements.size(), 0);
-    clearMaterializedSolverMaskCaches(session);
+    if (!retargeted) {
+        clearMaterializedSolverMaskCaches(session);
+    }
     session.meta.pendingAgain = false;
     session.meta.undoStack.clear();
     session.levelState.rng.s = state.rng.s;
     session.levelState.rng.i = state.rng.i;
     session.levelState.rng.j = state.rng.j;
     session.levelState.rng.valid = state.rng.valid;
-    markMaterializedFullStateDirty(session);
+    if (!retargeted) {
+        markMaterializedFullStateDirty(session);
+    }
 }
 
 void prepareSolverChildMetaFromParent(
@@ -1779,18 +1790,27 @@ void prepareSolverChildFullStateFromParent(
     bool trimSolverMeta,
     bool copyRestartSnapshot
 ) {
+    // The reusable child scratch usually still holds a sibling's board with
+    // valid masks; rewriting just the differing cells keeps every mask and
+    // index incremental instead of clearing and rescanning the whole board
+    // for every edge (which profiled as the dominant per-state cost).
+    const bool warm = child.game == parent.game && child.game != nullptr;
     child.game = parent.game;
     if (trimSolverMeta) {
         prepareSolverChildMetaFromParent(child.meta, parent.meta, copyRestartSnapshot);
     } else {
         child.meta = parent.meta;
     }
-    child.levelState.board.objects = parent.levelState.board.objects;
-
-    child.scratch.liveMovements.assign(parent.scratch.liveMovements.size(), 0);
+    const bool retargeted = warm && puzzlescript::retargetSessionBoard(child, parent.levelState.board.objects);
+    if (!retargeted) {
+        child.levelState.board.objects = parent.levelState.board.objects;
+        child.scratch.liveMovements.assign(parent.scratch.liveMovements.size(), 0);
+    }
     child.scratch.rigidGroupIndexMasks.assign(parent.scratch.rigidGroupIndexMasks.size(), 0);
     child.scratch.rigidMovementAppliedMasks.assign(parent.scratch.rigidMovementAppliedMasks.size(), 0);
-    clearMaterializedSolverMaskCaches(child);
+    if (!retargeted) {
+        clearMaterializedSolverMaskCaches(child);
+    }
     child.scratch.pendingCreateMask.clear();
     child.scratch.pendingDestroyMask.clear();
     child.meta.pendingAgain = false;
@@ -1798,7 +1818,9 @@ void prepareSolverChildFullStateFromParent(
     child.meta.suppressRuleMessages = parent.meta.suppressRuleMessages;
     child.levelState.rng = parent.levelState.rng;
     child.scratch.backend = parent.scratch.backend;
-    markMaterializedFullStateDirty(child);
+    if (!retargeted) {
+        markMaterializedFullStateDirty(child);
+    }
 }
 
 // Allocate a Node-owned FullState that captures `source`'s post-step state

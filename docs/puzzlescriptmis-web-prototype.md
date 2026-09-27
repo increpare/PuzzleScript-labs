@@ -75,7 +75,24 @@ make mis_tests                     # core + native adapter checks
 make mis_backend_bench             # JS vs wasm solver comparison
 ```
 
-Profiling and speed numbers: `docs/benchmarks/2026-09-27-mis-wasm-backend.md`.
+Profiling and speed numbers: `docs/benchmarks/2026-09-27-mis-wasm-backend.md`
+(backends) and `docs/benchmarks/2026-09-27-mis-generator-profile.md` (the
+generator from engine to product, and what changed as a result).
+
+## Generator
+
+`src/js/mis/mis_generator.js` is shared by the workers and
+`src/tests/mis_generator_profile_node.js`. For each candidate it runs one
+assessment: a primary search, plus the difficulty lanes only when the candidate
+could make the shortlist. Only admitted candidates get a shortest-length
+proof. The time budget grows with the primary solve time.
+
+Step size adapts automatically: a bandit scales every `choose` count by ⅛–2×
+toward whatever has been finding harder-than-current levels fastest. The meter
+shows the current choice.
+
+The app runs `hardwareConcurrency − 1` generator workers (`?genWorkers=N`)
+and pauses level-health checks while generating.
 
 ## Difficulty
 
@@ -96,7 +113,9 @@ thesis's findings.
 - `src/js/mis/mis_shims.js`: headless stand-ins for the graphics/input
   scripts.
 - `src/tests/mis_core_node.js`: Node checks for the core and the native adapter.
+- `src/js/mis/mis_generator.js`: instrumented generation loop (adaptive step size).
 - `src/tests/mis_backend_bench_node.js`: JS vs wasm solver benchmark (`--dump-grids` feeds `native/wasm/mis_wasm_bench_native.cpp` for x86).
+- `src/tests/mis_generator_profile_node.js`: per-phase / per-state / harder-per-minute generator profile (`make mis_generator_profile`).
 
 Not yet ported from the UX pass: rule-coverage constraints ("the solution must
 use rule N") and user-weighted costs (`COST n`).

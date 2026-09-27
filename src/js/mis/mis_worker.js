@@ -15,6 +15,7 @@ importScripts(
 misAfterEngineLoaded();
 importScripts('mis_core.js');
 importScripts('mis_native.js');
+importScripts('mis_generator.js');
 
 let model = null;
 // Solver backend: the WebAssembly build of the native solver when available
@@ -39,6 +40,7 @@ function loadNative() {
 
 const backend = {
 	assess: function (board, opts) { return native ? native.assess(board, opts) : MISCore.assess(model, board, opts); },
+	solve: function (board, opts) { return native ? native.solve(board, opts) : MISCore.solve(model, board, opts); },
 	simplify: function (board, opts) {
 		// The native simplifier only removes; Tighten stays on the JS path.
 		if (native && (opts.mode || 'simplify') === 'simplify') {
@@ -102,91 +104,46 @@ self.onmessage = function (e) {
 };
 
 /////////////////////////////////////////////////////////////////////
-// Generation loop
+// Generation loop (logic in mis_generator.js)
 /////////////////////////////////////////////////////////////////////
-//
-// Mirrors the MIS app's curator: sample a transformed board, prove it solvable
-// with a time budget, refine its difficulty only if it could make the
-// shortlist, and grow the budget toward the difficulty frontier. Timeouts are
-// parked and retried once the budget has grown past the one they failed at.
 
 function generate(msg) {
-	const base = boardFrom(msg.base);
-	const frozen = msg.frozen ? new Uint8Array(msg.frozen) : null;
 	const program = MISCore.parseTransform(msg.transform, model);
 	if (!program.statements.length) {
 		reply({ type: 'genError', message: program.errors.length ? program.errors[0].message : 'The transform is empty.' });
 		return;
 	}
-	const rng = MISCore.makeRng(msg.seed);
-	const baseKey = MISCore.cellsKey(base.cells);
-	const seen = new Set([baseKey]);
-	const keepCount = msg.keep || 8;
-	const topEfforts = [];
-	const parked = [];
-	let budget = msg.initialBudgetMs || 200;
-	// States a BFS may spend proving a shortlisted candidate's shortest solution.
-	const optimalCap = msg.optimalCap !== undefined ? msg.optimalCap : 20000;
-	const maxBudget = msg.maxBudgetMs || 5000;
-	const stats = { generated: 0, duplicates: 0, unchanged: 0, solved: 0, unsolvable: 0, timeout: 0, budgetMs: budget };
+	const base = boardFrom(msg.base);
+	// Baseline for the adaptive step size's reward: the level being improved.
+	let baseEffort = msg.baseEffort;
+	if (!(baseEffort > 0)) {
+		const r = backend.assess(base, { timeMs: 3000, maxExpanded: 400000, refineGate: 0 });
+		baseEffort = r.status === 'solved' ? r.effort : 0;
+	}
+	const gen = MISGenerator.create({
+		model: model, backend: backend, program: program, base: base, baseEffort: baseEffort, adaptive: msg.adaptive !== false,
+		frozen: msg.frozen ? new Uint8Array(msg.frozen) : null, seed: msg.seed, keep: msg.keep || 8,
+		optimalCap: msg.optimalCap, initialBudgetMs: msg.initialBudgetMs, maxBudgetMs: msg.maxBudgetMs,
+		shard: msg.shardCount > 1 ? { index: msg.shardIndex, count: msg.shardCount } : null,
+		pipeline: msg.pipeline,
+	});
 	let lastStats = 0;
-	let streak = 0; // consecutive duplicate/unchanged samples
-
 	function flushStats(force) {
-		const now = Date.now();
-		if (force || now - lastStats > 250) {
-			lastStats = now;
-			stats.budgetMs = budget;
-			reply({ type: 'stats', stats: Object.assign({}, stats), exhausted: streak > 3000 });
+		const t = Date.now();
+		if (force || t - lastStats > 250) {
+			lastStats = t;
+			reply({ type: 'stats', stats: Object.assign({}, gen.stats()), profile: Object.assign({}, gen.profile()), arms: gen.arms(), exhausted: gen.exhausted() });
 		}
 	}
-
-	function admit(effort) {
-		topEfforts.push(effort);
-		topEfforts.sort(function (a, b) { return b - a; });
-		if (topEfforts.length > keepCount) topEfforts.length = keepCount;
-	}
-
 	function step() {
-		let board = null, retried = false;
-		for (let i = 0; i < parked.length; i++) {
-			if (parked[i].budget < budget) { board = parked[i].board; parked.splice(i, 1); retried = true; break; }
-		}
-		if (!board) {
-			board = MISCore.runTransform(model, program, base, frozen, rng);
-			const key = MISCore.cellsKey(board.cells);
-			if (key === baseKey) { stats.unchanged++; streak++; flushStats(); return; }
-			if (seen.has(key)) { stats.duplicates++; streak++; flushStats(); return; }
-			seen.add(key);
-			stats.generated++;
-		}
-		streak = 0;
-		const primary = backend.assess(board, { timeMs: budget, maxExpanded: 400000, refine: false });
-		if (primary.status === 'solved') {
-			stats.solved++;
-			if (retried) stats.timeout--;
-			const couldPlace = topEfforts.length < keepCount || primary.effort >= topEfforts[topEfforts.length - 1];
-			let result = primary;
-			if (couldPlace) {
-				result = backend.assess(board, { timeMs: Math.max(budget, 1500), maxExpanded: 400000, bfsFloor: optimalCap });
-				if (result.status !== 'solved') result = primary;
-			}
-			if (couldPlace && (topEfforts.length < keepCount || result.effort >= topEfforts[topEfforts.length - 1])) {
-				admit(result.effort);
-				budget = Math.min(maxBudget, Math.max(budget, Math.round(result.ms * 7), 200));
-			}
+		const found = gen.step();
+		if (found) {
+			const r = found.result;
 			reply({
 				type: 'candidate',
-				board: { w: board.w, h: board.h, cells: Array.from(board.cells) },
-				result: { status: 'solved', effort: result.effort, length: result.length, lanes: result.lanes, solution: result.solution, optimal: result.optimal, refined: !!result.refined },
+				board: { w: found.board.w, h: found.board.h, cells: Array.from(found.board.cells) },
+				result: { status: 'solved', effort: r.effort, length: r.length, lanes: r.lanes, solution: r.solution, optimal: r.optimal, refined: !!r.refined },
 			});
-		} else if (primary.status === 'unsolvable') {
-			stats.unsolvable++;
-			if (retried) stats.timeout--;
-		} else {
-			if (!retried) stats.timeout++;
-			if (parked.length < 32) parked.push({ board: board, budget: budget });
-			if (!topEfforts.length) budget = Math.min(maxBudget, budget * 2);
 		}
 		flushStats();
 	}

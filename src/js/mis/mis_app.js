@@ -22,7 +22,13 @@
 		['Castle Closet', 'demo/castlecloset.txt'],
 	];
 
-	const GEN_WORKERS = Math.max(1, Math.min(4, (navigator.hardwareConcurrency || 4) - 2));
+	// While generating, level-health solves pause and the focus worker is
+	// idle, so all but one core (the page) can generate. ?genWorkers=N overrides.
+	const GEN_WORKERS = (function () {
+		const forced = parseInt(new URLSearchParams(location.search).get('genWorkers'), 10);
+		if (forced > 0) return forced;
+		return Math.max(1, Math.min(8, (navigator.hardwareConcurrency || 4) - 1));
+	})();
 	const SHOWN_CARDS = 8;
 
 	/////////////////////////////////////////////////////////////////////
@@ -1052,7 +1058,7 @@
 		const session = {
 			running: true, workers: [], stats: [], started: Date.now(),
 			base: C.cloneBoard(app.board), baseKey: C.cellsKey(app.board.cells), levelIndex: app.levelIndex,
-			exhausted: [], interesting: 0, seen: new Set(), timeline: [],
+			exhausted: [], arms: [], interesting: 0, seen: new Set(), timeline: [],
 		};
 		app.gen = session;
 		// Keep suggestions that still belong to this starting board; drop the rest.
@@ -1066,12 +1072,13 @@
 				h.w.postMessage({
 					type: 'generate', base: packBoard(session.base), frozen: Array.from(app.locks[app.levelIndex] || []),
 					transform: app.transform, seed: (Date.now() + i * 7919) >>> 0, keep: SHOWN_CARDS,
+					baseEffort: currentResult && currentResult.status === 'solved' ? currentResult.effort : undefined,
 				});
 			};
 			h.onMessage = (function (idx) {
 				return function (m) {
 					if (app.gen !== session) return;
-					if (m.type === 'stats') { session.stats[idx] = m.stats; session.exhausted[idx] = m.exhausted; scheduleMeter(); }
+					if (m.type === 'stats') { session.stats[idx] = m.stats; session.arms[idx] = m.arms; session.exhausted[idx] = m.exhausted; scheduleMeter(); }
 					else if (m.type === 'candidate') addCandidate(session, unpackBoard(m.board), m.result);
 					else if (m.type === 'genError') { toast(m.message, true); stopGeneration(); }
 				};
@@ -1160,11 +1167,28 @@
 			'<span title="Samples that repeated one already seen, or changed nothing">repeats ' + (100 * repeatFrac).toFixed(0) + '%</span>' +
 			'<span class="interesting" title="Suggestions the solver rates harder than your current level, per minute (the MIS thesis\'s usefulness measure)"><b>' + s.interesting + '</b> harder than current · <b>' + perMin.toFixed(1) + '</b>/min</span>' +
 			'<span title="Per-candidate solver time budget; grows as harder levels turn up">budget ' + (t.budgetMs / 1000).toFixed(1) + 's</span>' +
+			stepSizeLabel(s) +
 			(dry ? '<span class="dry">⚠ running dry — thousands of repeats in a row; this transform has shown you most of what it can do here. Unlock tiles or loosen it.</span>' : '') +
 			(running && tried > 40 && t.solved === 0 ? '<span class="dry">⚠ nothing solvable yet — try a gentler transform or a smaller level.</span>' : '') +
 			(!running ? '<span class="faint">stopped</span>' : '');
 	}
 	setInterval(function () { if (app.gen && app.gen.running) updateMeter(); }, 1000);
+
+	// Which `choose` scale the workers' bandits currently favour (by time spent).
+	function stepSizeLabel(session) {
+		const byScale = {};
+		session.arms.forEach(function (arms) {
+			(arms || []).forEach(function (a) { byScale[a.scale] = (byScale[a.scale] || 0) + a.ms; });
+		});
+		const scales = Object.keys(byScale);
+		if (scales.length < 2) return '';
+		let total = 0, top = scales[0];
+		scales.forEach(function (k) { total += byScale[k]; if (byScale[k] > byScale[top]) top = k; });
+		const share = total ? Math.round(100 * byScale[top] / total) : 0;
+		const label = +top === 1 ? 'as written' : '×' + (+top < 1 ? '1/' + Math.round(1 / top) : top);
+		return '<span title="Changes per sample adapt automatically: every choose count is scaled by the size that has been finding harder levels fastest (' +
+			scales.map(function (k) { return '×' + k + ' ' + Math.round(100 * byScale[k] / Math.max(1, total)) + '%'; }).join(', ') + ')">step size <b>' + label + '</b> (' + share + '%)</span>';
+	}
 
 	function rankCards() {
 		const mode = $('rank-select').value;

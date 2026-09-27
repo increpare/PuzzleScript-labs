@@ -6568,6 +6568,52 @@ void setPersistentBoardObjectsFromCellMajor(FullState& session, const MaskVector
     session.levelState.board.objects = objects;
 }
 
+bool retargetSessionBoard(FullState& session, const MaskVector& objects) {
+    if (session.game == nullptr) return false;
+    const int32_t stride = session.game->strideObject;
+    const int32_t width = currentLevelWidth(session);
+    const int32_t height = currentLevelHeight(session);
+    const int32_t tileCount = width * height;
+    const size_t objectWords = static_cast<size_t>(tileCount) * static_cast<size_t>(stride);
+    auto& scratch = session.scratch;
+    if (tileCount <= 0
+        || objects.size() != objectWords
+        || session.levelState.board.objects.size() != objectWords
+        || scratch.rowMasks.size() != static_cast<size_t>(height * stride)
+        || scratch.columnMasks.size() != static_cast<size_t>(width * stride)
+        || scratch.boardMask.size() != static_cast<size_t>(stride)
+        || scratch.dirtyObjectRows.size() != static_cast<size_t>(height)
+        || scratch.dirtyObjectColumns.size() != static_cast<size_t>(width)
+        || scratch.dirtyMovementRows.size() != static_cast<size_t>(height)
+        || scratch.dirtyMovementColumns.size() != static_cast<size_t>(width)
+        || scratch.liveMovements.size() != static_cast<size_t>(tileCount * session.game->strideMovement)) {
+        return false;
+    }
+#if PS_INTERPRETER_OBJECT_CELL_INDEX
+    if (scratch.objectCellIndexDirty
+        || scratch.objectCellBitTileCount != tileCount
+        || scratch.objectCellBits.size() != static_cast<size_t>(session.game->objectCount) * objectCellWordCount(session)
+        || scratch.objectCellCounts.size() != static_cast<size_t>(session.game->objectCount)) {
+        return false;
+    }
+#endif
+    const MaskWord* target = objects.data();
+    const MaskWord* current = session.levelState.board.objects.data();
+    for (int32_t tile = 0; tile < tileCount; ++tile) {
+        const size_t base = static_cast<size_t>(tile) * static_cast<size_t>(stride);
+        bool differs = false;
+        for (int32_t word = 0; word < stride; ++word) {
+            if (current[base + static_cast<size_t>(word)] != target[base + static_cast<size_t>(word)]) { differs = true; break; }
+        }
+        if (differs) {
+            setCellObjectsFromWords(session, tile, target + base);
+            current = session.levelState.board.objects.data();
+        }
+    }
+    clearMovementState(session);
+    return true;
+}
+
 void clearPersistentBoardObjects(FullState& session) {
     session.levelState.board.objects.clear();
 }
@@ -7889,7 +7935,14 @@ ps_step_result compiledCompactPrimaryTurn(FullState& session, ps_input input, Ru
         session.meta.restart.oldFlickscreenDat = session.meta.oldFlickscreenDat;
     }
 
-    markAllMasksDirty(session);
+    // Object writes during the turn mark their rows/columns dirty and
+    // clearMovementState() zeroes the movement masks, so an ordinary turn only
+    // needs the incremental rebuild. Restarts and level changes swap the whole
+    // board and invalidate everything. (A full invalidation here was ~26
+    // whole-board scans per solver expansion - the largest cost in profiles.)
+    if (result.restarted || result.transitioned) {
+        markAllMasksDirty(session);
+    }
     rebuildMasks(session);
     gThreadTurnResult = TurnResult{};
     gThreadTurnResult.core = result;

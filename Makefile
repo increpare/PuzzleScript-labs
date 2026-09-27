@@ -28,7 +28,7 @@
 	clean-native-32 clean-js-parity-data configure-native build-native js-parity-data lean_parity_smoke lean_clean_sim_candidates
 
 .PHONY: gba gba_export gba_preflight gba_generated_replay_build gba_generated_replay_tests
-.PHONY: mis_wasm mis_tests mis_backend_bench
+.PHONY: mis_wasm mis_tests mis_backend_bench mis_generator_profile
 .PHONY: gbc gbc_export gbc_smoke gbc_cart gbc_cart_smoke gbc_cart_solutions_bench gbc_eligible gbc_specialized_bench gbc_eligible_solutions_bench
 .PHONY: solution_cache_tests solution_cache_tests_thorough gbc_cart_solution_cache_tests refresh_eligible_solution_cache
 
@@ -1826,6 +1826,9 @@ mis_tests:
 
 mis_backend_bench:
 	$(NODE) src/tests/mis_backend_bench_node.js
+
+mis_generator_profile:
+	$(NODE) src/tests/mis_generator_profile_node.js
 
 generator_smoke_tests: $(GENERATOR_TARGET_PREREQ)
 	@if [ "$(SPECIALIZE)" = "true" ]; then \

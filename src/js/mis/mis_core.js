@@ -1146,11 +1146,15 @@ const MISCore = (function () {
 	function assess(model, board, opts) {
 		opts = opts || {};
 		const primary = solve(model, board, { strategy: 'astar', timeMs: opts.timeMs || 1500, maxExpanded: opts.maxExpanded || 150000, shouldStop: opts.shouldStop });
-		const out = { status: primary.status, lanes: { astar: primary.expanded }, solution: primary.solution || null, optimal: false, ms: primary.ms };
+		const out = { status: primary.status, expanded: primary.expanded, lanes: { astar: primary.expanded }, solution: primary.solution || null, optimal: false, ms: primary.ms };
 		if (primary.status !== 'solved') return out;
 		out.effort = Math.max(1, primary.expanded);
 		out.length = primary.solution.length;
+		out.primaryMs = primary.ms;
 		if (opts.refine === false) return out;
+		// Lazy gate (as in the MIS generator): the primary count bounds the
+		// final min from above, so skip refinement below the shortlist floor.
+		if (opts.refineGate !== undefined && opts.refineGate >= 0 && primary.expanded < opts.refineGate) return out;
 		const cap = primary.expanded + 6;
 		const greedy = solve(model, board, { strategy: 'greedy', maxExpanded: cap, timeMs: opts.timeMs || 1500 });
 		if (greedy.status === 'solved') { out.lanes.greedy = greedy.expanded; out.effort = Math.min(out.effort, Math.max(1, greedy.expanded)); }

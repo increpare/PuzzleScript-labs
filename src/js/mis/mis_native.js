@@ -114,9 +114,11 @@ const MISNative = (function () {
 				opts = opts || {};
 				const count = writeGrid(board);
 				const refine = opts.refine !== false;
-				const st = M._misw_assess(board.w, board.h, count, opts.timeMs || 1500, refine ? 1 : 0, opts.bfsTimeMs || opts.timeMs || 1500);
+				const gate = opts.refineGate !== undefined ? opts.refineGate : -1;
+				const st = M._misw_assess(board.w, board.h, count, opts.timeMs || 1500, refine ? 1 : 0, opts.refineTimeMs || opts.bfsTimeMs || opts.timeMs || 1500, gate);
 				const status = STATUS[st] || 'error';
-				const out = { status: status, lanes: {}, solution: null, optimal: false, ms: M._misw_result_elapsed_ms() };
+				const out = { status: status, expanded: M._misw_result_expanded(), lanes: {}, solution: null, optimal: false, ms: M._misw_result_elapsed_ms() };
+				out.primaryMs = M._misw_result_primary_elapsed_ms();
 				if (status === 'error') out.error = M.UTF8ToString(M._misw_error());
 				if (status !== 'solved') return out;
 				out.solution = readSolution();

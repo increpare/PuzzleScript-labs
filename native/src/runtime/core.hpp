@@ -755,6 +755,13 @@ void transposeCellMajorToObjectMajor(
     std::vector<uint32_t>* objectCellCounts = nullptr);
 
 void setPersistentBoardObjectsFromCellMajor(FullState& session, const MaskVector& objects);
+// Point a reusable (warm) session at `objects` - same game and dimensions -
+// by rewriting only the cells that differ through setCellObjectsFromWords, so
+// row/column/board masks, the object cell index and refcounts stay
+// incremental; movements are cleared. Returns false, changing nothing, when
+// the session's caches aren't built for these dimensions; callers then fall
+// back to a full reset. Solvers use this when stepping many sibling states.
+bool retargetSessionBoard(FullState& session, const MaskVector& objects);
 void clearPersistentBoardObjects(FullState& session);
 
 struct CompileResult {
