@@ -1,0 +1,7506 @@
+{
+ "schema_version": 1,
+ "kind": "mis_generator_seeds",
+ "description": "Levels from src/tests/solver_tests that the native portfolio solver (WebAssembly build, portfolio_jobs=1) solves within solve_ms. Seeds for generator benchmarks.",
+ "generated_at": "2026-09-27T09:46:48.760Z",
+ "corpus": "src/tests/solver_tests",
+ "solve_ms": 500,
+ "game_hashes": {
+  "15 push pull levels.txt": "c6c2dbdc520105a0",
+  "5-junctions-maker.txt": "285f2efc6f4614e6",
+  "8 happy snakes.txt": "7c0b755b6f109c28",
+  "ALL GREEN TO BLUE.txt": "67ef8c4459d0eacc",
+  "Acorn Scorchery Paradise.txt": "9a69cd430984bd3e",
+  "All Green and Blue on Yellow.txt": "d36e4f0ee4fb82f4",
+  "Any hole is a goal.txt": "6269ce5ffe608cc8",
+  "Attractor Net.txt": "db24164b393b9bbe",
+  "BIAXIAL INVASION OF SATURN.txt": "8c2647f86f188f8f",
+  "Bicycle-Kick Football.txt": "9b9c47a4981f3074",
+  "CODEX LUBRICUS.txt": "a128dc915ee71930",
+  "Chevron Lodger.txt": "7d431e85330beabe",
+  "Crates move when you move.txt": "fd34ff28c6f10e8b",
+  "Cucumber Surprise.txt": "2abd074ccf1033aa",
+  "Des Poseidons Dreizack.txt": "52baf3ac768d0cdc",
+  "Don't let your goals slip away.txt": "75925827e25c0c0f",
+  "Explodoban.txt": "1a8e87a474f4c383",
+  "Eyeball-watching flowers bloom.txt": "08a742d76a7be52e",
+  "Hole-Stuffer.txt": "5f504f6d7fa62a43",
+  "Legend of Swixero.txt": "cb1cb159119087d5",
+  "Match-Maker.txt": "f51f57154961c1c6",
+  "Muraphilic Monophobic Multiban.txt": "2262042713c01142",
+  "NIGHTMARECROBAN.txt": "60914995619a3006",
+  "Pushy-V Pully-H.txt": "af260e9efa21bef5",
+  "Put the logs in the water, elephant.txt": "c4e5d94a3f915f53",
+  "Recondite Star Sector Sigma.txt": "36272e3b89bab2a7",
+  "Resin-Caster.txt": "858c4389aca4ad30",
+  "S-tercourse.txt": "85aa179b514fa9ef",
+  "Schleimban.txt": "8172f34fe22e3d53",
+  "Subway upholstry snot smearing championship.txt": "a89b14d7a664089b",
+  "The Far Away Danish Pastry is always Delicio.txt": "bd15051f98e1dc3d",
+  "The Monsterous Autoshove.txt": "9a2f240ca99fd18b",
+  "The sponge what lights up the seafloor.txt": "b47ac6e31aa5d1cc",
+  "Two-Tone Tango.txt": "7073aafe78746b99",
+  "Van-to-Mobile-Living-Space-Conversion Window.txt": "b2bfc73c3c6bdbf7",
+  "Varifocal Nightmare.txt": "f036f10a90e4dc02",
+  "Vexatious Match 3.txt": "acccb2716b106e97",
+  "Voitex Rasteriser.txt": "7b9c873bcf38b1de",
+  "Wand Spinner.txt": "167376047ec93335",
+  "Xorro The Chaos Warden.txt": "5e99ed2df7b4c9b2",
+  "Yellow Box.txt": "7eaacd527fcbbbee",
+  "a clear view of the sky.txt": "cff3f7958f4a51d9",
+  "a distant sunset.txt": "70af7ec608c07ae5",
+  "alternatey.txt": "02f50cb63e663f57",
+  "an ok multiban level.txt": "89096fb24a157ef4",
+  "atlas shrank.txt": "94e41af38141ffb4",
+  "big dog and little dog.txt": "98995ff9f786563c",
+  "byyourside.txt": "0bd4f168a0efb8c3",
+  "cakemonsters.txt": "e3140096937becf6",
+  "castlecloset.txt": "278e7d45f43d14bd",
+  "castlemouse.txt": "5bf83fb8755cc516",
+  "chaos wizard.txt": "3877d40a3f626e35",
+  "coincounter.txt": "fc3a7e09c1c8d1ef",
+  "constellationz.txt": "0845e21feed1301d",
+  "cooperacing.txt": "266125cb1b823d81",
+  "crate guardian.txt": "a946de6064f7887c",
+  "crate swap.txt": "efc13c340b767a16",
+  "cratopia.txt": "d1f21a6cd0af5dca",
+  "der hydra krypta.txt": "86d7cf96cc6c2908",
+  "die schoene steinmetzin.txt": "a472d67c7544f700",
+  "diesinthelight.txt": "a8323a81b7e00f78",
+  "dollyban.txt": "a104e9fe895c7bc4",
+  "dreizack.txt": "52baf3ac768d0cdc",
+  "fickle fred.txt": "58978321487cf2d1",
+  "flesh-handed hot casserole delivery bot.txt": "687a678d5be36854",
+  "gabelstapler.txt": "452e43ea5d140b78",
+  "gapfiller.txt": "393753be9b031233",
+  "gem soketeer.txt": "7d24b6d94d1a903e",
+  "hairtug.txt": "4b8d5c4078ac0f5a",
+  "head skuller.txt": "60546a1f7ca16fa8",
+  "hedgehog stimulator.txt": "61aae1eb509f86ef",
+  "heroes_of_sokoban.txt": "c48ee620ef31cf31",
+  "heroes_of_sokoban_2.txt": "532221dc7ffd9528",
+  "heroes_of_sokoban_3.txt": "001e52bb375288dc",
+  "i am a gust of wind.txt": "187041c0eb7bf7c1",
+  "icecrates.txt": "bac5457ffcaf671e",
+  "it dies in the light.txt": "328dcaa47282d3e1",
+  "karamell.txt": "270ac4ef504214b7",
+  "kettle.txt": "82a818e730c7b0b8",
+  "kreiseln.txt": "6bb33763d3823a36",
+  "limerick.txt": "7079dc4d37f015b3",
+  "m c eschers armageddon.txt": "37b6211c9c3b1f9e",
+  "make way.txt": "2e8274489913ebc9",
+  "manic_ammo.txt": "aae60f13f4c6f9bd",
+  "match three billiards.txt": "34c4e8898b815983",
+  "mazezam.txt": "091ed53d90cd32f4",
+  "message_skip.txt": "c6815559531e7f48",
+  "midas.txt": "34bb5a593dd0879b",
+  "multi_level.txt": "6ba6b0907026c122",
+  "no heroes necessary.txt": "a47ee5662726e420",
+  "oh no i accidentally swallowed myself.txt": "cfd5f02aa5e6d38d",
+  "one_move.txt": "2561924279efab60",
+  "paint everything everywhere.txt": "5c224df2c7c8495b",
+  "pipe puffer.txt": "762f6eb9f0dc3f62",
+  "ponies jumping synchronously.txt": "d4ed0b60c10d22cb",
+  "push pull.txt": "97e627155d8d5763",
+  "push.txt": "41e68b459a8a9ed1",
+  "pushit.txt": "9cdc586b204eb682",
+  "sacrament of the river god.txt": "e6a5bfdcecec0b32",
+  "shy snake.txt": "38b857c4c0c4baea",
+  "slide pull.txt": "e1d2b85631354bf5",
+  "slidings.txt": "56407135acd06167",
+  "slime vat filler.txt": "9d8b06a26eb6bf7c",
+  "slot machine.txt": "d7c04b3a3dd8b2c9",
+  "smother.txt": "f17dd743219cd79e",
+  "sokobond demake.txt": "9c7710353e908e42",
+  "stick_candy_puzzle_saga.txt": "51f3da21195a3915",
+  "take heart lass.txt": "a1d9383791a88198",
+  "talo pipi 2.txt": "2767d4cf43bebae5",
+  "the exit is under my left foot.txt": "baf059fbe5607367",
+  "the red ring of immortality.txt": "9e8fa6930829753f",
+  "the_saga_of_the_candy_scroll.txt": "5c9a187b6cba2635",
+  "unclean residues.txt": "9c416a53740cb3c9",
+  "unewton.txt": "19e9c6fda74c9319",
+  "whaleworld.txt": "997ef71db79f0878",
+  "witch lifter.txt": "69792c13f27ac424"
+ },
+ "counts": {
+  "games_in_corpus": 184,
+  "games_skipped": 32,
+  "levels_checked": 1196,
+  "seed_levels": 716,
+  "seed_games": 116,
+  "not_solved": 453,
+  "hung": 19,
+  "errors": 0
+ },
+ "skipped_games": [
+  {
+   "game": "autohurdler.txt",
+   "reason": "random rules"
+  },
+  {
+   "game": "butteater.txt",
+   "reason": "random rules"
+  },
+  {
+   "game": "car crash.txt",
+   "reason": "random rules"
+  },
+  {
+   "game": "collapse.txt",
+   "reason": "random rules"
+  },
+  {
+   "game": "color chained.txt",
+   "reason": "random rules"
+  },
+  {
+   "game": "cute train.txt",
+   "reason": "random rules"
+  },
+  {
+   "game": "dice goblin.txt",
+   "reason": "random rules"
+  },
+  {
+   "game": "Double-Entry Bookkeeping Simulator.txt",
+   "reason": "random rules"
+  },
+  {
+   "game": "dropswap.txt",
+   "reason": "random rules"
+  },
+  {
+   "game": "dungeon janitor.txt",
+   "reason": "random rules"
+  },
+  {
+   "game": "easyenigma.txt",
+   "reason": "random rules"
+  },
+  {
+   "game": "expand also avoid the flames.txt",
+   "reason": "random rules"
+  },
+  {
+   "game": "Garten der Medusen.txt",
+   "reason": "random rules"
+  },
+  {
+   "game": "gobble_rush.txt",
+   "reason": "random rules"
+  },
+  {
+   "game": "hungry kraken.txt",
+   "reason": "random rules"
+  },
+  {
+   "game": "kishoutenketsu.txt",
+   "reason": "random rules"
+  },
+  {
+   "game": "konsum.txt",
+   "reason": "random rules"
+  },
+  {
+   "game": "legend of zokoban.txt",
+   "reason": "random rules"
+  },
+  {
+   "game": "North Wind Simple Sailboat Buoy Collection.txt",
+   "reason": "random rules"
+  },
+  {
+   "game": "Oh No My Dog Is About To Swallow A Piece Of.txt",
+   "reason": "random rules"
+  },
+  {
+   "game": "Putting Bicycle Helmets on Young Children.txt",
+   "reason": "random rules"
+  },
+  {
+   "game": "realtime dog mountain rescue.txt",
+   "reason": "random rules"
+  },
+  {
+   "game": "riverpuzzle.txt",
+   "reason": "random rules"
+  },
+  {
+   "game": "Scalesoban.txt",
+   "reason": "random rules"
+  },
+  {
+   "game": "seize the flag.txt",
+   "reason": "random rules"
+  },
+  {
+   "game": "sok7.txt",
+   "reason": "random rules"
+  },
+  {
+   "game": "sum three horizontally to 8.txt",
+   "reason": "random rules"
+  },
+  {
+   "game": "threes.txt",
+   "reason": "random rules"
+  },
+  {
+   "game": "tiny treasure hunt.txt",
+   "reason": "random rules"
+  },
+  {
+   "game": "tunnel rat.txt",
+   "reason": "random rules"
+  },
+  {
+   "game": "Two-Step Pete.txt",
+   "reason": "random rules"
+  },
+  {
+   "game": "zokoban.txt",
+   "reason": "random rules"
+  }
+ ],
+ "hung_levels": [
+  {
+   "game": "BIAXIAL INVASION OF SATURN.txt",
+   "level": 21
+  },
+  {
+   "game": "atlas shrank.txt",
+   "level": 16
+  },
+  {
+   "game": "der hydra krypta.txt",
+   "level": 5
+  },
+  {
+   "game": "der hydra krypta.txt",
+   "level": 9
+  },
+  {
+   "game": "der hydra krypta.txt",
+   "level": 11
+  },
+  {
+   "game": "gabelstapler.txt",
+   "level": 5
+  },
+  {
+   "game": "karamell.txt",
+   "level": 5
+  },
+  {
+   "game": "robot arm.txt",
+   "level": 3
+  },
+  {
+   "game": "robot arm.txt",
+   "level": 5
+  },
+  {
+   "game": "robot arm.txt",
+   "level": 7
+  },
+  {
+   "game": "robotarm.txt",
+   "level": 3
+  },
+  {
+   "game": "robotarm.txt",
+   "level": 5
+  },
+  {
+   "game": "short adventure in sticky wall land.txt",
+   "level": 3
+  },
+  {
+   "game": "short adventure in sticky wall land.txt",
+   "level": 5
+  },
+  {
+   "game": "sokogoban.txt",
+   "level": 4
+  },
+  {
+   "game": "wool-clawer.txt",
+   "level": 5
+  },
+  {
+   "game": "wool-clawer.txt",
+   "level": 7
+  },
+  {
+   "game": "wool-clawer.txt",
+   "level": 9
+  },
+  {
+   "game": "wool-clawer.txt",
+   "level": 11
+  }
+ ],
+ "seeds": [
+  {
+   "game": "15 push pull levels.txt",
+   "level": 1,
+   "w": 6,
+   "h": 7,
+   "boardHash": "1748d0a643ffccbc",
+   "solveMs": 132,
+   "expanded": 1342,
+   "solutionLength": 37
+  },
+  {
+   "game": "15 push pull levels.txt",
+   "level": 3,
+   "w": 6,
+   "h": 7,
+   "boardHash": "8004147d8f0da32c",
+   "solveMs": 16,
+   "expanded": 137,
+   "solutionLength": 18
+  },
+  {
+   "game": "15 push pull levels.txt",
+   "level": 5,
+   "w": 6,
+   "h": 7,
+   "boardHash": "cc5d92969428acb0",
+   "solveMs": 278,
+   "expanded": 5517,
+   "solutionLength": 41
+  },
+  {
+   "game": "15 push pull levels.txt",
+   "level": 7,
+   "w": 6,
+   "h": 7,
+   "boardHash": "79673ee767874420",
+   "solveMs": 280,
+   "expanded": 7643,
+   "solutionLength": 45
+  },
+  {
+   "game": "15 push pull levels.txt",
+   "level": 9,
+   "w": 6,
+   "h": 7,
+   "boardHash": "d4790ae4fae8b419",
+   "solveMs": 232,
+   "expanded": 4319,
+   "solutionLength": 49
+  },
+  {
+   "game": "15 push pull levels.txt",
+   "level": 11,
+   "w": 6,
+   "h": 7,
+   "boardHash": "ef91515ab1b18031",
+   "solveMs": 66,
+   "expanded": 1565,
+   "solutionLength": 22
+  },
+  {
+   "game": "15 push pull levels.txt",
+   "level": 13,
+   "w": 6,
+   "h": 7,
+   "boardHash": "afa811208e25c245",
+   "solveMs": 19,
+   "expanded": 1376,
+   "solutionLength": 18
+  },
+  {
+   "game": "15 push pull levels.txt",
+   "level": 15,
+   "w": 6,
+   "h": 7,
+   "boardHash": "760ab03032406bda",
+   "solveMs": 51,
+   "expanded": 2195,
+   "solutionLength": 34
+  },
+  {
+   "game": "15 push pull levels.txt",
+   "level": 17,
+   "w": 6,
+   "h": 7,
+   "boardHash": "8f8f2493d490ca34",
+   "solveMs": 30,
+   "expanded": 1730,
+   "solutionLength": 20
+  },
+  {
+   "game": "15 push pull levels.txt",
+   "level": 19,
+   "w": 6,
+   "h": 7,
+   "boardHash": "2fad2ce11039f45e",
+   "solveMs": 153,
+   "expanded": 7849,
+   "solutionLength": 29
+  },
+  {
+   "game": "15 push pull levels.txt",
+   "level": 23,
+   "w": 6,
+   "h": 7,
+   "boardHash": "b5e6278981673f80",
+   "solveMs": 183,
+   "expanded": 13036,
+   "solutionLength": 50
+  },
+  {
+   "game": "15 push pull levels.txt",
+   "level": 25,
+   "w": 6,
+   "h": 7,
+   "boardHash": "6ff1e0db52672887",
+   "solveMs": 181,
+   "expanded": 12036,
+   "solutionLength": 34
+  },
+  {
+   "game": "5-junctions-maker.txt",
+   "level": 3,
+   "w": 5,
+   "h": 5,
+   "boardHash": "0a55ab6a1e263c3c",
+   "solveMs": 1,
+   "expanded": 1,
+   "solutionLength": 1
+  },
+  {
+   "game": "8 happy snakes.txt",
+   "level": 1,
+   "w": 17,
+   "h": 14,
+   "boardHash": "b6e384d8407897ae",
+   "solveMs": 3,
+   "expanded": 10,
+   "solutionLength": 10
+  },
+  {
+   "game": "8 happy snakes.txt",
+   "level": 3,
+   "w": 17,
+   "h": 14,
+   "boardHash": "293ba0afb0e508f3",
+   "solveMs": 56,
+   "expanded": 346,
+   "solutionLength": 8
+  },
+  {
+   "game": "8 happy snakes.txt",
+   "level": 5,
+   "w": 17,
+   "h": 14,
+   "boardHash": "834f08d52b9106ff",
+   "solveMs": 15,
+   "expanded": 91,
+   "solutionLength": 6
+  },
+  {
+   "game": "8 happy snakes.txt",
+   "level": 7,
+   "w": 17,
+   "h": 14,
+   "boardHash": "58befcc8fff6b866",
+   "solveMs": 93,
+   "expanded": 465,
+   "solutionLength": 8
+  },
+  {
+   "game": "a clear view of the sky.txt",
+   "level": 3,
+   "w": 15,
+   "h": 13,
+   "boardHash": "b45a913cecf11d30",
+   "solveMs": 44,
+   "expanded": 58,
+   "solutionLength": 7
+  },
+  {
+   "game": "a clear view of the sky.txt",
+   "level": 6,
+   "w": 14,
+   "h": 12,
+   "boardHash": "5f7f3fdfd12bac0f",
+   "solveMs": 32,
+   "expanded": 55,
+   "solutionLength": 9
+  },
+  {
+   "game": "a clear view of the sky.txt",
+   "level": 8,
+   "w": 10,
+   "h": 9,
+   "boardHash": "be5a26706cb0435f",
+   "solveMs": 28,
+   "expanded": 60,
+   "solutionLength": 7
+  },
+  {
+   "game": "a clear view of the sky.txt",
+   "level": 10,
+   "w": 9,
+   "h": 7,
+   "boardHash": "aa247ca57ef55485",
+   "solveMs": 22,
+   "expanded": 52,
+   "solutionLength": 6
+  },
+  {
+   "game": "a clear view of the sky.txt",
+   "level": 12,
+   "w": 14,
+   "h": 7,
+   "boardHash": "5d03eff2cac374d5",
+   "solveMs": 36,
+   "expanded": 54,
+   "solutionLength": 6
+  },
+  {
+   "game": "a clear view of the sky.txt",
+   "level": 14,
+   "w": 13,
+   "h": 7,
+   "boardHash": "5b03d4edfb06555e",
+   "solveMs": 24,
+   "expanded": 43,
+   "solutionLength": 6
+  },
+  {
+   "game": "a clear view of the sky.txt",
+   "level": 16,
+   "w": 12,
+   "h": 10,
+   "boardHash": "bd4d557c907a2a0b",
+   "solveMs": 114,
+   "expanded": 185,
+   "solutionLength": 9
+  },
+  {
+   "game": "a clear view of the sky.txt",
+   "level": 20,
+   "w": 14,
+   "h": 9,
+   "boardHash": "64e1b44e43aacd4f",
+   "solveMs": 62,
+   "expanded": 64,
+   "solutionLength": 7
+  },
+  {
+   "game": "a clear view of the sky.txt",
+   "level": 22,
+   "w": 12,
+   "h": 10,
+   "boardHash": "6a6f6e2731c9f2fc",
+   "solveMs": 198,
+   "expanded": 235,
+   "solutionLength": 9
+  },
+  {
+   "game": "a clear view of the sky.txt",
+   "level": 30,
+   "w": 19,
+   "h": 11,
+   "boardHash": "d7fdcd6c05f88d92",
+   "solveMs": 0,
+   "expanded": 1,
+   "solutionLength": 1
+  },
+  {
+   "game": "a clear view of the sky.txt",
+   "level": 31,
+   "w": 20,
+   "h": 11,
+   "boardHash": "5490413c6f2a11e6",
+   "solveMs": 1,
+   "expanded": 1,
+   "solutionLength": 1
+  },
+  {
+   "game": "a clear view of the sky.txt",
+   "level": 32,
+   "w": 20,
+   "h": 11,
+   "boardHash": "2c4173bbe6ad6020",
+   "solveMs": 0,
+   "expanded": 1,
+   "solutionLength": 1
+  },
+  {
+   "game": "a clear view of the sky.txt",
+   "level": 33,
+   "w": 20,
+   "h": 11,
+   "boardHash": "bd49ab158123ab9a",
+   "solveMs": 1,
+   "expanded": 1,
+   "solutionLength": 1
+  },
+  {
+   "game": "a clear view of the sky.txt",
+   "level": 34,
+   "w": 20,
+   "h": 11,
+   "boardHash": "3b96f15e7b8f4077",
+   "solveMs": 0,
+   "expanded": 1,
+   "solutionLength": 1
+  },
+  {
+   "game": "a clear view of the sky.txt",
+   "level": 35,
+   "w": 20,
+   "h": 11,
+   "boardHash": "779c6b97c333aeb4",
+   "solveMs": 0,
+   "expanded": 1,
+   "solutionLength": 1
+  },
+  {
+   "game": "a distant sunset.txt",
+   "level": 1,
+   "w": 9,
+   "h": 13,
+   "boardHash": "1aa416024d1daa54",
+   "solveMs": 32,
+   "expanded": 83,
+   "solutionLength": 4
+  },
+  {
+   "game": "a distant sunset.txt",
+   "level": 3,
+   "w": 4,
+   "h": 4,
+   "boardHash": "a9c313f1f49a62ca",
+   "solveMs": 3,
+   "expanded": 1,
+   "solutionLength": 1
+  },
+  {
+   "game": "a distant sunset.txt",
+   "level": 4,
+   "w": 4,
+   "h": 4,
+   "boardHash": "0cebbad2aecba8ec",
+   "solveMs": 4,
+   "expanded": 1,
+   "solutionLength": 1
+  },
+  {
+   "game": "a distant sunset.txt",
+   "level": 5,
+   "w": 4,
+   "h": 4,
+   "boardHash": "b0376e38eb0aee3e",
+   "solveMs": 4,
+   "expanded": 1,
+   "solutionLength": 1
+  },
+  {
+   "game": "Acorn Scorchery Paradise.txt",
+   "level": 1,
+   "w": 6,
+   "h": 6,
+   "boardHash": "da686b1a4bbb990b",
+   "solveMs": 13,
+   "expanded": 489,
+   "solutionLength": 43
+  },
+  {
+   "game": "Acorn Scorchery Paradise.txt",
+   "level": 3,
+   "w": 5,
+   "h": 6,
+   "boardHash": "644e6dfbd8bdc03d",
+   "solveMs": 8,
+   "expanded": 380,
+   "solutionLength": 26
+  },
+  {
+   "game": "Acorn Scorchery Paradise.txt",
+   "level": 5,
+   "w": 6,
+   "h": 6,
+   "boardHash": "eceda98d4ab2b6b4",
+   "solveMs": 23,
+   "expanded": 1219,
+   "solutionLength": 23
+  },
+  {
+   "game": "Acorn Scorchery Paradise.txt",
+   "level": 7,
+   "w": 5,
+   "h": 6,
+   "boardHash": "3860c5c8049751c7",
+   "solveMs": 9,
+   "expanded": 454,
+   "solutionLength": 32
+  },
+  {
+   "game": "Acorn Scorchery Paradise.txt",
+   "level": 9,
+   "w": 6,
+   "h": 6,
+   "boardHash": "57416f1ddd0485cb",
+   "solveMs": 28,
+   "expanded": 1545,
+   "solutionLength": 54
+  },
+  {
+   "game": "All Green and Blue on Yellow.txt",
+   "level": 1,
+   "w": 6,
+   "h": 7,
+   "boardHash": "e08cc31bbf02a97f",
+   "solveMs": 3,
+   "expanded": 200,
+   "solutionLength": 19
+  },
+  {
+   "game": "All Green and Blue on Yellow.txt",
+   "level": 3,
+   "w": 6,
+   "h": 7,
+   "boardHash": "b9db73362442be7c",
+   "solveMs": 3,
+   "expanded": 166,
+   "solutionLength": 24
+  },
+  {
+   "game": "All Green and Blue on Yellow.txt",
+   "level": 5,
+   "w": 4,
+   "h": 4,
+   "boardHash": "bd49c2bfc0ca2768",
+   "solveMs": 14,
+   "expanded": 1249,
+   "solutionLength": 30
+  },
+  {
+   "game": "All Green and Blue on Yellow.txt",
+   "level": 7,
+   "w": 4,
+   "h": 5,
+   "boardHash": "30136b1e6aac35ee",
+   "solveMs": 27,
+   "expanded": 1343,
+   "solutionLength": 33
+  },
+  {
+   "game": "All Green and Blue on Yellow.txt",
+   "level": 9,
+   "w": 4,
+   "h": 5,
+   "boardHash": "be17522768f6c045",
+   "solveMs": 17,
+   "expanded": 1260,
+   "solutionLength": 31
+  },
+  {
+   "game": "ALL GREEN TO BLUE.txt",
+   "level": 1,
+   "w": 6,
+   "h": 7,
+   "boardHash": "8c0eae136d36b006",
+   "solveMs": 1,
+   "expanded": 36,
+   "solutionLength": 16
+  },
+  {
+   "game": "ALL GREEN TO BLUE.txt",
+   "level": 3,
+   "w": 11,
+   "h": 8,
+   "boardHash": "23d29fb4b62bfca8",
+   "solveMs": 176,
+   "expanded": 8191,
+   "solutionLength": 96
+  },
+  {
+   "game": "ALL GREEN TO BLUE.txt",
+   "level": 5,
+   "w": 6,
+   "h": 7,
+   "boardHash": "c7015fe3fcec647c",
+   "solveMs": 79,
+   "expanded": 4892,
+   "solutionLength": 20
+  },
+  {
+   "game": "ALL GREEN TO BLUE.txt",
+   "level": 7,
+   "w": 4,
+   "h": 11,
+   "boardHash": "ce49b6cd85191d2b",
+   "solveMs": 89,
+   "expanded": 3260,
+   "solutionLength": 30
+  },
+  {
+   "game": "ALL GREEN TO BLUE.txt",
+   "level": 9,
+   "w": 3,
+   "h": 11,
+   "boardHash": "08f1cac89aa00421",
+   "solveMs": 41,
+   "expanded": 1376,
+   "solutionLength": 53
+  },
+  {
+   "game": "ALL GREEN TO BLUE.txt",
+   "level": 13,
+   "w": 3,
+   "h": 5,
+   "boardHash": "a5de2473f3082afe",
+   "solveMs": 167,
+   "expanded": 10966,
+   "solutionLength": 16
+  },
+  {
+   "game": "ALL GREEN TO BLUE.txt",
+   "level": 15,
+   "w": 3,
+   "h": 4,
+   "boardHash": "3907751534967385",
+   "solveMs": 3,
+   "expanded": 188,
+   "solutionLength": 20
+  },
+  {
+   "game": "ALL GREEN TO BLUE.txt",
+   "level": 17,
+   "w": 5,
+   "h": 4,
+   "boardHash": "0b955a5105bcd68d",
+   "solveMs": 322,
+   "expanded": 20062,
+   "solutionLength": 25
+  },
+  {
+   "game": "ALL GREEN TO BLUE.txt",
+   "level": 19,
+   "w": 3,
+   "h": 4,
+   "boardHash": "03ac4860db036a6f",
+   "solveMs": 11,
+   "expanded": 884,
+   "solutionLength": 17
+  },
+  {
+   "game": "ALL GREEN TO BLUE.txt",
+   "level": 21,
+   "w": 13,
+   "h": 12,
+   "boardHash": "d22af8403010bcd6",
+   "solveMs": 4,
+   "expanded": 89,
+   "solutionLength": 58
+  },
+  {
+   "game": "alternatey.txt",
+   "level": 2,
+   "w": 4,
+   "h": 5,
+   "boardHash": "6abcb97ba3400d78",
+   "solveMs": 55,
+   "expanded": 151,
+   "solutionLength": 7
+  },
+  {
+   "game": "alternatey.txt",
+   "level": 4,
+   "w": 6,
+   "h": 6,
+   "boardHash": "be26e1c1c2695097",
+   "solveMs": 279,
+   "expanded": 510,
+   "solutionLength": 7
+  },
+  {
+   "game": "an ok multiban level.txt",
+   "level": 1,
+   "w": 9,
+   "h": 6,
+   "boardHash": "3912b37abccb4056",
+   "solveMs": 326,
+   "expanded": 16501,
+   "solutionLength": 59
+  },
+  {
+   "game": "Any hole is a goal.txt",
+   "level": 1,
+   "w": 10,
+   "h": 9,
+   "boardHash": "b8f714249f29183e",
+   "solveMs": 25,
+   "expanded": 17,
+   "solutionLength": 5
+  },
+  {
+   "game": "Any hole is a goal.txt",
+   "level": 3,
+   "w": 9,
+   "h": 8,
+   "boardHash": "01f418ad594c6c58",
+   "solveMs": 290,
+   "expanded": 802,
+   "solutionLength": 24
+  },
+  {
+   "game": "Any hole is a goal.txt",
+   "level": 7,
+   "w": 12,
+   "h": 6,
+   "boardHash": "e3e06a0376708035",
+   "solveMs": 279,
+   "expanded": 748,
+   "solutionLength": 23
+  },
+  {
+   "game": "Any hole is a goal.txt",
+   "level": 23,
+   "w": 10,
+   "h": 6,
+   "boardHash": "aa54475b2bf85d46",
+   "solveMs": 320,
+   "expanded": 1037,
+   "solutionLength": 18
+  },
+  {
+   "game": "atlas shrank.txt",
+   "level": 1,
+   "w": 15,
+   "h": 7,
+   "boardHash": "f77b6ac46b3cc5fe",
+   "solveMs": 4,
+   "expanded": 11,
+   "solutionLength": 6
+  },
+  {
+   "game": "atlas shrank.txt",
+   "level": 4,
+   "w": 15,
+   "h": 7,
+   "boardHash": "2828beeba709a843",
+   "solveMs": 336,
+   "expanded": 1898,
+   "solutionLength": 21
+  },
+  {
+   "game": "atlas shrank.txt",
+   "level": 5,
+   "w": 18,
+   "h": 11,
+   "boardHash": "c2bd021f746c5cc2",
+   "solveMs": 185,
+   "expanded": 887,
+   "solutionLength": 33
+  },
+  {
+   "game": "atlas shrank.txt",
+   "level": 10,
+   "w": 18,
+   "h": 11,
+   "boardHash": "b9567910750b566a",
+   "solveMs": 172,
+   "expanded": 611,
+   "solutionLength": 33
+  },
+  {
+   "game": "Attractor Net.txt",
+   "level": 1,
+   "w": 11,
+   "h": 11,
+   "boardHash": "31ed57d797a8b926",
+   "solveMs": 141,
+   "expanded": 2014,
+   "solutionLength": 23
+  },
+  {
+   "game": "Attractor Net.txt",
+   "level": 3,
+   "w": 9,
+   "h": 9,
+   "boardHash": "2935c2522fb818fa",
+   "solveMs": 123,
+   "expanded": 2769,
+   "solutionLength": 43
+  },
+  {
+   "game": "Attractor Net.txt",
+   "level": 5,
+   "w": 8,
+   "h": 8,
+   "boardHash": "accc5a360ebe013e",
+   "solveMs": 7,
+   "expanded": 162,
+   "solutionLength": 28
+  },
+  {
+   "game": "Attractor Net.txt",
+   "level": 7,
+   "w": 8,
+   "h": 8,
+   "boardHash": "027829730fc3fe6f",
+   "solveMs": 27,
+   "expanded": 523,
+   "solutionLength": 18
+  },
+  {
+   "game": "Attractor Net.txt",
+   "level": 9,
+   "w": 8,
+   "h": 8,
+   "boardHash": "11d48607654a1410",
+   "solveMs": 92,
+   "expanded": 1433,
+   "solutionLength": 10
+  },
+  {
+   "game": "Attractor Net.txt",
+   "level": 11,
+   "w": 8,
+   "h": 8,
+   "boardHash": "709cba4374062f58",
+   "solveMs": 18,
+   "expanded": 571,
+   "solutionLength": 18
+  },
+  {
+   "game": "Attractor Net.txt",
+   "level": 13,
+   "w": 9,
+   "h": 9,
+   "boardHash": "630b50f39ed77d99",
+   "solveMs": 103,
+   "expanded": 3034,
+   "solutionLength": 28
+  },
+  {
+   "game": "Attractor Net.txt",
+   "level": 15,
+   "w": 8,
+   "h": 8,
+   "boardHash": "1d380fa4bdc4f477",
+   "solveMs": 63,
+   "expanded": 1772,
+   "solutionLength": 27
+  },
+  {
+   "game": "Attractor Net.txt",
+   "level": 17,
+   "w": 8,
+   "h": 8,
+   "boardHash": "bd15849b3d752580",
+   "solveMs": 1,
+   "expanded": 20,
+   "solutionLength": 6
+  },
+  {
+   "game": "Attractor Net.txt",
+   "level": 19,
+   "w": 8,
+   "h": 8,
+   "boardHash": "dadb1ff313749e79",
+   "solveMs": 59,
+   "expanded": 1642,
+   "solutionLength": 47
+  },
+  {
+   "game": "BIAXIAL INVASION OF SATURN.txt",
+   "level": 3,
+   "w": 9,
+   "h": 7,
+   "boardHash": "46ebb35e0e833daa",
+   "solveMs": 174,
+   "expanded": 523,
+   "solutionLength": 8
+  },
+  {
+   "game": "BIAXIAL INVASION OF SATURN.txt",
+   "level": 13,
+   "w": 11,
+   "h": 9,
+   "boardHash": "348a52fc76777917",
+   "solveMs": 248,
+   "expanded": 444,
+   "solutionLength": 7
+  },
+  {
+   "game": "BIAXIAL INVASION OF SATURN.txt",
+   "level": 28,
+   "w": 16,
+   "h": 9,
+   "boardHash": "40c6116310acd9fa",
+   "solveMs": 0,
+   "expanded": 1,
+   "solutionLength": 1
+  },
+  {
+   "game": "BIAXIAL INVASION OF SATURN.txt",
+   "level": 29,
+   "w": 22,
+   "h": 15,
+   "boardHash": "0eb84b576c7e43c9",
+   "solveMs": 0,
+   "expanded": 1,
+   "solutionLength": 1
+  },
+  {
+   "game": "BIAXIAL INVASION OF SATURN.txt",
+   "level": 30,
+   "w": 54,
+   "h": 35,
+   "boardHash": "3541c814185a87bd",
+   "solveMs": 1,
+   "expanded": 1,
+   "solutionLength": 1
+  },
+  {
+   "game": "BIAXIAL INVASION OF SATURN.txt",
+   "level": 31,
+   "w": 106,
+   "h": 61,
+   "boardHash": "933de9d7077492da",
+   "solveMs": 3,
+   "expanded": 1,
+   "solutionLength": 1
+  },
+  {
+   "game": "Bicycle-Kick Football.txt",
+   "level": 1,
+   "w": 17,
+   "h": 9,
+   "boardHash": "05209438fb84778d",
+   "solveMs": 330,
+   "expanded": 621,
+   "solutionLength": 15
+  },
+  {
+   "game": "Bicycle-Kick Football.txt",
+   "level": 4,
+   "w": 6,
+   "h": 7,
+   "boardHash": "17dce86b202a08d0",
+   "solveMs": 32,
+   "expanded": 91,
+   "solutionLength": 14
+  },
+  {
+   "game": "Bicycle-Kick Football.txt",
+   "level": 7,
+   "w": 9,
+   "h": 6,
+   "boardHash": "f405d64fdb05f7c4",
+   "solveMs": 194,
+   "expanded": 685,
+   "solutionLength": 48
+  },
+  {
+   "game": "Bicycle-Kick Football.txt",
+   "level": 13,
+   "w": 9,
+   "h": 8,
+   "boardHash": "e00c483baf0e357c",
+   "solveMs": 480,
+   "expanded": 1171,
+   "solutionLength": 44
+  },
+  {
+   "game": "Bicycle-Kick Football.txt",
+   "level": 16,
+   "w": 7,
+   "h": 6,
+   "boardHash": "1fd219926fb58924",
+   "solveMs": 463,
+   "expanded": 2614,
+   "solutionLength": 47
+  },
+  {
+   "game": "big dog and little dog.txt",
+   "level": 1,
+   "w": 15,
+   "h": 11,
+   "boardHash": "63c78b6e95d7ec03",
+   "solveMs": 271,
+   "expanded": 2021,
+   "solutionLength": 25
+  },
+  {
+   "game": "byyourside.txt",
+   "level": 0,
+   "w": 21,
+   "h": 17,
+   "boardHash": "6d6dd1818dfcd625",
+   "solveMs": 3,
+   "expanded": 17,
+   "solutionLength": 9
+  },
+  {
+   "game": "byyourside.txt",
+   "level": 1,
+   "w": 21,
+   "h": 17,
+   "boardHash": "8564f972153ac708",
+   "solveMs": 68,
+   "expanded": 1231,
+   "solutionLength": 16
+  },
+  {
+   "game": "byyourside.txt",
+   "level": 2,
+   "w": 21,
+   "h": 17,
+   "boardHash": "a8968f3607b73359",
+   "solveMs": 12,
+   "expanded": 216,
+   "solutionLength": 28
+  },
+  {
+   "game": "byyourside.txt",
+   "level": 3,
+   "w": 21,
+   "h": 13,
+   "boardHash": "6e3eafc7ea7d2b78",
+   "solveMs": 1,
+   "expanded": 14,
+   "solutionLength": 14
+  },
+  {
+   "game": "byyourside.txt",
+   "level": 4,
+   "w": 21,
+   "h": 15,
+   "boardHash": "c11b9fe312c6b544",
+   "solveMs": 16,
+   "expanded": 264,
+   "solutionLength": 39
+  },
+  {
+   "game": "byyourside.txt",
+   "level": 5,
+   "w": 21,
+   "h": 15,
+   "boardHash": "9dd376f386f71990",
+   "solveMs": 18,
+   "expanded": 299,
+   "solutionLength": 47
+  },
+  {
+   "game": "byyourside.txt",
+   "level": 6,
+   "w": 21,
+   "h": 15,
+   "boardHash": "9136478910ead412",
+   "solveMs": 1,
+   "expanded": 5,
+   "solutionLength": 5
+  },
+  {
+   "game": "byyourside.txt",
+   "level": 7,
+   "w": 20,
+   "h": 15,
+   "boardHash": "e0956f03273bb477",
+   "solveMs": 1,
+   "expanded": 16,
+   "solutionLength": 16
+  },
+  {
+   "game": "byyourside.txt",
+   "level": 8,
+   "w": 20,
+   "h": 15,
+   "boardHash": "edef5abb7a9cc435",
+   "solveMs": 88,
+   "expanded": 1709,
+   "solutionLength": 90
+  },
+  {
+   "game": "byyourside.txt",
+   "level": 9,
+   "w": 20,
+   "h": 15,
+   "boardHash": "1bef664447e52ad0",
+   "solveMs": 92,
+   "expanded": 1062,
+   "solutionLength": 108
+  },
+  {
+   "game": "cakemonsters.txt",
+   "level": 2,
+   "w": 7,
+   "h": 8,
+   "boardHash": "cf69754637b7dd01",
+   "solveMs": 0,
+   "expanded": 3,
+   "solutionLength": 3
+  },
+  {
+   "game": "cakemonsters.txt",
+   "level": 4,
+   "w": 13,
+   "h": 13,
+   "boardHash": "382cffeb66280866",
+   "solveMs": 1,
+   "expanded": 10,
+   "solutionLength": 10
+  },
+  {
+   "game": "cakemonsters.txt",
+   "level": 7,
+   "w": 9,
+   "h": 8,
+   "boardHash": "c6920cf7415e1026",
+   "solveMs": 5,
+   "expanded": 208,
+   "solutionLength": 26
+  },
+  {
+   "game": "cakemonsters.txt",
+   "level": 9,
+   "w": 9,
+   "h": 9,
+   "boardHash": "8fa477ac050ea98f",
+   "solveMs": 7,
+   "expanded": 268,
+   "solutionLength": 17
+  },
+  {
+   "game": "cakemonsters.txt",
+   "level": 11,
+   "w": 10,
+   "h": 13,
+   "boardHash": "c42d66523490ed8b",
+   "solveMs": 2,
+   "expanded": 25,
+   "solutionLength": 14
+  },
+  {
+   "game": "cakemonsters.txt",
+   "level": 13,
+   "w": 12,
+   "h": 8,
+   "boardHash": "374c6397c4629bd6",
+   "solveMs": 7,
+   "expanded": 275,
+   "solutionLength": 25
+  },
+  {
+   "game": "cakemonsters.txt",
+   "level": 14,
+   "w": 5,
+   "h": 7,
+   "boardHash": "2a6037cefcafb7f1",
+   "solveMs": 1,
+   "expanded": 43,
+   "solutionLength": 13
+  },
+  {
+   "game": "cakemonsters.txt",
+   "level": 15,
+   "w": 6,
+   "h": 8,
+   "boardHash": "3d238fda48a47e47",
+   "solveMs": 12,
+   "expanded": 305,
+   "solutionLength": 26
+  },
+  {
+   "game": "cakemonsters.txt",
+   "level": 16,
+   "w": 7,
+   "h": 8,
+   "boardHash": "be3af7c544cbe67c",
+   "solveMs": 52,
+   "expanded": 1021,
+   "solutionLength": 18
+  },
+  {
+   "game": "cakemonsters.txt",
+   "level": 17,
+   "w": 7,
+   "h": 7,
+   "boardHash": "2f6ef11e9f71c28c",
+   "solveMs": 3,
+   "expanded": 70,
+   "solutionLength": 18
+  },
+  {
+   "game": "cakemonsters.txt",
+   "level": 18,
+   "w": 6,
+   "h": 8,
+   "boardHash": "62aca91e1ee1bee7",
+   "solveMs": 1,
+   "expanded": 10,
+   "solutionLength": 8
+  },
+  {
+   "game": "cakemonsters.txt",
+   "level": 21,
+   "w": 7,
+   "h": 9,
+   "boardHash": "12b84e2369ea7220",
+   "solveMs": 138,
+   "expanded": 3880,
+   "solutionLength": 13
+  },
+  {
+   "game": "cakemonsters.txt",
+   "level": 22,
+   "w": 7,
+   "h": 9,
+   "boardHash": "f43caef6a6318b72",
+   "solveMs": 10,
+   "expanded": 326,
+   "solutionLength": 40
+  },
+  {
+   "game": "cakemonsters.txt",
+   "level": 24,
+   "w": 9,
+   "h": 10,
+   "boardHash": "e92d398826c7fb86",
+   "solveMs": 1,
+   "expanded": 18,
+   "solutionLength": 10
+  },
+  {
+   "game": "cakemonsters.txt",
+   "level": 25,
+   "w": 5,
+   "h": 7,
+   "boardHash": "fdee2900024ab326",
+   "solveMs": 1,
+   "expanded": 7,
+   "solutionLength": 5
+  },
+  {
+   "game": "cakemonsters.txt",
+   "level": 26,
+   "w": 6,
+   "h": 8,
+   "boardHash": "10c1736dafc63e84",
+   "solveMs": 0,
+   "expanded": 8,
+   "solutionLength": 7
+  },
+  {
+   "game": "cakemonsters.txt",
+   "level": 27,
+   "w": 7,
+   "h": 7,
+   "boardHash": "9f4a0f3f58e45433",
+   "solveMs": 0,
+   "expanded": 9,
+   "solutionLength": 8
+  },
+  {
+   "game": "cakemonsters.txt",
+   "level": 28,
+   "w": 11,
+   "h": 11,
+   "boardHash": "1621e15c971d0f51",
+   "solveMs": 11,
+   "expanded": 380,
+   "solutionLength": 48
+  },
+  {
+   "game": "cakemonsters.txt",
+   "level": 29,
+   "w": 11,
+   "h": 7,
+   "boardHash": "c008e34a64784b85",
+   "solveMs": 8,
+   "expanded": 314,
+   "solutionLength": 26
+  },
+  {
+   "game": "cakemonsters.txt",
+   "level": 31,
+   "w": 6,
+   "h": 8,
+   "boardHash": "82027f968fb637ea",
+   "solveMs": 1,
+   "expanded": 40,
+   "solutionLength": 26
+  },
+  {
+   "game": "cakemonsters.txt",
+   "level": 32,
+   "w": 7,
+   "h": 8,
+   "boardHash": "d014e826ed16bdc2",
+   "solveMs": 32,
+   "expanded": 1164,
+   "solutionLength": 39
+  },
+  {
+   "game": "cakemonsters.txt",
+   "level": 33,
+   "w": 10,
+   "h": 10,
+   "boardHash": "8235543edf1b8314",
+   "solveMs": 83,
+   "expanded": 3917,
+   "solutionLength": 73
+  },
+  {
+   "game": "cakemonsters.txt",
+   "level": 35,
+   "w": 6,
+   "h": 8,
+   "boardHash": "377c122c7465ffa2",
+   "solveMs": 10,
+   "expanded": 259,
+   "solutionLength": 18
+  },
+  {
+   "game": "cakemonsters.txt",
+   "level": 38,
+   "w": 5,
+   "h": 9,
+   "boardHash": "bbc0eb7f1f5759ba",
+   "solveMs": 223,
+   "expanded": 6123,
+   "solutionLength": 18
+  },
+  {
+   "game": "cakemonsters.txt",
+   "level": 39,
+   "w": 6,
+   "h": 8,
+   "boardHash": "2f1a2ff704e5cc14",
+   "solveMs": 2,
+   "expanded": 18,
+   "solutionLength": 15
+  },
+  {
+   "game": "cakemonsters.txt",
+   "level": 40,
+   "w": 6,
+   "h": 8,
+   "boardHash": "5c390e80549bc7d2",
+   "solveMs": 145,
+   "expanded": 4864,
+   "solutionLength": 23
+  },
+  {
+   "game": "cakemonsters.txt",
+   "level": 43,
+   "w": 6,
+   "h": 8,
+   "boardHash": "f611d19b3e818377",
+   "solveMs": 1,
+   "expanded": 34,
+   "solutionLength": 12
+  },
+  {
+   "game": "cakemonsters.txt",
+   "level": 44,
+   "w": 7,
+   "h": 8,
+   "boardHash": "16e3bc52b02d339c",
+   "solveMs": 186,
+   "expanded": 5188,
+   "solutionLength": 14
+  },
+  {
+   "game": "cakemonsters.txt",
+   "level": 46,
+   "w": 6,
+   "h": 8,
+   "boardHash": "cd17b91c0aacc684",
+   "solveMs": 47,
+   "expanded": 1821,
+   "solutionLength": 24
+  },
+  {
+   "game": "cakemonsters.txt",
+   "level": 49,
+   "w": 6,
+   "h": 8,
+   "boardHash": "2ee394cf2847f5dd",
+   "solveMs": 262,
+   "expanded": 9290,
+   "solutionLength": 28
+  },
+  {
+   "game": "castlecloset.txt",
+   "level": 0,
+   "w": 24,
+   "h": 16,
+   "boardHash": "b7e4f9bf7f11038c",
+   "solveMs": 154,
+   "expanded": 2695,
+   "solutionLength": 26
+  },
+  {
+   "game": "castlemouse.txt",
+   "level": 1,
+   "w": 21,
+   "h": 13,
+   "boardHash": "da7d79528f7b0782",
+   "solveMs": 18,
+   "expanded": 48,
+   "solutionLength": 6
+  },
+  {
+   "game": "castlemouse.txt",
+   "level": 3,
+   "w": 26,
+   "h": 16,
+   "boardHash": "5609956704ae5220",
+   "solveMs": 18,
+   "expanded": 42,
+   "solutionLength": 5
+  },
+  {
+   "game": "castlemouse.txt",
+   "level": 5,
+   "w": 21,
+   "h": 13,
+   "boardHash": "d16df11e4fd8aa18",
+   "solveMs": 42,
+   "expanded": 141,
+   "solutionLength": 7
+  },
+  {
+   "game": "castlemouse.txt",
+   "level": 7,
+   "w": 26,
+   "h": 16,
+   "boardHash": "0015bf90b1c047da",
+   "solveMs": 69,
+   "expanded": 272,
+   "solutionLength": 9
+  },
+  {
+   "game": "castlemouse.txt",
+   "level": 9,
+   "w": 19,
+   "h": 13,
+   "boardHash": "e96f87430f671154",
+   "solveMs": 6,
+   "expanded": 20,
+   "solutionLength": 5
+  },
+  {
+   "game": "castlemouse.txt",
+   "level": 11,
+   "w": 26,
+   "h": 16,
+   "boardHash": "1c8c4d52ce2a5c51",
+   "solveMs": 433,
+   "expanded": 1139,
+   "solutionLength": 6
+  },
+  {
+   "game": "castlemouse.txt",
+   "level": 13,
+   "w": 19,
+   "h": 13,
+   "boardHash": "76482aca1b55e7d5",
+   "solveMs": 13,
+   "expanded": 6,
+   "solutionLength": 2
+  },
+  {
+   "game": "castlemouse.txt",
+   "level": 15,
+   "w": 26,
+   "h": 16,
+   "boardHash": "fb28ee7f5b561cae",
+   "solveMs": 24,
+   "expanded": 12,
+   "solutionLength": 3
+  },
+  {
+   "game": "castlemouse.txt",
+   "level": 17,
+   "w": 19,
+   "h": 14,
+   "boardHash": "2762b9285df07270",
+   "solveMs": 8,
+   "expanded": 3,
+   "solutionLength": 2
+  },
+  {
+   "game": "castlemouse.txt",
+   "level": 19,
+   "w": 26,
+   "h": 16,
+   "boardHash": "a6ecb67041a533f7",
+   "solveMs": 18,
+   "expanded": 9,
+   "solutionLength": 5
+  },
+  {
+   "game": "chaos wizard.txt",
+   "level": 2,
+   "w": 13,
+   "h": 15,
+   "boardHash": "e3cc0210484a80aa",
+   "solveMs": 84,
+   "expanded": 960,
+   "solutionLength": 19
+  },
+  {
+   "game": "chaos wizard.txt",
+   "level": 3,
+   "w": 13,
+   "h": 16,
+   "boardHash": "d1ac3187e83170c5",
+   "solveMs": 29,
+   "expanded": 293,
+   "solutionLength": 20
+  },
+  {
+   "game": "chaos wizard.txt",
+   "level": 14,
+   "w": 13,
+   "h": 15,
+   "boardHash": "a8c1dd78b98a9799",
+   "solveMs": 485,
+   "expanded": 5327,
+   "solutionLength": 40
+  },
+  {
+   "game": "chaos wizard.txt",
+   "level": 22,
+   "w": 13,
+   "h": 16,
+   "boardHash": "bca32ce96f4fd5cf",
+   "solveMs": 15,
+   "expanded": 65,
+   "solutionLength": 24
+  },
+  {
+   "game": "Chevron Lodger.txt",
+   "level": 1,
+   "w": 7,
+   "h": 8,
+   "boardHash": "450177491391e59c",
+   "solveMs": 3,
+   "expanded": 67,
+   "solutionLength": 14
+  },
+  {
+   "game": "Chevron Lodger.txt",
+   "level": 3,
+   "w": 9,
+   "h": 8,
+   "boardHash": "a533d2202396de53",
+   "solveMs": 70,
+   "expanded": 1755,
+   "solutionLength": 23
+  },
+  {
+   "game": "Chevron Lodger.txt",
+   "level": 5,
+   "w": 11,
+   "h": 10,
+   "boardHash": "17937fcfce9f0783",
+   "solveMs": 184,
+   "expanded": 5035,
+   "solutionLength": 46
+  },
+  {
+   "game": "Chevron Lodger.txt",
+   "level": 7,
+   "w": 10,
+   "h": 9,
+   "boardHash": "074ebc0eba75baa0",
+   "solveMs": 47,
+   "expanded": 823,
+   "solutionLength": 40
+  },
+  {
+   "game": "Chevron Lodger.txt",
+   "level": 9,
+   "w": 11,
+   "h": 9,
+   "boardHash": "5750d2935e86e70a",
+   "solveMs": 225,
+   "expanded": 7084,
+   "solutionLength": 40
+  },
+  {
+   "game": "CODEX LUBRICUS.txt",
+   "level": 2,
+   "w": 10,
+   "h": 7,
+   "boardHash": "08dde944a829d6ab",
+   "solveMs": 55,
+   "expanded": 130,
+   "solutionLength": 13
+  },
+  {
+   "game": "CODEX LUBRICUS.txt",
+   "level": 4,
+   "w": 10,
+   "h": 11,
+   "boardHash": "417c57059fffd257",
+   "solveMs": 67,
+   "expanded": 93,
+   "solutionLength": 17
+  },
+  {
+   "game": "CODEX LUBRICUS.txt",
+   "level": 6,
+   "w": 15,
+   "h": 11,
+   "boardHash": "8a6fffc491f95d23",
+   "solveMs": 80,
+   "expanded": 73,
+   "solutionLength": 11
+  },
+  {
+   "game": "CODEX LUBRICUS.txt",
+   "level": 8,
+   "w": 10,
+   "h": 7,
+   "boardHash": "be6dc98ae5d90183",
+   "solveMs": 44,
+   "expanded": 93,
+   "solutionLength": 14
+  },
+  {
+   "game": "CODEX LUBRICUS.txt",
+   "level": 10,
+   "w": 15,
+   "h": 11,
+   "boardHash": "932b8bfc6f236080",
+   "solveMs": 102,
+   "expanded": 113,
+   "solutionLength": 14
+  },
+  {
+   "game": "CODEX LUBRICUS.txt",
+   "level": 12,
+   "w": 15,
+   "h": 7,
+   "boardHash": "ec07337ea3541456",
+   "solveMs": 90,
+   "expanded": 149,
+   "solutionLength": 18
+  },
+  {
+   "game": "CODEX LUBRICUS.txt",
+   "level": 14,
+   "w": 10,
+   "h": 11,
+   "boardHash": "71e8a0240fd31155",
+   "solveMs": 81,
+   "expanded": 111,
+   "solutionLength": 14
+  },
+  {
+   "game": "CODEX LUBRICUS.txt",
+   "level": 16,
+   "w": 15,
+   "h": 7,
+   "boardHash": "eaa85ba72a97a299",
+   "solveMs": 92,
+   "expanded": 118,
+   "solutionLength": 19
+  },
+  {
+   "game": "CODEX LUBRICUS.txt",
+   "level": 18,
+   "w": 15,
+   "h": 11,
+   "boardHash": "7957f6f09084a40a",
+   "solveMs": 111,
+   "expanded": 105,
+   "solutionLength": 15
+  },
+  {
+   "game": "CODEX LUBRICUS.txt",
+   "level": 20,
+   "w": 15,
+   "h": 11,
+   "boardHash": "d8f8577b398d6cb9",
+   "solveMs": 110,
+   "expanded": 115,
+   "solutionLength": 15
+  },
+  {
+   "game": "CODEX LUBRICUS.txt",
+   "level": 22,
+   "w": 10,
+   "h": 11,
+   "boardHash": "262f0e7abd24f7ca",
+   "solveMs": 94,
+   "expanded": 112,
+   "solutionLength": 15
+  },
+  {
+   "game": "CODEX LUBRICUS.txt",
+   "level": 24,
+   "w": 10,
+   "h": 11,
+   "boardHash": "266225c18151831a",
+   "solveMs": 102,
+   "expanded": 116,
+   "solutionLength": 16
+  },
+  {
+   "game": "CODEX LUBRICUS.txt",
+   "level": 26,
+   "w": 15,
+   "h": 11,
+   "boardHash": "e8e31c5166c4bd59",
+   "solveMs": 156,
+   "expanded": 108,
+   "solutionLength": 11
+  },
+  {
+   "game": "CODEX LUBRICUS.txt",
+   "level": 28,
+   "w": 15,
+   "h": 11,
+   "boardHash": "d231642ec53af04d",
+   "solveMs": 144,
+   "expanded": 104,
+   "solutionLength": 11
+  },
+  {
+   "game": "CODEX LUBRICUS.txt",
+   "level": 30,
+   "w": 15,
+   "h": 11,
+   "boardHash": "4f44e46717a1dc20",
+   "solveMs": 162,
+   "expanded": 131,
+   "solutionLength": 19
+  },
+  {
+   "game": "CODEX LUBRICUS.txt",
+   "level": 32,
+   "w": 15,
+   "h": 11,
+   "boardHash": "c0a984838a9a1c6d",
+   "solveMs": 229,
+   "expanded": 275,
+   "solutionLength": 30
+  },
+  {
+   "game": "CODEX LUBRICUS.txt",
+   "level": 34,
+   "w": 15,
+   "h": 11,
+   "boardHash": "dd12afac7dc0865a",
+   "solveMs": 121,
+   "expanded": 122,
+   "solutionLength": 14
+  },
+  {
+   "game": "CODEX LUBRICUS.txt",
+   "level": 36,
+   "w": 10,
+   "h": 11,
+   "boardHash": "ba6b80b530146701",
+   "solveMs": 81,
+   "expanded": 164,
+   "solutionLength": 20
+  },
+  {
+   "game": "CODEX LUBRICUS.txt",
+   "level": 38,
+   "w": 10,
+   "h": 11,
+   "boardHash": "f4169a823183a1b6",
+   "solveMs": 71,
+   "expanded": 102,
+   "solutionLength": 18
+  },
+  {
+   "game": "CODEX LUBRICUS.txt",
+   "level": 40,
+   "w": 15,
+   "h": 11,
+   "boardHash": "c6119e83fa5e803f",
+   "solveMs": 222,
+   "expanded": 262,
+   "solutionLength": 27
+  },
+  {
+   "game": "coincounter.txt",
+   "level": 0,
+   "w": 11,
+   "h": 10,
+   "boardHash": "a7ca90c833f91132",
+   "solveMs": 2,
+   "expanded": 9,
+   "solutionLength": 9
+  },
+  {
+   "game": "coincounter.txt",
+   "level": 1,
+   "w": 15,
+   "h": 7,
+   "boardHash": "be138b7866a9e96b",
+   "solveMs": 5,
+   "expanded": 22,
+   "solutionLength": 22
+  },
+  {
+   "game": "coincounter.txt",
+   "level": 2,
+   "w": 8,
+   "h": 12,
+   "boardHash": "e727bf02b3a9d0b9",
+   "solveMs": 16,
+   "expanded": 69,
+   "solutionLength": 46
+  },
+  {
+   "game": "coincounter.txt",
+   "level": 3,
+   "w": 9,
+   "h": 8,
+   "boardHash": "f0b05a7775742cc0",
+   "solveMs": 19,
+   "expanded": 93,
+   "solutionLength": 40
+  },
+  {
+   "game": "coincounter.txt",
+   "level": 4,
+   "w": 11,
+   "h": 7,
+   "boardHash": "114ea3ac0655106a",
+   "solveMs": 58,
+   "expanded": 289,
+   "solutionLength": 36
+  },
+  {
+   "game": "coincounter.txt",
+   "level": 5,
+   "w": 11,
+   "h": 7,
+   "boardHash": "a78e5581873870aa",
+   "solveMs": 69,
+   "expanded": 287,
+   "solutionLength": 24
+  },
+  {
+   "game": "coincounter.txt",
+   "level": 6,
+   "w": 10,
+   "h": 7,
+   "boardHash": "700b8e843378a52d",
+   "solveMs": 177,
+   "expanded": 892,
+   "solutionLength": 80
+  },
+  {
+   "game": "coincounter.txt",
+   "level": 7,
+   "w": 10,
+   "h": 7,
+   "boardHash": "7138b5c034b1065e",
+   "solveMs": 251,
+   "expanded": 1114,
+   "solutionLength": 50
+  },
+  {
+   "game": "coincounter.txt",
+   "level": 8,
+   "w": 11,
+   "h": 9,
+   "boardHash": "b3f82017db14db79",
+   "solveMs": 13,
+   "expanded": 51,
+   "solutionLength": 40
+  },
+  {
+   "game": "coincounter.txt",
+   "level": 9,
+   "w": 11,
+   "h": 11,
+   "boardHash": "61b6eccb7ca32426",
+   "solveMs": 4,
+   "expanded": 7,
+   "solutionLength": 7
+  },
+  {
+   "game": "coincounter.txt",
+   "level": 10,
+   "w": 34,
+   "h": 34,
+   "boardHash": "f7c155eb2487f17a",
+   "solveMs": 2,
+   "expanded": 1,
+   "solutionLength": 1
+  },
+  {
+   "game": "constellationz.txt",
+   "level": 0,
+   "w": 14,
+   "h": 14,
+   "boardHash": "cd14613af4b09c47",
+   "solveMs": 1,
+   "expanded": 5,
+   "solutionLength": 5
+  },
+  {
+   "game": "constellationz.txt",
+   "level": 1,
+   "w": 14,
+   "h": 14,
+   "boardHash": "099c4b22ec9541a1",
+   "solveMs": 1,
+   "expanded": 5,
+   "solutionLength": 5
+  },
+  {
+   "game": "constellationz.txt",
+   "level": 2,
+   "w": 14,
+   "h": 14,
+   "boardHash": "cc040d0941355585",
+   "solveMs": 4,
+   "expanded": 72,
+   "solutionLength": 7
+  },
+  {
+   "game": "constellationz.txt",
+   "level": 3,
+   "w": 14,
+   "h": 14,
+   "boardHash": "6c613b9f1aff51e0",
+   "solveMs": 1,
+   "expanded": 10,
+   "solutionLength": 10
+  },
+  {
+   "game": "constellationz.txt",
+   "level": 4,
+   "w": 14,
+   "h": 14,
+   "boardHash": "b91202053e6adb20",
+   "solveMs": 6,
+   "expanded": 124,
+   "solutionLength": 11
+  },
+  {
+   "game": "constellationz.txt",
+   "level": 5,
+   "w": 35,
+   "h": 25,
+   "boardHash": "5f5b979403f6b6e1",
+   "solveMs": 9,
+   "expanded": 28,
+   "solutionLength": 28
+  },
+  {
+   "game": "constellationz.txt",
+   "level": 6,
+   "w": 36,
+   "h": 18,
+   "boardHash": "34eec1ead149c735",
+   "solveMs": 198,
+   "expanded": 1718,
+   "solutionLength": 30
+  },
+  {
+   "game": "constellationz.txt",
+   "level": 7,
+   "w": 36,
+   "h": 18,
+   "boardHash": "68375cade7549b1b",
+   "solveMs": 184,
+   "expanded": 1466,
+   "solutionLength": 22
+  },
+  {
+   "game": "cooperacing.txt",
+   "level": 3,
+   "w": 13,
+   "h": 16,
+   "boardHash": "bb673a726bfc9dcb",
+   "solveMs": 440,
+   "expanded": 4508,
+   "solutionLength": 32
+  },
+  {
+   "game": "crate guardian.txt",
+   "level": 1,
+   "w": 9,
+   "h": 13,
+   "boardHash": "25199911cf81c94c",
+   "solveMs": 391,
+   "expanded": 7184,
+   "solutionLength": 44
+  },
+  {
+   "game": "crate guardian.txt",
+   "level": 3,
+   "w": 7,
+   "h": 11,
+   "boardHash": "72bdda95e2fc3562",
+   "solveMs": 93,
+   "expanded": 1913,
+   "solutionLength": 25
+  },
+  {
+   "game": "crate guardian.txt",
+   "level": 5,
+   "w": 9,
+   "h": 9,
+   "boardHash": "020d5dc243fc28c3",
+   "solveMs": 433,
+   "expanded": 8633,
+   "solutionLength": 46
+  },
+  {
+   "game": "crate swap.txt",
+   "level": 1,
+   "w": 9,
+   "h": 6,
+   "boardHash": "afa8581d7c811f6a",
+   "solveMs": 23,
+   "expanded": 1202,
+   "solutionLength": 35
+  },
+  {
+   "game": "crate swap.txt",
+   "level": 3,
+   "w": 6,
+   "h": 6,
+   "boardHash": "56ccc55bcda6aec8",
+   "solveMs": 13,
+   "expanded": 714,
+   "solutionLength": 31
+  },
+  {
+   "game": "crate swap.txt",
+   "level": 5,
+   "w": 9,
+   "h": 6,
+   "boardHash": "7079fc51611a8cb2",
+   "solveMs": 26,
+   "expanded": 1659,
+   "solutionLength": 35
+  },
+  {
+   "game": "crate swap.txt",
+   "level": 7,
+   "w": 9,
+   "h": 6,
+   "boardHash": "364638e83ad09e05",
+   "solveMs": 78,
+   "expanded": 1732,
+   "solutionLength": 30
+  },
+  {
+   "game": "crate swap.txt",
+   "level": 9,
+   "w": 8,
+   "h": 6,
+   "boardHash": "25f74d743325244f",
+   "solveMs": 64,
+   "expanded": 2606,
+   "solutionLength": 44
+  },
+  {
+   "game": "crate swap.txt",
+   "level": 11,
+   "w": 7,
+   "h": 7,
+   "boardHash": "9ea7da83a4fc58d4",
+   "solveMs": 47,
+   "expanded": 3024,
+   "solutionLength": 43
+  },
+  {
+   "game": "crate swap.txt",
+   "level": 13,
+   "w": 7,
+   "h": 7,
+   "boardHash": "0a852a4f19b8704f",
+   "solveMs": 55,
+   "expanded": 2569,
+   "solutionLength": 53
+  },
+  {
+   "game": "crate swap.txt",
+   "level": 15,
+   "w": 7,
+   "h": 7,
+   "boardHash": "53779ab30953faad",
+   "solveMs": 31,
+   "expanded": 1789,
+   "solutionLength": 36
+  },
+  {
+   "game": "Crates move when you move.txt",
+   "level": 1,
+   "w": 6,
+   "h": 8,
+   "boardHash": "1f2fc4fad1c5b331",
+   "solveMs": 3,
+   "expanded": 138,
+   "solutionLength": 9
+  },
+  {
+   "game": "Crates move when you move.txt",
+   "level": 3,
+   "w": 6,
+   "h": 6,
+   "boardHash": "c13db7897c78c444",
+   "solveMs": 2,
+   "expanded": 73,
+   "solutionLength": 10
+  },
+  {
+   "game": "Crates move when you move.txt",
+   "level": 5,
+   "w": 7,
+   "h": 7,
+   "boardHash": "976804975acb140f",
+   "solveMs": 1,
+   "expanded": 49,
+   "solutionLength": 9
+  },
+  {
+   "game": "Crates move when you move.txt",
+   "level": 7,
+   "w": 9,
+   "h": 6,
+   "boardHash": "e6c5ec2cb05ca16f",
+   "solveMs": 3,
+   "expanded": 115,
+   "solutionLength": 23
+  },
+  {
+   "game": "Crates move when you move.txt",
+   "level": 9,
+   "w": 6,
+   "h": 7,
+   "boardHash": "153a4d3fb0f01c60",
+   "solveMs": 2,
+   "expanded": 71,
+   "solutionLength": 4
+  },
+  {
+   "game": "Crates move when you move.txt",
+   "level": 11,
+   "w": 8,
+   "h": 6,
+   "boardHash": "5f545efe7e1d729b",
+   "solveMs": 0,
+   "expanded": 3,
+   "solutionLength": 3
+  },
+  {
+   "game": "Crates move when you move.txt",
+   "level": 13,
+   "w": 6,
+   "h": 10,
+   "boardHash": "823accb1e5355521",
+   "solveMs": 8,
+   "expanded": 348,
+   "solutionLength": 15
+  },
+  {
+   "game": "Crates move when you move.txt",
+   "level": 15,
+   "w": 7,
+   "h": 5,
+   "boardHash": "bdd2e9db8854fa16",
+   "solveMs": 6,
+   "expanded": 230,
+   "solutionLength": 10
+  },
+  {
+   "game": "Crates move when you move.txt",
+   "level": 17,
+   "w": 6,
+   "h": 7,
+   "boardHash": "be1af0b26bc969c4",
+   "solveMs": 3,
+   "expanded": 93,
+   "solutionLength": 7
+  },
+  {
+   "game": "Crates move when you move.txt",
+   "level": 19,
+   "w": 6,
+   "h": 6,
+   "boardHash": "0b5acd1c56453dae",
+   "solveMs": 10,
+   "expanded": 415,
+   "solutionLength": 13
+  },
+  {
+   "game": "cratopia.txt",
+   "level": 2,
+   "w": 9,
+   "h": 11,
+   "boardHash": "40be162d099fe1eb",
+   "solveMs": 13,
+   "expanded": 70,
+   "solutionLength": 23
+  },
+  {
+   "game": "cratopia.txt",
+   "level": 5,
+   "w": 19,
+   "h": 13,
+   "boardHash": "fc98836813f6da0d",
+   "solveMs": 68,
+   "expanded": 764,
+   "solutionLength": 43
+  },
+  {
+   "game": "cratopia.txt",
+   "level": 20,
+   "w": 21,
+   "h": 8,
+   "boardHash": "700e71ecf622b957",
+   "solveMs": 6,
+   "expanded": 31,
+   "solutionLength": 17
+  },
+  {
+   "game": "cratopia.txt",
+   "level": 21,
+   "w": 17,
+   "h": 14,
+   "boardHash": "41fb146c4f2a3a56",
+   "solveMs": 3,
+   "expanded": 0,
+   "solutionLength": 0
+  },
+  {
+   "game": "cratopia.txt",
+   "level": 22,
+   "w": 9,
+   "h": 11,
+   "boardHash": "1e32be1bf32e9d74",
+   "solveMs": 1,
+   "expanded": 0,
+   "solutionLength": 0
+  },
+  {
+   "game": "cratopia.txt",
+   "level": 23,
+   "w": 32,
+   "h": 32,
+   "boardHash": "f82533ef152025d3",
+   "solveMs": 31,
+   "expanded": 0,
+   "solutionLength": 0
+  },
+  {
+   "game": "Cucumber Surprise.txt",
+   "level": 2,
+   "w": 10,
+   "h": 5,
+   "boardHash": "64e30fb1e222dd6b",
+   "solveMs": 5,
+   "expanded": 259,
+   "solutionLength": 31
+  },
+  {
+   "game": "Cucumber Surprise.txt",
+   "level": 5,
+   "w": 10,
+   "h": 7,
+   "boardHash": "6c879eea32db98cd",
+   "solveMs": 5,
+   "expanded": 201,
+   "solutionLength": 8
+  },
+  {
+   "game": "Cucumber Surprise.txt",
+   "level": 7,
+   "w": 6,
+   "h": 7,
+   "boardHash": "28164091617d544c",
+   "solveMs": 29,
+   "expanded": 1178,
+   "solutionLength": 21
+  },
+  {
+   "game": "Cucumber Surprise.txt",
+   "level": 9,
+   "w": 7,
+   "h": 8,
+   "boardHash": "b52b58dfba041ff9",
+   "solveMs": 83,
+   "expanded": 2499,
+   "solutionLength": 22
+  },
+  {
+   "game": "Cucumber Surprise.txt",
+   "level": 11,
+   "w": 8,
+   "h": 7,
+   "boardHash": "6c1d776613cbedec",
+   "solveMs": 230,
+   "expanded": 7606,
+   "solutionLength": 33
+  },
+  {
+   "game": "Cucumber Surprise.txt",
+   "level": 13,
+   "w": 9,
+   "h": 6,
+   "boardHash": "48e3f6900c1ab15a",
+   "solveMs": 30,
+   "expanded": 1163,
+   "solutionLength": 31
+  },
+  {
+   "game": "Cucumber Surprise.txt",
+   "level": 15,
+   "w": 6,
+   "h": 6,
+   "boardHash": "ca6a0ca2ffa1be7f",
+   "solveMs": 70,
+   "expanded": 2202,
+   "solutionLength": 35
+  },
+  {
+   "game": "Cucumber Surprise.txt",
+   "level": 17,
+   "w": 7,
+   "h": 6,
+   "boardHash": "121b70834f4e8472",
+   "solveMs": 41,
+   "expanded": 916,
+   "solutionLength": 32
+  },
+  {
+   "game": "Cucumber Surprise.txt",
+   "level": 19,
+   "w": 8,
+   "h": 6,
+   "boardHash": "8e72753cb38905e2",
+   "solveMs": 48,
+   "expanded": 1311,
+   "solutionLength": 27
+  },
+  {
+   "game": "Cucumber Surprise.txt",
+   "level": 21,
+   "w": 6,
+   "h": 7,
+   "boardHash": "641aff5a7b260475",
+   "solveMs": 263,
+   "expanded": 8142,
+   "solutionLength": 29
+  },
+  {
+   "game": "Cucumber Surprise.txt",
+   "level": 23,
+   "w": 6,
+   "h": 7,
+   "boardHash": "54f54170c9280707",
+   "solveMs": 107,
+   "expanded": 3449,
+   "solutionLength": 40
+  },
+  {
+   "game": "Cucumber Surprise.txt",
+   "level": 25,
+   "w": 6,
+   "h": 7,
+   "boardHash": "f885a5df5b3db95d",
+   "solveMs": 37,
+   "expanded": 1243,
+   "solutionLength": 26
+  },
+  {
+   "game": "Cucumber Surprise.txt",
+   "level": 27,
+   "w": 7,
+   "h": 8,
+   "boardHash": "20626a8d1c2540e6",
+   "solveMs": 199,
+   "expanded": 7437,
+   "solutionLength": 36
+  },
+  {
+   "game": "Cucumber Surprise.txt",
+   "level": 29,
+   "w": 6,
+   "h": 7,
+   "boardHash": "2a5dd8e0fb939e35",
+   "solveMs": 21,
+   "expanded": 731,
+   "solutionLength": 46
+  },
+  {
+   "game": "Cucumber Surprise.txt",
+   "level": 31,
+   "w": 7,
+   "h": 8,
+   "boardHash": "c949d08b8d7f854d",
+   "solveMs": 63,
+   "expanded": 2119,
+   "solutionLength": 40
+  },
+  {
+   "game": "Cucumber Surprise.txt",
+   "level": 33,
+   "w": 7,
+   "h": 8,
+   "boardHash": "068f90e241ed0a77",
+   "solveMs": 98,
+   "expanded": 3415,
+   "solutionLength": 62
+  },
+  {
+   "game": "Cucumber Surprise.txt",
+   "level": 35,
+   "w": 7,
+   "h": 8,
+   "boardHash": "635f33d3bcae94f0",
+   "solveMs": 69,
+   "expanded": 1727,
+   "solutionLength": 41
+  },
+  {
+   "game": "Cucumber Surprise.txt",
+   "level": 37,
+   "w": 8,
+   "h": 9,
+   "boardHash": "08e16ef372b7e450",
+   "solveMs": 27,
+   "expanded": 812,
+   "solutionLength": 37
+  },
+  {
+   "game": "Cucumber Surprise.txt",
+   "level": 39,
+   "w": 16,
+   "h": 5,
+   "boardHash": "48ee5ff396293a40",
+   "solveMs": 121,
+   "expanded": 2968,
+   "solutionLength": 92
+  },
+  {
+   "game": "der hydra krypta.txt",
+   "level": 1,
+   "w": 36,
+   "h": 22,
+   "boardHash": "65865974c1d04606",
+   "solveMs": 30,
+   "expanded": 21,
+   "solutionLength": 19
+  },
+  {
+   "game": "der hydra krypta.txt",
+   "level": 13,
+   "w": 8,
+   "h": 10,
+   "boardHash": "7ad06e7be89b5cbf",
+   "solveMs": 1,
+   "expanded": 1,
+   "solutionLength": 1
+  },
+  {
+   "game": "Des Poseidons Dreizack.txt",
+   "level": 6,
+   "w": 12,
+   "h": 9,
+   "boardHash": "f9a372b2f1e02809",
+   "solveMs": 3,
+   "expanded": 9,
+   "solutionLength": 9
+  },
+  {
+   "game": "Des Poseidons Dreizack.txt",
+   "level": 7,
+   "w": 12,
+   "h": 9,
+   "boardHash": "e531980fe930b267",
+   "solveMs": 3,
+   "expanded": 1,
+   "solutionLength": 1
+  },
+  {
+   "game": "die schoene steinmetzin.txt",
+   "level": 5,
+   "w": 18,
+   "h": 10,
+   "boardHash": "410073129c4cfee0",
+   "solveMs": 443,
+   "expanded": 1765,
+   "solutionLength": 45
+  },
+  {
+   "game": "diesinthelight.txt",
+   "level": 0,
+   "w": 11,
+   "h": 9,
+   "boardHash": "fc26e8735f80b21c",
+   "solveMs": 18,
+   "expanded": 94,
+   "solutionLength": 45
+  },
+  {
+   "game": "diesinthelight.txt",
+   "level": 1,
+   "w": 17,
+   "h": 11,
+   "boardHash": "ea8c5e1c4be92457",
+   "solveMs": 108,
+   "expanded": 432,
+   "solutionLength": 92
+  },
+  {
+   "game": "dollyban.txt",
+   "level": 1,
+   "w": 9,
+   "h": 9,
+   "boardHash": "972c2a94c7298c5f",
+   "solveMs": 109,
+   "expanded": 3182,
+   "solutionLength": 27
+  },
+  {
+   "game": "dollyban.txt",
+   "level": 3,
+   "w": 9,
+   "h": 6,
+   "boardHash": "d2a0d23543da9d91",
+   "solveMs": 100,
+   "expanded": 3417,
+   "solutionLength": 35
+  },
+  {
+   "game": "dollyban.txt",
+   "level": 13,
+   "w": 8,
+   "h": 12,
+   "boardHash": "0226fcef6fb9ccf2",
+   "solveMs": 231,
+   "expanded": 5653,
+   "solutionLength": 39
+  },
+  {
+   "game": "dollyban.txt",
+   "level": 23,
+   "w": 9,
+   "h": 9,
+   "boardHash": "9d306b7781b8f7de",
+   "solveMs": 434,
+   "expanded": 11508,
+   "solutionLength": 70
+  },
+  {
+   "game": "Don't let your goals slip away.txt",
+   "level": 1,
+   "w": 6,
+   "h": 7,
+   "boardHash": "7887e7cd2b0a478e",
+   "solveMs": 2,
+   "expanded": 63,
+   "solutionLength": 14
+  },
+  {
+   "game": "Don't let your goals slip away.txt",
+   "level": 3,
+   "w": 9,
+   "h": 6,
+   "boardHash": "b1601e2be2ab0fab",
+   "solveMs": 107,
+   "expanded": 4881,
+   "solutionLength": 42
+  },
+  {
+   "game": "Don't let your goals slip away.txt",
+   "level": 5,
+   "w": 6,
+   "h": 7,
+   "boardHash": "6a7ed24a71d831d0",
+   "solveMs": 4,
+   "expanded": 121,
+   "solutionLength": 38
+  },
+  {
+   "game": "Don't let your goals slip away.txt",
+   "level": 7,
+   "w": 8,
+   "h": 6,
+   "boardHash": "21ca16500bd2475c",
+   "solveMs": 23,
+   "expanded": 512,
+   "solutionLength": 37
+  },
+  {
+   "game": "Don't let your goals slip away.txt",
+   "level": 9,
+   "w": 6,
+   "h": 7,
+   "boardHash": "23946c00c5824c68",
+   "solveMs": 41,
+   "expanded": 1317,
+   "solutionLength": 24
+  },
+  {
+   "game": "Don't let your goals slip away.txt",
+   "level": 11,
+   "w": 10,
+   "h": 6,
+   "boardHash": "13eca4677385e453",
+   "solveMs": 138,
+   "expanded": 5817,
+   "solutionLength": 60
+  },
+  {
+   "game": "Don't let your goals slip away.txt",
+   "level": 13,
+   "w": 6,
+   "h": 7,
+   "boardHash": "089ee3d909e9b68b",
+   "solveMs": 45,
+   "expanded": 2187,
+   "solutionLength": 34
+  },
+  {
+   "game": "Don't let your goals slip away.txt",
+   "level": 15,
+   "w": 7,
+   "h": 7,
+   "boardHash": "a001cc8f36540d3e",
+   "solveMs": 166,
+   "expanded": 7721,
+   "solutionLength": 31
+  },
+  {
+   "game": "dreizack.txt",
+   "level": 6,
+   "w": 12,
+   "h": 9,
+   "boardHash": "f9a372b2f1e02809",
+   "solveMs": 3,
+   "expanded": 9,
+   "solutionLength": 9
+  },
+  {
+   "game": "dreizack.txt",
+   "level": 7,
+   "w": 12,
+   "h": 9,
+   "boardHash": "e531980fe930b267",
+   "solveMs": 2,
+   "expanded": 1,
+   "solutionLength": 1
+  },
+  {
+   "game": "Explodoban.txt",
+   "level": 1,
+   "w": 8,
+   "h": 6,
+   "boardHash": "e9b4e89d2f9b72aa",
+   "solveMs": 11,
+   "expanded": 437,
+   "solutionLength": 23
+  },
+  {
+   "game": "Explodoban.txt",
+   "level": 3,
+   "w": 8,
+   "h": 5,
+   "boardHash": "efa885f3d02fb962",
+   "solveMs": 6,
+   "expanded": 320,
+   "solutionLength": 28
+  },
+  {
+   "game": "Explodoban.txt",
+   "level": 5,
+   "w": 8,
+   "h": 6,
+   "boardHash": "ea8156eaca657a20",
+   "solveMs": 55,
+   "expanded": 3082,
+   "solutionLength": 40
+  },
+  {
+   "game": "Explodoban.txt",
+   "level": 7,
+   "w": 9,
+   "h": 8,
+   "boardHash": "d26cd73b11f4022c",
+   "solveMs": 126,
+   "expanded": 5873,
+   "solutionLength": 30
+  },
+  {
+   "game": "Explodoban.txt",
+   "level": 9,
+   "w": 8,
+   "h": 6,
+   "boardHash": "e90ff46400fdd7e6",
+   "solveMs": 91,
+   "expanded": 3907,
+   "solutionLength": 43
+  },
+  {
+   "game": "Explodoban.txt",
+   "level": 11,
+   "w": 9,
+   "h": 6,
+   "boardHash": "2a8491f69f89d640",
+   "solveMs": 55,
+   "expanded": 2959,
+   "solutionLength": 51
+  },
+  {
+   "game": "Explodoban.txt",
+   "level": 13,
+   "w": 8,
+   "h": 7,
+   "boardHash": "d0afda332eb1837c",
+   "solveMs": 361,
+   "expanded": 15980,
+   "solutionLength": 39
+  },
+  {
+   "game": "Eyeball-watching flowers bloom.txt",
+   "level": 1,
+   "w": 5,
+   "h": 4,
+   "boardHash": "ba1a51176f44b8ef",
+   "solveMs": 3,
+   "expanded": 53,
+   "solutionLength": 9
+  },
+  {
+   "game": "Eyeball-watching flowers bloom.txt",
+   "level": 3,
+   "w": 6,
+   "h": 6,
+   "boardHash": "0ff30b629253a4ca",
+   "solveMs": 298,
+   "expanded": 4076,
+   "solutionLength": 23
+  },
+  {
+   "game": "fickle fred.txt",
+   "level": 1,
+   "w": 6,
+   "h": 7,
+   "boardHash": "b19df5a6e14dadb1",
+   "solveMs": 6,
+   "expanded": 226,
+   "solutionLength": 26
+  },
+  {
+   "game": "fickle fred.txt",
+   "level": 3,
+   "w": 10,
+   "h": 6,
+   "boardHash": "aa54edb77a411777",
+   "solveMs": 33,
+   "expanded": 1408,
+   "solutionLength": 60
+  },
+  {
+   "game": "fickle fred.txt",
+   "level": 7,
+   "w": 7,
+   "h": 8,
+   "boardHash": "44929dfe18dada92",
+   "solveMs": 61,
+   "expanded": 3331,
+   "solutionLength": 44
+  },
+  {
+   "game": "fickle fred.txt",
+   "level": 9,
+   "w": 6,
+   "h": 7,
+   "boardHash": "2a69a5246a3d8f2a",
+   "solveMs": 16,
+   "expanded": 563,
+   "solutionLength": 75
+  },
+  {
+   "game": "flesh-handed hot casserole delivery bot.txt",
+   "level": 1,
+   "w": 4,
+   "h": 4,
+   "boardHash": "fd799ead52b6f678",
+   "solveMs": 3,
+   "expanded": 272,
+   "solutionLength": 17
+  },
+  {
+   "game": "flesh-handed hot casserole delivery bot.txt",
+   "level": 2,
+   "w": 4,
+   "h": 4,
+   "boardHash": "c9c811e5ce25e6b8",
+   "solveMs": 10,
+   "expanded": 878,
+   "solutionLength": 33
+  },
+  {
+   "game": "flesh-handed hot casserole delivery bot.txt",
+   "level": 4,
+   "w": 4,
+   "h": 9,
+   "boardHash": "ef75ffcf4c00cfb3",
+   "solveMs": 368,
+   "expanded": 24105,
+   "solutionLength": 68
+  },
+  {
+   "game": "flesh-handed hot casserole delivery bot.txt",
+   "level": 6,
+   "w": 5,
+   "h": 5,
+   "boardHash": "d950c6577ef9dcc9",
+   "solveMs": 283,
+   "expanded": 23540,
+   "solutionLength": 47
+  },
+  {
+   "game": "flesh-handed hot casserole delivery bot.txt",
+   "level": 8,
+   "w": 4,
+   "h": 5,
+   "boardHash": "4ae9ef68e4915d8c",
+   "solveMs": 19,
+   "expanded": 1546,
+   "solutionLength": 43
+  },
+  {
+   "game": "flesh-handed hot casserole delivery bot.txt",
+   "level": 10,
+   "w": 5,
+   "h": 5,
+   "boardHash": "59fa21b3a149a744",
+   "solveMs": 180,
+   "expanded": 13570,
+   "solutionLength": 48
+  },
+  {
+   "game": "flesh-handed hot casserole delivery bot.txt",
+   "level": 12,
+   "w": 4,
+   "h": 8,
+   "boardHash": "b736dfb330af7da0",
+   "solveMs": 28,
+   "expanded": 1923,
+   "solutionLength": 53
+  },
+  {
+   "game": "flesh-handed hot casserole delivery bot.txt",
+   "level": 14,
+   "w": 6,
+   "h": 6,
+   "boardHash": "591e304f6d64e006",
+   "solveMs": 51,
+   "expanded": 4331,
+   "solutionLength": 63
+  },
+  {
+   "game": "flesh-handed hot casserole delivery bot.txt",
+   "level": 16,
+   "w": 6,
+   "h": 6,
+   "boardHash": "3782c1128d614d9f",
+   "solveMs": 304,
+   "expanded": 13080,
+   "solutionLength": 64
+  },
+  {
+   "game": "gabelstapler.txt",
+   "level": 1,
+   "w": 10,
+   "h": 6,
+   "boardHash": "97455e2420ba02ed",
+   "solveMs": 154,
+   "expanded": 936,
+   "solutionLength": 32
+  },
+  {
+   "game": "gapfiller.txt",
+   "level": 1,
+   "w": 7,
+   "h": 7,
+   "boardHash": "aeb9c86f5c7a1184",
+   "solveMs": 20,
+   "expanded": 383,
+   "solutionLength": 22
+  },
+  {
+   "game": "gapfiller.txt",
+   "level": 3,
+   "w": 8,
+   "h": 12,
+   "boardHash": "0adb076a3961968a",
+   "solveMs": 227,
+   "expanded": 4611,
+   "solutionLength": 41
+  },
+  {
+   "game": "gapfiller.txt",
+   "level": 5,
+   "w": 7,
+   "h": 6,
+   "boardHash": "afeb085406b6e33b",
+   "solveMs": 12,
+   "expanded": 404,
+   "solutionLength": 17
+  },
+  {
+   "game": "gapfiller.txt",
+   "level": 7,
+   "w": 7,
+   "h": 6,
+   "boardHash": "968d58f312f1ed17",
+   "solveMs": 60,
+   "expanded": 1441,
+   "solutionLength": 17
+  },
+  {
+   "game": "gapfiller.txt",
+   "level": 9,
+   "w": 7,
+   "h": 6,
+   "boardHash": "ad922f3bcaecb380",
+   "solveMs": 2,
+   "expanded": 76,
+   "solutionLength": 16
+  },
+  {
+   "game": "gapfiller.txt",
+   "level": 13,
+   "w": 7,
+   "h": 6,
+   "boardHash": "bc16f3a9e1f2ac07",
+   "solveMs": 9,
+   "expanded": 332,
+   "solutionLength": 19
+  },
+  {
+   "game": "gapfiller.txt",
+   "level": 15,
+   "w": 7,
+   "h": 7,
+   "boardHash": "d82bec7eda4321a3",
+   "solveMs": 3,
+   "expanded": 87,
+   "solutionLength": 25
+  },
+  {
+   "game": "gapfiller.txt",
+   "level": 17,
+   "w": 7,
+   "h": 7,
+   "boardHash": "9d19151d6b5fd568",
+   "solveMs": 111,
+   "expanded": 3993,
+   "solutionLength": 30
+  },
+  {
+   "game": "gem soketeer.txt",
+   "level": 1,
+   "w": 20,
+   "h": 18,
+   "boardHash": "08ba2fd6e76bbd19",
+   "solveMs": 200,
+   "expanded": 563,
+   "solutionLength": 56
+  },
+  {
+   "game": "gem soketeer.txt",
+   "level": 3,
+   "w": 14,
+   "h": 14,
+   "boardHash": "1efdd81325850fdf",
+   "solveMs": 84,
+   "expanded": 345,
+   "solutionLength": 32
+  },
+  {
+   "game": "gem soketeer.txt",
+   "level": 5,
+   "w": 19,
+   "h": 17,
+   "boardHash": "7a4465ecf0b1745e",
+   "solveMs": 42,
+   "expanded": 111,
+   "solutionLength": 36
+  },
+  {
+   "game": "gem soketeer.txt",
+   "level": 7,
+   "w": 14,
+   "h": 14,
+   "boardHash": "8d5294e2194138a5",
+   "solveMs": 34,
+   "expanded": 127,
+   "solutionLength": 34
+  },
+  {
+   "game": "gem soketeer.txt",
+   "level": 11,
+   "w": 12,
+   "h": 12,
+   "boardHash": "c319b2aac6730aac",
+   "solveMs": 30,
+   "expanded": 53,
+   "solutionLength": 22
+  },
+  {
+   "game": "hairtug.txt",
+   "level": 1,
+   "w": 31,
+   "h": 21,
+   "boardHash": "6e26376844e79ff0",
+   "solveMs": 20,
+   "expanded": 65,
+   "solutionLength": 16
+  },
+  {
+   "game": "hairtug.txt",
+   "level": 10,
+   "w": 30,
+   "h": 18,
+   "boardHash": "86c34e58af02ab53",
+   "solveMs": 428,
+   "expanded": 1479,
+   "solutionLength": 56
+  },
+  {
+   "game": "head skuller.txt",
+   "level": 1,
+   "w": 6,
+   "h": 6,
+   "boardHash": "1175088a6aecf1d4",
+   "solveMs": 14,
+   "expanded": 717,
+   "solutionLength": 35
+  },
+  {
+   "game": "head skuller.txt",
+   "level": 3,
+   "w": 6,
+   "h": 6,
+   "boardHash": "1f3988b8e6657540",
+   "solveMs": 126,
+   "expanded": 6231,
+   "solutionLength": 46
+  },
+  {
+   "game": "head skuller.txt",
+   "level": 7,
+   "w": 6,
+   "h": 6,
+   "boardHash": "769fb0af296335b2",
+   "solveMs": 77,
+   "expanded": 3927,
+   "solutionLength": 34
+  },
+  {
+   "game": "head skuller.txt",
+   "level": 11,
+   "w": 7,
+   "h": 7,
+   "boardHash": "6df6d05bdceb3061",
+   "solveMs": 431,
+   "expanded": 19720,
+   "solutionLength": 31
+  },
+  {
+   "game": "head skuller.txt",
+   "level": 13,
+   "w": 16,
+   "h": 16,
+   "boardHash": "171e015f217b80c9",
+   "solveMs": 0,
+   "expanded": 1,
+   "solutionLength": 1
+  },
+  {
+   "game": "hedgehog stimulator.txt",
+   "level": 5,
+   "w": 9,
+   "h": 6,
+   "boardHash": "79c24fa20f0a07f8",
+   "solveMs": 309,
+   "expanded": 3142,
+   "solutionLength": 69
+  },
+  {
+   "game": "hedgehog stimulator.txt",
+   "level": 13,
+   "w": 7,
+   "h": 7,
+   "boardHash": "95cafc102539b4d8",
+   "solveMs": 349,
+   "expanded": 2657,
+   "solutionLength": 28
+  },
+  {
+   "game": "heroes_of_sokoban_2.txt",
+   "level": 5,
+   "w": 13,
+   "h": 9,
+   "boardHash": "d7aac17b05cf18e2",
+   "solveMs": 4,
+   "expanded": 35,
+   "solutionLength": 31
+  },
+  {
+   "game": "heroes_of_sokoban_2.txt",
+   "level": 6,
+   "w": 13,
+   "h": 9,
+   "boardHash": "72d11d9162a7c7fd",
+   "solveMs": 4,
+   "expanded": 32,
+   "solutionLength": 22
+  },
+  {
+   "game": "heroes_of_sokoban_2.txt",
+   "level": 8,
+   "w": 13,
+   "h": 7,
+   "boardHash": "e153b3bafda7ce9f",
+   "solveMs": 476,
+   "expanded": 7281,
+   "solutionLength": 23
+  },
+  {
+   "game": "heroes_of_sokoban_2.txt",
+   "level": 10,
+   "w": 15,
+   "h": 11,
+   "boardHash": "9f67b1d8f9ba5e81",
+   "solveMs": 17,
+   "expanded": 73,
+   "solutionLength": 21
+  },
+  {
+   "game": "heroes_of_sokoban_2.txt",
+   "level": 15,
+   "w": 13,
+   "h": 9,
+   "boardHash": "abef888ab721f47a",
+   "solveMs": 16,
+   "expanded": 52,
+   "solutionLength": 19
+  },
+  {
+   "game": "heroes_of_sokoban_2.txt",
+   "level": 23,
+   "w": 11,
+   "h": 7,
+   "boardHash": "05b651a201960ae7",
+   "solveMs": 4,
+   "expanded": 21,
+   "solutionLength": 15
+  },
+  {
+   "game": "heroes_of_sokoban_2.txt",
+   "level": 24,
+   "w": 11,
+   "h": 7,
+   "boardHash": "a2d61773a5af3ad8",
+   "solveMs": 120,
+   "expanded": 153,
+   "solutionLength": 28
+  },
+  {
+   "game": "heroes_of_sokoban_3.txt",
+   "level": 5,
+   "w": 13,
+   "h": 5,
+   "boardHash": "12ead82413074b42",
+   "solveMs": 121,
+   "expanded": 422,
+   "solutionLength": 32
+  },
+  {
+   "game": "heroes_of_sokoban_3.txt",
+   "level": 6,
+   "w": 15,
+   "h": 6,
+   "boardHash": "8ec7026f25dd0dfb",
+   "solveMs": 15,
+   "expanded": 84,
+   "solutionLength": 27
+  },
+  {
+   "game": "heroes_of_sokoban_3.txt",
+   "level": 8,
+   "w": 13,
+   "h": 7,
+   "boardHash": "5e40636d3441d4a4",
+   "solveMs": 21,
+   "expanded": 114,
+   "solutionLength": 18
+  },
+  {
+   "game": "heroes_of_sokoban_3.txt",
+   "level": 10,
+   "w": 12,
+   "h": 5,
+   "boardHash": "e6f3c2ec1eea384e",
+   "solveMs": 353,
+   "expanded": 3546,
+   "solutionLength": 20
+  },
+  {
+   "game": "heroes_of_sokoban_3.txt",
+   "level": 11,
+   "w": 12,
+   "h": 8,
+   "boardHash": "c80ab8e8731d72d7",
+   "solveMs": 153,
+   "expanded": 1649,
+   "solutionLength": 38
+  },
+  {
+   "game": "heroes_of_sokoban_3.txt",
+   "level": 12,
+   "w": 8,
+   "h": 7,
+   "boardHash": "815f5b382de0fd0b",
+   "solveMs": 38,
+   "expanded": 393,
+   "solutionLength": 56
+  },
+  {
+   "game": "heroes_of_sokoban_3.txt",
+   "level": 31,
+   "w": 16,
+   "h": 9,
+   "boardHash": "8fd3110baabad15b",
+   "solveMs": 60,
+   "expanded": 530,
+   "solutionLength": 27
+  },
+  {
+   "game": "heroes_of_sokoban.txt",
+   "level": 1,
+   "w": 13,
+   "h": 5,
+   "boardHash": "188801ba243b655d",
+   "solveMs": 0,
+   "expanded": 8,
+   "solutionLength": 8
+  },
+  {
+   "game": "heroes_of_sokoban.txt",
+   "level": 3,
+   "w": 13,
+   "h": 5,
+   "boardHash": "8d2ffcc851bb4709",
+   "solveMs": 19,
+   "expanded": 587,
+   "solutionLength": 20
+  },
+  {
+   "game": "heroes_of_sokoban.txt",
+   "level": 5,
+   "w": 13,
+   "h": 5,
+   "boardHash": "c3fa8362bd894836",
+   "solveMs": 2,
+   "expanded": 26,
+   "solutionLength": 12
+  },
+  {
+   "game": "heroes_of_sokoban.txt",
+   "level": 9,
+   "w": 13,
+   "h": 5,
+   "boardHash": "fa82382984f9627d",
+   "solveMs": 6,
+   "expanded": 55,
+   "solutionLength": 20
+  },
+  {
+   "game": "heroes_of_sokoban.txt",
+   "level": 11,
+   "w": 9,
+   "h": 7,
+   "boardHash": "a69112fa2858de44",
+   "solveMs": 19,
+   "expanded": 257,
+   "solutionLength": 33
+  },
+  {
+   "game": "heroes_of_sokoban.txt",
+   "level": 13,
+   "w": 13,
+   "h": 5,
+   "boardHash": "51bc6d9a2bccd2c4",
+   "solveMs": 169,
+   "expanded": 2751,
+   "solutionLength": 26
+  },
+  {
+   "game": "heroes_of_sokoban.txt",
+   "level": 15,
+   "w": 7,
+   "h": 7,
+   "boardHash": "4f8470b71adb8c34",
+   "solveMs": 1,
+   "expanded": 17,
+   "solutionLength": 11
+  },
+  {
+   "game": "heroes_of_sokoban.txt",
+   "level": 17,
+   "w": 13,
+   "h": 9,
+   "boardHash": "63184718ef22c662",
+   "solveMs": 22,
+   "expanded": 372,
+   "solutionLength": 23
+  },
+  {
+   "game": "heroes_of_sokoban.txt",
+   "level": 22,
+   "w": 13,
+   "h": 5,
+   "boardHash": "64f1f53f5b946393",
+   "solveMs": 16,
+   "expanded": 361,
+   "solutionLength": 20
+  },
+  {
+   "game": "heroes_of_sokoban.txt",
+   "level": 23,
+   "w": 11,
+   "h": 6,
+   "boardHash": "9d7b1bc1afce6b13",
+   "solveMs": 184,
+   "expanded": 5422,
+   "solutionLength": 72
+  },
+  {
+   "game": "heroes_of_sokoban.txt",
+   "level": 27,
+   "w": 8,
+   "h": 7,
+   "boardHash": "49f93559e836fd29",
+   "solveMs": 3,
+   "expanded": 77,
+   "solutionLength": 13
+  },
+  {
+   "game": "heroes_of_sokoban.txt",
+   "level": 29,
+   "w": 13,
+   "h": 7,
+   "boardHash": "c8059cc8aa24729a",
+   "solveMs": 1,
+   "expanded": 10,
+   "solutionLength": 10
+  },
+  {
+   "game": "Hole-Stuffer.txt",
+   "level": 3,
+   "w": 9,
+   "h": 9,
+   "boardHash": "01e4c9aa3202d170",
+   "solveMs": 301,
+   "expanded": 3591,
+   "solutionLength": 19
+  },
+  {
+   "game": "Hole-Stuffer.txt",
+   "level": 5,
+   "w": 7,
+   "h": 11,
+   "boardHash": "82272c12b649cd7c",
+   "solveMs": 24,
+   "expanded": 178,
+   "solutionLength": 14
+  },
+  {
+   "game": "i am a gust of wind.txt",
+   "level": 1,
+   "w": 9,
+   "h": 9,
+   "boardHash": "ec5c912953f074fa",
+   "solveMs": 2,
+   "expanded": 76,
+   "solutionLength": 20
+  },
+  {
+   "game": "i am a gust of wind.txt",
+   "level": 3,
+   "w": 9,
+   "h": 7,
+   "boardHash": "c6ebd8bdbeff08f3",
+   "solveMs": 8,
+   "expanded": 383,
+   "solutionLength": 31
+  },
+  {
+   "game": "i am a gust of wind.txt",
+   "level": 5,
+   "w": 7,
+   "h": 8,
+   "boardHash": "16ae6197d05f1b4d",
+   "solveMs": 8,
+   "expanded": 245,
+   "solutionLength": 36
+  },
+  {
+   "game": "icecrates.txt",
+   "level": 1,
+   "w": 7,
+   "h": 7,
+   "boardHash": "7255f3d13c044f7a",
+   "solveMs": 1,
+   "expanded": 6,
+   "solutionLength": 4
+  },
+  {
+   "game": "icecrates.txt",
+   "level": 3,
+   "w": 9,
+   "h": 9,
+   "boardHash": "e096e598a3d38d2a",
+   "solveMs": 1,
+   "expanded": 9,
+   "solutionLength": 5
+  },
+  {
+   "game": "icecrates.txt",
+   "level": 5,
+   "w": 9,
+   "h": 10,
+   "boardHash": "d009adb5e566213e",
+   "solveMs": 7,
+   "expanded": 53,
+   "solutionLength": 12
+  },
+  {
+   "game": "icecrates.txt",
+   "level": 7,
+   "w": 11,
+   "h": 10,
+   "boardHash": "e71f61607b2e95db",
+   "solveMs": 159,
+   "expanded": 930,
+   "solutionLength": 29
+  },
+  {
+   "game": "icecrates.txt",
+   "level": 9,
+   "w": 13,
+   "h": 12,
+   "boardHash": "70b1115bf536c3b3",
+   "solveMs": 59,
+   "expanded": 219,
+   "solutionLength": 13
+  },
+  {
+   "game": "it dies in the light.txt",
+   "level": 0,
+   "w": 11,
+   "h": 9,
+   "boardHash": "fc26e8735f80b21c",
+   "solveMs": 14,
+   "expanded": 94,
+   "solutionLength": 45
+  },
+  {
+   "game": "it dies in the light.txt",
+   "level": 1,
+   "w": 17,
+   "h": 11,
+   "boardHash": "ea8c5e1c4be92457",
+   "solveMs": 87,
+   "expanded": 432,
+   "solutionLength": 92
+  },
+  {
+   "game": "karamell.txt",
+   "level": 7,
+   "w": 25,
+   "h": 18,
+   "boardHash": "3495e443483467a6",
+   "solveMs": 4,
+   "expanded": 1,
+   "solutionLength": 1
+  },
+  {
+   "game": "kettle.txt",
+   "level": 1,
+   "w": 15,
+   "h": 13,
+   "boardHash": "0f411756fb340bcb",
+   "solveMs": 3,
+   "expanded": 26,
+   "solutionLength": 4
+  },
+  {
+   "game": "kettle.txt",
+   "level": 4,
+   "w": 15,
+   "h": 13,
+   "boardHash": "50d7fabf62c58019",
+   "solveMs": 1,
+   "expanded": 3,
+   "solutionLength": 2
+  },
+  {
+   "game": "kettle.txt",
+   "level": 7,
+   "w": 15,
+   "h": 13,
+   "boardHash": "2c9bb7c5b944251a",
+   "solveMs": 1,
+   "expanded": 3,
+   "solutionLength": 2
+  },
+  {
+   "game": "kettle.txt",
+   "level": 10,
+   "w": 15,
+   "h": 13,
+   "boardHash": "0bdff42052c9f6d7",
+   "solveMs": 4,
+   "expanded": 27,
+   "solutionLength": 4
+  },
+  {
+   "game": "kettle.txt",
+   "level": 13,
+   "w": 15,
+   "h": 13,
+   "boardHash": "8041b646d6cdc17e",
+   "solveMs": 28,
+   "expanded": 97,
+   "solutionLength": 5
+  },
+  {
+   "game": "kettle.txt",
+   "level": 16,
+   "w": 15,
+   "h": 13,
+   "boardHash": "02ea17f558c66aa9",
+   "solveMs": 10,
+   "expanded": 26,
+   "solutionLength": 4
+  },
+  {
+   "game": "kettle.txt",
+   "level": 19,
+   "w": 15,
+   "h": 13,
+   "boardHash": "239ca71508e1b4ee",
+   "solveMs": 115,
+   "expanded": 473,
+   "solutionLength": 6
+  },
+  {
+   "game": "kettle.txt",
+   "level": 22,
+   "w": 15,
+   "h": 13,
+   "boardHash": "ba81d8a714721cd2",
+   "solveMs": 81,
+   "expanded": 353,
+   "solutionLength": 6
+  },
+  {
+   "game": "kreiseln.txt",
+   "level": 1,
+   "w": 7,
+   "h": 13,
+   "boardHash": "4f5b8e54f5c143f2",
+   "solveMs": 26,
+   "expanded": 292,
+   "solutionLength": 24
+  },
+  {
+   "game": "Legend of Swixero.txt",
+   "level": 1,
+   "w": 6,
+   "h": 7,
+   "boardHash": "2faefc2f023478d5",
+   "solveMs": 6,
+   "expanded": 369,
+   "solutionLength": 24
+  },
+  {
+   "game": "Legend of Swixero.txt",
+   "level": 3,
+   "w": 6,
+   "h": 7,
+   "boardHash": "8ea9508dad58c3b7",
+   "solveMs": 21,
+   "expanded": 1444,
+   "solutionLength": 47
+  },
+  {
+   "game": "Legend of Swixero.txt",
+   "level": 5,
+   "w": 7,
+   "h": 8,
+   "boardHash": "188519e6b80ed7d5",
+   "solveMs": 8,
+   "expanded": 450,
+   "solutionLength": 21
+  },
+  {
+   "game": "Legend of Swixero.txt",
+   "level": 9,
+   "w": 12,
+   "h": 6,
+   "boardHash": "fc6005c62fce79e9",
+   "solveMs": 494,
+   "expanded": 27305,
+   "solutionLength": 130
+  },
+  {
+   "game": "limerick.txt",
+   "level": 1,
+   "w": 19,
+   "h": 15,
+   "boardHash": "db4909a659fd8489",
+   "solveMs": 1,
+   "expanded": 41,
+   "solutionLength": 19
+  },
+  {
+   "game": "limerick.txt",
+   "level": 3,
+   "w": 19,
+   "h": 17,
+   "boardHash": "67eeeb10ae7b4548",
+   "solveMs": 106,
+   "expanded": 2800,
+   "solutionLength": 28
+  },
+  {
+   "game": "limerick.txt",
+   "level": 7,
+   "w": 19,
+   "h": 15,
+   "boardHash": "e74f7750e9eb7235",
+   "solveMs": 10,
+   "expanded": 264,
+   "solutionLength": 23
+  },
+  {
+   "game": "limerick.txt",
+   "level": 9,
+   "w": 19,
+   "h": 14,
+   "boardHash": "97b99d148929b481",
+   "solveMs": 53,
+   "expanded": 1490,
+   "solutionLength": 27
+  },
+  {
+   "game": "limerick.txt",
+   "level": 11,
+   "w": 19,
+   "h": 15,
+   "boardHash": "8d45505e21085480",
+   "solveMs": 10,
+   "expanded": 296,
+   "solutionLength": 23
+  },
+  {
+   "game": "limerick.txt",
+   "level": 17,
+   "w": 19,
+   "h": 15,
+   "boardHash": "480004ad54b244aa",
+   "solveMs": 51,
+   "expanded": 821,
+   "solutionLength": 42
+  },
+  {
+   "game": "m c eschers armageddon.txt",
+   "level": 0,
+   "w": 17,
+   "h": 6,
+   "boardHash": "d58b19e803acd0c1",
+   "solveMs": 1,
+   "expanded": 11,
+   "solutionLength": 11
+  },
+  {
+   "game": "m c eschers armageddon.txt",
+   "level": 1,
+   "w": 7,
+   "h": 8,
+   "boardHash": "42fd4046eb0a8f7e",
+   "solveMs": 0,
+   "expanded": 4,
+   "solutionLength": 4
+  },
+  {
+   "game": "m c eschers armageddon.txt",
+   "level": 2,
+   "w": 20,
+   "h": 7,
+   "boardHash": "721cb316cece2520",
+   "solveMs": 1,
+   "expanded": 12,
+   "solutionLength": 12
+  },
+  {
+   "game": "m c eschers armageddon.txt",
+   "level": 3,
+   "w": 43,
+   "h": 20,
+   "boardHash": "a835ff1fd30d866d",
+   "solveMs": 34,
+   "expanded": 284,
+   "solutionLength": 142
+  },
+  {
+   "game": "make way.txt",
+   "level": 3,
+   "w": 7,
+   "h": 8,
+   "boardHash": "2428dca7a6615a10",
+   "solveMs": 72,
+   "expanded": 3331,
+   "solutionLength": 28
+  },
+  {
+   "game": "manic_ammo.txt",
+   "level": 1,
+   "w": 8,
+   "h": 7,
+   "boardHash": "7eac771d9e558d47",
+   "solveMs": 9,
+   "expanded": 9,
+   "solutionLength": 9
+  },
+  {
+   "game": "manic_ammo.txt",
+   "level": 3,
+   "w": 8,
+   "h": 7,
+   "boardHash": "019a86f545ca58cb",
+   "solveMs": 1,
+   "expanded": 9,
+   "solutionLength": 9
+  },
+  {
+   "game": "manic_ammo.txt",
+   "level": 5,
+   "w": 8,
+   "h": 7,
+   "boardHash": "df7cf64a98b7fc95",
+   "solveMs": 2,
+   "expanded": 71,
+   "solutionLength": 10
+  },
+  {
+   "game": "manic_ammo.txt",
+   "level": 8,
+   "w": 9,
+   "h": 7,
+   "boardHash": "1aecee1946f44e7e",
+   "solveMs": 1,
+   "expanded": 9,
+   "solutionLength": 9
+  },
+  {
+   "game": "manic_ammo.txt",
+   "level": 10,
+   "w": 9,
+   "h": 7,
+   "boardHash": "3fa5eea562fb66b4",
+   "solveMs": 150,
+   "expanded": 6607,
+   "solutionLength": 19
+  },
+  {
+   "game": "manic_ammo.txt",
+   "level": 12,
+   "w": 9,
+   "h": 7,
+   "boardHash": "fd0c8cff863febad",
+   "solveMs": 4,
+   "expanded": 99,
+   "solutionLength": 11
+  },
+  {
+   "game": "manic_ammo.txt",
+   "level": 16,
+   "w": 9,
+   "h": 7,
+   "boardHash": "87657f946faf20a1",
+   "solveMs": 59,
+   "expanded": 3210,
+   "solutionLength": 25
+  },
+  {
+   "game": "manic_ammo.txt",
+   "level": 18,
+   "w": 9,
+   "h": 7,
+   "boardHash": "47be3a087c809e16",
+   "solveMs": 1,
+   "expanded": 12,
+   "solutionLength": 5
+  },
+  {
+   "game": "manic_ammo.txt",
+   "level": 22,
+   "w": 11,
+   "h": 7,
+   "boardHash": "5d030424106aec4c",
+   "solveMs": 63,
+   "expanded": 281,
+   "solutionLength": 14
+  },
+  {
+   "game": "manic_ammo.txt",
+   "level": 24,
+   "w": 11,
+   "h": 7,
+   "boardHash": "3ba66c898b6a54fc",
+   "solveMs": 348,
+   "expanded": 4956,
+   "solutionLength": 55
+  },
+  {
+   "game": "match three billiards.txt",
+   "level": 1,
+   "w": 16,
+   "h": 11,
+   "boardHash": "46124c8c07a78da1",
+   "solveMs": 2,
+   "expanded": 4,
+   "solutionLength": 3
+  },
+  {
+   "game": "match three billiards.txt",
+   "level": 3,
+   "w": 10,
+   "h": 10,
+   "boardHash": "f0fbe168f5bf21d3",
+   "solveMs": 56,
+   "expanded": 451,
+   "solutionLength": 11
+  },
+  {
+   "game": "match three billiards.txt",
+   "level": 5,
+   "w": 10,
+   "h": 10,
+   "boardHash": "39fc0dbf686e3832",
+   "solveMs": 42,
+   "expanded": 563,
+   "solutionLength": 9
+  },
+  {
+   "game": "Match-Maker.txt",
+   "level": 1,
+   "w": 6,
+   "h": 6,
+   "boardHash": "a28e6a9139f5ce58",
+   "solveMs": 37,
+   "expanded": 1111,
+   "solutionLength": 17
+  },
+  {
+   "game": "Match-Maker.txt",
+   "level": 3,
+   "w": 6,
+   "h": 7,
+   "boardHash": "36f26d65ebe2dc4f",
+   "solveMs": 3,
+   "expanded": 66,
+   "solutionLength": 17
+  },
+  {
+   "game": "Match-Maker.txt",
+   "level": 5,
+   "w": 8,
+   "h": 5,
+   "boardHash": "0f099a58b9034e5b",
+   "solveMs": 11,
+   "expanded": 214,
+   "solutionLength": 21
+  },
+  {
+   "game": "Match-Maker.txt",
+   "level": 7,
+   "w": 6,
+   "h": 8,
+   "boardHash": "452f33279930c0f5",
+   "solveMs": 287,
+   "expanded": 4771,
+   "solutionLength": 31
+  },
+  {
+   "game": "Match-Maker.txt",
+   "level": 11,
+   "w": 6,
+   "h": 8,
+   "boardHash": "b884d5d5fe6ade22",
+   "solveMs": 274,
+   "expanded": 5545,
+   "solutionLength": 20
+  },
+  {
+   "game": "Match-Maker.txt",
+   "level": 13,
+   "w": 7,
+   "h": 7,
+   "boardHash": "3d7b95efe0dda801",
+   "solveMs": 183,
+   "expanded": 3402,
+   "solutionLength": 33
+  },
+  {
+   "game": "Match-Maker.txt",
+   "level": 15,
+   "w": 7,
+   "h": 7,
+   "boardHash": "f1ca02c176c744be",
+   "solveMs": 237,
+   "expanded": 4839,
+   "solutionLength": 47
+  },
+  {
+   "game": "mazezam.txt",
+   "level": 1,
+   "w": 11,
+   "h": 4,
+   "boardHash": "6bbee41de50887c6",
+   "solveMs": 1,
+   "expanded": 48,
+   "solutionLength": 15
+  },
+  {
+   "game": "mazezam.txt",
+   "level": 3,
+   "w": 13,
+   "h": 4,
+   "boardHash": "26e379d282a9a17f",
+   "solveMs": 3,
+   "expanded": 134,
+   "solutionLength": 27
+  },
+  {
+   "game": "mazezam.txt",
+   "level": 5,
+   "w": 13,
+   "h": 5,
+   "boardHash": "aa792b731414aa59",
+   "solveMs": 6,
+   "expanded": 210,
+   "solutionLength": 41
+  },
+  {
+   "game": "mazezam.txt",
+   "level": 7,
+   "w": 14,
+   "h": 5,
+   "boardHash": "0526e831d8674cd5",
+   "solveMs": 14,
+   "expanded": 534,
+   "solutionLength": 42
+  },
+  {
+   "game": "mazezam.txt",
+   "level": 9,
+   "w": 11,
+   "h": 6,
+   "boardHash": "aa34c4749ddc46bc",
+   "solveMs": 14,
+   "expanded": 662,
+   "solutionLength": 62
+  },
+  {
+   "game": "mazezam.txt",
+   "level": 11,
+   "w": 13,
+   "h": 6,
+   "boardHash": "425b2f944c2df486",
+   "solveMs": 17,
+   "expanded": 501,
+   "solutionLength": 55
+  },
+  {
+   "game": "mazezam.txt",
+   "level": 13,
+   "w": 13,
+   "h": 7,
+   "boardHash": "6e7be03e7fd7060a",
+   "solveMs": 80,
+   "expanded": 1121,
+   "solutionLength": 74
+  },
+  {
+   "game": "mazezam.txt",
+   "level": 15,
+   "w": 14,
+   "h": 5,
+   "boardHash": "b9ab736edc74350e",
+   "solveMs": 42,
+   "expanded": 763,
+   "solutionLength": 59
+  },
+  {
+   "game": "mazezam.txt",
+   "level": 17,
+   "w": 13,
+   "h": 6,
+   "boardHash": "56bd5c0715fe934a",
+   "solveMs": 40,
+   "expanded": 709,
+   "solutionLength": 55
+  },
+  {
+   "game": "mazezam.txt",
+   "level": 19,
+   "w": 20,
+   "h": 6,
+   "boardHash": "ff395826642d4c55",
+   "solveMs": 219,
+   "expanded": 3882,
+   "solutionLength": 87
+  },
+  {
+   "game": "mazezam.txt",
+   "level": 21,
+   "w": 13,
+   "h": 6,
+   "boardHash": "5fb933babc656af7",
+   "solveMs": 39,
+   "expanded": 1424,
+   "solutionLength": 74
+  },
+  {
+   "game": "mazezam.txt",
+   "level": 25,
+   "w": 12,
+   "h": 7,
+   "boardHash": "4c3d3e932da89b57",
+   "solveMs": 73,
+   "expanded": 3165,
+   "solutionLength": 61
+  },
+  {
+   "game": "mazezam.txt",
+   "level": 27,
+   "w": 14,
+   "h": 6,
+   "boardHash": "e63d5bc41170fda9",
+   "solveMs": 63,
+   "expanded": 2557,
+   "solutionLength": 92
+  },
+  {
+   "game": "mazezam.txt",
+   "level": 29,
+   "w": 12,
+   "h": 8,
+   "boardHash": "0ca930bf4870995b",
+   "solveMs": 211,
+   "expanded": 8022,
+   "solutionLength": 70
+  },
+  {
+   "game": "mazezam.txt",
+   "level": 31,
+   "w": 16,
+   "h": 6,
+   "boardHash": "396e78137a543527",
+   "solveMs": 33,
+   "expanded": 932,
+   "solutionLength": 87
+  },
+  {
+   "game": "mazezam.txt",
+   "level": 33,
+   "w": 13,
+   "h": 6,
+   "boardHash": "1d52c07f4602f6cc",
+   "solveMs": 33,
+   "expanded": 1333,
+   "solutionLength": 85
+  },
+  {
+   "game": "mazezam.txt",
+   "level": 37,
+   "w": 13,
+   "h": 6,
+   "boardHash": "f57daceb2ce8cf59",
+   "solveMs": 35,
+   "expanded": 1095,
+   "solutionLength": 87
+  },
+  {
+   "game": "mazezam.txt",
+   "level": 39,
+   "w": 21,
+   "h": 6,
+   "boardHash": "d36416eb404757c9",
+   "solveMs": 196,
+   "expanded": 2661,
+   "solutionLength": 88
+  },
+  {
+   "game": "mazezam.txt",
+   "level": 41,
+   "w": 14,
+   "h": 7,
+   "boardHash": "9b1ff7eb633d6501",
+   "solveMs": 88,
+   "expanded": 1924,
+   "solutionLength": 85
+  },
+  {
+   "game": "mazezam.txt",
+   "level": 43,
+   "w": 17,
+   "h": 6,
+   "boardHash": "7187b7edb899e6cf",
+   "solveMs": 196,
+   "expanded": 3247,
+   "solutionLength": 96
+  },
+  {
+   "game": "mazezam.txt",
+   "level": 45,
+   "w": 14,
+   "h": 7,
+   "boardHash": "816c5b208adc75bd",
+   "solveMs": 68,
+   "expanded": 1874,
+   "solutionLength": 93
+  },
+  {
+   "game": "mazezam.txt",
+   "level": 47,
+   "w": 15,
+   "h": 6,
+   "boardHash": "dd39f57d27c33353",
+   "solveMs": 143,
+   "expanded": 5229,
+   "solutionLength": 75
+  },
+  {
+   "game": "mazezam.txt",
+   "level": 51,
+   "w": 13,
+   "h": 8,
+   "boardHash": "850886fe20a68269",
+   "solveMs": 67,
+   "expanded": 2701,
+   "solutionLength": 138
+  },
+  {
+   "game": "mazezam.txt",
+   "level": 55,
+   "w": 15,
+   "h": 9,
+   "boardHash": "b815512be755c1be",
+   "solveMs": 441,
+   "expanded": 14265,
+   "solutionLength": 159
+  },
+  {
+   "game": "message_skip.txt",
+   "level": 1,
+   "w": 2,
+   "h": 1,
+   "boardHash": "9f58cd0f9033edb3",
+   "solveMs": 0,
+   "expanded": 1,
+   "solutionLength": 1
+  },
+  {
+   "game": "midas.txt",
+   "level": 0,
+   "w": 14,
+   "h": 6,
+   "boardHash": "0b09226ae8337db1",
+   "solveMs": 15,
+   "expanded": 105,
+   "solutionLength": 7
+  },
+  {
+   "game": "midas.txt",
+   "level": 2,
+   "w": 15,
+   "h": 7,
+   "boardHash": "8e5b2f31fafd2f7e",
+   "solveMs": 50,
+   "expanded": 318,
+   "solutionLength": 11
+  },
+  {
+   "game": "midas.txt",
+   "level": 4,
+   "w": 15,
+   "h": 8,
+   "boardHash": "d59d4172b23a5327",
+   "solveMs": 25,
+   "expanded": 285,
+   "solutionLength": 11
+  },
+  {
+   "game": "midas.txt",
+   "level": 6,
+   "w": 14,
+   "h": 6,
+   "boardHash": "e1c6af53b43c0b27",
+   "solveMs": 43,
+   "expanded": 681,
+   "solutionLength": 11
+  },
+  {
+   "game": "midas.txt",
+   "level": 25,
+   "w": 21,
+   "h": 13,
+   "boardHash": "769753fb4845b4a6",
+   "solveMs": 126,
+   "expanded": 1609,
+   "solutionLength": 10
+  },
+  {
+   "game": "multi_level.txt",
+   "level": 0,
+   "w": 2,
+   "h": 1,
+   "boardHash": "9f58cd0f9033edb3",
+   "solveMs": 0,
+   "expanded": 1,
+   "solutionLength": 1
+  },
+  {
+   "game": "multi_level.txt",
+   "level": 1,
+   "w": 2,
+   "h": 1,
+   "boardHash": "3bef0a2046cb1165",
+   "solveMs": 0,
+   "expanded": 1,
+   "solutionLength": 1
+  },
+  {
+   "game": "Muraphilic Monophobic Multiban.txt",
+   "level": 3,
+   "w": 6,
+   "h": 7,
+   "boardHash": "8ea9508dad58c3b7",
+   "solveMs": 0,
+   "expanded": 6,
+   "solutionLength": 3
+  },
+  {
+   "game": "Muraphilic Monophobic Multiban.txt",
+   "level": 5,
+   "w": 13,
+   "h": 10,
+   "boardHash": "872af1b0c2c443c3",
+   "solveMs": 16,
+   "expanded": 390,
+   "solutionLength": 29
+  },
+  {
+   "game": "Muraphilic Monophobic Multiban.txt",
+   "level": 7,
+   "w": 12,
+   "h": 10,
+   "boardHash": "dc85239f95731a05",
+   "solveMs": 144,
+   "expanded": 4207,
+   "solutionLength": 18
+  },
+  {
+   "game": "Muraphilic Monophobic Multiban.txt",
+   "level": 9,
+   "w": 10,
+   "h": 11,
+   "boardHash": "26afb4424430fa62",
+   "solveMs": 258,
+   "expanded": 10623,
+   "solutionLength": 31
+  },
+  {
+   "game": "Muraphilic Monophobic Multiban.txt",
+   "level": 11,
+   "w": 16,
+   "h": 10,
+   "boardHash": "d3542dd92be19dfb",
+   "solveMs": 61,
+   "expanded": 2039,
+   "solutionLength": 35
+  },
+  {
+   "game": "Muraphilic Monophobic Multiban.txt",
+   "level": 13,
+   "w": 8,
+   "h": 12,
+   "boardHash": "50808ff08a4e45e0",
+   "solveMs": 25,
+   "expanded": 1149,
+   "solutionLength": 30
+  },
+  {
+   "game": "NIGHTMARECROBAN.txt",
+   "level": 1,
+   "w": 6,
+   "h": 7,
+   "boardHash": "de61fc559a18cceb",
+   "solveMs": 6,
+   "expanded": 309,
+   "solutionLength": 22
+  },
+  {
+   "game": "NIGHTMARECROBAN.txt",
+   "level": 3,
+   "w": 6,
+   "h": 7,
+   "boardHash": "a25a8d2a7d897abe",
+   "solveMs": 33,
+   "expanded": 1682,
+   "solutionLength": 29
+  },
+  {
+   "game": "NIGHTMARECROBAN.txt",
+   "level": 5,
+   "w": 8,
+   "h": 6,
+   "boardHash": "b0fbc8e2bf81302b",
+   "solveMs": 26,
+   "expanded": 1170,
+   "solutionLength": 24
+  },
+  {
+   "game": "NIGHTMARECROBAN.txt",
+   "level": 7,
+   "w": 9,
+   "h": 6,
+   "boardHash": "305067d8cd8fe3e8",
+   "solveMs": 9,
+   "expanded": 387,
+   "solutionLength": 47
+  },
+  {
+   "game": "NIGHTMARECROBAN.txt",
+   "level": 9,
+   "w": 12,
+   "h": 6,
+   "boardHash": "64f92c37999ab5ae",
+   "solveMs": 13,
+   "expanded": 515,
+   "solutionLength": 35
+  },
+  {
+   "game": "NIGHTMARECROBAN.txt",
+   "level": 11,
+   "w": 8,
+   "h": 7,
+   "boardHash": "0f2b203fba56c22d",
+   "solveMs": 40,
+   "expanded": 1605,
+   "solutionLength": 26
+  },
+  {
+   "game": "NIGHTMARECROBAN.txt",
+   "level": 13,
+   "w": 7,
+   "h": 8,
+   "boardHash": "d059bca6f7a6fc00",
+   "solveMs": 95,
+   "expanded": 3677,
+   "solutionLength": 38
+  },
+  {
+   "game": "no heroes necessary.txt",
+   "level": 1,
+   "w": 20,
+   "h": 17,
+   "boardHash": "7f4485cd5e32dab1",
+   "solveMs": 40,
+   "expanded": 176,
+   "solutionLength": 19
+  },
+  {
+   "game": "no heroes necessary.txt",
+   "level": 3,
+   "w": 24,
+   "h": 18,
+   "boardHash": "fb2b197105503f40",
+   "solveMs": 9,
+   "expanded": 53,
+   "solutionLength": 15
+  },
+  {
+   "game": "no heroes necessary.txt",
+   "level": 5,
+   "w": 20,
+   "h": 20,
+   "boardHash": "d3634bc7ae7ec01b",
+   "solveMs": 31,
+   "expanded": 237,
+   "solutionLength": 33
+  },
+  {
+   "game": "no heroes necessary.txt",
+   "level": 7,
+   "w": 29,
+   "h": 24,
+   "boardHash": "27afbee234685c54",
+   "solveMs": 10,
+   "expanded": 54,
+   "solutionLength": 11
+  },
+  {
+   "game": "no heroes necessary.txt",
+   "level": 9,
+   "w": 29,
+   "h": 25,
+   "boardHash": "ef04b84f2bc6137d",
+   "solveMs": 204,
+   "expanded": 695,
+   "solutionLength": 42
+  },
+  {
+   "game": "oh no i accidentally swallowed myself.txt",
+   "level": 2,
+   "w": 8,
+   "h": 6,
+   "boardHash": "de3869d89ecadbf3",
+   "solveMs": 4,
+   "expanded": 1,
+   "solutionLength": 1
+  },
+  {
+   "game": "oh no i accidentally swallowed myself.txt",
+   "level": 3,
+   "w": 13,
+   "h": 12,
+   "boardHash": "16948e7d6e13585c",
+   "solveMs": 3,
+   "expanded": 1,
+   "solutionLength": 1
+  },
+  {
+   "game": "oh no i accidentally swallowed myself.txt",
+   "level": 4,
+   "w": 27,
+   "h": 28,
+   "boardHash": "00252c0ef1970cf9",
+   "solveMs": 8,
+   "expanded": 1,
+   "solutionLength": 1
+  },
+  {
+   "game": "one_move.txt",
+   "level": 0,
+   "w": 2,
+   "h": 1,
+   "boardHash": "9f58cd0f9033edb3",
+   "solveMs": 0,
+   "expanded": 1,
+   "solutionLength": 1
+  },
+  {
+   "game": "paint everything everywhere.txt",
+   "level": 1,
+   "w": 7,
+   "h": 6,
+   "boardHash": "95203ed533b16117",
+   "solveMs": 19,
+   "expanded": 28,
+   "solutionLength": 22
+  },
+  {
+   "game": "paint everything everywhere.txt",
+   "level": 3,
+   "w": 7,
+   "h": 7,
+   "boardHash": "873036f31926bb48",
+   "solveMs": 72,
+   "expanded": 104,
+   "solutionLength": 43
+  },
+  {
+   "game": "paint everything everywhere.txt",
+   "level": 5,
+   "w": 12,
+   "h": 9,
+   "boardHash": "8bfcb0d2e01f6809",
+   "solveMs": 42,
+   "expanded": 20,
+   "solutionLength": 18
+  },
+  {
+   "game": "paint everything everywhere.txt",
+   "level": 7,
+   "w": 12,
+   "h": 9,
+   "boardHash": "4f7b48c55107853a",
+   "solveMs": 110,
+   "expanded": 55,
+   "solutionLength": 28
+  },
+  {
+   "game": "paint everything everywhere.txt",
+   "level": 9,
+   "w": 13,
+   "h": 13,
+   "boardHash": "4c5f560c5ecc922e",
+   "solveMs": 323,
+   "expanded": 113,
+   "solutionLength": 44
+  },
+  {
+   "game": "paint everything everywhere.txt",
+   "level": 11,
+   "w": 15,
+   "h": 9,
+   "boardHash": "5d21d99b4fb46f18",
+   "solveMs": 128,
+   "expanded": 129,
+   "solutionLength": 50
+  },
+  {
+   "game": "paint everything everywhere.txt",
+   "level": 13,
+   "w": 9,
+   "h": 9,
+   "boardHash": "34fc5562fcb1a787",
+   "solveMs": 52,
+   "expanded": 76,
+   "solutionLength": 34
+  },
+  {
+   "game": "paint everything everywhere.txt",
+   "level": 15,
+   "w": 9,
+   "h": 11,
+   "boardHash": "9eea2312aa214871",
+   "solveMs": 46,
+   "expanded": 44,
+   "solutionLength": 28
+  },
+  {
+   "game": "paint everything everywhere.txt",
+   "level": 19,
+   "w": 7,
+   "h": 7,
+   "boardHash": "4fe193508ed79a20",
+   "solveMs": 21,
+   "expanded": 46,
+   "solutionLength": 22
+  },
+  {
+   "game": "paint everything everywhere.txt",
+   "level": 21,
+   "w": 12,
+   "h": 6,
+   "boardHash": "0b140089e3e886ce",
+   "solveMs": 110,
+   "expanded": 110,
+   "solutionLength": 44
+  },
+  {
+   "game": "paint everything everywhere.txt",
+   "level": 23,
+   "w": 14,
+   "h": 11,
+   "boardHash": "9ba175a4253de3cf",
+   "solveMs": 90,
+   "expanded": 50,
+   "solutionLength": 40
+  },
+  {
+   "game": "paint everything everywhere.txt",
+   "level": 25,
+   "w": 13,
+   "h": 11,
+   "boardHash": "38e6c708e02e5eeb",
+   "solveMs": 136,
+   "expanded": 99,
+   "solutionLength": 46
+  },
+  {
+   "game": "paint everything everywhere.txt",
+   "level": 27,
+   "w": 14,
+   "h": 11,
+   "boardHash": "6eebf4049bafe1bc",
+   "solveMs": 261,
+   "expanded": 81,
+   "solutionLength": 47
+  },
+  {
+   "game": "paint everything everywhere.txt",
+   "level": 29,
+   "w": 14,
+   "h": 11,
+   "boardHash": "f2d302cc68407976",
+   "solveMs": 254,
+   "expanded": 102,
+   "solutionLength": 57
+  },
+  {
+   "game": "paint everything everywhere.txt",
+   "level": 31,
+   "w": 11,
+   "h": 12,
+   "boardHash": "c0a92e9b86cb3cdc",
+   "solveMs": 134,
+   "expanded": 66,
+   "solutionLength": 41
+  },
+  {
+   "game": "paint everything everywhere.txt",
+   "level": 33,
+   "w": 11,
+   "h": 12,
+   "boardHash": "a395dd652b6c4161",
+   "solveMs": 99,
+   "expanded": 51,
+   "solutionLength": 31
+  },
+  {
+   "game": "paint everything everywhere.txt",
+   "level": 35,
+   "w": 16,
+   "h": 11,
+   "boardHash": "ee4f27bd47c80353",
+   "solveMs": 174,
+   "expanded": 57,
+   "solutionLength": 37
+  },
+  {
+   "game": "paint everything everywhere.txt",
+   "level": 37,
+   "w": 12,
+   "h": 10,
+   "boardHash": "17b568bfa1307eeb",
+   "solveMs": 389,
+   "expanded": 465,
+   "solutionLength": 79
+  },
+  {
+   "game": "pipe puffer.txt",
+   "level": 2,
+   "w": 7,
+   "h": 7,
+   "boardHash": "997befebf5e41e49",
+   "solveMs": 327,
+   "expanded": 4550,
+   "solutionLength": 30
+  },
+  {
+   "game": "pipe puffer.txt",
+   "level": 4,
+   "w": 7,
+   "h": 8,
+   "boardHash": "b488bb369a2fbacf",
+   "solveMs": 48,
+   "expanded": 589,
+   "solutionLength": 16
+  },
+  {
+   "game": "pipe puffer.txt",
+   "level": 8,
+   "w": 9,
+   "h": 10,
+   "boardHash": "26a9b5c889d4bd24",
+   "solveMs": 462,
+   "expanded": 1808,
+   "solutionLength": 17
+  },
+  {
+   "game": "pipe puffer.txt",
+   "level": 16,
+   "w": 11,
+   "h": 11,
+   "boardHash": "00a6c900ce9772f3",
+   "solveMs": 17,
+   "expanded": 73,
+   "solutionLength": 7
+  },
+  {
+   "game": "ponies jumping synchronously.txt",
+   "level": 0,
+   "w": 11,
+   "h": 6,
+   "boardHash": "37a48abf84b1c88d",
+   "solveMs": 6,
+   "expanded": 8,
+   "solutionLength": 8
+  },
+  {
+   "game": "ponies jumping synchronously.txt",
+   "level": 2,
+   "w": 11,
+   "h": 6,
+   "boardHash": "833582a47e086c6b",
+   "solveMs": 2,
+   "expanded": 9,
+   "solutionLength": 9
+  },
+  {
+   "game": "ponies jumping synchronously.txt",
+   "level": 4,
+   "w": 12,
+   "h": 6,
+   "boardHash": "00b5347bb65143f9",
+   "solveMs": 2,
+   "expanded": 7,
+   "solutionLength": 6
+  },
+  {
+   "game": "ponies jumping synchronously.txt",
+   "level": 6,
+   "w": 9,
+   "h": 6,
+   "boardHash": "171708e3e151f24e",
+   "solveMs": 1,
+   "expanded": 9,
+   "solutionLength": 9
+  },
+  {
+   "game": "ponies jumping synchronously.txt",
+   "level": 8,
+   "w": 10,
+   "h": 6,
+   "boardHash": "c240ad5b4952c1f3",
+   "solveMs": 3,
+   "expanded": 29,
+   "solutionLength": 13
+  },
+  {
+   "game": "ponies jumping synchronously.txt",
+   "level": 10,
+   "w": 9,
+   "h": 7,
+   "boardHash": "d889474f45de915a",
+   "solveMs": 34,
+   "expanded": 388,
+   "solutionLength": 16
+  },
+  {
+   "game": "ponies jumping synchronously.txt",
+   "level": 12,
+   "w": 16,
+   "h": 6,
+   "boardHash": "ab0ccddcf24af7e8",
+   "solveMs": 2,
+   "expanded": 8,
+   "solutionLength": 8
+  },
+  {
+   "game": "ponies jumping synchronously.txt",
+   "level": 14,
+   "w": 16,
+   "h": 6,
+   "boardHash": "0f7cd464da27f376",
+   "solveMs": 19,
+   "expanded": 283,
+   "solutionLength": 21
+  },
+  {
+   "game": "ponies jumping synchronously.txt",
+   "level": 19,
+   "w": 14,
+   "h": 6,
+   "boardHash": "f0dbaa3a15e58ae9",
+   "solveMs": 23,
+   "expanded": 265,
+   "solutionLength": 21
+  },
+  {
+   "game": "push pull.txt",
+   "level": 1,
+   "w": 6,
+   "h": 7,
+   "boardHash": "153a4d3fb0f01c60",
+   "solveMs": 6,
+   "expanded": 285,
+   "solutionLength": 42
+  },
+  {
+   "game": "push pull.txt",
+   "level": 3,
+   "w": 8,
+   "h": 6,
+   "boardHash": "5f545efe7e1d729b",
+   "solveMs": 5,
+   "expanded": 236,
+   "solutionLength": 19
+  },
+  {
+   "game": "push pull.txt",
+   "level": 5,
+   "w": 8,
+   "h": 7,
+   "boardHash": "49e30ad2d3ad72e6",
+   "solveMs": 18,
+   "expanded": 876,
+   "solutionLength": 39
+  },
+  {
+   "game": "push.txt",
+   "level": 1,
+   "w": 11,
+   "h": 11,
+   "boardHash": "f916b8b50e8372b7",
+   "solveMs": 0,
+   "expanded": 6,
+   "solutionLength": 4
+  },
+  {
+   "game": "push.txt",
+   "level": 3,
+   "w": 11,
+   "h": 11,
+   "boardHash": "ac9a3da9be85edd6",
+   "solveMs": 1,
+   "expanded": 13,
+   "solutionLength": 7
+  },
+  {
+   "game": "push.txt",
+   "level": 5,
+   "w": 11,
+   "h": 11,
+   "boardHash": "ceffc90f5fb4db1c",
+   "solveMs": 32,
+   "expanded": 566,
+   "solutionLength": 26
+  },
+  {
+   "game": "push.txt",
+   "level": 7,
+   "w": 11,
+   "h": 11,
+   "boardHash": "3440d733fefb3895",
+   "solveMs": 4,
+   "expanded": 110,
+   "solutionLength": 11
+  },
+  {
+   "game": "push.txt",
+   "level": 9,
+   "w": 11,
+   "h": 11,
+   "boardHash": "65d688f1325aeec6",
+   "solveMs": 11,
+   "expanded": 243,
+   "solutionLength": 18
+  },
+  {
+   "game": "push.txt",
+   "level": 11,
+   "w": 11,
+   "h": 11,
+   "boardHash": "a5c683698ecab75a",
+   "solveMs": 31,
+   "expanded": 884,
+   "solutionLength": 27
+  },
+  {
+   "game": "push.txt",
+   "level": 13,
+   "w": 11,
+   "h": 11,
+   "boardHash": "6f32f96d6eb800d3",
+   "solveMs": 30,
+   "expanded": 663,
+   "solutionLength": 27
+  },
+  {
+   "game": "push.txt",
+   "level": 21,
+   "w": 11,
+   "h": 11,
+   "boardHash": "48f8d976d3406f46",
+   "solveMs": 181,
+   "expanded": 3306,
+   "solutionLength": 49
+  },
+  {
+   "game": "push.txt",
+   "level": 23,
+   "w": 11,
+   "h": 11,
+   "boardHash": "dd5b46862de48da6",
+   "solveMs": 5,
+   "expanded": 78,
+   "solutionLength": 14
+  },
+  {
+   "game": "push.txt",
+   "level": 25,
+   "w": 11,
+   "h": 11,
+   "boardHash": "4544e1a8788647e1",
+   "solveMs": 188,
+   "expanded": 3950,
+   "solutionLength": 26
+  },
+  {
+   "game": "push.txt",
+   "level": 27,
+   "w": 11,
+   "h": 11,
+   "boardHash": "a29c504c74cc6e63",
+   "solveMs": 324,
+   "expanded": 4707,
+   "solutionLength": 21
+  },
+  {
+   "game": "push.txt",
+   "level": 31,
+   "w": 11,
+   "h": 11,
+   "boardHash": "17451e1bb3287d42",
+   "solveMs": 110,
+   "expanded": 2397,
+   "solutionLength": 14
+  },
+  {
+   "game": "push.txt",
+   "level": 37,
+   "w": 11,
+   "h": 11,
+   "boardHash": "407cac5a27be30a5",
+   "solveMs": 4,
+   "expanded": 52,
+   "solutionLength": 10
+  },
+  {
+   "game": "push.txt",
+   "level": 40,
+   "w": 11,
+   "h": 11,
+   "boardHash": "bde3bc75d84f3345",
+   "solveMs": 0,
+   "expanded": 4,
+   "solutionLength": 4
+  },
+  {
+   "game": "pushit.txt",
+   "level": 1,
+   "w": 9,
+   "h": 10,
+   "boardHash": "62cd8fd4be842545",
+   "solveMs": 104,
+   "expanded": 5171,
+   "solutionLength": 32
+  },
+  {
+   "game": "Pushy-V Pully-H.txt",
+   "level": 1,
+   "w": 9,
+   "h": 6,
+   "boardHash": "cf8bc0d90f8c8ed3",
+   "solveMs": 15,
+   "expanded": 664,
+   "solutionLength": 27
+  },
+  {
+   "game": "Pushy-V Pully-H.txt",
+   "level": 3,
+   "w": 7,
+   "h": 6,
+   "boardHash": "95ed615378f89f29",
+   "solveMs": 0,
+   "expanded": 25,
+   "solutionLength": 8
+  },
+  {
+   "game": "Pushy-V Pully-H.txt",
+   "level": 5,
+   "w": 9,
+   "h": 7,
+   "boardHash": "085a36222cfd2e39",
+   "solveMs": 23,
+   "expanded": 866,
+   "solutionLength": 36
+  },
+  {
+   "game": "Pushy-V Pully-H.txt",
+   "level": 7,
+   "w": 9,
+   "h": 6,
+   "boardHash": "10cee9efd973dfde",
+   "solveMs": 52,
+   "expanded": 1738,
+   "solutionLength": 30
+  },
+  {
+   "game": "Pushy-V Pully-H.txt",
+   "level": 9,
+   "w": 6,
+   "h": 7,
+   "boardHash": "153a4d3fb0f01c60",
+   "solveMs": 0,
+   "expanded": 14,
+   "solutionLength": 7
+  },
+  {
+   "game": "Pushy-V Pully-H.txt",
+   "level": 11,
+   "w": 6,
+   "h": 8,
+   "boardHash": "44a84d7db9d6dbc8",
+   "solveMs": 2,
+   "expanded": 109,
+   "solutionLength": 17
+  },
+  {
+   "game": "Pushy-V Pully-H.txt",
+   "level": 13,
+   "w": 7,
+   "h": 8,
+   "boardHash": "d254b550bf0f77af",
+   "solveMs": 2,
+   "expanded": 78,
+   "solutionLength": 25
+  },
+  {
+   "game": "Pushy-V Pully-H.txt",
+   "level": 15,
+   "w": 9,
+   "h": 9,
+   "boardHash": "fd0285e19e3e2cde",
+   "solveMs": 70,
+   "expanded": 3497,
+   "solutionLength": 56
+  },
+  {
+   "game": "Pushy-V Pully-H.txt",
+   "level": 17,
+   "w": 7,
+   "h": 8,
+   "boardHash": "ee3d27845c9cfb1d",
+   "solveMs": 49,
+   "expanded": 2857,
+   "solutionLength": 45
+  },
+  {
+   "game": "Pushy-V Pully-H.txt",
+   "level": 19,
+   "w": 7,
+   "h": 8,
+   "boardHash": "188519e6b80ed7d5",
+   "solveMs": 3,
+   "expanded": 72,
+   "solutionLength": 30
+  },
+  {
+   "game": "Pushy-V Pully-H.txt",
+   "level": 21,
+   "w": 8,
+   "h": 8,
+   "boardHash": "7cd7dc08bde1dc29",
+   "solveMs": 167,
+   "expanded": 9302,
+   "solutionLength": 38
+  },
+  {
+   "game": "Put the logs in the water, elephant.txt",
+   "level": 4,
+   "w": 15,
+   "h": 13,
+   "boardHash": "b68551a5ff7e0a74",
+   "solveMs": 56,
+   "expanded": 770,
+   "solutionLength": 26
+  },
+  {
+   "game": "Put the logs in the water, elephant.txt",
+   "level": 7,
+   "w": 16,
+   "h": 14,
+   "boardHash": "f7429b61abd8ab88",
+   "solveMs": 263,
+   "expanded": 3935,
+   "solutionLength": 37
+  },
+  {
+   "game": "Put the logs in the water, elephant.txt",
+   "level": 10,
+   "w": 19,
+   "h": 14,
+   "boardHash": "cda94b71e13c5a91",
+   "solveMs": 101,
+   "expanded": 1313,
+   "solutionLength": 40
+  },
+  {
+   "game": "Put the logs in the water, elephant.txt",
+   "level": 16,
+   "w": 11,
+   "h": 12,
+   "boardHash": "8d1a6752d9165668",
+   "solveMs": 301,
+   "expanded": 5710,
+   "solutionLength": 48
+  },
+  {
+   "game": "Put the logs in the water, elephant.txt",
+   "level": 19,
+   "w": 22,
+   "h": 17,
+   "boardHash": "753d6a4a620b579b",
+   "solveMs": 316,
+   "expanded": 3578,
+   "solutionLength": 70
+  },
+  {
+   "game": "Put the logs in the water, elephant.txt",
+   "level": 22,
+   "w": 11,
+   "h": 12,
+   "boardHash": "97b71b2806ce58e1",
+   "solveMs": 449,
+   "expanded": 5657,
+   "solutionLength": 41
+  },
+  {
+   "game": "Recondite Star Sector Sigma.txt",
+   "level": 1,
+   "w": 6,
+   "h": 7,
+   "boardHash": "20ac9090e47c509d",
+   "solveMs": 9,
+   "expanded": 644,
+   "solutionLength": 32
+  },
+  {
+   "game": "Recondite Star Sector Sigma.txt",
+   "level": 3,
+   "w": 12,
+   "h": 6,
+   "boardHash": "7379a693b6758e89",
+   "solveMs": 166,
+   "expanded": 7848,
+   "solutionLength": 57
+  },
+  {
+   "game": "Recondite Star Sector Sigma.txt",
+   "level": 5,
+   "w": 6,
+   "h": 7,
+   "boardHash": "ed6f299cefbd3894",
+   "solveMs": 129,
+   "expanded": 6910,
+   "solutionLength": 28
+  },
+  {
+   "game": "Recondite Star Sector Sigma.txt",
+   "level": 7,
+   "w": 11,
+   "h": 8,
+   "boardHash": "dcede96a67d74480",
+   "solveMs": 172,
+   "expanded": 9804,
+   "solutionLength": 81
+  },
+  {
+   "game": "Recondite Star Sector Sigma.txt",
+   "level": 9,
+   "w": 6,
+   "h": 7,
+   "boardHash": "a61a9db45200298d",
+   "solveMs": 139,
+   "expanded": 9178,
+   "solutionLength": 41
+  },
+  {
+   "game": "Recondite Star Sector Sigma.txt",
+   "level": 11,
+   "w": 9,
+   "h": 5,
+   "boardHash": "ce1c76071a862283",
+   "solveMs": 23,
+   "expanded": 1338,
+   "solutionLength": 29
+  },
+  {
+   "game": "Recondite Star Sector Sigma.txt",
+   "level": 13,
+   "w": 9,
+   "h": 6,
+   "boardHash": "4f1769f58f31cf63",
+   "solveMs": 179,
+   "expanded": 12443,
+   "solutionLength": 42
+  },
+  {
+   "game": "Recondite Star Sector Sigma.txt",
+   "level": 15,
+   "w": 9,
+   "h": 6,
+   "boardHash": "58425419a5d41e9c",
+   "solveMs": 62,
+   "expanded": 3835,
+   "solutionLength": 32
+  },
+  {
+   "game": "Recondite Star Sector Sigma.txt",
+   "level": 17,
+   "w": 9,
+   "h": 6,
+   "boardHash": "70a2f42a5b851547",
+   "solveMs": 257,
+   "expanded": 13908,
+   "solutionLength": 39
+  },
+  {
+   "game": "Recondite Star Sector Sigma.txt",
+   "level": 19,
+   "w": 9,
+   "h": 6,
+   "boardHash": "18953367330b27ce",
+   "solveMs": 29,
+   "expanded": 1580,
+   "solutionLength": 28
+  },
+  {
+   "game": "Resin-Caster.txt",
+   "level": 2,
+   "w": 6,
+   "h": 6,
+   "boardHash": "7f0c92c1951d5062",
+   "solveMs": 14,
+   "expanded": 1014,
+   "solutionLength": 18
+  },
+  {
+   "game": "Resin-Caster.txt",
+   "level": 4,
+   "w": 9,
+   "h": 4,
+   "boardHash": "a381dfb87bf2c3b2",
+   "solveMs": 10,
+   "expanded": 729,
+   "solutionLength": 17
+  },
+  {
+   "game": "Resin-Caster.txt",
+   "level": 6,
+   "w": 6,
+   "h": 6,
+   "boardHash": "af5ee11624b57ed8",
+   "solveMs": 28,
+   "expanded": 2010,
+   "solutionLength": 32
+  },
+  {
+   "game": "Resin-Caster.txt",
+   "level": 8,
+   "w": 6,
+   "h": 6,
+   "boardHash": "a8d573fe127a06c6",
+   "solveMs": 67,
+   "expanded": 4444,
+   "solutionLength": 29
+  },
+  {
+   "game": "Resin-Caster.txt",
+   "level": 10,
+   "w": 6,
+   "h": 7,
+   "boardHash": "23b8fe6ba81bd814",
+   "solveMs": 20,
+   "expanded": 762,
+   "solutionLength": 35
+  },
+  {
+   "game": "Resin-Caster.txt",
+   "level": 12,
+   "w": 6,
+   "h": 6,
+   "boardHash": "b4b2d95d17686c58",
+   "solveMs": 24,
+   "expanded": 1470,
+   "solutionLength": 30
+  },
+  {
+   "game": "Resin-Caster.txt",
+   "level": 14,
+   "w": 7,
+   "h": 7,
+   "boardHash": "a9eeeebea4f8de48",
+   "solveMs": 71,
+   "expanded": 3899,
+   "solutionLength": 47
+  },
+  {
+   "game": "Resin-Caster.txt",
+   "level": 16,
+   "w": 6,
+   "h": 6,
+   "boardHash": "c7d2fff1e53af627",
+   "solveMs": 9,
+   "expanded": 576,
+   "solutionLength": 24
+  },
+  {
+   "game": "Resin-Caster.txt",
+   "level": 18,
+   "w": 9,
+   "h": 6,
+   "boardHash": "e6582a2137140cc2",
+   "solveMs": 17,
+   "expanded": 1073,
+   "solutionLength": 39
+  },
+  {
+   "game": "Resin-Caster.txt",
+   "level": 20,
+   "w": 6,
+   "h": 6,
+   "boardHash": "9cf7275935073ba6",
+   "solveMs": 21,
+   "expanded": 1472,
+   "solutionLength": 35
+  },
+  {
+   "game": "S-tercourse.txt",
+   "level": 3,
+   "w": 10,
+   "h": 10,
+   "boardHash": "9f264688947b6c80",
+   "solveMs": 194,
+   "expanded": 950,
+   "solutionLength": 32
+  },
+  {
+   "game": "S-tercourse.txt",
+   "level": 5,
+   "w": 8,
+   "h": 12,
+   "boardHash": "70aad6df106b362f",
+   "solveMs": 110,
+   "expanded": 516,
+   "solutionLength": 30
+  },
+  {
+   "game": "sacrament of the river god.txt",
+   "level": 13,
+   "w": 24,
+   "h": 17,
+   "boardHash": "9576c97f13824f9e",
+   "solveMs": 5,
+   "expanded": 12,
+   "solutionLength": 12
+  },
+  {
+   "game": "Schleimban.txt",
+   "level": 1,
+   "w": 9,
+   "h": 11,
+   "boardHash": "4eda8f771dda518c",
+   "solveMs": 42,
+   "expanded": 306,
+   "solutionLength": 28
+  },
+  {
+   "game": "Schleimban.txt",
+   "level": 3,
+   "w": 9,
+   "h": 6,
+   "boardHash": "e7819d90910e2bfa",
+   "solveMs": 104,
+   "expanded": 768,
+   "solutionLength": 59
+  },
+  {
+   "game": "Schleimban.txt",
+   "level": 5,
+   "w": 9,
+   "h": 9,
+   "boardHash": "36ad6849e356d557",
+   "solveMs": 85,
+   "expanded": 548,
+   "solutionLength": 38
+  },
+  {
+   "game": "Schleimban.txt",
+   "level": 7,
+   "w": 8,
+   "h": 9,
+   "boardHash": "51f439ab5606133f",
+   "solveMs": 97,
+   "expanded": 1018,
+   "solutionLength": 31
+  },
+  {
+   "game": "Schleimban.txt",
+   "level": 9,
+   "w": 9,
+   "h": 9,
+   "boardHash": "802b2fb830795afb",
+   "solveMs": 53,
+   "expanded": 503,
+   "solutionLength": 37
+  },
+  {
+   "game": "Schleimban.txt",
+   "level": 11,
+   "w": 5,
+   "h": 5,
+   "boardHash": "cd4268939180a790",
+   "solveMs": 1,
+   "expanded": 1,
+   "solutionLength": 1
+  },
+  {
+   "game": "shy snake.txt",
+   "level": 1,
+   "w": 10,
+   "h": 10,
+   "boardHash": "8de4920522dc1031",
+   "solveMs": 123,
+   "expanded": 95,
+   "solutionLength": 28
+  },
+  {
+   "game": "slide pull.txt",
+   "level": 1,
+   "w": 6,
+   "h": 7,
+   "boardHash": "964ea23a0d064507",
+   "solveMs": 30,
+   "expanded": 1388,
+   "solutionLength": 20
+  },
+  {
+   "game": "slide pull.txt",
+   "level": 3,
+   "w": 6,
+   "h": 7,
+   "boardHash": "5bc397e84ba935ee",
+   "solveMs": 12,
+   "expanded": 573,
+   "solutionLength": 24
+  },
+  {
+   "game": "slide pull.txt",
+   "level": 5,
+   "w": 8,
+   "h": 6,
+   "boardHash": "9cac78c1a49fe052",
+   "solveMs": 48,
+   "expanded": 2583,
+   "solutionLength": 15
+  },
+  {
+   "game": "slide pull.txt",
+   "level": 9,
+   "w": 6,
+   "h": 7,
+   "boardHash": "b46311da35b4275d",
+   "solveMs": 31,
+   "expanded": 782,
+   "solutionLength": 22
+  },
+  {
+   "game": "slide pull.txt",
+   "level": 13,
+   "w": 11,
+   "h": 8,
+   "boardHash": "381b8052e5b95536",
+   "solveMs": 190,
+   "expanded": 6725,
+   "solutionLength": 49
+  },
+  {
+   "game": "slidings.txt",
+   "level": 1,
+   "w": 6,
+   "h": 4,
+   "boardHash": "2dba50dc6a878c84",
+   "solveMs": 2,
+   "expanded": 39,
+   "solutionLength": 5
+  },
+  {
+   "game": "slidings.txt",
+   "level": 3,
+   "w": 6,
+   "h": 5,
+   "boardHash": "a2419213cf1a2c5f",
+   "solveMs": 1,
+   "expanded": 18,
+   "solutionLength": 6
+  },
+  {
+   "game": "slidings.txt",
+   "level": 5,
+   "w": 7,
+   "h": 4,
+   "boardHash": "2c3a54086d2cf50e",
+   "solveMs": 2,
+   "expanded": 38,
+   "solutionLength": 8
+  },
+  {
+   "game": "slidings.txt",
+   "level": 7,
+   "w": 7,
+   "h": 5,
+   "boardHash": "2919ccd3ba1ace6e",
+   "solveMs": 3,
+   "expanded": 82,
+   "solutionLength": 7
+  },
+  {
+   "game": "slidings.txt",
+   "level": 9,
+   "w": 10,
+   "h": 4,
+   "boardHash": "68c71796339426d5",
+   "solveMs": 9,
+   "expanded": 234,
+   "solutionLength": 11
+  },
+  {
+   "game": "slidings.txt",
+   "level": 11,
+   "w": 9,
+   "h": 9,
+   "boardHash": "6dd73c6fb461afd7",
+   "solveMs": 304,
+   "expanded": 6268,
+   "solutionLength": 13
+  },
+  {
+   "game": "slidings.txt",
+   "level": 13,
+   "w": 8,
+   "h": 7,
+   "boardHash": "35e5bf373380b9a1",
+   "solveMs": 207,
+   "expanded": 5247,
+   "solutionLength": 15
+  },
+  {
+   "game": "slidings.txt",
+   "level": 15,
+   "w": 7,
+   "h": 6,
+   "boardHash": "411fa8c06ed618a7",
+   "solveMs": 208,
+   "expanded": 6209,
+   "solutionLength": 14
+  },
+  {
+   "game": "slidings.txt",
+   "level": 17,
+   "w": 8,
+   "h": 7,
+   "boardHash": "45d9c9ca41f1ebf7",
+   "solveMs": 391,
+   "expanded": 10129,
+   "solutionLength": 12
+  },
+  {
+   "game": "slidings.txt",
+   "level": 19,
+   "w": 8,
+   "h": 8,
+   "boardHash": "3c690cbf1443bf40",
+   "solveMs": 66,
+   "expanded": 1895,
+   "solutionLength": 11
+  },
+  {
+   "game": "slidings.txt",
+   "level": 21,
+   "w": 8,
+   "h": 5,
+   "boardHash": "1c9a8dcf91540dc6",
+   "solveMs": 92,
+   "expanded": 2959,
+   "solutionLength": 17
+  },
+  {
+   "game": "slime vat filler.txt",
+   "level": 2,
+   "w": 6,
+   "h": 7,
+   "boardHash": "3886533622623511",
+   "solveMs": 3,
+   "expanded": 229,
+   "solutionLength": 21
+  },
+  {
+   "game": "slime vat filler.txt",
+   "level": 4,
+   "w": 6,
+   "h": 7,
+   "boardHash": "79f31afcadcb744c",
+   "solveMs": 1,
+   "expanded": 39,
+   "solutionLength": 20
+  },
+  {
+   "game": "slime vat filler.txt",
+   "level": 6,
+   "w": 6,
+   "h": 7,
+   "boardHash": "5cfb96bfcc02ad7e",
+   "solveMs": 2,
+   "expanded": 125,
+   "solutionLength": 36
+  },
+  {
+   "game": "slime vat filler.txt",
+   "level": 8,
+   "w": 6,
+   "h": 7,
+   "boardHash": "9470667eeddd2d22",
+   "solveMs": 2,
+   "expanded": 89,
+   "solutionLength": 30
+  },
+  {
+   "game": "slime vat filler.txt",
+   "level": 10,
+   "w": 6,
+   "h": 7,
+   "boardHash": "eb69bbf6f899bfa2",
+   "solveMs": 2,
+   "expanded": 127,
+   "solutionLength": 42
+  },
+  {
+   "game": "slime vat filler.txt",
+   "level": 12,
+   "w": 9,
+   "h": 9,
+   "boardHash": "c5496d1c90604914",
+   "solveMs": 159,
+   "expanded": 7121,
+   "solutionLength": 142
+  },
+  {
+   "game": "slime vat filler.txt",
+   "level": 14,
+   "w": 6,
+   "h": 7,
+   "boardHash": "5193110415031936",
+   "solveMs": 10,
+   "expanded": 550,
+   "solutionLength": 74
+  },
+  {
+   "game": "slime vat filler.txt",
+   "level": 18,
+   "w": 9,
+   "h": 9,
+   "boardHash": "494df476b3119f95",
+   "solveMs": 142,
+   "expanded": 5783,
+   "solutionLength": 123
+  },
+  {
+   "game": "slime vat filler.txt",
+   "level": 21,
+   "w": 7,
+   "h": 7,
+   "boardHash": "bba4e9a7d6eac783",
+   "solveMs": 58,
+   "expanded": 3131,
+   "solutionLength": 99
+  },
+  {
+   "game": "slime vat filler.txt",
+   "level": 23,
+   "w": 8,
+   "h": 12,
+   "boardHash": "14ba19c9ace8f297",
+   "solveMs": 0,
+   "expanded": 1,
+   "solutionLength": 1
+  },
+  {
+   "game": "slot machine.txt",
+   "level": 1,
+   "w": 9,
+   "h": 8,
+   "boardHash": "cd097eda2008aac7",
+   "solveMs": 147,
+   "expanded": 620,
+   "solutionLength": 11
+  },
+  {
+   "game": "smother.txt",
+   "level": 2,
+   "w": 11,
+   "h": 7,
+   "boardHash": "9709f9f53c7f6c51",
+   "solveMs": 24,
+   "expanded": 265,
+   "solutionLength": 11
+  },
+  {
+   "game": "smother.txt",
+   "level": 4,
+   "w": 11,
+   "h": 7,
+   "boardHash": "5d5763522b374b06",
+   "solveMs": 27,
+   "expanded": 499,
+   "solutionLength": 19
+  },
+  {
+   "game": "smother.txt",
+   "level": 6,
+   "w": 11,
+   "h": 7,
+   "boardHash": "33a327f684f3c3df",
+   "solveMs": 49,
+   "expanded": 765,
+   "solutionLength": 21
+  },
+  {
+   "game": "smother.txt",
+   "level": 8,
+   "w": 11,
+   "h": 7,
+   "boardHash": "313aa55f801fcdb3",
+   "solveMs": 81,
+   "expanded": 415,
+   "solutionLength": 34
+  },
+  {
+   "game": "smother.txt",
+   "level": 10,
+   "w": 13,
+   "h": 7,
+   "boardHash": "d50786d39254c823",
+   "solveMs": 152,
+   "expanded": 609,
+   "solutionLength": 34
+  },
+  {
+   "game": "smother.txt",
+   "level": 14,
+   "w": 11,
+   "h": 7,
+   "boardHash": "d2688bfe14a12d49",
+   "solveMs": 1,
+   "expanded": 6,
+   "solutionLength": 6
+  },
+  {
+   "game": "smother.txt",
+   "level": 16,
+   "w": 11,
+   "h": 7,
+   "boardHash": "98433bc42d1f6356",
+   "solveMs": 1,
+   "expanded": 32,
+   "solutionLength": 11
+  },
+  {
+   "game": "smother.txt",
+   "level": 18,
+   "w": 11,
+   "h": 7,
+   "boardHash": "ec957f0b9774cd13",
+   "solveMs": 1,
+   "expanded": 36,
+   "solutionLength": 9
+  },
+  {
+   "game": "smother.txt",
+   "level": 20,
+   "w": 20,
+   "h": 11,
+   "boardHash": "689780a54189590b",
+   "solveMs": 10,
+   "expanded": 276,
+   "solutionLength": 19
+  },
+  {
+   "game": "smother.txt",
+   "level": 22,
+   "w": 19,
+   "h": 10,
+   "boardHash": "593cb55ffff944f6",
+   "solveMs": 12,
+   "expanded": 334,
+   "solutionLength": 19
+  },
+  {
+   "game": "smother.txt",
+   "level": 26,
+   "w": 11,
+   "h": 8,
+   "boardHash": "cedc8bbfc67afb53",
+   "solveMs": 49,
+   "expanded": 536,
+   "solutionLength": 27
+  },
+  {
+   "game": "smother.txt",
+   "level": 28,
+   "w": 9,
+   "h": 10,
+   "boardHash": "bb4feaa22a009d10",
+   "solveMs": 233,
+   "expanded": 1909,
+   "solutionLength": 44
+  },
+  {
+   "game": "smother.txt",
+   "level": 30,
+   "w": 11,
+   "h": 8,
+   "boardHash": "b6984675fa46f25d",
+   "solveMs": 32,
+   "expanded": 317,
+   "solutionLength": 20
+  },
+  {
+   "game": "smother.txt",
+   "level": 37,
+   "w": 11,
+   "h": 7,
+   "boardHash": "bfd7c3ff105f9fec",
+   "solveMs": 1,
+   "expanded": 4,
+   "solutionLength": 4
+  },
+  {
+   "game": "sokobond demake.txt",
+   "level": 2,
+   "w": 9,
+   "h": 8,
+   "boardHash": "d6254b0706e5e3a7",
+   "solveMs": 3,
+   "expanded": 38,
+   "solutionLength": 10
+  },
+  {
+   "game": "sokobond demake.txt",
+   "level": 4,
+   "w": 6,
+   "h": 5,
+   "boardHash": "ffc1f5fa08b14cad",
+   "solveMs": 1,
+   "expanded": 18,
+   "solutionLength": 6
+  },
+  {
+   "game": "sokobond demake.txt",
+   "level": 6,
+   "w": 8,
+   "h": 5,
+   "boardHash": "e14502947a86a7b2",
+   "solveMs": 2,
+   "expanded": 16,
+   "solutionLength": 6
+  },
+  {
+   "game": "sokobond demake.txt",
+   "level": 8,
+   "w": 7,
+   "h": 7,
+   "boardHash": "0e8a74c52596361d",
+   "solveMs": 2,
+   "expanded": 20,
+   "solutionLength": 17
+  },
+  {
+   "game": "sokobond demake.txt",
+   "level": 10,
+   "w": 7,
+   "h": 5,
+   "boardHash": "b6a8e5a330af3dde",
+   "solveMs": 4,
+   "expanded": 64,
+   "solutionLength": 7
+  },
+  {
+   "game": "sokobond demake.txt",
+   "level": 12,
+   "w": 7,
+   "h": 7,
+   "boardHash": "64de1bb6886196af",
+   "solveMs": 4,
+   "expanded": 49,
+   "solutionLength": 15
+  },
+  {
+   "game": "sokobond demake.txt",
+   "level": 14,
+   "w": 9,
+   "h": 9,
+   "boardHash": "0cb94f39ecce9d52",
+   "solveMs": 24,
+   "expanded": 300,
+   "solutionLength": 9
+  },
+  {
+   "game": "sokobond demake.txt",
+   "level": 16,
+   "w": 9,
+   "h": 5,
+   "boardHash": "e07e13032e42ce2c",
+   "solveMs": 7,
+   "expanded": 81,
+   "solutionLength": 12
+  },
+  {
+   "game": "sokobond demake.txt",
+   "level": 18,
+   "w": 8,
+   "h": 7,
+   "boardHash": "1dc29617d3106cd5",
+   "solveMs": 64,
+   "expanded": 830,
+   "solutionLength": 10
+  },
+  {
+   "game": "sokobond demake.txt",
+   "level": 20,
+   "w": 9,
+   "h": 7,
+   "boardHash": "cd9286b68dd415b2",
+   "solveMs": 54,
+   "expanded": 748,
+   "solutionLength": 14
+  },
+  {
+   "game": "sokobond demake.txt",
+   "level": 22,
+   "w": 9,
+   "h": 7,
+   "boardHash": "dbd7e62e9775ed78",
+   "solveMs": 33,
+   "expanded": 588,
+   "solutionLength": 16
+  },
+  {
+   "game": "sokobond demake.txt",
+   "level": 26,
+   "w": 7,
+   "h": 7,
+   "boardHash": "7960aaf6acde128f",
+   "solveMs": 27,
+   "expanded": 615,
+   "solutionLength": 7
+  },
+  {
+   "game": "stick_candy_puzzle_saga.txt",
+   "level": 1,
+   "w": 7,
+   "h": 7,
+   "boardHash": "7f32547f926dd306",
+   "solveMs": 167,
+   "expanded": 2971,
+   "solutionLength": 22
+  },
+  {
+   "game": "Subway upholstry snot smearing championship.txt",
+   "level": 2,
+   "w": 6,
+   "h": 6,
+   "boardHash": "19ccf98daf75a052",
+   "solveMs": 306,
+   "expanded": 6991,
+   "solutionLength": 33
+  },
+  {
+   "game": "Subway upholstry snot smearing championship.txt",
+   "level": 4,
+   "w": 6,
+   "h": 5,
+   "boardHash": "e12412ab8c7a2078",
+   "solveMs": 6,
+   "expanded": 240,
+   "solutionLength": 58
+  },
+  {
+   "game": "Subway upholstry snot smearing championship.txt",
+   "level": 6,
+   "w": 6,
+   "h": 7,
+   "boardHash": "83938ddb4d4f7b45",
+   "solveMs": 4,
+   "expanded": 96,
+   "solutionLength": 31
+  },
+  {
+   "game": "Subway upholstry snot smearing championship.txt",
+   "level": 10,
+   "w": 6,
+   "h": 7,
+   "boardHash": "f68c072a333ed41f",
+   "solveMs": 151,
+   "expanded": 3469,
+   "solutionLength": 67
+  },
+  {
+   "game": "Subway upholstry snot smearing championship.txt",
+   "level": 12,
+   "w": 12,
+   "h": 6,
+   "boardHash": "89c8f091becf09f0",
+   "solveMs": 97,
+   "expanded": 1208,
+   "solutionLength": 78
+  },
+  {
+   "game": "take heart lass.txt",
+   "level": 1,
+   "w": 6,
+   "h": 6,
+   "boardHash": "8424b34560d90dbe",
+   "solveMs": 1,
+   "expanded": 3,
+   "solutionLength": 3
+  },
+  {
+   "game": "take heart lass.txt",
+   "level": 3,
+   "w": 9,
+   "h": 7,
+   "boardHash": "58e0e4bf3e68e631",
+   "solveMs": 4,
+   "expanded": 25,
+   "solutionLength": 9
+  },
+  {
+   "game": "take heart lass.txt",
+   "level": 5,
+   "w": 9,
+   "h": 7,
+   "boardHash": "9da18ddd8ab44206",
+   "solveMs": 2,
+   "expanded": 8,
+   "solutionLength": 8
+  },
+  {
+   "game": "take heart lass.txt",
+   "level": 7,
+   "w": 8,
+   "h": 6,
+   "boardHash": "e289dd93a580eedb",
+   "solveMs": 4,
+   "expanded": 28,
+   "solutionLength": 8
+  },
+  {
+   "game": "take heart lass.txt",
+   "level": 9,
+   "w": 11,
+   "h": 9,
+   "boardHash": "088a2e0b325c6dd6",
+   "solveMs": 240,
+   "expanded": 1385,
+   "solutionLength": 27
+  },
+  {
+   "game": "take heart lass.txt",
+   "level": 11,
+   "w": 11,
+   "h": 9,
+   "boardHash": "0ee112879bf7678b",
+   "solveMs": 28,
+   "expanded": 120,
+   "solutionLength": 13
+  },
+  {
+   "game": "take heart lass.txt",
+   "level": 13,
+   "w": 11,
+   "h": 9,
+   "boardHash": "9d7a7291ee481eb5",
+   "solveMs": 77,
+   "expanded": 291,
+   "solutionLength": 17
+  },
+  {
+   "game": "take heart lass.txt",
+   "level": 17,
+   "w": 11,
+   "h": 9,
+   "boardHash": "03a8d099b0a03fd4",
+   "solveMs": 12,
+   "expanded": 49,
+   "solutionLength": 15
+  },
+  {
+   "game": "take heart lass.txt",
+   "level": 19,
+   "w": 11,
+   "h": 9,
+   "boardHash": "04f21a3d314aa226",
+   "solveMs": 95,
+   "expanded": 512,
+   "solutionLength": 15
+  },
+  {
+   "game": "take heart lass.txt",
+   "level": 21,
+   "w": 12,
+   "h": 9,
+   "boardHash": "3791620eb7433d0e",
+   "solveMs": 179,
+   "expanded": 761,
+   "solutionLength": 17
+  },
+  {
+   "game": "talo pipi 2.txt",
+   "level": 17,
+   "w": 26,
+   "h": 22,
+   "boardHash": "8af6820f04eea023",
+   "solveMs": 2,
+   "expanded": 1,
+   "solutionLength": 1
+  },
+  {
+   "game": "the exit is under my left foot.txt",
+   "level": 1,
+   "w": 25,
+   "h": 25,
+   "boardHash": "1f2fc4b812d488bd",
+   "solveMs": 155,
+   "expanded": 102,
+   "solutionLength": 22
+  },
+  {
+   "game": "The Far Away Danish Pastry is always Delicio.txt",
+   "level": 1,
+   "w": 8,
+   "h": 7,
+   "boardHash": "e132688a9b63bf58",
+   "solveMs": 0,
+   "expanded": 7,
+   "solutionLength": 7
+  },
+  {
+   "game": "The Far Away Danish Pastry is always Delicio.txt",
+   "level": 3,
+   "w": 8,
+   "h": 7,
+   "boardHash": "6d6088c5dfca398f",
+   "solveMs": 0,
+   "expanded": 10,
+   "solutionLength": 10
+  },
+  {
+   "game": "The Far Away Danish Pastry is always Delicio.txt",
+   "level": 5,
+   "w": 8,
+   "h": 8,
+   "boardHash": "ce63e118df24f5b4",
+   "solveMs": 7,
+   "expanded": 183,
+   "solutionLength": 10
+  },
+  {
+   "game": "The Far Away Danish Pastry is always Delicio.txt",
+   "level": 7,
+   "w": 8,
+   "h": 6,
+   "boardHash": "ea58cdf4901aa67d",
+   "solveMs": 1,
+   "expanded": 45,
+   "solutionLength": 10
+  },
+  {
+   "game": "The Far Away Danish Pastry is always Delicio.txt",
+   "level": 9,
+   "w": 8,
+   "h": 8,
+   "boardHash": "ac611f90a47cc48e",
+   "solveMs": 2,
+   "expanded": 74,
+   "solutionLength": 10
+  },
+  {
+   "game": "The Far Away Danish Pastry is always Delicio.txt",
+   "level": 11,
+   "w": 8,
+   "h": 7,
+   "boardHash": "bdb786207455ef2c",
+   "solveMs": 126,
+   "expanded": 3545,
+   "solutionLength": 20
+  },
+  {
+   "game": "The Far Away Danish Pastry is always Delicio.txt",
+   "level": 13,
+   "w": 13,
+   "h": 7,
+   "boardHash": "6a149efd2fa7ce55",
+   "solveMs": 31,
+   "expanded": 1232,
+   "solutionLength": 20
+  },
+  {
+   "game": "The Far Away Danish Pastry is always Delicio.txt",
+   "level": 15,
+   "w": 14,
+   "h": 7,
+   "boardHash": "714c0a37337f89ca",
+   "solveMs": 104,
+   "expanded": 4154,
+   "solutionLength": 20
+  },
+  {
+   "game": "The Monsterous Autoshove.txt",
+   "level": 1,
+   "w": 8,
+   "h": 8,
+   "boardHash": "266cd0be43838778",
+   "solveMs": 109,
+   "expanded": 710,
+   "solutionLength": 37
+  },
+  {
+   "game": "The Monsterous Autoshove.txt",
+   "level": 3,
+   "w": 7,
+   "h": 7,
+   "boardHash": "f9e7d193ea23000e",
+   "solveMs": 115,
+   "expanded": 921,
+   "solutionLength": 19
+  },
+  {
+   "game": "The Monsterous Autoshove.txt",
+   "level": 7,
+   "w": 7,
+   "h": 7,
+   "boardHash": "eb2e6596208de492",
+   "solveMs": 64,
+   "expanded": 575,
+   "solutionLength": 24
+  },
+  {
+   "game": "the red ring of immortality.txt",
+   "level": 1,
+   "w": 5,
+   "h": 5,
+   "boardHash": "f638913234b53ed1",
+   "solveMs": 9,
+   "expanded": 226,
+   "solutionLength": 15
+  },
+  {
+   "game": "the red ring of immortality.txt",
+   "level": 3,
+   "w": 8,
+   "h": 9,
+   "boardHash": "f184cbcc8e5a3938",
+   "solveMs": 50,
+   "expanded": 1354,
+   "solutionLength": 26
+  },
+  {
+   "game": "the red ring of immortality.txt",
+   "level": 5,
+   "w": 4,
+   "h": 4,
+   "boardHash": "6d0c06585fa26e72",
+   "solveMs": 2,
+   "expanded": 52,
+   "solutionLength": 15
+  },
+  {
+   "game": "the red ring of immortality.txt",
+   "level": 7,
+   "w": 8,
+   "h": 9,
+   "boardHash": "a3e442031ee124a0",
+   "solveMs": 54,
+   "expanded": 1633,
+   "solutionLength": 23
+  },
+  {
+   "game": "the red ring of immortality.txt",
+   "level": 9,
+   "w": 4,
+   "h": 4,
+   "boardHash": "c39aa418efd829cb",
+   "solveMs": 5,
+   "expanded": 213,
+   "solutionLength": 18
+  },
+  {
+   "game": "the red ring of immortality.txt",
+   "level": 11,
+   "w": 6,
+   "h": 5,
+   "boardHash": "29ed1e49cbec6162",
+   "solveMs": 9,
+   "expanded": 332,
+   "solutionLength": 12
+  },
+  {
+   "game": "the red ring of immortality.txt",
+   "level": 13,
+   "w": 8,
+   "h": 9,
+   "boardHash": "a66645e783b3708c",
+   "solveMs": 118,
+   "expanded": 2759,
+   "solutionLength": 43
+  },
+  {
+   "game": "the red ring of immortality.txt",
+   "level": 15,
+   "w": 14,
+   "h": 4,
+   "boardHash": "8da64965301c9fd5",
+   "solveMs": 13,
+   "expanded": 424,
+   "solutionLength": 37
+  },
+  {
+   "game": "the red ring of immortality.txt",
+   "level": 17,
+   "w": 8,
+   "h": 9,
+   "boardHash": "ffa85a0d9bec8bf2",
+   "solveMs": 68,
+   "expanded": 2173,
+   "solutionLength": 41
+  },
+  {
+   "game": "the red ring of immortality.txt",
+   "level": 19,
+   "w": 6,
+   "h": 6,
+   "boardHash": "be43df2c71bd0bd0",
+   "solveMs": 8,
+   "expanded": 264,
+   "solutionLength": 25
+  },
+  {
+   "game": "the red ring of immortality.txt",
+   "level": 21,
+   "w": 6,
+   "h": 6,
+   "boardHash": "47c17a706c729b49",
+   "solveMs": 1,
+   "expanded": 21,
+   "solutionLength": 17
+  },
+  {
+   "game": "the red ring of immortality.txt",
+   "level": 23,
+   "w": 3,
+   "h": 5,
+   "boardHash": "5eac5f34ce2e800d",
+   "solveMs": 0,
+   "expanded": 2,
+   "solutionLength": 2
+  },
+  {
+   "game": "The sponge what lights up the seafloor.txt",
+   "level": 1,
+   "w": 13,
+   "h": 8,
+   "boardHash": "e4d061aeb8edf821",
+   "solveMs": 216,
+   "expanded": 503,
+   "solutionLength": 38
+  },
+  {
+   "game": "The sponge what lights up the seafloor.txt",
+   "level": 3,
+   "w": 13,
+   "h": 13,
+   "boardHash": "b7f40b5df7e34a75",
+   "solveMs": 463,
+   "expanded": 1566,
+   "solutionLength": 91
+  },
+  {
+   "game": "The sponge what lights up the seafloor.txt",
+   "level": 7,
+   "w": 10,
+   "h": 12,
+   "boardHash": "879cf97bc5fceae6",
+   "solveMs": 172,
+   "expanded": 633,
+   "solutionLength": 36
+  },
+  {
+   "game": "The sponge what lights up the seafloor.txt",
+   "level": 9,
+   "w": 12,
+   "h": 9,
+   "boardHash": "48e317a718c94ce8",
+   "solveMs": 401,
+   "expanded": 1501,
+   "solutionLength": 55
+  },
+  {
+   "game": "The sponge what lights up the seafloor.txt",
+   "level": 11,
+   "w": 9,
+   "h": 8,
+   "boardHash": "1f014389d3c6d03e",
+   "solveMs": 213,
+   "expanded": 942,
+   "solutionLength": 57
+  },
+  {
+   "game": "the_saga_of_the_candy_scroll.txt",
+   "level": 6,
+   "w": 15,
+   "h": 9,
+   "boardHash": "5665741071a01c7b",
+   "solveMs": 14,
+   "expanded": 106,
+   "solutionLength": 16
+  },
+  {
+   "game": "the_saga_of_the_candy_scroll.txt",
+   "level": 10,
+   "w": 15,
+   "h": 9,
+   "boardHash": "e75c5e2a13ce3abd",
+   "solveMs": 1,
+   "expanded": 8,
+   "solutionLength": 8
+  },
+  {
+   "game": "the_saga_of_the_candy_scroll.txt",
+   "level": 14,
+   "w": 15,
+   "h": 9,
+   "boardHash": "1a3db5fa57e6b7e9",
+   "solveMs": 2,
+   "expanded": 4,
+   "solutionLength": 4
+  },
+  {
+   "game": "the_saga_of_the_candy_scroll.txt",
+   "level": 18,
+   "w": 17,
+   "h": 11,
+   "boardHash": "75b479a8f7a4bdcb",
+   "solveMs": 38,
+   "expanded": 551,
+   "solutionLength": 26
+  },
+  {
+   "game": "the_saga_of_the_candy_scroll.txt",
+   "level": 20,
+   "w": 17,
+   "h": 11,
+   "boardHash": "9a3a407e194cf514",
+   "solveMs": 421,
+   "expanded": 7939,
+   "solutionLength": 43
+  },
+  {
+   "game": "the_saga_of_the_candy_scroll.txt",
+   "level": 22,
+   "w": 17,
+   "h": 11,
+   "boardHash": "e10c56a23d6a016a",
+   "solveMs": 5,
+   "expanded": 104,
+   "solutionLength": 28
+  },
+  {
+   "game": "the_saga_of_the_candy_scroll.txt",
+   "level": 26,
+   "w": 17,
+   "h": 11,
+   "boardHash": "6ea4c3bc342771fc",
+   "solveMs": 37,
+   "expanded": 832,
+   "solutionLength": 16
+  },
+  {
+   "game": "the_saga_of_the_candy_scroll.txt",
+   "level": 31,
+   "w": 17,
+   "h": 11,
+   "boardHash": "a615cc57b52be5f4",
+   "solveMs": 77,
+   "expanded": 1273,
+   "solutionLength": 43
+  },
+  {
+   "game": "the_saga_of_the_candy_scroll.txt",
+   "level": 46,
+   "w": 17,
+   "h": 11,
+   "boardHash": "ff5f71c438b910a5",
+   "solveMs": 2,
+   "expanded": 3,
+   "solutionLength": 3
+  },
+  {
+   "game": "the_saga_of_the_candy_scroll.txt",
+   "level": 50,
+   "w": 17,
+   "h": 11,
+   "boardHash": "7ca422afcd0cb47e",
+   "solveMs": 3,
+   "expanded": 54,
+   "solutionLength": 6
+  },
+  {
+   "game": "the_saga_of_the_candy_scroll.txt",
+   "level": 53,
+   "w": 17,
+   "h": 11,
+   "boardHash": "9c9efcb89c5795d4",
+   "solveMs": 35,
+   "expanded": 723,
+   "solutionLength": 21
+  },
+  {
+   "game": "the_saga_of_the_candy_scroll.txt",
+   "level": 55,
+   "w": 17,
+   "h": 11,
+   "boardHash": "54c8a860b34a8a6b",
+   "solveMs": 139,
+   "expanded": 2683,
+   "solutionLength": 23
+  },
+  {
+   "game": "the_saga_of_the_candy_scroll.txt",
+   "level": 58,
+   "w": 17,
+   "h": 11,
+   "boardHash": "aaf9c344b1172aa1",
+   "solveMs": 289,
+   "expanded": 5189,
+   "solutionLength": 40
+  },
+  {
+   "game": "the_saga_of_the_candy_scroll.txt",
+   "level": 112,
+   "w": 21,
+   "h": 13,
+   "boardHash": "2748994349dee8ea",
+   "solveMs": 415,
+   "expanded": 5868,
+   "solutionLength": 104
+  },
+  {
+   "game": "the_saga_of_the_candy_scroll.txt",
+   "level": 116,
+   "w": 21,
+   "h": 13,
+   "boardHash": "71def880945eee9d",
+   "solveMs": 49,
+   "expanded": 501,
+   "solutionLength": 102
+  },
+  {
+   "game": "Two-Tone Tango.txt",
+   "level": 1,
+   "w": 12,
+   "h": 6,
+   "boardHash": "4e853b4accbbdb10",
+   "solveMs": 100,
+   "expanded": 1805,
+   "solutionLength": 35
+  },
+  {
+   "game": "Two-Tone Tango.txt",
+   "level": 3,
+   "w": 7,
+   "h": 8,
+   "boardHash": "bcc01ff8a1ada2b4",
+   "solveMs": 25,
+   "expanded": 569,
+   "solutionLength": 27
+  },
+  {
+   "game": "Two-Tone Tango.txt",
+   "level": 5,
+   "w": 6,
+   "h": 8,
+   "boardHash": "0434c3b50138f2ce",
+   "solveMs": 42,
+   "expanded": 1163,
+   "solutionLength": 28
+  },
+  {
+   "game": "Two-Tone Tango.txt",
+   "level": 7,
+   "w": 9,
+   "h": 8,
+   "boardHash": "c8cced920367bcae",
+   "solveMs": 303,
+   "expanded": 6728,
+   "solutionLength": 36
+  },
+  {
+   "game": "Two-Tone Tango.txt",
+   "level": 9,
+   "w": 6,
+   "h": 8,
+   "boardHash": "ccdc0a08282dbaf0",
+   "solveMs": 2,
+   "expanded": 38,
+   "solutionLength": 14
+  },
+  {
+   "game": "Two-Tone Tango.txt",
+   "level": 11,
+   "w": 6,
+   "h": 8,
+   "boardHash": "b4ce1196cdc12746",
+   "solveMs": 29,
+   "expanded": 747,
+   "solutionLength": 28
+  },
+  {
+   "game": "Two-Tone Tango.txt",
+   "level": 13,
+   "w": 6,
+   "h": 8,
+   "boardHash": "3eb52698c27de3d4",
+   "solveMs": 200,
+   "expanded": 4124,
+   "solutionLength": 32
+  },
+  {
+   "game": "Two-Tone Tango.txt",
+   "level": 15,
+   "w": 6,
+   "h": 8,
+   "boardHash": "fa9b1e6f88904455",
+   "solveMs": 122,
+   "expanded": 3028,
+   "solutionLength": 32
+  },
+  {
+   "game": "unclean residues.txt",
+   "level": 4,
+   "w": 8,
+   "h": 9,
+   "boardHash": "590bfe02a67a36fe",
+   "solveMs": 354,
+   "expanded": 10197,
+   "solutionLength": 35
+  },
+  {
+   "game": "unclean residues.txt",
+   "level": 10,
+   "w": 9,
+   "h": 10,
+   "boardHash": "e2969b75f81dea59",
+   "solveMs": 415,
+   "expanded": 9056,
+   "solutionLength": 44
+  },
+  {
+   "game": "unclean residues.txt",
+   "level": 13,
+   "w": 7,
+   "h": 8,
+   "boardHash": "30faac7043002a9a",
+   "solveMs": 159,
+   "expanded": 3677,
+   "solutionLength": 40
+  },
+  {
+   "game": "unewton.txt",
+   "level": 4,
+   "w": 12,
+   "h": 9,
+   "boardHash": "adaad4c5b76a9219",
+   "solveMs": 338,
+   "expanded": 7532,
+   "solutionLength": 48
+  },
+  {
+   "game": "Van-to-Mobile-Living-Space-Conversion Window.txt",
+   "level": 1,
+   "w": 14,
+   "h": 10,
+   "boardHash": "fa05e836146fdebb",
+   "solveMs": 3,
+   "expanded": 39,
+   "solutionLength": 13
+  },
+  {
+   "game": "Van-to-Mobile-Living-Space-Conversion Window.txt",
+   "level": 3,
+   "w": 14,
+   "h": 10,
+   "boardHash": "9aabb20d59a3990f",
+   "solveMs": 78,
+   "expanded": 1296,
+   "solutionLength": 25
+  },
+  {
+   "game": "Van-to-Mobile-Living-Space-Conversion Window.txt",
+   "level": 5,
+   "w": 14,
+   "h": 10,
+   "boardHash": "9f2f4afe12e8fb6b",
+   "solveMs": 4,
+   "expanded": 49,
+   "solutionLength": 20
+  },
+  {
+   "game": "Van-to-Mobile-Living-Space-Conversion Window.txt",
+   "level": 9,
+   "w": 13,
+   "h": 12,
+   "boardHash": "be5f427fc5984410",
+   "solveMs": 311,
+   "expanded": 4464,
+   "solutionLength": 41
+  },
+  {
+   "game": "Van-to-Mobile-Living-Space-Conversion Window.txt",
+   "level": 13,
+   "w": 15,
+   "h": 10,
+   "boardHash": "92e04157d8a154aa",
+   "solveMs": 69,
+   "expanded": 938,
+   "solutionLength": 41
+  },
+  {
+   "game": "Van-to-Mobile-Living-Space-Conversion Window.txt",
+   "level": 15,
+   "w": 14,
+   "h": 12,
+   "boardHash": "64ab61caa7eb8799",
+   "solveMs": 252,
+   "expanded": 3383,
+   "solutionLength": 23
+  },
+  {
+   "game": "Van-to-Mobile-Living-Space-Conversion Window.txt",
+   "level": 17,
+   "w": 14,
+   "h": 10,
+   "boardHash": "cafbbfcf1c3cc9fd",
+   "solveMs": 48,
+   "expanded": 673,
+   "solutionLength": 22
+  },
+  {
+   "game": "Van-to-Mobile-Living-Space-Conversion Window.txt",
+   "level": 23,
+   "w": 13,
+   "h": 12,
+   "boardHash": "3b3720eb814cc09f",
+   "solveMs": 113,
+   "expanded": 1754,
+   "solutionLength": 41
+  },
+  {
+   "game": "Varifocal Nightmare.txt",
+   "level": 1,
+   "w": 11,
+   "h": 7,
+   "boardHash": "2c79f7fb14e3841e",
+   "solveMs": 48,
+   "expanded": 1456,
+   "solutionLength": 29
+  },
+  {
+   "game": "Varifocal Nightmare.txt",
+   "level": 3,
+   "w": 11,
+   "h": 7,
+   "boardHash": "1f3469175753d177",
+   "solveMs": 23,
+   "expanded": 780,
+   "solutionLength": 30
+  },
+  {
+   "game": "Varifocal Nightmare.txt",
+   "level": 5,
+   "w": 11,
+   "h": 7,
+   "boardHash": "63b8396684e36c37",
+   "solveMs": 67,
+   "expanded": 2291,
+   "solutionLength": 27
+  },
+  {
+   "game": "Varifocal Nightmare.txt",
+   "level": 9,
+   "w": 13,
+   "h": 11,
+   "boardHash": "f9a0925505c0c228",
+   "solveMs": 142,
+   "expanded": 4318,
+   "solutionLength": 39
+  },
+  {
+   "game": "Vexatious Match 3.txt",
+   "level": 10,
+   "w": 3,
+   "h": 2,
+   "boardHash": "b0829b97f52d68fb",
+   "solveMs": 48,
+   "expanded": 1992,
+   "solutionLength": 46
+  },
+  {
+   "game": "Voitex Rasteriser.txt",
+   "level": 2,
+   "w": 11,
+   "h": 11,
+   "boardHash": "592065c8e64833b7",
+   "solveMs": 0,
+   "expanded": 1,
+   "solutionLength": 1
+  },
+  {
+   "game": "Wand Spinner.txt",
+   "level": 1,
+   "w": 6,
+   "h": 7,
+   "boardHash": "263a2eabe6b0fb47",
+   "solveMs": 5,
+   "expanded": 263,
+   "solutionLength": 15
+  },
+  {
+   "game": "Wand Spinner.txt",
+   "level": 3,
+   "w": 6,
+   "h": 7,
+   "boardHash": "1a6ccdd662ba94c8",
+   "solveMs": 21,
+   "expanded": 214,
+   "solutionLength": 19
+  },
+  {
+   "game": "Wand Spinner.txt",
+   "level": 5,
+   "w": 7,
+   "h": 6,
+   "boardHash": "39467e05ef8afe1b",
+   "solveMs": 79,
+   "expanded": 2715,
+   "solutionLength": 17
+  },
+  {
+   "game": "Wand Spinner.txt",
+   "level": 7,
+   "w": 7,
+   "h": 6,
+   "boardHash": "6e59fab5e8147de5",
+   "solveMs": 97,
+   "expanded": 4051,
+   "solutionLength": 20
+  },
+  {
+   "game": "Wand Spinner.txt",
+   "level": 9,
+   "w": 7,
+   "h": 6,
+   "boardHash": "3085c3c7dee125a0",
+   "solveMs": 9,
+   "expanded": 417,
+   "solutionLength": 31
+  },
+  {
+   "game": "Wand Spinner.txt",
+   "level": 11,
+   "w": 6,
+   "h": 6,
+   "boardHash": "d3e40c1cb3b9b3f7",
+   "solveMs": 26,
+   "expanded": 949,
+   "solutionLength": 39
+  },
+  {
+   "game": "Wand Spinner.txt",
+   "level": 13,
+   "w": 6,
+   "h": 6,
+   "boardHash": "96bcfabe035dcf58",
+   "solveMs": 54,
+   "expanded": 1308,
+   "solutionLength": 46
+  },
+  {
+   "game": "Wand Spinner.txt",
+   "level": 15,
+   "w": 7,
+   "h": 6,
+   "boardHash": "95d98a87e525c592",
+   "solveMs": 13,
+   "expanded": 513,
+   "solutionLength": 17
+  },
+  {
+   "game": "Wand Spinner.txt",
+   "level": 17,
+   "w": 10,
+   "h": 6,
+   "boardHash": "0eb9e6a721a162e1",
+   "solveMs": 22,
+   "expanded": 973,
+   "solutionLength": 41
+  },
+  {
+   "game": "Wand Spinner.txt",
+   "level": 19,
+   "w": 12,
+   "h": 5,
+   "boardHash": "d736aff03670cf50",
+   "solveMs": 79,
+   "expanded": 1879,
+   "solutionLength": 31
+  },
+  {
+   "game": "Wand Spinner.txt",
+   "level": 21,
+   "w": 7,
+   "h": 6,
+   "boardHash": "3d7be9333ed5175e",
+   "solveMs": 39,
+   "expanded": 796,
+   "solutionLength": 22
+  },
+  {
+   "game": "Wand Spinner.txt",
+   "level": 23,
+   "w": 8,
+   "h": 6,
+   "boardHash": "afef19505c938135",
+   "solveMs": 199,
+   "expanded": 9400,
+   "solutionLength": 43
+  },
+  {
+   "game": "Wand Spinner.txt",
+   "level": 25,
+   "w": 9,
+   "h": 7,
+   "boardHash": "eec5e4f871055c16",
+   "solveMs": 20,
+   "expanded": 721,
+   "solutionLength": 21
+  },
+  {
+   "game": "Wand Spinner.txt",
+   "level": 27,
+   "w": 7,
+   "h": 6,
+   "boardHash": "427e798a53da9893",
+   "solveMs": 93,
+   "expanded": 3180,
+   "solutionLength": 25
+  },
+  {
+   "game": "Wand Spinner.txt",
+   "level": 31,
+   "w": 6,
+   "h": 6,
+   "boardHash": "d60c7d8f8f4ba7ec",
+   "solveMs": 69,
+   "expanded": 2265,
+   "solutionLength": 23
+  },
+  {
+   "game": "Wand Spinner.txt",
+   "level": 33,
+   "w": 7,
+   "h": 7,
+   "boardHash": "e605ab065eb9ee6e",
+   "solveMs": 2,
+   "expanded": 68,
+   "solutionLength": 29
+  },
+  {
+   "game": "Wand Spinner.txt",
+   "level": 35,
+   "w": 6,
+   "h": 6,
+   "boardHash": "e7c08cd37f146fa2",
+   "solveMs": 124,
+   "expanded": 5885,
+   "solutionLength": 30
+  },
+  {
+   "game": "whaleworld.txt",
+   "level": 1,
+   "w": 16,
+   "h": 15,
+   "boardHash": "d163b7a56743c52e",
+   "solveMs": 69,
+   "expanded": 120,
+   "solutionLength": 34
+  },
+  {
+   "game": "whaleworld.txt",
+   "level": 3,
+   "w": 11,
+   "h": 9,
+   "boardHash": "4821549ec928fced",
+   "solveMs": 63,
+   "expanded": 240,
+   "solutionLength": 19
+  },
+  {
+   "game": "whaleworld.txt",
+   "level": 5,
+   "w": 16,
+   "h": 14,
+   "boardHash": "ab4130661aeabb6e",
+   "solveMs": 225,
+   "expanded": 878,
+   "solutionLength": 61
+  },
+  {
+   "game": "whaleworld.txt",
+   "level": 7,
+   "w": 16,
+   "h": 13,
+   "boardHash": "926992b6862229a5",
+   "solveMs": 311,
+   "expanded": 1685,
+   "solutionLength": 44
+  },
+  {
+   "game": "witch lifter.txt",
+   "level": 1,
+   "w": 13,
+   "h": 8,
+   "boardHash": "bb7fbcdd02ef5e75",
+   "solveMs": 435,
+   "expanded": 1434,
+   "solutionLength": 28
+  },
+  {
+   "game": "witch lifter.txt",
+   "level": 3,
+   "w": 13,
+   "h": 8,
+   "boardHash": "957abb172c5f4428",
+   "solveMs": 133,
+   "expanded": 564,
+   "solutionLength": 30
+  },
+  {
+   "game": "Xorro The Chaos Warden.txt",
+   "level": 1,
+   "w": 6,
+   "h": 6,
+   "boardHash": "93212da964221371",
+   "solveMs": 8,
+   "expanded": 267,
+   "solutionLength": 24
+  },
+  {
+   "game": "Xorro The Chaos Warden.txt",
+   "level": 3,
+   "w": 8,
+   "h": 7,
+   "boardHash": "05d914b57a4f7f14",
+   "solveMs": 118,
+   "expanded": 4418,
+   "solutionLength": 31
+  },
+  {
+   "game": "Xorro The Chaos Warden.txt",
+   "level": 5,
+   "w": 9,
+   "h": 6,
+   "boardHash": "31397d491fa3e4e0",
+   "solveMs": 71,
+   "expanded": 3553,
+   "solutionLength": 43
+  },
+  {
+   "game": "Yellow Box.txt",
+   "level": 1,
+   "w": 8,
+   "h": 8,
+   "boardHash": "040cb4563be576dd",
+   "solveMs": 102,
+   "expanded": 3503,
+   "solutionLength": 43
+  },
+  {
+   "game": "Yellow Box.txt",
+   "level": 3,
+   "w": 7,
+   "h": 7,
+   "boardHash": "520dded507bce72b",
+   "solveMs": 40,
+   "expanded": 332,
+   "solutionLength": 15
+  },
+  {
+   "game": "Yellow Box.txt",
+   "level": 5,
+   "w": 11,
+   "h": 11,
+   "boardHash": "5baa0266c2784ea7",
+   "solveMs": 8,
+   "expanded": 49,
+   "solutionLength": 17
+  },
+  {
+   "game": "Yellow Box.txt",
+   "level": 7,
+   "w": 7,
+   "h": 7,
+   "boardHash": "a6ed5fc574fe5d97",
+   "solveMs": 27,
+   "expanded": 293,
+   "solutionLength": 19
+  },
+  {
+   "game": "Yellow Box.txt",
+   "level": 9,
+   "w": 11,
+   "h": 8,
+   "boardHash": "af18837f0eeecae0",
+   "solveMs": 58,
+   "expanded": 1318,
+   "solutionLength": 41
+  },
+  {
+   "game": "Yellow Box.txt",
+   "level": 11,
+   "w": 11,
+   "h": 8,
+   "boardHash": "63556261a1c479b1",
+   "solveMs": 100,
+   "expanded": 1642,
+   "solutionLength": 46
+  },
+  {
+   "game": "Yellow Box.txt",
+   "level": 13,
+   "w": 7,
+   "h": 7,
+   "boardHash": "44fe1d4929ba2226",
+   "solveMs": 21,
+   "expanded": 285,
+   "solutionLength": 14
+  },
+  {
+   "game": "Yellow Box.txt",
+   "level": 17,
+   "w": 7,
+   "h": 7,
+   "boardHash": "08e2db593598667d",
+   "solveMs": 5,
+   "expanded": 58,
+   "solutionLength": 21
+  },
+  {
+   "game": "Yellow Box.txt",
+   "level": 19,
+   "w": 11,
+   "h": 8,
+   "boardHash": "a7a79edc412922b4",
+   "solveMs": 19,
+   "expanded": 272,
+   "solutionLength": 24
+  },
+  {
+   "game": "Yellow Box.txt",
+   "level": 21,
+   "w": 7,
+   "h": 7,
+   "boardHash": "cd456e5620d2d516",
+   "solveMs": 92,
+   "expanded": 1639,
+   "solutionLength": 21
+  },
+  {
+   "game": "Yellow Box.txt",
+   "level": 23,
+   "w": 7,
+   "h": 7,
+   "boardHash": "938d24339dba5df1",
+   "solveMs": 2,
+   "expanded": 20,
+   "solutionLength": 14
+  },
+  {
+   "game": "Yellow Box.txt",
+   "level": 25,
+   "w": 7,
+   "h": 7,
+   "boardHash": "5820606568db1444",
+   "solveMs": 17,
+   "expanded": 259,
+   "solutionLength": 9
+  },
+  {
+   "game": "Yellow Box.txt",
+   "level": 27,
+   "w": 11,
+   "h": 8,
+   "boardHash": "fdf1973ed6d96c34",
+   "solveMs": 29,
+   "expanded": 498,
+   "solutionLength": 23
+  },
+  {
+   "game": "Yellow Box.txt",
+   "level": 29,
+   "w": 6,
+   "h": 6,
+   "boardHash": "50ad9f5d595dcd67",
+   "solveMs": 18,
+   "expanded": 280,
+   "solutionLength": 26
+  },
+  {
+   "game": "Yellow Box.txt",
+   "level": 31,
+   "w": 7,
+   "h": 7,
+   "boardHash": "2a85affa8cf3f5f9",
+   "solveMs": 136,
+   "expanded": 2277,
+   "solutionLength": 34
+  },
+  {
+   "game": "Yellow Box.txt",
+   "level": 33,
+   "w": 6,
+   "h": 6,
+   "boardHash": "ba9ec14965fbcf39",
+   "solveMs": 18,
+   "expanded": 284,
+   "solutionLength": 20
+  }
+ ]
+}
