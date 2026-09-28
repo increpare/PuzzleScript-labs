@@ -166,7 +166,7 @@ async function run() {
 				rows.push({
 					variant: v.name, game: s.game, level: s.level, generator: p.id, rep, seconds: s.benchSeconds,
 					ok: !!m.ok, hung: !!m.hung, reason: m.ok ? undefined : m.reason,
-					secs: m.secs, work: m.work, hitWall: m.hitWall || undefined, baseEffort: m.baseEffort, top: m.top, assessed: m.assessed, timeouts: m.timeouts,
+					secs: m.secs, work: m.work, hitWall: m.hitWall || undefined, baseEffort: m.baseEffort, top: m.top, drift: m.drift, assessed: m.assessed, timeouts: m.timeouts,
 					harder: m.harder, newSolvable: m.newSolvable, solvedPct: m.solvedPct,
 				});
 			}));
@@ -219,7 +219,7 @@ function score(results) {
 	const mean = x => x.reduce((a, b) => a + b, 0) / x.length;
 	const f2 = x => x.toFixed(2), pctc = x => (x >= 1 ? '+' : '') + ((x - 1) * 100).toFixed(1) + '%';
 
-	console.log('\nvariant              runs  hung   score  harder/run  candidates/s');
+	console.log('\nvariant              runs  hung   score  harder/run  candidates/s  drift');
 	for (const n of names) {
 		const rs = Object.values(by[n]);
 		const games = {};
@@ -227,7 +227,9 @@ function score(results) {
 		const sc = Math.exp(mean(Object.values(games).map(mean)));
 		const hung = rows.filter(r => r.variant === n && r.hung).length;
 		const cps = rs.reduce((t, r) => t + r.assessed, 0) / rs.reduce((t, r) => t + r.secs, 0);
-		console.log(`${n.slice(0, 20).padEnd(20)} ${String(rs.length).padStart(5)} ${String(hung).padStart(5)} ${f2(sc).padStart(7)} ${mean(rs.map(r => r.harder)).toFixed(2).padStart(11)} ${cps.toFixed(1).padStart(13)}`);
+		// Drift: tiles the shortlist differs from the seed (median over runs).
+		const dr = rs.filter(r => r.drift > 0).map(r => r.drift).sort((a, b) => a - b);
+		console.log(`${n.slice(0, 20).padEnd(20)} ${String(rs.length).padStart(5)} ${String(hung).padStart(5)} ${f2(sc).padStart(7)} ${mean(rs.map(r => r.harder)).toFixed(2).padStart(11)} ${cps.toFixed(1).padStart(13)} ${(dr.length ? dr[dr.length >> 1].toFixed(1) : '-').padStart(6)}`);
 	}
 	if (names.length < 2) return;
 	const ref = names[0];

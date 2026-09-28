@@ -1224,6 +1224,7 @@
 		app.pinned.filter(function (c) { return c.levelIndex === app.levelIndex; }).forEach(function (c) { list.push(c); });
 		const ranked = rankCards().filter(function (c) { return !app.pinned.some(function (p) { return p.key === c.key; }); });
 		ranked.slice(0, SHOWN_CARDS).forEach(function (c) { list.push(c); });
+		proveShown(list);
 		if (!list.length) {
 			el.innerHTML = '<div class="empty-cards">' + (app.gen && app.gen.running ? 'Transforming… suggestions appear here as the solver verifies them.' : 'No suggestions yet.') + '</div>';
 			return;
@@ -1260,6 +1261,26 @@
 			d.onmouseleave = function () { setPreview(null); };
 			d.onclick = function () { adopt(c); };
 			el.appendChild(d);
+		});
+	}
+
+	// The generator doesn't prove shortest solutions; prove the cards on screen
+	// here, one at a time on the background worker (idle while generating),
+	// showing ≈ until then.
+	let proving = null; // { card, worker }
+	function proveShown(list) {
+		ensureWorkers(false);
+		if (proving && proving.worker === bgWorker && !bgWorker.dead) return;
+		const c = list.find(function (x) { return x.result && !x.result.optimal && !x.specialLabel && x.board && !x.proofTried; });
+		if (!c) return;
+		proving = { card: c, worker: bgWorker };
+		enqueue(bgWorker, { type: 'prove', board: packBoard(c.board), opts: { maxExpanded: 20000, timeMs: 1500 } }, function (m) {
+			proving = null;
+			c.proofTried = true;
+			if (m.type === 'proved' && m.result.solution) {
+				c.result = Object.assign({}, c.result, { solution: m.result.solution, length: m.result.solution.length, optimal: true });
+			}
+			scheduleCards();
 		});
 	}
 

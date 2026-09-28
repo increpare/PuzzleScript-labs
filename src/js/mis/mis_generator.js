@@ -51,6 +51,18 @@ const MISGenerator = (function () {
 			: opts.maxBudgetMs || 5000;
 		// States a BFS may spend proving a shortlisted candidate's shortest solution.
 		const optimalCap = opts.optimalCap !== undefined ? opts.optimalCap : 20000;
+		// Shortest-length proofs: 'lazy' (default) leaves them to whoever shows
+		// the candidate (the app proves the cards on screen); 'eager' proves every
+		// admitted candidate here. They only set the displayed move count, never
+		// which candidates are kept, and took ~20% of generation time.
+		const eagerProofs = opts.proofs === 'eager';
+		// Parents: 'seed' (default) transforms the base level every time;
+		// 'elite' transforms one of the best boards found so far (the base with
+		// probability seedShare), so difficulty can build up over several steps.
+		const eliteParents = opts.parents === 'elite';
+		const seedShare = opts.seedShare !== undefined ? opts.seedShare : 0.3;
+		const eliteSize = opts.eliteSize || 16;
+		const elite = []; // { effort, board }, hardest first
 		// Optional sharding: only assess boards whose hash lands on this worker,
 		// so parallel workers never solve the same board twice.
 		const shard = opts.shard || null; // { index, count }
@@ -129,10 +141,27 @@ const MISGenerator = (function () {
 			return best;
 		}
 
-		function admit(effort) {
+		// Shortlist efforts, plus how many tiles each differs from the base.
+		const topInfo = [];
+		function admit(effort, board) {
 			topEfforts.push(effort);
 			topEfforts.sort(function (a, b) { return b - a; });
 			if (topEfforts.length > keepCount) topEfforts.length = keepCount;
+			topInfo.push({ effort: effort, drift: C.boardDiffCount(base, board, model.stride) });
+			topInfo.sort(function (a, b) { return b.effort - a.effort; });
+			if (topInfo.length > keepCount) topInfo.length = keepCount;
+		}
+
+		function addElite(effort, board) {
+			if (elite.length >= eliteSize && effort <= elite[elite.length - 1].effort) return;
+			elite.push({ effort: effort, board: board });
+			elite.sort(function (a, b) { return b.effort - a.effort; });
+			if (elite.length > eliteSize) elite.length = eliteSize;
+		}
+
+		function pickParent() {
+			if (!eliteParents || !elite.length || rng() < seedShare) return base;
+			return elite[Math.floor(rng() * elite.length)].board;
 		}
 
 		function shardOf(key) {
@@ -166,7 +195,7 @@ const MISGenerator = (function () {
 				prof.samples++;
 				workStates += WORK_PER_SAMPLE;
 				let t = now();
-				board = C.runTransform(model, program, base, frozen, rng);
+				board = C.runTransform(model, program, pickParent(), frozen, rng);
 				prof.transformMs += now() - t;
 				t = now();
 				const key = C.cellsKey(board.cells);
@@ -223,12 +252,13 @@ const MISGenerator = (function () {
 			if (retried) stats.timeout--;
 			if (r.refined) { prof.refineMs += ms; prof.refines++; } else prof.primarySolvedMs += ms;
 			prof.primaryExpandedSolved += r.expanded || 0;
+			if (eliteParents) addElite(r.effort, board);
 			if (r.effort >= gate || topEfforts.length < keepCount) {
-				admit(r.effort);
+				admit(r.effort, board);
 				prof.refineAdmitted++;
 				const primaryCost = workClock ? (r.expanded || 0) / WORK_STATES_PER_MS : (r.primaryMs || r.ms || ms);
 				budget = Math.min(maxBudget, Math.max(budget, Math.round(primaryCost * 7), 200));
-				if (!r.optimal && optimalCap > 0 && backend.solve) {
+				if (eagerProofs && !r.optimal && optimalCap > 0 && backend.solve) {
 					t = now();
 					const bfs = workClock
 						? backend.solve(board, { strategy: 'bfs', maxExpanded: optimalCap, timeMs: WORK_TIME_LIMIT_MS, deterministic: true })
@@ -263,7 +293,7 @@ const MISGenerator = (function () {
 				if (result.status !== 'solved') result = primary;
 			}
 			if (couldPlace && (topEfforts.length < keepCount || result.effort >= floor())) {
-				admit(result.effort);
+				admit(result.effort, board);
 				prof.refineAdmitted++;
 				budget = Math.min(maxBudget, Math.max(budget, Math.round((result.ms || primaryMs) * 7), 200));
 			}
@@ -278,6 +308,8 @@ const MISGenerator = (function () {
 			work: function () { return workStates / WORK_STATES_PER_MS; },
 			exhausted: function () { return streak > 3000; },
 			best: function () { return topEfforts.slice(); },
+			// Mean number of tiles the shortlist differs from the base level.
+			drift: function () { return topInfo.length ? topInfo.reduce(function (t, x) { return t + x.drift; }, 0) / topInfo.length : 0; },
 			arms: function () { return arms.map(function (a) { return { scale: a.scale, ms: Math.round(a.ms), reward: a.reward, pulls: a.pulls }; }); },
 		};
 	}
