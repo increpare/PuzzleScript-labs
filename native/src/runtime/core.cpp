@@ -11,6 +11,7 @@
 #include <map>
 #include <numeric>
 #include <sstream>
+#include <span>
 #include <thread>
 #include <unordered_map>
 
@@ -1550,14 +1551,16 @@ void deriveAggregateBindings(Game& game, Rule& rule) {
     }
 }
 
-int32_t tupleEntryBasePosition(const std::vector<int32_t>& rowMatch) {
+template<class Row>
+int32_t tupleEntryBasePosition(const Row& rowMatch) {
     return rowMatch.empty() ? -1 : rowMatch.front();
 }
 
+template<class Tuple>
 void captureAggregateBindingsForTuple(
     const FullState& session,
     const Rule& rule,
-    const std::vector<std::vector<int32_t>>& tuple,
+    const Tuple& tuple,
     int32_t delta,
     std::map<std::string, int32_t>& captures,
     const std::map<std::string, std::optional<PropertyCapture>>& propertyCaptures
@@ -1706,10 +1709,11 @@ bool propertyAliasMatchesSourceMovement(
     return (movementBits & sourceMovementMask) == sourceMovementMask;
 }
 
+template<class Tuple>
 void capturePropertyBindingsForTuple(
     const FullState& session,
     const Rule& rule,
-    const std::vector<std::vector<int32_t>>& tuple,
+    const Tuple& tuple,
     int32_t delta,
     std::map<std::string, std::optional<PropertyCapture>>& captures
 ) {
@@ -4715,7 +4719,11 @@ bool applyRowAt(
     bool captureBindings = true
 ) {
     if (captureBindings) {
-        const std::vector<std::vector<int32_t>> tuple = {std::vector<int32_t>{startIndex}};
+        // Binding capture only reads these positions. A stack tuple avoids the
+        // nested-vector allocations on every matching single-row rule, including
+        // rules with no captures. Keep both capture calls: clearing prior bindings
+        // and capturing before any replacement are part of the runtime semantics.
+        const std::array<std::array<int32_t, 1>, 1> tuple{{{startIndex}}};
         capturePropertyBindingsForTuple(session, rule, tuple, delta, session.scratch.propertyCaptures);
         captureAggregateBindingsForTuple(
             session,
@@ -4868,7 +4876,9 @@ bool applyEllipsisRowAt(FullState& session, const Rule& rule, const std::vector<
 
     const auto [dx, dy] = directionMaskToDelta(rule.direction);
     const int32_t delta = dx * currentLevelHeight(session) + dy;
-    const std::vector<std::vector<int32_t>> tuple = {positions};
+    // Borrow the collected ellipsis positions during capture instead of copying
+    // them into a heap-allocated tuple. Replacements still start after capture.
+    const std::array<std::span<const int32_t>, 1> tuple{std::span<const int32_t>(positions)};
     capturePropertyBindingsForTuple(session, rule, tuple, delta, session.scratch.propertyCaptures);
     captureAggregateBindingsForTuple(
         session,
@@ -5218,29 +5228,23 @@ RuleApplyOutcome tryApplySimpleRule(FullState& session, const Rule& rule, Comman
         }
     }
 
-    std::vector<RuleMatch> tuples(1);
-    for (const auto& matches : rowMatches) {
-        std::vector<RuleMatch> newTuples;
-        newTuples.reserve(tuples.size() * matches.size());
-        for (const auto& match : matches) {
-            for (const auto& tuple : tuples) {
-                RuleMatch newTuple = tuple;
-                newTuple.push_back(match);
-                newTuples.push_back(std::move(newTuple));
-            }
-        }
-        tuples = std::move(newTuples);
-    }
-
-    if (tuples.empty()) {
-        return {};
-    }
-
+    // Keep the original per-row match snapshots, but borrow one combination at
+    // a time. Materializing their Cartesian product copies nested vectors and
+    // uses memory proportional to the product of the row match counts. This
+    // cursor instead costs O(number of rows), without changing the work/order:
+    // row zero advances fastest, and replacements revalidate later tuples.
+    std::vector<size_t> matchIndices(rowMatches.size(), 0);
+    struct TupleView {
+        const std::vector<std::vector<RowMatch>>& rows;
+        const std::vector<size_t>& indices;
+        size_t size() const { return rows.size(); }
+        const RowMatch& operator[](size_t row) const { return rows[row][indices[row]]; }
+    } tuple{rowMatches, matchIndices};
     bool changed = false;
-    for (size_t tupleIndex = 0; tupleIndex < tuples.size(); ++tupleIndex) {
-        const auto& tuple = tuples[tupleIndex];
-        if (tupleIndex > 0) {
-            bool stillMatches = true;
+    bool firstTuple = true;
+    while (true) {
+        bool stillMatches = true;
+        if (!firstTuple) {
             for (size_t rowIndex = 0; rowIndex < rule.patterns.size(); ++rowIndex) {
                 const int32_t ellipsisCount = rowIndex < rule.ellipsisCount.size()
                     ? rule.ellipsisCount[rowIndex]
@@ -5250,32 +5254,38 @@ RuleApplyOutcome tryApplySimpleRule(FullState& session, const Rule& rule, Comman
                     break;
                 }
             }
-            if (!stillMatches) {
-                continue;
-            }
         }
-        capturePropertyBindingsForTuple(session, rule, tuple, delta, session.scratch.propertyCaptures);
-        captureAggregateBindingsForTuple(
-            session,
-            rule,
-            tuple,
-            delta,
-            session.scratch.aggregateCaptures,
-            session.scratch.propertyCaptures);
-        for (size_t rowIndex = 0; rowIndex < rule.patterns.size(); ++rowIndex) {
-            const int32_t ellipsisCount = rowIndex < rule.ellipsisCount.size()
-                ? rule.ellipsisCount[rowIndex]
-                : 0;
-            changed = applyRowMatchAt(
+        if (stillMatches) {
+            capturePropertyBindingsForTuple(session, rule, tuple, delta, session.scratch.propertyCaptures);
+            captureAggregateBindingsForTuple(
                 session,
                 rule,
-                rule.patterns[rowIndex],
-                ellipsisCount,
-                tuple[rowIndex],
+                tuple,
                 delta,
-                false
-            ) || changed;
+                session.scratch.aggregateCaptures,
+                session.scratch.propertyCaptures);
+            for (size_t rowIndex = 0; rowIndex < rule.patterns.size(); ++rowIndex) {
+                const int32_t ellipsisCount = rowIndex < rule.ellipsisCount.size()
+                    ? rule.ellipsisCount[rowIndex]
+                    : 0;
+                changed = applyRowMatchAt(
+                    session,
+                    rule,
+                    rule.patterns[rowIndex],
+                    ellipsisCount,
+                    tuple[rowIndex],
+                    delta,
+                    false
+                ) || changed;
+            }
         }
+        firstTuple = false;
+        size_t row = 0;
+        for (; row < rowMatches.size(); ++row) {
+            if (++matchIndices[row] < rowMatches[row].size()) break;
+            matchIndices[row] = 0;
+        }
+        if (row == rowMatches.size()) break;
     }
     // Mirror JS `Rule.prototype.tryApply`: queue commands after replacement attempts,
     // but still when the row matched (matches.length > 0 there).
