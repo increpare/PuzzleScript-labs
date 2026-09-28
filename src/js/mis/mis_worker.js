@@ -95,6 +95,11 @@ self.onmessage = function (e) {
 			}));
 			if (r.ok) r.board = { w: r.board.w, h: r.board.h, cells: Array.from(r.board.cells) };
 			reply({ type: 'simplified', id: msg.id, result: r });
+		} else if (msg.type === 'prove') {
+			// Shortest solution for a suggestion card (the generator leaves proofs
+			// to whoever shows the candidate).
+			const r = backend.solve(boardFrom(msg.board), Object.assign({ strategy: 'bfs' }, msg.opts));
+			reply({ type: 'proved', id: msg.id, result: { status: r.status, solution: r.status === 'solved' ? r.solution : null } });
 		} else if (msg.type === 'generate') {
 			generate(msg);
 		}

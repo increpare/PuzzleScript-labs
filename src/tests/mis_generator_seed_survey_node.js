@@ -183,7 +183,7 @@ if (!isMainThread) {
 				const st = gen.stats();
 				const top = gen.best();
 				const pr = gen.profile();
-				parentPort.postMessage({ id: job.id, ok: true, secs, baseEffort, baselineMs, trace: trace || undefined, top: top.slice(),
+				parentPort.postMessage({ id: job.id, ok: true, secs, baseEffort, baselineMs, trace: trace || undefined, top: top.slice(), drift: gen.drift ? gen.drift() : undefined,
 					seedPrimaryMs: baseline.status === 'solved' ? baseline.primaryMs : null,
 					budget: { candidates: job.candidates, minSeconds: job.minSeconds, maxSeconds: job.maxSeconds },
 					hitMax: judged() < job.candidates, solverBudgetMs: st.budgetMs, work: gen.work ? gen.work() / 1000 : undefined, hitWall,
