@@ -225,9 +225,15 @@ Quick set, timed, 4 variants side by side, run from commit a03cf88
   It helps on fast levels (3 s runs: +14% / +12%), where many rounds let
   difficulty build up. It hurts slightly on the slowest ones (15 s: −5% / −3%).
   The best level found is 3–7% less hard, and the shortlist drifts further
-  from the seed. It stays an option, off by default. Benchmark runs last
-  3–15 s, while a designer generates for minutes, so a longer-horizon run
-  would be the fair test for it.
+  from the seed. Benchmark runs last 3–15 s, while a designer generates for
+  minutes, so it got a longer-horizon test (below).
+- **At 4× the time** (`--time-scale 4`, move and walls transforms, 12–60 s
+  runs; `2026-09-28-mis-generator-elite-4x.json`), elite70 vs lazy:
+  **+13.1% [+6.2%, +21.2%], better**. Runs better / worse: 173 / 56. By speed:
+  +18% on fast levels, +15% on middle ones, +5% on the slowest. The best
+  level found is 9% harder. Drift is 4.3 vs 3.3 tiles. **It is now the default**
+  (`parents: 'elite'`, `seedShare` 0.7; `parents: 'seed'` for the old
+  behaviour).
 - Not built: rejecting hopeless candidates before solving. Unsolvable proofs
   are ~12% of generation time (they're cheap: ~120 states each), so the gain
   is capped low. A safe filter also needs per-game analysis of which objects

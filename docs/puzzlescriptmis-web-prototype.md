@@ -91,6 +91,9 @@ solve time and is capped at 20× it (at least 1 s, at most 5 s). It grows
 toward the solve times of admitted candidates, so slow candidates can't eat
 the run.
 
+Candidates are transformed from one of the best boards found so far, or 70%
+of the time from the level itself, so difficulty builds up over a session.
+
 Step size adapts automatically: a bandit scales every `choose` count by ⅛–2×
 toward whatever has been finding harder-than-current levels fastest. The meter
 shows the current choice.

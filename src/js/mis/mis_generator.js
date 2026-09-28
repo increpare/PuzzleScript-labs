@@ -56,11 +56,13 @@ const MISGenerator = (function () {
 		// admitted candidate here. They only set the displayed move count, never
 		// which candidates are kept, and took ~20% of generation time.
 		const eagerProofs = opts.proofs === 'eager';
-		// Parents: 'seed' (default) transforms the base level every time;
-		// 'elite' transforms one of the best boards found so far (the base with
-		// probability seedShare), so difficulty can build up over several steps.
-		const eliteParents = opts.parents === 'elite';
-		const seedShare = opts.seedShare !== undefined ? opts.seedShare : 0.3;
+		// Parents: 'elite' (default) transforms one of the best boards found so
+		// far, or the base level with probability seedShare, so difficulty can
+		// build up over several steps; 'seed' transforms the base every time.
+		// Benchmark at 4x the usual run time: +13.1% [+6.2, +21.2], best level
+		// +9%, shortlist ~1 tile further from the base (neutral on 3-15 s runs).
+		const eliteParents = opts.parents !== 'seed';
+		const seedShare = opts.seedShare !== undefined ? opts.seedShare : 0.7;
 		const eliteSize = opts.eliteSize || 16;
 		const elite = []; // { effort, board }, hardest first
 		// Optional sharding: only assess boards whose hash lands on this worker,
