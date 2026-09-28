@@ -84,8 +84,9 @@ generator from engine to product, and what changed as a result).
 `src/js/mis/mis_generator.js` is shared by the workers and
 `src/tests/mis_generator_profile_node.js`. For each candidate it runs one
 assessment: a primary search, plus the difficulty lanes only when the candidate
-could make the shortlist. Only admitted candidates get a shortest-length
-proof. Each candidate's solver budget starts at 7× the current level's own
+could make the shortlist. The generator doesn't prove shortest solutions: the
+app proves the suggestion cards on screen instead, on its background worker,
+and shows ≈ until then. Each candidate's solver budget starts at 7× the current level's own
 solve time and is capped at 20× it (at least 1 s, at most 5 s). It grows
 toward the solve times of admitted candidates, so slow candidates can't eat
 the run.

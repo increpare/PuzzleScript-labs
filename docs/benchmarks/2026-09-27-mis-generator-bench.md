@@ -204,6 +204,35 @@ dead ends sooner.
 
 Results: `2026-09-27-mis-generator-bench-validation.json`.
 
+## Lazy proofs and parents from the best finds (28 September)
+
+Quick set, timed, 4 variants side by side, run from commit a03cf88
+(`2026-09-28-mis-generator-lazy-elite.json`):
+
+| Variant vs eager (old behaviour) | Score | 95% CI | Candidates/s | Drift (tiles) |
+| --- | ---: | --- | ---: | ---: |
+| eager: BFS shortest-length proof for every admitted candidate | – | – | – | 3.4 |
+| **lazy**: no proofs in the generator (now the default) | **+14.7%** | +7.9% … +22.1% | +16% | 3.5 |
+| elite30: lazy + mutate from the best finds, seed 30% | +17.4% | +7.5% … +27.0% | +23% | 4.9 |
+| elite70: lazy + mutate from the best finds, seed 70% | +20.6% | +11.8% … +30.6% | +23% | 4.0 |
+
+- **Lazy proofs:** the proofs only set the move count on the cards, so
+  skipping them is pure throughput. The app now proves the cards on screen,
+  one at a time on its otherwise idle background worker. Cards show ≈ for a
+  few seconds, then the exact count.
+- **Parents from the best finds** (`parents: 'elite'`, `seedShare`) vs lazy
+  alone: +2.4% [−4.2%, +9.2%] and +5.1% [−3.0%, +14.8%], no significant change.
+  It helps on fast levels (3 s runs: +14% / +12%), where many rounds let
+  difficulty build up. It hurts slightly on the slowest ones (15 s: −5% / −3%).
+  The best level found is 3–7% less hard, and the shortlist drifts further
+  from the seed. It stays an option, off by default. Benchmark runs last
+  3–15 s, while a designer generates for minutes, so a longer-horizon run
+  would be the fair test for it.
+- Not built: rejecting hopeless candidates before solving. Unsolvable proofs
+  are ~12% of generation time (they're cheap: ~120 states each), so the gain
+  is capped low. A safe filter also needs per-game analysis of which objects
+  rules can create or destroy.
+
 ## Reproducing
 
 ```sh
