@@ -75,6 +75,14 @@ make mis_tests                     # core + native adapter checks
 make mis_backend_bench             # JS vs wasm solver comparison
 ```
 
+On Windows, `make mis_wasm` runs that script with MSYS2 or Git Bash (`/bin/bash`).
+Running the `.sh` file on its own follows `#!/usr/bin/env bash`, and Windows often
+resolves `bash` to the WSL app alias, which exits with `Bash/Service/E_UNEXPECTED`.
+Install [emsdk](https://emscripten.org/docs/getting_started/downloads.html), then
+`emsdk install latest` and `emsdk activate latest`. Source `emsdk_env.sh`, or
+clone the SDK to `%USERPROFILE%\emsdk` — the script sources that copy when
+`em++` is not already on `PATH`.
+
 Profiling and speed numbers: `docs/benchmarks/2026-09-27-mis-wasm-backend.md`
 (backends) and `docs/benchmarks/2026-09-27-mis-generator-profile.md` (the
 generator from engine to product, and what changed as a result).

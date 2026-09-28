@@ -1818,8 +1818,19 @@ solver_compact_parity: $(PUZZLESCRIPT_SOLVER)
 
 # PuzzleScript+MIS web prototype (src/mis.html). mis_wasm needs Emscripten on PATH
 # (source emsdk_env.sh); it rebuilds src/js/mis/wasm/mis_native.{js,wasm}.
+# On Windows, executing the .sh directly follows `#!/usr/bin/env bash`, and the
+# `bash` on PATH is often the WSL app alias (WindowsApps\bash.exe). That alias
+# exits with Bash/Service/E_UNEXPECTED before the script runs. Call MSYS2 or
+# Git Bash instead.
+ifeq ($(OS),Windows_NT)
+mis_wasm:
+	@if [ -x /bin/bash ]; then exec /bin/bash native/wasm/build_mis_wasm.sh; \
+	elif [ -x /usr/bin/bash ]; then exec /usr/bin/bash native/wasm/build_mis_wasm.sh; \
+	else echo "No usable bash. Install Git Bash or MSYS2; the WindowsApps bash alias cannot run this script." >&2; exit 1; fi
+else
 mis_wasm:
 	native/wasm/build_mis_wasm.sh
+endif
 
 mis_tests:
 	$(NODE) src/tests/mis_core_node.js
