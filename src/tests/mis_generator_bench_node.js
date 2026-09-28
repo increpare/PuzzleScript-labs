@@ -11,6 +11,8 @@
 //        [--variant NAME='{"src":"../ref/src","gen":{...},"slowdown":1.5}']... [--out bench_run.json]
 //   node src/tests/mis_generator_bench_node.js score bench_run.json [more_runs.json ...]
 //   node src/tests/mis_generator_bench_node.js calibrate survey.json    (writes benchSeconds into the manifest)
+//   node src/tests/mis_generator_bench_node.js corpus [--out corpus.txt]  (engine replay workload)
+//   node src/tests/mis_generator_bench_node.js replay corpus.txt [--cap 30000] [--passes N] [--wasm DIR]
 //
 // Levels: src/tests/mis_generator_bench_seeds.json (see
 // docs/benchmarks/2026-09-27-mis-generator-bench.md). Every (level, generator)
@@ -269,8 +271,85 @@ function score(results) {
 	}
 }
 
+/////////////////////////////////////////////////////////////////////
+// corpus: generator candidates as a replay workload for engine work
+/////////////////////////////////////////////////////////////////////
+
+// Writes "GAME <path>" / "ASSESS <name> <w> <h> <count> <ids...>" lines for
+// native/wasm/mis_wasm_bench_native.cpp: the seed level and the first
+// --per-generator candidates each of its generators assesses (work clock, so
+// the corpus is the same every time), for every --quick level.
+async function corpus() {
+	const manifest = JSON.parse(fs.readFileSync(MANIFEST, 'utf8'));
+	const per = +arg('--per-generator', 6);
+	const out = arg('--out', 'mis_candidate_corpus.txt');
+	const pool = makePool(+arg('--jobs', os.cpus().length));
+	const seeds = quickSet(manifest.seeds);
+	const jobs = [];
+	for (const s of seeds) {
+		for (const p of manifest.generators[s.game] || []) {
+			jobs.push(pool.run({ type: 'corpus', file: path.join(CORPUS, s.game), level: s.level, transform: p.text, seed: 11, max: per, workMs: 20000 }, 600000)
+				.then(m => ({ s, p, m })));
+		}
+	}
+	const results = await Promise.all(jobs);
+	pool.close();
+	const lines = [];
+	let n = 0, lastGame = null;
+	const seenBase = new Set();
+	for (const { s, p, m } of results.sort((a, b) => a.s.game.localeCompare(b.s.game) || a.s.level - b.s.level)) {
+		if (!m.ok) continue;
+		if (s.game !== lastGame) { lines.push('GAME ' + path.join(CORPUS, s.game)); lastGame = s.game; }
+		const tag = (s.game.replace(/\.txt$/, '') + '#' + s.level).replace(/\s+/g, '_');
+		const emit = (name, g) => { lines.push(`ASSESS ${name} ${g.w} ${g.h} ${g.ids.length} ${g.ids.join(' ')}`); n++; };
+		if (!seenBase.has(tag)) { seenBase.add(tag); emit(tag + '#seed', m.base); }
+		m.grids.forEach((g, i) => emit(`${tag}#${p.id}#${i}`, g));
+	}
+	fs.writeFileSync(out, lines.join('\n') + '\n');
+	console.log(`${n} boards from ${seeds.length} levels -> ${out}`);
+}
+
+// replay: the corpus through the WebAssembly build (the wasm counterpart of
+// native/wasm/mis_wasm_bench_native.cpp --passes): same assessment, same
+// checksum, time of the assessments only. --wasm DIR loads another build.
+async function replay() {
+	const wasmDir = path.resolve(arg('--wasm', path.join(srcDir, 'js/mis/wasm')));
+	const M = await require(path.join(wasmDir, 'mis_native.js'))();
+	const cap = +arg('--cap', 30000), passes = +arg('--passes', 1);
+	const lines = fs.readFileSync(args[1], 'utf8').split('\n');
+	const enc = new TextEncoder();
+	for (let pass = 0; pass < passes; pass++) {
+		let checksum = 14695981039346656037n, ms = 0, states = 0, boards = 0;
+		const mix = (v) => { checksum = ((checksum ^ BigInt.asUintN(64, BigInt(Math.trunc(v)))) * 1099511628211n) & 0xffffffffffffffffn; };
+		for (const line of lines) {
+			if (line.startsWith('GAME ')) {
+				const src = enc.encode(fs.readFileSync(line.slice(5), 'utf8'));
+				const ptr = M._malloc(src.length + 1);
+				M.HEAPU8.set(src, ptr);
+				M.HEAPU8[ptr + src.length] = 0;
+				if (!M._misw_compile(ptr, src.length)) console.error('compile failed: ' + line);
+				M._free(ptr);
+			} else if (line.startsWith('ASSESS ')) {
+				const f = line.split(' ');
+				const w = +f[2], h = +f[3], count = +f[4];
+				const g = M._misw_grid_buffer(count) >> 2;
+				for (let i = 0; i < count; i++) M.HEAP32[g + i] = +f[5 + i];
+				const t = performance.now();
+				const st = M._misw_assess(w, h, count, 600000, 1, 600000, 0, cap, 1);
+				ms += performance.now() - t;
+				[st, M._misw_result_expanded(), M._misw_result_greedy(), M._misw_result_weighted_astar(), M._misw_result_bfs(), M._misw_result_difficulty()].forEach(mix);
+				states += M._misw_result_expanded();
+				boards++;
+			}
+		}
+		console.log(`pass ${pass + 1}: ${boards} boards, ${states} primary states, ${ms.toFixed(1)} ms, checksum ${checksum.toString(16).padStart(16, '0')}`);
+	}
+}
+
 (async () => {
-	if (mode === 'calibrate') calibrate();
+	if (mode === 'replay') await replay();
+	else if (mode === 'calibrate') calibrate();
+	else if (mode === 'corpus') await corpus();
 	else if (mode === 'run') await run();
 	else if (mode === 'score') score(args.slice(1).filter(a => a.endsWith('.json')).map(f => JSON.parse(fs.readFileSync(f, 'utf8'))));
 	else {

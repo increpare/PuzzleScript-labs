@@ -4706,6 +4706,17 @@ bool rowStillMatchesAt(const FullState& session, const std::vector<Pattern>& row
     return true;
 }
 
+// Without property or aggregate bindings, capturing only clears the capture
+// maps; skip building the match tuple (two heap allocations per match).
+bool ruleHasCaptureBindings(const Rule& rule) {
+    return !rule.propertyBindings.empty() || !rule.aggregateBindings.empty();
+}
+
+void clearCaptureBindings(FullState& session) {
+    session.scratch.propertyCaptures.clear();
+    session.scratch.aggregateCaptures.clear();
+}
+
 bool applyRowAt(
     FullState& session,
     const Rule& rule,
@@ -4714,7 +4725,9 @@ bool applyRowAt(
     int32_t delta,
     bool captureBindings = true
 ) {
-    if (captureBindings) {
+    if (captureBindings && !ruleHasCaptureBindings(rule)) {
+        clearCaptureBindings(session);
+    } else if (captureBindings) {
         const std::vector<std::vector<int32_t>> tuple = {std::vector<int32_t>{startIndex}};
         capturePropertyBindingsForTuple(session, rule, tuple, delta, session.scratch.propertyCaptures);
         captureAggregateBindingsForTuple(
@@ -4868,15 +4881,19 @@ bool applyEllipsisRowAt(FullState& session, const Rule& rule, const std::vector<
 
     const auto [dx, dy] = directionMaskToDelta(rule.direction);
     const int32_t delta = dx * currentLevelHeight(session) + dy;
-    const std::vector<std::vector<int32_t>> tuple = {positions};
-    capturePropertyBindingsForTuple(session, rule, tuple, delta, session.scratch.propertyCaptures);
-    captureAggregateBindingsForTuple(
-        session,
-        rule,
-        tuple,
-        delta,
-        session.scratch.aggregateCaptures,
-        session.scratch.propertyCaptures);
+    if (!ruleHasCaptureBindings(rule)) {
+        clearCaptureBindings(session);
+    } else {
+        const std::vector<std::vector<int32_t>> tuple = {positions};
+        capturePropertyBindingsForTuple(session, rule, tuple, delta, session.scratch.propertyCaptures);
+        captureAggregateBindingsForTuple(
+            session,
+            rule,
+            tuple,
+            delta,
+            session.scratch.aggregateCaptures,
+            session.scratch.propertyCaptures);
+    }
 
     bool changed = false;
     int32_t positionIndex = 0;
@@ -6235,10 +6252,23 @@ void restoreSnapshot(FullState& session, const UndoSnapshot& snapshot, bool rest
     std::vector<UndoSnapshot> undoStack = std::move(session.meta.undoStack);
     session.meta = snapshot.meta;
     session.meta.undoStack = std::move(undoStack);
-    session.levelState.board = snapshot.levelState.board;
     if (restoreRandomState) {
         session.levelState.rng = snapshot.levelState.rng;
     }
+    // Turn-start snapshots carry no movements: restore the board incrementally
+    // (only the cells that differ, masks kept exact) instead of replacing it and
+    // rebuilding every mask. Most restores undo a turn that changed little or
+    // nothing. Falls back to the full rebuild when the caches aren't warm.
+    if (snapshot.liveMovements.empty()
+        && snapshot.rigidGroupIndexMasks.empty()
+        && snapshot.rigidMovementAppliedMasks.empty()
+        && retargetSessionBoard(session, snapshot.levelState.board.objects)) {
+        session.scratch.rigidGroupIndexMasks.assign(session.scratch.liveMovements.size(), 0);
+        session.scratch.rigidMovementAppliedMasks.assign(session.scratch.liveMovements.size(), 0);
+        session.meta.pendingAgain = false;
+        return;
+    }
+    session.levelState.board = snapshot.levelState.board;
     if (snapshot.liveMovements.empty()) {
         session.scratch.liveMovements.assign(static_cast<size_t>(currentLevelWidth(session) * currentLevelHeight(session) * session.game->strideMovement), 0);
         session.scratch.liveMovementsClean = true;
@@ -6287,6 +6317,16 @@ UndoSnapshot makeUndoSnapshot(const FullState& session) {
         {},
         {}
     };
+}
+
+// makeUndoSnapshot(session) into an existing snapshot, reusing its storage.
+void assignUndoSnapshot(UndoSnapshot& out, const FullState& session) {
+    out.meta = session.meta;
+    out.meta.undoStack.clear();
+    out.levelState = session.levelState;
+    out.liveMovements.clear();
+    out.rigidGroupIndexMasks.clear();
+    out.rigidMovementAppliedMasks.clear();
 }
 
 void pushUndoSnapshot(FullState& session) {
@@ -7425,9 +7465,24 @@ TurnResult executeTurn(FullState& session, int32_t directionMask, ExecuteTurnOpt
 
     std::optional<UndoSnapshot> localTurnStart;
     const UndoSnapshot* turnStartPtr = nullptr;
+    // Without an undo push, the turn-start snapshot only lives for this call.
+    // Reuse one per thread: copy-assigning into it keeps its buffers, where a
+    // fresh snapshot allocated and freed every vector, string and map in the
+    // game state on every turn. (A nested turn falls back to a fresh copy.)
+    static thread_local UndoSnapshot reusableTurnStart;
+    static thread_local bool reusableTurnStartInUse = false;
+    struct ReusableTurnStartGuard {
+        bool* flag = nullptr;
+        ~ReusableTurnStartGuard() { if (flag) *flag = false; }
+    } reusableTurnStartGuard;
     if (options.pushUndo) {
         pushUndoSnapshot(session);
         turnStartPtr = &session.meta.undoStack.back();
+    } else if (!reusableTurnStartInUse) {
+        reusableTurnStartInUse = true;
+        reusableTurnStartGuard.flag = &reusableTurnStartInUse;
+        assignUndoSnapshot(reusableTurnStart, session);
+        turnStartPtr = &reusableTurnStart;
     } else {
         localTurnStart = makeUndoSnapshot(session);
         turnStartPtr = &*localTurnStart;

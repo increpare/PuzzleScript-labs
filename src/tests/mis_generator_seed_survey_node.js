@@ -106,6 +106,21 @@ if (!isMainThread) {
 				parentPort.postMessage({ id: job.id, ok: true, presets: C.derivePresets(g.model).map(p => ({ id: p.id, label: p.label, text: p.text })) });
 				return;
 			}
+			if (job.type === 'corpus') {
+				// Candidate boards the generator assesses (work clock, so the corpus
+				// is reproducible), as native grids: a replay workload for engine work.
+				const base = lv.board;
+				const program = C.parseTransform(job.transform, g.model);
+				const grids = [];
+				const backend = {
+					solve: (b, o) => g.native.solve(b, o),
+					assess: (b, o) => { if (grids.length < job.max) grids.push(g.native.grid(b)); return g.native.assess(b, o); },
+				};
+				const gen = MISGenerator.create({ model: g.model, backend, program, base, seed: job.seed, keep: 8, workClock: true });
+				while (gen.work() < job.workMs && grids.length < job.max && !gen.exhausted()) gen.step();
+				parentPort.postMessage({ id: job.id, ok: true, base: g.native.grid(base), grids });
+				return;
+			}
 			if (job.type === 'survey') {
 				const base = lv.board;
 				const tb = Date.now();

@@ -28,10 +28,12 @@ const MISNative = (function () {
 
 		// JS engine board (column-major bitsets) -> native layer-cell grid
 		// (layer-major, row-major, -1 = empty).
+		let lastGridPtr = 0;
 		function writeGrid(board) {
 			const layers = model.layerCount, w = board.w, h = board.h, stride = model.stride;
 			const count = layers * w * h;
 			const ptr = M._misw_grid_buffer(count) >> 2;
+			lastGridPtr = ptr;
 			const heap = M.HEAP32;
 			for (let l = 0; l < layers; l++) {
 				const ids = model.layerObjects[l];
@@ -75,6 +77,12 @@ const MISNative = (function () {
 
 		return {
 			backend: 'native',
+
+			// The native layer-cell grid for a board (for replay corpora).
+			grid: function (board) {
+				const count = writeGrid(board); // (misw_grid_buffer would clear it again)
+				return { w: board.w, h: board.h, ids: Array.from(M.HEAP32.subarray(lastGridPtr, lastGridPtr + count)) };
+			},
 
 			// Compile `sourceText` natively and check it agrees with the JS model.
 			attach: function (sourceText, jsModel) {

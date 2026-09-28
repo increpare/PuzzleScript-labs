@@ -6,9 +6,11 @@
 #include <unordered_set>
 
 namespace puzzlescript {
-namespace {
 
 std::atomic<bool> gLocalitySurveyEnabled{false};
+
+namespace {
+
 std::atomic<uint64_t> gMaskArenaAccesses{0};
 std::mutex gUniqueCacheLineMutex;
 std::unordered_set<uintptr_t> gUniqueCacheLines;
@@ -33,10 +35,7 @@ void resetLocalitySurvey() {
     gUniqueCacheLines.clear();
 }
 
-void recordMaskArenaAccess(const void* ptr) {
-    if (ptr == nullptr || !localitySurveyEnabled()) {
-        return;
-    }
+void recordMaskArenaAccessSlow(const void* ptr) {
     gMaskArenaAccesses.fetch_add(1, std::memory_order_relaxed);
     const uintptr_t line = cacheLineKey(ptr);
     std::lock_guard<std::mutex> lock(gUniqueCacheLineMutex);

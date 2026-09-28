@@ -2254,6 +2254,14 @@ bool solvedByStep(const ps_step_result& stepResult, const FullState& session, in
     return stepResult.won || session.meta.currentLevelIndex != levelIndex;
 }
 
+// Visited-table size to start a search with. Zeroing a table sized for 16k
+// states cost more than whole small searches (the MIS generator runs many of
+// ~100 states), so start from the search's state cap when it has one and let
+// the table grow otherwise. The size never changes which states are found.
+size_t initialVisitedReserve(uint64_t maxExpanded) {
+    return maxExpanded > 0 ? static_cast<size_t>(std::min<uint64_t>(maxExpanded + 1, 16384)) : 1024;
+}
+
 class FlatBestDepth {
 public:
     FlatBestDepth(
@@ -2590,7 +2598,7 @@ Result runSearch(
     nodes.reserve(8192);
 
     FlatBestDepth bestDepth(result.timing, exactStateKeys, ignoredObjectBits);
-    bestDepth.reserve(16384);
+    bestDepth.reserve(initialVisitedReserve(maxExpanded));
     result.uniqueStates = 1;
 
     PersistentLevelState initialState = persistentLevelStateWithTiming(*initial, result.timing);
@@ -2923,7 +2931,7 @@ Result runAdaptivePortfolioSearch(
     expanded.reserve(8192);
 
     FlatBestDepth bestDepth(result.timing, exactStateKeys, ignoredObjectBits);
-    bestDepth.reserve(16384);
+    bestDepth.reserve(initialVisitedReserve(control.maxExpanded));
     result.uniqueStates = 1;
 
     PersistentLevelState initialState = persistentLevelStateWithTiming(*initial, result.timing);
