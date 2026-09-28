@@ -239,6 +239,45 @@ Quick set, timed, 4 variants side by side, run from commit a03cf88
   is capped low. A safe filter also needs per-game analysis of which objects
   rules can create or destroy.
 
+## Engine speed (28 September)
+
+Replay workload: `node src/tests/mis_generator_bench_node.js corpus` records
+the candidates the generator assesses on every quick-set level (work clock,
+so the corpus is the same every time). The x86 driver
+(`native/wasm/mis_wasm_bench_native.cpp --passes N`) and the wasm replay
+(`… replay corpus.txt`) run them through the generator's assessment call in
+deterministic mode and checksum every result. Raw corpus time is dominated by
+a few pathological games. *match three billiards* alone is 31% of it, at up to
+~8 ms per state, because its balls roll through repeated rule passes. So the
+profile uses a balanced subset: ~36 ms of work per game, 317 boards from
+93 games.
+
+Callgrind on the balanced subset, instructions 38.84G → **34.23G (−11.9%)**,
+result checksum unchanged:
+
+| Change | Instructions |
+| --- | ---: |
+| Visited table sized from the search's state cap (it was zeroing ~1 MB for 16k states on every search) | −3.3% (with the next row) |
+| Locality-survey hook: inline flag check instead of a call per mask access | (above) |
+| No per-match tuple allocation for rules without property/aggregate bindings | −4.8% |
+| Turn-start snapshot reused per thread instead of a fresh copy of the game state every turn | −1.7% |
+| `restoreSnapshot` restores turn-start boards incrementally instead of rebuilding every mask | −2.5% |
+
+- **Wasm:** replay 4.70 s → 3.94 s (−16%), same checksum.
+- **Engine tests:** the native simulation corpus passes 470/470.
+- **Generator benchmark** (`make mis_generator_bench MIS_BENCH_REF=e6c7bfd`,
+  quick set): **+7.9% [+2.2%, +13.5%], better**; candidates/s +10%.
+
+Remaining profile, by share of instructions:
+
+| Area | Share |
+| --- | ---: |
+| Rule matching (`collectRowMatchesInto`, row preconditions, `rowStillMatchesAt`) | ~21% |
+| `rebuildMasks` | 10% |
+| `executeTurn` itself, mostly copying the game state for the turn-start snapshot | 10% |
+| Movement-state clearing (memset) | 3.5% |
+| Remaining allocation | ~5% |
+
 ## Reproducing
 
 ```sh
