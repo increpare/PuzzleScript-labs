@@ -7,6 +7,7 @@
 // same time.
 //
 //   node src/tests/mis_generator_bench_node.js run [--quick] [--work] [--repeats 1] [--jobs N] [--game SUBSTRING]
+//        [--generator REGEX] [--time-scale K]
 //        [--variant NAME='{"src":"../ref/src","gen":{...},"slowdown":1.5}']... [--out bench_run.json]
 //   node src/tests/mis_generator_bench_node.js score bench_run.json [more_runs.json ...]
 //   node src/tests/mis_generator_bench_node.js calibrate survey.json    (writes benchSeconds into the manifest)
@@ -135,6 +136,11 @@ async function run() {
 	const only = arg('--game', null);
 	if (only) seeds = seeds.filter(s => s.game.includes(only));
 	if (!seeds.length) throw new Error('no benchmark levels selected');
+	// --time-scale K: K times each level's frozen time (longer horizons, e.g.
+	// for search strategies that build up over many rounds).
+	const timeScale = +arg('--time-scale', 1);
+	const genFilter = arg('--generator', null) ? new RegExp(arg('--generator', null)) : null;
+	const secondsOf = s => s.benchSeconds * timeScale;
 	const perVariant = Math.max(1, Math.floor(jobs / variants.length));
 	const pools = variants.map(v => makePool(perVariant, v.src ? { srcDir: v.src } : null));
 	for (const v of variants) v.commit = gitInfo(v.src || srcDir);
@@ -142,10 +148,10 @@ async function run() {
 	const tasks = [];
 	for (let rep = 0; rep < repeats; rep++) {
 		for (const s of seeds) {
-			for (const p of manifest.generators[s.game] || []) tasks.push({ s, p, rep });
+			for (const p of manifest.generators[s.game] || []) if (!genFilter || genFilter.test(p.id)) tasks.push({ s, p, rep });
 		}
 	}
-	const threadSeconds = tasks.reduce((t, x) => t + x.s.benchSeconds, 0);
+	const threadSeconds = tasks.reduce((t, x) => t + secondsOf(x.s), 0);
 	process.stderr.write(`${tasks.length} runs x ${variants.length} variant(s) [${variants.map(v => v.name).join(', ')}], ` +
 		`${perVariant} thread(s) each: ~${Math.round(threadSeconds / perVariant / 60)} min\n`);
 	let done = 0;
@@ -158,13 +164,13 @@ async function run() {
 			const slow = v.slowdown > 1 ? v.slowdown : 1;
 			promises.push(pools[vi].run({
 				type: 'survey', file: path.join(CORPUS, s.game), level: s.level, transform: p.text,
-				candidates: 0, minSeconds: s.benchSeconds, maxSeconds: s.benchSeconds, seed: 11 + rep,
+				candidates: 0, minSeconds: secondsOf(s), maxSeconds: secondsOf(s), seed: 11 + rep,
 				genOpts: v.gen || null, slowdown: slow, workClock: work,
-			}, ((work ? 10 : 1) * s.benchSeconds + 60) * 1000 * slow).then((m) => {
+			}, ((work ? 10 : 1) * secondsOf(s) + 60) * 1000 * slow).then((m) => {
 				done++;
 				if (done % 50 === 0 || done === total) process.stderr.write(`  ${done}/${total}\n`);
 				rows.push({
-					variant: v.name, game: s.game, level: s.level, generator: p.id, rep, seconds: s.benchSeconds,
+					variant: v.name, game: s.game, level: s.level, generator: p.id, rep, seconds: secondsOf(s),
 					ok: !!m.ok, hung: !!m.hung, reason: m.ok ? undefined : m.reason,
 					secs: m.secs, work: m.work, hitWall: m.hitWall || undefined, baseEffort: m.baseEffort, top: m.top, drift: m.drift, assessed: m.assessed, timeouts: m.timeouts,
 					harder: m.harder, newSolvable: m.newSolvable, solvedPct: m.solvedPct,
@@ -176,7 +182,7 @@ async function run() {
 	pools.forEach(p => p.close());
 	const result = {
 		schema_version: 1, kind: 'mis_generator_bench_run', generated_at: new Date().toISOString(),
-		manifest: path.relative(process.cwd(), MANIFEST), quick, repeats, jobs, clock: work ? 'work' : 'time',
+		manifest: path.relative(process.cwd(), MANIFEST), quick, repeats, jobs, time_scale: timeScale, generator_filter: genFilter ? genFilter.source : undefined, clock: work ? 'work' : 'time',
 		machine: { cpus: os.cpus().length, model: (os.cpus()[0] || {}).model, node: process.version },
 		variants, rows,
 	};
