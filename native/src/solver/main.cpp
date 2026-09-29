@@ -1869,6 +1869,36 @@ struct SolverEdgeStep {
     ps_step_result stepResult{};
     bool oracleMismatch = false;
     std::string oracleError;
+    // The turn was interrupted (TurnInterruptScope): the search must stop.
+    bool interrupted = false;
+};
+
+// While a search runs, lets the rule engine abandon a turn once the search
+// should stop (deadline or cancel) instead of finishing it: some turns run
+// for seconds. The search would report that stop anyway after the turn, so
+// results only change in arriving on time. Per thread; nests.
+struct TurnInterruptScope {
+    const SearchControl& control;
+    TimePoint deadline;
+    const std::atomic_bool* cancelRequested;
+    const char* reason = nullptr;
+    TurnInterruptScope(const SearchControl& searchControl, TimePoint searchDeadline, const std::atomic_bool* cancel = nullptr)
+        : control(searchControl), deadline(searchDeadline), cancelRequested(cancel) {
+        puzzlescript::setTurnInterrupt(&check, this);
+    }
+    ~TurnInterruptScope() { puzzlescript::setTurnInterrupt(nullptr, nullptr); }
+    TurnInterruptScope(const TurnInterruptScope&) = delete;
+    TurnInterruptScope& operator=(const TurnInterruptScope&) = delete;
+    static bool check(void* context) {
+        auto* scope = static_cast<TurnInterruptScope*>(context);
+        if (scope->cancelRequested && scope->cancelRequested->load(std::memory_order_relaxed)) {
+            scope->reason = "cancelled";
+        } else {
+            scope->reason = scope->control.stopReason(scope->deadline);
+        }
+        return scope->reason != nullptr;
+    }
+    const char* stopStatus() const { return reason ? reason : "timeout"; }
 };
 
 bool equivalentSolverStepResult(const ps_step_result& lhs, const ps_step_result& rhs) {
@@ -1952,7 +1982,7 @@ void prepareCompactTurnScratchForParent(puzzlescript::Scratch& scratch) {
     scratch.objectCellIndexDirty = true;
 }
 
-SolverEdgeStep stepSolverEdge(
+SolverEdgeStep stepSolverEdgeUninterrupted(
     const std::shared_ptr<const Game>& game,
     const PersistentLevelState& parentState,
     uint32_t parentDepth,
@@ -2106,6 +2136,19 @@ SolverEdgeStep stepSolverEdge(
         edge.stepResult = puzzlescript::turn(*edge.child, input, solverStepOptions);
     }
     return edge;
+}
+
+// stepSolverEdgeUninterrupted, with an interrupted turn (TurnInterruptScope)
+// reported as edge.interrupted.
+template <typename... Args>
+SolverEdgeStep stepSolverEdge(Args&&... args) {
+    try {
+        return stepSolverEdgeUninterrupted(std::forward<Args>(args)...);
+    } catch (const puzzlescript::TurnInterrupted&) {
+        SolverEdgeStep edge;
+        edge.interrupted = true;
+        return edge;
+    }
 }
 
 #ifndef PUZZLESCRIPT_SOLVER_C_API
@@ -2657,6 +2700,7 @@ Result runSearch(
         return control.stopReason(deadline);
     };
 
+    TurnInterruptScope turnInterrupt(control, deadline, cancelRequested);
     while (!frontier.empty()) {
         const char* reason = nullptr;
         {
@@ -2740,6 +2784,10 @@ Result runSearch(
                 compactTurnOracle,
                 compactTurnSearch
             );
+            if (edge.interrupted) {
+                result.status = turnInterrupt.stopStatus();
+                return result;
+            }
             if (edge.oracleMismatch) {
                 result.status = "level_error";
                 result.error = edge.oracleError;
@@ -3047,6 +3095,7 @@ Result runAdaptivePortfolioSearch(
         return false;
     };
 
+    TurnInterruptScope turnInterrupt(control, deadline);
     while (totalFrontier > 0) {
         const char* stop = nullptr;
         {
@@ -3157,6 +3206,10 @@ Result runAdaptivePortfolioSearch(
                 compactTurnOracle,
                 compactTurnSearch
             );
+            if (edge.interrupted) {
+                result.status = turnInterrupt.stopStatus();
+                return result;
+            }
             if (edge.oracleMismatch) {
                 result.status = "level_error";
                 result.error = edge.oracleError;

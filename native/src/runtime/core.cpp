@@ -5714,6 +5714,19 @@ std::optional<int32_t> lookupLoopPoint(const LoopPointTable& loopPoint, int32_t 
     return loopPoint.entries[static_cast<size_t>(index)];
 }
 
+thread_local TurnInterruptCheck tlTurnInterruptCheck = nullptr;
+thread_local void* tlTurnInterruptContext = nullptr;
+
+// Between rule groups (every 16th): throws TurnInterrupted when the installed
+// check says stop (see setTurnInterrupt).
+thread_local uint32_t tlTurnInterruptPolls = 0;
+inline void pollTurnInterrupt() {
+    if (tlTurnInterruptCheck != nullptr && (++tlTurnInterruptPolls & 15u) == 0
+        && tlTurnInterruptCheck(tlTurnInterruptContext)) {
+        throw TurnInterrupted{};
+    }
+}
+
 bool applyRuleGroups(
     FullState& session,
     const std::vector<std::vector<Rule>>& groups,
@@ -5728,6 +5741,7 @@ bool applyRuleGroups(
     int32_t groupIndex = 0;
     const int32_t groupCount = static_cast<int32_t>(groups.size());
     while (groupIndex < groupCount) {
+        pollTurnInterrupt();
         bool groupChanged = false;
         if (bannedGroups == nullptr
             || static_cast<size_t>(groupIndex) >= bannedGroups->size()
@@ -6606,6 +6620,11 @@ void transposeCellMajorToObjectMajor(
 
 void setPersistentBoardObjectsFromCellMajor(FullState& session, const MaskVector& objects) {
     session.levelState.board.objects = objects;
+}
+
+void setTurnInterrupt(TurnInterruptCheck check, void* context) {
+    tlTurnInterruptCheck = check;
+    tlTurnInterruptContext = context;
 }
 
 bool retargetSessionBoard(FullState& session, const MaskVector& objects) {

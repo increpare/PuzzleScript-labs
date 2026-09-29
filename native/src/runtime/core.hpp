@@ -764,6 +764,16 @@ void setPersistentBoardObjectsFromCellMajor(FullState& session, const MaskVector
 bool retargetSessionBoard(FullState& session, const MaskVector& objects);
 void clearPersistentBoardObjects(FullState& session);
 
+// Cooperative interruption of a turn in progress. A single turn can run for
+// seconds (long `again` chains, rule groups looping); a solver past its
+// deadline installs a check here, the rule engine polls it between rule
+// groups, and a true result throws TurnInterrupted out of the turn. The
+// session is then mid-turn and must be discarded or fully reset. Per thread;
+// setTurnInterrupt(nullptr, nullptr) removes it (the default).
+struct TurnInterrupted {};
+using TurnInterruptCheck = bool (*)(void* context);
+void setTurnInterrupt(TurnInterruptCheck check, void* context);
+
 struct CompileResult {
     LoadedGame loadedGame;
     std::unique_ptr<Error> error;
