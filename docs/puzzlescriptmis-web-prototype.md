@@ -31,7 +31,7 @@ The page opens with the last autosaved session, or the Sokoban demo. Use
 | Play | Playtest in place (arrows/WASD, X, Z, R). |
 | Level strip | Thumbnails with a solvability chip for every level, solved in the background. Editing rules re-checks them all, so broken levels show immediately. |
 | Status | Solvable, unsolvable or unknown; move count (proven shortest when BFS finishes, otherwise `≈`); effort bar. **Watch solution** animates it. **Blind mode** hides all of this until you reveal it. |
-| Transformer | Starting points are derived from the game itself: shuffle the movers found in RULES, add/remove wall-like objects, swap pairs from `all X on Y`, backward design, or a mix. **Peek** shows one unsolved sample instantly. |
+| Transformer | Starting points are derived from the game itself: shuffle the movers found in RULES, add/remove wall-like objects, swap pairs from `all X on Y`, backward design, or a mix. **Auto** (the default when there are several) hands all of them to the generator, which favours whichever is finding harder levels on this level; the meter shows which. **Peek** shows one unsolved sample instantly. |
 | Suggestions | Ranked by hardest, hardest + diverse, longest, or hard with few pieces. Hover to preview (changed tiles outlined), ▶ to watch, 📌 to pin, click to adopt. *Continue from pick* hill-climbs from each adopted suggestion. |
 | Throughput | Candidates tried and rate; solved/unsolvable/timeout split; repeat rate; **harder than current per minute** (the thesis's usefulness measure); current solver budget; warnings when the transform runs dry or finds nothing solvable. |
 | History | Each level has a branching history: go back to any step, and new edits branch from there. |

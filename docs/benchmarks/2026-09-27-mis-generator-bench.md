@@ -295,6 +295,29 @@ once the search has to stop anyway.
 - **Unchanged:** replay checksums (x86 and wasm) and the native simulation
   corpus (470/470).
 
+## Auto mode: the generator picks the transform (29 September)
+
+Games have several derived transforms (move, walls, pair, backward, no, mix),
+and which one works depends on the level. In Auto mode, now the app's default
+when a game has more than one, the step-size bandit becomes two-level. It picks
+the transform by harder-than-base finds per second of work, then that
+transform's step size.
+
+The quick set, one Auto run per level with the time a single transform
+gets, compared with each transform run separately
+(`2026-09-29-mis-generator-auto.json`, commit a2eaf3c):
+
+| Auto vs | Score | 95% CI |
+| --- | ---: | --- |
+| the average single transform (picking at random) | **+73.1%** | +47.7% … +105.0% |
+| the first preset, *Shuffle movers* (the old default) | +19.7% | −0.7% … +46.1% |
+| the best transform per level in hindsight (an oracle, biased up by taking a max over ~6 noisy runs) | −38.4% | −47.3% … −28.7% |
+
+- **Favoured transforms:** on 36 levels Auto spent most of its time on walls,
+  on 23 move, on 13 each mix and backward.
+- **Drift:** its shortlist drifts slightly further from the seed (5.0 vs 4.1
+  tiles).
+
 ## Reproducing
 
 ```sh
