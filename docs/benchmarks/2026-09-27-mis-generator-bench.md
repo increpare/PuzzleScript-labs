@@ -305,7 +305,7 @@ transform's step size.
 
 The quick set, one Auto run per level with the time a single transform
 gets, compared with each transform run separately
-(`2026-09-29-mis-generator-auto.json`, commit a2eaf3c):
+(`2026-09-29-mis-generator-auto.json`, commit c59bb9a):
 
 | Auto vs | Score | 95% CI |
 | --- | ---: | --- |
