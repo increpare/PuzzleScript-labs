@@ -131,9 +131,12 @@ if (!isMainThread) {
 					: g.native.assess(base, { timeMs: 3000, maxExpanded: 400000, refineGate: 0 });
 				const baselineMs = Date.now() - tb;
 				const baseEffort = baseline.status === 'solved' ? baseline.effort : 0;
-				const program = C.parseTransform(job.transform, g.model);
-				if (program.errors.length || !program.statements.length) {
-					parentPort.postMessage({ id: job.id, ok: false, reason: 'transform error: ' + (program.errors[0] ? program.errors[0].message : 'empty') });
+				// job.transforms ({ id, text }): Auto mode, the generator picks among them.
+				const programs = job.transforms ? job.transforms.map(t => ({ id: t.id, program: C.parseTransform(t.text, g.model) }))
+					.filter(t => !t.program.errors.length && t.program.statements.length) : null;
+				const program = programs ? (programs[0] || {}).program : C.parseTransform(job.transform, g.model);
+				if (!program || program.errors.length || !program.statements.length) {
+					parentPort.postMessage({ id: job.id, ok: false, reason: 'transform error: ' + (program && program.errors[0] ? program.errors[0].message : 'empty') });
 					return;
 				}
 				// --trace: one entry per candidate assessment: [board index (repeats are
@@ -159,7 +162,7 @@ if (!isMainThread) {
 						return r;
 					},
 				};
-				const gen = MISGenerator.create({ model: g.model, backend, program, base, seed: job.seed, keep: 8, baseEffort,
+				const gen = MISGenerator.create({ model: g.model, backend, program, programs: programs && programs.length > 1 ? programs : undefined, base, seed: job.seed, keep: 8, baseEffort,
 					// The seed's solve time, for the generator's seed-relative budget
 					// (the generator under test decides whether to use it).
 					seedPrimaryMs: baseline.status === 'solved'
@@ -198,7 +201,7 @@ if (!isMainThread) {
 				const st = gen.stats();
 				const top = gen.best();
 				const pr = gen.profile();
-				parentPort.postMessage({ id: job.id, ok: true, secs, baseEffort, baselineMs, trace: trace || undefined, top: top.slice(), drift: gen.drift ? gen.drift() : undefined,
+				parentPort.postMessage({ id: job.id, ok: true, secs, baseEffort, baselineMs, trace: trace || undefined, top: top.slice(), drift: gen.drift ? gen.drift() : undefined, transforms: gen.transforms ? gen.transforms() : undefined,
 					seedPrimaryMs: baseline.status === 'solved' ? baseline.primaryMs : null,
 					budget: { candidates: job.candidates, minSeconds: job.minSeconds, maxSeconds: job.maxSeconds },
 					hitMax: judged() < job.candidates, solverBudgetMs: st.budgetMs, work: gen.work ? gen.work() / 1000 : undefined, hitWall,

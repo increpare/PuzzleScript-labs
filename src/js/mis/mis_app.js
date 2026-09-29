@@ -961,12 +961,31 @@
 	// Transform editor & presets
 	/////////////////////////////////////////////////////////////////////
 
+	// Auto mode: the generator gets every preset and spends its time on
+	// whichever finds harder levels on this level. It is written into the
+	// transform editor as this text, so it survives save/reload and editing it
+	// turns Auto off.
+	const AUTO_HEADER = '(Auto: the generator tries each transform below and favours whichever finds harder levels here. Edit to write your own.)';
+	function autoText(presets) {
+		return AUTO_HEADER + '\n\n' + presets.map(function (p) { return '(' + p.label.replace(/[()]/g, '') + ')\n' + p.text.trim(); }).join('\n\n');
+	}
+	function isAuto() { return app.presetId === 'auto'; }
+	function presetIdForText(text) {
+		const presets = app.presets || [];
+		if (presets.length > 1 && text === autoText(presets)) return 'auto';
+		const p = presets.find(function (x) { return x.id === app.presetId && x.text === text; }) || presets.find(function (x) { return x.text === text; });
+		return p ? p.id : null;
+	}
+
 	function buildPresets() {
 		const el = $('presets');
 		el.innerHTML = '';
 		const presets = C.derivePresets(app.model);
 		app.presets = presets;
-		presets.forEach(function (p) {
+		const buttons = presets.length > 1
+			? [{ id: 'auto', label: 'Auto', hint: 'Try every transform below and favour whichever finds harder levels on this level.', text: autoText(presets) }].concat(presets)
+			: presets;
+		buttons.forEach(function (p) {
 			const b = document.createElement('button');
 			b.textContent = p.label;
 			b.title = p.hint;
@@ -982,10 +1001,12 @@
 		});
 		if (!presets.length) el.innerHTML = '<span class="faint">No obvious starting points for this game — write a transform below (see Help).</span>';
 		if (!app.transform.trim() && presets.length) {
-			app.presetId = presets[0].id;
-			setTransformText(presets[0].text, true);
-			$('preset-hint').textContent = presets[0].hint;
+			const first = buttons[0];
+			app.presetId = first.id;
+			setTransformText(first.text, true);
+			$('preset-hint').textContent = first.hint;
 		} else {
+			app.presetId = presetIdForText(app.transform);
 			validateTransform();
 		}
 		markPresets();
@@ -1002,7 +1023,7 @@
 			transformCM.setValue(text);
 			suppressTransformChange = false;
 		}
-		if (!fromPreset) { app.presetId = (app.presets || []).some(function (p) { return p.id === app.presetId && p.text === text; }) ? app.presetId : null; markPresets(); }
+		if (!fromPreset) { app.presetId = presetIdForText(text); markPresets(); }
 		validateTransform();
 		autosave();
 		if (app.gen && app.gen.running) {
@@ -1017,6 +1038,13 @@
 		transformMarks.forEach(function (l) { transformCM.removeLineClass(l, 'background', 'err-line'); });
 		transformMarks = [];
 		if (!app.model) { diag.innerHTML = ''; return null; }
+		if (isAuto()) {
+			const n = autoPrograms().length;
+			diag.innerHTML = n ? '<div class="ok">✓ Auto: ' + n + ' transforms</div>' : '<div class="faint">No usable transforms.</div>';
+			$('gen-btn').disabled = !n;
+			$('peek-btn').disabled = !n;
+			return n ? autoPrograms()[0].program : { errors: [], statements: [] };
+		}
 		const prog = C.parseTransform(app.transform, app.model);
 		if (prog.errors.length) {
 			diag.innerHTML = prog.errors.map(function (e) { return '<div class="err" data-line="' + e.line + '">line ' + (e.line + 1) + ': ' + escapeHtml(e.message) + '</div>'; }).join('');
@@ -1032,9 +1060,18 @@
 		return prog;
 	}
 
+	function autoPrograms() {
+		return (app.presets || []).map(function (p) { return { id: p.id, text: p.text, program: C.parseTransform(p.text, app.model) }; })
+			.filter(function (p) { return !p.program.errors.length && p.program.statements.length; });
+	}
+
 	let peekRng = C.makeRng(Date.now());
 	function peekSample() {
-		const prog = validateTransform();
+		let prog = validateTransform();
+		if (isAuto()) {
+			const all = autoPrograms();
+			if (all.length) prog = all[Math.floor(peekRng() * all.length)].program;
+		}
 		if (!prog || !prog.statements.length || !app.board) return;
 		let b = null;
 		for (let i = 0; i < 12; i++) {
@@ -1058,7 +1095,7 @@
 		const session = {
 			running: true, workers: [], stats: [], started: Date.now(),
 			base: C.cloneBoard(app.board), baseKey: C.cellsKey(app.board.cells), levelIndex: app.levelIndex,
-			exhausted: [], arms: [], interesting: 0, seen: new Set(), timeline: [],
+			exhausted: [], arms: [], transforms: [], interesting: 0, seen: new Set(), timeline: [],
 		};
 		app.gen = session;
 		// Keep suggestions that still belong to this starting board; drop the rest.
@@ -1072,13 +1109,14 @@
 				h.w.postMessage({
 					type: 'generate', base: packBoard(session.base), frozen: Array.from(app.locks[app.levelIndex] || []),
 					transform: app.transform, seed: (Date.now() + i * 7919) >>> 0, keep: SHOWN_CARDS,
+					transforms: isAuto() ? autoPrograms().map(function (p) { return { id: p.id, text: p.text }; }) : undefined,
 					baseEffort: currentResult && currentResult.status === 'solved' ? currentResult.effort : undefined,
 				});
 			};
 			h.onMessage = (function (idx) {
 				return function (m) {
 					if (app.gen !== session) return;
-					if (m.type === 'stats') { session.stats[idx] = m.stats; session.arms[idx] = m.arms; session.exhausted[idx] = m.exhausted; scheduleMeter(); }
+					if (m.type === 'stats') { session.stats[idx] = m.stats; session.arms[idx] = m.arms; session.transforms[idx] = m.transforms; session.exhausted[idx] = m.exhausted; scheduleMeter(); }
 					else if (m.type === 'candidate') addCandidate(session, unpackBoard(m.board), m.result);
 					else if (m.type === 'genError') { toast(m.message, true); stopGeneration(); }
 				};
@@ -1167,12 +1205,27 @@
 			'<span title="Samples that repeated one already seen, or changed nothing">repeats ' + (100 * repeatFrac).toFixed(0) + '%</span>' +
 			'<span class="interesting" title="Suggestions the solver rates harder than your current level, per minute (the MIS thesis\'s usefulness measure)"><b>' + s.interesting + '</b> harder than current · <b>' + perMin.toFixed(1) + '</b>/min</span>' +
 			'<span title="Per-candidate solver time budget; grows as harder levels turn up">budget ' + (t.budgetMs / 1000).toFixed(1) + 's</span>' +
-			stepSizeLabel(s) +
+			stepSizeLabel(s) + favouredTransformLabel(s) +
 			(dry ? '<span class="dry">⚠ running dry — thousands of repeats in a row; this transform has shown you most of what it can do here. Unlock tiles or loosen it.</span>' : '') +
 			(running && tried > 40 && t.solved === 0 ? '<span class="dry">⚠ nothing solvable yet — try a gentler transform or a smaller level.</span>' : '') +
 			(!running ? '<span class="faint">stopped</span>' : '');
 	}
 	setInterval(function () { if (app.gen && app.gen.running) updateMeter(); }, 1000);
+
+	// Auto mode: which transform the workers currently favour (by time spent).
+	function favouredTransformLabel(session) {
+		const byId = {};
+		let total = 0;
+		session.transforms.forEach(function (list) {
+			(list || []).forEach(function (t) { byId[t.id] = (byId[t.id] || 0) + t.ms; total += t.ms; });
+		});
+		const ids = Object.keys(byId);
+		if (ids.length < 2 || !total) return '';
+		ids.sort(function (a, b) { return byId[b] - byId[a]; });
+		const label = function (id) { const p = (app.presets || []).find(function (x) { return x.id === id; }); return p ? p.label : id; };
+		return '<span title="Auto: share of time per transform — ' + ids.map(function (id) { return escapeHtml(label(id)) + ' ' + Math.round(100 * byId[id] / total) + '%'; }).join(', ') +
+			'">favouring <b>' + escapeHtml(label(ids[0])) + '</b> (' + Math.round(100 * byId[ids[0]] / total) + '%)</span>';
+	}
 
 	// Which `choose` scale the workers' bandits currently favour (by time spent).
 	function stepSizeLabel(session) {

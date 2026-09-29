@@ -150,29 +150,33 @@ async function run() {
 	const tasks = [];
 	for (let rep = 0; rep < repeats; rep++) {
 		for (const s of seeds) {
-			for (const p of manifest.generators[s.game] || []) if (!genFilter || genFilter.test(p.id)) tasks.push({ s, p, rep });
+			const gens = (manifest.generators[s.game] || []).filter(p => !genFilter || genFilter.test(p.id));
+			gens.forEach((p, i) => tasks.push({ s, p, rep, first: i === 0, gens }));
 		}
 	}
 	const threadSeconds = tasks.reduce((t, x) => t + secondsOf(x.s), 0);
 	process.stderr.write(`${tasks.length} runs x ${variants.length} variant(s) [${variants.map(v => v.name).join(', ')}], ` +
 		`${perVariant} thread(s) each: ~${Math.round(threadSeconds / perVariant / 60)} min\n`);
 	let done = 0;
-	const total = tasks.length * variants.length;
+	const total = variants.reduce((t, v) => t + (v.auto ? tasks.filter(x => x.first).length : tasks.length), 0);
 	const rows = [];
 	const promises = [];
 	// Interleave: every task is queued for all variants back to back.
-	for (const { s, p, rep } of tasks) {
+	for (const { s, p, rep, first, gens } of tasks) {
 		variants.forEach((v, vi) => {
+			// "auto": one run per level with all its transforms (the app's Auto mode).
+			if (v.auto && !first) return;
 			const slow = v.slowdown > 1 ? v.slowdown : 1;
 			promises.push(pools[vi].run({
 				type: 'survey', file: path.join(CORPUS, s.game), level: s.level, transform: p.text,
+				transforms: v.auto ? gens.map(g => ({ id: g.id, text: g.text })) : undefined,
 				candidates: 0, minSeconds: secondsOf(s), maxSeconds: secondsOf(s), seed: 11 + rep,
 				genOpts: v.gen || null, slowdown: slow, workClock: work,
 			}, ((work ? 10 : 1) * secondsOf(s) + 60) * 1000 * slow).then((m) => {
 				done++;
 				if (done % 50 === 0 || done === total) process.stderr.write(`  ${done}/${total}\n`);
 				rows.push({
-					variant: v.name, game: s.game, level: s.level, generator: p.id, rep, seconds: secondsOf(s),
+					variant: v.name, game: s.game, level: s.level, generator: v.auto ? 'auto' : p.id, rep, seconds: secondsOf(s), transforms: m.transforms,
 					ok: !!m.ok, hung: !!m.hung, reason: m.ok ? undefined : m.reason,
 					secs: m.secs, work: m.work, hitWall: m.hitWall || undefined, baseEffort: m.baseEffort, top: m.top, drift: m.drift, assessed: m.assessed, timeouts: m.timeouts,
 					harder: m.harder, newSolvable: m.newSolvable, solvedPct: m.solvedPct,
@@ -242,7 +246,38 @@ function score(results) {
 	if (names.length < 2) return;
 	const ref = names[0];
 	console.log(`\nvs ${ref} (paired runs; 95% CI from resampling games; "better/worse" = runs whose lift changed by more than 5%):`);
+	const bootstrap = (g) => {
+		const rng = makeRng(12345);
+		const boots = [];
+		for (let i = 0; i < 2000; i++) {
+			let t = 0;
+			for (let j = 0; j < g.length; j++) t += g[Math.floor(rng() * g.length)];
+			boots.push(t / g.length);
+		}
+		boots.sort((x, y) => x - y);
+		return [Math.exp(boots[Math.floor(0.025 * boots.length)]), Math.exp(boots[Math.floor(0.975 * boots.length)])];
+	};
 	for (const n of names.slice(1)) {
+		const vrows = Object.values(by[n]);
+		if (vrows.length && vrows.every(r => r.generator === 'auto')) {
+			// Auto: one run per level; compare with the reference's runs of each
+			// transform on that level - their average (a random pick) and their best.
+			const vsMean = {}, vsBest = {};
+			for (const b of vrows) {
+				const refs = Object.values(by[ref]).filter(a => a.game === b.game && a.level === b.level && a.rep === b.rep).map(a => Math.log(lift(a)));
+				if (!refs.length) continue;
+				const la = Math.log(lift(b));
+				(vsMean[b.game] || (vsMean[b.game] = [])).push(la - mean(refs));
+				(vsBest[b.game] || (vsBest[b.game] = [])).push(la - Math.max(...refs));
+			}
+			for (const [label, per] of [['vs average transform', vsMean], ['vs best transform (oracle)', vsBest]]) {
+				const g = Object.values(per).map(mean);
+				const [lo, hi] = bootstrap(g);
+				const verdict = g.length < 10 ? 'too few games for a CI' : lo > 1 ? 'BETTER' : hi < 1 ? 'WORSE' : 'no significant change';
+				console.log(`  ${n.slice(0, 20).padEnd(20)} ${label.padEnd(27)} ${pctc(Math.exp(mean(g))).padStart(7)}  [${pctc(lo)}, ${pctc(hi)}]  ${verdict}  (${g.length} games)`);
+			}
+			continue;
+		}
 		const perGame = {};
 		let better = 0, worse = 0, pairs = 0, candA = 0, candB = 0, secA = 0, secB = 0;
 		for (const k in by[n]) {
