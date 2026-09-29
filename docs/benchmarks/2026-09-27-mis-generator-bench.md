@@ -278,6 +278,23 @@ Remaining profile, by share of instructions:
 | Movement-state clearing (memset) | 3.5% |
 | Remaining allocation | ~5% |
 
+## Interruptible turns (29 September)
+
+A single turn couldn't be interrupted, so a solve could overrun its time limit
+by minutes. On a generated *cute train* board, BFS with a 2 s limit was still
+running after 60 s. Generator runs hung on some games. Now the rule engine polls
+a per-thread stop check between rule groups (`setTurnInterrupt`), and the
+solver's searches install their deadline/cancel check. A turn is abandoned
+once the search has to stop anyway.
+
+- **The cute train board:** every strategy stops at ~2007 ms (x86 and wasm).
+- **Generator survey on the games that hung before** (15 s runs, hung = past
+  45 s): 0 hung out of 254 runs. Before: paint everything everywhere 44,
+  castlemouse 5, constellationz 3, der hydra krypta 2, match three billiards 2,
+  a distant sunset 2. The longest run was 20 s.
+- **Unchanged:** replay checksums (x86 and wasm) and the native simulation
+  corpus (470/470).
+
 ## Reproducing
 
 ```sh
