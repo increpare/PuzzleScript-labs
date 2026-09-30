@@ -263,6 +263,15 @@ add_executable(puzzlescript_solver
   src/solver/main.cpp
 )
 
+add_executable(rule_goals tests/rule_goals.cpp)
+target_link_libraries(rule_goals PRIVATE puzzlescript_native puzzlescript_compiler)
+target_include_directories(rule_goals PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+add_test(NAME rule_goals COMMAND rule_goals)
+
+add_executable(rule_goal_bench EXCLUDE_FROM_ALL tests/rule_goal_bench.cpp)
+target_link_libraries(rule_goal_bench PRIVATE puzzlescript_native puzzlescript_compiler)
+target_include_directories(rule_goal_bench PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
 add_executable(puzzlescript_generator
   src/generator/main.cpp
   src/generator/block_scheduler.cpp
@@ -2002,6 +2011,11 @@ add_test(
           --timeout-ms 1000
 )
 set_tests_properties(puzzlescript_solver_smoke PROPERTIES TIMEOUT 30)
+
+add_test(NAME rule_goal_smoke
+  COMMAND ${NODE_EXECUTABLE} ${PUZZLESCRIPT_REPO_ROOT}/src/tests/run_rule_goal_smoke.js
+          $<TARGET_FILE:puzzlescript_solver>)
+set_tests_properties(rule_goal_smoke PROPERTIES TIMEOUT 60 WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT})
 
 add_test(
   NAME puzzlescript_solver_determinism_smoke
