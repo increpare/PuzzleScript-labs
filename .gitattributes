@@ -27,3 +27,7 @@ node_modules/** linguist-vendored
 # Local Linguist preparation samples should remain visible and countable once
 # PuzzleScript is accepted upstream.
 tools/linguist/samples/*.puzzlescript linguist-detectable
+
+# Reproducibly generated CodeMirror runtime bundle.
+src/js/codemirror6/runtime/dist/codemirror6-runtime.js linguist-generated=true
+src/js/codemirror6/runtime/dist/codemirror6-runtime.js.map linguist-generated=true

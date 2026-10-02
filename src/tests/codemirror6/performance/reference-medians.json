@@ -1,0 +1,37 @@
+{
+  "description": "Historical medians approved in the CodeMirror 6 performance design; fresh captures do not replace these values.",
+  "durationUnit": "ms",
+  "heapUnit": "MiB",
+  "scenarios": {
+    "keyToNextPaint": {
+      "cm5": 4.5,
+      "preCm6": 4.2
+    },
+    "autocompleteVisible": {
+      "cm5": 1.1,
+      "preCm6": 52.9
+    },
+    "hundredApiEdits": {
+      "cm5": 18.0,
+      "preCm6": 32.7
+    },
+    "replaceDocumentSync": {
+      "cm5": 2.8,
+      "preCm6": 22.2
+    },
+    "loadDistantJumpExact": {
+      "cm5": 130.1,
+      "preCm6": 78.6
+    }
+  },
+  "heap": {
+    "initial": {
+      "cm5": 2.44,
+      "preCm6": 3.32
+    },
+    "large": {
+      "cm5": 5.59,
+      "preCm6": 8.86
+    }
+  }
+}
