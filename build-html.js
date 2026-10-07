@@ -6,4 +6,9 @@ function removeLocalScriptTags(html) {
     return html.replace(localScriptTag, "");
 }
 
-module.exports = Object.freeze({removeLocalScriptTags});
+// For pages that ship unbundled: the release build keeps the raw sources under js/source/.
+function useSourceScriptTags(html) {
+    return html.replace(localScriptTag, tag => tag.replace('src="js/', 'src="js/source/'));
+}
+
+module.exports = Object.freeze({removeLocalScriptTags, useSourceScriptTags});

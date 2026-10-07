@@ -9,6 +9,9 @@
 
 	const $ = function (id) { return document.getElementById(id); };
 	const C = MISCore;
+	// The worker sits next to this script. Resolving against the script rather
+	// than the page keeps it found in the release build, which serves js/source/.
+	const WORKER_URL = new URL('mis_worker.js', document.currentScript.src).href;
 
 	const DEMOS = [
 		['Simple Block Pushing (Sokoban)', 'demo/sokoban_basic.txt'],
@@ -70,7 +73,7 @@
 	/////////////////////////////////////////////////////////////////////
 
 	function spawnWorker(source) {
-		const w = new Worker('js/mis/mis_worker.js');
+		const w = new Worker(WORKER_URL);
 		const handle = { w: w, ready: false, busy: false, queue: [], handlers: {}, onReady: null, dead: false };
 		w.onmessage = function (e) {
 			const m = e.data;

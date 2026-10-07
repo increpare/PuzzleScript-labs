@@ -28,7 +28,7 @@
 	clean-native-32 clean-js-parity-data configure-native build-native js-parity-data lean_parity_smoke lean_clean_sim_candidates
 
 .PHONY: gba gba_export gba_preflight gba_generated_replay_build gba_generated_replay_tests
-.PHONY: mis_wasm mis_tests mis_backend_bench mis_generator_profile mis_generator_bench
+.PHONY: mis_wasm mis_web mis_web_serve mis_tests mis_backend_bench mis_generator_profile mis_generator_bench
 .PHONY: gbc gbc_export gbc_smoke gbc_cart gbc_cart_smoke gbc_cart_solutions_bench gbc_eligible gbc_specialized_bench gbc_eligible_solutions_bench
 .PHONY: solution_cache_tests solution_cache_tests_thorough gbc_cart_solution_cache_tests refresh_eligible_solution_cache
 
@@ -689,6 +689,15 @@ help:
 	@echo "  make solver_instrumentation_analysis"
 	@echo "                                     Analyze instrumentation-pack strategy/static-tag results"
 	@echo "  make clean                         Remove native build outputs and JS parity data"
+	@echo ""
+	@echo "PuzzleScript+MIS web prototype (src/mis.html):"
+	@echo "  make mis_web                       Release-build the site into bin/, mis.html included (compile.js; ~10 min)"
+	@echo "  make mis_web_serve                 Serve bin/ at http://localhost:$(MIS_WEB_PORT)/mis.html"
+	@echo "  make mis_wasm                      Rebuild the wasm solver in src/js/mis/wasm (needs Emscripten)"
+	@echo "  make mis_tests                     Run the MIS core checks"
+	@echo "  make mis_backend_bench             Compare the JS and wasm solver backends on the same levels"
+	@echo "  make mis_generator_profile         Profile the MIS generator loop"
+	@echo "  make mis_generator_bench           Score this checkout's generator against MIS_BENCH_REF"
 	@echo ""
 	@echo "Single-side test commands for timing:"
 	@echo "  make simulation_tests_js           Run JS simulation tests only"
@@ -1820,6 +1829,18 @@ solver_compact_parity: $(PUZZLESCRIPT_SOLVER)
 # (source emsdk_env.sh); it rebuilds src/js/mis/wasm/mis_native.{js,wasm}.
 mis_wasm:
 	native/wasm/build_mis_wasm.sh
+
+# Release build of the whole site into bin/ (compile.js), mis.html included.
+# Uses the committed wasm; run mis_wasm first if the native solver changed.
+mis_web:
+	$(NODE) compile.js
+	@echo "Built bin/mis.html. Try it with: make mis_web_serve"
+
+MIS_WEB_PORT ?= 8000
+mis_web_serve:
+	@test -f bin/mis.html || (echo "bin/mis.html missing: run make mis_web first" >&2; exit 1)
+	@echo "http://localhost:$(MIS_WEB_PORT)/mis.html"
+	$(PYTHON) -m http.server $(MIS_WEB_PORT) --directory bin
 
 mis_tests:
 	$(NODE) src/tests/mis_core_node.js

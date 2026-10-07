@@ -23,7 +23,7 @@ const { minify } = require("terser");
 const { Compress } = require('gzipper');
 const htmlminify = require('html-minifier-terser').minify;
 const glob = require("glob")
-const { removeLocalScriptTags } = require("./build-html");
+const { removeLocalScriptTags, useSourceScriptTags } = require("./build-html");
 
 const releaseCompressionOptions = Object.freeze({
     brotli: true,
@@ -258,6 +258,16 @@ async function main() {
     player = removeLocalScriptTags(player);
     player = player.replace(/<!--___SCRIPTINSERT___-->/g, '<script src="js\/scripts_play_compiled.js"><\/script>');
     fs.writeFileSync("./bin/play.html", player, encoding = 'utf8');
+
+    // mis.html ships unbundled: its workers importScripts() the engine by relative
+    // path, so the page and the workers both run from the js/source copy.
+    let mis = fs.readFileSync("./bin/mis.html", encoding = 'utf8');
+    mis = useSourceScriptTags(mis);
+    fs.writeFileSync("./bin/mis.html", mis, encoding = 'utf8');
+    for (const name of ["codemirror.css", "midnight.css"]) {
+        css = fs.readFileSync("./src/css/" + name, encoding = 'utf8');
+        fs.writeFileSync("./bin/css/" + name, cssmin(css), encoding = "utf8");
+    }
 
     console.log("inlining standalone template")
     const standaloneRaw = fs.readFileSync("./src/standalone.html", 'utf8');

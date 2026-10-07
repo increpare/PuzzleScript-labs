@@ -17,6 +17,9 @@ python3 -m http.server 8000 --directory src      # or: npx http-server src
 # or load a specific game: /mis.html?demo=demo/microban.txt
 ```
 
+For a deployable build, `make mis_web` runs `compile.js` and writes the whole
+site to `bin/`, `mis.html` included; `make mis_web_serve` serves it locally.
+
 The page opens with the last autosaved session, or the Sokoban demo. Use
 **Open…** or drag and drop to load your own `.txt` file.
 
