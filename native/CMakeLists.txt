@@ -2511,6 +2511,18 @@ add_test(
   COMMAND puzzlescript_cpp diff-trace ${PUZZLESCRIPT_REPO_ROOT}/src/demo/sokoban_basic.txt --level 0 --seed native-trace-push --inputs-file ${CMAKE_CURRENT_SOURCE_DIR}/tests/push_trace_inputs.json
 )
 
+# An undo with nothing left to undo is a no-op in the JS engine (DoUndo), so a replay must carry on
+# and compare state rather than stop with "Undo failed".
+add_test(
+  NAME puzzlescript_cpp_diff_trace_undo_noop
+  COMMAND puzzlescript_cpp diff-trace ${PUZZLESCRIPT_REPO_ROOT}/src/demo/sokoban_basic.txt --level 0 --seed native-trace-undo-noop --inputs-file ${CMAKE_CURRENT_SOURCE_DIR}/tests/undo_noop_trace_inputs.json
+)
+
+add_test(
+  NAME puzzlescript_cpp_run_trace_undo_noop
+  COMMAND puzzlescript_cpp run ${PUZZLESCRIPT_REPO_ROOT}/src/demo/sokoban_basic.txt --headless --native-compile --level 0 --seed native-trace-undo-noop --inputs-file ${CMAKE_CURRENT_SOURCE_DIR}/tests/undo_noop_trace_inputs.json
+)
+
 add_test(
   NAME puzzlescript_cpp_trace_alternatey_level4
   COMMAND puzzlescript_cpp run

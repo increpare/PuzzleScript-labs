@@ -898,6 +898,13 @@ std::string runTraceExporterAndCaptureJson(const std::filesystem::path& sourcePa
     return runNodeScriptAndCaptureStdout(PS_EXPORT_TRACE_SCRIPT, sourcePath, args);
 }
 
+// Replays an "undo" input. An undo with nothing left to undo returns false and changes nothing,
+// which is what the JS engine's DoUndo does too, so it is not an error here: the replay carries on
+// and the snapshot comparison that follows decides whether the two engines agree.
+void replayUndo(ps_full_state* session) {
+    (void)ps_full_state_undo(session);
+}
+
 int printSession(ps_full_state* session) {
     char* serialized = ps_full_state_serialize_test_string(session);
     char* snapshot = ps_full_state_export_snapshot(session);
@@ -1016,11 +1023,7 @@ int stepCommandForGame(
         const auto& token = inputTokens[index];
         ps_step_result result{};
         if (token == "undo") {
-            if (!ps_full_state_undo(session)) {
-                std::cerr << "step[" << index << "] undo failed\n";
-                ps_full_state_destroy(session);
-                return 1;
-            }
+            replayUndo(session);
         } else if (token == "restart") {
             if (!ps_full_state_restart(session)) {
                 std::cerr << "step[" << index << "] restart failed\n";
@@ -1238,10 +1241,7 @@ int diffTraceAgainstSnapshots(
                     return 1;
                 }
             } else if (*snapshot.stringInput == "undo") {
-                if (!ps_full_state_undo(session)) {
-                    errorStream << "Undo failed at snapshot[" << index << "]\n";
-                    return 1;
-                }
+                replayUndo(session);
             } else {
                 errorStream << "Unsupported trace input token: " << *snapshot.stringInput << "\n";
                 return 1;
@@ -1323,10 +1323,7 @@ int checkTraceAgainstSnapshots(
                     return 1;
                 }
             } else if (*snapshot.stringInput == "undo") {
-                if (!ps_full_state_undo(session)) {
-                    errorStream << "Undo failed at snapshot[" << index << "]\n";
-                    return 1;
-                }
+                replayUndo(session);
             } else {
                 errorStream << "Unsupported trace input token: " << *snapshot.stringInput << "\n";
                 return 1;
@@ -1389,10 +1386,7 @@ bool replayTraceInputsOnly(ps_full_state* session, const TraceFile& traceFile, s
                 }
                 ++replayedSteps;
             } else if (*snapshot.stringInput == "undo") {
-                if (!ps_full_state_undo(session)) {
-                    errorStream << "Undo failed at snapshot[" << index << "]\n";
-                    return false;
-                }
+                replayUndo(session);
                 ++replayedSteps;
             } else {
                 errorStream << "Unsupported trace input token: " << *snapshot.stringInput << "\n";
@@ -1914,12 +1908,7 @@ int traceAtCommand(const std::string& irPath, const std::string& tracePath, size
                     return 1;
                 }
             } else if (*snapshot.stringInput == "undo") {
-                if (!ps_full_state_undo(session)) {
-                    std::cerr << "Undo failed at snapshot[" << index << "]\n";
-                    ps_full_state_destroy(session);
-                    ps_free_game(game);
-                    return 1;
-                }
+                replayUndo(session);
             } else {
                 std::cerr << "Unsupported trace input token: " << *snapshot.stringInput << "\n";
                 ps_full_state_destroy(session);
@@ -2001,12 +1990,7 @@ int traceStepAtCommand(const std::string& irPath, const std::string& tracePath, 
                         return 1;
                     }
                 } else if (*snapshot.stringInput == "undo") {
-                    if (!ps_full_state_undo(session)) {
-                        std::cerr << "Undo failed at snapshot[" << index << "]\n";
-                        ps_full_state_destroy(session);
-                        ps_free_game(game);
-                        return 1;
-                    }
+                    replayUndo(session);
                 } else {
                     std::cerr << "Unsupported trace input token: " << *snapshot.stringInput << "\n";
                     ps_full_state_destroy(session);
@@ -2039,12 +2023,7 @@ int traceStepAtCommand(const std::string& irPath, const std::string& tracePath, 
                 return 1;
             }
         } else if (*nextSnapshot.stringInput == "undo") {
-            if (!ps_full_state_undo(session)) {
-                std::cerr << "Undo failed at snapshot[" << (snapshotIndex + 1) << "]\n";
-                ps_full_state_destroy(session);
-                ps_free_game(game);
-                return 1;
-            }
+            replayUndo(session);
         } else {
             std::cerr << "Unsupported trace input token: " << *nextSnapshot.stringInput << "\n";
             ps_full_state_destroy(session);
