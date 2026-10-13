@@ -57,10 +57,13 @@ test('runSplit splits by lineage, drops demo lineages, keeps latest only in val/
             ids.push(id);
             n++;
         }
-        lineages.push({ lineage_id: lid, file_ids: ids, representative_id: ids[ids.length - 1], size: ids.length, owners: ['o'], title: lid, demo, demo_mechanics: null });
+        lineages.push({ lineage_id: lid, file_ids: ids, representative_id: ids[ids.length - 1], size: ids.length, owners: ['o'], title: lid, demo, demo_file_ids: demo ? ids.slice(0, demoCount) : [], demo_mechanics: null });
     };
+    let demoCount = 5;
     for (let i = 0; i < 40; i++) mk('L' + i, 1 + (i % 4));
-    mk('DEMO', 5, 'push');
+    mk('DEMO', 5, 'push');          // every file is the template: lineage disappears
+    demoCount = 2;
+    mk('L40', 4, 'push');           // first two saves are the template, two evolved: kept with two files
     fs.writeFileSync(path.join(raw, 'manifest.jsonl'), manifest.map(r => JSON.stringify(r)).join('\n') + '\n');
     fs.writeFileSync(path.join(tmp, 'lineages.jsonl'), lineages.map(r => JSON.stringify(r)).join('\n') + '\n');
 
@@ -68,17 +71,22 @@ test('runSplit splits by lineage, drops demo lineages, keeps latest only in val/
     const j = JSON.parse(fs.readFileSync(path.join(tmp, 'splits.json'), 'utf8'));
     assert.strictEqual(j.seed, 7);
     const all = [...j.train, ...j.val, ...j.test];
-    assert.strictEqual(all.length, 40, 'demo lineage dropped, all others assigned');
+    assert.strictEqual(all.length, 41, 'all-demo lineage dropped, mixed one kept, all others assigned');
     assert.ok(!all.some(l => l.lineage_id === 'DEMO'));
+    const mixed = all.find(l => l.lineage_id === 'L40');
+    assert.ok(mixed, 'lineage with evolved files survives');
+    assert.ok(!mixed.file_ids.includes('L40_f0') && !mixed.file_ids.includes('L40_f1'), 'template saves dropped');
+    assert.ok(mixed.file_ids.includes('L40_f3'), 'latest evolved file kept');
     assert.strictEqual(j.val.length, 2);
     assert.strictEqual(j.test.length, 2);
-    assert.strictEqual(j.train.length, 36);
+    assert.strictEqual(j.train.length, 37);
     for (const l of [...j.val, ...j.test]) assert.strictEqual(l.file_ids.length, 1, 'latest only');
-    for (const l of j.val) assert.ok(l.file_ids[0].endsWith('_f' + (parseInt(l.lineage_id.slice(1), 10) % 4)));
+    for (const l of j.val) if (l.lineage_id !== 'L40') assert.ok(l.file_ids[0].endsWith('_f' + (parseInt(l.lineage_id.slice(1), 10) % 4)));
     for (const l of j.train) assert.ok(l.file_ids.length <= 3);
     const ids = new Set(all.flatMap(l => l.file_ids));
     assert.strictEqual(ids.size, all.reduce((a, l) => a + l.file_ids.length, 0), 'no file in two splits');
     assert.strictEqual(out.counts.dropped_demo_lineages, 1);
+    assert.strictEqual(out.counts.dropped_demo_files, 7);
     assert.ok(out.counts.train.files >= 36 && out.counts.train.bytes > 0);
     assert.deepStrictEqual(out.counts.leakage.test, { same_mechanics_any_owner: 0, same_owner_mechanics: 0, same_owner_title: 0 });
 

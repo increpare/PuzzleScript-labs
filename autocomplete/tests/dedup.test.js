@@ -117,6 +117,8 @@ test('buildLineages unions exact and no-levels keys, merges near latest, keeps d
     assert.notStrictEqual(byMember.a1, byMember.c, 'far game stays apart');
     assert.notStrictEqual(byMember.d1, byMember.d2, 'cross-owner near dup below the stricter threshold stays apart');
     assert.strictEqual(byMember.e.demo, 'demo game', 'demo flagged via no-levels or exact match');
+    assert.deepStrictEqual(byMember.e.demo_file_ids, ['e']);
+    assert.deepStrictEqual(byMember.a1.demo_file_ids, []);
     assert.strictEqual(byMember.a1.demo, null);
     assert.deepStrictEqual(byMember.a1.owners, ['ann']);
     assert.strictEqual(byMember.a1.title, 'Beta');

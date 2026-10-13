@@ -78,8 +78,16 @@ function runSplit({ dataDir, seed, quiet }) {
     seed = seed === undefined ? 20261013 : seed;
     const textDir = path.join(dataDir, 'raw', 'text');
     const meta = new Map(readJsonl(path.join(dataDir, 'raw', 'manifest.jsonl')).map(r => [r.id, r]));
-    const lineages = readJsonl(path.join(dataDir, 'lineages.jsonl'));
-    const kept = lineages.filter(l => !l.demo);
+    // Drop demo FILES (code identical to a shipped demo), not whole lineages: a game that
+    // started as the template keeps its evolved revisions. Lineages left empty are dropped.
+    const lineagesIn = readJsonl(path.join(dataDir, 'lineages.jsonl'));
+    let droppedFiles = 0;
+    const lineages = lineagesIn.map(l => {
+        const demoIds = new Set(l.demo_file_ids || (l.demo ? l.file_ids : []));
+        droppedFiles += demoIds.size;
+        return Object.assign({}, l, { file_ids: l.file_ids.filter(id => !demoIds.has(id)) });
+    });
+    const kept = lineages.filter(l => l.file_ids.length > 0);
     const dropped = lineages.length - kept.length;
 
     const rand = mulberry32(seed);
@@ -91,7 +99,7 @@ function runSplit({ dataDir, seed, quiet }) {
 
     const createdKey = id => ((meta.get(id) || {}).created_at || '') + '|' + id;
     const getText = id => fs.readFileSync(path.join(textDir, id + '.txt'), 'utf8');
-    const out = { seed, ratios: RATIOS, min_distance: MIN_DISTANCE, max_earlier: MAX_EARLIER, counts: { dropped_demo_lineages: dropped }, train: [], val: [], test: [] };
+    const out = { seed, ratios: RATIOS, min_distance: MIN_DISTANCE, max_earlier: MAX_EARLIER, counts: { dropped_demo_files: droppedFiles, dropped_demo_lineages: dropped }, train: [], val: [], test: [] };
     for (const name of ['train', 'val', 'test']) {
         let files = 0, bytes = 0;
         for (const lid of assign[name]) {

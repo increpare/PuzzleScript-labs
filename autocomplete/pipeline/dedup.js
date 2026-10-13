@@ -256,12 +256,17 @@ function runDedup({ dataDir, demoDir, quiet }) {
         const rep = list[list.length - 1];
         let demo = null;
         let demoMechanics = null;
+        const demoFileIds = [];
         const mech = new Set();
         for (const id of list) {
             const c = compile.get(id) || {};
             const ek = exactKey(texts.get(id));
-            if (!demo && demoByExact.has(ek)) demo = demoByExact.get(ek);
-            if (!demo && c.hash_no_levels && demoByNoLevels.has(c.hash_no_levels)) demo = demoByNoLevels.get(c.hash_no_levels);
+            // A file is "demo" when its code is a shipped demo's (exact, or no-levels: only
+            // levels/metadata changed). The lineage is flagged if any member is; split.js
+            // drops the demo FILES, so an evolved game whose first save was the template
+            // keeps its later revisions.
+            const fileDemo = demoByExact.get(ek) || (c.hash_no_levels && demoByNoLevels.get(c.hash_no_levels)) || null;
+            if (fileDemo) { demoFileIds.push(id); if (!demo) demo = fileDemo; }
             if (!demoMechanics && c.hash_mechanics && demoByMechanics.has(c.hash_mechanics)) demoMechanics = demoByMechanics.get(c.hash_mechanics);
             if (c.hash_mechanics) mech.add(c.hash_mechanics);
         }
@@ -275,6 +280,7 @@ function runDedup({ dataDir, demoDir, quiet }) {
             owners: [...new Set(list.map(id => meta.get(id).owner))].sort(),
             title: titleOf(texts.get(rep)),
             demo,
+            demo_file_ids: demoFileIds,
             demo_mechanics: demoMechanics,
         });
     }
@@ -300,7 +306,8 @@ function runDedup({ dataDir, demoDir, quiet }) {
         top10: lineages.slice(0, 10).map(l => ({ size: l.size, title: l.title, owners: l.owners.length, demo: l.demo, demo_mechanics: l.demo_mechanics })),
         size_histogram: sizeHist,
         demo_lineages: lineages.filter(l => l.demo).length,
-        demo_files: lineages.filter(l => l.demo).reduce((a, l) => a + l.size, 0),
+        demo_files: lineages.reduce((a, l) => a + l.demo_file_ids.length, 0),
+        demo_lineages_with_evolved_files: lineages.filter(l => l.demo && l.demo_file_ids.length < l.size).length,
         demo_mechanics_lineages: lineages.filter(l => l.demo_mechanics).length,
         mechanics_agreement: {
             lineages_spanning_multiple_mechanics: mechanicsPerLineage.filter(n => n > 1).length,
