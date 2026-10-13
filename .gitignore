@@ -95,3 +95,4 @@ hardware/pocket_card/case/.venv/
 # autocomplete model work
 .superpowers/
 autocomplete/.env
+autocomplete/.venv/
