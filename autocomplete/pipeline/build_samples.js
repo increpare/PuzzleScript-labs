@@ -36,8 +36,8 @@ function weightFor(broken) {
     };
 }
 
-// Pick the FIM split point and target span. Lines are chosen with level map rows
-// down-weighted so LEVELS does not dominate the sample mix.
+// Pick the FIM split point and target span. Lines are chosen with level map rows and
+// sprite pixel rows down-weighted so LEVELS and OBJECTS do not dominate the sample mix.
 function chooseFimSpan(text, rand) {
     const lines = text.split('\n');
     const sections = ctx.lineSections(text);
@@ -45,8 +45,10 @@ function chooseFimSpan(text, rand) {
     let pos = 0;
     for (const l of lines) { starts.push(pos); pos += l.length + 1; }
     const weights = lines.map((l, i) => {
-        if (l.trim() === '') return 0.05;
-        if (sections[i] === 'levels' && !/^\s*message\b/i.test(l)) return LEVEL_ROW_WEIGHT;
+        const t = l.trim();
+        if (t === '') return 0.05;
+        if (sections[i] === 'levels' && !/^message\b/i.test(t)) return LEVEL_ROW_WEIGHT;
+        if (sections[i] === 'objects' && /^[0-9.]+$/.test(t)) return LEVEL_ROW_WEIGHT; // sprite pixel rows
         return 1;
     });
     const total = weights.reduce((a, b) => a + b, 0);
