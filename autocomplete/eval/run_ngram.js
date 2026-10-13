@@ -58,7 +58,9 @@ function predictCase(model, fullText, c) {
         const out = model.generate(c.section, history, { stop, maxTokens: c.task === 'next_block' ? 120 : 40, prefix });
         let text = out.text;
         if (prefix && text.toLowerCase().startsWith(prefix.toLowerCase())) text = text.slice(prefix.length);
-        prediction = text.length ? text : null;
+        // An empty generation (the model chose a newline first) is a prediction of an empty
+        // line, not an abstention: it counts as covered and wrong.
+        prediction = text;
     }
     const latency = Number(process.hrtime.bigint() - t0) / 1e6;
     const row = { prediction, latency_ms: Math.round(latency * 100) / 100 };

@@ -71,7 +71,8 @@ def main():
             latency = (time.perf_counter() - t0) * 1000
             text = tok.decode(gen[0][ids["input_ids"].shape[1]:], skip_special_tokens=True)
             pred = cut(text, row["stop"])
-            out.write(json.dumps({"i": row["i"], "prediction": pred if pred != "" else None,
+            # An empty generation counts as a (wrong) prediction, consistent with the n-gram runner.
+            out.write(json.dumps({"i": row["i"], "prediction": pred,
                                   "latency_ms": round(latency, 1)}) + "\n")
             done += 1
             if done % 100 == 0:
