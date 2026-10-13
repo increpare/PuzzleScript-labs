@@ -2,7 +2,9 @@
 // Symbol table for the context header. Two entry points with one output shape:
 //   symbolsFromParserState(state)  pure; the editor feeds it the streaming parser state it already has
 //   extractSymbols(text)           Node only; parses the text with the engine's streaming parser
-// Output: {objects: [...], legend: [...], sfx: [...]} with original casing, in declaration order.
+// Output: {objects: [...], legend: [...], sfx: [...]} in declaration order. Objects keep their
+// original casing; legend names are lowercase because the streaming parser lowercases the
+// line before recording them (original_case_names only covers objects).
 
 const path = require('path');
 

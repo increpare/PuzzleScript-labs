@@ -155,9 +155,10 @@ globalThis.__ps_exports = {
     parseSource: function(str) {
         resetParserErrorState();
         compiling = true;
+        const processor = new codeMirrorFn();
+        const state = processor.startState();
+        let aborted = false;
         try {
-            const processor = new codeMirrorFn();
-            const state = processor.startState();
             const lines = str.split('\\n');
             for (let i = 0; i < lines.length; i++) {
                 const ss = new CodeMirror.StringStream(lines[i], 4);
@@ -165,14 +166,22 @@ globalThis.__ps_exports = {
                     processor.token(ss, state);
                 } while (ss.eol() === false);
             }
-            return {
-                state: processor.copyState(state),
-                errorCount: errorCount,
-                errorStrings: errorStrings.slice()
-            };
+        } catch (error) {
+            // The parser throws once MAX_ERRORS is exceeded; keep the partial state.
+            const message = error && error.message ? error.message : String(error);
+            if (message !== "Too many errors/warnings; aborting compilation.") {
+                throw error;
+            }
+            aborted = true;
         } finally {
             compiling = false;
         }
+        return {
+            state: processor.copyState(state),
+            errorCount: errorCount,
+            errorStrings: errorStrings.slice(),
+            aborted: aborted
+        };
     },
     compileSemantic: function(str, includeWinConditions, optimizationOptions) {
         resetParserErrorState();
@@ -1890,6 +1899,7 @@ function parseSourceState(source) {
         state: result.state,
         errorCount: result.errorCount || 0,
         errorStrings: (result.errorStrings || []).slice(),
+        aborted: !!result.aborted,
     };
 }
 
