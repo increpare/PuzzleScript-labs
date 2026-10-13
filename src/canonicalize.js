@@ -1882,6 +1882,17 @@ function compileSemanticSource(source, options = {}) {
 // the semantic pipeline approximates, but which additionally runs rulesToMask
 // and friends) accepts this source. Used by the static analyzer so it refuses
 // to analyze games the engine would reject at compile time.
+// Parser-only pass over a source: the streaming parser state plus logged errors,
+// without running any compile pass. Used by the autocomplete pipeline and eval gate.
+function parseSourceState(source) {
+    const result = getRuntime().parseSource(source);
+    return {
+        state: result.state,
+        errorCount: result.errorCount || 0,
+        errorStrings: (result.errorStrings || []).slice(),
+    };
+}
+
 function validateCompileSource(source, options = {}) {
     const includeWinConditions = options.includeWinConditions !== false;
     const result = getRuntime().compileValidate(source, includeWinConditions);
@@ -1931,6 +1942,7 @@ module.exports = {
     compileSemanticSource,
     createCompiledLevelStateProjector,
     hashCanonical,
+    parseSourceState,
     stableStringify,
     validateCompileSource,
 };
