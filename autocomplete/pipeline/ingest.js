@@ -174,15 +174,19 @@ function runIngest({ dumpDir, dataDir, dumpprocessedDir, quiet }) {
     };
 
     if (dumpprocessedDir && fs.existsSync(dumpprocessedDir)) {
-        const processed = new Set(fs.readdirSync(dumpprocessedDir)
-            .filter(n => n.endsWith('.txt')).map(n => n.slice(0, -4)));
+        // dumpprocessed names carry the dump file's prefix (sometimes a batch label
+        // rather than the owner), so compare on the gist id suffix.
+        const processedFiles = fs.readdirSync(dumpprocessedDir).filter(n => n.endsWith('.txt'));
+        const processed = new Set(processedFiles.map(n => n.slice(0, -4).split('_').pop()));
+        const keptGists = new Set([...keptIds].map(id => id.split('_').pop()));
         let inBoth = 0;
-        for (const id of keptIds) if (processed.has(id)) inBoth++;
+        for (const g of keptGists) if (processed.has(g)) inBoth++;
         stats.dumpprocessed = {
-            files: processed.size,
+            files: processedFiles.length,
+            gist_ids: processed.size,
             in_both: inBoth,
             only_in_dumpprocessed: processed.size - inBoth,
-            only_in_manifest: keptIds.size - inBoth,
+            only_in_manifest: keptGists.size - inBoth,
         };
     }
 
