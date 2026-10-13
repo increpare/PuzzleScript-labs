@@ -90,6 +90,7 @@ test('scorePredictions aggregates coverage, exact, edit_sim, compile and symbol 
     assert.strictEqual(rt.rules.exact, 1);
     assert.strictEqual(rt.rules.any_exact, 1);
     assert.strictEqual(rt.rules.compile_valid, 1);
+    assert.strictEqual(rt.rules.symbol_valid, 1, 'remainder judged as the whole token');
     assert.ok(fs.existsSync(path.join(evalDir, 'scores', 'sys.md')));
     const md = fs.readFileSync(path.join(evalDir, 'scores', 'sys.md'), 'utf8');
     assert.ok(md.includes('| rules |'));

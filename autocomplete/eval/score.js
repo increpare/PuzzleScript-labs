@@ -122,6 +122,17 @@ async function scorePredictions({ tasksPath, predictionsPath, name, dataDir, com
     };
     const keywordSet = engine.keywords();
 
+    // The lines of the document that the spliced prediction lands on (so a token remainder
+    // like "ayer" is judged as the whole token "Player", with whatever was typed before it).
+    const splicedLines = (c, prediction) => {
+        const src = text(c.id);
+        const spliced = src.slice(0, c.from) + prediction + src.slice(c.to);
+        const start = spliced.lastIndexOf('\n', c.from - 1) + 1;
+        let end = spliced.indexOf('\n', c.from + prediction.length);
+        if (end < 0) end = spliced.length;
+        return spliced.slice(start, end);
+    };
+
     // Per-case results.
     const perCase = tasks.cases.map((c, i) => {
         const p = predictions.get(i);
@@ -130,7 +141,7 @@ async function scorePredictions({ tasksPath, predictionsPath, name, dataDir, com
         if (covered) {
             r.exact = normalise(p.prediction) === normalise(c.target);
             r.edit_sim = editSimilarity(p.prediction, c.target);
-            r.symbol_valid = symbolValid(c.section, p.prediction, symbolsOf(c.id), keywordSet);
+            r.symbol_valid = symbolValid(c.section, splicedLines(c, p.prediction), symbolsOf(c.id), keywordSet);
             if (typeof p.latency_ms === 'number') r.latency_ms = p.latency_ms;
             if (Array.isArray(p.candidates)) r.any_exact = p.candidates.some(x => normalise(x) === normalise(c.target));
         }
