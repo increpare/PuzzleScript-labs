@@ -25,20 +25,23 @@ const PRELUDE_KEYS = new Set([
     'run_rules_on_level_start', 'norepeat_action', 'require_player_movement', 'debug',
     'verbose_logging', 'throttle_movement', 'noundo', 'noaction', 'norestart', 'scanline',
 ]);
-const SECTION_NAMES = new Set(['objects', 'legend', 'sounds', 'collisionlayers', 'rules', 'winconditions', 'levels']);
+const { stripComments, firstWord, SECTION_SET: SECTION_NAMES } = require('./text_util.js');
 
 function normaliseText(text) {
     if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
     return text.replace(/\r\n?/g, '\n');
 }
 
-// Replace the values of author/homepage lines that appear before the OBJECTS header.
+// Replace the values of author/homepage lines in the prelude (everything before the
+// first section header). Comments are ignored when deciding where the prelude ends, but
+// the stored text keeps them.
 function neutraliseIdentity(text) {
     const lines = text.split('\n');
+    const bare = stripComments(text).split('\n');
     for (let i = 0; i < lines.length; i++) {
-        const trimmed = lines[i].trim().toLowerCase();
-        if (trimmed === 'objects') break;
-        const m = /^(\s*)(author|homepage)\b/i.exec(lines[i]);
+        const word = firstWord(bare[i] || '');
+        if (SECTION_NAMES.has(word)) break;
+        const m = /^(\s*)(author|homepage)\b/i.exec(bare[i] || '');
         if (!m) continue;
         const key = m[2].toLowerCase();
         lines[i] = m[1] + (key === 'author' ? 'author anon' : 'homepage example.com');
@@ -46,19 +49,14 @@ function neutraliseIdentity(text) {
     return lines.join('\n');
 }
 
-function stripComments(line) {
-    // Good enough for the first-line check: drop (...) comments, non-nested.
-    return line.replace(/\([^)]*\)/g, '');
-}
-
-// Junk = first meaningful line is neither a prelude key, a section header nor a
-// section divider, or there is no OBJECTS header at all.
+// Junk = first meaningful line (comments removed, which may span lines) is neither a
+// prelude key, a section header nor a section divider, or there is no OBJECTS header.
 function isJunk(text) {
-    const lines = text.split('\n');
+    const lines = stripComments(text).split('\n');
     let hasObjects = false;
     let first = null;
     for (const raw of lines) {
-        const line = stripComments(raw).trim();
+        const line = raw.trim();
         if (line === '') continue;
         const word = line.split(/\s+/)[0].toLowerCase();
         if (word === 'objects') hasObjects = true;

@@ -8,18 +8,24 @@
 //        <data>/dedup_report.json
 //
 // Keys:
-//   1. exact      sha256 of text with comments removed and whitespace collapsed
-//   2. no-levels  canonical hash from compile.jsonl (code sections, naming normalised)
-//   3. near       MinHash/LSH over 5-token shingles of the code sections only
-// Keys 1 and 2 are unioned freely. Key 3 is applied between clusters, comparing only
-// each cluster's LATEST member, with a stricter threshold across owners, so that early
-// template-derived revisions of unrelated games do not chain into one mega-cluster.
+//   1. exact            sha256 of text with comments removed and whitespace collapsed
+//   2. no-levels        canonical hash from compile.jsonl (code sections, naming normalised)
+//   2b. owner+mechanics same owner and same mechanics canonical hash (survives renames
+//                       and recolours, which defeat key 2 and the shingles of key 3)
+//   2c. owner+title     same owner and same non-generic title
+//   3. near             MinHash/LSH over 5-token shingles of the code sections only
+// Keys 1, 2, 2b and 2c are unioned freely (2b/2c only ever merge one owner's files, so
+// the cost of a wrong merge is training data, never leakage). Key 3 is applied between
+// clusters, comparing only each cluster's LATEST member at the time the reps are fixed,
+// with a stricter threshold across owners, so that early template-derived revisions of
+// unrelated games do not chain into one mega-cluster. Note that key 3 merges are still
+// unioned transitively (A~B and B~C joins A and C); the largest-cluster readout in the
+// report is the check on that.
 
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-
-const SECTION_NAMES = new Set(['objects', 'legend', 'sounds', 'collisionlayers', 'rules', 'winconditions', 'levels']);
+const { stripComments, SECTION_SET: SECTION_NAMES, GENERIC_TITLES, normaliseTitle, titleOf } = require('./text_util.js');
 const SHINGLE = 5;
 const NUM_PERMS = 128;
 const LSH_BANDS = 16;               // 16 bands x 8 rows: candidates above roughly 0.7 estimated Jaccard
@@ -27,19 +33,6 @@ const THRESHOLD_SAME_OWNER = 0.8;
 const THRESHOLD_CROSS_OWNER = 0.9;
 
 // --- text handling ---------------------------------------------------------
-
-// Remove PuzzleScript comments, which nest.
-function stripComments(text) {
-    let out = '';
-    let depth = 0;
-    for (let i = 0; i < text.length; i++) {
-        const ch = text[i];
-        if (ch === '(') { depth++; continue; }
-        if (ch === ')') { if (depth > 0) depth--; continue; }
-        if (depth === 0) out += ch;
-    }
-    return out;
-}
 
 function exactKey(text) {
     const norm = stripComments(text).toLowerCase().replace(/\s+/g, ' ').trim();
@@ -90,8 +83,8 @@ function jaccard(a, b) {
     return inter / (a.size + b.size - inter);
 }
 
-// Deterministic universal hashing: h_i(x) = (a_i * x + b_i) mod p, p a Mersenne prime.
-const PRIME = 4294967311; // > 2^32
+// Deterministic universal hashing: h_i(x) = (a_i * x + b_i) mod p, p the first prime above 2^32.
+const PRIME = 4294967311; // 2^32 + 15
 const PERMS = (() => {
     let seed = 0x9E3779B9;
     const next = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed; };
@@ -138,11 +131,6 @@ function readJsonl(p) {
     return fs.readFileSync(p, 'utf8').split('\n').filter(Boolean).map(JSON.parse);
 }
 
-function titleOf(text) {
-    const m = /^\s*title\s+(.*)$/im.exec(text);
-    return m ? m[1].trim() : '';
-}
-
 function demoFingerprints(demoDir) {
     const out = [];
     if (!demoDir || !fs.existsSync(demoDir)) return out;
@@ -166,12 +154,22 @@ function runDedup({ dataDir, demoDir, quiet }) {
     const ids = manifest.map(r => r.id);
     log(`dedup: ${ids.length} files`);
 
-    // Keys 1 and 2.
+    // Keys 1, 2, 2b, 2c.
     const uf = new UnionFind();
     const byExact = new Map();
     const byNoLevels = new Map();
+    const byOwnerMechanics = new Map();
+    const byOwnerTitle = new Map();
     const texts = new Map();
     let exactDupes = 0;
+    let ownerMechanicsMerges = 0;
+    let ownerTitleMerges = 0;
+    const unionVia = (map, key, id, count) => {
+        if (map.has(key)) {
+            if (uf.find(map.get(key)) !== uf.find(id)) { uf.union(map.get(key), id); return count + 1; }
+        } else map.set(key, id);
+        return count;
+    };
     for (const id of ids) {
         const text = fs.readFileSync(path.join(textDir, id + '.txt'), 'utf8');
         texts.set(id, text);
@@ -179,13 +177,21 @@ function runDedup({ dataDir, demoDir, quiet }) {
         const ek = exactKey(text);
         if (byExact.has(ek)) { uf.union(byExact.get(ek), id); exactDupes++; } else byExact.set(ek, id);
         const c = compile.get(id);
+        const owner = meta.get(id).owner;
         if (c && c.hash_no_levels) {
             if (byNoLevels.has(c.hash_no_levels)) uf.union(byNoLevels.get(c.hash_no_levels), id);
             else byNoLevels.set(c.hash_no_levels, id);
         }
+        if (c && c.hash_mechanics && owner !== 'unknown') {
+            ownerMechanicsMerges = unionVia(byOwnerMechanics, owner + '|' + c.hash_mechanics, id, ownerMechanicsMerges);
+        }
+        const title = normaliseTitle(titleOf(text));
+        if (owner !== 'unknown' && title.length >= 3 && !GENERIC_TITLES.has(title)) {
+            ownerTitleMerges = unionVia(byOwnerTitle, owner + '|' + title, id, ownerTitleMerges);
+        }
     }
     const clustersAfterExact = new Set(ids.map(id => uf.find(id))).size;
-    log(`dedup: ${exactDupes} exact duplicates, ${clustersAfterExact} clusters after keys 1+2`);
+    log(`dedup: ${exactDupes} exact duplicates, ${ownerMechanicsMerges} owner+mechanics merges, ${ownerTitleMerges} owner+title merges, ${clustersAfterExact} clusters after keys 1+2`);
 
     // Key 3 between clusters, latest member only.
     const latestOf = new Map();
@@ -283,6 +289,8 @@ function runDedup({ dataDir, demoDir, quiet }) {
     const report = {
         files: ids.length,
         exact_duplicates: exactDupes,
+        owner_mechanics_merges: ownerMechanicsMerges,
+        owner_title_merges: ownerTitleMerges,
         clusters_after_exact_and_no_levels: clustersAfterExact,
         near_candidates: candidates,
         near_merges: nearMerges,

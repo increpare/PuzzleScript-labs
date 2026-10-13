@@ -173,6 +173,14 @@ globalThis.__ps_exports = {
                 throw error;
             }
             aborted = true;
+            // Mirror the sibling catches: an aborted parse is an error even when the
+            // abort came from warnings alone, so canonicalizeSource still refuses it.
+            if (errorStrings.indexOf(message) < 0) {
+                errorStrings.push(message);
+            }
+            if (!(errorCount > 0)) {
+                errorCount = errorStrings.length;
+            }
         } finally {
             compiling = false;
         }

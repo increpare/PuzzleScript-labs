@@ -14,6 +14,10 @@ const [textDir, idsFile, startArg] = process.argv.slice(2);
 const ids = JSON.parse(fs.readFileSync(idsFile, 'utf8'));
 const start = parseInt(startArg || '0', 10);
 const hangId = process.env.PS_AC_TEST_HANG_ID || null;
+if (process.env.PS_AC_TEST_CRASH_START) {
+    // Test hook: simulate a worker that dies before compiling anything.
+    process.exit(3);
+}
 
 for (let i = start; i < ids.length; i++) {
     const id = ids[i];

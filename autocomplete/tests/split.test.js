@@ -79,7 +79,8 @@ test('runSplit splits by lineage, drops demo lineages, keeps latest only in val/
     const ids = new Set(all.flatMap(l => l.file_ids));
     assert.strictEqual(ids.size, all.reduce((a, l) => a + l.file_ids.length, 0), 'no file in two splits');
     assert.strictEqual(out.counts.dropped_demo_lineages, 1);
-    assert.ok(out.counts.train.files >= 36 && out.counts.train.chars > 0);
+    assert.ok(out.counts.train.files >= 36 && out.counts.train.bytes > 0);
+    assert.deepStrictEqual(out.counts.leakage.test, { same_mechanics_any_owner: 0, same_owner_mechanics: 0, same_owner_title: 0 });
 
     const again = split.runSplit({ dataDir: tmp, seed: 7, quiet: true });
     assert.deepStrictEqual(again.counts, out.counts);

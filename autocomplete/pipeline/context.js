@@ -15,8 +15,11 @@
 //     line, except that the block containing the cursor is always kept.
 //   - prefix: up to config.prefixLines lines ending at the cursor, in SOURCE order.
 //     suffix: up to config.suffixLines lines starting at the cursor, in source order.
-//   - Budget: header first, then suffix, then prefix fills what is left of
+//   - Budget: header first, then suffix (capped at a third of what remains so a long
+//     suffix cannot starve the prefix), then prefix fills what is left of
 //     config.maxChars; the prefix is trimmed from its far (earliest) end.
+//   - sectionAtCursor is the section of the target's first line in the original text
+//     when there is a target, otherwise the section at the cursor.
 //   render(ctx, mode, weightFn) -> {text, spans}
 //   - mode 'psm': <SYM>header<PRE>prefix<SUF>suffix<MID>target<EOS>
 //   - mode 'spm': <SYM>header<PRE><SUF>suffix<MID>prefix target<EOS>
@@ -145,12 +148,18 @@ function buildContext({ text, from, to, symbols, config }) {
     const sections = lineSections(tdoc);
     const lineIndexAt = offset => tdoc.slice(0, offset).split('\n').length - 1;
     const cursorLine = lineIndexAt(cursor);
-    const sectionAtCursor = sections[cursorLine] || 'prelude';
+    // Section of the target's first line in the ORIGINAL text when there is a target (a
+    // target that starts with a section header belongs to that section), else of the cursor.
+    const origSections = lineSections(text);
+    const targetStartLine = text.slice(0, from).split('\n').length - 1;
+    const sectionAtCursor = (to > from ? origSections[targetStartLine] : sections[cursorLine]) || 'prelude';
 
-    // Prefix lines: the partial current line is the last prefix line.
+    // Prefix lines: the partial current line is the last prefix line. When the cursor sits
+    // at a line start, `before` ends with a newline and the last prefix line is cursorLine-1.
     const before = tdoc.slice(0, cursor);
     let prefixLines = splitKeep(before);
-    let prefixSections = prefixLines.map((_, i) => sections[cursorLine - (prefixLines.length - 1 - i)] || 'prelude');
+    const lastPrefixLine = before.endsWith('\n') ? cursorLine - 1 : cursorLine;
+    let prefixSections = prefixLines.map((_, i) => sections[lastPrefixLine - (prefixLines.length - 1 - i)] || 'prelude');
     if (prefixLines.length > cfg.prefixLines) {
         prefixLines = prefixLines.slice(-cfg.prefixLines);
         prefixSections = prefixSections.slice(-cfg.prefixLines);
@@ -181,8 +190,6 @@ function buildContext({ text, from, to, symbols, config }) {
     }
 
     // Target lines with their sections (from the original text).
-    const origSections = lineSections(text);
-    const targetStartLine = text.slice(0, from).split('\n').length - 1;
     const targetLines = splitKeep(target);
     const targetSections = targetLines.map((_, i) => origSections[targetStartLine + i] || 'prelude');
 

@@ -13,6 +13,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { GENERIC_TITLES, normaliseTitle, titleOf } = require('./text_util.js');
 
 const RATIOS = { train: 0.9, val: 0.05, test: 0.05 };
 const MIN_DISTANCE = 0.2;
@@ -92,20 +93,63 @@ function runSplit({ dataDir, seed, quiet }) {
     const getText = id => fs.readFileSync(path.join(textDir, id + '.txt'), 'utf8');
     const out = { seed, ratios: RATIOS, min_distance: MIN_DISTANCE, max_earlier: MAX_EARLIER, counts: { dropped_demo_lineages: dropped }, train: [], val: [], test: [] };
     for (const name of ['train', 'val', 'test']) {
-        let files = 0, chars = 0;
+        let files = 0, bytes = 0;
         for (const lid of assign[name]) {
             const l = byId.get(lid);
             const ordered = l.file_ids.slice().sort((a, b) => createdKey(a) < createdKey(b) ? -1 : 1);
             const fileIds = name === 'train' ? pickTrainingRevisions(ordered, getText) : [ordered[ordered.length - 1]];
             out[name].push({ lineage_id: lid, file_ids: fileIds });
             files += fileIds.length;
-            for (const id of fileIds) chars += (meta.get(id) || {}).bytes || 0;
+            for (const id of fileIds) bytes += (meta.get(id) || {}).bytes || 0;
         }
-        out.counts[name] = { lineages: assign[name].length, files, chars };
-        log(`split: ${name}: ${assign[name].length} lineages, ${files} files, ${chars} chars`);
+        out.counts[name] = { lineages: assign[name].length, files, bytes };
+        log(`split: ${name}: ${assign[name].length} lineages, ${files} files, ${bytes} bytes`);
     }
+    out.counts.leakage = leakageCheck(out, dataDir, meta, getText);
+    log(`split: leakage check ${JSON.stringify(out.counts.leakage)}`);
     fs.writeFileSync(path.join(dataDir, 'splits.json'), JSON.stringify(out, null, 1) + '\n');
     return out;
+}
+
+// Counts val/test files that look like relatives of a train file: same mechanics hash
+// (any owner), same owner + mechanics hash, same owner + non-generic title. The owner
+// keyed counts should be zero after dedup; the any-owner count is informational.
+function leakageCheck(out, dataDir, meta, getText) {
+    const compilePath = path.join(dataDir, 'compile.jsonl');
+    const mech = new Map();
+    if (fs.existsSync(compilePath)) {
+        for (const r of readJsonl(compilePath)) if (r.hash_mechanics) mech.set(r.id, r.hash_mechanics);
+    }
+    const trainMech = new Set();
+    const trainOwnerMech = new Set();
+    const trainOwnerTitle = new Set();
+    const keyOf = id => {
+        const owner = (meta.get(id) || {}).owner || 'unknown';
+        const title = normaliseTitle(titleOf(getText(id)));
+        return {
+            mech: mech.get(id) || null,
+            ownerMech: mech.get(id) && owner !== 'unknown' ? owner + '|' + mech.get(id) : null,
+            ownerTitle: owner !== 'unknown' && title.length >= 3 && !GENERIC_TITLES.has(title) ? owner + '|' + title : null,
+        };
+    };
+    for (const l of out.train) for (const id of l.file_ids) {
+        const k = keyOf(id);
+        if (k.mech) trainMech.add(k.mech);
+        if (k.ownerMech) trainOwnerMech.add(k.ownerMech);
+        if (k.ownerTitle) trainOwnerTitle.add(k.ownerTitle);
+    }
+    const result = {};
+    for (const name of ['val', 'test']) {
+        const c = { same_mechanics_any_owner: 0, same_owner_mechanics: 0, same_owner_title: 0 };
+        for (const l of out[name]) for (const id of l.file_ids) {
+            const k = keyOf(id);
+            if (k.mech && trainMech.has(k.mech)) c.same_mechanics_any_owner++;
+            if (k.ownerMech && trainOwnerMech.has(k.ownerMech)) c.same_owner_mechanics++;
+            if (k.ownerTitle && trainOwnerTitle.has(k.ownerTitle)) c.same_owner_title++;
+        }
+        result[name] = c;
+    }
+    return result;
 }
 
 function parseArgs(argv) {

@@ -81,11 +81,22 @@ function readExistingIds(outPath) {
 
 // Runs one shard: spawns the worker, restarts it after a timeout, resolves when the
 // shard's ids are all accounted for. onRow is called once per id.
+const MAX_STARTUP_CRASHES = 3;
+
 function runShard({ textDir, idsFile, ids, timeoutMs, env, onRow, log }) {
     return new Promise(resolve => {
         let next = 0;          // index of the next id the worker should start at
         let inFlight = null;   // id currently being compiled
         let inFlightIndex = -1;
+        let startupCrashes = 0; // consecutive exits before any S line
+
+        const failRemaining = reason => {
+            for (let i = next; i < ids.length; i++) {
+                onRow({ id: ids[i], status: 'errors', errorCount: 1, errorStrings: [reason], ms: 0, hash_no_levels: null, hash_mechanics: null });
+            }
+            next = ids.length;
+            resolve();
+        };
 
         function launch() {
             if (next >= ids.length) return resolve();
@@ -95,7 +106,8 @@ function runShard({ textDir, idsFile, ids, timeoutMs, env, onRow, log }) {
             });
             let buffer = '';
             let timer = null;
-            let finished = false;
+            let finished = false;  // once true, nothing more from this child is accepted
+            let sawStart = false;
 
             const arm = () => {
                 if (timer) clearTimeout(timer);
@@ -114,13 +126,23 @@ function runShard({ textDir, idsFile, ids, timeoutMs, env, onRow, log }) {
             };
             arm();
 
+            child.on('error', err => {
+                if (finished) return;
+                finished = true;
+                clearTimeout(timer);
+                failRemaining('worker spawn failed: ' + String(err && err.message || err));
+            });
+
             child.stdout.on('data', chunk => {
+                if (finished) return; // killed by the watchdog: anything still in the pipe is stale
                 buffer += chunk.toString('utf8');
                 let nl;
                 while ((nl = buffer.indexOf('\n')) >= 0) {
                     const line = buffer.slice(0, nl);
                     buffer = buffer.slice(nl + 1);
                     if (line.startsWith('S ')) {
+                        sawStart = true;
+                        startupCrashes = 0;
                         inFlight = line.slice(2);
                         inFlightIndex = ids.indexOf(inFlight, next);
                         arm();
@@ -138,16 +160,24 @@ function runShard({ textDir, idsFile, ids, timeoutMs, env, onRow, log }) {
                 }
             });
             child.stderr.on('data', () => { /* engine console noise */ });
-            child.on('exit', code => {
+            // 'close' fires after stdout has been fully drained, unlike 'exit'.
+            child.on('close', code => {
                 if (finished && next >= ids.length) return resolve();
-                if (finished) return; // watchdog already relaunched
+                if (finished) return; // watchdog already relaunched, or spawn error handled
                 finished = true;
                 clearTimeout(timer);
-                // Crashed mid-file: record and move on.
                 if (inFlight !== null) {
+                    // Crashed mid-file: record and move on.
                     onRow({ id: inFlight, status: 'errors', errorCount: 1, errorStrings: ['worker crashed, exit ' + code], ms: 0, hash_no_levels: null, hash_mechanics: null });
                     next = inFlightIndex + 1;
                     inFlight = null;
+                } else if (!sawStart) {
+                    // Died before compiling anything: a deterministic startup failure would loop forever.
+                    startupCrashes++;
+                    if (startupCrashes >= MAX_STARTUP_CRASHES) {
+                        log(`worker failed to start ${startupCrashes} times (exit ${code}); failing the rest of the shard`);
+                        return failRemaining('worker failed to start, exit ' + code);
+                    }
                 }
                 launch();
             });
@@ -192,16 +222,25 @@ async function runCompileFilter({ dataDir, workers, timeoutMs, resume, quiet, en
     const textDir = path.join(dataDir, 'raw', 'text');
     const outPath = path.join(dataDir, 'compile.jsonl');
     const manifest = readManifest(dataDir);
-    const done = resume ? readExistingIds(outPath) : new Set();
-    if (!resume && fs.existsSync(outPath)) fs.unlinkSync(outPath);
-
-    const out = fs.openSync(outPath, 'a');
+    const junkNow = new Map(manifest.map(m => [m.id, !!m.junk]));
+    const done = new Set();
     const rows = [];
-    if (resume) {
+    if (resume && fs.existsSync(outPath)) {
+        // Keep existing rows, except junk rows for files the manifest no longer calls junk
+        // (the junk heuristic changed): those are compiled again.
         for (const line of fs.readFileSync(outPath, 'utf8').split('\n')) {
-            if (line) { try { rows.push(JSON.parse(line)); } catch (e) { /* skip */ } }
+            if (!line) continue;
+            let row;
+            try { row = JSON.parse(line); } catch (e) { continue; }
+            if (row.status === 'junk' && junkNow.get(row.id) === false) continue;
+            rows.push(row);
+            done.add(row.id);
         }
+        fs.writeFileSync(outPath, rows.map(r => JSON.stringify(r)).join('\n') + (rows.length ? '\n' : ''));
+    } else if (fs.existsSync(outPath)) {
+        fs.unlinkSync(outPath);
     }
+    const out = fs.openSync(outPath, 'a');
     const write = row => {
         rows.push(row);
         fs.writeSync(out, JSON.stringify(row) + '\n');
