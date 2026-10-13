@@ -188,6 +188,65 @@ A fresh-context review of the first run found, and this run fixed:
   ignored after a kill, startup-crash cap, spawn errors), `--resume` recompiles rows
   that were junk under the old heuristic.
 
+## Phase 1: eval harness and baselines
+
+| Step | Command | Writes |
+|---|---|---|
+| 4.1 tasks | `node autocomplete/eval/tasks.js [--split val\|test]` | `<data>/eval/tasks_<split>.json` |
+| 4.3 baseline 1 | `node autocomplete/eval/run_rule_based.js --split val` | `<data>/eval/preds/rule_based_val.jsonl` |
+| 4.3 baseline 2 | `node --max-old-space-size=24576 autocomplete/eval/run_ngram.js --split val` (8 GB heap, 70 s train, 16 min predict) | `preds/ngram_val.jsonl`, `preds/ngram_rerank_val.jsonl` |
+| 4.3 baseline 3 | `node autocomplete/eval/export_prompts.js --split val` then `python autocomplete/eval/run_qwen.py --prompts <data>/eval/prompts_val.jsonl --out <data>/eval/preds/qwen15b_val.jsonl` (needs the venv in `train/requirements.txt`) | `preds/qwen15b_val.jsonl` |
+| 4.2 score | `node autocomplete/eval/score.js --tasks <data>/eval/tasks_val.json --predictions <preds.jsonl> --name NAME` | `<data>/eval/scores/NAME.{md,json}` |
+
+Modules: `eval/engine.js` runs the streaming parser and the deterministic completer
+inside the engine's vm context (`evalInRuntime` in `src/canonicalize.js`);
+`eval/tasks.js` draws seeded, section-stratified cases (2,000 each of rest_of_token,
+rest_of_line and next_line, 500 next_block split RULES/OBJECTS) from val and from test;
+`eval/score.js` reports coverage, exact match and edit similarity over covered cases,
+exact over all cases, any-candidate exact, compile validity (prediction spliced into
+compiling sources and compiled in the worker pool; the ground truth is 100% by
+construction), section-aware symbol validity judged on the spliced line, and median
+latency; `eval/ngram.js` is the section-aware interpolated Kneser-Ney model.
+
+Every runner removes the target from the document before predicting, so the completer
+sees "Pla" and not "Pla|yer". Empty generations count as covered and wrong; only an
+explicit "no suggestion" (the completer with no candidates) counts as uncovered.
+
+### Validation results (test split untouched)
+
+rest_of_token, where the deterministic completer competes. Percentages; exact/edit_sim/
+validity over covered cases, exact_all over all cases.
+
+| system | section | coverage | exact | exact_all | edit_sim | any_exact | compile_valid | symbol_valid | ms |
+|---|---|---|---|---|---|---|---|---|---|
+| rule-based (first candidate) | rules | 76.4 | 60.7 | 46.4 | 71.3 | 96.3 | 95.4 | 98.4 | 1.1 |
+| rule-based | overall | 62.1 | 70.2 | 43.6 | 79.0 | 94.3 | 92.8 | 99.1 | 0.5 |
+| 5-gram re-ranking the rule-based candidates | rules | 76.4 | 69.6 | 53.2 | 78.6 | 96.3 | 91.5 | 98.4 | 1.8 |
+| 5-gram re-ranker | overall | 62.1 | 80.0 | 49.7 | 86.7 | 94.3 | 94.9 | 99.1 | 0.8 |
+| 5-gram alone | rules | 89.6 | 54.0 | 48.4 | 66.3 | 65.2 | 82.2 | 79.0 | 8.4 |
+| 5-gram alone | overall | 92.5 | 61.9 | 57.2 | 71.9 | 71.8 | 83.7 | 79.3 | 4.5 |
+
+Generation tasks, 5-gram alone (the completer does not perform these):
+
+| task | section | exact | edit_sim | compile_valid | symbol_valid | ms |
+|---|---|---|---|---|---|---|
+| rest_of_line | rules | 22.8 | 38.4 | 45.7 | 56.8 | 46 |
+| rest_of_line | overall | 40.9 | 53.8 | 68.0 | 62.4 | 7 |
+| next_line | rules | 8.8 | 22.0 | 62.5 | 74.0 | 58 |
+| next_line | overall | 26.2 | 36.0 | 70.3 | 81.6 | 31 |
+| next_block | rules | 2.4 | 13.9 | 48.5 | 64.0 | 296 |
+| next_block | overall | 1.8 | 9.6 | 28.6 | 64.0 | 508 |
+
+Reading: the re-ranker lifts RULES exact match on the popup task by 9 points at the
+same coverage, but compile validity drops from 95.4 to 91.5, under the handoff's 95%
+bar for a no-model v1. The 5-gram alone covers more (it always guesses) and is worse
+per guess. On the generation tasks the 5-gram is weak in RULES (exact 23% for the rest
+of a line, 9% for the next line, 2% for a block) with roughly half its outputs failing
+to compile: the headroom the model is for. Full tables with every section are in
+`<data>/eval/scores/*.md`. The Qwen2.5-Coder zero-shot row is pending the model
+download. The rule-based completer's own first candidate breaks compilation 4.6% of the
+time in RULES, so that is the ceiling for anything that re-ranks its list.
+
 ## Caveats found on the way
 
 - **Fork drift in the error histogram.** The most common compile errors are
