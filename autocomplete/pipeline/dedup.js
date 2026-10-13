@@ -151,8 +151,31 @@ function runDedup({ dataDir, demoDir, quiet }) {
     const manifest = readJsonl(path.join(dataDir, 'raw', 'manifest.jsonl')).filter(r => !r.junk);
     const compile = new Map(readJsonl(path.join(dataDir, 'compile.jsonl')).map(r => [r.id, r]));
     const meta = new Map(manifest.map(r => [r.id, r]));
-    const ids = manifest.map(r => r.id);
-    log(`dedup: ${ids.length} files`);
+    const allIds = manifest.map(r => r.id);
+    log(`dedup: ${allIds.length} files`);
+
+    // Demo-identical files (code equal to a shipped demo: exact, or no-levels so only
+    // levels/metadata changed) are set aside BEFORE any union. They are dropped at split
+    // time anyway, and if they took part in the union they would bridge every owner's
+    // first template save into one cluster, chaining hundreds of unrelated games.
+    const demos = demoFingerprints(demoDir);
+    const demoByExact = new Map(demos.map(d => [d.exact, d.name]));
+    const demoByNoLevels = new Map(demos.filter(d => d.no_levels).map(d => [d.no_levels, d.name]));
+    const demoByMechanics = new Map(demos.filter(d => d.mechanics).map(d => [d.mechanics, d.name]));
+    const texts = new Map();
+    const exactKeys = new Map();
+    const demoFiles = new Map(); // id -> demo name
+    for (const id of allIds) {
+        const text = fs.readFileSync(path.join(textDir, id + '.txt'), 'utf8');
+        texts.set(id, text);
+        const ek = exactKey(text);
+        exactKeys.set(id, ek);
+        const c = compile.get(id) || {};
+        const name = demoByExact.get(ek) || (c.hash_no_levels && demoByNoLevels.get(c.hash_no_levels)) || null;
+        if (name) demoFiles.set(id, name);
+    }
+    const ids = allIds.filter(id => !demoFiles.has(id));
+    log(`dedup: ${demoFiles.size} demo-identical files set aside, ${ids.length} active`);
 
     // Keys 1, 2, 2b, 2c.
     const uf = new UnionFind();
@@ -160,7 +183,6 @@ function runDedup({ dataDir, demoDir, quiet }) {
     const byNoLevels = new Map();
     const byOwnerMechanics = new Map();
     const byOwnerTitle = new Map();
-    const texts = new Map();
     let exactDupes = 0;
     let ownerMechanicsMerges = 0;
     let ownerTitleMerges = 0;
@@ -171,10 +193,9 @@ function runDedup({ dataDir, demoDir, quiet }) {
         return count;
     };
     for (const id of ids) {
-        const text = fs.readFileSync(path.join(textDir, id + '.txt'), 'utf8');
-        texts.set(id, text);
+        const text = texts.get(id);
         uf.find(id);
-        const ek = exactKey(text);
+        const ek = exactKeys.get(id);
         if (byExact.has(ek)) { uf.union(byExact.get(ek), id); exactDupes++; } else byExact.set(ek, id);
         const c = compile.get(id);
         const owner = meta.get(id).owner;
@@ -243,10 +264,12 @@ function runDedup({ dataDir, demoDir, quiet }) {
         if (!members.has(root)) members.set(root, []);
         members.get(root).push(id);
     }
-    const demos = demoFingerprints(demoDir);
-    const demoByExact = new Map(demos.map(d => [d.exact, d.name]));
-    const demoByNoLevels = new Map(demos.filter(d => d.no_levels).map(d => [d.no_levels, d.name]));
-    const demoByMechanics = new Map(demos.filter(d => d.mechanics).map(d => [d.mechanics, d.name]));
+    // One lineage per demo, holding the files set aside above; split.js drops them.
+    const demoMembers = new Map();
+    for (const [id, name] of demoFiles) {
+        if (!demoMembers.has(name)) demoMembers.set(name, []);
+        demoMembers.get(name).push(id);
+    }
 
     const lineages = [];
     const mechanicsPerLineage = [];
@@ -254,19 +277,10 @@ function runDedup({ dataDir, demoDir, quiet }) {
     for (const [root, list] of members) {
         list.sort((a, b) => createdKey(a) < createdKey(b) ? -1 : 1);
         const rep = list[list.length - 1];
-        let demo = null;
         let demoMechanics = null;
-        const demoFileIds = [];
         const mech = new Set();
         for (const id of list) {
             const c = compile.get(id) || {};
-            const ek = exactKey(texts.get(id));
-            // A file is "demo" when its code is a shipped demo's (exact, or no-levels: only
-            // levels/metadata changed). The lineage is flagged if any member is; split.js
-            // drops the demo FILES, so an evolved game whose first save was the template
-            // keeps its later revisions.
-            const fileDemo = demoByExact.get(ek) || (c.hash_no_levels && demoByNoLevels.get(c.hash_no_levels)) || null;
-            if (fileDemo) { demoFileIds.push(id); if (!demo) demo = fileDemo; }
             if (!demoMechanics && c.hash_mechanics && demoByMechanics.has(c.hash_mechanics)) demoMechanics = demoByMechanics.get(c.hash_mechanics);
             if (c.hash_mechanics) mech.add(c.hash_mechanics);
         }
@@ -279,9 +293,23 @@ function runDedup({ dataDir, demoDir, quiet }) {
             size: list.length,
             owners: [...new Set(list.map(id => meta.get(id).owner))].sort(),
             title: titleOf(texts.get(rep)),
-            demo,
-            demo_file_ids: demoFileIds,
+            demo: null,
+            demo_file_ids: [],
             demo_mechanics: demoMechanics,
+        });
+    }
+    for (const [name, list] of demoMembers) {
+        list.sort((a, b) => createdKey(a) < createdKey(b) ? -1 : 1);
+        lineages.push({
+            lineage_id: 'demo:' + name,
+            file_ids: list,
+            representative_id: list[list.length - 1],
+            size: list.length,
+            owners: [...new Set(list.map(id => meta.get(id).owner))].sort(),
+            title: name,
+            demo: name,
+            demo_file_ids: list.slice(),
+            demo_mechanics: name,
         });
     }
     lineages.sort((a, b) => b.size - a.size || (a.lineage_id < b.lineage_id ? -1 : 1));
@@ -293,7 +321,9 @@ function runDedup({ dataDir, demoDir, quiet }) {
         sizeHist[s === 1 ? '1' : s <= 5 ? '2-5' : s <= 20 ? '6-20' : s <= 100 ? '21-100' : '>100']++;
     }
     const report = {
-        files: ids.length,
+        files: allIds.length,
+        active_files: ids.length,
+        demo_files_set_aside: demoFiles.size,
         exact_duplicates: exactDupes,
         owner_mechanics_merges: ownerMechanicsMerges,
         owner_title_merges: ownerTitleMerges,
@@ -302,12 +332,12 @@ function runDedup({ dataDir, demoDir, quiet }) {
         near_merges: nearMerges,
         thresholds: { same_owner: THRESHOLD_SAME_OWNER, cross_owner: THRESHOLD_CROSS_OWNER },
         lineages: lineages.length,
-        largest: { size: lineages[0] ? lineages[0].size : 0, title: lineages[0] ? lineages[0].title : null, share_of_files: lineages[0] ? Math.round(lineages[0].size / ids.length * 10000) / 100 : 0 },
+        largest: { size: lineages[0] ? lineages[0].size : 0, title: lineages[0] ? lineages[0].title : null, share_of_files: lineages[0] ? Math.round(lineages[0].size / allIds.length * 10000) / 100 : 0 },
+        largest_non_demo: (() => { const l = lineages.find(x => !x.demo); return l ? { size: l.size, title: l.title, owners: l.owners.length } : null; })(),
         top10: lineages.slice(0, 10).map(l => ({ size: l.size, title: l.title, owners: l.owners.length, demo: l.demo, demo_mechanics: l.demo_mechanics })),
         size_histogram: sizeHist,
         demo_lineages: lineages.filter(l => l.demo).length,
         demo_files: lineages.reduce((a, l) => a + l.demo_file_ids.length, 0),
-        demo_lineages_with_evolved_files: lineages.filter(l => l.demo && l.demo_file_ids.length < l.size).length,
         demo_mechanics_lineages: lineages.filter(l => l.demo_mechanics).length,
         mechanics_agreement: {
             lineages_spanning_multiple_mechanics: mechanicsPerLineage.filter(n => n > 1).length,
