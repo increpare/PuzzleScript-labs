@@ -417,14 +417,24 @@ globalThis.__ps_exports = {
 
     vm.createContext(context);
     vm.runInContext(allCode, context, { filename: 'canonicalize_runtime.js' });
+    runtimeContext = context;
     return context.__ps_exports;
 }
+
+let runtimeContext = null;
 
 function getRuntime() {
     if (runtime === null) {
         runtime = createRuntime();
     }
     return runtime;
+}
+
+// Run extra code inside the engine's vm context (e.g. to load src/js scripts that are
+// not part of the compile pipeline, such as the autocomplete module) and return its value.
+function evalInRuntime(code, filename = 'canonicalize_extra.js') {
+    getRuntime();
+    return vm.runInContext(code, runtimeContext, { filename });
 }
 
 function modeOptions(mode) {
@@ -1959,6 +1969,7 @@ module.exports = {
     canonicalizeSource,
     compileSemanticSource,
     createCompiledLevelStateProjector,
+    evalInRuntime,
     hashCanonical,
     parseSourceState,
     stableStringify,
