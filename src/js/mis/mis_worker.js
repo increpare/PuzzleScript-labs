@@ -113,10 +113,20 @@ self.onmessage = function (e) {
 /////////////////////////////////////////////////////////////////////
 
 function generate(msg) {
-	const program = MISCore.parseTransform(msg.transform, model);
-	if (!program.statements.length) {
-		reply({ type: 'genError', message: program.errors.length ? program.errors[0].message : 'The transform is empty.' });
-		return;
+	// Auto mode sends several transforms ({ id, text }); the generator picks
+	// among them as it learns which finds harder levels here.
+	let programs = null, program;
+	if (msg.transforms && msg.transforms.length) {
+		programs = msg.transforms.map(function (t) { return { id: t.id, program: MISCore.parseTransform(t.text, model) }; })
+			.filter(function (t) { return !t.program.errors.length && t.program.statements.length; });
+		if (!programs.length) { reply({ type: 'genError', message: 'None of the transforms is usable.' }); return; }
+		program = programs[0].program;
+	} else {
+		program = MISCore.parseTransform(msg.transform, model);
+		if (!program.statements.length) {
+			reply({ type: 'genError', message: program.errors.length ? program.errors[0].message : 'The transform is empty.' });
+			return;
+		}
 	}
 	const base = boardFrom(msg.base);
 	// Baseline for the adaptive step size's reward: the level being improved.
@@ -131,7 +141,7 @@ function generate(msg) {
 		if (r.status === 'solved') seedPrimaryMs = r.primaryMs;
 	}
 	const gen = MISGenerator.create({
-		model: model, backend: backend, program: program, base: base, baseEffort: baseEffort, seedPrimaryMs: seedPrimaryMs, adaptive: msg.adaptive !== false,
+		model: model, backend: backend, program: program, programs: programs && programs.length > 1 ? programs : null, base: base, baseEffort: baseEffort, seedPrimaryMs: seedPrimaryMs, adaptive: msg.adaptive !== false,
 		frozen: msg.frozen ? new Uint8Array(msg.frozen) : null, seed: msg.seed, keep: msg.keep || 8,
 		optimalCap: msg.optimalCap, initialBudgetMs: msg.initialBudgetMs, maxBudgetMs: msg.maxBudgetMs,
 		shard: msg.shardCount > 1 ? { index: msg.shardIndex, count: msg.shardCount } : null,
@@ -142,7 +152,7 @@ function generate(msg) {
 		const t = Date.now();
 		if (force || t - lastStats > 250) {
 			lastStats = t;
-			reply({ type: 'stats', stats: Object.assign({}, gen.stats()), profile: Object.assign({}, gen.profile()), arms: gen.arms(), exhausted: gen.exhausted() });
+			reply({ type: 'stats', stats: Object.assign({}, gen.stats()), profile: Object.assign({}, gen.profile()), arms: gen.arms(), transforms: gen.transforms(), exhausted: gen.exhausted() });
 		}
 	}
 	function step() {

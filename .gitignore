@@ -18,6 +18,8 @@ src - Kopie
 
 node_modules/
 __pycache__/
+src/tests/codemirror6/test-results/
+src/tests/codemirror6/generated/
 .claude/worktrees/happy-mestorf/
 
 /src/demo_canonical

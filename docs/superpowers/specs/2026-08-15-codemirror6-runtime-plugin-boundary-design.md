@@ -1,0 +1,243 @@
+# CodeMirror 6 Runtime and Plugin Boundary Design
+
+**Date:** 2026-08-15
+
+**Status:** Approved design; implementation not started
+
+## Goal
+
+Make the CodeMirror 6 ownership and build boundaries obvious from the repository layout:
+
+- Files that developers must not edit are visibly marked as generated or frozen.
+- Files that require an additional CodeMirror build step live in a dedicated directory.
+- PuzzleScript-owned CM6 plugins return to the normal edit-and-refresh development workflow.
+- The release editor continues to concatenate and minify the CM6 runtime, PuzzleScript plugins, and application scripts into one `scripts_compiled.js` file.
+
+## Motivation
+
+The current CM6 bundle combines two different kinds of code:
+
+1. Third-party npm packages that must be converted into a browser-ready script.
+2. PuzzleScript-owned editor plugins that developers expect to edit and refresh directly.
+
+Because both are in the same esbuild graph, any edit under `src/js/codemirror6/` currently requires `npm run build:codemirror`, even when the change is only to a PuzzleScript command or presentation plugin. That requirement is easy to forget and is inconsistent with the rest of PuzzleScript's development workflow.
+
+CodeMirror 6 does not publish an official browser-ready bundle. A generated runtime is therefore still required for PuzzleScript's classic-script, static, offline-capable editor. The design confines that generation to the third-party runtime instead of imposing it on PuzzleScript plugin development.
+
+## Non-goals
+
+- Do not change PuzzleScript parser behavior or replace `codeMirrorFn`.
+- Do not introduce a Lezer grammar, worker parser, second parser index, or private checkpoint-frequency control.
+- Do not switch to CDN-hosted modules, import maps, or runtime package resolution.
+- Do not change editor layout, appearance, shortcuts, history, autocomplete, search, or interaction behavior.
+- Do not move or delete the frozen CM5 comparison implementation beyond adding ownership documentation.
+- Do not include CM6 in player or standalone-game output.
+
+## Directory Structure
+
+```text
+src/js/
+├── codemirror/                         # Frozen CM5 compatibility oracle
+│   ├── README.md                       # Explicit frozen/do-not-edit notice
+│   └── ...
+│
+├── codemirror6/
+│   ├── README.md                       # Complete ownership/build rules
+│   │
+│   ├── runtime/
+│   │   ├── README.md
+│   │   ├── source/                     # Hand-edited; rebuild required
+│   │   │   └── index.js
+│   │   └── dist/                       # Generated; never hand-edit
+│   │       ├── README.md
+│   │       ├── codemirror6-runtime.js
+│   │       └── codemirror6-runtime.js.map
+│   │
+│   └── plugins/                        # Hand-edited; refresh directly
+│       ├── autocomplete.js
+│       ├── commands.js
+│       ├── dynamic-colors.js
+│       ├── editor-adapter.js
+│       ├── exact-prefix.js
+│       ├── interactions.js
+│       ├── search.js
+│       ├── stream-language.js
+│       ├── stream-state.js
+│       ├── style-token.js
+│       ├── token-presentation.js
+│       └── index.js
+│
+├── editor-cm6.js                       # Ordinary live-loaded application JS
+├── editor-api.js
+├── puzzlescript-autocomplete.js
+└── parser.js
+```
+
+The directory contract is:
+
+| Location | Ownership | May hand-edit? | Requires CM6 runtime rebuild? |
+| --- | --- | ---: | ---: |
+| `codemirror6/runtime/source/` | Runtime entry and export boundary | Yes, rarely | Yes |
+| `codemirror6/runtime/dist/` | Generated browser artifacts | No | Generated output |
+| `codemirror6/plugins/` | PuzzleScript integration | Yes | No, unless a new runtime export is required |
+| `codemirror/` | Frozen CM5 comparison oracle | Only for an explicitly approved baseline change | Not applicable |
+| Ordinary files directly under `src/js/` | PuzzleScript application | Yes | No |
+| `node_modules/` | Package manager | No | Rebuild after dependency change |
+| `bin/` | Release compiler | No | Not applicable |
+
+## Runtime Bundle
+
+The runtime entry imports the exact pinned CodeMirror and Lezer APIs used by PuzzleScript and publishes a curated frozen global namespace. The proposed name is `globalThis.PuzzleScriptCM6Runtime`.
+
+The runtime contains no PuzzleScript commands, parser wrapper, autocomplete policy, token presentation, or application behavior. It contains only the third-party package code and the small export shim needed to expose it to directly loaded plugins.
+
+`npm run build:codemirror` continues to be the familiar command, but its scope changes to:
+
+```text
+runtime/source/index.js + pinned npm dependencies
+    -> runtime/dist/codemirror6-runtime.js
+    -> runtime/dist/codemirror6-runtime.js.map
+```
+
+`npm run check:codemirror` regenerates this runtime in memory and fails if either checked artifact differs. It never writes files.
+
+The runtime JavaScript begins with a generated-file banner:
+
+```js
+/*! GENERATED by npm run build:codemirror — DO NOT EDIT. */
+```
+
+The source map is marked through its directory README and `.gitattributes`. Both files are tagged `linguist-generated=true`. Files are not made filesystem-read-only because the build must replace them portably.
+
+The generated runtime includes exact package-version metadata. Plugin bootstrap fails clearly if the expected namespace, required exports, or version metadata is absent rather than failing later with an opaque CM6 extension-identity error.
+
+## PuzzleScript Plugin Format
+
+PuzzleScript-owned plugins are ordinary browser-loadable scripts. They no longer import npm package names and are not part of the esbuild graph.
+
+Each plugin is isolated in an IIFE and receives the frozen runtime namespace plus a single PuzzleScript-owned module namespace. The design avoids creating one global per plugin. The final `plugins/index.js` publishes the existing frozen `globalThis.PuzzleScriptCM6` product API, including `createEditor`, so application callers retain their current semantic boundary.
+
+The plugin namespace and explicit development script order replace ES-module import ordering. Dependencies between plugins must remain explicit at the IIFE boundary, and tests must fail when the development order or release order omits or reorders a dependency.
+
+Editing a plugin that uses existing runtime exports requires only a browser refresh. Adding use of a new CodeMirror or Lezer API requires adding that export to `runtime/source/index.js`, rebuilding the runtime, and committing the updated runtime and source map.
+
+## Development Loading
+
+`src/editor.html` loads the following classic scripts in explicit order:
+
+1. `codemirror6/runtime/dist/codemirror6-runtime.js`
+2. PuzzleScript CM6 plugin files
+3. `editor-api.js`
+4. `editor-cm6.js`
+5. Remaining PuzzleScript editor/application scripts
+
+The exact plugin list and order are tested against the release compiler's editor input list. A plugin cannot work in development but disappear from the release, or vice versa, without a deterministic test failure.
+
+The ordinary development loop is:
+
+```text
+edit codemirror6/plugins/commands.js
+refresh src/editor.html
+```
+
+The exceptional runtime loop is:
+
+```text
+change a pinned CM6 dependency or runtime export
+npm run build:codemirror
+refresh src/editor.html
+```
+
+No `node compile.js` release build is required to inspect plugin changes under `src`.
+
+## Release Compilation
+
+The release editor remains a single classic JavaScript payload. `compile.js` feeds Terser the files in explicit dependency order:
+
+1. Generated CM6 runtime
+2. Directly editable PuzzleScript CM6 plugins
+3. PuzzleScript editor and application scripts
+
+The resulting `bin/editor.html` continues to load only:
+
+```html
+<script src="js/scripts_compiled.js"></script>
+```
+
+There is no ES-module graph, import map, CDN request, or additional plugin request in the release editor.
+
+`scripts_play_compiled.js`, the player page, and standalone exports continue to omit both the runtime and the editor plugins.
+
+Before changing the build number or deleting `bin`, `compile.js` must run the deterministic CM6 runtime check and fail if the checked runtime is stale. It must not silently rebuild the runtime during a release. This preserves reviewable generated artifacts and prevents a release from depending on uncommitted local output.
+
+## Generated and Frozen Marking
+
+The repository uses four complementary markings:
+
+1. `source/` versus `dist/` directory names.
+2. README files at the CM6 root, runtime root, runtime `dist`, and frozen CM5 root.
+3. A generated-file banner in the runtime JavaScript.
+4. `.gitattributes` generated-file classification for the runtime and source map.
+
+The CM5 README states that those files are retained as a compatibility oracle and are not loaded by the production CM6 editor. It does not claim the files can never change; an intentional CM5 baseline maintenance task may change them with explicit review and recapture.
+
+## Dependency Upgrades
+
+CM6 package versions remain exact in `package.json` and `package-lock.json`. They do not float during ordinary installation.
+
+A dependency update must:
+
+1. Review the CodeMirror changelog for every crossed version.
+2. Update the direct CodeMirror and Lezer package set coherently.
+3. Run `npm dedupe` and verify there is one installed `@codemirror/state`, `@codemirror/view`, and `@codemirror/language` instance.
+4. Audit `@codemirror/language` StreamLanguage changes against PuzzleScript's pinned `stateAfter` and `streamParser` checkpoint recovery.
+5. Rebuild and commit the runtime and linked source map.
+6. Run the complete unit, engine, browser, layout, shortcut, parser, release, and compression gates.
+7. Recapture installed-browser performance when language, view, state, autocomplete, or command behavior changes materially.
+
+The extra build therefore becomes a deliberate dependency/runtime maintenance operation rather than part of ordinary PuzzleScript plugin editing.
+
+## Size Accounting
+
+Splitting the generated runtime from the plugins must not weaken the existing CM6 size contract.
+
+The runtime sidecar alone will be smaller than the current all-in-one CM6 bundle and is not a sufficient regression metric. The test suite must also construct a deterministic release-equivalent CM6 surface from the generated runtime plus all PuzzleScript CM6 plugins, minify it using the release settings, compress it with Brotli text quality 11, and enforce the existing below-100-KiB contract against that combined surface.
+
+The release verifier continues to decompress and byte-compare every `.br` sidecar and to verify the actual runtime sidecar, Apache negotiation rules, MIME preservation, and raw fallback.
+
+## Error Handling
+
+- Missing runtime global: fail before editor construction with the expected script path and build command.
+- Missing runtime export: name the missing export and direct the developer to `runtime/source/index.js`.
+- Unsupported StreamLanguage internals: retain the explicit pinned-version failure rather than falling back to approximate parser state.
+- Stale runtime artifact: fail `npm run check:codemirror` and release compilation before destructive release work.
+- Development/release order mismatch: fail a static manifest/order test.
+- Duplicate CodeMirror state packages: fail dependency-tree verification before browser testing.
+- Generated runtime or map edited manually: deterministic check fails byte-for-byte.
+
+## Testing and Acceptance
+
+The reorganisation is accepted only when all of the following hold:
+
+1. Editing a PuzzleScript plugin and refreshing the development editor exercises the change without running esbuild.
+2. Changing runtime source or a pinned CM6 dependency makes `npm run check:codemirror` fail until the runtime is rebuilt.
+3. Development and release plugin lists and ordering are identical by static test.
+4. The development editor loads one generated runtime and all direct plugin scripts, with no npm or CDN requests.
+5. The release editor loads one `scripts_compiled.js` and no separate runtime/plugin graph.
+6. Player and standalone output contain no CM6 runtime, plugin namespace, editor DOM, or bundle payload.
+7. Generated/frozen README, banner, and `.gitattributes` markings are present and exact.
+8. The combined runtime-plus-plugin Brotli measurement remains below 100 KiB.
+9. Checked runtime and source map rebuild deterministically and the linked map contains the runtime entry source.
+10. Existing parser, autocomplete, search, dynamic colour, shortcut, history, interaction, no-style-flash, layout, and release behavior remains unchanged.
+11. Existing installed-browser performance is not materially regressed; any recapture uses the established Chrome and Safari harnesses and records page errors from initial load.
+12. The complete non-protected Node suite, 750-case engine suite, and Chromium/Firefox/WebKit suite pass. Edge remains excluded by explicit user direction.
+
+## Expected Outcome
+
+The repository visually communicates three different ownership classes:
+
+- **Generated runtime:** do not edit; rebuild only for dependency/runtime changes.
+- **PuzzleScript CM6 plugins:** edit normally and refresh directly.
+- **Frozen CM5 oracle:** retain for comparison and do not casually modify.
+
+Production retains a single optimized editor script, deterministic source maps, Brotli delivery, exact PuzzleScript parser behavior, and the existing conservative verification gates without imposing a bundler on ordinary plugin development.

@@ -56,11 +56,13 @@ const MISGenerator = (function () {
 		// admitted candidate here. They only set the displayed move count, never
 		// which candidates are kept, and took ~20% of generation time.
 		const eagerProofs = opts.proofs === 'eager';
-		// Parents: 'seed' (default) transforms the base level every time;
-		// 'elite' transforms one of the best boards found so far (the base with
-		// probability seedShare), so difficulty can build up over several steps.
-		const eliteParents = opts.parents === 'elite';
-		const seedShare = opts.seedShare !== undefined ? opts.seedShare : 0.3;
+		// Parents: 'elite' (default) transforms one of the best boards found so
+		// far, or the base level with probability seedShare, so difficulty can
+		// build up over several steps; 'seed' transforms the base every time.
+		// Benchmark at 4x the usual run time: +13.1% [+6.2, +21.2], best level
+		// +9%, shortlist ~1 tile further from the base (neutral on 3-15 s runs).
+		const eliteParents = opts.parents !== 'seed';
+		const seedShare = opts.seedShare !== undefined ? opts.seedShare : 0.7;
 		const eliteSize = opts.eliteSize || 16;
 		const elite = []; // { effort, board }, hardest first
 		// Optional sharding: only assess boards whose hash lands on this worker,
@@ -79,14 +81,23 @@ const MISGenerator = (function () {
 		// differs per level and transform. Each arm scales every `choose`
 		// count; a UCB bandit spends time on the arm finding harder-than-base
 		// levels (and shortlist entries) fastest per second of work.
+		//
+		// Several transforms (opts.programs: [{ id, program }], the app's Auto
+		// mode): the same bandit first picks the transform, then that
+		// transform's step size, so time goes to whichever transform is finding
+		// harder levels fastest on this level.
 		const baseEffort = opts.baseEffort || 0;
-		const arms = [];
-		const hasChoose = program.statements.some(function (st) { return !!st.choose; });
-		const scales = opts.adaptive === false || !hasChoose ? [1] : [0.125, 0.25, 0.5, 1, 2];
-		scales.forEach(function (scale) {
-			arms.push({ scale: scale, program: scaleProgram(program, scale), ms: 0, reward: 0, pulls: 0 });
+		const groups = (opts.programs || [{ id: 'transform', program: program }]).map(function (entry) {
+			const arms = [];
+			const hasChoose = entry.program.statements.some(function (st) { return !!st.choose; });
+			const scales = opts.adaptive === false || !hasChoose ? [1] : [0.125, 0.25, 0.5, 1, 2];
+			scales.forEach(function (scale) {
+				arms.push({ scale: scale, program: scaleProgram(entry.program, scale), ms: 0, reward: 0, pulls: 0 });
+			});
+			// Start at the transform as written.
+			return { id: entry.id, arms: arms, armIndex: arms.length > 1 ? 3 : 0, ms: 0, reward: 0, pulls: 0 };
 		});
-		let armIndex = arms.length > 1 ? 3 : 0; // start at the transform as written
+		let groupIndex = 0;
 		let budget = Math.min(maxBudget, Math.max(opts.initialBudgetMs || 200, Math.round(basePrimaryMs * 7)));
 		let streak = 0;
 		const legacy = opts.pipeline === 'legacy';
@@ -124,7 +135,7 @@ const MISGenerator = (function () {
 			};
 		}
 
-		function pickArm() {
+		function pickArm(arms) {
 			if (arms.length === 1) return 0;
 			let totalMs = 0;
 			arms.forEach(function (a) { totalMs += a.ms; });
@@ -173,16 +184,19 @@ const MISGenerator = (function () {
 			const t0 = now(), w0 = workStates;
 			const before = topEfforts.length ? topEfforts[topEfforts.length - 1] : 0;
 			const filled = topEfforts.length >= keepCount;
-			const arm = arms[armIndex];
+			const group = groups[groupIndex];
+			const arm = group.arms[group.armIndex];
 			const found = stepWith(arm.program);
-			arm.ms += workClock ? (workStates - w0) / WORK_STATES_PER_MS : now() - t0;
-			arm.pulls++;
+			const spent = workClock ? (workStates - w0) / WORK_STATES_PER_MS : now() - t0;
+			let reward = 0;
 			if (found) {
 				const e = found.result.effort || 0;
-				if (e > baseEffort) arm.reward += 1;
-				if (filled && e > before) arm.reward += 3;
+				if (e > baseEffort) reward += 1;
+				if (filled && e > before) reward += 3;
 			}
-			armIndex = pickArm();
+			[arm, group].forEach(function (a) { a.ms += spent; a.pulls++; a.reward += reward; });
+			group.armIndex = pickArm(group.arms);
+			groupIndex = pickArm(groups);
 			return found;
 		}
 
@@ -310,7 +324,17 @@ const MISGenerator = (function () {
 			best: function () { return topEfforts.slice(); },
 			// Mean number of tiles the shortlist differs from the base level.
 			drift: function () { return topInfo.length ? topInfo.reduce(function (t, x) { return t + x.drift; }, 0) / topInfo.length : 0; },
-			arms: function () { return arms.map(function (a) { return { scale: a.scale, ms: Math.round(a.ms), reward: a.reward, pulls: a.pulls }; }); },
+			// Step-size arms, summed over transforms.
+			arms: function () {
+				return groups[0].arms.map(function (a0, i) {
+					const out = { scale: a0.scale, ms: 0, reward: 0, pulls: 0 };
+					groups.forEach(function (g) { const a = g.arms[i] || g.arms[0]; if (a.scale !== a0.scale) return; out.ms += a.ms; out.reward += a.reward; out.pulls += a.pulls; });
+					out.ms = Math.round(out.ms);
+					return out;
+				});
+			},
+			// Per transform (several only in Auto mode).
+			transforms: function () { return groups.map(function (g) { return { id: g.id, ms: Math.round(g.ms), reward: g.reward, pulls: g.pulls }; }); },
 		};
 	}
 

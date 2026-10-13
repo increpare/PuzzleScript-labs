@@ -13,6 +13,9 @@ mkdir -p "$BUILD_DIR"
 SOURCES=$(sed -n '/^SOURCES=(/,/^)/p' "$NATIVE/wasm/build_mis_wasm.sh" | grep -v '^SOURCES=(\|^)' | tr -d ' ')
 FLAGS=("$OPT" -DNDEBUG -DPS_MASK_WORD_BITS=64 -DPS_INTERPRETER_OBJECT_CELL_INDEX=1 -DUTF8PROC_STATIC
   -I"$NATIVE/include" -I"$NATIVE/src" -I"$NATIVE/third_party/simdjson" -I"$NATIVE/third_party/utf8proc")
+# CFLAGS_EXTRA: e.g. "-g" for callgrind/perf symbols.
+read -r -a EXTRA_FLAGS <<< "${CFLAGS_EXTRA:-}"
+FLAGS+=("${EXTRA_FLAGS[@]}")
 stale() {
   local obj="$1" src="$2"
   [[ "${FORCE:-0}" == 1 || ! -f "$obj" || ! -f "$obj.d" || "$src" -nt "$obj" ]] && return 0

@@ -1,0 +1,57 @@
+{
+  "root": {
+    "x": 0,
+    "y": 30,
+    "width": 720,
+    "height": 870
+  },
+  "gutter": {
+    "x": 0,
+    "y": 30,
+    "width": 29,
+    "height": 920
+  },
+  "scroller": {
+    "x": 0,
+    "y": 30,
+    "width": 770,
+    "height": 920
+  },
+  "line": {
+    "x": 29,
+    "y": 34,
+    "width": 691,
+    "height": 16
+  },
+  "fontFamily": "\"Consolas\", \"Lucida Console\", monospace",
+  "fontSize": "16px",
+  "lineHeight": "16px",
+  "paddingLeft": "4px",
+  "paddingRight": "4px",
+  "tabSize": "8",
+  "editorTabSize": 4,
+  "wrappedLine": {
+    "x": 29,
+    "y": 34,
+    "width": 691,
+    "height": 208
+  },
+  "autocomplete": {
+    "x": 33,
+    "y": 50,
+    "width": 211.39999389648438,
+    "height": 23.550003051757812
+  },
+  "searchPanel": {
+    "x": 0,
+    "y": 30,
+    "width": 720,
+    "height": 92.93333435058594
+  },
+  "rootWithSearch": {
+    "x": 0,
+    "y": 124.93333435058594,
+    "width": 720,
+    "height": 775.066650390625
+  }
+}

@@ -437,7 +437,7 @@ function onKeyDown(event) {
 
 	if (IDE && event.keyCode === 9 && gameCanvasHasInput) {//tab
 		editor.focus();
-		lastDownTarget = editor.getInputField();
+		lastDownTarget = editor.getInputElement();
 		prevent(event);
 		return;
 	}

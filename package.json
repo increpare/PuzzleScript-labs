@@ -1,4 +1,5 @@
 {
+  "name": "puzzlescript",
   "scripts": {
     "test:node": "node src/tests/run_tests_node.js",
     "test:layer-coupled-movement": "node src/tests/run_layer_coupled_movement_node.js",
@@ -10,9 +11,24 @@
     "native:build": "cmake --build build --target puzzlescript_cpp",
     "native:test": "ctest --test-dir build --output-on-failure",
     "test:syntax": "npm --prefix tools/vscode-puzzlescript run test:syntax",
-    "preview:syntax": "npm --prefix tools/vscode-puzzlescript run preview:syntax --"
+    "preview:syntax": "npm --prefix tools/vscode-puzzlescript run preview:syntax --",
+    "build:codemirror": "node build-codemirror6.js",
+    "check:codemirror": "node build-codemirror6.js --check",
+    "perf:codemirror:chrome": "node src/tests/codemirror6/performance/run-installed-browser.mjs --browser chrome",
+    "perf:codemirror:safari": "node src/tests/codemirror6/performance/run-installed-browser.mjs --browser safari",
+    "test:codemirror": "node --test src/tests/codemirror6/*.test.mjs",
+    "test:codemirror-browser": "playwright test --config src/tests/codemirror6/playwright.config.mjs --project=chromium --project=firefox --project=webkit",
+    "verify:release-compression": "node verify-release-compression.js"
   },
   "dependencies": {
+    "@codemirror/autocomplete": "6.20.3",
+    "@codemirror/commands": "6.10.4",
+    "@codemirror/language": "6.12.4",
+    "@codemirror/search": "6.7.1",
+    "@codemirror/state": "6.7.1",
+    "@codemirror/view": "6.43.8",
+    "@lezer/common": "1.5.2",
+    "@lezer/highlight": "1.2.3",
     "compress-images": "^2.0.5",
     "concat": "^1.0.3",
     "gifsicle": "^7.0.1",
@@ -24,5 +40,9 @@
     "terser": "^5.17.1",
     "web-resource-inliner": "^6.0.1",
     "ycssmin": "^1.0.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1",
+    "esbuild": "0.28.2"
   }
 }

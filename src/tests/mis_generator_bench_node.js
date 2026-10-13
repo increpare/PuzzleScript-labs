@@ -7,9 +7,12 @@
 // same time.
 //
 //   node src/tests/mis_generator_bench_node.js run [--quick] [--work] [--repeats 1] [--jobs N] [--game SUBSTRING]
+//        [--generator REGEX] [--time-scale K]
 //        [--variant NAME='{"src":"../ref/src","gen":{...},"slowdown":1.5}']... [--out bench_run.json]
 //   node src/tests/mis_generator_bench_node.js score bench_run.json [more_runs.json ...]
 //   node src/tests/mis_generator_bench_node.js calibrate survey.json    (writes benchSeconds into the manifest)
+//   node src/tests/mis_generator_bench_node.js corpus [--out corpus.txt]  (engine replay workload)
+//   node src/tests/mis_generator_bench_node.js replay corpus.txt [--cap 30000] [--passes N] [--wasm DIR]
 //
 // Levels: src/tests/mis_generator_bench_seeds.json (see
 // docs/benchmarks/2026-09-27-mis-generator-bench.md). Every (level, generator)
@@ -135,6 +138,11 @@ async function run() {
 	const only = arg('--game', null);
 	if (only) seeds = seeds.filter(s => s.game.includes(only));
 	if (!seeds.length) throw new Error('no benchmark levels selected');
+	// --time-scale K: K times each level's frozen time (longer horizons, e.g.
+	// for search strategies that build up over many rounds).
+	const timeScale = +arg('--time-scale', 1);
+	const genFilter = arg('--generator', null) ? new RegExp(arg('--generator', null)) : null;
+	const secondsOf = s => s.benchSeconds * timeScale;
 	const perVariant = Math.max(1, Math.floor(jobs / variants.length));
 	const pools = variants.map(v => makePool(perVariant, v.src ? { srcDir: v.src } : null));
 	for (const v of variants) v.commit = gitInfo(v.src || srcDir);
@@ -142,29 +150,33 @@ async function run() {
 	const tasks = [];
 	for (let rep = 0; rep < repeats; rep++) {
 		for (const s of seeds) {
-			for (const p of manifest.generators[s.game] || []) tasks.push({ s, p, rep });
+			const gens = (manifest.generators[s.game] || []).filter(p => !genFilter || genFilter.test(p.id));
+			gens.forEach((p, i) => tasks.push({ s, p, rep, first: i === 0, gens }));
 		}
 	}
-	const threadSeconds = tasks.reduce((t, x) => t + x.s.benchSeconds, 0);
+	const threadSeconds = tasks.reduce((t, x) => t + secondsOf(x.s), 0);
 	process.stderr.write(`${tasks.length} runs x ${variants.length} variant(s) [${variants.map(v => v.name).join(', ')}], ` +
 		`${perVariant} thread(s) each: ~${Math.round(threadSeconds / perVariant / 60)} min\n`);
 	let done = 0;
-	const total = tasks.length * variants.length;
+	const total = variants.reduce((t, v) => t + (v.auto ? tasks.filter(x => x.first).length : tasks.length), 0);
 	const rows = [];
 	const promises = [];
 	// Interleave: every task is queued for all variants back to back.
-	for (const { s, p, rep } of tasks) {
+	for (const { s, p, rep, first, gens } of tasks) {
 		variants.forEach((v, vi) => {
+			// "auto": one run per level with all its transforms (the app's Auto mode).
+			if (v.auto && !first) return;
 			const slow = v.slowdown > 1 ? v.slowdown : 1;
 			promises.push(pools[vi].run({
 				type: 'survey', file: path.join(CORPUS, s.game), level: s.level, transform: p.text,
-				candidates: 0, minSeconds: s.benchSeconds, maxSeconds: s.benchSeconds, seed: 11 + rep,
+				transforms: v.auto ? gens.map(g => ({ id: g.id, text: g.text })) : undefined,
+				candidates: 0, minSeconds: secondsOf(s), maxSeconds: secondsOf(s), seed: 11 + rep,
 				genOpts: v.gen || null, slowdown: slow, workClock: work,
-			}, ((work ? 10 : 1) * s.benchSeconds + 60) * 1000 * slow).then((m) => {
+			}, ((work ? 10 : 1) * secondsOf(s) + 60) * 1000 * slow).then((m) => {
 				done++;
 				if (done % 50 === 0 || done === total) process.stderr.write(`  ${done}/${total}\n`);
 				rows.push({
-					variant: v.name, game: s.game, level: s.level, generator: p.id, rep, seconds: s.benchSeconds,
+					variant: v.name, game: s.game, level: s.level, generator: v.auto ? 'auto' : p.id, rep, seconds: secondsOf(s), transforms: m.transforms,
 					ok: !!m.ok, hung: !!m.hung, reason: m.ok ? undefined : m.reason,
 					secs: m.secs, work: m.work, hitWall: m.hitWall || undefined, baseEffort: m.baseEffort, top: m.top, drift: m.drift, assessed: m.assessed, timeouts: m.timeouts,
 					harder: m.harder, newSolvable: m.newSolvable, solvedPct: m.solvedPct,
@@ -176,7 +188,7 @@ async function run() {
 	pools.forEach(p => p.close());
 	const result = {
 		schema_version: 1, kind: 'mis_generator_bench_run', generated_at: new Date().toISOString(),
-		manifest: path.relative(process.cwd(), MANIFEST), quick, repeats, jobs, clock: work ? 'work' : 'time',
+		manifest: path.relative(process.cwd(), MANIFEST), quick, repeats, jobs, time_scale: timeScale, generator_filter: genFilter ? genFilter.source : undefined, clock: work ? 'work' : 'time',
 		machine: { cpus: os.cpus().length, model: (os.cpus()[0] || {}).model, node: process.version },
 		variants, rows,
 	};
@@ -234,7 +246,38 @@ function score(results) {
 	if (names.length < 2) return;
 	const ref = names[0];
 	console.log(`\nvs ${ref} (paired runs; 95% CI from resampling games; "better/worse" = runs whose lift changed by more than 5%):`);
+	const bootstrap = (g) => {
+		const rng = makeRng(12345);
+		const boots = [];
+		for (let i = 0; i < 2000; i++) {
+			let t = 0;
+			for (let j = 0; j < g.length; j++) t += g[Math.floor(rng() * g.length)];
+			boots.push(t / g.length);
+		}
+		boots.sort((x, y) => x - y);
+		return [Math.exp(boots[Math.floor(0.025 * boots.length)]), Math.exp(boots[Math.floor(0.975 * boots.length)])];
+	};
 	for (const n of names.slice(1)) {
+		const vrows = Object.values(by[n]);
+		if (vrows.length && vrows.every(r => r.generator === 'auto')) {
+			// Auto: one run per level; compare with the reference's runs of each
+			// transform on that level - their average (a random pick) and their best.
+			const vsMean = {}, vsBest = {};
+			for (const b of vrows) {
+				const refs = Object.values(by[ref]).filter(a => a.game === b.game && a.level === b.level && a.rep === b.rep).map(a => Math.log(lift(a)));
+				if (!refs.length) continue;
+				const la = Math.log(lift(b));
+				(vsMean[b.game] || (vsMean[b.game] = [])).push(la - mean(refs));
+				(vsBest[b.game] || (vsBest[b.game] = [])).push(la - Math.max(...refs));
+			}
+			for (const [label, per] of [['vs average transform', vsMean], ['vs best transform (oracle)', vsBest]]) {
+				const g = Object.values(per).map(mean);
+				const [lo, hi] = bootstrap(g);
+				const verdict = g.length < 10 ? 'too few games for a CI' : lo > 1 ? 'BETTER' : hi < 1 ? 'WORSE' : 'no significant change';
+				console.log(`  ${n.slice(0, 20).padEnd(20)} ${label.padEnd(27)} ${pctc(Math.exp(mean(g))).padStart(7)}  [${pctc(lo)}, ${pctc(hi)}]  ${verdict}  (${g.length} games)`);
+			}
+			continue;
+		}
 		const perGame = {};
 		let better = 0, worse = 0, pairs = 0, candA = 0, candB = 0, secA = 0, secB = 0;
 		for (const k in by[n]) {
@@ -263,8 +306,85 @@ function score(results) {
 	}
 }
 
+/////////////////////////////////////////////////////////////////////
+// corpus: generator candidates as a replay workload for engine work
+/////////////////////////////////////////////////////////////////////
+
+// Writes "GAME <path>" / "ASSESS <name> <w> <h> <count> <ids...>" lines for
+// native/wasm/mis_wasm_bench_native.cpp: the seed level and the first
+// --per-generator candidates each of its generators assesses (work clock, so
+// the corpus is the same every time), for every --quick level.
+async function corpus() {
+	const manifest = JSON.parse(fs.readFileSync(MANIFEST, 'utf8'));
+	const per = +arg('--per-generator', 6);
+	const out = arg('--out', 'mis_candidate_corpus.txt');
+	const pool = makePool(+arg('--jobs', os.cpus().length));
+	const seeds = quickSet(manifest.seeds);
+	const jobs = [];
+	for (const s of seeds) {
+		for (const p of manifest.generators[s.game] || []) {
+			jobs.push(pool.run({ type: 'corpus', file: path.join(CORPUS, s.game), level: s.level, transform: p.text, seed: 11, max: per, workMs: 20000 }, 600000)
+				.then(m => ({ s, p, m })));
+		}
+	}
+	const results = await Promise.all(jobs);
+	pool.close();
+	const lines = [];
+	let n = 0, lastGame = null;
+	const seenBase = new Set();
+	for (const { s, p, m } of results.sort((a, b) => a.s.game.localeCompare(b.s.game) || a.s.level - b.s.level)) {
+		if (!m.ok) continue;
+		if (s.game !== lastGame) { lines.push('GAME ' + path.join(CORPUS, s.game)); lastGame = s.game; }
+		const tag = (s.game.replace(/\.txt$/, '') + '#' + s.level).replace(/\s+/g, '_');
+		const emit = (name, g) => { lines.push(`ASSESS ${name} ${g.w} ${g.h} ${g.ids.length} ${g.ids.join(' ')}`); n++; };
+		if (!seenBase.has(tag)) { seenBase.add(tag); emit(tag + '#seed', m.base); }
+		m.grids.forEach((g, i) => emit(`${tag}#${p.id}#${i}`, g));
+	}
+	fs.writeFileSync(out, lines.join('\n') + '\n');
+	console.log(`${n} boards from ${seeds.length} levels -> ${out}`);
+}
+
+// replay: the corpus through the WebAssembly build (the wasm counterpart of
+// native/wasm/mis_wasm_bench_native.cpp --passes): same assessment, same
+// checksum, time of the assessments only. --wasm DIR loads another build.
+async function replay() {
+	const wasmDir = path.resolve(arg('--wasm', path.join(srcDir, 'js/mis/wasm')));
+	const M = await require(path.join(wasmDir, 'mis_native.js'))();
+	const cap = +arg('--cap', 30000), passes = +arg('--passes', 1);
+	const lines = fs.readFileSync(args[1], 'utf8').split('\n');
+	const enc = new TextEncoder();
+	for (let pass = 0; pass < passes; pass++) {
+		let checksum = 14695981039346656037n, ms = 0, states = 0, boards = 0;
+		const mix = (v) => { checksum = ((checksum ^ BigInt.asUintN(64, BigInt(Math.trunc(v)))) * 1099511628211n) & 0xffffffffffffffffn; };
+		for (const line of lines) {
+			if (line.startsWith('GAME ')) {
+				const src = enc.encode(fs.readFileSync(line.slice(5), 'utf8'));
+				const ptr = M._malloc(src.length + 1);
+				M.HEAPU8.set(src, ptr);
+				M.HEAPU8[ptr + src.length] = 0;
+				if (!M._misw_compile(ptr, src.length)) console.error('compile failed: ' + line);
+				M._free(ptr);
+			} else if (line.startsWith('ASSESS ')) {
+				const f = line.split(' ');
+				const w = +f[2], h = +f[3], count = +f[4];
+				const g = M._misw_grid_buffer(count) >> 2;
+				for (let i = 0; i < count; i++) M.HEAP32[g + i] = +f[5 + i];
+				const t = performance.now();
+				const st = M._misw_assess(w, h, count, 600000, 1, 600000, 0, cap, 1);
+				ms += performance.now() - t;
+				[st, M._misw_result_expanded(), M._misw_result_greedy(), M._misw_result_weighted_astar(), M._misw_result_bfs(), M._misw_result_difficulty()].forEach(mix);
+				states += M._misw_result_expanded();
+				boards++;
+			}
+		}
+		console.log(`pass ${pass + 1}: ${boards} boards, ${states} primary states, ${ms.toFixed(1)} ms, checksum ${checksum.toString(16).padStart(16, '0')}`);
+	}
+}
+
 (async () => {
-	if (mode === 'calibrate') calibrate();
+	if (mode === 'replay') await replay();
+	else if (mode === 'calibrate') calibrate();
+	else if (mode === 'corpus') await corpus();
 	else if (mode === 'run') await run();
 	else if (mode === 'score') score(args.slice(1).filter(a => a.endsWith('.json')).map(f => JSON.parse(fs.readFileSync(f, 'utf8'))));
 	else {

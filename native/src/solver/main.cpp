@@ -1869,6 +1869,36 @@ struct SolverEdgeStep {
     ps_step_result stepResult{};
     bool oracleMismatch = false;
     std::string oracleError;
+    // The turn was interrupted (TurnInterruptScope): the search must stop.
+    bool interrupted = false;
+};
+
+// While a search runs, lets the rule engine abandon a turn once the search
+// should stop (deadline or cancel) instead of finishing it: some turns run
+// for seconds. The search would report that stop anyway after the turn, so
+// results only change in arriving on time. Per thread; nests.
+struct TurnInterruptScope {
+    const SearchControl& control;
+    TimePoint deadline;
+    const std::atomic_bool* cancelRequested;
+    const char* reason = nullptr;
+    TurnInterruptScope(const SearchControl& searchControl, TimePoint searchDeadline, const std::atomic_bool* cancel = nullptr)
+        : control(searchControl), deadline(searchDeadline), cancelRequested(cancel) {
+        puzzlescript::setTurnInterrupt(&check, this);
+    }
+    ~TurnInterruptScope() { puzzlescript::setTurnInterrupt(nullptr, nullptr); }
+    TurnInterruptScope(const TurnInterruptScope&) = delete;
+    TurnInterruptScope& operator=(const TurnInterruptScope&) = delete;
+    static bool check(void* context) {
+        auto* scope = static_cast<TurnInterruptScope*>(context);
+        if (scope->cancelRequested && scope->cancelRequested->load(std::memory_order_relaxed)) {
+            scope->reason = "cancelled";
+        } else {
+            scope->reason = scope->control.stopReason(scope->deadline);
+        }
+        return scope->reason != nullptr;
+    }
+    const char* stopStatus() const { return reason ? reason : "timeout"; }
 };
 
 bool equivalentSolverStepResult(const ps_step_result& lhs, const ps_step_result& rhs) {
@@ -1952,7 +1982,7 @@ void prepareCompactTurnScratchForParent(puzzlescript::Scratch& scratch) {
     scratch.objectCellIndexDirty = true;
 }
 
-SolverEdgeStep stepSolverEdge(
+SolverEdgeStep stepSolverEdgeUninterrupted(
     const std::shared_ptr<const Game>& game,
     const PersistentLevelState& parentState,
     uint32_t parentDepth,
@@ -2108,6 +2138,19 @@ SolverEdgeStep stepSolverEdge(
     return edge;
 }
 
+// stepSolverEdgeUninterrupted, with an interrupted turn (TurnInterruptScope)
+// reported as edge.interrupted.
+template <typename... Args>
+SolverEdgeStep stepSolverEdge(Args&&... args) {
+    try {
+        return stepSolverEdgeUninterrupted(std::forward<Args>(args)...);
+    } catch (const puzzlescript::TurnInterrupted&) {
+        SolverEdgeStep edge;
+        edge.interrupted = true;
+        return edge;
+    }
+}
+
 #ifndef PUZZLESCRIPT_SOLVER_C_API
 puzzlescript::LoadedGame compileGame(
     const std::string& source,
@@ -2252,6 +2295,14 @@ bool replaySolutionInPlayerRuntime(
 
 bool solvedByStep(const ps_step_result& stepResult, const FullState& session, int32_t levelIndex) {
     return stepResult.won || session.meta.currentLevelIndex != levelIndex;
+}
+
+// Visited-table size to start a search with. Zeroing a table sized for 16k
+// states cost more than whole small searches (the MIS generator runs many of
+// ~100 states), so start from the search's state cap when it has one and let
+// the table grow otherwise. The size never changes which states are found.
+size_t initialVisitedReserve(uint64_t maxExpanded) {
+    return maxExpanded > 0 ? static_cast<size_t>(std::min<uint64_t>(maxExpanded + 1, 16384)) : 1024;
 }
 
 class FlatBestDepth {
@@ -2590,7 +2641,7 @@ Result runSearch(
     nodes.reserve(8192);
 
     FlatBestDepth bestDepth(result.timing, exactStateKeys, ignoredObjectBits);
-    bestDepth.reserve(16384);
+    bestDepth.reserve(initialVisitedReserve(maxExpanded));
     result.uniqueStates = 1;
 
     PersistentLevelState initialState = persistentLevelStateWithTiming(*initial, result.timing);
@@ -2649,6 +2700,7 @@ Result runSearch(
         return control.stopReason(deadline);
     };
 
+    TurnInterruptScope turnInterrupt(control, deadline, cancelRequested);
     while (!frontier.empty()) {
         const char* reason = nullptr;
         {
@@ -2732,6 +2784,10 @@ Result runSearch(
                 compactTurnOracle,
                 compactTurnSearch
             );
+            if (edge.interrupted) {
+                result.status = turnInterrupt.stopStatus();
+                return result;
+            }
             if (edge.oracleMismatch) {
                 result.status = "level_error";
                 result.error = edge.oracleError;
@@ -2923,7 +2979,7 @@ Result runAdaptivePortfolioSearch(
     expanded.reserve(8192);
 
     FlatBestDepth bestDepth(result.timing, exactStateKeys, ignoredObjectBits);
-    bestDepth.reserve(16384);
+    bestDepth.reserve(initialVisitedReserve(control.maxExpanded));
     result.uniqueStates = 1;
 
     PersistentLevelState initialState = persistentLevelStateWithTiming(*initial, result.timing);
@@ -3039,6 +3095,7 @@ Result runAdaptivePortfolioSearch(
         return false;
     };
 
+    TurnInterruptScope turnInterrupt(control, deadline);
     while (totalFrontier > 0) {
         const char* stop = nullptr;
         {
@@ -3149,6 +3206,10 @@ Result runAdaptivePortfolioSearch(
                 compactTurnOracle,
                 compactTurnSearch
             );
+            if (edge.interrupted) {
+                result.status = turnInterrupt.stopStatus();
+                return result;
+            }
             if (edge.oracleMismatch) {
                 result.status = "level_error";
                 result.error = edge.oracleError;

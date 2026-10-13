@@ -5,7 +5,7 @@ function runClick() {
 	compile(["restart"]);
 	if (gameCanvasCanReceiveInput()) {
 		canvas.focus();
-		editor.display.input.blur();
+		editor.blur();
 	}
 }
 
@@ -174,7 +174,7 @@ function loadDropDownChange(event) {
         let key = dateToReadable(sd.title, new Date(sd.date));
         if (key == this.value) {
             let saveText = sd.text;
-            editor.setValue(saveText);
+            editor.replaceDocument(saveText);
             clearConsole();
             setEditorClean();
             let loadDropdown = document.getElementById('loadDropDown');
@@ -348,7 +348,7 @@ function rebuildClick() {
 	compile(["rebuild"]);
 	if (gameCanvasCanReceiveInput()) {
 		canvas.focus();
-		editor.display.input.blur();
+		editor.blur();
 	}
 }
 
@@ -385,6 +385,5 @@ function exportClick() {
 	
 	buildStandalone(sourceString);
 }
-
 
 

@@ -225,13 +225,98 @@ Quick set, timed, 4 variants side by side, run from commit a03cf88
   It helps on fast levels (3 s runs: +14% / +12%), where many rounds let
   difficulty build up. It hurts slightly on the slowest ones (15 s: −5% / −3%).
   The best level found is 3–7% less hard, and the shortlist drifts further
-  from the seed. It stays an option, off by default. Benchmark runs last
-  3–15 s, while a designer generates for minutes, so a longer-horizon run
-  would be the fair test for it.
+  from the seed. Benchmark runs last 3–15 s, while a designer generates for
+  minutes, so it got a longer-horizon test (below).
+- **At 4× the time** (`--time-scale 4`, move and walls transforms, 12–60 s
+  runs; `2026-09-28-mis-generator-elite-4x.json`), elite70 vs lazy:
+  **+13.1% [+6.2%, +21.2%], better**. Runs better / worse: 173 / 56. By speed:
+  +18% on fast levels, +15% on middle ones, +5% on the slowest. The best
+  level found is 9% harder. Drift is 4.3 vs 3.3 tiles. **It is now the default**
+  (`parents: 'elite'`, `seedShare` 0.7; `parents: 'seed'` for the old
+  behaviour).
 - Not built: rejecting hopeless candidates before solving. Unsolvable proofs
   are ~12% of generation time (they're cheap: ~120 states each), so the gain
   is capped low. A safe filter also needs per-game analysis of which objects
   rules can create or destroy.
+
+## Engine speed (28 September)
+
+Replay workload: `node src/tests/mis_generator_bench_node.js corpus` records
+the candidates the generator assesses on every quick-set level (work clock,
+so the corpus is the same every time). The x86 driver
+(`native/wasm/mis_wasm_bench_native.cpp --passes N`) and the wasm replay
+(`… replay corpus.txt`) run them through the generator's assessment call in
+deterministic mode and checksum every result. Raw corpus time is dominated by
+a few pathological games. *match three billiards* alone is 31% of it, at up to
+~8 ms per state, because its balls roll through repeated rule passes. So the
+profile uses a balanced subset: ~36 ms of work per game, 317 boards from
+93 games.
+
+Callgrind on the balanced subset, instructions 38.84G → **34.23G (−11.9%)**,
+result checksum unchanged:
+
+| Change | Instructions |
+| --- | ---: |
+| Visited table sized from the search's state cap (it was zeroing ~1 MB for 16k states on every search) | −3.3% (with the next row) |
+| Locality-survey hook: inline flag check instead of a call per mask access | (above) |
+| No per-match tuple allocation for rules without property/aggregate bindings | −4.8% |
+| Turn-start snapshot reused per thread instead of a fresh copy of the game state every turn | −1.7% |
+| `restoreSnapshot` restores turn-start boards incrementally instead of rebuilding every mask | −2.5% |
+
+- **Wasm:** replay 4.70 s → 3.94 s (−16%), same checksum.
+- **Engine tests:** the native simulation corpus passes 470/470.
+- **Generator benchmark** (`make mis_generator_bench MIS_BENCH_REF=e6c7bfd`,
+  quick set): **+7.9% [+2.2%, +13.5%], better**; candidates/s +10%.
+
+Remaining profile, by share of instructions:
+
+| Area | Share |
+| --- | ---: |
+| Rule matching (`collectRowMatchesInto`, row preconditions, `rowStillMatchesAt`) | ~21% |
+| `rebuildMasks` | 10% |
+| `executeTurn` itself, mostly copying the game state for the turn-start snapshot | 10% |
+| Movement-state clearing (memset) | 3.5% |
+| Remaining allocation | ~5% |
+
+## Interruptible turns (29 September)
+
+A single turn couldn't be interrupted, so a solve could overrun its time limit
+by minutes. On a generated *cute train* board, BFS with a 2 s limit was still
+running after 60 s. Generator runs hung on some games. Now the rule engine polls
+a per-thread stop check between rule groups (`setTurnInterrupt`), and the
+solver's searches install their deadline/cancel check. A turn is abandoned
+once the search has to stop anyway.
+
+- **The cute train board:** every strategy stops at ~2007 ms (x86 and wasm).
+- **Generator survey on the games that hung before** (15 s runs, hung = past
+  45 s): 0 hung out of 254 runs. Before: paint everything everywhere 44,
+  castlemouse 5, constellationz 3, der hydra krypta 2, match three billiards 2,
+  a distant sunset 2. The longest run was 20 s.
+- **Unchanged:** replay checksums (x86 and wasm) and the native simulation
+  corpus (470/470).
+
+## Auto mode: the generator picks the transform (29 September)
+
+Games have several derived transforms (move, walls, pair, backward, no, mix),
+and which one works depends on the level. In Auto mode, now the app's default
+when a game has more than one, the step-size bandit becomes two-level. It picks
+the transform by harder-than-base finds per second of work, then that
+transform's step size.
+
+The quick set, one Auto run per level with the time a single transform
+gets, compared with each transform run separately
+(`2026-09-29-mis-generator-auto.json`, commit c59bb9a):
+
+| Auto vs | Score | 95% CI |
+| --- | ---: | --- |
+| the average single transform (picking at random) | **+73.1%** | +47.7% … +105.0% |
+| the first preset, *Shuffle movers* (the old default) | +19.7% | −0.7% … +46.1% |
+| the best transform per level in hindsight (an oracle, biased up by taking a max over ~6 noisy runs) | −38.4% | −47.3% … −28.7% |
+
+- **Favoured transforms:** on 36 levels Auto spent most of its time on walls,
+  on 23 move, on 13 each mix and backward.
+- **Drift:** its shortlist drifts slightly further from the seed (5.0 vs 4.1
+  tiles).
 
 ## Reproducing
 

@@ -166,9 +166,8 @@ function imageBlobToObjectText(blob, editor) {
  * Install paste handler on the CodeMirror editor: if clipboard contains an image,
  * prevent default paste, convert image to 5x5 object text, and insert at cursor.
  */
-function installImagePasteHandler(editor) {
-	const wrapper = editor.getWrapperElement();
-	wrapper.addEventListener('paste', function (e) {
+function installImagePasteHandler(target, editor, convertImage) {
+	target.addEventListener('paste', function (e) {
 		const items = e.clipboardData && e.clipboardData.items;
 		if (!items) return;
 		let imageItem = null;
@@ -183,7 +182,8 @@ function installImagePasteHandler(editor) {
 		e.stopPropagation();
 		const blob = imageItem.getAsFile();
 		if (!blob) return;
-		imageBlobToObjectText(blob, editor).then(function (text) {
+		const convert = convertImage || imageBlobToObjectText;
+		convert(blob, editor).then(function (text) {
 			editor.replaceSelection(text);
 			editor.focus();
 		}).catch(function (err) {
