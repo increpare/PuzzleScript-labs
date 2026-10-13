@@ -186,6 +186,42 @@ function runShard({ textDir, idsFile, ids, timeoutMs, env, onRow, log }) {
     });
 }
 
+// Compile <textDir>/<id>.txt for every id across a worker pool with the watchdog.
+// Calls onRow per result and resolves with a Map id -> row.
+async function compileMany({ textDir, ids, workers, timeoutMs, env, log, onRow }) {
+    log = log || (() => {});
+    workers = workers || Math.max(1, os.cpus().length - 1);
+    timeoutMs = timeoutMs || 10000;
+    const results = new Map();
+    if (ids.length === 0) return results;
+    const t0 = Date.now();
+    let completed = 0;
+    const shardDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ps-ac-shards-'));
+    const shards = [];
+    const n = Math.min(workers, ids.length);
+    for (let s = 0; s < n; s++) {
+        const shardIds = ids.filter((_, i) => i % n === s);
+        if (shardIds.length === 0) continue;
+        const idsFile = path.join(shardDir, `shard${s}.json`);
+        fs.writeFileSync(idsFile, JSON.stringify(shardIds));
+        shards.push(runShard({
+            textDir, idsFile, ids: shardIds, timeoutMs, env, log,
+            onRow: row => {
+                results.set(row.id, row);
+                if (onRow) onRow(row);
+                completed++;
+                if (completed % 1000 === 0) {
+                    const rate = completed / ((Date.now() - t0) / 1000);
+                    log(`compile: ${completed}/${ids.length} (${rate.toFixed(1)} files/s)`);
+                }
+            },
+        }));
+    }
+    await Promise.all(shards);
+    fs.rmSync(shardDir, { recursive: true, force: true });
+    return results;
+}
+
 function buildReport(rows, elapsedMs, compiledThisRun) {
     const counts = { ok: 0, warnings: 0, errors: 0, timeout: 0, junk: 0 };
     const hist = new Map();
@@ -258,30 +294,8 @@ async function runCompileFilter({ dataDir, workers, timeoutMs, resume, quiet, en
     log(`compile_filter: ${todo.length} files, ${workers} workers, timeout ${timeoutMs} ms`);
 
     const t0 = Date.now();
-    let completed = 0;
-    const shardDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ps-ac-shards-'));
-    const shards = [];
-    const n = Math.min(workers, Math.max(1, todo.length));
-    for (let s = 0; s < n; s++) {
-        const ids = todo.filter((_, i) => i % n === s);
-        if (ids.length === 0) continue;
-        const idsFile = path.join(shardDir, `shard${s}.json`);
-        fs.writeFileSync(idsFile, JSON.stringify(ids));
-        shards.push(runShard({
-            textDir, idsFile, ids, timeoutMs, env, log,
-            onRow: row => {
-                write(row);
-                completed++;
-                if (completed % 1000 === 0) {
-                    const rate = completed / ((Date.now() - t0) / 1000);
-                    log(`compile_filter: ${completed}/${todo.length} (${rate.toFixed(1)} files/s)`);
-                }
-            },
-        }));
-    }
-    await Promise.all(shards);
+    await compileMany({ textDir, ids: todo, workers, timeoutMs, env, log, onRow: write });
     fs.closeSync(out);
-    fs.rmSync(shardDir, { recursive: true, force: true });
 
     const report = buildReport(rows, Date.now() - t0, todo.length);
     fs.writeFileSync(path.join(dataDir, 'compile_report.json'), JSON.stringify(report, null, 2) + '\n');
@@ -317,4 +331,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { compileOne, normaliseErrorString, stripHtml, runCompileFilter, buildReport };
+module.exports = { compileOne, compileMany, normaliseErrorString, stripHtml, runCompileFilter, buildReport };

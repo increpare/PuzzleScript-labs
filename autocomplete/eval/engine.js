@@ -101,4 +101,18 @@ function validateCompileSource(text) {
     return canonicalize.validateCompileSource(text);
 }
 
-module.exports = { stateAtCursor, completeAt, validateCompileSource };
+// The language's keyword list (languageConstants.js keyword_array) plus the words the
+// parser accepts in rules, sounds and win conditions that the array leaves out.
+let keywordSet = null;
+function keywords() {
+    if (keywordSet) return keywordSet;
+    ensureLoaded();
+    const base = JSON.parse(JSON.stringify(canonicalize.evalInRuntime('keyword_array')));
+    const extra = ['late', 'rigid', 'random', 'randomdir', 'startloop', 'endloop', 'checkpoint', 'again',
+        'horizontal', 'vertical', 'orthogonal', 'parallel', 'perpendicular', 'moving', 'stationary',
+        'on', 'or', 'and', 'sfx', 'message', 'no', 'some', 'all', 'any', 'win', 'cancel', 'restart'];
+    keywordSet = new Set([...base, ...extra].map(k => k.toLowerCase()));
+    return keywordSet;
+}
+
+module.exports = { stateAtCursor, completeAt, validateCompileSource, keywords };
