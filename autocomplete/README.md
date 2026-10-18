@@ -225,6 +225,8 @@ validity over covered cases, exact_all over all cases.
 | 5-gram re-ranker | overall | 62.1 | 80.0 | 49.7 | 86.7 | 94.3 | 94.9 | 99.1 | 0.8 |
 | 5-gram alone | rules | 89.6 | 54.0 | 48.4 | 66.3 | 65.2 | 82.2 | 79.0 | 8.4 |
 | 5-gram alone | overall | 92.5 | 61.9 | 57.2 | 71.9 | 71.8 | 83.7 | 79.3 | 4.5 |
+| Qwen2.5-Coder-1.5B zero-shot | rules | 100.0 | 27.6 | 27.6 | 41.3 | - | 82.2 | 88.0 | 1696 |
+| Qwen2.5-Coder-1.5B zero-shot | overall | 100.0 | 38.4 | 38.4 | 50.6 | - | 70.1 | 84.0 | 1653 |
 
 Generation tasks, 5-gram alone (the completer does not perform these):
 
@@ -237,15 +239,39 @@ Generation tasks, 5-gram alone (the completer does not perform these):
 | next_block | rules | 2.4 | 13.9 | 48.5 | 64.0 | 296 |
 | next_block | overall | 1.8 | 9.6 | 28.6 | 64.0 | 508 |
 
+Generation tasks, Qwen2.5-Coder-1.5B zero-shot (bf16 on the RTX 4080 SUPER, greedy, native
+FIM tokens, fed by the same context builder; run 2026-10-18):
+
+| task | section | exact | edit_sim | compile_valid | symbol_valid | ms |
+|---|---|---|---|---|---|---|
+| rest_of_line | rules | 50.8 | 80.4 | 88.3 | 88.4 | 2163 |
+| rest_of_line | overall | 36.3 | 58.9 | 82.8 | 85.8 | 1859 |
+| next_line | rules | 36.4 | 69.3 | 97.4 | 91.2 | 2174 |
+| next_line | overall | 18.1 | 44.1 | 67.0 | 93.3 | 2098 |
+| next_block | rules | 4.8 | 34.5 | 72.2 | 90.0 | 5689 |
+| next_block | overall | 6.2 | 43.8 | 51.7 | 90.0 | 5592 |
+
 Reading: the re-ranker lifts RULES exact match on the popup task by 9 points at the
 same coverage, but compile validity drops from 95.4 to 91.5, under the handoff's 95%
 bar for a no-model v1. The 5-gram alone covers more (it always guesses) and is worse
 per guess. On the generation tasks the 5-gram is weak in RULES (exact 23% for the rest
 of a line, 9% for the next line, 2% for a block) with roughly half its outputs failing
 to compile: the headroom the model is for. Full tables with every section are in
-`<data>/eval/scores/*.md`. The Qwen2.5-Coder zero-shot row is pending the model
-download. The rule-based completer's own first candidate breaks compilation 4.6% of the
-time in RULES, so that is the ceiling for anything that re-ranks its list.
+`<data>/eval/scores/*.md`. The rule-based completer's own first candidate breaks
+compilation 4.6% of the time in RULES, so that is the ceiling for anything that re-ranks
+its list.
+
+Qwen zero-shot, the free upper-bound estimate: on the generation tasks in RULES it
+roughly doubles the 5-gram's exact match for the rest of a line (51 vs 23) and
+quadruples it for the next line (36 vs 9), with compile validity of 88% and 97% against
+the 5-gram's 46% and 63%. That is the line the small model has to approach. On the popup
+task it scores below the deterministic completer (RULES exact over all cases 27.6 vs
+46.4), but mostly by overshooting rather than by being wrong: in RULES 62% of its
+rest_of_token predictions start with the correct token and continue past it, and only
+11% are a different token. A completer that trims a model's output to the token boundary
+would score about 89% there. The Qwen latency column is the cost of generating the full
+64-token budget (200 for blocks) before the newline cut; the runner has no newline
+stopping criterion, so it says nothing about the per-line latency of a shipped model.
 
 ## Caveats found on the way
 
@@ -269,5 +295,6 @@ time in RULES, so that is the ceiling for anything that re-ranks its list.
 
 ## Environment
 
-GPU: NVIDIA GeForce RTX 4080 SUPER, 16 GB. Python 3.13 with a CPU-only torch; a CUDA
-build is needed before Phase 1.5/2 (not installed during Phase 0). Node 22.12.
+GPU: NVIDIA GeForce RTX 4080 SUPER, 16 GB, driver 610. Python 3.13; the venv at
+`D:\Projects\ps_ac_venv` (see `train/requirements.txt`) has torch 2.14.1+cu126 and
+transformers 5.20, installed 2026-10-18 for the Qwen baseline. Node 22.12.
