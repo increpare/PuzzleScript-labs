@@ -195,7 +195,7 @@ A fresh-context review of the first run found, and this run fixed:
 | 4.1 tasks | `node autocomplete/eval/tasks.js [--split val\|test]` | `<data>/eval/tasks_<split>.json` |
 | 4.3 baseline 1 | `node autocomplete/eval/run_rule_based.js --split val` | `<data>/eval/preds/rule_based_val.jsonl` |
 | 4.3 baseline 2 | `node --max-old-space-size=24576 autocomplete/eval/run_ngram.js --split val` (8 GB heap, 70 s train, 16 min predict) | `preds/ngram_val.jsonl`, `preds/ngram_rerank_val.jsonl` |
-| 4.3 baseline 3 | `node autocomplete/eval/export_prompts.js --split val` then `python autocomplete/eval/run_qwen.py --prompts <data>/eval/prompts_val.jsonl --out <data>/eval/preds/qwen15b_val.jsonl` (needs the venv in `train/requirements.txt`) | `preds/qwen15b_val.jsonl` |
+| 4.3 baseline 3 | `node autocomplete/eval/export_prompts.js --split val` then `python autocomplete/eval/run_qwen.py --prompts <data>/eval/prompts_val.jsonl --out <data>/eval/preds/qwen15b_val.jsonl` (needs the venv described at the top of `train/requirements.txt`; `python` there means its interpreter) | `preds/qwen15b_val.jsonl` |
 | 4.2 score | `node autocomplete/eval/score.js --tasks <data>/eval/tasks_val.json --predictions <preds.jsonl> --name NAME` | `<data>/eval/scores/NAME.{md,json}` |
 
 Modules: `eval/engine.js` runs the streaming parser and the deterministic completer

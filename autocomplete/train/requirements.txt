@@ -1,7 +1,9 @@
-# Python side (Phase 1 baseline 3, Phase 1.5, Phase 2). Install into a venv:
-#   python -m venv autocomplete/.venv
-#   autocomplete\.venv\Scripts\pip install torch --index-url https://download.pytorch.org/whl/cu124
-#   autocomplete\.venv\Scripts\pip install -r autocomplete/train/requirements.txt
+# Python side (Phase 1 baseline 3, Phase 1.5, Phase 2). Install into a venv at a SHORT
+# path outside the repo: torch's dist-info nests deep enough that pip fails with
+# WinError 206 (path too long) when the venv sits under a .claude/worktrees checkout.
+#   python -m venv D:\Projects\ps_ac_venv
+#   D:\Projects\ps_ac_venv\Scripts\pip install torch --index-url https://download.pytorch.org/whl/cu126
+#   D:\Projects\ps_ac_venv\Scripts\pip install -r autocomplete/train/requirements.txt
 # torch is installed separately so the CUDA build is picked explicitly.
 transformers>=4.45
 tokenizers>=0.20

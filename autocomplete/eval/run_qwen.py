@@ -11,6 +11,7 @@ Writes predictions JSONL {i, prediction, latency_ms} for score.js.
 
 import argparse
 import json
+import re
 import sys
 import time
 
@@ -18,7 +19,15 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 
+# Qwen's FIM/control tokens are "added" but not "special" in the tokenizer, so
+# skip_special_tokens leaves them in the decoded text; cut at the first one.
+CONTROL = re.compile(r"<\|[a-z_]+\|>")
+
+
 def cut(text, stop):
+    m = CONTROL.search(text)
+    if m:
+        text = text[: m.start()]
     if stop == "line":
         nl = text.find("\n")
         return text if nl < 0 else text[:nl]
@@ -41,7 +50,7 @@ def main():
     print(f"loading {args.model} on {device}", file=sys.stderr)
     tok = AutoTokenizer.from_pretrained(args.model)
     model = AutoModelForCausalLM.from_pretrained(
-        args.model, torch_dtype=torch.bfloat16 if device == "cuda" else torch.float32
+        args.model, dtype=torch.bfloat16 if device == "cuda" else torch.float32
     ).to(device).eval()
     eos_ids = [tok.eos_token_id]
     for special in ("<|endoftext|>", "<|fim_pad|>", "<|file_sep|>"):
