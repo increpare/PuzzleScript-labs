@@ -23,6 +23,54 @@ site to `bin/`, `mis.html` included; `make mis_web_serve` serves it locally.
 The page opens with the last autosaved session, or the Sokoban demo. Use
 **Open…** or drag and drop to load your own `.txt` file.
 
+## Code editors
+
+Both the game source and transform panels use CodeMirror 6, sharing the main
+PuzzleScript editor's pinned runtime, parser, token styling, completion source,
+search and editing commands. MIS no longer loads a CodeMirror 5 editor.
+
+Object/property suggestions appear as you type. Ctrl+Space opens completions
+manually; arrows select, Enter or Tab accepts, and Escape dismisses the list.
+Ctrl+F opens search. Each panel has its own undo history (Ctrl+Z / Ctrl+Y).
+Transform completion starts in RULES context using the loaded game's actual
+objects and legend; it refreshes when game definitions change, and also offers
+`choose`, `option`, and `or` outside cell patterns.
+
+Browser regression check, with MIS already served:
+
+```sh
+node src/tests/mis_editor_browser.cjs http://127.0.0.1:8080
+```
+
+It exercises real typing, completion acceptance in both panels, manual hints,
+independent undo/redo, search, renamed game objects, comments and diagnostic
+navigation. Screenshots are written to `build/mis-editor-checks/`.
+
+## Workspace controls
+
+The code pane and suggestions area have draggable dividers. Focus a divider
+with Tab, then use its arrow keys to resize, Shift+arrow for larger steps,
+Home to reset, or End for its maximum size. Escape cancels an active drag.
+Sizes are remembered in this browser and clamped to the current window.
+At narrow widths, the code pane moves below the level designer.
+
+Results keep a fixed area while generation runs. Cards preserve their controls
+and keyboard focus when solution proofs arrive; ranking updates pause while
+hovering or focusing a card so a suggestion cannot change under your pointer.
+Watch and Pin are always visible. These changes do not alter transforms,
+generation parents, or solver behaviour.
+
+UI checks (with the site already served):
+
+```sh
+node src/tests/mis_ui_browser.cjs http://127.0.0.1:8080
+```
+
+This uses installed Chrome through Playwright and saves captures in
+`build/mis-ui-checks/`. It checks menus, focus, divider resizing and cancellation,
+real native-solver results, and browser work areas/raster scales of 100%, 125%,
+150%, and 200%. Those browser checks do not certify Windows OS display scaling.
+
 ## What it does
 
 | Area | Behaviour |

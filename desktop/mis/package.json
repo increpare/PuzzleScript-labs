@@ -1,0 +1,22 @@
+{
+  "name": "puzzlescript-mis",
+  "productName": "PuzzleScript+MIS",
+  "version": "0.1.0",
+  "description": "A Windows 95-style mixed-initiative PuzzleScript level designer",
+  "author": "increpare games",
+  "private": true,
+  "main": "main.cjs",
+  "scripts": { "start": "electron .", "build": "electron-builder --dir" },
+  "devDependencies": { "electron": "44.7.0", "electron-builder": "26.15.3" },
+  "build": {
+    "appId": "net.puzzlescript.mis",
+    "productName": "PuzzleScript+MIS",
+    "executableName": "puzzlescript-mis",
+    "directories": { "output": "../../release/mis" },
+    "npmRebuild": false,
+    "files": ["main.cjs", "preload.cjs", "files.cjs", "NOTICE.txt", "web/**", "icons/**", "package.json"],
+    "mac": { "target": "dir", "identity": null, "category": "public.app-category.developer-tools", "icon": "icons/app.icns" },
+    "win": { "target": "dir", "signExecutable": false, "icon": "icons/app.ico" },
+    "linux": { "target": "dir", "icon": "icons/app.png" }
+  }
+}

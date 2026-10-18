@@ -9,6 +9,7 @@
 
 	const $ = function (id) { return document.getElementById(id); };
 	const C = MISCore;
+	const desktop = window.misDesktop;
 	// The worker sits next to this script. Resolving against the script rather
 	// than the page keeps it found in the release build, which serves js/source/.
 	const WORKER_URL = new URL('mis_worker.js', document.currentScript.src).href;
@@ -41,6 +42,7 @@
 	const app = {
 		source: '',
 		fileName: 'game.txt',
+		filePath: null,
 		model: null,             // last good compiled model
 		rulesSig: 0,             // hash of source minus LEVELS
 		levelIndex: 0,
@@ -176,6 +178,7 @@
 		const rulesChanged = sig !== app.rulesSig;
 		app.rulesSig = sig;
 		if (rulesChanged) {
+			transformCM.setGameSource(text);
 			ensureWorkers(true);
 			buildPalette();
 			buildPresets();
@@ -452,8 +455,9 @@
 			boardCanvas.style.width = '0px';
 			return;
 		}
-		const aw = wrap.clientWidth - 20, ah = wrap.clientHeight - 20;
-		const cell = Math.max(4, Math.floor(Math.min(aw / b.w, ah / b.h)));
+		const padding = getComputedStyle(wrap);
+		const aw = wrap.clientWidth - parseFloat(padding.paddingLeft) - parseFloat(padding.paddingRight), ah = wrap.clientHeight - parseFloat(padding.paddingTop) - parseFloat(padding.paddingBottom);
+		const cell = Math.max(1, Math.floor(Math.min(aw / b.w, ah / b.h)));
 		const dpr = window.devicePixelRatio || 1;
 		view.cell = cell; view.dpr = dpr;
 		boardCanvas.style.width = (b.w * cell) + 'px';
@@ -592,7 +596,7 @@
 	function selectBrush(i) {
 		if (i < 0 || i >= app.palette.length) return;
 		app.brush = app.palette[i];
-		Array.from($('palette').children).forEach(function (el, k) { el.classList.toggle('on', k === i); });
+		Array.from($('palette').children).forEach(function (el, k) { el.classList.toggle('on', k === i); el.setAttribute('aria-pressed', String(k === i)); el.setAttribute('aria-label', el.title); });
 	}
 
 	function paintTile(tile, how) {
@@ -999,7 +1003,6 @@
 				$('preset-hint').textContent = p.hint;
 				markPresets();
 			};
-			b.onmouseenter = function () { $('preset-hint').textContent = p.hint; };
 			el.appendChild(b);
 		});
 		if (!presets.length) el.innerHTML = '<span class="faint">No obvious starting points for this game — write a transform below (see Help).</span>';
@@ -1016,6 +1019,8 @@
 	}
 	function markPresets() {
 		Array.from($('presets').children).forEach(function (b) { b.classList.toggle('on', b.dataset.id === app.presetId); });
+		const selected = (app.presets || []).find(function (p) { return p.id === app.presetId; });
+		$('preset-hint').textContent = isAuto() ? 'Try each preset and favour whichever finds harder levels on this level.' : selected ? selected.hint : 'Custom transform: applied once, as written, to the starting level.';
 	}
 
 	let suppressTransformChange = false;
@@ -1170,7 +1175,7 @@
 
 	function scheduleCards() {
 		if (scheduleCards.t) return;
-		scheduleCards.t = setTimeout(function () { scheduleCards.t = null; renderCards(); }, 200);
+		scheduleCards.t = setTimeout(function () { scheduleCards.t = null; renderCards(true); }, 200);
 	}
 	let meterTimer = null;
 	function scheduleMeter() {
@@ -1271,9 +1276,13 @@
 		return cards;
 	}
 
-	function renderCards() {
+	function renderCards(deferWhileInteracting) {
 		const el = $('cards');
-		el.innerHTML = '';
+		if (deferWhileInteracting && (el.querySelector('.card:hover') || el.contains(document.activeElement))) {
+			renderCards.pending = true;
+			return;
+		}
+		renderCards.pending = false;
 		const cur = currentResult && currentResult.status === 'solved' ? currentResult : null;
 		const list = [];
 		if (app.special && app.special.levelIndex === app.levelIndex) list.push(app.special);
@@ -1282,43 +1291,62 @@
 		ranked.slice(0, SHOWN_CARDS).forEach(function (c) { list.push(c); });
 		proveShown(list);
 		if (!list.length) {
-			el.innerHTML = '<div class="empty-cards">' + (app.gen && app.gen.running ? 'Transforming… suggestions appear here as the solver verifies them.' : 'No suggestions yet.') + '</div>';
+			setPreview(null);
+			el.innerHTML = '<div class="empty-cards">' + (app.gen && app.gen.running ? 'Transforming… suggestions appear here as the solver verifies them.' : 'No suggestions yet. Choose a transform, then press Generate.') + '</div>';
 			return;
 		}
+		// Reuse card nodes so proof/stat updates retain focus and hover targets.
+		const existing = new Map(Array.from(el.querySelectorAll('.card')).map(function (d) { return [d.dataset.cardKey, d]; }));
+		const keep = new Set();
 		list.forEach(function (c, idx) {
-			const d = document.createElement('div');
+			const key = (c.specialLabel ? 'special:' : 'candidate:') + (c.key || C.cellsKey(c.board.cells));
+			let d = existing.get(key);
+			if (!d) {
+				d = document.createElement('div'); d.dataset.cardKey = key;
+				const label = document.createElement('div'); label.className = 'label'; d.appendChild(label);
+				const cv = document.createElement('canvas'); renderThumbInto(cv, c.board, 220, 160); d.appendChild(cv);
+				const meta = document.createElement('div'); meta.className = 'meta'; d.appendChild(meta);
+				const tools = document.createElement('div'); tools.className = 'tools';
+				const watchB = document.createElement('button'); watchB.textContent = 'Watch'; watchB.title = 'Watch the solution';
+				watchB.onclick = function (e) { e.stopPropagation(); setPreview(null); watch(d.card.board, d.card.result.solution); };
+				tools.appendChild(watchB);
+				const pinB = document.createElement('button'); pinB.className = 'pin-card';
+				pinB.onclick = function (e) { e.stopPropagation(); togglePin(d.card); };
+				tools.appendChild(pinB); d.appendChild(tools);
+				d.onmouseenter = d.onfocus = function () {
+					const card = d.card, r = card.result;
+					if (!app.watching) setPreview(card.board, card.specialLabel || ('suggestion · ' + r.length + ' moves · effort ' + r.effort));
+				};
+				d.onmouseleave = d.onblur = function () { setPreview(null); flushPendingCards(); };
+				d.onclick = function () { adopt(d.card); };
+			}
+			d.card = c;
 			d.className = 'card' + (c.pinnedCard ? ' pinned' : '') + (c.specialLabel ? ' special' : '');
-			if (c.specialLabel) { const l = document.createElement('div'); l.className = 'label'; l.textContent = c.specialLabel; d.appendChild(l); }
-			const cv = document.createElement('canvas');
-			renderThumbInto(cv, c.board, 220, 160);
-			d.appendChild(cv);
-			const meta = document.createElement('div');
-			meta.className = 'meta';
+			const label = d.querySelector('.label'); label.textContent = c.specialLabel || ''; label.hidden = !c.specialLabel;
 			const r = c.result;
 			let delta = '';
 			if (cur && r.effort) {
 				const ratio = r.effort / cur.effort;
 				delta = '<span class="delta ' + (ratio >= 1 ? 'up' : 'down') + '" title="effort vs. your current level">' + (ratio >= 1 ? '×' + (ratio >= 10 ? ratio.toFixed(0) : ratio.toFixed(1)) : '÷' + (1 / ratio).toFixed(1)) + '</span>';
 			}
-			meta.innerHTML = '<span title="effort ' + r.effort + ' — ' + Object.keys(r.lanes || {}).map(function (k) { return k + ' ' + r.lanes[k]; }).join(', ') + '">' + (r.optimal ? '' : '≈') + r.length + ' mv · ' + effortLabel(r.effort) + '</span>' + delta;
-			d.appendChild(meta);
-			const tools = document.createElement('div');
-			tools.className = 'tools';
-			const watchB = document.createElement('button'); watchB.textContent = '▶'; watchB.title = 'Watch the solution';
-			watchB.onclick = function (e) { e.stopPropagation(); setPreview(null); watch(c.board, r.solution); };
-			tools.appendChild(watchB);
-			if (!c.specialLabel) {
-				const pinB = document.createElement('button'); pinB.textContent = c.pinnedCard ? '✕' : '📌'; pinB.title = c.pinnedCard ? 'Unpin' : 'Pin (keeps it while you explore)';
-				pinB.onclick = function (e) { e.stopPropagation(); togglePin(c); };
-				tools.appendChild(pinB);
-			}
-			d.appendChild(tools);
-			d.onmouseenter = function () { if (!app.watching) setPreview(c.board, c.specialLabel || ('suggestion · ' + r.length + ' moves · effort ' + r.effort)); };
-			d.onmouseleave = function () { setPreview(null); };
-			d.onclick = function () { adopt(c); };
-			el.appendChild(d);
+			d.querySelector('.meta').innerHTML = '<span title="effort ' + r.effort + ' — ' + Object.keys(r.lanes || {}).map(function (k) { return k + ' ' + r.lanes[k]; }).join(', ') + '">' + (r.optimal ? '' : '≈') + r.length + ' mv · ' + effortLabel(r.effort) + '</span>' + delta;
+			const pin = d.querySelector('.pin-card'); pin.hidden = !!c.specialLabel;
+			pin.textContent = c.pinnedCard ? 'Unpin' : 'Pin'; pin.title = c.pinnedCard ? 'Unpin suggestion' : 'Keep this suggestion while exploring';
+			pin.setAttribute('aria-pressed', String(!!c.pinnedCard));
+			keep.add(d);
+			if (el.children[idx] !== d) el.insertBefore(d, el.children[idx] || null);
 		});
+		Array.from(el.children).forEach(function (d) { if (!keep.has(d)) d.remove(); });
 	}
+
+	function flushPendingCards() {
+		setTimeout(function () {
+			const el = $('cards');
+			if (renderCards.pending && !el.querySelector('.card:hover') && !el.contains(document.activeElement)) renderCards();
+		}, 0);
+	}
+	$('cards').addEventListener('pointerleave', flushPendingCards);
+	$('cards').addEventListener('focusout', flushPendingCards);
 
 	// The generator doesn't prove shortest solutions; prove the cards on screen
 	// here, one at a time on the background worker (idle while generating),
@@ -1459,10 +1487,11 @@
 		return meta;
 	}
 
-	function openText(text, name) {
+	function openText(text, name, filePath) {
 		stopGeneration();
 		const meta = readMeta(text);
 		app.fileName = name || 'game.txt';
+		app.filePath = filePath || null;
 		app.levelIndex = 0;
 		app.locks = meta.locks;
 		app.lineage = {};
@@ -1483,10 +1512,11 @@
 		}
 		renderCards();
 		$('meter').innerHTML = '<span class="faint">Pick a transform on the right (or write one), then press Generate.</span>';
+		document.dispatchEvent(new Event('mis-recents-changed'));
 	}
 
 	function loadDemo(path, name) {
-		fetch(path).then(function (r) {
+		return fetch(path).then(function (r) {
 			if (!r.ok) throw new Error(r.status + ' ' + r.statusText);
 			return r.text();
 		}).then(function (t) { openText(t, name || path.split('/').pop()); })
@@ -1498,8 +1528,22 @@
 		$('fatal').classList.add('on');
 	}
 
-	function saveFile() {
+	let savingFile = false;
+	async function saveFile(saveAs) {
 		const text = embedMeta(app.source);
+		if (desktop) {
+			if (savingFile) return false;
+			savingFile = true;
+			try {
+				const saved = await desktop.save({ text: text, name: app.fileName, path: app.filePath, saveAs: saveAs === true });
+				if (!saved) return false;
+				app.fileName = saved.name; app.filePath = saved.path;
+				if (embedMeta(app.source) === text) markDirty(false);
+				document.dispatchEvent(new Event('mis-recents-changed'));
+				return !app.dirty;
+			} catch (error) { toast(error.message, true); return false; }
+			finally { savingFile = false; }
+		}
 		const blob = new Blob([text], { type: 'text/plain' });
 		const a = document.createElement('a');
 		a.href = URL.createObjectURL(blob);
@@ -1508,6 +1552,25 @@
 		a.click();
 		setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 		markDirty(false);
+		return true;
+	}
+
+	async function canReplace() {
+		if (!app.dirty) return true;
+		if (!desktop) return confirm('Discard unsaved changes to ' + app.fileName + '?');
+		const answer = await desktop.confirmSave();
+		return answer === 1 || (answer === 0 && await saveFile());
+	}
+	let openingFile = false;
+	async function openNative(file) {
+		if (!desktop || openingFile) return;
+		openingFile = true;
+		try {
+			if (!await canReplace()) return;
+			const opened = await desktop.open(file);
+			if (opened) openText(opened.text, opened.name, opened.path);
+		} catch (error) { toast(error.message, true); }
+		finally { openingFile = false; }
 	}
 
 	function autosave() {
@@ -1549,10 +1612,9 @@
 	}
 
 	function initEditors() {
-		if (typeof codeMirrorFn === 'function') CodeMirror.defineMode('puzzle', codeMirrorFn);
-		sourceCM = CodeMirror.fromTextArea($('source-text'), { mode: 'puzzle', theme: 'midnight', lineNumbers: true, lineWrapping: false, styleActiveLine: true });
-		transformCM = CodeMirror.fromTextArea($('transform-text'), { mode: 'puzzle', theme: 'midnight', lineNumbers: true, lineWrapping: true });
-		// The PuzzleScript mode highlights by section; start the transform in RULES.
+		sourceCM = MISCodeEditor.create($('source-text'));
+		transformCM = MISCodeEditor.create($('transform-text'), { transform: true, lineWrapping: true });
+
 		sourceCM.on('change', function () {
 			if (suppressSourceChange) return;
 			clearTimeout(initEditors.t);
@@ -1574,7 +1636,7 @@
 
 	function isTyping(e) {
 		const t = e.target;
-		return t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT' || t.tagName === 'SELECT' || (t.closest && t.closest('.CodeMirror')));
+		return t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT' || t.tagName === 'SELECT' || (t.closest && t.closest('.cm-editor')));
 	}
 
 	document.addEventListener('keydown', function (e) {
@@ -1639,28 +1701,29 @@
 		if (wasRunning) startGeneration(); else updateGenButton();
 	};
 	$('blind-toggle').onchange = function (e) { app.blind = e.target.checked; app.revealed = false; renderStatus(); refreshLevelStrip(); };
-	$('open-btn').onclick = function () { $('file-input').click(); };
-	$('file-input').onchange = function (e) {
+	$('open-btn').onclick = function () { if (desktop) openNative(); else $('file-input').click(); };
+	$('file-input').onchange = async function (e) {
 		const f = e.target.files[0];
-		if (!f) return;
-		f.text().then(function (t) { openText(t, f.name); });
 		e.target.value = '';
+		if (!f) return;
+		if (!await canReplace()) return;
+		f.text().then(function (t) { openText(t, f.name); });
 	};
-	$('save-btn').onclick = saveFile;
+	$('save-btn').onclick = function () { saveFile(); };
 	const demoSel = $('demo-select');
 	demoSel.innerHTML = '<option value="">Load a demo game…</option>' + DEMOS.map(function (d, i) { return '<option value="' + i + '">' + escapeHtml(d[0]) + '</option>'; }).join('');
-	demoSel.onchange = function () {
+	demoSel.onchange = async function () {
 		const d = DEMOS[+demoSel.value];
 		demoSel.value = '';
 		if (!d) return;
-		if (app.dirty && !confirm('Discard unsaved changes to ' + app.fileName + '?')) return;
+		if (!await canReplace()) return;
 		loadDemo(d[1], d[1].split('/').pop());
 	};
 	document.addEventListener('dragover', function (e) { e.preventDefault(); });
-	document.addEventListener('drop', function (e) {
+	document.addEventListener('drop', async function (e) {
 		e.preventDefault();
 		const f = e.dataTransfer.files[0];
-		if (f) f.text().then(function (t) { openText(t, f.name); });
+		if (f && await canReplace()) f.text().then(function (t) { openText(t, f.name); });
 	});
 	// Re-fit the board whenever its area changes (window resize, suggestions appearing, ...).
 	let lastWrapSize = '';
@@ -1671,7 +1734,7 @@
 		lastWrapSize = size;
 		layoutBoard();
 	}).observe($('board-wrap'));
-	window.addEventListener('beforeunload', function (e) { if (app.dirty) { e.preventDefault(); e.returnValue = ''; } });
+	window.addEventListener('beforeunload', function (e) { if (!desktop && app.dirty) { e.preventDefault(); e.returnValue = ''; } });
 
 	// Start.
 	try { app.backendPref = new URLSearchParams(location.search).get('backend') || localStorage.getItem('mis-backend') || 'native'; } catch (e) { app.backendPref = 'native'; }
@@ -1682,12 +1745,26 @@
 	let restored = null;
 	try { restored = JSON.parse(localStorage.getItem('mis-autosave') || 'null'); } catch (e) { restored = null; }
 	const params = new URLSearchParams(location.search);
-	if (params.get('demo')) loadDemo(params.get('demo'));
+	let initialLoad;
+	if (params.get('demo')) initialLoad = loadDemo(params.get('demo'));
 	else if (restored && restored.text) {
 		openText(restored.text, restored.name);
 		if (restored.levelIndex && app.model && app.model.levels[restored.levelIndex] && app.model.levels[restored.levelIndex].board) selectLevel(restored.levelIndex);
 		markDirty(false);
-	} else loadDemo(DEMOS[0][1], 'sokoban_basic.txt');
+	} else initialLoad = loadDemo(DEMOS[0][1], 'sokoban_basic.txt');
+
+	window.misDocument = { save: saveFile, open: openNative };
+	if (desktop) {
+		desktop.onOpen(async function (file) { try { await openNative(file); } finally { desktop.opened(); } });
+		let confirmingClose = false;
+		desktop.onClose(async function () {
+			if (confirmingClose) return;
+			confirmingClose = true;
+			try { if (await canReplace()) desktop.closeConfirmed(); }
+			finally { confirmingClose = false; }
+		});
+		Promise.resolve(initialLoad).then(function () { desktop.ready(); });
+	}
 
 	window.misApp = app; // for debugging from the console
 })();
