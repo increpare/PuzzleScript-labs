@@ -97,3 +97,8 @@ hardware/pocket_card/case/.venv/
 # editor local-history folders
 .history/
 /.build/monster_garden
+
+# autocomplete model work
+.superpowers/
+autocomplete/.env
+autocomplete/.venv/
