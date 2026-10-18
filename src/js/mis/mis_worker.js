@@ -141,7 +141,7 @@ function generate(msg) {
 		if (r.status === 'solved') seedPrimaryMs = r.primaryMs;
 	}
 	const gen = MISGenerator.create({
-		model: model, backend: backend, program: program, programs: programs && programs.length > 1 ? programs : null, base: base, baseEffort: baseEffort, seedPrimaryMs: seedPrimaryMs, adaptive: msg.adaptive !== false,
+		model: model, backend: backend, program: program, programs: programs && programs.length > 1 ? programs : null, base: base, baseEffort: baseEffort, seedPrimaryMs: seedPrimaryMs, adaptive: msg.adaptive === true, parents: msg.parents,
 		frozen: msg.frozen ? new Uint8Array(msg.frozen) : null, seed: msg.seed, keep: msg.keep || 8,
 		optimalCap: msg.optimalCap, initialBudgetMs: msg.initialBudgetMs, maxBudgetMs: msg.maxBudgetMs,
 		shard: msg.shardCount > 1 ? { index: msg.shardIndex, count: msg.shardCount } : null,

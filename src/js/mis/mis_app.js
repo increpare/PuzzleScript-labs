@@ -1580,7 +1580,7 @@
 	document.addEventListener('keydown', function (e) {
 		const mod = e.ctrlKey || e.metaKey;
 		if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); saveFile(); return; }
-		if (isTyping(e)) return;
+		if (isTyping(e) || e.target.closest('dialog') || (e.target.closest('button, [role=button]') && (e.key === 'Enter' || e.key === ' '))) return;
 		if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) doRedo(); else doUndo(); return; }
 		if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); doRedo(); return; }
 		if (mod || e.altKey) return;

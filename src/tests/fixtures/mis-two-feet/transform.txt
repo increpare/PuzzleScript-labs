@@ -1,0 +1,6 @@
+
+choose 1 [ no wall ] -> [ wall ]
+choose 1 [ no wall ] -> [ wall ]
+choose 1 [ no wall ] -> [ wall ]
+
+choose 1 [ no object | no object ] -> [ Foot_Selected | Foot_unselected ]

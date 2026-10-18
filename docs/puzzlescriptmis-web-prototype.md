@@ -94,12 +94,15 @@ solve time and is capped at 20× it (at least 1 s, at most 5 s). It grows
 toward the solve times of admitted candidates, so slow candidates can't eat
 the run.
 
-Candidates are transformed from one of the best boards found so far, or 70%
-of the time from the level itself, so difficulty builds up over a session.
+Each candidate applies the written transform once to the generation session's
+starting board. `choose` counts are used literally: generation does not silently
+scale them or use earlier candidates as parents. Hovering previews a candidate
+without changing the starting board. Clicking adopts it; with **Continue from
+pick** enabled, generation then restarts from that adopted board.
 
-Step size adapts automatically: a bandit scales every `choose` count by ⅛–2×
-toward whatever has been finding harder-than-current levels fastest. The meter
-shows the current choice.
+The generator API retains explicit experimental options `parents: "elite"`
+and `adaptive: true` for benchmarks. These opt into reusing earlier candidates
+and scaling `choose` counts respectively; the web application enables neither.
 
 The app runs `hardwareConcurrency − 1` generator workers (`?genWorkers=N`)
 and pauses level-health checks while generating.
