@@ -1,4 +1,10 @@
 bin/
+release/
+gui95-dist/
+gui95-icons/
+/desktop/mis/web/
+/desktop/mis/icons/
+/desktop/mis/.cache/
 build/
 build-mask64/
 **/.DS_Store
@@ -91,3 +97,8 @@ hardware/pocket_card/case/.venv/
 # editor local-history folders
 .history/
 /.build/monster_garden
+
+# autocomplete model work
+.superpowers/
+autocomplete/.env
+autocomplete/.venv/

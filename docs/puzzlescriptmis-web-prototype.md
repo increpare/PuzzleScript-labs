@@ -23,6 +23,54 @@ site to `bin/`, `mis.html` included; `make mis_web_serve` serves it locally.
 The page opens with the last autosaved session, or the Sokoban demo. Use
 **Open…** or drag and drop to load your own `.txt` file.
 
+## Code editors
+
+Both the game source and transform panels use CodeMirror 6, sharing the main
+PuzzleScript editor's pinned runtime, parser, token styling, completion source,
+search and editing commands. MIS no longer loads a CodeMirror 5 editor.
+
+Object/property suggestions appear as you type. Ctrl+Space opens completions
+manually; arrows select, Enter or Tab accepts, and Escape dismisses the list.
+Ctrl+F opens search. Each panel has its own undo history (Ctrl+Z / Ctrl+Y).
+Transform completion starts in RULES context using the loaded game's actual
+objects and legend; it refreshes when game definitions change, and also offers
+`choose`, `option`, and `or` outside cell patterns.
+
+Browser regression check, with MIS already served:
+
+```sh
+node src/tests/mis_editor_browser.cjs http://127.0.0.1:8080
+```
+
+It exercises real typing, completion acceptance in both panels, manual hints,
+independent undo/redo, search, renamed game objects, comments and diagnostic
+navigation. Screenshots are written to `build/mis-editor-checks/`.
+
+## Workspace controls
+
+The code pane and suggestions area have draggable dividers. Focus a divider
+with Tab, then use its arrow keys to resize, Shift+arrow for larger steps,
+Home to reset, or End for its maximum size. Escape cancels an active drag.
+Sizes are remembered in this browser and clamped to the current window.
+At narrow widths, the code pane moves below the level designer.
+
+Results keep a fixed area while generation runs. Cards preserve their controls
+and keyboard focus when solution proofs arrive; ranking updates pause while
+hovering or focusing a card so a suggestion cannot change under your pointer.
+Watch and Pin are always visible. These changes do not alter transforms,
+generation parents, or solver behaviour.
+
+UI checks (with the site already served):
+
+```sh
+node src/tests/mis_ui_browser.cjs http://127.0.0.1:8080
+```
+
+This uses installed Chrome through Playwright and saves captures in
+`build/mis-ui-checks/`. It checks menus, focus, divider resizing and cancellation,
+real native-solver results, and browser work areas/raster scales of 100%, 125%,
+150%, and 200%. Those browser checks do not certify Windows OS display scaling.
+
 ## What it does
 
 | Area | Behaviour |
@@ -102,12 +150,15 @@ solve time and is capped at 20× it (at least 1 s, at most 5 s). It grows
 toward the solve times of admitted candidates, so slow candidates can't eat
 the run.
 
-Candidates are transformed from one of the best boards found so far, or 70%
-of the time from the level itself, so difficulty builds up over a session.
+Each candidate applies the written transform once to the generation session's
+starting board. `choose` counts are used literally: generation does not silently
+scale them or use earlier candidates as parents. Hovering previews a candidate
+without changing the starting board. Clicking adopts it; with **Continue from
+pick** enabled, generation then restarts from that adopted board.
 
-Step size adapts automatically: a bandit scales every `choose` count by ⅛–2×
-toward whatever has been finding harder-than-current levels fastest. The meter
-shows the current choice.
+The generator API retains explicit experimental options `parents: "elite"`
+and `adaptive: true` for benchmarks. These opt into reusing earlier candidates
+and scaling `choose` counts respectively; the web application enables neither.
 
 The app runs `hardwareConcurrency − 1` generator workers (`?genWorkers=N`)
 and pauses level-health checks while generating.

@@ -1,0 +1,188 @@
+title OUTDATED TECH CORRUGATOR
+author increpare
+homepage www.increpare.com
+
+norepeat_action
+require_player_movement
+
+debug
+verbose_logging
+
+========
+OBJECTS
+========
+
+Background
+#d95763
+
+
+Foot_Selected
+Yellow
+.000.
+00000
+00000
+00000
+.000.
+
+Foot_Unselected
+White
+.000.
+00000
+00000
+00000
+.000.
+
+Trail_Centre
+#d77bba
+.....
+.....
+..0..
+.....
+.....
+
+
+Trail_N
+#d77bba
+..0..
+..0..
+.....
+.....
+.....
+
+Trail_S
+#d77bba
+.....
+.....
+.....
+..0..
+..0..
+
+Trail_W
+#d77bba
+.....
+.....
+00...
+.....
+.....
+
+Trail_E
+#d77bba
+.....
+.....
+...00
+.....
+.....
+
+Wall
+#323c39
+
+
+f1_halo 
+gray
+.....
+..0..
+.....
+.....
+.....
+
+f2_halo
+orange
+.....
+.....
+.....
+..0..
+.....
+
+canceltoken
+purple
+0....
+.....
+.....
+.....
+.....
+
+
+
+
+
+LEGEND
+=======
+
+Player = Foot_Selected
+1 = Foot_Selected
+2 = Foot_Unselected
+. = Background
+# = Wall
+P = Player
+Trail = Trail_N or Trail_S or Trail_W or Trail_E or Trail_Centre
+foot = Foot_Selected or Foot_Unselected
+cover = wall or trail or foot
+halo = f1_halo or f2_halo
+
+F1 = Foot_Selected
+F2 = Foot_Unselected
+f1_trace = f1 or f1_halo
+f2_trace = f2 or f2_halo
+
+object = foot or wall
+
+=======
+SOUNDS
+=======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Trail_Centre
+Trail_N
+Trail_S
+Trail_E
+Trail_W
+Foot, Wall
+f1_halo
+f2_halo
+canceltoken
+
+======
+RULES
+======
+
+[ up player ] -> [ Trail_N up player ]
+[ down player ] -> [ Trail_S down player ]
+[ left player ] -> [ Trail_W left player ]
+[ right player ] -> [ Trail_E right player ]
+
+[ > player | trail ] -> cancel
+
+[ action Foot_Selected ] [ Foot_Unselected ] -> [ Foot_Unselected ] [ Foot_Selected ]
+
+(feet must be touching orthogonaally or diagonally)
+
+
+late [ player ] -> [ player canceltoken ]
+late [ | f1 ] -> [ f1_halo | f1 ]
+late [ | f2 ] -> [ f2_halo | f2 ]
+late [ f1_trace f2_trace ] [ canceltoken ] -> [ f1_trace f2_trace ] [ ]
+late [ canceltoken ] -> cancel
+late [ foot | | foot ] -> cancel
+
+late [ halo ] -> [  ]
+
+==============
+WINCONDITIONS
+==============
+
+all Background on cover
+
+=======
+LEVELS
+=======
+
+.....
+.....
+.....
+.....
+.....
+

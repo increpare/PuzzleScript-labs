@@ -264,7 +264,7 @@ async function main() {
     let mis = fs.readFileSync("./bin/mis.html", encoding = 'utf8');
     mis = useSourceScriptTags(mis);
     fs.writeFileSync("./bin/mis.html", mis, encoding = 'utf8');
-    for (const name of ["codemirror.css", "midnight.css"]) {
+    for (const name of ["codemirror.css", "midnight.css", "editor-cm6.css", "mis-workbench.css", "mis-win95.css"]) {
         css = fs.readFileSync("./src/css/" + name, encoding = 'utf8');
         fs.writeFileSync("./bin/css/" + name, cssmin(css), encoding = "utf8");
     }

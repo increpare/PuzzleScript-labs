@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <title>PuzzleScript+MIS</title>
+  <path fill="#000000" d="M0 0h32v32H0z"/>
+  <path fill="#c0c0c0" d="M1 1h30v30H1z"/>
+  <path fill="#ffffff" d="M1 1h30v1H2v29H1z"/>
+  <path fill="#808080" d="M30 2h1v29H2v-1h28z"/>
+  <path fill="#000080" d="M3 3h26v5H3z"/>
+  <path fill="#ffffff" d="M4 11h24v17H4z"/>
+  <path fill="#008080" d="M6 13h6v6H6zm14 7h6v6h-6z"/>
+  <path fill="#800080" d="M13 17h6v6h-6z"/>
+</svg>

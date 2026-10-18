@@ -13,7 +13,40 @@
 #                           Run direct C++ simulation tests with JS-style 32-bit mask words.
 #   make tests             Run the full native correctness suite.
 
-.DEFAULT_GOAL := help
+.DEFAULT_GOAL := all
+
+# The suite's default app is the Win95 MIS workbench. Native tools and the
+# historical openFrameworks app keep their existing, explicitly named targets.
+ifeq ($(OS),Windows_NT)
+MIS_NPM := npm.cmd
+else
+MIS_NPM ?= npm
+endif
+.PHONY: all install serve mis_app mis_app_start mis_app_tests mis_web_bundle
+all: mis_app
+
+mis_app: desktop/mis/node_modules/.package-lock.json
+	$(NODE) scripts/build-mis-app.mjs
+	$(NODE) scripts/gui95-app.mjs pack
+	$(NODE) -e "console.log('PuzzleScript+MIS ready in release/mis/; make install creates the stable GUI95 launcher.')"
+
+install: all
+	$(NODE) scripts/gui95-app.mjs install
+
+serve: all
+	$(NODE) scripts/serve-mis.mjs
+
+mis_web_bundle:
+	$(NODE) scripts/build-mis-web.mjs
+
+mis_app_start: all
+	$(MIS_NPM) --prefix desktop/mis start
+
+mis_app_tests:
+	$(NODE) --test desktop/mis/files.test.cjs
+
+desktop/mis/node_modules/.package-lock.json: desktop/mis/package-lock.json desktop/mis/package.json
+	$(MIS_NPM) --prefix desktop/mis ci
 
 .PHONY: help build build_32 build_solver build_generator build_simplify handheld_report handheld_memory_audit handheld_blockout_tests handheld_pcb_export handheld_card_preview handheld_card_easyeda_handoff handheld_card_schematic_tests handheld_card_kicad handheld_devkit_input_kicad locality_survey handheld_p4_probe_build handheld_p4_probe_flash handheld_p4_probe_monitor handheld_p4_probe_capture handheld_p4_probe_summarize handheld_p4_probe_check_log pocket_card_electronics_tests pocket_card_kicad pocket_card_kicad_check pocket_card_pcb_exports pocket_card_case pocket_card_case_shells pocket_card_engineer_export pocket_card_engineer_check pocket_card_engineer_accept pocket_card_legacy_pcb_rebuild pocket_card_legacy_schematic_tests pocket_card_contract_tests pocket_card_fixture pocket_card_probe_build pocket_card_probe_flash pocket_card_probe_monitor pocket_card_probe_capture pocket_card_probe_summarize pocket_card_probe_check_log pocket_card_probe_check_map generator remix simplify solver run ctest tests all_tests_thorough js_parity_tests tests_js static_analysis_tests static_analysis_runtime_contracts static_analysis_performance_tests static_analysis_explorer static_analysis_fuzz static_analysis_consistency_giant static_analysis_corpus_audit_giant canonicalization_fuzz canonicalizer_giant_corpus compile_exception_corpus compile_exception_corpus_nodupes fuzz_corpus_batch fuzz_corpus_batch_giant fuzz_corpus_batch_single fuzz_corpus_batch_parallel simulation_tests_js simulation_tests_js_profile simulation_tests_js_profile_breakdown compilation_tests_js performance_testpage \
 	simulation_tests_cpp compilation_tests_cpp simulation_tests compilation_tests simulation_corpus_interpreter_benchmark simulation_corpus_compiled_rulegroups_benchmark simulation_corpus_compiled_compact_benchmark simulation_corpus_perf_report simulation_corpus_perf_report_quick \

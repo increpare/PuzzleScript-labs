@@ -56,12 +56,13 @@ const MISGenerator = (function () {
 		// admitted candidate here. They only set the displayed move count, never
 		// which candidates are kept, and took ~20% of generation time.
 		const eagerProofs = opts.proofs === 'eager';
-		// Parents: 'elite' (default) transforms one of the best boards found so
+		// Parents: 'seed' (default) applies the written transform once to the
+		// starting board. Explicit 'elite' mode transforms one of the best boards found so
 		// far, or the base level with probability seedShare, so difficulty can
 		// build up over several steps; 'seed' transforms the base every time.
 		// Benchmark at 4x the usual run time: +13.1% [+6.2, +21.2], best level
 		// +9%, shortlist ~1 tile further from the base (neutral on 3-15 s runs).
-		const eliteParents = opts.parents !== 'seed';
+		const eliteParents = opts.parents === 'elite';
 		const seedShare = opts.seedShare !== undefined ? opts.seedShare : 0.7;
 		const eliteSize = opts.eliteSize || 16;
 		const elite = []; // { effort, board }, hardest first
@@ -90,7 +91,8 @@ const MISGenerator = (function () {
 		const groups = (opts.programs || [{ id: 'transform', program: program }]).map(function (entry) {
 			const arms = [];
 			const hasChoose = entry.program.statements.some(function (st) { return !!st.choose; });
-			const scales = opts.adaptive === false || !hasChoose ? [1] : [0.125, 0.25, 0.5, 1, 2];
+			// Scaling changes the written choose counts, so require explicit opt-in.
+			const scales = opts.adaptive === true && hasChoose ? [0.125, 0.25, 0.5, 1, 2] : [1];
 			scales.forEach(function (scale) {
 				arms.push({ scale: scale, program: scaleProgram(entry.program, scale), ms: 0, reward: 0, pulls: 0 });
 			});

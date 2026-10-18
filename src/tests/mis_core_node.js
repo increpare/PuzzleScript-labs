@@ -177,6 +177,44 @@ test('simplify keeps the shortest solution length and removes clutter', () => {
 	assert(C.countObjects(m, r.board) < C.countObjects(m, firstLevel.board));
 });
 
+// Custom construction transforms must apply once, as written, to the seed.
+// A solved stub makes every sample eligible as a parent; checking all assessed
+// boards catches both silent choose-count scaling and accumulated additions.
+function checkConstructionSamples(options) {
+	const { text, model } = load('tests/fixtures/mis-two-feet/game.txt');
+	try {
+		const transform = fs.readFileSync(path.join(srcDir, 'tests/fixtures/mis-two-feet/transform.txt'), 'utf8');
+		const program = C.parseTransform(transform, model);
+		assert.deepStrictEqual(program.errors, []);
+		const base = model.levels.find(l => l.board).board;
+		const original = C.cellsKey(base.cells);
+		let assessed = 0;
+		const count = (board, name) => {
+			let n = 0;
+			for (let tile = 0; tile < board.w * board.h; tile++) {
+				model.names[name].ids.forEach(id => { if (C.hasBit(board.cells, tile, id, model.stride)) n++; });
+			}
+			return n;
+		};
+		const backend = { assess(board) {
+			assessed++;
+			assert.strictEqual(count(board, 'wall'), 3, 'three choose-1 wall rules must add exactly three walls');
+			assert.strictEqual(count(board, 'foot_selected'), 1, 'one selected foot per sample');
+			assert.strictEqual(count(board, 'foot_unselected'), 1, 'one unselected foot per sample');
+			return { status: 'solved', effort: assessed, expanded: 10000, primaryMs: 1, refined: true, optimal: true, solution: [], length: 0 };
+		} };
+		const gen = MISGenerator.create(Object.assign({ model, backend, program, base, seed: 5, workClock: true }, options));
+		for (let i = 0; i < 500; i++) gen.step();
+		assert(assessed > 100, 'exercise many distinct generator samples');
+		assert.strictEqual(C.cellsKey(base.cells), original, 'the blank seed must stay unchanged');
+	} finally { misCompile(soko.text); }
+}
+
+test('generator: choose counts stay literal by default', () => checkConstructionSamples({ parents: 'seed' }));
+test('generator: samples use the starting board by default', () => checkConstructionSamples({ adaptive: false }));
+test('generator: construction transform keeps exactly two feet', () => checkConstructionSamples({}));
+
+
 // ---- Native (WebAssembly) backend, when built (native/wasm/build_mis_wasm.sh) ----
 const wasmJs = path.join(srcDir, 'js/mis/wasm/mis_native.js');
 (async () => {

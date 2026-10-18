@@ -1,0 +1,6 @@
+{
+  "prefixLines": 120,
+  "suffixLines": 40,
+  "maxChars": 6000,
+  "keepLevels": 3
+}

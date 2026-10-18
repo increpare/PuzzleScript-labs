@@ -1,0 +1,92 @@
+const fs = require('node:fs/promises');
+const path = require('node:path');
+const assert = require('node:assert/strict');
+const { createRequire } = require('node:module');
+const root = path.resolve(__dirname, '../..');
+const requireApp = createRequire(path.join(root, 'package.json'));
+const { _electron } = requireApp('playwright');
+const work = path.join(root, 'build/mis-desktop-checks');
+const profile = path.join(work, 'profile-' + Date.now());
+const input = path.join(work, 'opened game.txt'), saved = path.join(work, 'saved game.txt');
+const executable = { win32: 'release/mis/win-unpacked/puzzlescript-mis.exe', darwin: 'release/mis/mac-arm64/PuzzleScript+MIS.app/Contents/MacOS/puzzlescript-mis', linux: 'release/mis/linux-unpacked/puzzlescript-mis' }[process.platform];
+if (!executable) throw new Error('Unsupported desktop test platform');
+const exe = path.join(root, executable);
+(async () => {
+  await fs.mkdir(work, { recursive: true });
+  await fs.writeFile(input, await fs.readFile(path.join(root, 'src/demo/sokoban_basic.txt'), 'utf8') + '\n(MIS transform\nchoose 1 [Wall] -> []\nMIS end)\n');
+  const env = { ...process.env, PUZZLESCRIPT_MIS_USER_DATA: profile }; delete env.ELECTRON_RUN_AS_NODE;
+  const launch = args => _electron.launch({ executablePath: exe, args, env });
+  let app;
+  const errors = [];
+  try {
+    app = await launch([input]);
+    const page = await app.firstWindow(); page.on('pageerror', error => errors.push(error.message));
+    await page.waitForFunction(() => window.misApp?.fileName === 'opened game.txt' && document.querySelector('#status-text').textContent.includes('Solvable'), null, { timeout: 60000 });
+    assert.match(await page.locator('#backend-note').textContent(), /native/);
+    assert.equal(await page.evaluate(() => typeof window.require), 'undefined');
+    await app.evaluate(({ app }) => { if (!app.commandLine.hasSwitch('disable-lcd-text')) throw new Error('Missing grayscale text switch'); });
+    assert.match(await page.locator('.caption-controls').textContent(), /×/);
+    await page.locator('.menu-trigger').first().click();
+    assert.match(await page.locator('#menu-file button').last().textContent(), /^Exit/);
+    await page.keyboard.press('Escape');
+    // Native Save As cancellation preserves the dirty document.
+    await page.evaluate(() => { misApp.dirty = true; document.querySelector('#dirty-dot').classList.add('on'); });
+    await app.evaluate(({ dialog }) => { dialog.showSaveDialog = async () => ({ canceled: true }); });
+    assert.equal(await page.evaluate(() => misDocument.save(true)), false);
+    assert(await page.evaluate(() => misApp.dirty));
+    await app.evaluate(({ dialog }, file) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: file }); }, saved);
+    assert.equal(await page.evaluate(() => misDocument.save(true)), true);
+    assert.match(await fs.readFile(saved, 'utf8'), /MIS transform/);
+    assert.equal(await page.evaluate(() => misApp.filePath), saved);
+    // Failed saves preserve the dirty document and last successful recent file.
+    await page.evaluate(() => { misApp.dirty = true; });
+    await app.evaluate(({ dialog }, file) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: file }); }, path.join(work, 'missing', 'bad.txt'));
+    assert.equal(await page.evaluate(() => misDocument.save(true)), false);
+    assert(await page.evaluate(() => misApp.dirty));
+    assert.equal((await page.evaluate(() => misDesktop.recentFiles()))[0].path, saved);
+    // An unsaved Open offers Cancel, then Discard; the final choice loads the file.
+    await app.evaluate(({ dialog }) => { dialog.showMessageBox = async () => ({ response: 2 }); });
+    await page.evaluate(file => misDocument.open(file), input);
+    assert.equal(await page.evaluate(() => misApp.fileName), 'saved game.txt');
+    await app.evaluate(({ dialog }) => { dialog.showMessageBox = async () => ({ response: 1 }); });
+    await page.evaluate(file => misDocument.open(file), input);
+    assert.equal(await page.evaluate(() => misApp.fileName), 'opened game.txt');
+    // Shell opens reuse the running profile and deliver into its existing window.
+    const child = require('node:child_process').spawn(exe, [saved], { env, windowsHide: true, stdio: 'ignore' });
+    const secondExit = new Promise((resolve, reject) => { child.once('exit', resolve); child.once('error', reject); });
+    await page.waitForFunction(() => misApp.fileName === 'saved game.txt');
+    await secondExit;
+    assert.equal(app.windows().length, 1);
+    await page.evaluate(file => misDocument.open(file), input);
+    // Keyboard menu cancellation returns to the editor.
+    await page.locator('#tab-transform .mis-code-editor').click();
+    await page.evaluate(() => { window.beforeMenu = document.activeElement; });
+    await page.keyboard.press('Alt+f'); await page.keyboard.press('End');
+    assert.match(await page.evaluate(() => document.activeElement.textContent), /Exit/);
+    await page.keyboard.press('Escape');
+    assert(await page.evaluate(() => document.activeElement === window.beforeMenu));
+    await page.waitForFunction(() => document.querySelector('#status-text').textContent.includes('Solvable'));
+    // Cancel keeps the native window open; Save completes before closing.
+    await page.evaluate(() => { misApp.dirty = true; });
+    await app.evaluate(({ dialog }) => { dialog.showMessageBox = async () => ({ response: 2 }); });
+    await page.evaluate(() => misDesktop.close());
+    await page.waitForTimeout(150);
+    assert(!page.isClosed()); assert(await page.evaluate(() => misApp.dirty));
+    await page.evaluate(() => { misApp.dirty = false; document.querySelector('#dirty-dot').classList.remove('on'); document.querySelector('#toast').textContent = ''; });
+    await page.screenshot({ path: path.join(work, 'desktop.png') });
+    await page.evaluate(() => misDesktop.close()); await app.close(); app = null;
+    app = await launch([]); const restarted = await app.firstWindow();
+    await restarted.waitForFunction(() => !!window.misDocument && !!window.misApp?.model, null, { timeout: 60000 });
+    const recents = await restarted.evaluate(() => misDesktop.recentFiles());
+    assert.equal(recents[0].path, input); assert.equal(recents[1].path, saved);
+    await restarted.evaluate(file => misDocument.open(file), saved);
+    assert.equal(await restarted.evaluate(() => misApp.fileName), 'saved game.txt');
+    const report = { packagedOfflineNativeSolver: true, nativeSaveAndCancel: true, failedSaveKeepsDirty: true, unsavedOpenCancelDiscard: true, secondInstanceFileOpen: true, recentFilesAfterRestart: true, menuFocus: true, errors };
+    assert.deepEqual(errors, []); console.log(JSON.stringify(report, null, 2));
+    await restarted.evaluate(() => { misApp.dirty = true; });
+    await app.evaluate(({ dialog }) => { dialog.showMessageBox = async () => ({ response: 0 }); });
+    const exited = app.waitForEvent('close');
+    await restarted.evaluate(() => misDesktop.close()); await exited; app = null;
+    assert.match(await fs.readFile(saved, 'utf8'), /MIS transform/);
+  } finally { if (app) await app.close(); }
+})().catch(error => { console.error(error); process.exitCode = 1; });
