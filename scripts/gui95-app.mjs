@@ -369,16 +369,18 @@ async function recoverStagedBuild({ app, built, distDir, system }) {
   await rmdir(path.dirname(staged)).catch(() => {});   // only when empty, as above
 }
 
-export async function pack(repoRoot, { system = systemName(), arch = process.arch, sign = system === "macos", log = console.log } = {}) {
+export async function pack(repoRoot, { system = systemName(), arch = process.arch, sign = system === "macos", log = console.log, ids } = {}) {
   const { apps } = await readManifest(repoRoot);
   const distDir = path.join(repoRoot, DIST_DIR);
+  const selected = ids ? apps.filter(app => ids.includes(app.id)) : apps;
+  if (ids && ids.some(id => !selected.some(app => app.id === id))) throw new Error('Unknown app id for pack.');
 
   if (system !== "macos") {        // a macOS bundle is archived where it is, never staged
-    for (const app of apps) {
+    for (const app of selected) {
       if (app.builds[system]) await recoverStagedBuild({ app, built: builtAppPath(repoRoot, app, system), distDir, system });
     }
   }
-  const plan = await planBuilds(repoRoot, apps, system);
+  const plan = await planBuilds(repoRoot, selected, system);
 
   const results = [];
   for (const { app, built, version, skipped } of plan) {
@@ -638,20 +640,35 @@ export async function install(repoRoot, { system = systemName(), env = process.e
 const COMMANDS = {
   pack: (repoRoot) => pack(repoRoot),
   install: (repoRoot) => install(repoRoot),
+  paths: async (repoRoot) => {
+    const { apps } = await readManifest(repoRoot);
+    const system = systemName();
+    const outputs = [];
+    for (const app of apps) {
+      const build = app.builds[system];
+      if (!build) continue;
+      const file = system === 'macos' ? builtAppPath(repoRoot, app, system) : path.resolve(repoRoot, build.dir, build.exe);
+      await stat(file);
+      outputs.push(`${app.name}: ${file}`);
+    }
+    if (!outputs.length) throw new Error(`No desktop build is registered for ${system}.`);
+    console.log('\nDesktop executables:\n' + outputs.join('\n'));
+  },
 };
 
 // Returns the exit code: 0 done, 1 something failed (the message goes to stderr), 2 bad usage.
 export async function main(argv) {
   const [name, ...rest] = argv;
   const command = Object.hasOwn(COMMANDS, name) ? COMMANDS[name] : undefined;
-  if (command === undefined || rest.length > 0) {
+  if (command === undefined || (name !== 'pack' && rest.length > 0)) {
     const file = fileURLToPath(import.meta.url);
     const relative = path.relative(process.cwd(), file);
     console.error(`Usage: node ${relative.startsWith("..") ? file : relative} <${Object.keys(COMMANDS).join("|")}>`);
     return 2;
   }
   try {
-    await command(process.cwd());
+    if (name === 'pack' && rest.length) await pack(process.cwd(), { ids: rest });
+    else await command(process.cwd());
     return 0;
   } catch (err) {
     console.error(err.message);
