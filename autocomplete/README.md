@@ -299,6 +299,205 @@ GPU: NVIDIA GeForce RTX 4080 SUPER, 16 GB, driver 610. Python 3.13; the venv at
 `D:\Projects\ps_ac_venv` (see `train/requirements.txt`) has torch 2.14.1+cu126 and
 transformers 5.20, installed 2026-10-18 for the Qwen baseline. Node 22.12.
 
+## Phase 1.5: browser feasibility spike (2026-10-20)
+
+Decides which of the handoff's three sizes are worth training. Everything here ran on
+random weights; the numbers are costs, not quality.
+
+| Step | Command | Writes | Time |
+|---|---|---|---|
+| 5.1 tokenizer | `python autocomplete/train/tokenizer.py` | `<data>/tokenizer/tokenizer.json`, `fixture.json` (browser check cases) | 2.5 min |
+| 5.2 configs | `python autocomplete/train/model.py` | prints the parameter table below | |
+| export | `python autocomplete/train/export_onnx.py --all` (random weights; `--checkpoint DIR --out FILE` for a trained model) | `<data>/models/spike/{xs,s,m}.{onnx,int8.onnx,fp16.onnx}`, `export_summary.json` | 1 min |
+| spike page | `npm install onnxruntime-web@1.30.0` once in `<data>/spike/`, then `node autocomplete/spike/serve.js` (the `spike` entry in `.claude/launch.json`) and open `http://localhost:8768/?auto=1&threads=1` | results table on the page ("Copy markdown") | 1 min per pass |
+
+`python` is the venv interpreter (`D:\Projects\ps_ac_venv`). The export needs
+`onnxscript` and `onnx_ir` (added to `train/requirements.txt`).
+
+### Architectures (`train/model.py`)
+
+`SIZES`, `build_config(name, vocab_size, max_position_embeddings=2048)` and
+`build_model(name, vocab_size)` give a `LlamaForCausalLM` (RMSNorm, RoPE, SwiGLU, tied
+embeddings, kv heads = heads, head dim 64). SwiGLU width is 8/3 d rounded up to 64.
+
+| size | d_model | layers | heads | ffn | params at vocab 8192 |
+|---|---|---|---|---|---|
+| xs | 256 | 6 | 4 | 704 | 6.9M |
+| s | 384 | 8 | 6 | 1024 | 17.3M |
+| m | 512 | 8 | 8 | 1408 | 29.9M |
+
+The handoff's 5M/15M/30M guesses did not count the 2.1M to 4.2M embedding table.
+
+### Tokenizer (`train/tokenizer.py`)
+
+Byte-level BPE from `tokenizers`, vocab 8192, trained on the `text` field of the train
+samples with the context markers stripped (2.5 min for 19,864 rows). Pre-tokeniser:
+newline is its own token; `->`, each of `[ ] | , ( )` and every run of `=` (so a section
+separator is one token) are isolated, optionally carrying one leading space the way
+words do; everything else splits as ` ?\S+| +`. The six markers from
+`pipeline/context.js` are added special tokens with fixed ids: `<EOS>`=0, `<SYM>`=1,
+`<PRE>`=2, `<SUF>`=3, `<MID>`=4, `<PAD>`=5. The script asserts that no vocab entry
+mixes a structural character or a newline with other text.
+
+On the val samples: 2.71 chars per token, median rule line 19 tokens (p90 37), so the
+handoff's "try 16k if the median rule line is over 25" trigger is not hit. (Without the
+leading-space rule the median was 24: `[ > Player | Crate ]` cost 11 tokens instead of 7.)
+
+Browser check: `spike/bpe_tokenizer.js` (a 120-line reader for tokenizer.json: Split and
+ByteLevel pre-tokenisers, BPE merges, ByteLevel decoder, special tokens) loads the
+535 KB JSON in 13 to 17 ms and, on the 441-case fixture written by the Python script
+(40 whole samples, 400 single lines, one marker string), matches the Python ids on
+441/441 cases and round-trips the text exactly on 441/441. Encoding runs at about
+0.37 MB/s (86.6k chars in 233 ms), so a full 6000-char context costs about 16 ms; the
+editor should cache per line.
+
+### ONNX export (`train/export_onnx.py`)
+
+The forward pass is re-implemented on the HF module's weights (plain MatMul, Softmax,
+RMSNorm, RoPE; no SDPA or cache objects) and exported with the torch dynamo exporter at
+opset 18, then quantised and converted. Graph contract (B batch, L new tokens, P cached
+tokens, T = P + L, H heads, head dim 64):
+
+| | name | type | shape |
+|---|---|---|---|
+| input | `input_ids` | int64 | [B, L] |
+| input | `position_ids` | int64 | [B, L], absolute positions P .. P+L-1 |
+| input | `past_key_values.N.key`, `past_key_values.N.value` | float32 | [B, H, P, 64], N = 0..layers-1, P = 0 on the first call |
+| output | `logits` | float32 | [B, L, vocab] |
+| output | `present.N.key`, `present.N.value` | float32 | [B, H, T, 64], fed back as the next call's past |
+
+The causal mask comes from the shapes (key j is visible to new token i iff j <= P + i);
+there is no `attention_mask`, hence no padding: batch 1, or equal-length batches. The
+fp16 variant keeps fp32 inputs and outputs (`keep_io_types`), so one feeding code path
+serves all three files.
+
+Verification (`verify()`: 3 random 64-token prompts, a full pass and a 40 + 24 cached
+two-step pass, both against `LlamaForCausalLM` logits in onnxruntime CPU):
+
+| size | params | fp32 MB | int8 MB | fp16 MB | fp32 max abs diff (full / cached) | fp16 max abs diff | int8 max abs diff | int8 argmax agreement |
+|---|---|---|---|---|---|---|---|---|
+| xs | 6.9M | 28.0 | 9.1 | 14.1 | 1.4e-6 / 1.4e-6 | 1.4e-3 | 0.069 | 90.6% |
+| s | 17.3M | 69.6 | 20.5 | 35.0 | 1.7e-6 / 1.7e-6 | 1.7e-3 | 0.094 | 89.1% |
+| m | 29.9M | 119.9 | 34.2 | 60.2 | 2.1e-6 / 2.1e-6 | 2.3e-3 | 0.098 | 90.1% |
+
+int8 is `quantize_dynamic` (weights int8, activations quantised per call by
+`DynamicQuantizeLinear`) on MatMul and Gather after `quant_pre_process`. The
+pre-process folds the lm_head transpose into a constant, so the tied embedding table is
+stored twice (int8 for the Gather, uint8 for the MatMulInteger): 2.1 / 3.1 / 4.2 MB of
+the int8 sizes above. Without it xs is 7.2 MB but the int8 prompt pass is 1.6x slower on
+the CPU EP (the lm_head stays an fp32 MatMul over a dequantised weight), so the
+duplicate is kept for now; a custom export could drop it. The int8 argmax agreement of
+about 90% is for random weights and says nothing about a trained model.
+
+### Browser measurements (`spike/`)
+
+Setup: Ryzen 7 7800X3D (8 cores, 16 threads), RTX 4080 SUPER, Chrome 152 (the Claude
+desktop app's browser pane), onnxruntime-web 1.30.0 vendored, page served with COOP/COEP
+so it is cross-origin isolated (WASM threads and `measureUserAgentSpecificMemory`
+available). Prompt = the first 200 tokens of real val sample text, then 16 greedy decode
+steps through the KV cache (on WebGPU the cache stays in GPU buffers between steps;
+only the logits are read back). One warm-up sequence (reported as "cold first run"; it
+includes WebGPU shader compilation), then the median of 5 sequences. "warm total" is
+the handoff's number: one 200-token prompt plus 16 decoded tokens. Node placement is
+read from a verbose probe session's log; a second, quiet session is the one timed. The
+machine had about four cores busy with other processes throughout (another session's
+`find`, a Godot instance, a Python job), so absolute numbers are pessimistic and the
+multi-thread rows are noisy; ranges give the repeat samples where taken.
+
+Single-thread WASM and WebGPU, all variants:
+
+| size | variant | EP | file MB | session create ms | cold first run ms | warm prompt ms | warm decode ms/tok | warm total ms | nodes on CPU |
+|---|---|---|---|---|---|---|---|---|---|
+| xs | int8 | wasm | 9.1 | 185-708 | 139-201 | 59-62 | 3.6-4.2 | **119-131** | all |
+| xs | fp32 | wasm | 28.0 | 154 | 155 | 110 | 2.5 | 146 | all |
+| xs | fp16 | wasm | 14.1 | 195 | 205 | 121 | 4.6 | 190 | all |
+| s | int8 | wasm | 20.5 | 140-739 | 239-364 | 149-165 | 7.3-7.5 | **267-315** | all |
+| s | fp32 | wasm | 69.6 | 184 | 314 | 260 | 5.4 | 346 | all |
+| s | fp16 | wasm | 35.0 | 293 | 443 | 299 | 10.2 | 459 | all |
+| m | int8 | wasm | 34.2 | 155-767 | 453-532 | 256-273 | 11.0-11.3 | **431-462** | all |
+| m | fp32 | wasm | 119.9 | 290 | 1097 | 475 | 8.9 | 617 | all |
+| m | fp16 | wasm | 60.2 | 577 | 781 | 494 | 13.8 | 714 | all |
+| xs | int8 | webgpu | 9.1 | 175 | 2283 | 159 | 104 | 1815 | 81 of 628: MatMulInteger 43, DynamicQuantizeLinear 25, 13 shape ops |
+| xs | fp32 | webgpu | 28.0 | 151 | 423 | 13 | 9.9 | 171 | 13 shape ops |
+| xs | fp16 | webgpu | 14.1 | 135 | 1321 | 13 | 10.9 | 188 | 13 shape ops |
+| s | int8 | webgpu | 20.5 | 196 | 2445 | 258 | 132 | 2375 | 103: MatMulInteger 57, DynamicQuantizeLinear 33, 13 shape ops |
+| s | fp32 | webgpu | 69.6 | 218 | 278 | 15 | 12.7 | 221 | 13 shape ops |
+| s | fp16 | webgpu | 35.0 | 161 | 257 | 15 | 11.6 | 200 | 13 shape ops |
+| m | int8 | webgpu | 34.2 | 177 | 2548 | 339 | 134 | 2504 | 103: MatMulInteger 57, DynamicQuantizeLinear 33, 13 shape ops |
+| m | fp32 | webgpu | 119.9 | 214 | 251 | 18 | 11.5 | 203 | 13 shape ops |
+| m | fp16 | webgpu | 60.2 | 194 | 274 | 17 | 12.7 | 220 | 13 shape ops |
+
+The first session created in a page pays the ORT WASM runtime start-up (about 0.5 s),
+which is the upper end of the session-create ranges.
+
+WASM threads (warm total ms; two samples for int8 at 4 threads):
+
+| size | variant | 1 thread | 4 threads | 8 threads | 16 threads |
+|---|---|---|---|---|---|
+| xs | int8 | 119-131 | **95-115** | 189 | 167 |
+| xs | fp32 | 146 | 93 | 166 | 426 |
+| s | int8 | 267-315 | **158-232** | 406 | 383 |
+| s | fp32 | 346 | 212 | 205 | 680 |
+| m | int8 | 431-462 | **219-242** | 185 | 498 |
+| m | fp32 | 617 | 288 | 268 | 1034 |
+
+Four threads roughly halve the prompt pass; eight and sixteen were slower on this
+loaded machine (oversubscription against the other processes and the page's main
+thread). Threads need cross-origin isolation (COOP/COEP response headers), which the
+host serving the editor may not provide, so the single-thread column is the safe
+assumption.
+
+Memory, from isolated page loads (one size per load, int8, WASM), UA-specific memory
+in MB as baseline / after session create / after 10 sequences: xs 11 / 20 / 370,
+s 5 / 29 / 214, m 14 / 40 / 410. Loading a model costs roughly its int8 file size plus
+the arena; the "after" figures are dominated by not-yet-collected JS garbage (each
+prompt pass returns a 200 x 8192 fp32 logits tensor, 6.5 MB, which a shipped worker
+should avoid by reading only the last position). A true peak is not observable from
+the page; `measureUserAgentSpecificMemory` is a sampled estimate.
+
+### Reading
+
+- **int8 does not run on WebGPU.** The WebGPU EP (1.30) has no `MatMulInteger` or
+  `DynamicQuantizeLinear` kernels, so every quantised matmul falls back to the CPU with
+  a GPU round trip per layer: 100 to 134 ms per decoded token, 10 to 25x slower than the
+  same file on WASM. Read from the node placement log, not inferred.
+- **fp32 and fp16 do run on WebGPU** (everything except 13 shape nodes), and the prompt
+  pass is 5 to 25x faster than WASM (13 to 18 ms for all three sizes). But decoding costs
+  10 to 13 ms per token regardless of size: the step is bound by the 380 to 500 kernel
+  dispatches of this unfused graph, not by FLOPs, so WebGPU totals (171 to 221 ms) beat
+  single-thread WASM only for m. `shader-f16` is present on this adapter and fp16 gave
+  nothing over fp32 at these sizes. Fusing RoPE, RMSNorm and attention into ORT's
+  contrib ops would cut the dispatch count several-fold but needs an optimum-style
+  export and a second code path; not worth it when WASM already meets the bar.
+- **On WASM, int8 is the right variant**: smallest file (9 to 34 MB), fastest prompt
+  pass. Its decode step is 1.2 to 1.6x slower than fp32 because the activations are
+  re-quantised on every call, but decode is the smaller half of the budget.
+- **Cold load** is dominated by the one-off ORT runtime start (about 0.5 s) and the
+  first inference: 0.3 to 0.9 s all-in for int8 on WASM, acceptable behind the editor's
+  AI toggle. 9 MB (xs) on the wire is fine; 34 MB (m) is not something to fetch on every
+  page view.
+- Consistent with the Phase 3 worker's own measurement of random-weight xs int8 on
+  single-thread WASM inside the editor: 364 ms load, 346 ms for a 203-token prompt plus
+  48 decoded tokens, 196 ms with 202 prompt tokens already cached.
+
+### Recommendation: size ceiling
+
+Criterion from the handoff: about 150 ms warm latency for a 200-token prompt plus 16
+decoded tokens on WASM on this machine.
+
+| size | int8 WASM, 1 thread | int8 WASM, 4 threads | verdict |
+|---|---|---|---|
+| xs | 119-131 ms | 95-115 ms | **in**: clears the bar single-threaded |
+| s | 267-315 ms | 158-232 ms | **conditional**: 2x over the bar single-threaded; at the bar only with threads (COOP/COEP on the host) or with prefix caching so the prompt pass is rare |
+| m | 431-462 ms | 219-242 ms | **out**: 3x over the bar, never under it on WASM, and 34 MB on the wire |
+
+Sweep **xs and s**; drop **m**. xs is the browser candidate. Train s as well so the sweep
+shows whether 2.5x the parameters buys enough RULES accuracy to justify making the
+editor's latency depend on threads or on cache hits; if s is not clearly better than xs
+on the validation table, ship xs. Expect single-threaded decode of about 4 ms per token
+(xs) or 7.5 ms (s), so a median 19-token rule line completes in roughly 75 ms (xs) or
+140 ms (s) once the prefix is cached.
+
 ## Phase 2: training (2026-10-20)
 
 Python side, in the venv described at the top of `train/requirements.txt`. The tokenizer,
