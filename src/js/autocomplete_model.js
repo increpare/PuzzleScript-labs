@@ -12,7 +12,7 @@
     "use strict";
 
     const SETTING_KEY = "aiGhostText";
-    const WORKER_VERSION = "5";   // bump when the worker changes: module workers are cached hard
+    const WORKER_VERSION = "6";   // bump when the worker changes: module workers are cached hard
     const MODEL_KEY = "aiGhostTextModel";
     const DEFAULT_MODEL = "ps-ac-xs";
 

@@ -61,29 +61,36 @@ def fit_prompt(tok, row, mode, limit):
     prefix_lines, suffix_lines = split_lines(row["prefix"]), split_lines(row["suffix"])
     header_tokens = [count(l) for l in header_lines]
     prefix_tokens, suffix_tokens = [count(l) for l in prefix_lines], [count(l) for l in suffix_lines]
-    total = count(MARK["pre"] + MARK["suf"]) + count(MARK["mid"]) + sum(header_tokens) + sum(prefix_tokens) + sum(suffix_tokens)
+    markers = count(MARK["pre"] + MARK["suf"]) + count(MARK["mid"])
+
+    def shrink_header(cap):
+        # Drop header lines from the end (sfx, legend, then objects), then cut the last one
+        # short (same as the worker).
+        while sum(header_tokens) > cap and len(header_lines) > 2:
+            header_tokens.pop()
+            header_lines.pop()
+        while sum(header_tokens) > cap and len(header_lines) > 1:
+            last = header_lines[-1]
+            if len(last) <= 64:
+                header_tokens.pop()
+                header_lines.pop()
+                continue
+            cut = re.sub(r"\S*$", "", last[: len(last) // 2]) + "\n"
+            header_lines[-1] = cut
+            header_tokens[-1] = count(cut)
+
+    # The symbol header may not take more than 40% of the budget, so the code context
+    # keeps the rest even for games with hundreds of objects.
+    shrink_header(int(limit * 0.4))
+    total = markers + sum(header_tokens) + sum(prefix_tokens) + sum(suffix_tokens)
     while total > limit and len(prefix_lines) > 1:
         total -= prefix_tokens.pop(0)
         prefix_lines.pop(0)
     while total > limit and suffix_lines:
         total -= suffix_tokens.pop()
         suffix_lines.pop()
-    # A symbol header longer than the budget: drop its lines from the end, then cut the
-    # last one short (same as the worker).
-    while total > limit and len(header_lines) > 2:
-        total -= header_tokens.pop()
-        header_lines.pop()
-    while total > limit and len(header_lines) > 1:
-        last = header_lines[-1]
-        if len(last) <= 64:
-            total -= header_tokens.pop()
-            header_lines.pop()
-            continue
-        cut = re.sub(r"\S*$", "", last[: len(last) // 2]) + "\n"
-        total -= header_tokens[-1]
-        header_lines[-1] = cut
-        header_tokens[-1] = count(cut)
-        total += header_tokens[-1]
+    if total > limit:
+        shrink_header(sum(header_tokens) - (total - limit))
     header = "".join(header_lines)
     prefix, suffix = "".join(prefix_lines), "".join(suffix_lines)
     if mode == "spm":

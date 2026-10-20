@@ -169,21 +169,25 @@ function fitPrompt(parts, limit) {
   const prefixTokens = prefixLines.map(countTokens)
   const suffixTokens = suffixLines.map(countTokens)
   const sum = a => a.reduce((x, y) => x + y, 0)
+  // A symbol header may not take more than 40% of the budget (games with hundreds of
+  // objects): drop its lines from the end (sfx, legend, then objects), then cut the last
+  // line short, so the code context keeps the rest.
+  const headerCap = Math.floor(limit * 0.4)
+  const shrinkHeader = cap => {
+    while (sum(headerTokens) > cap && headerLines.length > 2) { headerTokens.pop(); headerLines.pop() }
+    while (sum(headerTokens) > cap && headerLines.length > 1) {
+      const last = headerLines[headerLines.length - 1]
+      if (last.length <= 64) { headerTokens.pop(); headerLines.pop(); continue }
+      const cut = last.slice(0, Math.floor(last.length / 2)).replace(/\S*$/, "") + "\n"
+      headerLines[headerLines.length - 1] = cut
+      headerTokens[headerTokens.length - 1] = countTokens(cut)
+    }
+  }
+  shrinkHeader(headerCap)
   let total = markers + sum(headerTokens) + sum(prefixTokens) + sum(suffixTokens)
   while (total > limit && prefixLines.length > 1) { total -= prefixTokens.shift(); prefixLines.shift() }
   while (total > limit && suffixLines.length > 0) { total -= suffixTokens.pop(); suffixLines.pop() }
-  // A symbol header longer than the budget (games with hundreds of objects): drop its
-  // lines from the end (sfx, legend, then objects) and finally cut the last line short.
-  while (total > limit && headerLines.length > 2) { total -= headerTokens.pop(); headerLines.pop() }
-  while (total > limit && headerLines.length > 1) {
-    const last = headerLines[headerLines.length - 1]
-    if (last.length <= 64) { total -= headerTokens.pop(); headerLines.pop(); continue }
-    const cut = last.slice(0, Math.floor(last.length / 2)).replace(/\S*$/, "") + "\n"
-    total -= headerTokens[headerTokens.length - 1]
-    headerLines[headerLines.length - 1] = cut
-    headerTokens[headerTokens.length - 1] = countTokens(cut)
-    total += headerTokens[headerTokens.length - 1]
-  }
+  if (total > limit) { shrinkHeader(sum(headerTokens) - (total - limit)); total = markers + sum(headerTokens) + sum(prefixTokens) + sum(suffixTokens) }
   return {prompt: headerLines.join("") + "<PRE><SUF>" + suffixLines.join("") + "<MID>" + prefixLines.join(""), tokens: total}
 }
 
