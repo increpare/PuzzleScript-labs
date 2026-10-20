@@ -35,6 +35,7 @@ if (sourceFileToOpen!==null&&sourceFileToOpen.length>0) {
 let editor = PuzzleScriptEditorDriver.create({
 	textarea: code,
 	autocomplete: PuzzleScriptAutocomplete,
+	ghostText: globalThis.PuzzleScriptAutocompleteModel || null,
 	callbacks: {
 		onDirtyChange: setEditorDirty,
 		onSourceDrop: loadDroppedSource,

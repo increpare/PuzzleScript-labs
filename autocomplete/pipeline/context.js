@@ -244,4 +244,7 @@ function renderPrompt(ctx, mode = 'psm') {
     return full.text.slice(0, full.text.length - MARK.eos.length);
 }
 
-module.exports = { buildContext, render, renderPrompt, renderHeader, trimLevels, lineSections, levelBlocks, splitKeep, DEFAULT_CONFIG, MARK, SECTION_NAMES };
+const CONTEXT_EXPORTS = { buildContext, render, renderPrompt, renderHeader, trimLevels, lineSections, levelBlocks, splitKeep, DEFAULT_CONFIG, MARK, SECTION_NAMES };
+// Node (pipeline, eval) and the browser (editor, worker) load this same file.
+if (typeof module !== 'undefined' && module.exports) module.exports = CONTEXT_EXPORTS;
+else globalThis.PuzzleScriptAutocompleteContext = Object.freeze(CONTEXT_EXPORTS);

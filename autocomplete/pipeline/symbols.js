@@ -6,7 +6,7 @@
 // original casing; legend names are lowercase because the streaming parser lowercases the
 // line before recording them (original_case_names only covers objects).
 
-const path = require('path');
+const path = typeof require === 'function' ? require('path') : null;
 
 function cased(state, name) {
     return (state.original_case_names && state.original_case_names[name]) || name;
@@ -36,4 +36,6 @@ function extractSymbols(text) {
     return symbolsFromParserState(parsed.state || {});
 }
 
-module.exports = { symbolsFromParserState, extractSymbols };
+const SYMBOL_EXPORTS = { symbolsFromParserState, extractSymbols };
+if (typeof module !== 'undefined' && module.exports) module.exports = SYMBOL_EXPORTS;
+else globalThis.PuzzleScriptAutocompleteSymbols = Object.freeze(SYMBOL_EXPORTS);

@@ -259,6 +259,7 @@ host.define("autocomplete", {
   createPuzzleScriptAutocompleteActivationController,
   puzzleScriptAutocomplete,
   puzzleScriptCompletionKeymap,
-  puzzleScriptCompletionSource
+  puzzleScriptCompletionSource,
+  stateWithExactPrefix
 })
 })(globalThis.PuzzleScriptCM6Plugins)

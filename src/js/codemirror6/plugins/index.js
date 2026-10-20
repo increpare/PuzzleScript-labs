@@ -38,6 +38,10 @@ const {
   createCM6EditorDriver
 } = host.require("editor-adapter")
 const {exactPrefixExtensions} = host.require("exact-prefix")
+const {
+  puzzleScriptGhostText,
+  puzzleScriptGhostTextKeymap
+} = host.require("ghost-text")
 const {puzzleScriptInteractions} = host.require("interactions")
 const {
   puzzleScriptSearch,
@@ -77,6 +81,7 @@ function createEditor(options) {
       complete: options.autocomplete.complete,
       excludedKeyCodes: options.autocomplete.excludedKeyCodes
     }),
+    ...(options.ghostText ? [puzzleScriptGhostText({language, provider: options.ghostText})] : []),
     puzzleScriptSearch(),
     puzzleScriptInteractions({
       language,
@@ -85,6 +90,7 @@ function createEditor(options) {
     }),
     puzzleScriptCommandExtensions,
     keymap.of([
+      ...(options.ghostText ? puzzleScriptGhostTextKeymap : []),
       ...puzzleScriptCompletionKeymap,
       ...puzzleScriptKeymap,
       ...puzzleScriptSearchKeymap,

@@ -42,7 +42,9 @@
     "ycssmin": "^1.0.1"
   },
   "devDependencies": {
+    "@huggingface/tokenizers": "^0.2.0",
     "@playwright/test": "1.62.1",
-    "esbuild": "0.28.2"
+    "esbuild": "0.28.2",
+    "onnxruntime-web": "^1.30.0"
   }
 }

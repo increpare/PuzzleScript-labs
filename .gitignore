@@ -102,3 +102,6 @@ hardware/pocket_card/case/.venv/
 .superpowers/
 autocomplete/.env
 autocomplete/.venv/
+
+# autocomplete model weights are built locally (autocomplete/README.md), never committed
+src/models/*.onnx
