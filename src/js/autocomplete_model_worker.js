@@ -9,24 +9,34 @@
 //   {type: "cancel", id}
 // Messages out:
 //   {type: "ready", info}  {type: "error", id?, message}
-//   {type: "result", id, text, tokens, ms, prefillTokens, cachedTokens}
+//   {type: "result", id, text, tokens, ms, prefillTokens, cachedTokens, healedTail}
 //
 // The exported graph (autocomplete/train/export_onnx.py) takes input_ids, position_ids
 // and past_key_values.<i>.key/value [1, heads, past, headDim] (no attention mask: the
 // graph is causal from the shapes, batch 1 only), and returns logits plus
-// present.<i>.key/value. The KV cache of the previous request is kept and the
-// longest shared token prefix with the new prompt is reused, so while the user types on a
-// line only the new tokens are prefilled (the editor renders prompts in SPM order, where
-// the prefix comes last, for exactly this reason).
+// present.<i>.key/value. The KV cache of the previous request is kept and the longest
+// shared token prefix with the new prompt is reused, so while the user types on a line
+// only the new tokens are prefilled (the editor renders prompts in SPM order, where the
+// prefix comes last, for exactly this reason).
+//
+// Token healing: the prompt's last pre-token (a word with its leading space, or a run of
+// spaces; structural tokens and newlines are always whole tokens) is cut off and
+// regenerated under the constraint that the output starts with it, so a cursor after
+// "| " or inside "Pla" does not leave the model with a token split it never saw.
 
 import * as ort from "./vendor/onnxruntime-web/ort.wasm.min.mjs"
 import {Tokenizer} from "./vendor/tokenizers/tokenizers.min.mjs"
 
 const PREFILL_CHUNK = 256
 
+// The pre-tokeniser (train/tokenizer.py) isolates newline, "->", "=+", "[ ] | , ( )" and
+// " ?\S+| +"; a word tail therefore never contains those characters.
+const TAIL = /( ?[^\s\[\]|,()=]+| +)$/
+
 let session = null
 let tokenizer = null
-let graph = null          // {layers, kvHeads, headDim, eosId, newlineIds}
+let graph = null          // {layers, kvHeads, headDim, eosId}
+let vocabStrings = null   // id -> decoded string, for token healing
 let cache = {ids: [], kv: null}
 const cancelled = new Set()
 let busy = Promise.resolve()
@@ -57,12 +67,13 @@ async function init(options) {
   const layers = config.num_hidden_layers
   const headDim = config.head_dim || Math.floor(config.hidden_size / heads)
   const eosId = tokenizer.encode("<EOS>", {add_special_tokens: false}).ids[0]
-  const newlineIds = new Set()
-  for (const t of ["\n", "\n\n"]) {
-    const enc = tokenizer.encode(t, {add_special_tokens: false}).ids
-    if (enc.length === 1) newlineIds.add(enc[0])
+  graph = {layers, kvHeads, headDim, eosId}
+
+  const vocabSize = config.vocab_size || 8192
+  vocabStrings = new Array(vocabSize)
+  for (let i = 0; i < vocabSize; i++) {
+    try { vocabStrings[i] = tokenizer.decode([i], {skip_special_tokens: false}) } catch (e) { vocabStrings[i] = "" }
   }
-  graph = {layers, kvHeads, headDim, eosId, newlineIds}
   cache = {ids: [], kv: null}
   post({type: "ready", info: {
     loadMs: Math.round(loadMs),
@@ -132,9 +143,29 @@ function argmax(row) {
   return best
 }
 
+function splitTail(prompt) {
+  const m = TAIL.exec(prompt)
+  if (!m || m[1].length >= prompt.length) return {head: prompt, tail: ""}
+  return {head: prompt.slice(0, prompt.length - m[1].length), tail: m[1]}
+}
+
+// Best token whose string is consistent with the required prefix `req`: either the token
+// string starts with req (req is then fully consumed) or req starts with the token string.
+function argmaxConstrained(row, req) {
+  let best = -1, bestValue = -Infinity
+  for (let i = 0; i < vocabStrings.length; i++) {
+    const t = vocabStrings[i]
+    if (!t || i === graph.eosId) continue
+    if (!(t.startsWith(req) || req.startsWith(t))) continue
+    if (row[i] > bestValue) { bestValue = row[i]; best = i }
+  }
+  return best
+}
+
 async function generate({id, prompt, maxTokens = 48, stop = "line"}) {
   const t0 = performance.now()
-  const ids = tokenizer.encode(prompt, {add_special_tokens: false}).ids
+  const {head, tail} = splitTail(prompt)
+  const ids = tokenizer.encode(head, {add_special_tokens: false}).ids
   let common = 0
   while (common < ids.length - 1 && common < cache.ids.length && ids[common] === cache.ids[common]) common++
   let kv = sliceKV(cache.kv, common)
@@ -146,25 +177,35 @@ async function generate({id, prompt, maxTokens = 48, stop = "line"}) {
     const r = await step(chunk, kv, pastLength)
     kv = r.kv; last = r.last; pastLength += chunk.length
   }
+  const base = {id, prefillTokens: ids.length - common, cachedTokens: common, healedTail: tail}
   const generated = []
   let text = ""
-  for (let i = 0; i < maxTokens; i++) {
+  let required = tail          // what the healed tokens still have to reproduce
+  let healed = tail === ""
+  while (generated.length < maxTokens + (tail ? 2 : 0)) {
     if (cancelled.has(id)) return null
-    const next = argmax(last)
-    if (next === graph.eosId) break
+    let next
+    if (!healed) {
+      next = argmaxConstrained(last, required)
+      if (next < 0) return Object.assign({type: "result", text: null, healFailed: true, tokens: 0, ms: Math.round(performance.now() - t0)}, base)
+      const t = vocabStrings[next]
+      required = t.startsWith(required) ? "" : required.slice(t.length)
+      if (required === "") healed = true
+    } else {
+      next = argmax(last)
+      if (next === graph.eosId) break
+    }
     generated.push(next)
-    text = tokenizer.decode(generated, {skip_special_tokens: true})
-    if (stop === "line" && text.includes("\n")) { text = text.slice(0, text.indexOf("\n")); break }
-    if (stop === "block" && text.includes("\n\n")) { text = text.slice(0, text.indexOf("\n\n")); break }
+    if (healed) {
+      text = tokenizer.decode(generated, {skip_special_tokens: true}).slice(tail.length)
+      if (stop === "line" && text.includes("\n")) { text = text.slice(0, text.indexOf("\n")); break }
+      if (stop === "block" && text.includes("\n\n")) { text = text.slice(0, text.indexOf("\n\n")); break }
+    }
     const r = await step([next], kv, pastLength)
     kv = r.kv; last = r.last; pastLength += 1
   }
   cache = {ids: ids.concat(generated), kv}
-  return {
-    type: "result", id, text, tokens: generated.length,
-    ms: Math.round(performance.now() - t0),
-    prefillTokens: ids.length - common, cachedTokens: common
-  }
+  return Object.assign({type: "result", text, tokens: generated.length, ms: Math.round(performance.now() - t0)}, base)
 }
 
 self.onmessage = event => {

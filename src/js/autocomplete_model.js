@@ -12,6 +12,7 @@
     "use strict";
 
     const SETTING_KEY = "aiGhostText";
+    const WORKER_VERSION = "2";   // bump when the worker changes: module workers are cached hard
     const MODEL_KEY = "aiGhostTextModel";
     const DEFAULT_MODEL = "ps-ac-xs";
 
@@ -41,7 +42,7 @@
     function paths() {
         const name = modelName();
         return {
-            workerUrl: sourceDir() + "autocomplete_model_worker.js",
+            workerUrl: sourceDir() + "autocomplete_model_worker.js?v=" + WORKER_VERSION,
             vendorUrl: new URL(sourceDir() + "vendor/", document.baseURI).href,
             modelUrl: new URL("models/" + name + ".int8.onnx", document.baseURI).href,
             configUrl: new URL("models/" + name + ".config.json", document.baseURI).href,
@@ -143,10 +144,10 @@
             return null;
         }
         setStatus("ready");
-        if (!result || result.cancelled || !result.text) return null;
-        let text = result.text.replace(/\s+$/, "");
-        if (text === "") return null;
-        const verdict = Gate.check({ text: doc, from: pos, to: pos, candidate: text, StringStream, baseline });
+        if (!result || result.cancelled) return null;
+        const text = (result.text || "").replace(/\s+$/, "");
+        const verdict = text === "" ? { ok: false, reason: "empty" }
+            : Gate.check({ text: doc, from: pos, to: pos, candidate: text, StringStream, baseline });
         lastInfo = Object.assign({}, lastInfo, { lastMs: result.ms, lastGate: verdict, lastText: text, cached: result.cachedTokens, prefill: result.prefillTokens });
         if (!verdict.ok) return null;
         return text;
