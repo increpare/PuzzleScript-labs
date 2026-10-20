@@ -74,7 +74,7 @@ globalThis.__ps_ac_eval = (function() {
 function ensureLoaded() {
     if (loaded) return;
     canonicalize = require(path.join(REPO, 'src', 'canonicalize.js'));
-    for (const rel of ['js/codemirror/rule-transform.js', 'js/puzzlescript-autocomplete.js']) {
+    for (const rel of ['js/codemirror/rule-transform.js', 'js/puzzlescript-autocomplete.js', 'js/autocomplete_gate.js']) {
         const code = fs.readFileSync(path.join(REPO, 'src', rel), 'utf8');
         canonicalize.evalInRuntime(code, rel);
     }
@@ -96,6 +96,15 @@ function completeAt(text, offset) {
     return JSON.parse(JSON.stringify(canonicalize.evalInRuntime('__ps_ac_eval').completeAt(text, offset)));
 }
 
+// The editor's ghost-text gate (src/js/autocomplete_gate.js) on a candidate spliced in at
+// [from, to): {ok, reason}. Same code the shipped filter runs.
+function gate(text, from, to, candidate) {
+    ensureLoaded();
+    const g = canonicalize.evalInRuntime('PuzzleScriptAutocompleteGate');
+    const StringStream = canonicalize.evalInRuntime('CodeMirror.StringStream');
+    return JSON.parse(JSON.stringify(g.check({ text, from, to, candidate, StringStream })));
+}
+
 function validateCompileSource(text) {
     ensureLoaded();
     return canonicalize.validateCompileSource(text);
@@ -115,4 +124,4 @@ function keywords() {
     return keywordSet;
 }
 
-module.exports = { stateAtCursor, completeAt, validateCompileSource, keywords };
+module.exports = { stateAtCursor, completeAt, validateCompileSource, keywords, gate };
