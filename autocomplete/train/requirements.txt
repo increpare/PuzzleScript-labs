@@ -13,3 +13,5 @@ peft
 onnx
 onnxruntime
 safetensors
+onnxscript
+onnx_ir
