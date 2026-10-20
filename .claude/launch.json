@@ -4,14 +4,46 @@
     {
       "name": "bin",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "8765", "--directory", "bin"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8765",
+        "--directory",
+        "bin"
+      ],
       "port": 8765
     },
     {
       "name": "src",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "8766", "--directory", "src"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8766",
+        "--directory",
+        "src"
+      ],
       "port": 8766
+    },
+    {
+      "name": "root",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8767"
+      ],
+      "port": 8767
+    },
+    {
+      "name": "spike",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "autocomplete/spike/serve.js",
+        "--port",
+        "8768"
+      ],
+      "port": 8768
     }
   ]
 }
