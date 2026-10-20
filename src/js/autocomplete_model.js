@@ -12,7 +12,7 @@
     "use strict";
 
     const SETTING_KEY = "aiGhostText";
-    const WORKER_VERSION = "2";   // bump when the worker changes: module workers are cached hard
+    const WORKER_VERSION = "4";   // bump when the worker changes: module workers are cached hard
     const MODEL_KEY = "aiGhostTextModel";
     const DEFAULT_MODEL = "ps-ac-xs";
 
@@ -108,11 +108,11 @@
         return ready;
     }
 
-    function generate(prompt, options, isCancelled) {
+    function generate(parts, options, isCancelled) {
         const id = nextId++;
         return new Promise((resolve, reject) => {
             pending.set(id, { resolve, reject });
-            worker.postMessage({ type: "generate", id, prompt, maxTokens: options.maxTokens, stop: options.stop });
+            worker.postMessage({ type: "generate", id, parts, maxTokens: options.maxTokens, stop: options.stop });
             // Poll cancellation cheaply so a stale request stops burning CPU.
             const timer = setInterval(() => {
                 if (!pending.has(id)) { clearInterval(timer); return; }
@@ -130,15 +130,18 @@
 
         const baseline = Gate.parseIsolated(doc, StringStream);
         const symbols = Symbols.symbolsFromParserState(baseline.state || {});
-        const ctx = Context.buildContext({ text: doc, from: pos, to: pos, symbols, config: globalThis.PuzzleScriptAutocompleteContextConfig });
-        const prompt = Context.renderPrompt(ctx, "spm");
+        const config = Object.assign({}, Context.DEFAULT_CONFIG, globalThis.PuzzleScriptAutocompleteContextConfig || {});
+        const ctx = Context.buildContext({ text: doc, from: pos, to: pos, symbols, config });
+        // The worker assembles the SPM prompt from the parts and trims it to the model's
+        // context by token count (the char budget alone cannot guarantee a fit).
+        const parts = { header: ctx.header, suffix: ctx.suffix, prefix: ctx.prefix };
 
         try { await ensureWorker(); } catch (e) { return null; }
         if (isCancelled()) return null;
         setStatus("thinking");
         let result;
         try {
-            result = await generate(prompt, { maxTokens: 48, stop: "line" }, isCancelled);
+            result = await generate(parts, { maxTokens: 48, stop: "line" }, isCancelled);
         } catch (error) {
             setStatus("error: " + error.message);
             return null;

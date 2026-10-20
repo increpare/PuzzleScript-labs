@@ -38,6 +38,39 @@ def split_tail(prompt):
     return prompt[: len(prompt) - len(m.group(1))], m.group(1)
 
 
+def split_lines(text):
+    out, start = [], 0
+    for i, ch in enumerate(text):
+        if ch == "\n":
+            out.append(text[start:i + 1])
+            start = i + 1
+    if start < len(text):
+        out.append(text[start:])
+    return out
+
+
+def fit_prompt(tok, row, mode, limit):
+    """Render the prompt and trim it to `limit` tokens: drop lines from the start of the
+    prefix (farthest from the cursor), then from the end of the suffix. Same rule as the
+    editor worker (src/js/autocomplete_model_worker.js: fitPrompt)."""
+    count = lambda t: len(tok.encode(t, add_special_tokens=False).ids) if t else 0
+    header = row.get("header", "")
+    prefix_lines, suffix_lines = split_lines(row["prefix"]), split_lines(row["suffix"])
+    prefix_tokens, suffix_tokens = [count(l) for l in prefix_lines], [count(l) for l in suffix_lines]
+    fixed = count(header) + count(MARK["pre"] + MARK["suf"]) + count(MARK["mid"])
+    total = fixed + sum(prefix_tokens) + sum(suffix_tokens)
+    while total > limit and len(prefix_lines) > 1:
+        total -= prefix_tokens.pop(0)
+        prefix_lines.pop(0)
+    while total > limit and suffix_lines:
+        total -= suffix_tokens.pop()
+        suffix_lines.pop()
+    prefix, suffix = "".join(prefix_lines), "".join(suffix_lines)
+    if mode == "spm":
+        return header + MARK["pre"] + MARK["suf"] + suffix + MARK["mid"] + prefix
+    return header + MARK["pre"] + prefix + MARK["suf"] + suffix + MARK["mid"]
+
+
 def render_prompt(row, mode):
     header = row.get("header", "")
     if mode == "spm":
@@ -113,8 +146,8 @@ def main():
     t_start = time.time()
     with open(args.out, "w", encoding="utf8") as out:
         for n, row in enumerate(rows, 1):
-            prompt = render_prompt(row, args.mode)
             max_new = args.block_max_new_tokens if row["stop"] == "block" else args.max_new_tokens
+            prompt = fit_prompt(tok, row, args.mode, max_context - max_new - 4)
             t0 = time.perf_counter()
             pred = generate(model, tok, prompt, max_new, eos_id, device, row["stop"], max_context,
                             vocab_strings, heal=not args.no_heal)

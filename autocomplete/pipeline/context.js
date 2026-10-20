@@ -31,10 +31,13 @@
 const SECTION_NAMES = ['objects', 'legend', 'sounds', 'collisionlayers', 'rules', 'winconditions', 'levels'];
 const SECTION_SET = new Set(SECTION_NAMES);
 
+// maxChars must keep the rendered prompt under the model's 2048-token context with room
+// to generate: with the 8k BPE (about 2.7 chars per token, under 2 on dense files) 6000
+// chars overran it on long games; 4000 fits. Keep configs/context.json in step.
 const DEFAULT_CONFIG = {
     prefixLines: 120,
     suffixLines: 40,
-    maxChars: 6000,
+    maxChars: 4000,
     keepLevels: 3,
 };
 

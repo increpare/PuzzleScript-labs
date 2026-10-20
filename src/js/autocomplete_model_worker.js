@@ -5,7 +5,8 @@
 // Messages in:
 //   {type: "init", modelUrl, configUrl, tokenizerUrl, vendorUrl, provider}
 //       provider: "wasm" (default) or "webgpu"
-//   {type: "generate", id, prompt, maxTokens, stop}   stop: "line" | "block" | "eos"
+//   {type: "generate", id, parts: {header, suffix, prefix}, maxTokens, stop}
+//       stop: "line" | "block" | "eos"; `prompt` (a flat string) is accepted instead of parts
 //   {type: "cancel", id}
 // Messages out:
 //   {type: "ready", info}  {type: "error", id?, message}
@@ -28,6 +29,7 @@ import * as ort from "./vendor/onnxruntime-web/ort.wasm.min.mjs"
 import {Tokenizer} from "./vendor/tokenizers/tokenizers.min.mjs"
 
 const PREFILL_CHUNK = 256
+const MAX_POSITIONS = 2048   // the model's context; prompts that would overrun it are refused
 
 // The pre-tokeniser (train/tokenizer.py) isolates newline, "->", "=+", "[ ] | , ( )" and
 // " ?\S+| +"; a word tail therefore never contains those characters.
@@ -143,6 +145,34 @@ function argmax(row) {
   return best
 }
 
+// Assemble the SPM prompt from its parts and make it fit the context by token count:
+// drop lines from the start of the prefix (farthest from the cursor), then from the end
+// of the suffix. The same rule lives in train/run_model.py (fit_prompt).
+function splitLines(text) {
+  const out = []
+  let start = 0
+  for (let i = 0; i < text.length; i++) if (text[i] === "\n") { out.push(text.slice(start, i + 1)); start = i + 1 }
+  if (start < text.length) out.push(text.slice(start))
+  return out
+}
+
+function countTokens(text) {
+  return text === "" ? 0 : tokenizer.encode(text, {add_special_tokens: false}).ids.length
+}
+
+function fitPrompt(parts, limit) {
+  const header = parts.header || ""
+  const prefixLines = splitLines(parts.prefix || "")
+  const suffixLines = splitLines(parts.suffix || "")
+  const fixed = countTokens(header) + countTokens("<PRE><SUF>") + countTokens("<MID>")
+  const prefixTokens = prefixLines.map(countTokens)
+  const suffixTokens = suffixLines.map(countTokens)
+  let total = fixed + prefixTokens.reduce((a, b) => a + b, 0) + suffixTokens.reduce((a, b) => a + b, 0)
+  while (total > limit && prefixLines.length > 1) { total -= prefixTokens.shift(); prefixLines.shift() }
+  while (total > limit && suffixLines.length > 0) { total -= suffixTokens.pop(); suffixLines.pop() }
+  return {prompt: header + "<PRE><SUF>" + suffixLines.join("") + "<MID>" + prefixLines.join(""), tokens: total}
+}
+
 function splitTail(prompt) {
   const m = TAIL.exec(prompt)
   if (!m || m[1].length >= prompt.length) return {head: prompt, tail: ""}
@@ -162,10 +192,15 @@ function argmaxConstrained(row, req) {
   return best
 }
 
-async function generate({id, prompt, maxTokens = 48, stop = "line"}) {
+async function generate({id, prompt, parts, maxTokens = 48, stop = "line"}) {
   const t0 = performance.now()
+  const limit = MAX_POSITIONS - maxTokens - 4
+  if (parts) prompt = fitPrompt(parts, limit).prompt
   const {head, tail} = splitTail(prompt)
   const ids = tokenizer.encode(head, {add_special_tokens: false}).ids
+  if (ids.length > limit) {
+    return {type: "result", id, text: null, tooLong: true, tokens: ids.length, limit, ms: Math.round(performance.now() - t0)}
+  }
   let common = 0
   while (common < ids.length - 1 && common < cache.ids.length && ids[common] === cache.ids[common]) common++
   let kv = sliceKV(cache.kv, common)
