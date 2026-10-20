@@ -524,7 +524,83 @@ epoch here is 130 steps, so warmup is 50.
 Packed corpus with the 8k tokenizer: train 34.3M tokens (19,864 samples, 2.2% at weight
 0), val 1.37M tokens.
 
-<!-- PHASE2_RESULTS -->
+### Runs (2026-10-20)
+
+Both sizes, 8 epochs, batch 0.26M tokens, lr 6e-4 cosine, warmup 50, seed 0, on the
+samples built with the 4000-char budget (earlier runs on the 6000-char samples are
+retired; see the tokenizer pitfall under Phase 3).
+
+| run | params | train tok/s | time | best val loss (weighted, nats/token) | int8 on disk |
+|---|---|---|---|---|---|
+| xs | 6.9M | 300k | 15 min | 1.763 | 9.1 MB |
+| s | 17.3M | 110k | 43 min | 1.549 | 20.6 MB |
+
+Validation loss was still falling at epoch 8 for both (no early stop); more epochs or
+a larger corpus slice would help, but the handoff's checkpoint comes first.
+
+### Validation table (same task sets and scorer as Phase 1)
+
+Popup task (`rest_of_token`), RULES row and overall. The model rows are generated with
+token healing and cut at the word boundary; coverage is 100% because the model always
+answers (the deterministic completer answers 76% of the time in RULES).
+
+| system | section | coverage | exact_all | edit_sim | compile_valid | symbol_valid | ms (GPU, Python) |
+|---|---|---|---|---|---|---|---|
+| rule-based (first candidate) | rules | 76.4 | 46.4 | 71.3 | 95.4 | 98.4 | 1.1 |
+| 5-gram re-ranker | rules | 76.4 | 53.2 | 78.6 | 91.5 | 98.4 | 1.8 |
+| Qwen2.5-Coder-1.5B zero-shot | rules | 100.0 | 27.6 | 41.3 | 82.2 | 88.0 | 1696 |
+| **xs** | rules | 100.0 | **72.0** | 79.2 | 94.2 | 88.4 | 73 |
+| **s** | rules | 100.0 | **74.0** | 80.1 | 93.7 | 86.8 | 94 |
+| rule-based | overall | 62.1 | 43.6 | 79.0 | 92.8 | 99.1 | 0.5 |
+| xs | overall | 100.0 | 53.6 | 62.6 | 81.3 | 82.9 | 39 |
+| s | overall | 100.0 | 56.3 | 65.1 | 83.3 | 84.4 | 48 |
+
+Generation tasks, RULES row (the 5-gram and Qwen rows are from Phase 1):
+
+| task | system | exact | edit_sim | compile_valid | symbol_valid |
+|---|---|---|---|---|---|
+| rest_of_line | 5-gram | 22.8 | 38.4 | 45.7 | 56.8 |
+| rest_of_line | Qwen 1.5B | 50.8 | 80.4 | 88.3 | 88.4 |
+| rest_of_line | xs | 24.4 | 67.2 | 83.5 | 83.6 |
+| rest_of_line | s | 32.0 | 72.1 | 87.8 | 86.8 |
+| next_line | 5-gram | 8.8 | 22.0 | 62.5 | 74.0 |
+| next_line | Qwen 1.5B | 36.4 | 69.3 | 97.4 | 91.2 |
+| next_line | xs | 2.0 | 41.1 | 87.0 | 88.4 |
+| next_line | s | 2.4 | 43.3 | 87.5 | 90.0 |
+| next_block | 5-gram | 2.4 | 13.9 | 48.5 | 64.0 |
+| next_block | Qwen 1.5B | 4.8 | 34.5 | 72.2 | 90.0 |
+| next_block | xs | 0.4 | 24.2 | 72.7 | 84.8 |
+| next_block | s | 1.2 | 26.0 | 72.7 | 84.4 |
+
+Full tables with every section: `<data>/eval/scores/{xs,s}_val.md`.
+
+Reading:
+
+- On the popup task both small models beat every Phase 1 line by a wide margin: 72-74%
+  exact over all RULES cases against 46% for the deterministic completer's first
+  candidate and 53% for the 5-gram re-ranker, with compile validity at the completer's
+  own ceiling (94% vs 95%) and at 100% coverage instead of 76%. The handoff's
+  "re-rank the popup" plan is therefore replaced by "ask the model for the token".
+- On the rest of a line the small models double the 5-gram's compile validity
+  (84-88% vs 46%) with edit similarity in the high 60s/low 70s; exact match (24-32%)
+  sits between the 5-gram and Qwen. A whole next line or block is beyond them (2% exact,
+  but 41-43% edit similarity, i.e. the right shape with the wrong names), where Qwen
+  1.5B gets 36%. Those tasks are the headroom for a distilled or larger model.
+- s over xs: +2 points on the popup, +8 points exact and +4 compile validity on
+  rest_of_line, about the same on the rest, for 2.3x the weights and 2.5x the latency.
+- The next_line rows include 26% empty predictions (the model predicts a blank line
+  after a complete rule, which is often right in the source and always wrong here).
+
+### Recommendation
+
+Ship **xs** as the default (`ps-ac-xs`): it clears the handoff's 150 ms bar with room
+on single-thread WASM (50-130 ms warm on a typical game, 207 ms cold on Constellation
+Z), is 9 MB on the wire, and gives up little to s on the popup task. Keep **s** as the
+opt-in (`localStorage.setItem('aiGhostTextModel', 'ps-ac-s')`) for the rest-of-line
+quality; if the host ever serves COOP/COEP headers (4 threads) it becomes the default
+candidate. Do not spend GPU time on m. The test split stays untouched until the owner
+picks.
+
 
 ## Phase 3: editor integration (ghost text)
 
