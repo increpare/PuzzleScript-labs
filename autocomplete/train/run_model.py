@@ -35,6 +35,8 @@ TAIL = re.compile(r"( ?[^\s\[\]|,()=]+| +)$")
 
 
 def split_tail(prompt):
+    if re.search(r"<(?:SYM|PRE|SUF|MID)>$", prompt):
+        return prompt, ""
     m = TAIL.search(prompt)
     if not m or len(m.group(1)) >= len(prompt):
         return prompt, ""

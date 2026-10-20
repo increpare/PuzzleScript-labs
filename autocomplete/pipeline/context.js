@@ -115,13 +115,21 @@ function trimLevels(text, { keep = DEFAULT_CONFIG.keepLevels, protectFrom = -1, 
     return { text: out, map, removed };
 }
 
-function renderHeader(symbols) {
+// maxChars: the header may not take more than 40% of the budget (games with hundreds of
+// objects); later lines go first (sfx, legend), then the objects line is cut at a word.
+function renderHeader(symbols, maxChars) {
     if (!symbols) return '';
     const parts = [];
     if (symbols.objects && symbols.objects.length) parts.push('objects ' + symbols.objects.join(' '));
     if (symbols.legend && symbols.legend.length) parts.push('legend ' + symbols.legend.join(' '));
     if (symbols.sfx && symbols.sfx.length) parts.push('sfx ' + symbols.sfx.join(' '));
     if (parts.length === 0) return '';
+    if (maxChars) {
+        const cap = Math.floor(maxChars * 0.4) - MARK.sym.length - 1;
+        const length = () => parts.reduce((a, p) => a + p.length + 1, 0);
+        while (length() > cap && parts.length > 1) parts.pop();
+        if (length() > cap) parts[0] = parts[0].slice(0, Math.max(0, cap - 1)).replace(/\S*$/, '').trimEnd();
+    }
     return MARK.sym + '\n' + parts.join('\n') + '\n';
 }
 
@@ -143,7 +151,7 @@ function buildContext({ text, from, to, symbols, config }) {
     const target = text.slice(from, to);
     const doc = text.slice(0, from) + text.slice(to);
     const symbolTable = typeof symbols === 'function' ? symbols(doc) : symbols;
-    const header = renderHeader(symbolTable);
+    const header = renderHeader(symbolTable, cfg.maxChars);
 
     const trimmed = trimLevels(doc, { keep: cfg.keepLevels, protectFrom: from, protectTo: from });
     const tdoc = trimmed.text;

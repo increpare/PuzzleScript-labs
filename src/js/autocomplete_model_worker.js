@@ -192,6 +192,7 @@ function fitPrompt(parts, limit) {
 }
 
 function splitTail(prompt) {
+  if (/<(?:SYM|PRE|SUF|MID)>$/.test(prompt)) return {head: prompt, tail: ""}
   const m = TAIL.exec(prompt)
   if (!m || m[1].length >= prompt.length) return {head: prompt, tail: ""}
   return {head: prompt.slice(0, prompt.length - m[1].length), tail: m[1]}
