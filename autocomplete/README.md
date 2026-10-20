@@ -551,7 +551,26 @@ Pieces, in the order a keystroke meets them:
   `src/js/vendor/`. Loads `models/tokenizer.json`, `models/<name>.config.json` and
   `models/<name>.int8.onnx` (`<name>` from localStorage `aiGhostTextModel`, default
   `ps-ac-xs`). Greedy decoding with the exporter's KV-cache graph; the cache of the last
-  request is kept and the longest shared token prefix is reused.
+  request is kept and the longest shared token prefix is reused. Three things the
+  worker does that the harness runner (`train/run_model.py`) mirrors exactly, because
+  each one changed the output materially:
+  - **Token healing.** A prompt ending in a space or inside a word leaves the model
+    with a token split it never saw (`[ > Player | ` gave `| Crate ]...`, `[ > Pla`
+    gave `ced`). The last pre-token (a word with its leading space, or a run of
+    spaces) is cut off and regenerated under the constraint that the output starts
+    with it, then stripped: the same prompts now give `Crate ] -> [ > Player | > Crate ]`
+    and `yer | Crate ] -> ...`. Markers and structural tokens are never healed.
+  - **Fit by token count.** The prompt arrives as `{header, suffix, prefix}` and is
+    trimmed to the model's 2048 positions by real token count: prefix lines from the
+    far end first, then suffix lines, then the header. The 6000-char budget the
+    handoff suggested rendered to about 2200 tokens and silently overran the context
+    on long games (garbage output); the default is now 4000 chars and the token trim
+    is the guarantee, since level glyphs and sprite rows tokenize at about one token
+    per character.
+  - **Header cap.** `renderHeader` keeps the symbol header under 40% of the budget
+    (sfx and legend lines go first, then the objects line is cut at a word), otherwise
+    a game with hundreds of objects left no room for the code around the cursor.
+    A 705-object game completes a rule in 499 ms (985 prompt tokens).
 - `src/js/autocomplete_gate.js`: shared gate, also loaded by the eval harness through
   `eval/engine.js: gate()`. Rejects a candidate that adds parse errors relative to the
   document without it, unbalances brackets on its line, has unequal cell counts across
@@ -581,6 +600,16 @@ Switch models with `localStorage.setItem('aiGhostTextModel', 'ps-ac-s')` and rel
 `PuzzleScriptAutocompleteModel.info()` in the console shows the last request's timings,
 gate verdict and raw text (also what the gate rejected).
 
-Measured in the editor on this machine, single-thread WASM, random-weight xs int8 (9 MB):
-364 ms to load; 346 ms for a 203-token prompt plus 48 decoded tokens; 196 ms when 202
-of the prompt tokens came from the cache (about 4 ms per decoded token).
+Measured in the editor on this machine, single-thread WASM, trained xs int8 (9 MB): 364 ms
+to load; 130 ms for `[ > Player | ` on the Sokoban demo (203-token prompt, cache cold),
+50-60 ms for the next keystrokes on the same line (cache warm), 207 ms on Constellation Z
+(392-token prompt). The s model (20 MB) is about 2.5x slower per token.
+
+**Tokenizer pitfall (cost a few hours).** `train.py` once copied `tokenizer.json` into the
+checkpoint at save time; the Phase 1.5 session retrained the tokenizer two minutes after
+the first copy was taken, so the first models learned one vocabulary and were evaluated
+(and, after a re-pack, their successors were served in the editor) with another. Symptom:
+the harness scored 0.7% exact while the editor demo looked fine, and a later model
+produced runs of `|` in the browser. `train.py` now refuses a tokenizer whose hash does not
+match `tokens/train.meta.json` and keeps its own copy from the start of the run; the
+shipped `src/models/tokenizer.json` is sha256 `ae4aedf5...`.
