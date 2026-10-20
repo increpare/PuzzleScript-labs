@@ -11,14 +11,15 @@
 //   {type: "ready", info}  {type: "error", id?, message}
 //   {type: "result", id, text, tokens, ms, prefillTokens, cachedTokens}
 //
-// The exported graph (autocomplete/train/export_onnx.py) takes input_ids, attention_mask,
-// position_ids and past_key_values.<i>.key/value [1, kvHeads, past, headDim], and returns
-// logits plus present.<i>.key/value. The KV cache of the previous request is kept and the
+// The exported graph (autocomplete/train/export_onnx.py) takes input_ids, position_ids
+// and past_key_values.<i>.key/value [1, heads, past, headDim] (no attention mask: the
+// graph is causal from the shapes, batch 1 only), and returns logits plus
+// present.<i>.key/value. The KV cache of the previous request is kept and the
 // longest shared token prefix with the new prompt is reused, so while the user types on a
 // line only the new tokens are prefilled (the editor renders prompts in SPM order, where
 // the prefix comes last, for exactly this reason).
 
-import * as ort from "./vendor/onnxruntime-web/ort.min.mjs"
+import * as ort from "./vendor/onnxruntime-web/ort.wasm.min.mjs"
 import {Tokenizer} from "./vendor/tokenizers/tokenizers.min.mjs"
 
 const PREFILL_CHUNK = 256
@@ -108,7 +109,6 @@ async function step(ids, kv, pastLength) {
   const n = ids.length
   const feeds = {
     input_ids: new ort.Tensor("int64", BigInt64Array.from(ids, x => BigInt(x)), [1, n]),
-    attention_mask: new ort.Tensor("int64", new BigInt64Array(pastLength + n).fill(1n), [1, pastLength + n]),
     position_ids: new ort.Tensor("int64", BigInt64Array.from({length: n}, (_, i) => BigInt(pastLength + i)), [1, n])
   }
   for (let i = 0; i < graph.layers; i++) {
