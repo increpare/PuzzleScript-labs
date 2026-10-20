@@ -298,3 +298,90 @@ stopping criterion, so it says nothing about the per-line latency of a shipped m
 GPU: NVIDIA GeForce RTX 4080 SUPER, 16 GB, driver 610. Python 3.13; the venv at
 `D:\Projects\ps_ac_venv` (see `train/requirements.txt`) has torch 2.14.1+cu126 and
 transformers 5.20, installed 2026-10-18 for the Qwen baseline. Node 22.12.
+
+## Phase 2: training (2026-10-20)
+
+Python side, in the venv described at the top of `train/requirements.txt`. The tokenizer,
+`train/model.py` and `train/export_onnx.py` come from the Phase 1.5 session (see that
+section); the rest is here.
+
+| Step | Command | Writes |
+|---|---|---|
+| tokenise + pack | `python autocomplete/train/data.py --tokenizer <data>/tokenizer/tokenizer.json` | `<data>/tokens/{train,val}.{ids,weights}.npy` + `.meta.json` |
+| train | `python autocomplete/train/train.py --size xs --tokenizer <data>/tokenizer/tokenizer.json --out <data>/runs/xs --epochs 8 --warmup 50 --micro-batch 8` | `<data>/runs/xs/{config.json,log.csv,best/,last/}` |
+| predictions for the harness | `python autocomplete/train/run_model.py --checkpoint <data>/runs/xs/best --prompts <data>/eval/prompts_val.jsonl --out <data>/eval/preds/xs_val.jsonl` | `preds/xs_val.jsonl` |
+| score | `node autocomplete/eval/score.js --tasks <data>/eval/tasks_val.json --predictions <data>/eval/preds/xs_val.jsonl --name xs_val` | `scores/xs_val.{md,json}` |
+| export for the editor | `python autocomplete/train/export_onnx.py --checkpoint <data>/runs/xs/best --out src/models/ps-ac-xs.onnx` | `src/models/ps-ac-xs.{onnx,int8.onnx,fp16.onnx}` (git-ignored) |
+
+`data.py` maps every token onto the span its first character lies in (spans come from
+`build_samples.js`: level rows 0.2, author/homepage 0, markers and header 0, broken files
+x0.3) and concatenates the samples into one stream per split; `train.py` cuts it into
+2048+1-token blocks, trains with the per-token weighted cross-entropy, AdamW (0.9, 0.95),
+cosine schedule, bf16 autocast, grad clip 1.0, evaluates the weighted validation loss once
+per epoch, keeps the best checkpoint and stops after two evaluations without improvement.
+The handoff's 500 warmup steps assume a far larger corpus: at 0.26M tokens per step one
+epoch here is 130 steps, so warmup is 50.
+
+Packed corpus with the 8k tokenizer: train 34.3M tokens (19,864 samples, 2.2% at weight
+0), val 1.37M tokens.
+
+<!-- PHASE2_RESULTS -->
+
+## Phase 3: editor integration (ghost text)
+
+Everything is behind the **AI OFF / AI ON** toolbar link (localStorage `aiGhostText`,
+default off). Nothing model-related loads until it is on and the user pauses in the
+editor; `play.html` and the Node test runner never see these files.
+
+Pieces, in the order a keystroke meets them:
+
+- `src/js/codemirror6/plugins/ghost-text.js`: CM6 plugin. 250 ms after the last edit it
+  asks the provider for a completion at the cursor and draws the answer as a dimmed
+  inline widget (`.cm-ghost-text`). Tab accepts, Escape dismisses, any other edit or
+  cursor move clears it, typing the suggestion's own next characters keeps the rest. It
+  yields to the completion popup while that is open. Registered in `plugins/index.js`
+  when `options.ghostText` is given (editor.js passes `PuzzleScriptAutocompleteModel`).
+- `src/js/autocomplete_model.js`: the provider. One isolated parser pass over the
+  document (`autocomplete_gate.js: parseIsolated`) gives the symbol table and the
+  baseline error count; `autocomplete/pipeline/context.js` (the same file training used)
+  builds the prompt in **SPM** order so the prefix comes last and the worker's KV cache
+  covers everything but the characters typed since the previous request; the worker
+  generates one line; the gate decides.
+- `src/js/autocomplete_model_worker.js`: module worker on the vendored
+  `onnxruntime-web` 1.30 (WASM build) and `@huggingface/tokenizers` 0.2 under
+  `src/js/vendor/`. Loads `models/tokenizer.json`, `models/<name>.config.json` and
+  `models/<name>.int8.onnx` (`<name>` from localStorage `aiGhostTextModel`, default
+  `ps-ac-xs`). Greedy decoding with the exporter's KV-cache graph; the cache of the last
+  request is kept and the longest shared token prefix is reused.
+- `src/js/autocomplete_gate.js`: shared gate, also loaded by the eval harness through
+  `eval/engine.js: gate()`. Rejects a candidate that adds parse errors relative to the
+  document without it, unbalances brackets on its line, has unequal cell counts across
+  `->`, or (RULES, COLLISIONLAYERS, WINCONDITIONS, SOUNDS) references an undeclared
+  name; OBJECTS and LEGEND may declare. The parser pass runs with error capture and
+  puts the live editor's `errorCount`/`errorStrings` back, so the console stays quiet.
+- Build: `compile.js` bundles the plugin, the two pipeline files, the gate and the
+  provider into `scripts_compiled.js`; the worker and the vendored runtimes ride along
+  in `bin/js/source/` (the provider picks `js/source/` when it sees the bundle), and
+  `src/models/` is copied with the rest of `src/`. `build-html.js` strips the
+  `../autocomplete/...` script tags like the `js/...` ones.
+
+### Trying it
+
+1. Put a model under `src/models/` (git-ignored): `ps-ac-xs.int8.onnx` from the export
+   step above, next to the committed `tokenizer.json` and `ps-ac-xs.config.json`.
+2. Serve the **repository root** (the editor loads `../autocomplete/pipeline/context.js`):
+   `python -m http.server 8767` then open `http://localhost:8767/src/editor.html`. The
+   `root` entry in `.claude/launch.json` does the same. (A server rooted at `src/`
+   cannot reach the shared context builder; the editor still works, the AI link does not.)
+3. Click **AI OFF** in the toolbar so it reads **AI ON**. The model loads on the first
+   pause (status text appears next to the link while it loads or thinks).
+4. Type in RULES and stop for a quarter second; dimmed text appears after the cursor.
+   Tab accepts it, Escape dismisses it.
+
+Switch models with `localStorage.setItem('aiGhostTextModel', 'ps-ac-s')` and reload.
+`PuzzleScriptAutocompleteModel.info()` in the console shows the last request's timings,
+gate verdict and raw text (also what the gate rejected).
+
+Measured in the editor on this machine, single-thread WASM, random-weight xs int8 (9 MB):
+364 ms to load; 346 ms for a 203-token prompt plus 48 decoded tokens; 196 ms when 202
+of the prompt tokens came from the cache (about 4 ms per decoded token).
