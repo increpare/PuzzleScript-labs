@@ -1,0 +1,10 @@
+{
+  "hidden_size": 384,
+  "num_hidden_layers": 8,
+  "num_attention_heads": 6,
+  "num_key_value_heads": 6,
+  "vocab_size": 8192,
+  "max_position_embeddings": 2048,
+  "eos_token_id": 0,
+  "pad_token_id": 5
+}

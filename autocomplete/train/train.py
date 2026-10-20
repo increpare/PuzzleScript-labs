@@ -17,6 +17,7 @@ config.json and the tokenizer copied next to it) and last/ (the final weights).
 
 import argparse
 import csv
+import hashlib
 import json
 import math
 import os
@@ -99,7 +100,10 @@ def lr_at(step, args, total_steps):
 def save(model, tokenizer_path, out_dir, extra):
     os.makedirs(out_dir, exist_ok=True)
     model.save_pretrained(out_dir, safe_serialization=True)
-    shutil.copy(tokenizer_path, os.path.join(out_dir, "tokenizer.json"))
+    # Copy the run's own tokenizer copy (taken at start), not the live path, so a tokenizer
+    # retrained mid-run cannot end up beside weights that never saw it.
+    run_copy = os.path.join(os.path.dirname(out_dir.rstrip(os.sep)), "tokenizer.json")
+    shutil.copy(run_copy if os.path.exists(run_copy) else tokenizer_path, os.path.join(out_dir, "tokenizer.json"))
     with open(os.path.join(out_dir, "train_state.json"), "w", encoding="utf8") as f:
         json.dump(extra, f, indent=2)
 
@@ -136,6 +140,17 @@ def main():
     from tokenizers import Tokenizer
     tok = Tokenizer.from_file(args.tokenizer)
     vocab_size = tok.get_vocab_size()
+    # The packed streams are only meaningful with the tokenizer that produced them. A
+    # retrained tokenizer.json with the same path once slipped in between packing and
+    # training; refuse that, and keep a copy of the tokenizer with the run from the start.
+    with open(args.tokenizer, "rb") as f:
+        tok_hash = hashlib.sha256(f.read()).hexdigest()[:16]
+    with open(os.path.join(base, "tokens", "train.meta.json"), encoding="utf8") as f:
+        packed_hash = json.load(f).get("tokenizer_hash")
+    if packed_hash != tok_hash:
+        sys.exit(f"tokenizer hash {tok_hash} does not match the packed data ({packed_hash}); "
+                 f"re-run data.py --force with this tokenizer or pass the one it was packed with")
+    shutil.copy(args.tokenizer, os.path.join(args.out, "tokenizer.json"))
 
     train_blocks = PackedBlocks(os.path.join(base, "tokens", "train"), args.seq)
     val_blocks = PackedBlocks(os.path.join(base, "tokens", "val"), args.seq)
@@ -159,7 +174,7 @@ def main():
         lr=args.lr, betas=(0.9, 0.95), fused=device == "cuda")
 
     run_config = vars(args) | {
-        "device": device, "vocab_size": vocab_size, "params": n_params,
+        "device": device, "vocab_size": vocab_size, "params": n_params, "tokenizer_hash": tok_hash,
         "train_blocks": len(train_blocks), "val_blocks": len(val_blocks),
         "blocks_per_step": blocks_per_step, "grad_accum": accum,
         "steps_per_epoch": steps_per_epoch, "total_steps": total_steps,
