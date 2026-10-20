@@ -21,7 +21,10 @@ import time
 
 import torch
 from tokenizers import Tokenizer
-from transformers import LlamaForCausalLM
+from transformers import LlamaForCausalLM, StoppingCriteria, StoppingCriteriaList
+
+# Token boundary for rest_of_token: the deterministic completer completes one word.
+TOKEN_END = re.compile(r"[\s\[\]|,()=]")
 
 MARK = {"pre": "<PRE>", "suf": "<SUF>", "mid": "<MID>", "eos": "<EOS>"}
 
@@ -54,17 +57,34 @@ def fit_prompt(tok, row, mode, limit):
     prefix (farthest from the cursor), then from the end of the suffix. Same rule as the
     editor worker (src/js/autocomplete_model_worker.js: fitPrompt)."""
     count = lambda t: len(tok.encode(t, add_special_tokens=False).ids) if t else 0
-    header = row.get("header", "")
+    header_lines = split_lines(row.get("header", ""))
     prefix_lines, suffix_lines = split_lines(row["prefix"]), split_lines(row["suffix"])
+    header_tokens = [count(l) for l in header_lines]
     prefix_tokens, suffix_tokens = [count(l) for l in prefix_lines], [count(l) for l in suffix_lines]
-    fixed = count(header) + count(MARK["pre"] + MARK["suf"]) + count(MARK["mid"])
-    total = fixed + sum(prefix_tokens) + sum(suffix_tokens)
+    total = count(MARK["pre"] + MARK["suf"]) + count(MARK["mid"]) + sum(header_tokens) + sum(prefix_tokens) + sum(suffix_tokens)
     while total > limit and len(prefix_lines) > 1:
         total -= prefix_tokens.pop(0)
         prefix_lines.pop(0)
     while total > limit and suffix_lines:
         total -= suffix_tokens.pop()
         suffix_lines.pop()
+    # A symbol header longer than the budget: drop its lines from the end, then cut the
+    # last one short (same as the worker).
+    while total > limit and len(header_lines) > 2:
+        total -= header_tokens.pop()
+        header_lines.pop()
+    while total > limit and len(header_lines) > 1:
+        last = header_lines[-1]
+        if len(last) <= 64:
+            total -= header_tokens.pop()
+            header_lines.pop()
+            continue
+        cut = re.sub(r"\S*$", "", last[: len(last) // 2]) + "\n"
+        total -= header_tokens[-1]
+        header_lines[-1] = cut
+        header_tokens[-1] = count(cut)
+        total += header_tokens[-1]
+    header = "".join(header_lines)
     prefix, suffix = "".join(prefix_lines), "".join(suffix_lines)
     if mode == "spm":
         return header + MARK["pre"] + MARK["suf"] + suffix + MARK["mid"] + prefix
@@ -86,6 +106,19 @@ def cut(text, stop):
     return text if idx < 0 else text[:idx]
 
 
+class StopAtText(StoppingCriteria):
+    """Stop once the decoded new text (after the healed tail) contains `needle`."""
+
+    def __init__(self, tok, start, tail, needle):
+        self.tok, self.start, self.tail, self.needle = tok, start, tail, needle
+
+    def __call__(self, input_ids, scores, **kwargs):
+        text = self.tok.decode(input_ids[0][self.start:].tolist(), skip_special_tokens=True)
+        if not text.startswith(self.tail):
+            return False
+        return self.needle in text[len(self.tail):]
+
+
 @torch.no_grad()
 def generate(model, tok, prompt, max_new, eos_id, device, stop, max_context, vocab_strings, heal=True):
     head, tail = split_tail(prompt) if heal else (prompt, "")
@@ -95,6 +128,7 @@ def generate(model, tok, prompt, max_new, eos_id, device, stop, max_context, voc
         ids = ids[-(max_context - budget):]
     input_ids = torch.tensor([ids], dtype=torch.long, device=device)
     all_ids = list(range(len(vocab_strings)))
+    stopper = StoppingCriteriaList([StopAtText(tok, len(ids), tail, "\n\n" if stop == "block" else "\n")])
 
     def allowed(batch_id, seq):
         done = tok.decode(seq[len(ids):].tolist(), skip_special_tokens=False)
@@ -105,7 +139,7 @@ def generate(model, tok, prompt, max_new, eos_id, device, stop, max_context, voc
         return ok or all_ids
 
     kwargs = dict(input_ids=input_ids, max_new_tokens=budget, do_sample=False,
-                  eos_token_id=eos_id, pad_token_id=eos_id, use_cache=True)
+                  eos_token_id=eos_id, pad_token_id=eos_id, use_cache=True, stopping_criteria=stopper)
     if tail:
         kwargs["prefix_allowed_tokens_fn"] = allowed
     out = model.generate(**kwargs)
@@ -151,6 +185,11 @@ def main():
             t0 = time.perf_counter()
             pred = generate(model, tok, prompt, max_new, eos_id, device, row["stop"], max_context,
                             vocab_strings, heal=not args.no_heal)
+            if row.get("task") == "rest_of_token":
+                # The popup task scores the rest of one word; cut the line prediction there.
+                m = TOKEN_END.search(pred)
+                if m:
+                    pred = pred[: m.start()]
             latency = (time.perf_counter() - t0) * 1000
             out.write(json.dumps({"i": row["i"], "prediction": pred, "latency_ms": round(latency, 1)}) + "\n")
             if n % 500 == 0:
