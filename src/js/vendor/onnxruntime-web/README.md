@@ -1,0 +1,1 @@
+onnxruntime-web 1.30.0, MIT license (Microsoft). Files from the npm package dist/: ort.wasm.min.mjs (WASM execution provider only), ort-wasm-simd-threaded.mjs and ort-wasm-simd-threaded.wasm. The WebGPU build (ort.webgpu.min.mjs + ort-wasm-simd-threaded.jsep.*) is 28 MB and not vendored; see autocomplete/README.md Phase 1.5 before adding it.

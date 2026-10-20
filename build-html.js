@@ -1,6 +1,8 @@
 "use strict";
 
-const localScriptTag = /<script src="js\/[A-Za-z0-9_./-]*\.js"><\/script>/g;
+// Local scripts the release build bundles: js/... and the autocomplete pipeline files
+// the editor shares with the training code (../autocomplete/pipeline/...).
+const localScriptTag = /<script src="(?:js|\.\.\/autocomplete)\/[A-Za-z0-9_./-]*\.js"><\/script>/g;
 
 function removeLocalScriptTags(html) {
     return html.replace(localScriptTag, "");
