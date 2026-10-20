@@ -9,8 +9,9 @@ PuzzleScript is an open-source HTML5 puzzle game engine. Users write games in a 
 ## Commands
 
 **GUI95 MIS desktop:** Read `desktop/mis/README.md` for the packaged Win95 workbench.
-Plain `make` builds only this desktop app and its web assets; `make install` uses
-the shared per-user GUI95 installer and `make serve` serves the web build.
+Plain `make` shows help. `make desktop` builds the GUI95 app for this host; `make install` uses
+the shared per-user GUI95 installer and `make serve` prepares and serves only the web build.
+`make distro` assembles desktop archives; see `docs/build-commands.md`.
 Keep `scripts/gui95-app.mjs` and `scripts/gui95-icons.mjs` identical to
 `increpare/gui95`'s `tools/` originals. The older openFrameworks application is a
 separate explicit build. Run `make mis_app_tests`, `make mis_tests`, and the

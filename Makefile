@@ -13,7 +13,7 @@
 #                           Run direct C++ simulation tests with JS-style 32-bit mask words.
 #   make tests             Run the full native correctness suite.
 
-.DEFAULT_GOAL := all
+.DEFAULT_GOAL := help
 
 # The suite's default app is the Win95 MIS workbench. Native tools and the
 # historical openFrameworks app keep their existing, explicitly named targets.
@@ -22,8 +22,14 @@ MIS_NPM := npm.cmd
 else
 MIS_NPM ?= npm
 endif
-.PHONY: all install serve mis_app mis_app_start mis_app_tests mis_web_bundle
-all: mis_app
+.PHONY: all desktop distro install serve mis_app mis_app_start mis_app_tests mis_web_bundle
+all: desktop
+
+desktop: mis_app
+	$(NODE) scripts/gui95-app.mjs paths
+
+distro: desktop
+	$(NODE) scripts/gui95-distro.mjs
 
 mis_app: desktop/mis/node_modules/.package-lock.json
 	$(NODE) scripts/build-mis-app.mjs
@@ -33,7 +39,7 @@ mis_app: desktop/mis/node_modules/.package-lock.json
 install: all
 	$(NODE) scripts/gui95-app.mjs install
 
-serve: all
+serve: mis_web_bundle
 	$(NODE) scripts/serve-mis.mjs
 
 mis_web_bundle:
@@ -563,6 +569,8 @@ GENERATOR_TARGET_PREREQ := $(PUZZLESCRIPT_GENERATOR)
 endif
 
 help:
+	@echo "GUI95: make desktop builds this host; make serve prepares only the web app and prints LAN links."
+	@echo "make distro assembles host archives and GUI95_DIST_INPUT from other platforms."
 	@echo "PuzzleScript C++ workflow"
 	@echo ""
 	@echo "Common commands:"

@@ -34,6 +34,16 @@
         "8767"
       ],
       "port": 8767
+    },
+    {
+      "name": "spike",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "autocomplete/spike/serve.js",
+        "--port",
+        "8768"
+      ],
+      "port": 8768
     }
   ]
 }
