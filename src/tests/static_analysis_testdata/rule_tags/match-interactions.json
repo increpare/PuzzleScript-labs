@@ -1,0 +1,118 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "human_verified": false,
+  "ruleTag": [
+    {
+      "line": 37,
+      "text": "[ alpha ] -> [ beta ]",
+      "tags": {
+        "may_invalidate_other_matches": false,
+        "may_enable_other_matches": false
+      }
+    },
+    {
+      "line": 38,
+      "text": "[ no alpha ] -> [ alpha ]",
+      "tags": {
+        "may_invalidate_other_matches": false,
+        "may_enable_other_matches": false
+      }
+    },
+    {
+      "line": 39,
+      "text": "[ stationary alpha ] -> [ right alpha ]",
+      "tags": {
+        "may_invalidate_other_matches": false,
+        "may_enable_other_matches": false
+      }
+    },
+    {
+      "line": 40,
+      "text": "[ ] -> [ stationary marker ]",
+      "tags": {
+        "may_invalidate_other_matches": false,
+        "may_enable_other_matches": false
+      }
+    },
+    {
+      "line": 41,
+      "text": "right [ alpha | alpha ] -> [ beta | beta ]",
+      "tags": {
+        "may_invalidate_other_matches": true,
+        "may_enable_other_matches": false
+      }
+    },
+    {
+      "line": 42,
+      "text": "right [ alpha | no alpha ] -> [ alpha | alpha ]",
+      "tags": {
+        "may_invalidate_other_matches": true,
+        "may_enable_other_matches": true
+      }
+    },
+    {
+      "line": 43,
+      "text": "[ alpha ] [ marker ] -> [ beta ] [ marker ]",
+      "tags": {
+        "may_invalidate_other_matches": true,
+        "may_enable_other_matches": false
+      }
+    },
+    {
+      "line": 44,
+      "text": "right [ alpha | ... | alpha ] -> [ beta | ... | beta ]",
+      "tags": {
+        "may_invalidate_other_matches": true,
+        "may_enable_other_matches": true
+      }
+    },
+    {
+      "line": 45,
+      "text": "right [ alpha | alpha ] -> [ alpha | alpha ]",
+      "tags": {
+        "may_invalidate_other_matches": false,
+        "may_enable_other_matches": false
+      }
+    },
+    {
+      "line": 46,
+      "text": "right [ alpha | alpha ] -> sfx0",
+      "tags": {
+        "may_invalidate_other_matches": false,
+        "may_enable_other_matches": false
+      }
+    },
+    {
+      "line": 47,
+      "text": "right [ alpha | marker ] -> [ alpha | marker stationary flag ]",
+      "tags": {
+        "may_invalidate_other_matches": false,
+        "may_enable_other_matches": false
+      }
+    },
+    {
+      "line": 48,
+      "text": "right [ alpha | flag ] -> [ alpha stationary flag | flag ]",
+      "tags": {
+        "may_invalidate_other_matches": false,
+        "may_enable_other_matches": true
+      }
+    },
+    {
+      "line": 49,
+      "text": "right [ alpha | no flag ] -> [ alpha | flag ]",
+      "tags": {
+        "may_invalidate_other_matches": true,
+        "may_enable_other_matches": false
+      }
+    },
+    {
+      "line": 50,
+      "text": "late [ alpha ] -> [ beta ]",
+      "tags": {
+        "may_invalidate_other_matches": false,
+        "may_enable_other_matches": false
+      }
+    }
+  ]
+}

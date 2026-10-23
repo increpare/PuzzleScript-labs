@@ -1536,6 +1536,18 @@ function Rule(rule) {
 			this.patterns.length === 1 &&
 			this.commands.length === 0,
 	};
+	const matchInteractionFastPathDisabled = typeof process !== 'undefined' &&
+		process.env && process.env.PUZZLESCRIPT_DISABLE_MATCH_INTERACTION_OPT === '1';
+	const groupRescanFastPathDisabled = typeof process !== 'undefined' &&
+		process.env && process.env.PUZZLESCRIPT_DISABLE_GROUP_RESCAN_OPT === '1';
+	this.skipOtherMatchRecheck = !matchInteractionFastPathDisabled &&
+		this.rulePlanMetadata.may_invalidate_other_matches === false;
+	const isolatedMatchCell = this.patterns.length === 1 && this.patterns[0].length === 1 &&
+		this.ellipsisCount[0] === 0;
+	this.skipSingleRuleGroupRescan = !matchInteractionFastPathDisabled && !groupRescanFastPathDisabled &&
+		this.rulePlanMetadata.may_enable_other_matches === false &&
+		this.rulePlanMetadata.fixed_replacements === true &&
+		(isolatedMatchCell || this.rulePlanMetadata.may_invalidate_other_matches === false);
 	// Phase 7B-2b: aggregate-direction bindings populated between match and
 	// replace by captureAggregateBindings; consumed in CellReplacement.replace
 	// via the inferredAggregateBindings entries.
@@ -1555,7 +1567,8 @@ function Rule(rule) {
 	this.forceAlwaysRunReason = rule[18] || null;
 	this.activeInputsMask = 0b111111;
 	this.ruleMask = new BitVec(STRIDE_OBJ);
-	this.applyAt = this.generateApplyAt(this.patterns, this.ellipsisCount, STRIDE_OBJ, STRIDE_MOV);
+	this.applyAt = this.generateApplyAt(this.patterns, this.ellipsisCount, STRIDE_OBJ, STRIDE_MOV,
+		this.skipOtherMatchRecheck);
 	for (const m of this.cellRowMasks) {
 		this.ruleMask.ior(m);
 	}
@@ -2711,7 +2724,7 @@ function FOR(start, end, fn) {
 }
 
 let CACHE_RULE_APPLYAT = {}
-Rule.prototype.generateApplyAt = function (patterns, ellipsisCount, OBJECT_SIZE, MOVEMENT_SIZE) {
+Rule.prototype.generateApplyAt = function (patterns, ellipsisCount, OBJECT_SIZE, MOVEMENT_SIZE, skipOtherMatchRecheck) {
 	//have to double check the cell rows still apply
 	//(cf test ellipsis bug: rule matches two candidates, first replacement invalidates second).
 	//only the variant matching the row's ellipsis count is emitted - dead variants would
@@ -2721,7 +2734,7 @@ Rule.prototype.generateApplyAt = function (patterns, ellipsisCount, OBJECT_SIZE,
 	//before Phase 7B-2b/5c-4 aggregate bindings, because property-attached aggregate
 	//bindings need the captured alias layer to know where to read the source movement bit.
 	const fn = `'use strict';
-	if (check)
+	if (check && ${!skipOtherMatchRecheck})
 	{
 	${FOR(0, patterns.length, cellRowIndex => {
 		const rowEllipsisCount = ellipsisCount[cellRowIndex];
@@ -3089,6 +3102,7 @@ function applyRuleGroupUnconditional(ruleGroup) {
     const activeRuleGroup = inputSpecializedRuleGroup(ruleGroup);
     const GROUP_LENGTH = activeRuleGroup.length;
     if (GROUP_LENGTH === 0) return false;
+    const onePassGroup = GROUP_LENGTH === 1 && activeRuleGroup[0].skipSingleRuleGroupRescan;
     let hasChanges = false;
     let madeChangeThisLoop = true;
     let loopcount = 0;
@@ -3114,6 +3128,10 @@ function applyRuleGroupUnconditional(ruleGroup) {
                 addToDebugTimeline(level, -2);
             }
         }
+		// The compiler has proved that this rule's first scan reaches its
+		// fixed point: an isolated cell has no overlapping tuples; otherwise
+		// writes leave all match predicates unchanged. Replacements are fixed.
+        if (onePassGroup) break;
     }
     if (loopcount >= MAX_LOOP_COUNT) {
         logErrorCacheable("Got caught looping lots in a rule group :O", ruleGroup[0].lineNumber, true);
@@ -3144,6 +3162,7 @@ function applyRuleGroup(ruleGroup) {
         _lastGroupWriteMovements.setZero();
         return false;
     }
+    const onePassGroup = GROUP_LENGTH === 1 && activeRuleGroup[0].skipSingleRuleGroupRescan;
     let hasChanges = false;
     let madeChangeThisLoop = true;
     let loopcount = 0;
@@ -3271,6 +3290,8 @@ function applyRuleGroup(ruleGroup) {
                 addToDebugTimeline(level, -2);
             }
         }
+
+        if (onePassGroup) break;
 
         if (priorObjects === _allOnesObjects) {
             priorObjects = nextObjects;

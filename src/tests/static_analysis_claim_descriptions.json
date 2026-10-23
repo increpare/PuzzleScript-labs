@@ -197,6 +197,18 @@
                     "specification": "Entries use Object:movement for concrete LHS movement matches that are not preserved by an identical RHS movement match for the same object in the corresponding RHS cell."
                   },
                   {
+                    "name": "may_invalidate_other_matches",
+                    "type": "boolean",
+                    "description": "Applying one match may invalidate another match of the same compiled rule at different cell locations.",
+                    "specification": "false certifies that cell replacements cannot turn another matching location tuple into a non-match during this rule invocation. The proof covers one-cell rules, rules without RHS replacements, and concrete-object rules whose possible object and movement writes cannot falsify any match read, even when match locations overlap. Property, aggregate and dynamic RHS forms remain conservative unless the one-cell proof applies. true means possible or unproved, not guaranteed interference. The applied tuple itself is excluded: [ A ] -> [ B ] can consume its own match. Commands, random-rule selection, replacement order, RNG draws, other compiled rule variants, movement resolution and later rule-group passes retain their existing semantics. This tag alone does not authorize applying all matches of a random rule or skipping group repetitions."
+                  },
+                  {
+                    "name": "may_enable_other_matches",
+                    "type": "boolean",
+                    "description": "Applying one match may enable a previously non-matching location tuple of the same compiled rule.",
+                    "specification": "false certifies that cell replacements cannot create a match at another location tuple during this rule invocation. The proof covers one-cell rules, rules without RHS replacements, and concrete-object rules whose possible object and movement writes cannot satisfy any previously false match read, even when match locations overlap. Property, aggregate and dynamic RHS forms remain conservative unless the one-cell proof applies. true means possible or unproved. The applied tuple itself is excluded. Combining scanning and application additionally requires may_invalidate_other_matches false and preservation of match order, random selection, RNG draws, bindings, commands and scan bookkeeping. This is separate from rulegroup_flow.single_pass_safe and does not certify idempotence or permit skipping later group passes."
+                  },
+                  {
                     "name": "cosmetic",
                     "type": "boolean",
                     "description": "Rule has no reachable effect on win conditions or non-cosmetic rules.",
