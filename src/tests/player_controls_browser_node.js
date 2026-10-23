@@ -77,6 +77,41 @@ function standalone(directory) {
                 await context.close();
             }
         }
-        console.log(`player_controls_browser_node passed (${checked} source/release touch layouts)`);
+        for (const directory of ['src','bin']) for (const theme of ['light','dark']) {
+            const context = await browser.newContext({viewport:{width:1440,height:900}});
+            const page = await context.newPage();const errors=[];
+            page.on('pageerror',error=>errors.push(error.message));
+            await page.goto(`${base}/${directory}/editor.html`,{waitUntil:'networkidle'});
+            await page.evaluate(({code,theme})=>{
+                compile(['loadLevel',0],code);
+                document.body.style.colorScheme=theme;
+                document.body.classList.toggle('light-theme',theme==='light');
+                document.body.classList.toggle('dark-theme',theme==='dark');
+            },{code:source,theme});
+            assert.equal(await page.locator('#playerToolbar').isVisible(),false);
+            await page.locator('#levelEditorClickLink').click();
+            assert(await page.evaluate(()=>levelEditorOpened));
+            assert(await page.locator('.cm-content').isEditable());
+            assert(await page.evaluate(()=>canvas.width>0 && canvas.height>0 && glyphImages.length>0));
+            await page.locator('#levelEditorClickLink').click();
+            assert.equal(await page.evaluate(()=>levelEditorOpened),false);
+            const painted=await page.evaluate(()=>{
+                compile(['restart'],editor.getValue());
+                regenText();
+                let count=0;
+                const original=createSprite;
+                createSprite=function(...args){count++;return original(...args)};
+                try {
+                    regenText();const reused=count===0;
+                    state.fgcolor='#ff00ff';regenText();
+                    return {reused,repainted:count>0,space:!!textImages[' ']};
+                } finally {createSprite=original;}
+            });
+            assert.deepEqual(painted,{reused:true,repainted:true,space:false});
+            assert.deepEqual(errors,[],`${directory} desktop ${theme}`);
+            checked++;
+            await context.close();
+        }
+        console.log(`player_controls_browser_node passed (${checked} touch/desktop source/release layouts)`);
     } finally {await browser.close();await new Promise(resolve=>server.close(resolve));}
 })().catch(error=>{console.error(error);process.exitCode=1});
