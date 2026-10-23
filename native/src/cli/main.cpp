@@ -45,6 +45,8 @@ int puzzlescript_cpp_run_player_for_game(ps_game* game, const std::string& saveK
 namespace {
 
 using puzzlescript::compiler::areAllGroupsCompilable;
+using puzzlescript::compiler::analyzeCompiledRuleScheduling;
+using puzzlescript::compiler::canEmitStraightLineCompiledPhase;
 using puzzlescript::compiler::canGenerateCompiledRuleCommandQueue;
 using puzzlescript::compiler::compiledGroupMissReason;
 using puzzlescript::compiler::compiledMaskWordLiteral;
@@ -56,6 +58,9 @@ using puzzlescript::compiler::compactTurnSupportForGame;
 using puzzlescript::compiler::CompiledRulesOptions;
 using puzzlescript::compiler::cppStringLiteral;
 using puzzlescript::compiler::emitCompactTurnBackend;
+using puzzlescript::compiler::emitCompiledGroupFunctions;
+using puzzlescript::compiler::emitCompiledGroupDispatch;
+using puzzlescript::compiler::emitStraightLineCompiledPhase;
 using puzzlescript::compiler::isCompilableGroup;
 using puzzlescript::compiler::isCompilableReplacement;
 using puzzlescript::compiler::isCompilableRule;
@@ -4839,9 +4844,21 @@ void emitPatternPredicate(
     const std::string& suffix,
     const std::string& tileExpr
 ) {
-    out << "    const int32_t tileIdx" << suffix << " = static_cast<int32_t>(" << tileExpr << ");\n"
-        << "    const MaskWord* objects" << suffix << " = compiledRuleCellObjects(session, tileIdx" << suffix << ");\n"
-        << "    const MaskWord* movements" << suffix << " = compiledRuleCellMovements(session, tileIdx" << suffix << ");\n";
+    const auto hasBits = [&](puzzlescript::MaskOffset offset, uint32_t width) {
+        const auto words = compiledMaskWords(game, offset, width);
+        return std::any_of(words.begin(), words.end(), [](auto word) { return word != 0; });
+    };
+    bool readsObjects = (pattern.hasObjectsPresent && hasBits(pattern.objectsPresent, game.wordCount))
+        || (pattern.hasObjectsMissing && hasBits(pattern.objectsMissing, game.wordCount));
+    for (uint32_t i = 0; i < pattern.anyObjectsCount; ++i) {
+        const size_t index = pattern.anyObjectsFirst + i;
+        if (index < game.anyObjectOffsets.size()) readsObjects = readsObjects || hasBits(game.anyObjectOffsets[index], game.wordCount);
+    }
+    const bool readsMovements = (pattern.hasMovementsPresent && hasBits(pattern.movementsPresent, game.movementWordCount))
+        || (pattern.hasMovementsMissing && hasBits(pattern.movementsMissing, game.movementWordCount));
+    out << "    const int32_t tileIdx" << suffix << " = static_cast<int32_t>(" << tileExpr << ");\n";
+    if (readsObjects) out << "    const MaskWord* objects" << suffix << " = compiledRuleCellObjects(session, tileIdx" << suffix << ");\n";
+    if (readsMovements) out << "    const MaskWord* movements" << suffix << " = compiledRuleCellMovements(session, tileIdx" << suffix << ");\n";
     if (pattern.hasObjectsPresent) {
         emitMaskBitsSetCheck(out, game, "objectsPresent" + suffix, pattern.objectsPresent, game.wordCount, "objects" + suffix, std::to_string(game.wordCount) + "U");
     }
@@ -4918,11 +4935,7 @@ void emitReplacementApply(
                 << "            objectsChanged = objectsChanged || after != before;\n"
                 << "        }\n";
         }
-        if (game.wordCount == 1) {
-            out << "        if (objectsChanged) compiledRuleSetCellObjectsWord1(session, tile, newObjects[0], created[0], destroyed[0]);\n";
-        } else {
-            out << "        if (objectsChanged) compiledRuleSetCellObjectsFromWords(session, tile, newObjects, created, destroyed);\n";
-        }
+        out << "        if (objectsChanged) compiledRuleSetCellObjectsFromWords(session, tile, newObjects, created, destroyed);\n";
     }
     if (hasMovementEffect) {
         out << "        const MaskWord* oldMovements = compiledRuleCellMovements(session, tile);\n"
@@ -5334,18 +5347,29 @@ void emitRuleFunctions(
         emitRuleRowFunctions(out, game, rule, prefix, rowIndex);
     }
 
+    const auto scheduling = analyzeCompiledRuleScheduling(game, rule);
+    const std::string ruleExpr = std::string("game.") + (late ? "lateRules" : "rules")
+        + "[" + std::to_string(groupIndex) + "][" + std::to_string(ruleIndex) + "]";
     out << "bool apply_rule_" << prefix << "(FullState& session, CommandState& commands) {\n"
-        << "    const Game& game = *session.game;\n"
-        << "    bool changed = false;\n";
+        << "    const Game& game = *session.game;\n";
+    if (scheduling.unconditional && !rule.hasReplacements) {
+        out << "    if (currentLevelWidth(session) <= 0 || currentLevelHeight(session) <= 0) return false;\n";
+        emitCompiledRuleCommandQueue(out, rule, ruleExpr);
+        out << "    return false;\n}\n\n";
+        return;
+    }
+    out << "    bool changed = false;\n";
     const bool oneRow = rule.patterns.size() == 1;
     for (size_t rowIndex = 0; rowIndex < rule.patterns.size(); ++rowIndex) {
         emitCollectRowMatches(out, game, rule, prefix, rowIndex, "matches_" + std::to_string(rowIndex), oneRow);
     }
     if (oneRow) {
         out << "    for (size_t matchIndex = 0; matchIndex < matches_0.size(); ++matchIndex) {\n"
-            << "        const int32_t startIndex = matches_0[matchIndex];\n"
-            << "        if (matchIndex > 0 && !match_" << prefix << "_row0(session, startIndex)) continue;\n"
-            << "        changed = apply_replacements_" << prefix << "_row0(session, startIndex) || changed;\n"
+            << "        const int32_t startIndex = matches_0[matchIndex];\n";
+        if (!scheduling.simpleRow || scheduling.mayInvalidateOtherMatches) {
+            out << "        if (matchIndex > 0 && !match_" << prefix << "_row0(session, startIndex)) continue;\n";
+        }
+        out << "        changed = apply_replacements_" << prefix << "_row0(session, startIndex) || changed;\n"
             << "    }\n";
     } else {
         out << "    std::array<const std::vector<int32_t>*, " << rule.patterns.size() << "> allMatches = {";
@@ -6044,87 +6068,13 @@ std::string generateCompiledRulesCpp(
         totalCompiledGroups += sourceCompiledGroups;
 
         if (!compactTurnOnly) {
+            emitCompiledGroupFunctions(out, game, sourceIndex, options);
             out << "SpecializedRulegroupOutcome apply_source_" << sourceIndex << "(FullState& session, int32_t groupIndex, bool late, CommandState& commands) {\n"
-                << "    const Game& game = *session.game;\n"
-                << "    if (late) {\n"
-                << "    switch (groupIndex) {\n";
-        for (size_t groupIndex = 0; groupIndex < game.lateRules.size(); ++groupIndex) {
-            const auto& group = game.lateRules[groupIndex];
-            if (!isCompilableGroup(group, options)) {
-                continue;
-            }
-            out << "        case " << groupIndex << ": {\n"
-                << (group[0].isRandom
-                    ? "            return {true, compiledRuleApplyRandomGroup(session, game.lateRules[groupIndex], commands)};\n"
-                    : "")
-                << (group[0].isRandom ? "        }\n" : "");
-            if (group[0].isRandom) {
-                continue;
-            }
-            out
-                << "            bool hasChanges = false;\n"
-                << "            bool madeChange = true;\n"
-                << "            int loopCount = 0;\n"
-                << "            if (session.scratch.anyMasksDirty || session.scratch.objectCellIndexDirty) {\n"
-                << "                compiledRuleRebuildMasks(session);\n"
-                << "            }\n"
-                << "            while (madeChange && loopCount++ < 200) {\n"
-                << "                madeChange = false;\n";
-            for (size_t ruleIndex = 0; ruleIndex < group.size(); ++ruleIndex) {
-                out << "                if (apply_rule_s" << sourceIndex << "_l_g" << groupIndex << "_r" << ruleIndex << "(session, commands)) {\n"
-                    << "                    madeChange = true;\n"
-                    << "                    if (session.scratch.anyMasksDirty || session.scratch.objectCellIndexDirty) {\n"
-                    << "                        compiledRuleRebuildMasks(session);\n"
-                    << "                    }\n"
-                    << "                }\n";
-            }
-            out << "                hasChanges = hasChanges || madeChange;\n"
-                << "            }\n"
-                << "            return {true, hasChanges};\n"
-                << "        }\n";
-        }
-        out << "        default: return {false, false};\n"
-            << "    }\n"
-            << "    }\n"
-            << "    switch (groupIndex) {\n";
-        for (size_t groupIndex = 0; groupIndex < game.rules.size(); ++groupIndex) {
-            const auto& group = game.rules[groupIndex];
-            if (!isCompilableGroup(group, options)) {
-                continue;
-            }
-            out << "        case " << groupIndex << ": {\n"
-                << (group[0].isRandom
-                    ? "            return {true, compiledRuleApplyRandomGroup(session, game.rules[groupIndex], commands)};\n"
-                    : "")
-                << (group[0].isRandom ? "        }\n" : "");
-            if (group[0].isRandom) {
-                continue;
-            }
-            out
-                << "            bool hasChanges = false;\n"
-                << "            bool madeChange = true;\n"
-                << "            int loopCount = 0;\n"
-                << "            if (session.scratch.anyMasksDirty || session.scratch.objectCellIndexDirty) {\n"
-                << "                compiledRuleRebuildMasks(session);\n"
-                << "            }\n"
-                << "            while (madeChange && loopCount++ < 200) {\n"
-                << "                madeChange = false;\n";
-            for (size_t ruleIndex = 0; ruleIndex < group.size(); ++ruleIndex) {
-                out << "                if (apply_rule_s" << sourceIndex << "_e_g" << groupIndex << "_r" << ruleIndex << "(session, commands)) {\n"
-                    << "                    madeChange = true;\n"
-                    << "                    if (session.scratch.anyMasksDirty || session.scratch.objectCellIndexDirty) {\n"
-                    << "                        compiledRuleRebuildMasks(session);\n"
-                    << "                    }\n"
-                    << "                }\n";
-            }
-            out << "                hasChanges = hasChanges || madeChange;\n"
-                << "            }\n"
-                << "            return {true, hasChanges};\n"
-                << "        }\n";
-        }
-        out << "        default: return {false, false};\n"
-            << "    }\n"
-            << "}\n\n";
+                << "    if (late) {\n";
+            emitCompiledGroupDispatch(out, game, sourceIndex, true, options);
+            out << "    }\n";
+            emitCompiledGroupDispatch(out, game, sourceIndex, false, options);
+            out << "}\n\n";
 
         out << "SpecializedRulegroupsForInterpretedTurnOutcome apply_early_groups_source_" << sourceIndex << "(FullState& session, CommandState& commands, std::vector<bool>* bannedGroups) {\n";
         if (compactTurnOnly || !areAllGroupsCompilable(game.rules, options)) {
@@ -6133,6 +6083,8 @@ std::string generateCompiledRulesCpp(
                 << "    (void)bannedGroups;\n"
                 << "    return {false, false};\n"
                 << "}\n\n";
+        } else if (canEmitStraightLineCompiledPhase(game, game.loopPoint)) {
+            emitStraightLineCompiledPhase(out, game, sourceIndex, false);
         } else {
             out << "    bool loopPropagated = false;\n"
                 << "    bool hasChanges = false;\n"
@@ -6184,6 +6136,8 @@ std::string generateCompiledRulesCpp(
                 << "    (void)bannedGroups;\n"
                 << "    return {false, false};\n"
                 << "}\n\n";
+        } else if (canEmitStraightLineCompiledPhase(game, game.lateLoopPoint)) {
+            emitStraightLineCompiledPhase(out, game, sourceIndex, true);
         } else {
             out << "    bool loopPropagated = false;\n"
                 << "    bool hasChanges = false;\n"

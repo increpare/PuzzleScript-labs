@@ -1630,6 +1630,10 @@ compact_turn_codegen_regression_tests: build
 	$(CMAKE) --build "$$build_dir" $(COMPILED_RULES_BUILD_PARALLEL_ARG) --target puzzlescript_solver; \
 	$(NODE) src/tests/run_solver_compact_parity.js "$$build_dir/native/puzzlescript_solver" "$(COMPACT_TURN_CODEGEN_REGRESSION_CORPUS)" --timeout-ms $(SOLVER_COMPACT_PARITY_TIMEOUT_MS) --strategy $(SOLVER_COMPACT_PARITY_STRATEGY) --compact-turn-oracle --require-compact-oracle-checks --require-compact-handled
 
+.PHONY: compiled_rules_scheduling_tests
+compiled_rules_scheduling_tests: build
+	$(NODE) src/tests/compiled_rules_scheduling_node.js --compiler "$(PUZZLESCRIPT_CPP)"
+
 .PHONY: compact_turn_codegen_dirty_shape
 compact_turn_codegen_dirty_shape: build
 	$(NODE) src/tests/compact_turn_codegen_dirty_shape_node.js --compiler "$(PUZZLESCRIPT_CPP)"
