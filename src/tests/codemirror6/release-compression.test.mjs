@@ -137,14 +137,22 @@ test("release verifier can be imported without running the release gate", async 
   assert.match(verifier, /module\.exports = \{filesUnder, verifyReleaseCompression\}/)
 })
 
-test("release verifier rejects symlinks before classifying release files", async () => {
+test("release verifier rejects symlinks before classifying release files", async context => {
   const {filesUnder} = require("../../../verify-release-compression.js")
 
   for (const linkName of ["alias.js", "alias.gz", "alias.br"]) {
     const directory = await mkdtemp(path.join(tmpdir(), "puzzlescript-release-verifier-"))
     try {
       await writeFile(path.join(directory, "original.js"), "original bytes")
-      await symlink("original.js", path.join(directory, linkName))
+      try {
+        await symlink("original.js", path.join(directory, linkName))
+      } catch (error) {
+        if (process.platform === "win32" && error.code === "EPERM") {
+          context.skip("Windows symlink privilege is unavailable")
+          return
+        }
+        throw error
+      }
       assert.throws(
         () => filesUnder(directory),
         error => error.message.includes("Release contains forbidden symlink") && error.message.includes(linkName)
