@@ -4748,7 +4748,21 @@ bool ruleHasRandomReplacement(const puzzlescript::Rule& rule) {
 }
 
 bool ruleUsesRuntimeRowHelpers(const puzzlescript::Rule& rule) {
-    return rule.rigid || ruleHasEllipsis(rule) || ruleHasRandomReplacement(rule);
+    if (rule.rigid || ruleHasEllipsis(rule) || ruleHasRandomReplacement(rule)
+        || !rule.aggregateBindings.empty() || !rule.propertyBindings.empty()) {
+        return true;
+    }
+    for (const auto& row : rule.patterns) {
+        for (const auto& pattern : row) {
+            // The inline matcher/setters only implement fixed masks. Preserve
+            // property/layer coupling and dynamic RHS bindings in the runtime.
+            if (pattern.anyMovementsCount != 0 || !pattern.layerCoupledMovementMasks.empty()
+                || (pattern.replacement && pattern.replacement->dynamic)) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 void emitInlineMaskBitsSetCheck(

@@ -12,7 +12,7 @@ assert.ok(compilerIndex >= 0 && process.argv[compilerIndex + 1], 'Usage: node sr
 const compiler = path.resolve(process.argv[compilerIndex + 1]);
 const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'ps-rule-scheduling-'));
 
-function source(rules, wide = false) {
+function source(rules, wide = false, splitLayers = false) {
     const fillers = wide ? Array.from({ length: 68 }, (_, index) => `Filler${index}`) : [];
     return [
         'title Compiled Rule Scheduling', '', 'OBJECTS', '',
@@ -20,15 +20,16 @@ function source(rules, wide = false) {
         ...fillers.flatMap(name => [name, 'gray', '']),
         'A', 'red', '', 'B', 'blue', '', 'C', 'green', '', 'Mark', 'yellow', '',
         'LEGEND', '. = Background', 'P = Player', 'a = A', 'b = B', 'c = C', 'm = Mark', 'Thing = A or B', '',
-        'SOUNDS', '', 'COLLISIONLAYERS', 'Background', 'Player', [...fillers, 'A', 'B', 'C'].join(', '), 'Mark', '',
+        'SOUNDS', '', 'COLLISIONLAYERS', 'Background', 'Player',
+        ...(splitLayers ? [fillers.concat('A').join(', '), 'B', 'C'] : [[...fillers, 'A', 'B', 'C'].join(', ')]), 'Mark', '',
         'RULES', rules, '', 'WINCONDITIONS', 'no A', '', 'LEVELS', 'Paabcm', '',
     ].join('\n');
 }
 
-function compile(name, rules, wide = false) {
+function compile(name, rules, wide = false, splitLayers = false) {
     const game = path.join(directory, `${name}.txt`);
     const output = path.join(directory, `${name}.cpp`);
-    fs.writeFileSync(game, source(rules, wide));
+    fs.writeFileSync(game, source(rules, wide, splitLayers));
     const result = spawnSync(compiler, ['compile-rules', game, '--emit-cpp', output, '--max-rows', '99'], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
     assert.strictEqual(result.status, 0, `${name}: ${result.stdout}\n${result.stderr}`);
     return fs.readFileSync(output, 'utf8');
@@ -100,9 +101,15 @@ try {
     assert.ok(phase(loop).includes('loopPropagated'), 'Explicit loops keep loop-point propagation');
     const dynamic = compile('dynamic', '[ Thing ] -> [ B ]');
     assert.ok(group(dynamic).includes('while ('), 'Dynamic bindings are not certified');
+    const coupled = compile('coupled-movement', '[ > Thing ] -> [ > Thing Mark ]', false, true);
+    assert.ok(rule(coupled).includes('compiledRuleCollectRowMatches'), 'Layer-coupled movement predicates must not disappear in inline matching');
+    const wideCoupled = compile('wide-coupled-movement', '[ > Thing ] -> [ > Thing Mark ]', true, true);
+    assert.ok(rule(wideCoupled).includes('compiledRuleApplyRowMatch'), 'Wide property movement/replacement masks retain runtime semantics');
+    const crossRow = compile('cross-row-property', '[ Player ] [ > Thing ] -> [ Player ] [ > Thing Mark ]', false, true);
+    assert.ok(!crossRow.includes('bool apply_group_s0_e_g0('), 'Cross-row bindings require tuple-wide interpreter capture');
     const ellipsis = compile('ellipsis', '[ A | ... | B ] -> [ B | ... | A ]');
     assert.ok(rule(ellipsis).includes('compiledRuleRowMatchStillMatches'), 'Ellipsis matches keep runtime rechecks');
-    console.log('Compiled rule scheduling: 14 fixtures passed');
+    console.log('Compiled rule scheduling: 17 fixtures passed');
 } finally {
     assert.strictEqual(path.dirname(path.resolve(directory)), path.resolve(os.tmpdir()), 'Only remove the isolated fixture directory');
     fs.rmSync(directory, { recursive: true, force: true });

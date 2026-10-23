@@ -90,6 +90,12 @@ std::string compiledRuleMissReason(
     if (rule.patterns.size() > options.maxRows) {
         return "row_limit";
     }
+    // Row helpers capture bindings within a row. Cross-row bindings require
+    // the interpreter's tuple-wide capture before any replacement is applied.
+    if (rule.patterns.size() > 1
+        && (!rule.aggregateBindings.empty() || !rule.propertyBindings.empty())) {
+        return "cross_row_bindings";
+    }
     if (rule.ellipsisCount.size() < rule.patterns.size()) {
         return "missing_ellipsis_metadata";
     }
@@ -103,6 +109,11 @@ std::string compiledRuleMissReason(
             }
             if (pattern.kind != Pattern::Kind::CellPattern) {
                 return "non_cell_pattern";
+            }
+            if (rule.patterns.size() > 1 && (pattern.anyMovementsCount
+                || !pattern.layerCoupledMovementMasks.empty()
+                || (pattern.replacement && pattern.replacement->dynamic))) {
+                return "cross_row_bindings";
             }
         }
     }

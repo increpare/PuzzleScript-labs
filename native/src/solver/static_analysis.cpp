@@ -1074,14 +1074,38 @@ bool objectHasEarlyCreator(const Game& game, int32_t objectId) {
 }
 
 bool objectHasLateClearer(const Game& game, int32_t objectId) {
+    bool unconditionalClearer = false;
     for (const std::vector<Rule>& group : game.lateRules) {
         for (const Rule& rule : group) {
-            if (!rule.rigid && ruleClearsObject(game, rule, objectId)) {
-                return true;
+            for (const auto& row : rule.patterns) {
+                for (const Pattern& pattern : row) {
+                    // A later creator (including an inferred/property write)
+                    // could leave the object present after the cleanup pass.
+                    if (pattern.replacement && (pattern.replacement->dynamic
+                        || pattern.replacement->hasRandomEntityMask)) return false;
+                }
             }
+            if (ruleSetsObject(game, rule, objectId)) return false;
+            if (rule.rigid || rule.isRandom || !rule.commands.empty()
+                || !rule.aggregateBindings.empty() || !rule.propertyBindings.empty()
+                || rule.patterns.size() != 1 || rule.patterns[0].size() != 1
+                || !ruleClearsObject(game, rule, objectId)) continue;
+            const Pattern& cell = rule.patterns[0][0];
+            if (cell.kind != Pattern::Kind::CellPattern || cell.anyObjectsCount
+                || cell.anyMovementsCount || !cell.layerCoupledMovementMasks.empty()
+                || hasBits(maskPtr(game, cell.objectsMissing), game.wordCount)
+                || hasBits(maskPtr(game, cell.movementsPresent), game.movementWordCount)
+                || hasBits(maskPtr(game, cell.movementsMissing), game.movementWordCount)) continue;
+            const MaskWord* required = maskPtr(game, cell.objectsPresent);
+            bool exactlyObject = required != nullptr;
+            for (uint32_t w = 0; w < game.wordCount && exactlyObject; ++w) {
+                const MaskWord expected = w == maskWordIndex(objectId) ? maskBit(objectId) : 0;
+                exactlyObject = required[w] == expected;
+            }
+            unconditionalClearer = unconditionalClearer || exactlyObject;
         }
     }
-    return false;
+    return unconditionalClearer;
 }
 
 bool objectIsTransientAtStableBoundary(
@@ -1941,6 +1965,40 @@ SolverHashProjectionAnalysis analyzeSolverHashProjection(const Game& game) {
         analysis.blockers.push_back("random_mechanics");
     }
     return analysis;
+}
+
+bool actionInputIsUnnecessary(const Game& game) {
+    if (game.metadata.values.contains("noaction")) return true;
+    // RNG is part of a search state even when a random rule leaves the board
+    // unchanged. Never discard a possible RNG-advancing wait.
+    if (gameHasRandomMechanics(game)) return false;
+    const MaskVector movers = movementOriginatingObjects(game);
+    for (const bool late : {false, true}) {
+        const auto& groups = late ? game.lateRules : game.rules;
+        for (const auto& group : groups) for (const Rule& rule : group) {
+            // Include automatic ticks as well as the initial ACTION turn.
+            // These masks are conservative compiler facts, independent of the
+            // runtime input-specialization switch. Missing facts default to all.
+            if (!late && (rule.activeInputsMask & 0x30U) == 0) continue;
+            if (rule.rigid) return false;
+            for (const auto& command : rule.commands) {
+                if (!command.name.starts_with("sfx")) return false;
+            }
+            MaskVector written(game.wordCount, 0), mentioned(game.wordCount, 0);
+            accumulateWrittenObjects(game, rule, movers, written, mentioned);
+            if (hasBits(written.data(), game.wordCount)) return false;
+            for (const auto& row : rule.patterns) for (const Pattern& cell : row) {
+                if (!cell.replacement) continue;
+                const Replacement& replacement = *cell.replacement;
+                if (replacement.dynamic) return false;
+                const MaskWord* movement = maskPtr(game, replacement.movementsSet);
+                for (int32_t layer = 0; layer < game.layerCount; ++layer) {
+                    if (movementLayerBits(game, movement, layer) & 0x0f) return false;
+                }
+            }
+        }
+    }
+    return true;
 }
 
 std::vector<std::string> objectNamesForMask(
