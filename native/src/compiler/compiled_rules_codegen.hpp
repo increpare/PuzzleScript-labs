@@ -13,6 +13,7 @@ namespace puzzlescript::compiler {
 
 struct CompiledRulesOptions {
     size_t maxRows = 1;
+    bool solverProfile = false;
 };
 
 struct SpecializedFullTurnSupport {

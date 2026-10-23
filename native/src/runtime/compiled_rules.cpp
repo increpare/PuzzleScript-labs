@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <unordered_set>
 
 #if defined(_MSC_VER)
 // MSVC has no weak function attribute. Give each null backend a distinct
@@ -48,12 +49,79 @@ PS_BACKEND_FALLBACK(SpecializedCompactTurnBackend, ps_compiled_compact_tick_find
     return nullptr;
 }
 
+// Profile registries are separate from player registries. A solver-only
+// translation unit must never replace the ordinary source-hash lookup.
+#if defined(_MSC_VER)
+extern "C" const puzzlescript::SolverCompiledRulesProfile* ps_solver_compiled_rules_find_profile(uint64_t, uint64_t);
+__pragma(comment(linker, "/alternatename:" PS_C_SYMBOL_PREFIX "ps_solver_compiled_rules_find_profile=" PS_C_SYMBOL_PREFIX "ps_solver_compiled_rules_find_profile_fallback"))
+extern "C" const puzzlescript::SolverCompiledRulesProfile* ps_solver_compiled_rules_find_profile_fallback(uint64_t, uint64_t) { return nullptr; }
+#elif defined(__GNUC__) || defined(__clang__)
+extern "C" __attribute__((weak)) const puzzlescript::SolverCompiledRulesProfile* ps_solver_compiled_rules_find_profile(uint64_t, uint64_t) { return nullptr; }
+#else
+extern "C" const puzzlescript::SolverCompiledRulesProfile* ps_solver_compiled_rules_find_profile(uint64_t, uint64_t) { return nullptr; }
+#endif
+
 #undef PS_BACKEND_FALLBACK
 #if defined(PS_C_SYMBOL_PREFIX)
 #undef PS_C_SYMBOL_PREFIX
 #endif
 
 namespace puzzlescript {
+
+SolverRulePruning pruneSolverRules(Game& game, const std::vector<int32_t>& sourceLines) {
+    const std::unordered_set<int32_t> lines(sourceLines.begin(), sourceLines.end());
+    SolverRulePruning result;
+    if (lines.empty()) return result;
+    for (const bool late : {false, true}) {
+        auto& groups = late ? game.lateRules : game.rules;
+        for (size_t g = 0; g < groups.size(); ++g) {
+            auto& group = groups[g];
+            if (group.empty() || group[0].isRandom) continue;
+            std::vector<Rule> kept;
+            for (size_t r = 0; r < group.size(); ++r) {
+                if (!group[r].isRandom && lines.contains(group[r].lineNumber)) {
+                    result.removedRules.insert(result.removedRules.end(), {
+                        late ? 1U : 0U, static_cast<uint32_t>(g), static_cast<uint32_t>(r)});
+                } else kept.push_back(std::move(group[r]));
+            }
+            group = std::move(kept);
+        }
+    }
+    if (!result.removedRules.empty()) {
+        // Existing player kernels still refer to the original rule indices.
+        // Keep the mutated IR safe even before a matching profile is attached.
+        game.specializedRulegroups = nullptr;
+        game.specializedFullTurn = nullptr;
+        game.specializedCompactTurn = nullptr;
+        uint64_t hash = fnv1a64String("solver-rule-pruning-v1");
+        for (uint32_t value : result.removedRules) {
+            for (unsigned byte = 0; byte < 4; ++byte) {
+                hash ^= (value >> (byte * 8)) & 0xffU;
+                hash *= 1099511628211ULL;
+            }
+        }
+        result.profileHash = hash;
+    }
+    return result;
+}
+
+bool attachLinkedSolverRules(Game& game, uint64_t sourceHash, const SolverRulePruning& pruning) {
+    game.specializedRulegroups = nullptr;
+    game.specializedFullTurn = nullptr;
+    game.specializedCompactTurn = nullptr;
+    const auto* profile = ps_solver_compiled_rules_find_profile(sourceHash, pruning.profileHash);
+    if (!profile || profile->sourceHash != sourceHash || profile->profileHash != pruning.profileHash
+        || profile->removedRulesSize != pruning.removedRules.size()
+        || (profile->removedRulesSize && !profile->removedRules)
+        || !std::equal(pruning.removedRules.begin(), pruning.removedRules.end(), profile->removedRules)) return false;
+    if ((profile->rulegroups && profile->rulegroups->sourceHash != sourceHash)
+        || (profile->fullTurn && profile->fullTurn->sourceHash != sourceHash)
+        || (profile->compactTurn && profile->compactTurn->sourceHash != sourceHash)) return false;
+    game.specializedRulegroups = profile->rulegroups;
+    game.specializedFullTurn = profile->fullTurn;
+    game.specializedCompactTurn = profile->compactTurn;
+    return true;
+}
 
 uint64_t compiledRulesHashSource(std::string_view source) {
     return fnv1a64String(source);

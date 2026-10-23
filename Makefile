@@ -466,7 +466,10 @@ COMPILED_RULES_FINGERPRINT_INPUTS := \
 	native/src/runtime/compiled_rules.hpp \
 	native/src/runtime/core.cpp \
 	native/src/runtime/core.hpp \
-	native/src/solver/main.cpp
+	native/src/solver/main.cpp \
+	native/src/solver/static_analysis.cpp \
+	native/src/solver/static_analysis.hpp \
+	native/src/solver/static_analysis_hints.hpp
 COMPILED_RULES_FRESH_ARGS = $(foreach file,$(COMPILED_RULES_FINGERPRINT_INPUTS),--newer-than "$(file)")
 SOLVER_FOCUS_BENCHMARK_FINGERPRINT_INPUTS := \
 	Makefile \
@@ -1633,6 +1636,7 @@ compact_turn_codegen_regression_tests: build
 .PHONY: compiled_rules_scheduling_tests
 compiled_rules_scheduling_tests: build
 	$(NODE) src/tests/compiled_rules_scheduling_node.js --compiler "$(PUZZLESCRIPT_CPP)"
+	$(NODE) src/tests/compiled_solver_profiles_node.js --compiler "$(PUZZLESCRIPT_CPP)"
 
 .PHONY: compact_turn_codegen_dirty_shape
 compact_turn_codegen_dirty_shape: build

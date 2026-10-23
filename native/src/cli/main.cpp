@@ -32,6 +32,7 @@
 #include "gbc/exporter.hpp"
 #include "runtime/json.hpp"
 #include "runtime/compiled_rules.hpp"
+#include "solver/static_analysis_hints.hpp"
 #include "runtime/layout_metrics.hpp"
 #include "runtime/locality_survey.hpp"
 #include "puzzlescript/compiler.h"
@@ -5436,6 +5437,7 @@ struct CodegenSource {
     std::string source;
     std::shared_ptr<const puzzlescript::Game> game;
     uint64_t hash = 0;
+    puzzlescript::SolverRulePruning solverPruning;
 };
 
 struct CompiledRulesCoverage {
@@ -6014,6 +6016,34 @@ std::string generateRuntimeIrCacheJson(const std::vector<CodegenSource>& sources
     return out.str();
 }
 
+std::string generateSolverProfileFinder(
+    const std::vector<CodegenSource>& sources,
+    const std::vector<std::string>& groups,
+    const std::vector<std::string>& turns,
+    const std::vector<std::string>& compactTurns
+) {
+    std::ostringstream out;
+    out << "extern \"C\" const puzzlescript::SolverCompiledRulesProfile* ps_solver_compiled_rules_find_profile(uint64_t sourceHash, uint64_t profileHash) {\n"
+        << "    (void)profileHash;\n    switch (sourceHash) {\n";
+    for (size_t i = 0; i < sources.size(); ++i) {
+        const auto& source = sources[i];
+        const auto& pruning = source.solverPruning;
+        out << "        case " << source.hash << "ULL: {\n"
+            << "            if (profileHash != " << pruning.profileHash << "ULL) return nullptr;\n"
+            << "            static const uint32_t removed[] = {";
+        for (size_t k = 0; k < pruning.removedRules.size(); ++k) {
+            if (k) out << ", ";
+            out << pruning.removedRules[k] << "U";
+        }
+        out << "};\n            static const puzzlescript::SolverCompiledRulesProfile profile = {"
+            << source.hash << "ULL, " << pruning.profileHash << "ULL, removed, " << pruning.removedRules.size()
+            << "U, " << groups[i] << ", " << turns[i] << ", " << compactTurns[i] << "};\n"
+            << "            return &profile;\n        }\n";
+    }
+    out << "        default: return nullptr;\n    }\n}\n\n";
+    return out.str();
+}
+
 std::string generateCompiledRulesCpp(
     const std::vector<CodegenSource>& sources,
     std::string_view symbol,
@@ -6038,8 +6068,9 @@ std::string generateCompiledRulesCpp(
         << "#include <cstddef>\n"
         << "#include <cstdint>\n"
         << "#include <vector>\n"
-        << "#include \"runtime/compiled_rules.hpp\"\n\n"
-        << "namespace {\n"
+        << "#include \"runtime/compiled_rules.hpp\"\n\n";
+    if (emitGlobalFinder && options.solverProfile) out << "namespace ps_solver_profiles {\n";
+    out << "namespace {\n"
         << "using namespace puzzlescript;\n\n";
 
     uint32_t totalCompiledRules = 0;
@@ -6227,7 +6258,15 @@ std::string generateCompiledRulesCpp(
     }
 
     out << "} // namespace\n\n";
-    if (emitGlobalFinder) {
+    if (emitGlobalFinder && options.solverProfile) {
+        std::vector<std::string> groups, turns, compactTurns;
+        for (size_t i = 0; i < sources.size(); ++i) {
+            groups.push_back("&backend_" + std::to_string(i));
+            turns.push_back("&tick_backend_" + std::to_string(i));
+            compactTurns.push_back("&specialized_compact_turn_backend_" + std::to_string(i));
+        }
+        out << generateSolverProfileFinder(sources, groups, turns, compactTurns);
+    } else if (emitGlobalFinder) {
         if (compactTurnOnly) {
             out << "extern \"C\" const puzzlescript::SpecializedRulegroupsBackend* "
                 << "ps_specialized_rulegroups_find_backend(uint64_t) {\n"
@@ -6324,6 +6363,7 @@ std::string generateCompiledRulesCpp(
     }
     out << "extern \"C\" const uint32_t " << safeSymbol << "_compiled_rule_count = " << totalCompiledRules << "U;\n"
         << "extern \"C\" const uint32_t " << safeSymbol << "_compiled_group_count = " << totalCompiledGroups << "U;\n";
+    if (emitGlobalFinder && options.solverProfile) out << "} // namespace ps_solver_profiles\n";
     return out.str();
 }
 
@@ -6334,7 +6374,8 @@ std::string generateCompiledRulesRegistryCpp(
     const std::vector<std::string>& tickBackendAccessorSymbols,
     const std::vector<std::string>& compactTurnBackendAccessorSymbols,
     const CompiledRulesCoverage& coverage,
-    bool compactTurnOnly = false
+    bool compactTurnOnly = false,
+    bool solverProfile = false
 ) {
     std::ostringstream out;
     const std::string safeSymbol = safeCppIdentifier(symbol);
@@ -6354,6 +6395,18 @@ std::string generateCompiledRulesRegistryCpp(
     for (const auto& backendSymbol : compactTurnBackendAccessorSymbols) {
         out << "extern \"C\" const puzzlescript::SpecializedCompactTurnBackend* "
             << safeCppIdentifier(backendSymbol) << "();\n";
+    }
+    if (solverProfile) {
+        std::vector<std::string> groups, turns, compactTurns;
+        for (size_t i = 0; i < sources.size(); ++i) {
+            groups.push_back(safeCppIdentifier(backendAccessorSymbols[i]) + "()");
+            turns.push_back(safeCppIdentifier(tickBackendAccessorSymbols[i]) + "()");
+            compactTurns.push_back(safeCppIdentifier(compactTurnBackendAccessorSymbols[i]) + "()");
+        }
+        out << generateSolverProfileFinder(sources, groups, turns, compactTurns);
+        out << "extern \"C\" const uint32_t " << safeSymbol << "_compiled_rule_count = " << coverage.compiledRules << "U;\n"
+            << "extern \"C\" const uint32_t " << safeSymbol << "_compiled_group_count = " << coverage.compiledGroups << "U;\n";
+        return out.str();
     }
     out << "\nextern \"C\" const puzzlescript::SpecializedRulegroupsBackend* "
         << "ps_specialized_rulegroups_find_backend(uint64_t sourceHash) {\n"
@@ -6415,7 +6468,7 @@ std::string generateCompiledRulesRegistryCpp(
 uint32_t writeCompiledRulesCppDirectory(
     const std::vector<CodegenSource>& sources,
     const std::filesystem::path& emitCppDir,
-    const std::filesystem::path& emitSourcesList,
+    std::vector<std::filesystem::path>& generatedPaths,
     std::string_view symbol,
     const CompiledRulesOptions& options,
     const CompactCodegenOptions& compactOptions,
@@ -6423,12 +6476,11 @@ uint32_t writeCompiledRulesCppDirectory(
     bool compactTurnOnly = false
 ) {
     const std::string safeSymbol = safeCppIdentifier(symbol);
-    std::vector<std::filesystem::path> generatedPaths;
     std::vector<std::string> backendAccessorSymbols;
     std::vector<std::string> tickBackendAccessorSymbols;
     std::vector<std::string> compactTurnBackendAccessorSymbols;
     uint32_t wroteCount = 0;
-    generatedPaths.reserve(sources.size() + 1);
+    generatedPaths.reserve(generatedPaths.size() + sources.size() + 1);
     backendAccessorSymbols.reserve(sources.size());
     tickBackendAccessorSymbols.reserve(sources.size());
     compactTurnBackendAccessorSymbols.reserve(sources.size());
@@ -6437,7 +6489,7 @@ uint32_t writeCompiledRulesCppDirectory(
         std::ostringstream hashHex;
         hashHex << std::hex << sources[sourceIndex].hash;
         const std::string hashSuffix = hashHex.str();
-        const std::filesystem::path cppPath = emitCppDir / ("source_" + hashSuffix + ".cpp");
+        const std::filesystem::path cppPath = emitCppDir / ((options.solverProfile ? "solver_profile_" : "source_") + hashSuffix + ".cpp");
         const std::string sourceSymbol = safeSymbol + "_source_" + hashSuffix;
         const std::string backendSymbol = safeSymbol + "_backend_" + hashSuffix;
         const std::string tickBackendSymbol = safeSymbol + "_tick_backend_" + hashSuffix;
@@ -6462,7 +6514,7 @@ uint32_t writeCompiledRulesCppDirectory(
         generatedPaths.push_back(std::filesystem::absolute(cppPath));
     }
 
-    const std::filesystem::path registryPath = emitCppDir / "registry.cpp";
+    const std::filesystem::path registryPath = emitCppDir / (options.solverProfile ? "solver_profile_registry.cpp" : "registry.cpp");
     if (writeFileIfChanged(
         registryPath,
         generateCompiledRulesRegistryCpp(
@@ -6472,20 +6524,14 @@ uint32_t writeCompiledRulesCppDirectory(
             tickBackendAccessorSymbols,
             compactTurnBackendAccessorSymbols,
             compactTurnOnly ? CompiledRulesCoverage{} : coverage,
-            compactTurnOnly
+            compactTurnOnly,
+            options.solverProfile
         )
     )) {
         ++wroteCount;
     }
     generatedPaths.push_back(std::filesystem::absolute(registryPath));
 
-    std::ostringstream list;
-    for (const auto& path : generatedPaths) {
-        list << path.string() << "\n";
-    }
-    if (writeFileIfChanged(emitSourcesList, list.str())) {
-        ++wroteCount;
-    }
     return wroteCount;
 }
 
@@ -6516,7 +6562,8 @@ std::vector<CodegenSource> selectCompiledRuleSourcesForEmission(
             std::vector<CodegenSource>{source},
             options
         );
-        if (sourceCoverage.compiledRules > *maxCompiledRulesPerSource) {
+        if (maxCompiledRulesPerSource.has_value()
+            && sourceCoverage.compiledRules > *maxCompiledRulesPerSource) {
             ++skippedSources;
             skippedCompiledRules += sourceCoverage.compiledRules;
             continue;
@@ -6554,6 +6601,7 @@ int compileRulesCommand(const std::string& sourcePath, int argc, char** argv) {
     std::optional<std::filesystem::path> emitSourcesList;
     std::optional<std::filesystem::path> emitRuntimeIrCache;
     std::optional<std::filesystem::path> coverageJson;
+    std::optional<std::filesystem::path> solverHintsPath;
     std::optional<uint64_t> maxCompiledRulesPerSource;
     std::optional<uint64_t> maxGeneratedLinesPerSource;
     std::optional<size_t> caseIndex;
@@ -6591,6 +6639,9 @@ int compileRulesCommand(const std::string& sourcePath, int argc, char** argv) {
                 throw std::runtime_error("--coverage-json requires a path");
             }
             coverageJson = std::filesystem::path(argv[index]);
+        } else if (arg == "--solver-static-analysis-hints") {
+            if (++index >= argc) throw std::runtime_error("--solver-static-analysis-hints requires a path");
+            solverHintsPath = std::filesystem::path(argv[index]);
         } else if (arg == "--symbol") {
             if (++index >= argc) {
                 throw std::runtime_error("--symbol requires a name");
@@ -6675,11 +6726,30 @@ int compileRulesCommand(const std::string& sourcePath, int argc, char** argv) {
         }
     }
 
+    std::vector<CodegenSource> solverProfiles;
     const std::vector<CodegenSource> inputSources = collectCompiledRuleSources(
         std::filesystem::path(sourcePath),
         caseIndex,
         caseNameFilter
     );
+    if (solverHintsPath) {
+        if (compactTurnOnly || emitRuntimeIrCache) {
+            throw std::runtime_error("solver profiles require rulegroups and cannot be exported as ordinary runtime-IR caches");
+        }
+        const auto hints = puzzlescript::json::parse(readFile(*solverHintsPath));
+        for (const auto& original : inputSources) {
+            auto source = original;
+            const auto* report = puzzlescript::solver::findGameStaticAnalysis(hints, source.path.filename().string());
+            if (!report || !source.game) continue;
+            const auto lines = puzzlescript::solver::provedWinIrrelevantSourceLines(*report);
+            if (lines.empty()) continue;
+            auto game = std::make_shared<puzzlescript::Game>(*source.game);
+            source.solverPruning = puzzlescript::pruneSolverRules(*game, lines);
+            if (source.solverPruning.removedRules.empty()) continue;
+            source.game = std::move(game);
+            solverProfiles.push_back(std::move(source));
+        }
+    }
     uint64_t skippedSources = 0;
     uint64_t skippedCompiledRules = 0;
     uint64_t skippedGeneratedLineSources = 0;
@@ -6697,6 +6767,17 @@ int compileRulesCommand(const std::string& sourcePath, int argc, char** argv) {
         skippedGeneratedLines
     );
     const CompiledRulesCoverage coverage = measureCompiledRulesCoverage(sources, options);
+    auto profileOptions = options;
+    profileOptions.solverProfile = true;
+    if (solverHintsPath) {
+        uint64_t ignoredSources = 0, ignoredRules = 0, ignoredLineSources = 0, ignoredLines = 0;
+        solverProfiles = selectCompiledRuleSourcesForEmission(solverProfiles, profileOptions, compactOptions,
+            maxCompiledRulesPerSource, maxGeneratedLinesPerSource, false,
+            ignoredSources, ignoredRules, ignoredLineSources, ignoredLines);
+        uint64_t removed = 0;
+        for (const auto& profile : solverProfiles) removed += profile.solverPruning.removedRuleCount();
+        std::cerr << "solver-compiled-profiles: sources=" << solverProfiles.size() << " removed_rules=" << removed << "\n";
+    }
     if (emitRuntimeIrCache.has_value()) {
         writeFileIfChanged(
             *emitRuntimeIrCache,
@@ -6736,20 +6817,32 @@ int compileRulesCommand(const std::string& sourcePath, int argc, char** argv) {
     uint32_t wroteCount = 0;
     std::string outputPath;
     if (emitCpp.has_value()) {
-        const std::string generated = generateCompiledRulesCpp(sources, symbol, options, compactOptions, true, {}, {}, {}, compactTurnOnly);
+        std::string generated = generateCompiledRulesCpp(sources, symbol, options, compactOptions, true, {}, {}, {}, compactTurnOnly);
+        if (solverHintsPath) {
+            generated += generateCompiledRulesCpp(solverProfiles, symbol + "_solver", profileOptions, compactOptions);
+        }
         wroteCount = writeFileIfChanged(*emitCpp, generated) ? 1U : 0U;
         outputPath = emitCpp->string();
     } else {
+        std::vector<std::filesystem::path> generatedPaths;
         wroteCount = writeCompiledRulesCppDirectory(
             sources,
             *emitCppDir,
-            *emitSourcesList,
+            generatedPaths,
             symbol,
             options,
             compactOptions,
             coverage,
             compactTurnOnly
         );
+        if (solverHintsPath) {
+            wroteCount += writeCompiledRulesCppDirectory(solverProfiles, *emitCppDir, generatedPaths,
+                symbol + "_solver", profileOptions, compactOptions,
+                measureCompiledRulesCoverage(solverProfiles, profileOptions));
+        }
+        std::ostringstream list;
+        for (const auto& path : generatedPaths) list << path.string() << "\n";
+        if (writeFileIfChanged(*emitSourcesList, list.str())) ++wroteCount;
         outputPath = emitCppDir->string();
     }
     std::cerr << "compiled-rules: sources=" << sources.size()
@@ -7325,6 +7418,7 @@ void printCompileRulesHelp() {
         << "--stats-only to print coverage and miss buckets without writing generated code. --coverage-json writes per-source coverage. --max-rows defaults to 1;\n"
         << "higher values enable experimental deterministic multi-row kernels. --compact-turn-mode defaults to interpreter; compiler mode emits the native compact kernel when supported and falls back to the interpreter bridge otherwise.\n"
         << "--compact-turn-only emits compact turn backends and registry stubs without generated rule kernels, useful for compact oracle coverage builds.\n"
+        << "--solver-static-analysis-hints PATH additionally emits isolated solver profiles with proved win-irrelevant rules removed. Link the complete sources list; ordinary player backends are retained. Enable the profiles with solver --static-analysis-hints PATH --solver-opt win-relevance. Profiles cannot be combined with --compact-turn-only or runtime-IR cache export.\n"
         << "--compact-tick-only remains as a compatibility alias. --emit-runtime-ir-cache writes loadable runtime metadata keyed by source hash. --runtime-ir-cache-omit-rules is experimental and only valid when callers do not need load-level rule execution. --max-compiled-rules-per-source and --max-generated-lines-per-source skip oversized sharded sources so the runtime can fall back for those games.\n\n"
         << "Examples:\n"
         << "  puzzlescript_cpp specialize-rulegroups src/demo/sokoban_basic.txt --emit-cpp build/compiled-rules/sokoban.cpp --symbol sokoban\n"

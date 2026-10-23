@@ -1,0 +1,208 @@
+{
+  "date": "2026-10-23",
+  "baseline": "bfc72a74",
+  "correctnessCommit": "896e1441",
+  "actionCommit": "b0b4879e",
+  "platform": "Windows x64, MSVC 2022 Release, 64-bit masks",
+  "method": {
+    "strategy": "weighted-astar",
+    "jobs": 1,
+    "corpusGames": 184,
+    "playableLevels": 1346,
+    "timeoutMs": 125,
+    "jsActionTimeoutMs": 250,
+    "profilesOrder": [
+      "off",
+      "on",
+      "on",
+      "off"
+    ],
+    "timingScope": "Common solved levels with identical paths and deterministic search counters, not deadline wall time",
+    "profileMatchedWork": [
+      "solution",
+      "expanded",
+      "unique_states",
+      "generated"
+    ],
+    "actionMatchedWork": [
+      "solution",
+      "expanded",
+      "unique_states"
+    ]
+  },
+  "action": [
+    {
+      "off": "1-native-off",
+      "on": "2-native-on",
+      "solvedBefore": 718,
+      "solvedAfter": 726,
+      "changed": 0,
+      "count": 80,
+      "games": 16,
+      "generatedBefore": 709170,
+      "generatedAfter": 567379,
+      "stepBefore": 1035.6042999999997,
+      "stepAfter": 776.3733999999998,
+      "elapsedBefore": 1960,
+      "elapsedAfter": 1532,
+      "generatedReduction": 0.19993936573741133,
+      "stepReduction": 0.2503184855451064
+    },
+    {
+      "off": "3-js-off",
+      "on": "4-js-on",
+      "solvedBefore": 177,
+      "solvedAfter": 180,
+      "changed": 0,
+      "count": 177,
+      "games": 27,
+      "generatedBefore": 2429085,
+      "generatedAfter": 1943360,
+      "stepBefore": 3783.0977,
+      "stepAfter": 3107.4938000000016,
+      "elapsedBefore": 6745,
+      "elapsedAfter": 5742,
+      "generatedReduction": 0.1999621256563685,
+      "stepReduction": 0.1785848406717062
+    },
+    {
+      "off": "6-js-off",
+      "on": "5-js-on",
+      "solvedBefore": 174,
+      "solvedAfter": 179,
+      "changed": 0,
+      "count": 174,
+      "games": 27,
+      "generatedBefore": 2197346,
+      "generatedAfter": 1757967,
+      "stepBefore": 3549.6805999999997,
+      "stepAfter": 2808.5321,
+      "elapsedBefore": 6417,
+      "elapsedAfter": 5231,
+      "generatedReduction": 0.19995895047935097,
+      "stepReduction": 0.20879301084159507
+    }
+  ],
+  "profiles": [
+    {
+      "off": "1-off",
+      "on": "2-on",
+      "solvedBefore": 719,
+      "solvedAfter": 720,
+      "exhaustedBefore": 7,
+      "exhaustedAfter": 7,
+      "prunedGames": 54,
+      "removedRules": 664,
+      "changedWork": 23,
+      "changedPaths": 3,
+      "matched": {
+        "all": {
+          "n": 689,
+          "stepBefore": 11192.706400000006,
+          "stepAfter": 10399.210600000008,
+          "generatedBefore": 2887052,
+          "generatedAfter": 2887052,
+          "stepReduction": 0.07089400647550248
+        },
+        "pruned": {
+          "n": 97,
+          "stepBefore": 1391.2245000000007,
+          "stepAfter": 981.6648000000001,
+          "generatedBefore": 132332,
+          "generatedAfter": 132332,
+          "stepReduction": 0.29438792948226566
+        },
+        "prunedCompiled": {
+          "n": 83,
+          "stepBefore": 1324.5167000000006,
+          "stepAfter": 918.3396,
+          "generatedBefore": 131633,
+          "generatedAfter": 131633,
+          "stepReduction": 0.30666061062121786
+        }
+      },
+      "newExhaustion": [],
+      "fallback": [
+        "easyenigma.txt"
+      ],
+      "missingBackends": []
+    },
+    {
+      "off": "4-off",
+      "on": "3-on",
+      "solvedBefore": 722,
+      "solvedAfter": 725,
+      "exhaustedBefore": 7,
+      "exhaustedAfter": 7,
+      "prunedGames": 54,
+      "removedRules": 664,
+      "changedWork": 24,
+      "changedPaths": 4,
+      "matched": {
+        "all": {
+          "n": 695,
+          "stepBefore": 11077.779700000003,
+          "stepAfter": 10739.659100000006,
+          "generatedBefore": 3018297,
+          "generatedAfter": 3018297,
+          "stepReduction": 0.030522415967524252
+        },
+        "pruned": {
+          "n": 99,
+          "stepBefore": 1477.9333999999994,
+          "stepAfter": 1096.4881999999996,
+          "generatedBefore": 139268,
+          "generatedAfter": 139268,
+          "stepReduction": 0.25809363263594964
+        },
+        "prunedCompiled": {
+          "n": 85,
+          "stepBefore": 1411.2388999999996,
+          "stepAfter": 1032.5948999999998,
+          "generatedBefore": 138569,
+          "generatedAfter": 138569,
+          "stepReduction": 0.2683060961542372
+        }
+      },
+      "newExhaustion": [],
+      "fallback": [
+        "easyenigma.txt"
+      ],
+      "missingBackends": []
+    }
+  ],
+  "replay": {
+    "action": {
+      "games": 126,
+      "solutions": 740,
+      "failures": 0,
+      "generatedBackends": false
+    },
+    "profiles": {
+      "games": 127,
+      "solutions": 734,
+      "failures": 0,
+      "generatedBackends": false
+    }
+  },
+  "profileGeneration": {
+    "sources": 51,
+    "removedRules": 608,
+    "runtimeCorpusGamesPruned": 54,
+    "runtimeCorpusRulesRemoved": 664,
+    "runtimeCorpusGamesCompiled": 53,
+    "fallback": [
+      "easyenigma.txt"
+    ]
+  },
+  "validation": {
+    "staticAnalysisFixtures": "passed",
+    "generatorSchedulingFixtures": 17,
+    "profileGenerationProofGates": "passed",
+    "nativeStaticTagCanaries": "passed",
+    "generatedBoardApiReplayAndCache": "passed",
+    "profileIdentityAndForcedCollision": "passed",
+    "linkedSingleAndShardedProfileReplay": "passed",
+    "unchangedCorpusRegenerationWrote": 0
+  }
+}

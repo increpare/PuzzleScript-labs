@@ -37,6 +37,7 @@
 #include "runtime/json.hpp"
 #include "search/search_common.hpp"
 #include "solver/heuristics.hpp"
+#include "solver/static_analysis_hints.hpp"
 
 #ifdef PUZZLESCRIPT_SOLVER_C_API
 #include "runtime/c_api_internal.hpp"
@@ -582,81 +583,11 @@ std::vector<std::string> optionalJsonStringArrayField(
     return values;
 }
 
-std::unordered_map<std::string, int32_t> ruleSourceLinesByStaticRuleId(
-    const puzzlescript::json::Value::Object& object
-) {
-    std::unordered_map<std::string, int32_t> byId;
-    const auto tagged = object.find("ps_tagged");
-    if (tagged == object.end() || !tagged->second.isObject()) {
-        return byId;
-    }
-    const auto& taggedObject = tagged->second.asObject();
-    const auto sections = taggedObject.find("rule_sections");
-    if (sections == taggedObject.end() || !sections->second.isArray()) {
-        return byId;
-    }
-    for (const puzzlescript::json::Value& sectionValue : sections->second.asArray()) {
-        if (!sectionValue.isObject()) {
-            continue;
-        }
-        const auto& sectionObject = sectionValue.asObject();
-        const auto groups = sectionObject.find("groups");
-        if (groups == sectionObject.end() || !groups->second.isArray()) {
-            continue;
-        }
-        for (const puzzlescript::json::Value& groupValue : groups->second.asArray()) {
-            if (!groupValue.isObject()) {
-                continue;
-            }
-            const auto& groupObject = groupValue.asObject();
-            const auto rules = groupObject.find("rules");
-            if (rules == groupObject.end() || !rules->second.isArray()) {
-                continue;
-            }
-            for (const puzzlescript::json::Value& ruleValue : rules->second.asArray()) {
-                if (!ruleValue.isObject()) {
-                    continue;
-                }
-                const auto& ruleObject = ruleValue.asObject();
-                const auto id = optionalJsonStringField(ruleObject, "id");
-                const auto sourceLine = optionalJsonIntField(ruleObject, "source_line");
-                if (id.has_value() && sourceLine.has_value()) {
-                    byId[*id] = *sourceLine;
-                }
-            }
-        }
-    }
-    return byId;
-}
-
 const puzzlescript::json::Value* findStaticAnalysisForGame(
     const puzzlescript::json::Value& root,
     const std::string& gameName
 ) {
-    if (!root.isObject()) {
-        return nullptr;
-    }
-    const auto& rootObject = root.asObject();
-    const auto games = rootObject.find("games");
-    if (games == rootObject.end() || !games->second.isObject()) {
-        return &root;
-    }
-
-    const auto& gamesObject = games->second.asObject();
-    const std::string baseName = std::filesystem::path(gameName).filename().generic_string();
-    const std::array<std::string, 4> keys{
-        gameName,
-        baseName,
-        lowercase(gameName),
-        lowercase(baseName),
-    };
-    for (const std::string& key : keys) {
-        const auto it = gamesObject.find(key);
-        if (it != gamesObject.end()) {
-            return &it->second;
-        }
-    }
-    return nullptr;
+    return puzzlescript::solver::findGameStaticAnalysis(root, gameName);
 }
 
 puzzlescript::solver::StaticAnalysisHints parseStaticAnalysisHintsForGame(
@@ -806,44 +737,8 @@ puzzlescript::solver::StaticAnalysisHints parseStaticAnalysisHintsForGame(
             }
         }
 
-        const auto winRelevanceFacts = factsObject.find("win_relevance");
-        if (winRelevanceFacts != factsObject.end() && winRelevanceFacts->second.isArray()) {
-            const std::unordered_map<std::string, int32_t> lineByRuleId =
-                ruleSourceLinesByStaticRuleId(object);
-            for (const puzzlescript::json::Value& factValue : winRelevanceFacts->second.asArray()) {
-                if (!factValue.isObject()) {
-                    continue;
-                }
-                const auto& factObject = factValue.asObject();
-                if (const auto factId = optionalJsonStringField(factObject, "id");
-                    factId.has_value() && *factId != "win_relevance") {
-                    continue;
-                }
-                const auto status = optionalJsonStringField(factObject, "status");
-                if (!status.has_value() || lowercase(*status) != "proved") {
-                    continue;
-                }
-                const auto valueIt = factObject.find("value");
-                if (valueIt == factObject.end() || !valueIt->second.isObject()) {
-                    continue;
-                }
-                const auto irrelevantRuleIds =
-                    optionalJsonStringArrayField(valueIt->second.asObject(), "irrelevant_rule_ids");
-                std::unordered_set<int32_t> uniqueLines;
-                for (const std::string& ruleId : irrelevantRuleIds) {
-                    const auto found = lineByRuleId.find(ruleId);
-                    if (found != lineByRuleId.end()) {
-                        uniqueLines.insert(found->second);
-                    }
-                }
-                hints.winRelevanceAvailable = true;
-                hints.winIrrelevantRuleSourceLines.assign(uniqueLines.begin(), uniqueLines.end());
-                std::sort(
-                    hints.winIrrelevantRuleSourceLines.begin(),
-                    hints.winIrrelevantRuleSourceLines.end());
-                break;
-            }
-        }
+        hints.winIrrelevantRuleSourceLines = puzzlescript::solver::provedWinIrrelevantSourceLines(value);
+        hints.winRelevanceAvailable = !hints.winIrrelevantRuleSourceLines.empty();
     }
     return hints;
 }
@@ -1330,59 +1225,21 @@ void attachSolverHashProjectionMetadata(
     }
 }
 
-uint64_t dropRulesBySourceLine(
-    std::vector<std::vector<puzzlescript::Rule>>& groups,
-    const std::unordered_set<int32_t>& sourceLines
-) {
-    uint64_t removed = 0;
-    if (sourceLines.empty()) {
-        return removed;
-    }
-    for (std::vector<puzzlescript::Rule>& group : groups) {
-        if (group.empty()) {
-            continue;
-        }
-        std::vector<puzzlescript::Rule> kept;
-        kept.reserve(group.size());
-        for (puzzlescript::Rule& rule : group) {
-            if (!rule.isRandom && sourceLines.find(rule.lineNumber) != sourceLines.end()) {
-                ++removed;
-                continue;
-            }
-            kept.push_back(std::move(rule));
-        }
-        group = std::move(kept);
-    }
-    return removed;
-}
-
 uint64_t applyWinRelevancePruning(
     puzzlescript::LoadedGame& loadedGame,
     const puzzlescript::solver::StaticAnalysisHints& hints,
-    bool enabled
+    bool enabled,
+    std::string_view source
 ) {
-    if (!enabled
-        || !hints.winRelevanceAvailable
-        || hints.winIrrelevantRuleSourceLines.empty()
-        || !loadedGame.information) {
-        return 0;
-    }
-
-    auto prunedGame = std::make_shared<puzzlescript::Game>(*loadedGame.information);
-    const std::unordered_set<int32_t> sourceLines(
-        hints.winIrrelevantRuleSourceLines.begin(),
-        hints.winIrrelevantRuleSourceLines.end());
-    uint64_t removed = dropRulesBySourceLine(prunedGame->rules, sourceLines);
-    removed += dropRulesBySourceLine(prunedGame->lateRules, sourceLines);
-    if (removed == 0) {
-        return 0;
-    }
-
-    prunedGame->specializedRulegroups = nullptr;
-    prunedGame->specializedFullTurn = nullptr;
-    prunedGame->specializedCompactTurn = nullptr;
+    if (!enabled || !hints.winRelevanceAvailable || hints.winIrrelevantRuleSourceLines.empty()
+        || !loadedGame.information) return 0;
+    auto prunedGame = std::make_shared<Game>(*loadedGame.information);
+    const auto pruning = puzzlescript::pruneSolverRules(*prunedGame, hints.winIrrelevantRuleSourceLines);
+    if (pruning.removedRules.empty()) return 0;
+    // Missing/stale solver profiles retain the ordinary interpreter fallback.
+    puzzlescript::attachLinkedSolverRules(*prunedGame, puzzlescript::compiledRulesHashSource(source), pruning);
     loadedGame.information = std::move(prunedGame);
-    return removed;
+    return pruning.removedRuleCount();
 }
 
 StateKey persistentLevelStateKey(
@@ -5233,7 +5090,8 @@ std::vector<Result> runCorpus(const Options& options) {
         compiled.removedWinIrrelevantRules = applyWinRelevancePruning(
             compiled.loadedGame,
             compiled.staticAnalysisHints,
-            options.solverOptWinRelevance);
+            options.solverOptWinRelevance,
+            compiled.source);
         compiled.game = compiled.loadedGame.information;
 
         const int32_t levelCount = static_cast<int32_t>(compiled.game->levels.size());
