@@ -2015,16 +2015,21 @@ CellPattern.prototype.generateMatchFunction = function() {
     const movStride = STRIDE_MOV === 1 ? '' : `*${STRIDE_MOV}`;
 
     let fn = '';
-
+    const expression = this.generateMatchString('this');
+    // Derive loads from the expression so advanced predicates (including
+    // layer-coupled properties and any-movement masks) cannot lose a word.
+    const referenced = new Set(expression.match(/\bcell(?:Objects|Movements)\d+\b/g));
     for (let i = 0; i < STRIDE_OBJ; ++i) {
-        fn += `const cellObjects${i} = objects[i${objStride}${i ? '+' + i : ''}];\n`;
+        if (referenced.has(`cellObjects${i}`)) {
+            fn += `const cellObjects${i} = objects[i${objStride}${i ? '+' + i : ''}];\n`;
+        }
     }
-
     for (let i = 0; i < STRIDE_MOV; ++i) {
-        fn += `const cellMovements${i} = movements[i${movStride}${i ? '+' + i : ''}];\n`;
+        if (referenced.has(`cellMovements${i}`)) {
+            fn += `const cellMovements${i} = movements[i${movStride}${i ? '+' + i : ''}];\n`;
+        }
     }
-
-    fn += `return ${this.generateMatchString('this')};`;
+    fn += `return ${expression};`;
 
     let result = CACHE_CELLPATTERN_MATCHFUNCTION.get(fn);
     if (result === undefined) {
@@ -2036,6 +2041,87 @@ CellPattern.prototype.generateMatchFunction = function() {
 
 let _o1, _o2, _o2_5, _o3, _o4, _o5, _o6, _o7, _o8, _o9, _o10, _o11, _o12;
 let _m1, _m2, _m3;
+
+function generateSparseReplaceFunction(replacement, objectSize, movementSize) {
+	const objectWords = [];
+	const movementWords = [];
+	for (let i = 0; i < objectSize; i++) {
+		if (replacement.objectsClear.data[i] || replacement.objectsSet.data[i]) objectWords.push(i);
+	}
+	for (let i = 0; i < movementSize; i++) {
+		if (replacement.movementsClear.data[i] || replacement.movementsLayerMask.data[i] || replacement.movementsSet.data[i]) movementWords.push(i);
+	}
+	if (objectWords.length === 0 && movementWords.length === 0) return FALSE_FUNCTION;
+
+	// Mask values vary between patterns; the generated code only depends on word positions and strides.
+	// Share generated functions between patterns with the same sparse shape.
+	const key = `sparse:${objectSize},${movementSize}:${objectWords}:${movementWords}`;
+	if (key in CACHE_CELLPATTERN_REPLACEFUNCTION) return CACHE_CELLPATTERN_REPLACEFUNCTION[key];
+
+	let reads = '';
+	let writes = '';
+	const changes = [];
+
+	for (const i of objectWords) {
+		reads += `
+			const oldObject${i} = level.objects[currentIndex * ${objectSize} + ${i}];
+			const newObject${i} = (oldObject${i} & ~replacement.objectsClear.data[${i}]) | replacement.objectsSet.data[${i}];
+		`;
+		changes.push(`oldObject${i} !== newObject${i}`);
+		writes += `
+			level.objects[currentIndex * ${objectSize} + ${i}] = newObject${i};
+			sfxCreateMask.data[${i}] |= newObject${i} & ~oldObject${i};
+			sfxDestroyMask.data[${i}] |= oldObject${i} & ~newObject${i};
+			level.rowCellContents[row].data[${i}] |= newObject${i};
+			level.colCellContents[col].data[${i}] |= newObject${i};
+			level.mapCellContents.data[${i}] |= newObject${i};
+		`;
+	}
+
+	for (const i of movementWords) {
+		reads += `
+			const oldMovement${i} = level.movements[currentIndex * ${movementSize} + ${i}];
+			const newMovement${i} = (oldMovement${i} & ~(replacement.movementsClear.data[${i}] | replacement.movementsLayerMask.data[${i}])) | replacement.movementsSet.data[${i}];
+		`;
+		changes.push(`oldMovement${i} !== newMovement${i}`);
+		writes += `
+			level.movements[currentIndex * ${movementSize} + ${i}] = newMovement${i};
+			level.rowCellContents_Movements[row].data[${i}] |= newMovement${i};
+			level.colCellContents_Movements[col].data[${i}] |= newMovement${i};
+			level.mapCellContents_Movements.data[${i}] |= newMovement${i};
+		`;
+	}
+
+	let trackObjects = '';
+	if (objectWords.length) {
+		trackObjects = `
+		if (${objectWords.map(i => `oldObject${i} !== newObject${i}`).join(' || ')}) {
+			turnObjectsModified = true;
+			// Hashing and target-version tracking consume a complete cell before
+			// the caller writes it. Preserve untouched words in that view.
+			if (level.solverZobristUpdateCell) {
+				const next = _o2_5;
+				for (let word = 0; word < ${objectSize}; word++) {
+					next.data[word] = level.objects[currentIndex * ${objectSize} + word];
+				}
+				${objectWords.map(i => `next.data[${i}] = newObject${i};`).join('\n')}
+				level.solverZobristUpdateCell(currentIndex, next);
+			}
+		}`;
+	}
+	// Summary masks accumulate bits during a turn; untouched words are already covered.
+	return CACHE_CELLPATTERN_REPLACEFUNCTION[key] = new Function('level', 'rule', 'currentIndex', generatedFunctionSource('cellPatternSparseReplace', `
+		'use strict';
+		const replacement = this.replacement;
+		${reads}
+		if (!(${changes.join(' || ')})) return false;
+		const row = currentIndex % level.height;
+		const col = (currentIndex / level.height) | 0;
+		${trackObjects}
+		${writes}
+		return true;
+	`));
+}
 
 let CACHE_CELLPATTERN_REPLACEFUNCTION = {}
 let _replace_function_key_array = new Int32Array(0);
@@ -2059,10 +2145,7 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 	let key;
 	if (deterministic && !rule.rigid && !hasCoupledReplacements &&
 		!hasInferredAggregateBindings && !hasInferredPropertyBindings && !hasInferredPropertySources) {
-		// The masks are all read from this.replacement at runtime, so the
-		// generated source for this (overwhelmingly common) case depends only
-		// on the strides - no need to build a key from the mask values.
-		key = OBJECT_SIZE + "," + MOVEMENT_SIZE;
+		return generateSparseReplaceFunction(this.replacement, OBJECT_SIZE, MOVEMENT_SIZE);
 	} else {
 		// The random-entity and rigid blocks still embed pattern/rule-specific
 		// constants in the source, so key on the full mask values.
@@ -2858,7 +2941,14 @@ Rule.prototype.tryApply = function (level) {
 
 	let result = false;
 	if (this.hasReplacements) {
-		if (this.rulePlanMetadata.row_count === 1) {
+		if (this.patterns.length === 1 && this.patterns[0].length === 1 &&
+			this.ellipsisCount[0] === 0 && !verbose_logging &&
+			this.propertyBindingsArr === null && this.aggregateBindingsArr === null) {
+			const cell = this.patterns[0][0];
+			for (const index of matches[0]) {
+				result = cell.replace(level, this, index) || result;
+			}
+		} else if (this.rulePlanMetadata.row_count === 1) {
 			let tuple = [null];
 			let rowMatches = matches[0];
 			for (let tupleIndex = 0; tupleIndex < rowMatches.length; tupleIndex++) {
@@ -3967,6 +4057,7 @@ function DoWin() {
 }
 
 function nextLevel() {
+	const startedInTextMode = textMode;
 	againing = false;
 	messagetext = "";
 	if (state && state.levels && (curlevel > state.levels.length)) {
@@ -4015,6 +4106,8 @@ function nextLevel() {
 		}
 		//continue existing game
 	}
+	// Inputs dismissing titles/messages are not part of the board recording.
+	if (startedInTextMode) clearInputHistory();
 	try {
 		storage_set(document.URL, curlevel);
 		if (curlevelTarget !== null) {

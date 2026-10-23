@@ -1,12 +1,12 @@
 'use strict';
 
-let canSetHTMLColors=false;
-let canDump=true;
+const canSetHTMLColors=false;
+const canDump=true;
 let recordingStartsFromLevel=0;
 let inputHistory=[];
 let soundHistory=[];
 let compiledText;
-let canOpenEditor=true;
+const canOpenEditor=true;
 let IDE=true;
 
 let debugger_turnIndex=0;
@@ -48,12 +48,14 @@ function stripHTMLTags(html_str){
 }
 
 function dumpTestCase() {
+	const stringifyForHTML = value => JSON.stringify(value)
+		.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 	//compiler error data
 	let levelDat = compiledText;
 	let errorStrings_stripped = errorStrings.map(stripHTMLTags);
 	let resultarray = [levelDat,errorStrings_stripped,errorCount];
-	let innerJson = JSON.stringify(resultarray);
-	let titleJson = JSON.stringify(state.metadata.title || 'untitled test');
+	let innerJson = stringifyForHTML(resultarray);
+	let titleJson = stringifyForHTML(state.metadata.title || 'untitled test');
 	let resultstring =
 		'<br>\n\t[<br>\n\t\t' + titleJson + ',<br>\n\t\t' + innerJson + '<br>\n\t],';
 	selectableint++;
@@ -69,8 +71,8 @@ function dumpTestCase() {
 		let outputDat = convertLevelToString();
 
 		let resultarrayRec = [levelDatRec,input,outputDat,recordingStartsFromLevel,loadedLevelSeed,sounds];
-		let innerJsonRec = JSON.stringify(resultarrayRec);
-		let titleJsonRec = JSON.stringify(state.metadata.title || 'untitled test');
+		let innerJsonRec = stringifyForHTML(resultarrayRec);
+		let titleJsonRec = stringifyForHTML(state.metadata.title || 'untitled test');
 		let resultstringRec =
 			'<br>\n\t\t[<br>\n\t\t\t' + titleJsonRec + ',<br>\n\t\t\t' + innerJsonRec + '<br>\n\t\t],';
 

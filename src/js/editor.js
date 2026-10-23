@@ -199,10 +199,11 @@ function rip_source_from_html(s){
 function loadDroppedSource(file, rawText) {
 	try {
 		let sourceText = rawText;
-		if (file.name.endsWith(".html")) {
+		const extension = file.name.toLowerCase();
+		if (extension.endsWith(".html") || extension.endsWith(".htm")) {
 			sourceText = rip_source_from_html(sourceText);
-		} else if (!file.name.endsWith(".txt")) {
-			consoleError("Only .html and .txt files are supported");
+		} else if (!extension.endsWith(".txt")) {
+			consoleError("Only .html/.htm/.txt files are supported");
 			return;
 		}
 		editor.replaceDocument(sourceText);

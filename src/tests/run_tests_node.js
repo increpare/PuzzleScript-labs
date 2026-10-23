@@ -430,12 +430,14 @@ if (failures.length > 0) {
 let auxiliaryExit = 0;
 if (!simOnly && !compilationOnly && !process.argv.includes('--profile')
     && process.env.PUZZLESCRIPT_SKIP_AUXILIARY_TESTS !== '1') {
-    const auxiliaryResult = spawnSync(process.execPath, [path.join(__dirname, 'solver_random_replay_node.js')], {
-        cwd: srcDir,
-        stdio: 'inherit',
-    });
-    if (auxiliaryResult.status !== 0) {
-        auxiliaryExit = auxiliaryResult.status || 1;
+    for (const script of ['solver_random_replay_node.js', 'engine_sparse_paths_node.js']) {
+        const auxiliaryResult = spawnSync(process.execPath, [path.join(__dirname, script)], {
+            cwd: srcDir,
+            stdio: 'inherit',
+        });
+        if (auxiliaryResult.status !== 0) {
+            auxiliaryExit = auxiliaryResult.status || 1;
+        }
     }
 }
 
