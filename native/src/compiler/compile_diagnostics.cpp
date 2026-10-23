@@ -437,6 +437,7 @@ void emitRuleStructureDiagnostics(const ParserState& state, DiagnosticSink& diag
         std::vector<size_t> lhsRows, rhsRows;
         for (size_t i = 0; i < tokens.size(); ++i) {
             const auto& token = tokens[i];
+            if (rhs && token == "message") break;
             if (token == "[") {
                 if (cellItems) error("Error, malformed cell rule - encountered a \"[\"\" before previous bracket was closed");
                 inside = true; cellItems = 0; firstItem.clear();
@@ -476,6 +477,107 @@ void emitRuleStructureDiagnostics(const ParserState& state, DiagnosticSink& diag
         }
     }
     for (int32_t line : loops) diagnostics.error(DiagnosticCode::GenericError, line, "Yo I found a STARTLOOP without a corresponding ENDLOOP.");
+}
+
+void emitRuleMaskDiagnostics(const ParserState& state, DiagnosticSink& diagnostics) {
+    using Cell = std::vector<std::string>;
+    using Row = std::vector<Cell>;
+    const auto synonyms = buildSynonyms(state);
+    const auto aggregates = buildLegendMap(state.legendAggregates);
+    const auto properties = buildLegendMap(state.legendProperties);
+    const auto layers = objectLayers(state);
+    for (const auto& entry : state.rules) {
+        const auto tokens = ruletext::tokenizeRuleLine(entry.rule);
+        std::vector<Row> lhs, rhs;
+        Row row; Cell cell;
+        bool inside = false, afterArrow = false, malformed = false;
+        for (const auto& token : tokens) {
+            if (afterArrow && token == "message") break;
+            if (token == "[") { inside = true; cell.clear(); row.clear(); }
+            else if (token == "|" || token == "]") {
+                if (!inside) { malformed = true; break; }
+                if (!cell.empty() && isRuleDirectionOrModifier(cell.back())) malformed = true;
+                row.push_back(cell); cell.clear();
+                if (token == "]") { (afterArrow ? rhs : lhs).push_back(row); inside = false; }
+            } else if (token == "->" && !inside) { afterArrow = true; }
+            else if (inside) { cell.push_back(token); }
+        }
+        const auto opening = std::find(tokens.begin(), tokens.end(), "[");
+        if (std::find(tokens.begin(), opening, "+") != opening && std::find(tokens.begin(), opening, "random") != opening) {
+            diagnostics.error(DiagnosticCode::GenericError, entry.lineNumber,
+                "A rule-group can only be marked random by the opening rule in the group (aka, a '+' and 'random' can't appear as rule modifiers on the same line). Why? Well, you see \"random\" isn't a property of individual rules, but of whole rule groups. It indicates that a single possible application of some rule from the whole group should be applied at random.");
+        }
+        if (malformed || inside || lhs.empty()) continue;
+        const auto error = [&](const std::string& message) { diagnostics.error(DiagnosticCode::GenericError, entry.lineNumber, message); };
+        bool discarded = false;
+        for (size_t r = 0; r < lhs.size() && !discarded; ++r) {
+            for (size_t c = 0; c < lhs[r].size() && !discarded; ++c) {
+                const auto& left = lhs[r][c];
+                const Cell* right = r < rhs.size() && c < rhs[r].size() ? &rhs[r][c] : nullptr;
+                const bool ellipsis = std::find(left.begin(), left.end(), "...") != left.end();
+                if (ellipsis) {
+                    if (left.size() != 1) { error("You can't have anything in with an ellipsis. Sorry."); discarded = true; continue; }
+                    if (!c || c + 1 == lhs[r].size()) { error("There's no point in putting an ellipsis at the very start or the end of a rule"); discarded = true; }
+                    if (right && (*right != Cell{"..."})) { error("An ellipsis on the left must be matched by one in the corresponding place on the right."); discarded = true; }
+                } else if (right && !right->empty() && right->front() == "...") {
+                    error("An ellipsis on the right must be matched by one in the corresponding place on the left.");
+                }
+                if (discarded) continue;
+                if (right && right->size() != 1 && std::find(right->begin(), right->end(), "...") != right->end()) error("You can't have anything in with an ellipsis. Sorry.");
+                // A negative test is redundant if disjoint required objects
+                // already occupy every collision layer it could use.
+                std::set<std::string> possible;
+                std::map<int32_t, std::string> occupied;
+                std::vector<std::string> excluded;
+                for (size_t i = 0; i < left.size(); ++i) {
+                    if (left[i] == "no" && i + 1 < left.size()) { excluded.push_back(left[++i]); continue; }
+                    if (!state.namesSet.count(left[i])) continue;
+                    const auto members = resolveObjectsForName(state, synonyms, aggregates, properties, left[i]);
+                    possible.insert(members.begin(), members.end());
+                    std::set<int32_t> memberLayers;
+                    for (const auto& member : members) if (layers.count(member)) memberLayers.insert(layers.at(member));
+                    if (memberLayers.size() == 1) occupied[*memberLayers.begin()] = left[i];
+                }
+                for (const auto& name : excluded) {
+                    const auto members = resolveObjectsForName(state, synonyms, aggregates, properties, name);
+                    if (members.empty() || occupied.empty()) continue;
+                    const bool redundant = std::all_of(members.begin(), members.end(), [&](const auto& member) {
+                        return !possible.count(member) && layers.count(member) && occupied.count(layers.at(member));
+                    });
+                    if (!redundant) continue;
+                    std::string names, layerNames;
+                    for (const auto& [layer, occupier] : occupied) {
+                        if (!names.empty()) { names += ", "; layerNames += ", "; }
+                        names += toUpperAsciiCopy(occupier); layerNames += std::to_string(layer + 1);
+                    }
+                    diagnostics.warning(DiagnosticCode::GenericWarning, entry.lineNumber, "You have specified that there should be NO " + toUpperAsciiCopy(name) + " but there is also a requirement that " + names + " be there, which collectively occupies the same layers (Layers " + layerNames + "), so you can leave this out.");
+                }
+            }
+        }
+    }
+}
+
+void emitTitleDiagnostic(const ParserState& state, DiagnosticSink& diagnostics) {
+    if (state.levels.empty()) return;
+    std::map<std::string, std::string> metadata;
+    for (size_t i = 0; i + 1 < state.metadata.size(); i += 2) metadata[state.metadata[i]] = state.metadata[i + 1];
+    if (!metadata.count("title")) return;
+    const auto& title = metadata.at("title");
+    // The native diagnostic has no renderer font table. ASCII titles use the
+    // same 34-column pixel-font wrapping as the JS title screen.
+    if (std::any_of(title.begin(), title.end(), [](unsigned char ch) { return ch >= 128; })) return;
+    size_t rows = 0, start = 0;
+    while (start < title.size()) {
+        ++rows;
+        size_t end = std::min(start + 34, title.size());
+        if (end == title.size()) break;
+        size_t split = end;
+        while (split > start && !std::isspace(static_cast<unsigned char>(title[split]))) --split;
+        start = split > start ? split + 1 : end;
+    }
+    const bool extraRow = metadata.count("noaction") || (metadata.count("noundo") && metadata.count("norestart"));
+    const size_t capacity = 5 + (extraRow ? 1 : 0) - (metadata.count("author") ? 1 : 0);
+    if (rows > capacity) diagnostics.warning(DiagnosticCode::GenericWarning, state.metadataLines.at("title"), "Game title is too long to fit on screen; truncating to fit.");
 }
 
 void emitSoundDiagnostics(const ParserState& state, DiagnosticSink& diagnostics) {
@@ -555,6 +657,8 @@ void runCompileDiagnostics(
     }
     emitRuleDuplicateCellDiagnostics(state, diagnostics);
     emitRuleStructureDiagnostics(state, diagnostics);
+    emitRuleMaskDiagnostics(state, diagnostics);
+    emitTitleDiagnostic(state, diagnostics);
     emitSoundDiagnostics(state, diagnostics);
     emitBasicPostParseDiagnostics(state, diagnostics);
     emitMetadataDiagnostics(state, diagnostics);
