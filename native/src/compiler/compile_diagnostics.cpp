@@ -3,6 +3,9 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cmath>
+#include <cstdlib>
+#include <limits>
 #include <map>
 #include <optional>
 #include <set>
@@ -410,6 +413,77 @@ void emitRuleDuplicateCellDiagnostics(const ParserState& state, DiagnosticSink& 
     }
 }
 
+// Validate syntax independently of rule lowering, including recovery after a
+// movement with no object. Loop marker comments have already been stripped.
+void emitRuleStructureDiagnostics(const ParserState& state, DiagnosticSink& diagnostics) {
+    std::vector<int32_t> loops;
+    const auto synonyms = buildSynonyms(state);
+    for (const auto& entry : state.rules) {
+        const auto tokens = ruletext::tokenizeRuleLine(entry.rule);
+        if (tokens.size() == 1 && tokens.front() == "startloop") { loops.push_back(entry.lineNumber); continue; }
+        if (tokens.size() == 1 && tokens.front() == "endloop") {
+            if (loops.empty()) diagnostics.error(DiagnosticCode::GenericError, entry.lineNumber, "Yo I found an ENDLOOP without a corresponding STARTLOOP.");
+            else loops.pop_back();
+            continue;
+        }
+        const auto error = [&](const std::string& message) { diagnostics.error(DiagnosticCode::GenericError, entry.lineNumber, message); };
+        if (entry.mixedCase.find('(') != std::string::npos && entry.rule.find("->") == std::string::npos) {
+            error("You can't have comments inside rules, sorry. In PuzzleScript, '(' starts a comment, so everything after the first '(' on this line was ignored before your rule was parsed.");
+            continue;
+        }
+        size_t cellItems = 0, rowCells = 0;
+        std::string firstItem;
+        bool inside = false, rhs = false;
+        std::vector<size_t> lhsRows, rhsRows;
+        for (size_t i = 0; i < tokens.size(); ++i) {
+            const auto& token = tokens[i];
+            if (token == "[") {
+                if (cellItems) error("Error, malformed cell rule - encountered a \"[\"\" before previous bracket was closed");
+                inside = true; cellItems = 0; firstItem.clear();
+            } else if (token == "|" || token == "]") {
+                if (cellItems % 2) {
+                    error(firstItem == "..." && token == "]" ? "Cannot end a rule with ellipses." : "In a rule, if you specify a movement, it has to act on an object.");
+                } else {
+                    ++rowCells; cellItems = 0; firstItem.clear();
+                }
+                if (token == "]") {
+                    (rhs ? rhsRows : lhsRows).push_back(rowCells); rowCells = 0; inside = false;
+                }
+            } else if (token == "->" && !inside) {
+                rhs = true;
+            } else if (inside && token == "...") {
+                if (!cellItems) firstItem = token;
+                cellItems += 2;
+            } else if (inside && isRuleDirectionOrModifier(token)) {
+                if (!cellItems) firstItem = token;
+                ++cellItems;
+            } else if (inside && state.namesSet.count(token)) {
+                cellItems += cellItems % 2 ? 1 : 2;
+                if (rhs && i > 0 && tokens[i - 1] == "random") {
+                    auto resolved = token;
+                    std::set<std::string> seen;
+                    while (synonyms.count(resolved) && seen.insert(resolved).second) resolved = synonyms.at(resolved);
+                    if (!isObjectDefined(state, resolved) && !isLegendPropertyName(state, resolved))
+                        error("You want to spawn a random \"" + toUpperAsciiCopy(resolved) + "\", but I don't know how to do that");
+                }
+            }
+        }
+        if (lhsRows.size() == rhsRows.size()) {
+            for (size_t i = 0; i < lhsRows.size(); ++i) {
+                if (lhsRows[i] != rhsRows[i]) error("In a rule, each pattern to match on the left must have a corresponding pattern on the right of equal length (number of cells).");
+                if (!lhsRows[i]) diagnostics.error(DiagnosticCode::GenericError, std::nullopt, "You have an totally empty pattern on the left-hand side.  This will match *everything*.  You certainly don't want this.");
+            }
+        }
+    }
+    for (int32_t line : loops) diagnostics.error(DiagnosticCode::GenericError, line, "Yo I found a STARTLOOP without a corresponding ENDLOOP.");
+}
+
+void emitSoundDiagnostics(const ParserState& state, DiagnosticSink& diagnostics) {
+    for (const auto& sound : state.sounds) {
+        if (sound.tokens.size() < 2) diagnostics.warning(DiagnosticCode::GenericWarning, sound.lineNumber, "incorrect sound declaration.");
+    }
+}
+
 void emitMetadataDiagnostics(const ParserState& state, DiagnosticSink& diagnostics) {
     static const std::set<std::string> kKnownPalettes = {
         "arnecolors", "mastersystem", "gameboycolour", "amiga", "arnecolors",
@@ -429,8 +503,38 @@ void emitMetadataDiagnostics(const ParserState& state, DiagnosticSink& diagnosti
                 0,
                 "Palette \"" + value + "\" not found, defaulting to arnecolors.");
         }
-        if ((key == "flickscreen" || key == "zoomscreen") && value.find('x') == std::string::npos) {
-            diagnostics.warning(DiagnosticCode::GenericWarning, line, "Dimensions must be of the form AxB.");
+        if (key == "flickscreen" || key == "zoomscreen") {
+            const auto split = value.find('x');
+            if (split == std::string::npos || value.find('x', split + 1) != std::string::npos) {
+                diagnostics.warning(DiagnosticCode::GenericWarning, line, "Dimensions must be of the form AxB.");
+            } else {
+                bool valid = true;
+                bool positive = true;
+                for (const auto& component : {value.substr(0, split), value.substr(split + 1)}) {
+                    char* end = nullptr;
+                    const double number = std::strtod(component.c_str(), &end);
+                    const bool parsedNumber = end != component.c_str();
+                    while (end && std::isspace(static_cast<unsigned char>(*end))) ++end;
+                    // Mirror isFinite/isInt followed by parseInt, including
+                    // integer-valued exponents with no integer prefix (.1e1).
+                    if (!parsedNumber || *end || !std::isfinite(number) || std::trunc(number) != number
+                        || number < std::numeric_limits<int32_t>::min() || number > std::numeric_limits<int32_t>::max()) {
+                        diagnostics.warning(DiagnosticCode::GenericWarning, line, "Wasn't able to make sense of \"" + component + "\" as a (whole number) dimension.");
+                        valid = false;
+                        continue;
+                    }
+                    const long integer = std::strtol(component.c_str(), &end, 10);
+                    if (end == component.c_str()) {
+                        diagnostics.warning(DiagnosticCode::GenericWarning, line, "Wasn't able to make sense of \"" + component + "\" as a dimension.");
+                        valid = false;
+                    } else if (integer <= 0) {
+                        diagnostics.warning(DiagnosticCode::GenericWarning, line, "The dimension given to me (you gave \"" + component + "\") is baad - it should be greater than 0.");
+                        positive = false;
+                    }
+                }
+                if (!valid) diagnostics.warning(DiagnosticCode::GenericWarning, line, "Couldn't understand the dimensions given to me (you gave \"" + value + "\") - should be of the form AxB.");
+                else if (!positive) diagnostics.warning(DiagnosticCode::GenericWarning, line, "The dimensions given to me (you gave \"" + value + "\") are baad - they should be > 0.");
+            }
         }
     }
 }
@@ -450,6 +554,8 @@ void runCompileDiagnostics(
         diagnostics.add(diagnostic.severity, diagnostic.code, diagnostic.line, diagnostic.message);
     }
     emitRuleDuplicateCellDiagnostics(state, diagnostics);
+    emitRuleStructureDiagnostics(state, diagnostics);
+    emitSoundDiagnostics(state, diagnostics);
     emitBasicPostParseDiagnostics(state, diagnostics);
     emitMetadataDiagnostics(state, diagnostics);
 }
