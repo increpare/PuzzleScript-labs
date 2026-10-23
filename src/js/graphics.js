@@ -60,13 +60,23 @@ function renderCJKCharacter(char, padding) {
     return sprite;
 }
 
+var textGlyphCache = null;
 function regenText(spritecanvas, spritectx) {
-    textImages = {};
+    // Text changes can introduce new characters without changing existing glyphs.
+    const scanline = "scanline" in state.metadata;
+    if (!textGlyphCache || textGlyphCache.state !== state ||
+        textGlyphCache.width !== cellwidth || textGlyphCache.height !== cellheight ||
+        textGlyphCache.color !== state.fgcolor || textGlyphCache.scanline !== scanline) {
+        textImages = {};
+        textGlyphCache = { state: state, width: cellwidth, height: cellheight, color: state.fgcolor, scanline: scanline };
+    }
 
     for (var rowidx in titleImage) {
         var row = titleImage[rowidx];
         for (var nidx in row) {
             var n = row[nidx];
+            // The space glyph is transparent; omitting it also avoids drawing it.
+            if (n === " ") continue;
             if (!textImages.hasOwnProperty(n)) {
                 if (font.hasOwnProperty(n)) {
                     const fontstr = font[n].split('\n').map(a => a.trim().split('').map(t => parseInt(t)));
@@ -91,6 +101,8 @@ function regenSpriteImages() {
         return;
     }
 
+    // The level editor reuses the text "s" canvas for its grille icon.
+    textGlyphCache = null;
     if (IDE === true) {
         textImages['editor_s'] = createSprite('chars', editor_s_grille, undefined);
     }
@@ -313,6 +325,9 @@ function glyphCount() {
 }
 
 function redraw() {
+    if (window.Mobile && Mobile.syncPlayerControls) {
+        Mobile.syncPlayerControls();
+    }
     if (cellwidth === 0 || cellheight === 0) {
         return;
     }
@@ -653,6 +668,11 @@ function canvasResize(displaylevel) {
         cellheight = cellwidth * h / w;
         yoffset = (canvas.height - cellheight * screenheight) / 2;
         xoffset = (canvas.width - cellwidth * screenwidth) / 2;
+    }
+
+    if (!levelEditorOpened && window.Mobile && Mobile.positionPlayerBoard) {
+        var position = Mobile.positionPlayerBoard(cellwidth * screenwidth, cellheight * screenheight, xoffset, yoffset);
+        if (position) { xoffset = position.x; yoffset = position.y; }
     }
 
     if (levelEditorOpened && !textMode) {
