@@ -7,6 +7,7 @@
 #include <cassert>
 #include <fstream>
 #include <sstream>
+#include <thread>
 
 namespace {
 puzzlescript::LoadedGame compile(const std::string& source) {
@@ -67,6 +68,46 @@ int main() {
     auto longSource = source;
     longSource.replace(longSource.rfind("PT"), 2, "P....................T");
     auto longGame = compile(longSource);
+    // The game-scoped proof removes ACTION for every injected board, and the
+    // immutable handle shares that proof safely across concurrent searches.
+    ps_game cachedGame; cachedGame.impl = longGame;
+    const auto& longLevel = longGame.information->levels[0];
+    const auto longGrid = puzzlescript::search::levelTemplateToLayerCellObjectIds(*longGame.information, longLevel);
+    auto bounded = ps_solve_default_options();
+    bounded.strategy = PS_SOLVE_STRATEGY_BFS;
+    bounded.timeout_ms = 10000;
+    bounded.max_expanded = 1;
+    bounded.deterministic = true;
+    auto boundedSolve = [&] {
+        ps_solve_result* value = nullptr;
+        assert(ps_solve_level_layer_cell_object_ids(&cachedGame, longLevel.width, longLevel.height,
+            longGrid.data(), longGrid.size(), &bounded, &value, nullptr));
+        assert(value->status == PS_SOLVE_STATUS_TIMEOUT && value->expanded == 1 && value->generated == 4);
+        ps_solve_result_free(value);
+    };
+    std::thread first(boundedSolve), second(boundedSolve);
+    first.join(); second.join();
+    assert(cachedGame.solverHintCache->hints);
+    const auto* cachedHints = cachedGame.solverHintCache->hints.get();
+    boundedSolve();
+    assert(cachedGame.solverHintCache->hints.get() == cachedHints);
+
+    // An authored-level absence must never justify dropping ACTION on a
+    // generated board that contains the action-sensitive object.
+    auto actionSource = longSource;
+    actionSource.insert(actionSource.find("LEGEND"), "Token\nyellow\n\n");
+    actionSource.insert(actionSource.find("Background\nTarget\nPlayer")
+        + std::string("Background\nTarget\nPlayer").size(), "\nToken");
+    actionSource.insert(actionSource.find("RULES\n") + 6, "\n[ action Player Token ] -> win\n");
+    auto actionGame = compile(actionSource);
+    auto actionLevel = actionGame.information->levels[0];
+    for (const auto& object : actionGame.information->objectsById) if (object.name == "token") {
+        actionLevel.objects[puzzlescript::maskWordIndex(object.id)] |= puzzlescript::maskBit(object.id);
+    }
+    result = solve(actionGame, actionLevel, &bounded);
+    assert(result->status == PS_SOLVE_STATUS_SOLVED && result->solution_count == 1
+        && result->solution[0] == PS_INPUT_ACTION && result->generated == 5);
+
     for (auto strategy : {PS_SOLVE_STRATEGY_BFS, PS_SOLVE_STRATEGY_WEIGHTED_ASTAR,
             PS_SOLVE_STRATEGY_WEIGHTED_ASTAR_DEEP, PS_SOLVE_STRATEGY_GREEDY,
             PS_SOLVE_STRATEGY_PORTFOLIO}) {
