@@ -48,10 +48,18 @@ std::filesystem::path exportFixture(
     uint8_t bankBase = 2U
 ) {
     const std::filesystem::path root = PS_REPO_ROOT;
+    // Prefixes deliberately include JSON escapes; encode them for a portable
+    // scratch directory without changing the value passed to the exporter.
+    std::string directoryPrefix;
+    constexpr char hex[] = "0123456789abcdef";
+    for (const unsigned char ch : symbolPrefix) {
+        directoryPrefix += hex[ch >> 4];
+        directoryPrefix += hex[ch & 15];
+    }
     const std::filesystem::path outputDirectory = root / "build" / "native"
         / "gbc_exporter_test_output" / "namespace_fixtures"
         / (fixtureName
-            + (symbolPrefix.empty() ? "_noprefix" : ("_" + symbolPrefix))
+            + (symbolPrefix.empty() ? "_noprefix" : ("_" + directoryPrefix))
             + "_bank" + std::to_string(bankBase));
     puzzlescript::gbc::ExportOptions options;
     options.sourcePath = root / "src" / "demo" / (fixtureName + ".txt");

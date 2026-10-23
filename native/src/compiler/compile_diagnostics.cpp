@@ -9,13 +9,11 @@
 #include <map>
 #include <optional>
 #include <set>
-#include <fstream>
 #include <string>
 #include <string_view>
 #include <vector>
 
 #include "compiler/rule_text.hpp"
-#include "runtime/json.hpp"
 
 namespace puzzlescript::compiler {
 namespace {
@@ -41,136 +39,6 @@ std::string toUpperAsciiCopy(std::string_view input) {
 bool containsName(const std::vector<std::string>& names, std::string_view name) {
     const std::string lowered = toLowerAsciiCopy(name);
     return std::find(names.begin(), names.end(), lowered) != names.end();
-}
-
-std::string stripTrailingJsonCommas(std::string_view input) {
-    std::string out;
-    out.reserve(input.size());
-    bool inString = false;
-    bool escaped = false;
-    for (size_t index = 0; index < input.size(); ++index) {
-        const char ch = input[index];
-        if (inString) {
-            out.push_back(ch);
-            if (escaped) {
-                escaped = false;
-            } else if (ch == '\\') {
-                escaped = true;
-            } else if (ch == '"') {
-                inString = false;
-            }
-            continue;
-        }
-        if (ch == '"') {
-            inString = true;
-            out.push_back(ch);
-            continue;
-        }
-        if (ch == ',') {
-            size_t lookahead = index + 1;
-            while (lookahead < input.size() && std::isspace(static_cast<unsigned char>(input[lookahead])) != 0) {
-                ++lookahead;
-            }
-            if (lookahead < input.size() && (input[lookahead] == ']' || input[lookahead] == '}')) {
-                continue;
-            }
-        }
-        out.push_back(ch);
-    }
-    return out;
-}
-
-struct FixtureDiagnostics {
-    std::vector<std::string> messages;
-    size_t errorCount = 0;
-};
-
-std::optional<std::map<std::string, FixtureDiagnostics>> loadErrormessageFixtureDiagnostics() {
-    std::ifstream input("src/tests/resources/errormessage_testdata.js", std::ios::binary);
-    if (!input) {
-        return std::nullopt;
-    }
-    std::string text((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
-    const size_t begin = text.find('[');
-    const size_t end = text.rfind(']');
-    if (begin == std::string::npos || end == std::string::npos || end < begin) {
-        return std::nullopt;
-    }
-    puzzlescript::json::Value root;
-    try {
-        root = puzzlescript::json::parse(stripTrailingJsonCommas(std::string_view(text).substr(begin, end - begin + 1)));
-    } catch (...) {
-        return std::nullopt;
-    }
-    if (!root.isArray()) {
-        return std::nullopt;
-    }
-    std::map<std::string, FixtureDiagnostics> out;
-    for (const auto& entryValue : root.asArray()) {
-        if (!entryValue.isArray() || entryValue.asArray().size() < 2) {
-            continue;
-        }
-        const auto& entry = entryValue.asArray();
-        if (!entry[1].isArray()) {
-            continue;
-        }
-        const auto& payload = entry[1].asArray();
-        if (payload.size() < 2 || !payload[0].isString() || !payload[1].isArray()) {
-            continue;
-        }
-        std::string source = payload[0].asString();
-        if (source.empty() || source.back() != '\n') {
-            source.push_back('\n');
-        }
-        FixtureDiagnostics fixture;
-        for (const auto& messageValue : payload[1].asArray()) {
-            if (messageValue.isString()) {
-                fixture.messages.push_back(messageValue.asString());
-            }
-        }
-        fixture.errorCount = payload.size() >= 3 && (payload[2].isInteger() || payload[2].isDouble())
-            ? static_cast<size_t>(payload[2].isInteger() ? payload[2].asInteger() : payload[2].asDouble())
-            : fixture.messages.size();
-        out.emplace(std::move(source), std::move(fixture));
-    }
-    return out;
-}
-
-const FixtureDiagnostics* findFixtureDiagnosticsForSource(std::string_view source) {
-    static const std::optional<std::map<std::string, FixtureDiagnostics>> fixtures = loadErrormessageFixtureDiagnostics();
-    if (!fixtures.has_value()) {
-        return nullptr;
-    }
-    std::string key(source);
-    if (key.empty() || key.back() != '\n') {
-        key.push_back('\n');
-    }
-    const auto it = fixtures->find(key);
-    return it == fixtures->end() ? nullptr : &it->second;
-}
-
-bool emitFixtureDiagnosticsIfAvailable(std::string_view source, DiagnosticSink& diagnostics) {
-    const FixtureDiagnostics* fixture = findFixtureDiagnosticsForSource(source);
-    if (fixture == nullptr) {
-        return false;
-    }
-    size_t emittedErrors = 0;
-    for (size_t index = 0; index < fixture->messages.size(); ++index) {
-        const bool isError = emittedErrors < fixture->errorCount;
-        diagnostics.add(
-            isError ? Severity::Error : Severity::Warning,
-            isError ? DiagnosticCode::GenericError : DiagnosticCode::GenericWarning,
-            std::nullopt,
-            fixture->messages[index]);
-        if (isError) {
-            ++emittedErrors;
-        }
-    }
-    while (emittedErrors < fixture->errorCount) {
-        diagnostics.error(DiagnosticCode::GenericError, std::nullopt, "__native_fixture_error_count_padding__");
-        ++emittedErrors;
-    }
-    return true;
 }
 
 std::map<std::string, std::string> buildSynonyms(const ParserState& state) {
@@ -645,13 +513,10 @@ void emitMetadataDiagnostics(const ParserState& state, DiagnosticSink& diagnosti
 
 void runCompileDiagnostics(
     const ParserState& state,
-    std::string_view source,
+    std::string_view /*source*/,
     const std::vector<Diagnostic>& parserDiagnostics,
     DiagnosticSink& diagnostics
 ) {
-    if (emitFixtureDiagnosticsIfAvailable(source, diagnostics)) {
-        return;
-    }
     for (const auto& diagnostic : parserDiagnostics) {
         diagnostics.add(diagnostic.severity, diagnostic.code, diagnostic.line, diagnostic.message);
     }

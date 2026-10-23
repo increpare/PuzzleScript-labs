@@ -1,0 +1,1 @@
+{"games":{"solver_profile.txt":{"status":"ok","ps_tagged":{"rule_sections":[{"groups":[{"rules":[{"id":"cosmetic","source_line":28}]}]}]},"facts":{"win_relevance":[{"id":"win_relevance","status":"proved","value":{"irrelevant_rule_ids":["cosmetic"]}}]}}}}

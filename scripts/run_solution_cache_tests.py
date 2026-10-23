@@ -4,9 +4,7 @@
 from __future__ import annotations
 
 import argparse
-import re
 import json
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -62,14 +60,6 @@ def replay_cpp(
             )
 
 
-def runtime_gbc_abi(repository: Path) -> int | None:
-    header = (
-        repository / "native" / "include" / "puzzlescript" / "gbc.h"
-    ).read_text(encoding="utf-8")
-    match = re.search(r"#define\s+PS_GBC_GAME_ABI_VERSION\s+(\d+)", header)
-    return int(match.group(1)) if match else None
-
-
 def ensure_export(
     repository: Path,
     compiler: Path,
@@ -78,16 +68,7 @@ def ensure_export(
     export_root: Path,
 ) -> Path:
     export_dir = export_root / slug
-    manifest = export_dir / "gbc_manifest.json"
-    generated = export_dir / "generated_game.c"
-    if manifest.is_file() and generated.is_file():
-        try:
-            cached = json.loads(manifest.read_text(encoding="utf-8"))
-            runtime_abi = runtime_gbc_abi(repository)
-            if runtime_abi is None or int(cached.get("abi_version") or -1) == runtime_abi:
-                return export_dir
-        except (OSError, ValueError, TypeError, json.JSONDecodeError):
-            pass
+    # Validation must exercise this compiler, even when its ABI is unchanged.
     export_dir.mkdir(parents=True, exist_ok=True)
     cmd = [
         str(compiler),
@@ -112,12 +93,13 @@ def replay_host_group(
     slug: str,
     source: Path,
     entries: list[dict[str, Any]],
+    cmake: Path | None = None,
 ) -> list[tuple[dict[str, Any], bool, str]]:
     export_dir = ensure_export(repository, compiler, slug, source, export_root)
     results: list[tuple[dict[str, Any], bool, str]] = []
     with tempfile.TemporaryDirectory(prefix=f"solution-cache-host-{slug}-") as tmp:
         baseline, _specialized = compile_host_benches(
-            repository, export_dir, Path(tmp)
+            repository, export_dir, Path(tmp), cmake=cmake
         )
         for entry in entries:
             fixture = repository / str(entry["solution_path"])
@@ -139,6 +121,8 @@ def replay_host_group(
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repository", type=Path, default=Path.cwd())
+    parser.add_argument("--cpp", type=Path, help="native CLI from the current build")
+    parser.add_argument("--cmake", type=Path, help="use CMake to build portable host replayers")
     parser.add_argument(
         "--cache-root",
         type=Path,
@@ -195,8 +179,8 @@ def main() -> int:
             print(f"FAIL {line}")
         return 1
 
-    cpp = None if args.skip_cpp else find_cpp(repository)
-    compiler = None if args.skip_host else find_compiler(repository)
+    cpp = None if args.skip_cpp else (args.cpp.resolve() if args.cpp else find_cpp(repository))
+    compiler = None if args.skip_host else (args.cpp.resolve() if args.cpp else find_compiler(repository))
     export_root = (repository / args.export_dir).resolve()
 
     print(
@@ -232,6 +216,7 @@ def main() -> int:
                     slug,
                     source,
                     group,
+                    args.cmake,
                 )
             except Exception as exc:  # noqa: BLE001
                 hard_failures.append(f"host {slug}: {exc}")

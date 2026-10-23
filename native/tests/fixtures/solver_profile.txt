@@ -1,0 +1,34 @@
+title Solver Profile
+
+OBJECTS
+
+Background .
+black
+
+Player P
+white
+
+Target T
+green
+
+Decoration
+red
+
+LEGEND
+
+SOUNDS
+
+COLLISIONLAYERS
+Background
+Player
+Target
+Decoration
+
+RULES
+[ Player ] -> [ Player Decoration ]
+
+WINCONDITIONS
+all Player on Target
+
+LEVELS
+P.T

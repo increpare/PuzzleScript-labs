@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
-// Append a unique comment and use an empty cwd so the legacy fixture lookup
-// cannot supply expected diagnostics for these regression cases.
+// Compile real sources in isolation, including in a cwd containing deliberately
+// poisoned fixture answers. Diagnostics must depend only on the source.
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),vm=require('node:vm'),assert=require('node:assert/strict');
 const {spawnSync}=require('node:child_process');
 const binary=process.argv[2];assert(binary,'Pass the native CLI executable');
@@ -23,4 +23,12 @@ try {
     const run=spawnSync(path.resolve(binary),['test','diagnostics-corpus',fixture],{cwd:directory,encoding:'utf8',windowsHide:true});
     assert.equal(run.status,0,run.stdout+run.stderr);
     process.stdout.write(run.stdout+run.stderr);
+    fs.writeFileSync(fixture,'var errormessage_testdata = '+JSON.stringify(tests)+';');
+    const poison=path.join(directory,'src/tests/resources');
+    fs.mkdirSync(poison,{recursive:true});
+    fs.writeFileSync(path.join(poison,'errormessage_testdata.js'),'var errormessage_testdata = '+JSON.stringify(tests.map(([name,[source]])=>[name,[source,['POISONED FIXTURE ANSWER'],1]]))+';');
+    const independent=spawnSync(path.resolve(binary),['test','diagnostics-corpus',fixture],{cwd:directory,encoding:'utf8',windowsHide:true});
+    assert.equal(independent.status,0,independent.stdout+independent.stderr);
+    assert(!independent.stdout.includes('POISONED FIXTURE ANSWER'));
+    console.log('Native diagnostics ignore poisoned expected-answer files');
 } finally {fs.rmSync(directory,{recursive:true,force:true});}
