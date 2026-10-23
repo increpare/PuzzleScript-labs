@@ -1,0 +1,1746 @@
+{
+  "date": "2026-10-24",
+  "engine_base": "0c891237b49a90bcc9dd19362231c95090757ce0",
+  "platform": "Windows x64, Node.js",
+  "timeout_ms": 125,
+  "strategy": "weighted-astar",
+  "workers": 1,
+  "order": [
+    "disabled",
+    "enabled",
+    "enabled",
+    "disabled"
+  ],
+  "decision": "keep enabled by default",
+  "independent_baseline_replays": 524,
+  "control": {
+    "before": {
+      "samples": 18,
+      "levels": 30,
+      "wall_ms": 3726.095161111112,
+      "wall_minus_compile_ms": 3659.86621111111,
+      "expanded": 18142,
+      "generated": 88012,
+      "stale_entries": 0
+    },
+    "current": {
+      "samples": 18,
+      "levels": 30,
+      "wall_ms": 3740.7517000000007,
+      "wall_minus_compile_ms": 3676.16496111111,
+      "expanded": 18142,
+      "generated": 88012,
+      "stale_entries": 0
+    }
+  },
+  "totals": [
+    {
+      "levels": 2790,
+      "solved": 508,
+      "timeout": 802,
+      "exhausted": 36,
+      "skipped_message": 1444,
+      "errors": 0,
+      "expanded": 937393,
+      "generated": 4515172,
+      "process_input_calls": 0,
+      "again_passes": 0,
+      "adaptive_step_cost_triggered": 0,
+      "step_no_op": 1820102,
+      "step_changed": 2694566,
+      "hash_collisions": 0,
+      "frontier_pops": 937393,
+      "stale_frontier_entries": 22095,
+      "stale_pops": 0,
+      "compile_ms": 1123.6828000001158,
+      "static_analysis_ms": 0,
+      "static_optimization_removed_rules": 0,
+      "removed_cosmetic_objects": 0,
+      "removed_collision_layers": 0,
+      "removed_cosmetic_rules": 0,
+      "removed_win_irrelevant_rules": 0,
+      "merged_object_aliases": 0,
+      "merged_object_groups": 0,
+      "inserted_noaction_metadata": 0,
+      "solver_opt_ms_inert": 0,
+      "solver_opt_ms_cosmetic": 0,
+      "solver_opt_ms_cosmetic_rules": 0,
+      "solver_opt_ms_win_relevance": 0,
+      "solver_opt_ms_merge": 0,
+      "solver_opt_ms_action": 0,
+      "solver_optimization_gated": false,
+      "solver_hash_projection_projected_objects": 0,
+      "solver_hash_projection_blocked": false,
+      "certified_wake_prune_attached_rules": 0,
+      "certified_wake_prune_complete": false,
+      "load_ms": 512.2038000001941,
+      "clone_ms": 4954.336699990807,
+      "snapshot_ms": 892.6902000005282,
+      "step_ms": 99236.39560000341,
+      "heuristic_ms": 9111.90210000182,
+      "heuristic_classify_ms": 2227.7821999971156,
+      "heuristic_score_ms": 6625.297500003975,
+      "hash_ms": 1250.5009999944136,
+      "queue_ms": 470.88550000489596,
+      "reconstruct_ms": 550.7297000000725,
+      "step_profile_early_rules_ms": 0,
+      "step_profile_movement_ms": 0,
+      "step_profile_late_rules_ms": 0,
+      "step_profile_other_rules_ms": 0,
+      "step_profile_command_ms": 0,
+      "step_profile_win_ms": 0,
+      "step_profile_rule_match_ms": 0,
+      "step_profile_rule_apply_ms": 0,
+      "expanded_per_solved": 1841.6365422396857,
+      "probe_dir_steps": 0,
+      "probe_noops": 0,
+      "probe_blocked": 0,
+      "probe_blocked_changed": 0,
+      "probe_blocked_noop": 0,
+      "apply_rule_group_calls": 0,
+      "apply_rule_group_loops": 0,
+      "rule_checks": 0,
+      "certified_rule_checks": 0,
+      "uncertified_rule_checks": 0,
+      "movement_zero_checks": 0,
+      "certified_movement_overlap_checks": 0,
+      "certified_movement_overlap_hits": 0,
+      "object_overlap_checks": 0,
+      "object_overlap_hits": 0,
+      "try_apply_calls": 0,
+      "certified_try_apply_calls": 0,
+      "rule_changes": 0,
+      "certified_rule_changes": 0,
+      "skips": 0,
+      "certified_skips": 0,
+      "skip_loop_breaks": 0,
+      "try_fail_loop_breaks": 0,
+      "certified_write_updates": 0,
+      "uncertified_write_updates": 0
+    },
+    {
+      "levels": 2790,
+      "solved": 512,
+      "timeout": 798,
+      "exhausted": 36,
+      "skipped_message": 1444,
+      "errors": 0,
+      "expanded": 976515,
+      "generated": 4692722,
+      "process_input_calls": 0,
+      "again_passes": 0,
+      "adaptive_step_cost_triggered": 0,
+      "step_no_op": 1887691,
+      "step_changed": 2804523,
+      "hash_collisions": 0,
+      "frontier_pops": 1000511,
+      "stale_frontier_entries": 23996,
+      "stale_pops": 23996,
+      "compile_ms": 1038.0094999999033,
+      "static_analysis_ms": 0,
+      "static_optimization_removed_rules": 0,
+      "removed_cosmetic_objects": 0,
+      "removed_collision_layers": 0,
+      "removed_cosmetic_rules": 0,
+      "removed_win_irrelevant_rules": 0,
+      "merged_object_aliases": 0,
+      "merged_object_groups": 0,
+      "inserted_noaction_metadata": 0,
+      "solver_opt_ms_inert": 0,
+      "solver_opt_ms_cosmetic": 0,
+      "solver_opt_ms_cosmetic_rules": 0,
+      "solver_opt_ms_win_relevance": 0,
+      "solver_opt_ms_merge": 0,
+      "solver_opt_ms_action": 0,
+      "solver_optimization_gated": false,
+      "solver_hash_projection_projected_objects": 0,
+      "solver_hash_projection_blocked": false,
+      "certified_wake_prune_attached_rules": 0,
+      "certified_wake_prune_complete": false,
+      "load_ms": 466.00140000000385,
+      "clone_ms": 4878.879999995172,
+      "snapshot_ms": 870.2861999955549,
+      "step_ms": 97962.28450001543,
+      "heuristic_ms": 9367.731199993157,
+      "heuristic_classify_ms": 2273.4271000056424,
+      "heuristic_score_ms": 6831.918400007386,
+      "hash_ms": 1234.9980000064593,
+      "queue_ms": 475.7218000124054,
+      "reconstruct_ms": 520.0046000001093,
+      "step_profile_early_rules_ms": 0,
+      "step_profile_movement_ms": 0,
+      "step_profile_late_rules_ms": 0,
+      "step_profile_other_rules_ms": 0,
+      "step_profile_command_ms": 0,
+      "step_profile_win_ms": 0,
+      "step_profile_rule_match_ms": 0,
+      "step_profile_rule_apply_ms": 0,
+      "expanded_per_solved": 1903.5380116959063,
+      "probe_dir_steps": 0,
+      "probe_noops": 0,
+      "probe_blocked": 0,
+      "probe_blocked_changed": 0,
+      "probe_blocked_noop": 0,
+      "apply_rule_group_calls": 0,
+      "apply_rule_group_loops": 0,
+      "rule_checks": 0,
+      "certified_rule_checks": 0,
+      "uncertified_rule_checks": 0,
+      "movement_zero_checks": 0,
+      "certified_movement_overlap_checks": 0,
+      "certified_movement_overlap_hits": 0,
+      "object_overlap_checks": 0,
+      "object_overlap_hits": 0,
+      "try_apply_calls": 0,
+      "certified_try_apply_calls": 0,
+      "rule_changes": 0,
+      "certified_rule_changes": 0,
+      "skips": 0,
+      "certified_skips": 0,
+      "skip_loop_breaks": 0,
+      "try_fail_loop_breaks": 0,
+      "certified_write_updates": 0,
+      "uncertified_write_updates": 0
+    },
+    {
+      "levels": 2790,
+      "solved": 521,
+      "timeout": 789,
+      "exhausted": 36,
+      "skipped_message": 1444,
+      "errors": 0,
+      "expanded": 1010454,
+      "generated": 4858801,
+      "process_input_calls": 0,
+      "again_passes": 0,
+      "adaptive_step_cost_triggered": 0,
+      "step_no_op": 1951051,
+      "step_changed": 2907233,
+      "hash_collisions": 0,
+      "frontier_pops": 1035394,
+      "stale_frontier_entries": 24940,
+      "stale_pops": 24940,
+      "compile_ms": 992.7898000000093,
+      "static_analysis_ms": 0,
+      "static_optimization_removed_rules": 0,
+      "removed_cosmetic_objects": 0,
+      "removed_collision_layers": 0,
+      "removed_cosmetic_rules": 0,
+      "removed_win_irrelevant_rules": 0,
+      "merged_object_aliases": 0,
+      "merged_object_groups": 0,
+      "inserted_noaction_metadata": 0,
+      "solver_opt_ms_inert": 0,
+      "solver_opt_ms_cosmetic": 0,
+      "solver_opt_ms_cosmetic_rules": 0,
+      "solver_opt_ms_win_relevance": 0,
+      "solver_opt_ms_merge": 0,
+      "solver_opt_ms_action": 0,
+      "solver_optimization_gated": false,
+      "solver_hash_projection_projected_objects": 0,
+      "solver_hash_projection_blocked": false,
+      "certified_wake_prune_attached_rules": 0,
+      "certified_wake_prune_complete": false,
+      "load_ms": 458.9233999998545,
+      "clone_ms": 4814.696200008774,
+      "snapshot_ms": 816.6866999963031,
+      "step_ms": 97483.45400001336,
+      "heuristic_ms": 9277.888800005368,
+      "heuristic_classify_ms": 2256.963500002716,
+      "heuristic_score_ms": 6778.389100001421,
+      "hash_ms": 1198.0760999960098,
+      "queue_ms": 466.0132999969064,
+      "reconstruct_ms": 508.7296000000332,
+      "step_profile_early_rules_ms": 0,
+      "step_profile_movement_ms": 0,
+      "step_profile_late_rules_ms": 0,
+      "step_profile_other_rules_ms": 0,
+      "step_profile_command_ms": 0,
+      "step_profile_win_ms": 0,
+      "step_profile_rule_match_ms": 0,
+      "step_profile_rule_apply_ms": 0,
+      "expanded_per_solved": 1935.7356321839081,
+      "probe_dir_steps": 0,
+      "probe_noops": 0,
+      "probe_blocked": 0,
+      "probe_blocked_changed": 0,
+      "probe_blocked_noop": 0,
+      "apply_rule_group_calls": 0,
+      "apply_rule_group_loops": 0,
+      "rule_checks": 0,
+      "certified_rule_checks": 0,
+      "uncertified_rule_checks": 0,
+      "movement_zero_checks": 0,
+      "certified_movement_overlap_checks": 0,
+      "certified_movement_overlap_hits": 0,
+      "object_overlap_checks": 0,
+      "object_overlap_hits": 0,
+      "try_apply_calls": 0,
+      "certified_try_apply_calls": 0,
+      "rule_changes": 0,
+      "certified_rule_changes": 0,
+      "skips": 0,
+      "certified_skips": 0,
+      "skip_loop_breaks": 0,
+      "try_fail_loop_breaks": 0,
+      "certified_write_updates": 0,
+      "uncertified_write_updates": 0
+    },
+    {
+      "levels": 2790,
+      "solved": 502,
+      "timeout": 808,
+      "exhausted": 36,
+      "skipped_message": 1444,
+      "errors": 0,
+      "expanded": 978094,
+      "generated": 4706973,
+      "process_input_calls": 0,
+      "again_passes": 0,
+      "adaptive_step_cost_triggered": 0,
+      "step_no_op": 1896256,
+      "step_changed": 2810219,
+      "hash_collisions": 0,
+      "frontier_pops": 978094,
+      "stale_frontier_entries": 22968,
+      "stale_pops": 0,
+      "compile_ms": 1112.8971000000258,
+      "static_analysis_ms": 0,
+      "static_optimization_removed_rules": 0,
+      "removed_cosmetic_objects": 0,
+      "removed_collision_layers": 0,
+      "removed_cosmetic_rules": 0,
+      "removed_win_irrelevant_rules": 0,
+      "merged_object_aliases": 0,
+      "merged_object_groups": 0,
+      "inserted_noaction_metadata": 0,
+      "solver_opt_ms_inert": 0,
+      "solver_opt_ms_cosmetic": 0,
+      "solver_opt_ms_cosmetic_rules": 0,
+      "solver_opt_ms_win_relevance": 0,
+      "solver_opt_ms_merge": 0,
+      "solver_opt_ms_action": 0,
+      "solver_optimization_gated": false,
+      "solver_hash_projection_projected_objects": 0,
+      "solver_hash_projection_blocked": false,
+      "certified_wake_prune_attached_rules": 0,
+      "certified_wake_prune_complete": false,
+      "load_ms": 500.4443000002838,
+      "clone_ms": 4941.001300008248,
+      "snapshot_ms": 872.0209000025523,
+      "step_ms": 99035.61699999319,
+      "heuristic_ms": 9265.146399998921,
+      "heuristic_classify_ms": 2248.9826000039707,
+      "heuristic_score_ms": 6752.872399996468,
+      "hash_ms": 1228.4493000066896,
+      "queue_ms": 466.7060000024968,
+      "reconstruct_ms": 546.581400000033,
+      "step_profile_early_rules_ms": 0,
+      "step_profile_movement_ms": 0,
+      "step_profile_late_rules_ms": 0,
+      "step_profile_other_rules_ms": 0,
+      "step_profile_command_ms": 0,
+      "step_profile_win_ms": 0,
+      "step_profile_rule_match_ms": 0,
+      "step_profile_rule_apply_ms": 0,
+      "expanded_per_solved": 1944.520874751491,
+      "probe_dir_steps": 0,
+      "probe_noops": 0,
+      "probe_blocked": 0,
+      "probe_blocked_changed": 0,
+      "probe_blocked_noop": 0,
+      "apply_rule_group_calls": 0,
+      "apply_rule_group_loops": 0,
+      "rule_checks": 0,
+      "certified_rule_checks": 0,
+      "uncertified_rule_checks": 0,
+      "movement_zero_checks": 0,
+      "certified_movement_overlap_checks": 0,
+      "certified_movement_overlap_hits": 0,
+      "object_overlap_checks": 0,
+      "object_overlap_hits": 0,
+      "try_apply_calls": 0,
+      "certified_try_apply_calls": 0,
+      "rule_changes": 0,
+      "certified_rule_changes": 0,
+      "skips": 0,
+      "certified_skips": 0,
+      "skip_loop_breaks": 0,
+      "try_fail_loop_breaks": 0,
+      "certified_write_updates": 0,
+      "uncertified_write_updates": 0
+    }
+  ],
+  "common_solved": 491,
+  "identical_solutions": 491,
+  "sums": {
+    "before": {
+      "elapsed_ms": 16403.382650000003,
+      "step_ms": 12399.795649998921,
+      "expanded": 205652,
+      "generated": 989941,
+      "stale_frontier_entries": 4977
+    },
+    "after": {
+      "elapsed_ms": 15125.579400000006,
+      "step_ms": 11361.920600001673,
+      "expanded": 200675,
+      "generated": 965789,
+      "stale_frontier_entries": 4977
+    }
+  },
+  "games": {
+    "15 push pull levels.txt": {
+      "before": {
+        "step_ms": 200.3183000000149,
+        "expanded": 13027,
+        "stale": 445
+      },
+      "after": {
+        "step_ms": 204.9972499999968,
+        "expanded": 12582,
+        "stale": 445
+      },
+      "levels": 7
+    },
+    "8 happy snakes.txt": {
+      "before": {
+        "step_ms": 98.0274500000038,
+        "expanded": 589,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 85.69125000000065,
+        "expanded": 589,
+        "stale": 0
+      },
+      "levels": 4
+    },
+    "ALL GREEN TO BLUE.txt": {
+      "before": {
+        "step_ms": 161.6726500000193,
+        "expanded": 7075,
+        "stale": 226
+      },
+      "after": {
+        "step_ms": 166.15049999996768,
+        "expanded": 6849,
+        "stale": 226
+      },
+      "levels": 7
+    },
+    "Acorn Scorchery Paradise.txt": {
+      "before": {
+        "step_ms": 106.76565000001642,
+        "expanded": 4688,
+        "stale": 108
+      },
+      "after": {
+        "step_ms": 115.93219999998882,
+        "expanded": 4580,
+        "stale": 108
+      },
+      "levels": 5
+    },
+    "All Green and Blue on Yellow.txt": {
+      "before": {
+        "step_ms": 73.42185000000381,
+        "expanded": 4222,
+        "stale": 162
+      },
+      "after": {
+        "step_ms": 76.54629999999702,
+        "expanded": 4060,
+        "stale": 162
+      },
+      "levels": 5
+    },
+    "Any hole is a goal.txt": {
+      "before": {
+        "step_ms": 12.006599999997206,
+        "expanded": 17,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 17.322199999999157,
+        "expanded": 17,
+        "stale": 0
+      },
+      "levels": 1
+    },
+    "Attractor Net.txt": {
+      "before": {
+        "step_ms": 342.51994999995213,
+        "expanded": 7446,
+        "stale": 481
+      },
+      "after": {
+        "step_ms": 334.07870000002504,
+        "expanded": 6965,
+        "stale": 481
+      },
+      "levels": 9
+    },
+    "Bicycle-Kick Football.txt": {
+      "before": {
+        "step_ms": 26.932850000013786,
+        "expanded": 104,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 29.310750000012376,
+        "expanded": 104,
+        "stale": 0
+      },
+      "levels": 2
+    },
+    "CODEX LUBRICUS.txt": {
+      "before": {
+        "step_ms": 824.4710499999892,
+        "expanded": 1136,
+        "stale": 17
+      },
+      "after": {
+        "step_ms": 955.3673999999282,
+        "expanded": 1119,
+        "stale": 17
+      },
+      "levels": 13
+    },
+    "Chevron Lodger.txt": {
+      "before": {
+        "step_ms": 43.091849999946135,
+        "expanded": 897,
+        "stale": 16
+      },
+      "after": {
+        "step_ms": 50.074149999977635,
+        "expanded": 881,
+        "stale": 16
+      },
+      "levels": 2
+    },
+    "Crates move when you move.txt": {
+      "before": {
+        "step_ms": 22.09889999997631,
+        "expanded": 1068,
+        "stale": 53
+      },
+      "after": {
+        "step_ms": 26.759549999992487,
+        "expanded": 1015,
+        "stale": 53
+      },
+      "levels": 10
+    },
+    "Cucumber Surprise.txt": {
+      "before": {
+        "step_ms": 384.62884999985454,
+        "expanded": 7373,
+        "stale": 97
+      },
+      "after": {
+        "step_ms": 418.05444999994234,
+        "expanded": 7276,
+        "stale": 97
+      },
+      "levels": 11
+    },
+    "Des Poseidons Dreizack.txt": {
+      "before": {
+        "step_ms": 4.198400000004767,
+        "expanded": 9,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 4.742449999997007,
+        "expanded": 9,
+        "stale": 0
+      },
+      "levels": 1
+    },
+    "Don't let your goals slip away.txt": {
+      "before": {
+        "step_ms": 88.95370000006915,
+        "expanded": 4098,
+        "stale": 86
+      },
+      "after": {
+        "step_ms": 91.2951499999599,
+        "expanded": 4012,
+        "stale": 86
+      },
+      "levels": 5
+    },
+    "Explodoban.txt": {
+      "before": {
+        "step_ms": 10.961499999991247,
+        "expanded": 233,
+        "stale": 1
+      },
+      "after": {
+        "step_ms": 11.917700000019977,
+        "expanded": 232,
+        "stale": 1
+      },
+      "levels": 1
+    },
+    "Eyeball-watching flowers bloom.txt": {
+      "before": {
+        "step_ms": 7.022350000002916,
+        "expanded": 53,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 7.899400000022069,
+        "expanded": 53,
+        "stale": 0
+      },
+      "levels": 1
+    },
+    "Garten der Medusen.txt": {
+      "before": {
+        "step_ms": 17.348450000010416,
+        "expanded": 16,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 20.83539999999448,
+        "expanded": 16,
+        "stale": 0
+      },
+      "levels": 3
+    },
+    "Hole-Stuffer.txt": {
+      "before": {
+        "step_ms": 12.618349999964266,
+        "expanded": 178,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 17.258950000001278,
+        "expanded": 178,
+        "stale": 0
+      },
+      "levels": 1
+    },
+    "Legend of Swixero.txt": {
+      "before": {
+        "step_ms": 54.86684999989484,
+        "expanded": 2326,
+        "stale": 9
+      },
+      "after": {
+        "step_ms": 66.63904999988881,
+        "expanded": 2317,
+        "stale": 9
+      },
+      "levels": 3
+    },
+    "Match-Maker.txt": {
+      "before": {
+        "step_ms": 41.94004999998833,
+        "expanded": 420,
+        "stale": 1
+      },
+      "after": {
+        "step_ms": 47.51800000001458,
+        "expanded": 419,
+        "stale": 1
+      },
+      "levels": 3
+    },
+    "Muraphilic Monophobic Multiban.txt": {
+      "before": {
+        "step_ms": 21.490650000083406,
+        "expanded": 1143,
+        "stale": 53
+      },
+      "after": {
+        "step_ms": 18.19365000005382,
+        "expanded": 1090,
+        "stale": 53
+      },
+      "levels": 2
+    },
+    "NIGHTMARECROBAN.txt": {
+      "before": {
+        "step_ms": 144.979249999873,
+        "expanded": 3677,
+        "stale": 61
+      },
+      "after": {
+        "step_ms": 144.69239999994898,
+        "expanded": 3616,
+        "stale": 61
+      },
+      "levels": 5
+    },
+    "Pushy-V Pully-H.txt": {
+      "before": {
+        "step_ms": 99.13684999978977,
+        "expanded": 7377,
+        "stale": 291
+      },
+      "after": {
+        "step_ms": 98.57619999971939,
+        "expanded": 7086,
+        "stale": 291
+      },
+      "levels": 9
+    },
+    "Recondite Star Sector Sigma.txt": {
+      "before": {
+        "step_ms": 63.07499999990796,
+        "expanded": 2994,
+        "stale": 45
+      },
+      "after": {
+        "step_ms": 57.65235000006214,
+        "expanded": 2949,
+        "stale": 45
+      },
+      "levels": 3
+    },
+    "Resin-Caster.txt": {
+      "before": {
+        "step_ms": 225.15604999945026,
+        "expanded": 13385,
+        "stale": 117
+      },
+      "after": {
+        "step_ms": 204.4393000000291,
+        "expanded": 13268,
+        "stale": 117
+      },
+      "levels": 9
+    },
+    "S-tercourse.txt": {
+      "before": {
+        "step_ms": 169.55235000001267,
+        "expanded": 851,
+        "stale": 27
+      },
+      "after": {
+        "step_ms": 149.36039999987952,
+        "expanded": 824,
+        "stale": 27
+      },
+      "levels": 2
+    },
+    "Scalesoban.txt": {
+      "before": {
+        "step_ms": 41.17759999992268,
+        "expanded": 1154,
+        "stale": 46
+      },
+      "after": {
+        "step_ms": 33.89744999987306,
+        "expanded": 1108,
+        "stale": 46
+      },
+      "levels": 3
+    },
+    "Schleimban.txt": {
+      "before": {
+        "step_ms": 228.16409999989082,
+        "expanded": 1971,
+        "stale": 35
+      },
+      "after": {
+        "step_ms": 207.51150000003327,
+        "expanded": 1936,
+        "stale": 35
+      },
+      "levels": 4
+    },
+    "Subway upholstry snot smearing championship.txt": {
+      "before": {
+        "step_ms": 15.147150000002512,
+        "expanded": 339,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 12.865600000015547,
+        "expanded": 339,
+        "stale": 0
+      },
+      "levels": 2
+    },
+    "The Far Away Danish Pastry is always Delicio.txt": {
+      "before": {
+        "step_ms": 96.58435000007557,
+        "expanded": 5096,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 93.54724999997597,
+        "expanded": 5096,
+        "stale": 0
+      },
+      "levels": 7
+    },
+    "The Monsterous Autoshove.txt": {
+      "before": {
+        "step_ms": 188.7852500001718,
+        "expanded": 1534,
+        "stale": 29
+      },
+      "after": {
+        "step_ms": 161.99929999997585,
+        "expanded": 1505,
+        "stale": 29
+      },
+      "levels": 3
+    },
+    "The sponge what lights up the seafloor.txt": {
+      "before": {
+        "step_ms": 56.07810000005702,
+        "expanded": 112,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 49.68009999999049,
+        "expanded": 112,
+        "stale": 0
+      },
+      "levels": 1
+    },
+    "Two-Step Pete.txt": {
+      "before": {
+        "step_ms": 172.95175000005474,
+        "expanded": 3355,
+        "stale": 27
+      },
+      "after": {
+        "step_ms": 159.51734999999462,
+        "expanded": 3328,
+        "stale": 27
+      },
+      "levels": 6
+    },
+    "Two-Tone Tango.txt": {
+      "before": {
+        "step_ms": 265.0979499998648,
+        "expanded": 4042,
+        "stale": 166
+      },
+      "after": {
+        "step_ms": 227.5960499998837,
+        "expanded": 3876,
+        "stale": 166
+      },
+      "levels": 5
+    },
+    "Van-to-Mobile-Living-Space-Conversion Window.txt": {
+      "before": {
+        "step_ms": 9.976150000022244,
+        "expanded": 72,
+        "stale": 1
+      },
+      "after": {
+        "step_ms": 7.97885000000133,
+        "expanded": 71,
+        "stale": 1
+      },
+      "levels": 1
+    },
+    "Varifocal Nightmare.txt": {
+      "before": {
+        "step_ms": 134.92184999998426,
+        "expanded": 4001,
+        "stale": 210
+      },
+      "after": {
+        "step_ms": 117.16365000022415,
+        "expanded": 3791,
+        "stale": 210
+      },
+      "levels": 4
+    },
+    "Wand Spinner.txt": {
+      "before": {
+        "step_ms": 455.23214999911215,
+        "expanded": 12369,
+        "stale": 210
+      },
+      "after": {
+        "step_ms": 413.6201000006222,
+        "expanded": 12159,
+        "stale": 210
+      },
+      "levels": 11
+    },
+    "Xorro The Chaos Warden.txt": {
+      "before": {
+        "step_ms": 42.90310000005411,
+        "expanded": 391,
+        "stale": 7
+      },
+      "after": {
+        "step_ms": 31.248100000077102,
+        "expanded": 384,
+        "stale": 7
+      },
+      "levels": 1
+    },
+    "Yellow Box.txt": {
+      "before": {
+        "step_ms": 241.0094000002573,
+        "expanded": 1669,
+        "stale": 37
+      },
+      "after": {
+        "step_ms": 214.5226000001894,
+        "expanded": 1632,
+        "stale": 37
+      },
+      "levels": 9
+    },
+    "a clear view of the sky.txt": {
+      "before": {
+        "step_ms": 99.00169999994614,
+        "expanded": 265,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 90.12115000005724,
+        "expanded": 265,
+        "stale": 0
+      },
+      "levels": 3
+    },
+    "a distant sunset.txt": {
+      "before": {
+        "step_ms": 73.4693499999994,
+        "expanded": 83,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 68.39934999999605,
+        "expanded": 83,
+        "stale": 0
+      },
+      "levels": 1
+    },
+    "alternatey.txt": {
+      "before": {
+        "step_ms": 20.384250000031898,
+        "expanded": 167,
+        "stale": 16
+      },
+      "after": {
+        "step_ms": 13.807699999975739,
+        "expanded": 151,
+        "stale": 16
+      },
+      "levels": 1
+    },
+    "atlas shrank.txt": {
+      "before": {
+        "step_ms": 2.611449999989418,
+        "expanded": 6,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 1.5801999999930558,
+        "expanded": 6,
+        "stale": 0
+      },
+      "levels": 1
+    },
+    "autohurdler.txt": {
+      "before": {
+        "step_ms": 65.79264999999577,
+        "expanded": 424,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 54.619199999811826,
+        "expanded": 424,
+        "stale": 0
+      },
+      "levels": 2
+    },
+    "butteater.txt": {
+      "before": {
+        "step_ms": 22.90270000009332,
+        "expanded": 187,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 20.26635000008173,
+        "expanded": 187,
+        "stale": 0
+      },
+      "levels": 1
+    },
+    "byyourside.txt": {
+      "before": {
+        "step_ms": 152.80564999959097,
+        "expanded": 2222,
+        "stale": 33
+      },
+      "after": {
+        "step_ms": 182.21884999955,
+        "expanded": 2189,
+        "stale": 33
+      },
+      "levels": 9
+    },
+    "cakemonsters.txt": {
+      "before": {
+        "step_ms": 494.96174999926006,
+        "expanded": 5703,
+        "stale": 176
+      },
+      "after": {
+        "step_ms": 456.209650000048,
+        "expanded": 5527,
+        "stale": 176
+      },
+      "levels": 24
+    },
+    "car crash.txt": {
+      "before": {
+        "step_ms": 0,
+        "expanded": 0,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 0,
+        "expanded": 0,
+        "stale": 0
+      },
+      "levels": 1
+    },
+    "castlemouse.txt": {
+      "before": {
+        "step_ms": 247.83844999999565,
+        "expanded": 140,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 217.032699999967,
+        "expanded": 140,
+        "stale": 0
+      },
+      "levels": 7
+    },
+    "coincounter.txt": {
+      "before": {
+        "step_ms": 140.2281000000512,
+        "expanded": 324,
+        "stale": 6
+      },
+      "after": {
+        "step_ms": 101.95265000014115,
+        "expanded": 318,
+        "stale": 6
+      },
+      "levels": 6
+    },
+    "color chained.txt": {
+      "before": {
+        "step_ms": 84.65864999999758,
+        "expanded": 153,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 61.126800000030926,
+        "expanded": 153,
+        "stale": 0
+      },
+      "levels": 2
+    },
+    "constellationz.txt": {
+      "before": {
+        "step_ms": 19.8614499999494,
+        "expanded": 280,
+        "stale": 36
+      },
+      "after": {
+        "step_ms": 11.810950000082812,
+        "expanded": 244,
+        "stale": 36
+      },
+      "levels": 6
+    },
+    "crate guardian.txt": {
+      "before": {
+        "step_ms": 77.16234999991502,
+        "expanded": 1536,
+        "stale": 14
+      },
+      "after": {
+        "step_ms": 70.7759000000151,
+        "expanded": 1522,
+        "stale": 14
+      },
+      "levels": 2
+    },
+    "crate swap.txt": {
+      "before": {
+        "step_ms": 188.31189999988783,
+        "expanded": 15112,
+        "stale": 372
+      },
+      "after": {
+        "step_ms": 183.48234999979104,
+        "expanded": 14740,
+        "stale": 372
+      },
+      "levels": 8
+    },
+    "cratopia.txt": {
+      "before": {
+        "step_ms": 48.58019999998942,
+        "expanded": 101,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 43.45975000006729,
+        "expanded": 101,
+        "stale": 0
+      },
+      "levels": 5
+    },
+    "der hydra krypta.txt": {
+      "before": {
+        "step_ms": 81.20565000003626,
+        "expanded": 21,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 68.77360000000408,
+        "expanded": 21,
+        "stale": 0
+      },
+      "levels": 1
+    },
+    "diesinthelight.txt": {
+      "before": {
+        "step_ms": 19.25304999995933,
+        "expanded": 101,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 17.935150000004796,
+        "expanded": 101,
+        "stale": 0
+      },
+      "levels": 1
+    },
+    "dreizack.txt": {
+      "before": {
+        "step_ms": 4.3963000000185275,
+        "expanded": 9,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 4.00584999999046,
+        "expanded": 9,
+        "stale": 0
+      },
+      "levels": 1
+    },
+    "dungeon janitor.txt": {
+      "before": {
+        "step_ms": 2.5608500000016647,
+        "expanded": 20,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 1.9349499999989348,
+        "expanded": 20,
+        "stale": 0
+      },
+      "levels": 1
+    },
+    "easyenigma.txt": {
+      "before": {
+        "step_ms": 74.77224999999089,
+        "expanded": 48,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 71.54814999999508,
+        "expanded": 48,
+        "stale": 0
+      },
+      "levels": 13
+    },
+    "fickle fred.txt": {
+      "before": {
+        "step_ms": 80.97155000020939,
+        "expanded": 4039,
+        "stale": 58
+      },
+      "after": {
+        "step_ms": 93.48810000019876,
+        "expanded": 3981,
+        "stale": 58
+      },
+      "levels": 4
+    },
+    "flesh-handed hot casserole delivery bot.txt": {
+      "before": {
+        "step_ms": 52.33649999923364,
+        "expanded": 3163,
+        "stale": 115
+      },
+      "after": {
+        "step_ms": 39.71854999976131,
+        "expanded": 3048,
+        "stale": 115
+      },
+      "levels": 3
+    },
+    "gapfiller.txt": {
+      "before": {
+        "step_ms": 98.89330000021073,
+        "expanded": 2723,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 93.41945000045598,
+        "expanded": 2723,
+        "stale": 0
+      },
+      "levels": 6
+    },
+    "gem soketeer.txt": {
+      "before": {
+        "step_ms": 165.159300000254,
+        "expanded": 561,
+        "stale": 1
+      },
+      "after": {
+        "step_ms": 143.3131999999241,
+        "expanded": 560,
+        "stale": 1
+      },
+      "levels": 4
+    },
+    "gobble_rush.txt": {
+      "before": {
+        "step_ms": 568.1730500003105,
+        "expanded": 2051,
+        "stale": 13
+      },
+      "after": {
+        "step_ms": 472.03780000057304,
+        "expanded": 2038,
+        "stale": 13
+      },
+      "levels": 15
+    },
+    "hairtug.txt": {
+      "before": {
+        "step_ms": 42.567100000007486,
+        "expanded": 124,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 38.314599999866914,
+        "expanded": 124,
+        "stale": 0
+      },
+      "levels": 1
+    },
+    "head skuller.txt": {
+      "before": {
+        "step_ms": 27.08744999983901,
+        "expanded": 729,
+        "stale": 11
+      },
+      "after": {
+        "step_ms": 22.772399999928894,
+        "expanded": 718,
+        "stale": 11
+      },
+      "levels": 1
+    },
+    "heroes_of_sokoban.txt": {
+      "before": {
+        "step_ms": 151.03745000027993,
+        "expanded": 1892,
+        "stale": 135
+      },
+      "after": {
+        "step_ms": 134.5148500000796,
+        "expanded": 1757,
+        "stale": 135
+      },
+      "levels": 10
+    },
+    "heroes_of_sokoban_2.txt": {
+      "before": {
+        "step_ms": 58.797499999956926,
+        "expanded": 217,
+        "stale": 4
+      },
+      "after": {
+        "step_ms": 50.868749999928696,
+        "expanded": 213,
+        "stale": 4
+      },
+      "levels": 5
+    },
+    "heroes_of_sokoban_3.txt": {
+      "before": {
+        "step_ms": 162.04439999979513,
+        "expanded": 613,
+        "stale": 2
+      },
+      "after": {
+        "step_ms": 171.05260000013368,
+        "expanded": 611,
+        "stale": 2
+      },
+      "levels": 4
+    },
+    "i am a gust of wind.txt": {
+      "before": {
+        "step_ms": 37.53870000104507,
+        "expanded": 1953,
+        "stale": 24
+      },
+      "after": {
+        "step_ms": 33.301999999705004,
+        "expanded": 1929,
+        "stale": 24
+      },
+      "levels": 3
+    },
+    "icecrates.txt": {
+      "before": {
+        "step_ms": 29.489900000058697,
+        "expanded": 68,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 22.72844999985682,
+        "expanded": 68,
+        "stale": 0
+      },
+      "levels": 3
+    },
+    "it dies in the light.txt": {
+      "before": {
+        "step_ms": 21.96349999998347,
+        "expanded": 101,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 18.348950000035984,
+        "expanded": 101,
+        "stale": 0
+      },
+      "levels": 1
+    },
+    "kettle.txt": {
+      "before": {
+        "step_ms": 68.42230000010022,
+        "expanded": 659,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 60.8862500003961,
+        "expanded": 659,
+        "stale": 0
+      },
+      "levels": 6
+    },
+    "kishoutenketsu.txt": {
+      "before": {
+        "step_ms": 12.571549999956915,
+        "expanded": 34,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 9.964350000023842,
+        "expanded": 34,
+        "stale": 0
+      },
+      "levels": 1
+    },
+    "kreiseln.txt": {
+      "before": {
+        "step_ms": 91.09410000004573,
+        "expanded": 232,
+        "stale": 17
+      },
+      "after": {
+        "step_ms": 63.013150000042515,
+        "expanded": 215,
+        "stale": 17
+      },
+      "levels": 1
+    },
+    "limerick.txt": {
+      "before": {
+        "step_ms": 196.181799999933,
+        "expanded": 2679,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 186.53684999995312,
+        "expanded": 2679,
+        "stale": 0
+      },
+      "levels": 5
+    },
+    "m c eschers armageddon.txt": {
+      "before": {
+        "step_ms": 7.390700000018114,
+        "expanded": 27,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 3.440950000047451,
+        "expanded": 27,
+        "stale": 0
+      },
+      "levels": 3
+    },
+    "manic_ammo.txt": {
+      "before": {
+        "step_ms": 56.934850000172446,
+        "expanded": 404,
+        "stale": 6
+      },
+      "after": {
+        "step_ms": 48.72064999997383,
+        "expanded": 398,
+        "stale": 6
+      },
+      "levels": 7
+    },
+    "match three billiards.txt": {
+      "before": {
+        "step_ms": 97.46280000009574,
+        "expanded": 305,
+        "stale": 2
+      },
+      "after": {
+        "step_ms": 91.14799999987008,
+        "expanded": 303,
+        "stale": 2
+      },
+      "levels": 2
+    },
+    "mazezam.txt": {
+      "before": {
+        "step_ms": 329.3530499989065,
+        "expanded": 10118,
+        "stale": 103
+      },
+      "after": {
+        "step_ms": 310.30430000011984,
+        "expanded": 10015,
+        "stale": 103
+      },
+      "levels": 13
+    },
+    "message_skip.txt": {
+      "before": {
+        "step_ms": 0.05025000000023283,
+        "expanded": 1,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 0.04054999999789288,
+        "expanded": 1,
+        "stale": 0
+      },
+      "levels": 1
+    },
+    "midas.txt": {
+      "before": {
+        "step_ms": 129.2536000002001,
+        "expanded": 1389,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 117.02920000053564,
+        "expanded": 1389,
+        "stale": 0
+      },
+      "levels": 4
+    },
+    "multi_level.txt": {
+      "before": {
+        "step_ms": 0.051550000011047814,
+        "expanded": 2,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 0.05799999999726424,
+        "expanded": 2,
+        "stale": 0
+      },
+      "levels": 2
+    },
+    "no heroes necessary.txt": {
+      "before": {
+        "step_ms": 70.70724999990489,
+        "expanded": 636,
+        "stale": 6
+      },
+      "after": {
+        "step_ms": 69.2512999998653,
+        "expanded": 630,
+        "stale": 6
+      },
+      "levels": 3
+    },
+    "one_move.txt": {
+      "before": {
+        "step_ms": 0.04850000000442378,
+        "expanded": 1,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 0.04115000000456348,
+        "expanded": 1,
+        "stale": 0
+      },
+      "levels": 1
+    },
+    "paint everything everywhere.txt": {
+      "before": {
+        "step_ms": 255.62975000007282,
+        "expanded": 198,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 215.4976999999344,
+        "expanded": 198,
+        "stale": 0
+      },
+      "levels": 4
+    },
+    "pipe puffer.txt": {
+      "before": {
+        "step_ms": 178.22704999951384,
+        "expanded": 844,
+        "stale": 15
+      },
+      "after": {
+        "step_ms": 140.7447499999398,
+        "expanded": 829,
+        "stale": 15
+      },
+      "levels": 3
+    },
+    "ponies jumping synchronously.txt": {
+      "before": {
+        "step_ms": 179.47044999997888,
+        "expanded": 1022,
+        "stale": 34
+      },
+      "after": {
+        "step_ms": 158.39959999971325,
+        "expanded": 988,
+        "stale": 34
+      },
+      "levels": 9
+    },
+    "push pull.txt": {
+      "before": {
+        "step_ms": 22.920550000191724,
+        "expanded": 1276,
+        "stale": 6
+      },
+      "after": {
+        "step_ms": 20.796050000448304,
+        "expanded": 1270,
+        "stale": 6
+      },
+      "levels": 3
+    },
+    "push.txt": {
+      "before": {
+        "step_ms": 218.5434000003661,
+        "expanded": 1832,
+        "stale": 61
+      },
+      "after": {
+        "step_ms": 179.2876999995715,
+        "expanded": 1771,
+        "stale": 61
+      },
+      "levels": 9
+    },
+    "shy snake.txt": {
+      "before": {
+        "step_ms": 89.51329999980953,
+        "expanded": 95,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 82.42600000008679,
+        "expanded": 95,
+        "stale": 0
+      },
+      "levels": 1
+    },
+    "slide pull.txt": {
+      "before": {
+        "step_ms": 111.10725000015373,
+        "expanded": 4238,
+        "stale": 85
+      },
+      "after": {
+        "step_ms": 92.75475000057486,
+        "expanded": 4153,
+        "stale": 85
+      },
+      "levels": 6
+    },
+    "slidings.txt": {
+      "before": {
+        "step_ms": 19.506700000136334,
+        "expanded": 269,
+        "stale": 1
+      },
+      "after": {
+        "step_ms": 17.916899999756424,
+        "expanded": 268,
+        "stale": 1
+      },
+      "levels": 5
+    },
+    "slime vat filler.txt": {
+      "before": {
+        "step_ms": 56.53900000019348,
+        "expanded": 972,
+        "stale": 18
+      },
+      "after": {
+        "step_ms": 47.471450000215555,
+        "expanded": 954,
+        "stale": 18
+      },
+      "levels": 6
+    },
+    "slot machine.txt": {
+      "before": {
+        "step_ms": 79.4651500001928,
+        "expanded": 334,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 60.947149999912654,
+        "expanded": 334,
+        "stale": 0
+      },
+      "levels": 1
+    },
+    "smother.txt": {
+      "before": {
+        "step_ms": 503.322750000887,
+        "expanded": 4519,
+        "stale": 419
+      },
+      "after": {
+        "step_ms": 360.76585000025807,
+        "expanded": 4100,
+        "stale": 419
+      },
+      "levels": 13
+    },
+    "sokobond demake.txt": {
+      "before": {
+        "step_ms": 154.73220000020228,
+        "expanded": 1646,
+        "stale": 27
+      },
+      "after": {
+        "step_ms": 116.8211000002484,
+        "expanded": 1619,
+        "stale": 27
+      },
+      "levels": 9
+    },
+    "stick_candy_puzzle_saga.txt": {
+      "before": {
+        "step_ms": 92.90330000012182,
+        "expanded": 835,
+        "stale": 7
+      },
+      "after": {
+        "step_ms": 82.14839999980904,
+        "expanded": 828,
+        "stale": 7
+      },
+      "levels": 1
+    },
+    "sum three horizontally to 8.txt": {
+      "before": {
+        "step_ms": 164.40744999983872,
+        "expanded": 547,
+        "stale": 6
+      },
+      "after": {
+        "step_ms": 132.0108000002292,
+        "expanded": 541,
+        "stale": 6
+      },
+      "levels": 9
+    },
+    "take heart lass.txt": {
+      "before": {
+        "step_ms": 109.01340000003256,
+        "expanded": 524,
+        "stale": 0
+      },
+      "after": {
+        "step_ms": 95.47469999991154,
+        "expanded": 524,
+        "stale": 0
+      },
+      "levels": 7
+    },
+    "the red ring of immortality.txt": {
+      "before": {
+        "step_ms": 217.98599999993166,
+        "expanded": 2574,
+        "stale": 36
+      },
+      "after": {
+        "step_ms": 165.4105500000005,
+        "expanded": 2538,
+        "stale": 36
+      },
+      "levels": 9
+    },
+    "the_saga_of_the_candy_scroll.txt": {
+      "before": {
+        "step_ms": 187.96205000007467,
+        "expanded": 1275,
+        "stale": 35
+      },
+      "after": {
+        "step_ms": 141.51009999951202,
+        "expanded": 1240,
+        "stale": 35
+      },
+      "levels": 8
+    },
+    "whaleworld.txt": {
+      "before": {
+        "step_ms": 76.92054999968968,
+        "expanded": 522,
+        "stale": 13
+      },
+      "after": {
+        "step_ms": 63.70840000039607,
+        "expanded": 509,
+        "stale": 13
+      },
+      "levels": 2
+    }
+  }
+}

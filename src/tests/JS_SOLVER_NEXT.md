@@ -40,6 +40,16 @@ Reasonable next moves only with fresh evidence:
 
 ## Status / progress log
 
+- **Stale frontier skipping kept (2026-10-24).** Stable exact-state visited
+  records let all queue searches skip an older queued path after a shorter one
+  replaces it. On 491 common solved levels in four full-corpus ABBA trials,
+  expansions fell 2.42% and search time fell 7.79%, with identical solutions.
+  All 524 distinct enabled-run solutions passed saved-baseline replay. A
+  separate no-reopening control measured +0.39% wall time with unchanged work.
+  The default is on; `PUZZLESCRIPT_SOLVER_SKIP_STALE=0` retains instrumentation
+  while disabling the skip for paired trials. See
+  `docs/benchmarks/2026-10-24-js-stale-frontier.md` for limits and reproduction.
+
 - **T4 / TX3 sibling-solution Markov prior rejected for the general solver.**
   The experiment was explicitly a warm-start cache: a prior solver JSON supplied
   solved sibling levels, and each target excluded its own solution. `action` was
