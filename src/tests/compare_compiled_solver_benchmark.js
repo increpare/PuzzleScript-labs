@@ -7,11 +7,13 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const args = process.argv.slice(2);
-assert.ok(args.length >= 3, 'Usage: node src/tests/compare_compiled_solver_benchmark.js BEFORE AFTER CORPUS [--runs 2] [--timeout-ms 250] [--out-dir DIR]');
+assert.ok(args.length >= 3, 'Usage: node src/tests/compare_compiled_solver_benchmark.js BEFORE AFTER CORPUS [--runs 2] [--timeout-ms 250] [--game NAME] [--level N] [--out-dir DIR]');
 const executables = { before: path.resolve(args[0]), after: path.resolve(args[1]) };
 const corpus = path.resolve(args[2]);
 let runs = 2;
 let timeoutMs = 250;
+let game = null;
+let level = null;
 let output = path.resolve('build/native/compiled-solver-comparison');
 for (let index = 3; index < args.length; ++index) {
     const option = args[index];
@@ -19,16 +21,24 @@ for (let index = 3; index < args.length; ++index) {
     const value = args[++index];
     if (option === '--runs') runs = Number(value);
     else if (option === '--timeout-ms') timeoutMs = Number(value);
+    else if (option === '--game') game = value;
+    else if (option === '--level') level = Number(value);
     else if (option === '--out-dir') output = path.resolve(value);
     else throw new Error(`Unknown option ${option}`);
 }
 assert.ok(Number.isInteger(runs) && runs > 0, '--runs must be positive');
 assert.ok(Number.isInteger(timeoutMs) && timeoutMs > 0, '--timeout-ms must be positive');
+assert.ok(level === null || (Number.isInteger(level) && level >= 0), '--level must be a nonnegative integer');
 fs.mkdirSync(output, { recursive: true });
 const order = Array.from({ length: runs }, (_, index) => index % 2 ? ['after', 'before'] : ['before', 'after']).flat();
 const samples = [];
 const results = [];
 const average = values => values.reduce((a, b) => a + b, 0) / values.length;
+const median = values => {
+    const sorted = values.slice().sort((a, b) => a - b);
+    const middle = Math.floor(sorted.length / 2);
+    return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+};
 
 async function run(variant, index) {
     const stem = `${index + 1}-${variant}`;
@@ -38,7 +48,10 @@ async function run(variant, index) {
     const progress = setInterval(() => console.error(`${stem}: running (${Math.round(Number(process.hrtime.bigint() - start) / 1e9)}s)`), 30000);
     let code;
     try {
-        const child = spawn(executables[variant], [corpus, '--timeout-ms', String(timeoutMs), '--jobs', '1', '--strategy', 'weighted-astar', '--no-solutions', '--quiet', '--json'], {
+        const solverArgs = [corpus, '--timeout-ms', String(timeoutMs), '--jobs', '1', '--strategy', 'weighted-astar', '--no-solutions', '--quiet', '--json'];
+        if (game !== null) solverArgs.push('--game', game);
+        if (level !== null) solverArgs.push('--level', String(level));
+        const child = spawn(executables[variant], solverArgs, {
             stdio: ['ignore', stdout, stderr], windowsHide: true,
         });
         code = await new Promise((resolve, reject) => { child.on('error', reject); child.on('exit', resolve); });
@@ -55,7 +68,7 @@ async function run(variant, index) {
     assert.strictEqual(totals.levels, totals.solved + totals.timeout + totals.exhausted + totals.skipped_message + totals.errors, `${stem}: unaccounted levels`);
     samples.push({ variant, wallMs, file: `${stem}.json`, totals });
     results.push(data.results);
-    fs.writeFileSync(path.join(output, 'samples.json'), JSON.stringify({ timeoutMs, runs, order, samples }, null, 2));
+    fs.writeFileSync(path.join(output, 'samples.json'), JSON.stringify({ timeoutMs, runs, game, level, order, samples }, null, 2));
     console.error(`${stem}: solved=${totals.solved} wall_ms=${wallMs.toFixed(1)}`);
 }
 
@@ -91,8 +104,16 @@ function summarize() {
     for (const map of maps) assert.strictEqual(map.size, maps[0].size, 'Level coverage differs');
     const beforeStepMs = common.reduce((sum, row) => sum + row.beforeStepMs, 0);
     const afterStepMs = common.reduce((sum, row) => sum + row.afterStepMs, 0);
-    const summary = { timeoutMs, jobs: 1, strategy: 'weighted-astar', order, variants,
+    const commonKeys = new Set(common.map(key));
+    for (const variant of ['before', 'after']) {
+        const times = results.flatMap((rows, index) => samples[index].variant === variant
+            ? [rows.filter(row => commonKeys.has(key(row))).reduce((sum, row) => sum + row.step_ms, 0)] : []);
+        variants[variant].commonStepMs = times;
+        variants[variant].medianCommonStepMs = median(times);
+    }
+    const summary = { timeoutMs, jobs: 1, strategy: 'weighted-astar', game, level, order, variants,
         commonIdenticalSolved: { levels: common.length, beforeStepMs, afterStepMs }, differences,
+        interpretation: 'Two samples per version are a screening comparison. Confirm per-game regressions with filtered repeats and inspect the sample timings and medians.',
         validation: 'Solver-reported solves include its own replay. Use an interpreter-only validator for independent replay.' };
     fs.writeFileSync(path.join(output, 'summary.json'), JSON.stringify(summary, null, 2));
     console.log(JSON.stringify(summary, null, 2));

@@ -1170,7 +1170,12 @@
       "beforeStepMs": 334.61145,
       "afterStepMs": 372.91065000000003,
       "speedup": 0.8972965776118219,
-      "timeSavedMs": -38.29920000000004
+      "timeSavedMs": -38.29920000000004,
+      "followUp": {
+        "record": "2026-10-23-cakemonsters-regression-audit.json",
+        "status": "regression_not_reproduced",
+        "isolatedWholeGameMedianReductionPercent": 4.711537310134528
+      }
     }
   ],
   "change": {
@@ -1557,8 +1562,13 @@
     "build": "MSVC x64 Release, O2, no link-time optimization, same native runtime libraries",
     "timing": "Two runs per version in before/after/after/before order; arithmetic means. No compilation ran during the timed benchmark.",
     "solutionValidation": "Independent native interpreter with all generated backends disabled. All 14 replay disagreements reproduced with baseline solutions, including an additional 2-second baseline solve for Match-Maker level 17. These remain pre-existing failures, not passes.",
-    "interpretation": "Timeout-heavy wall time is mostly fixed; throughput and identical-work timings are more useful. Per-game regressions remain.",
-    "replayUtility": "native/tests/solver_solution_replay.cpp; link only the native runtime and compiler libraries, without generated registries."
+    "interpretation": "Timeout-heavy wall time is mostly fixed; throughput and identical-work timings are more useful. Per-game differences from two samples need targeted confirmation; the Cakemonsters slowdown was not reproduced in the recorded follow-up.",
+    "replayUtility": "native/tests/solver_solution_replay.cpp; link only the native runtime and compiler libraries, without generated registries.",
+    "cakemonstersFollowUp": {
+      "record": "2026-10-23-cakemonsters-regression-audit.json",
+      "status": "regression_not_reproduced",
+      "isolatedWholeGameMedianReductionPercent": 4.711537310134528
+    }
   },
   "date": "2026-10-23",
   "baselineCommit": "fe110a0e",
