@@ -130,6 +130,14 @@ const MaskWord* compiledRuleCellObjects(const FullState& state, int32_t tileInde
 const MaskWord* compiledRuleCellMovements(const FullState& state, int32_t tileIndex);
 bool compiledRuleBitsSet(const MaskWord* required, size_t requiredCount, const MaskWord* actual, size_t actualCount);
 bool compiledRuleAnyBits(const MaskWord* lhs, size_t lhsCount, const MaskWord* rhs, size_t rhsCount);
+// Sparse inputs contain values only at the sorted indices in words.
+void compiledRuleSetCellObjectsSparseFromWords(
+    FullState& session, int32_t tileIndex, const MaskWord* objects,
+    const MaskWord* created, const MaskWord* destroyed,
+    const uint32_t* words, size_t wordCount);
+void compiledRuleSetCellMovementsSparseFromWords(
+    FullState& session, int32_t tileIndex, const MaskWord* movements,
+    const uint32_t* words, size_t wordCount);
 void compiledRuleSetCellObjectsFromWords(
     FullState& state,
     int32_t tileIndex,

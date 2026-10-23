@@ -4930,6 +4930,20 @@ void emitReplacementApply(
     };
     const bool hasObjectEffect = anyNonZero(objectsClear) || anyNonZero(objectsSet);
     const bool hasMovementEffect = anyNonZero(movementsClear) || anyNonZero(movementsSet) || anyNonZero(movementsLayerMask);
+    std::vector<uint32_t> objectWords, movementWords;
+    for (uint32_t word = 0; word < game.wordCount; ++word) {
+        if ((objectsClear[word] | objectsSet[word]) != 0) objectWords.push_back(word);
+    }
+    for (uint32_t word = 0; word < game.movementWordCount; ++word) {
+        if ((movementsClear[word] | movementsSet[word] | movementsLayerMask[word]) != 0) movementWords.push_back(word);
+    }
+    const bool sparseObjects = game.wordCount >= 3 && objectWords.size() * 2 <= game.wordCount;
+    const bool sparseMovements = game.movementWordCount >= 3 && movementWords.size() * 2 <= game.movementWordCount;
+    auto emitIndices = [&](const char* name, const std::vector<uint32_t>& words) {
+        out << "        static constexpr uint32_t " << name << "[] = {";
+        for (uint32_t word : words) out << word << "U,";
+        out << "};\n";
+    };
     out << "    {\n"
         << "        const int32_t tile = " << tileExpr << ";\n"
         << "        bool objectsChanged = false;\n"
@@ -4940,6 +4954,7 @@ void emitReplacementApply(
             << "        MaskWord created[" << game.wordCount << "];\n"
             << "        MaskWord destroyed[" << game.wordCount << "];\n";
         for (uint32_t word = 0; word < game.wordCount; ++word) {
+            if (sparseObjects && (objectsClear[word] | objectsSet[word]) == 0) continue;
             out << "        {\n"
                 << "            const MaskWord before = oldObjects[" << word << "];\n"
                 << "            const MaskWord after = (before & ~" << compiledMaskWordLiteral(objectsClear[static_cast<size_t>(word)])
@@ -4950,12 +4965,18 @@ void emitReplacementApply(
                 << "            objectsChanged = objectsChanged || after != before;\n"
                 << "        }\n";
         }
-        out << "        if (objectsChanged) compiledRuleSetCellObjectsFromWords(session, tile, newObjects, created, destroyed);\n";
+        if (sparseObjects) {
+            emitIndices("objectWords", objectWords);
+            out << "        if (objectsChanged) compiledRuleSetCellObjectsSparseFromWords(session, tile, newObjects, created, destroyed, objectWords, " << objectWords.size() << "U);\n";
+        } else {
+            out << "        if (objectsChanged) compiledRuleSetCellObjectsFromWords(session, tile, newObjects, created, destroyed);\n";
+        }
     }
     if (hasMovementEffect) {
         out << "        const MaskWord* oldMovements = compiledRuleCellMovements(session, tile);\n"
             << "        MaskWord newMovements[" << game.movementWordCount << "];\n";
         for (uint32_t word = 0; word < game.movementWordCount; ++word) {
+            if (sparseMovements && (movementsClear[word] | movementsSet[word] | movementsLayerMask[word]) == 0) continue;
             const auto clearWord = static_cast<puzzlescript::MaskWord>(
                 static_cast<puzzlescript::MaskWordUnsigned>(movementsClear[static_cast<size_t>(word)])
                 | static_cast<puzzlescript::MaskWordUnsigned>(movementsLayerMask[static_cast<size_t>(word)])
@@ -4968,7 +4989,10 @@ void emitReplacementApply(
                 << "            movementsChanged = movementsChanged || after != before;\n"
                 << "        }\n";
         }
-        if (game.movementWordCount == 1) {
+        if (sparseMovements) {
+            emitIndices("movementWords", movementWords);
+            out << "        if (movementsChanged) compiledRuleSetCellMovementsSparseFromWords(session, tile, newMovements, movementWords, " << movementWords.size() << "U);\n";
+        } else if (game.movementWordCount == 1) {
             out << "        if (movementsChanged) compiledRuleSetCellMovementsWord1(session, tile, newMovements[0]);\n";
         } else {
             out << "        if (movementsChanged) compiledRuleSetCellMovementsFromWords(session, tile, newMovements);\n";

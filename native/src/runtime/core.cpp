@@ -2736,7 +2736,8 @@ bool rebuildObjectMaskCountsAndMasksFromIndex(FullState& session, int32_t width,
     return true;
 }
 
-void setCellObjectsFromWords(FullState& session, int32_t tileIndex, const MaskWord* objects) {
+template<bool Sparse>
+void setCellObjectsFromWordsImpl(FullState& session, int32_t tileIndex, const MaskWord* objects, const uint32_t* words = nullptr, size_t wordCount = 0) {
     const int32_t stride = session.game->strideObject;
     const size_t base = static_cast<size_t>(tileIndex * stride);
     const int32_t height = currentLevelHeight(session);
@@ -2752,7 +2753,9 @@ void setCellObjectsFromWords(FullState& session, int32_t tileIndex, const MaskWo
     const bool objectRefcountMasksAttempted =
         n4cObjectRefcountMasksEnabled(session) && objectMaskCountCachesReady(session, width, height);
     bool objectRefcountMasksExact = objectRefcountMasksAttempted;
-    for (int32_t word = 0; word < stride; ++word) {
+    const size_t count = Sparse ? wordCount : static_cast<size_t>(stride);
+    for (size_t slot = 0; slot < count; ++slot) {
+        const int32_t word = Sparse ? static_cast<int32_t>(words[slot]) : static_cast<int32_t>(slot);
         const MaskWord oldValue = session.levelState.board.objects[base + static_cast<size_t>(word)];
         const MaskWord value = objects[static_cast<size_t>(word)];
         changedAny = changedAny || oldValue != value;
@@ -2788,7 +2791,7 @@ void setCellObjectsFromWords(FullState& session, int32_t tileIndex, const MaskWo
     if (objectRefcountMasksAttempted && !objectRefcountMasksExact) {
         addCounter(gRuntimeCounters.maskDirtyObjectRefcountFallbacks);
         for (int32_t word = 0; word < stride; ++word) {
-            const MaskWord value = objects[static_cast<size_t>(word)];
+            const MaskWord value = session.levelState.board.objects[base + static_cast<size_t>(word)];
             session.scratch.columnMasks[columnBase + static_cast<size_t>(word)] |= value;
             session.scratch.rowMasks[rowBase + static_cast<size_t>(word)] |= value;
             session.scratch.boardMask[static_cast<size_t>(word)] |= value;
@@ -2814,6 +2817,10 @@ void setCellObjectsFromWords(FullState& session, int32_t tileIndex, const MaskWo
             session.scratch.anyMasksDirty = true;
         }
     }
+}
+
+void setCellObjectsFromWords(FullState& session, int32_t tileIndex, const MaskWord* objects) {
+    setCellObjectsFromWordsImpl<false>(session, tileIndex, objects);
 }
 
 void setCellObjects(FullState& session, int32_t tileIndex, const MaskVector& objects) {
@@ -2901,7 +2908,8 @@ void clearShiftedMask5(MaskVector& value, int32_t shift) {
     }
 }
 
-void setCellMovementsFromWords(FullState& session, int32_t tileIndex, const MaskWord* movements) {
+template<bool Sparse>
+void setCellMovementsFromWordsImpl(FullState& session, int32_t tileIndex, const MaskWord* movements, const uint32_t* words = nullptr, size_t wordCount = 0) {
     const int32_t stride = session.game->strideMovement;
     const size_t base = static_cast<size_t>(tileIndex * stride);
     const int32_t columnIndex = tileIndex / currentLevelHeight(session);
@@ -2912,7 +2920,9 @@ void setCellMovementsFromWords(FullState& session, int32_t tileIndex, const Mask
     bool changedAny = false;
     uint64_t changedBitCount = 0;
     uint64_t clearedBitCount = 0;
-    for (int32_t word = 0; word < stride; ++word) {
+    const size_t count = Sparse ? wordCount : static_cast<size_t>(stride);
+    for (size_t slot = 0; slot < count; ++slot) {
+        const int32_t word = Sparse ? static_cast<int32_t>(words[slot]) : static_cast<int32_t>(slot);
         const MaskWord oldValue = session.scratch.liveMovements[base + static_cast<size_t>(word)];
         const MaskWord value = movements[static_cast<size_t>(word)];
         changedAny = changedAny || oldValue != value;
@@ -2953,6 +2963,10 @@ void setCellMovementsFromWords(FullState& session, int32_t tileIndex, const Mask
         session.scratch.dirtyMovementBoard = true;
         session.scratch.anyMasksDirty = true;
     }
+}
+
+void setCellMovementsFromWords(FullState& session, int32_t tileIndex, const MaskWord* movements) {
+    setCellMovementsFromWordsImpl<false>(session, tileIndex, movements);
 }
 
 void setCellMovements(FullState& session, int32_t tileIndex, const MaskVector& movements) {
@@ -5067,7 +5081,8 @@ RuleApplyOutcome tryApplySimpleRule(FullState& session, const Rule& rule, Comman
             }
             for (size_t matchIndex = 0; matchIndex < matches.size(); ++matchIndex) {
                 const int32_t startIndex = matches[matchIndex];
-                if (matchIndex > 0 && !rowStillMatchesAt(session, row, startIndex, delta)) {
+                // Distinct one-cell matches cannot overlap or invalidate each other.
+                if (row.size() > 1 && matchIndex > 0 && !rowStillMatchesAt(session, row, startIndex, delta)) {
                     continue;
                 }
                 changed = applyRowAt(session, rule, row, startIndex, delta) || changed;
@@ -6711,6 +6726,26 @@ void compiledRuleSetCellObjectsFromWords(
     if (destroyed != nullptr && !session.scratch.pendingDestroyMask.empty()) {
         accumulateMaskWords(session.scratch.pendingDestroyMask, destroyed, session.scratch.pendingDestroyMask.size());
     }
+}
+
+void compiledRuleSetCellObjectsSparseFromWords(
+    FullState& session, int32_t tileIndex, const MaskWord* objects,
+    const MaskWord* created, const MaskWord* destroyed,
+    const uint32_t* words, size_t wordCount
+) {
+    setCellObjectsFromWordsImpl<true>(session, tileIndex, objects, words, wordCount);
+    for (size_t slot = 0; slot < wordCount; ++slot) {
+        const uint32_t word = words[slot];
+        if (!session.scratch.pendingCreateMask.empty()) session.scratch.pendingCreateMask[word] |= created[word];
+        if (!session.scratch.pendingDestroyMask.empty()) session.scratch.pendingDestroyMask[word] |= destroyed[word];
+    }
+}
+
+void compiledRuleSetCellMovementsSparseFromWords(
+    FullState& session, int32_t tileIndex, const MaskWord* movements,
+    const uint32_t* words, size_t wordCount
+) {
+    setCellMovementsFromWordsImpl<true>(session, tileIndex, movements, words, wordCount);
 }
 
 void compiledRuleSetCellMovementsFromWords(FullState& session, int32_t tileIndex, const MaskWord* movements) {
