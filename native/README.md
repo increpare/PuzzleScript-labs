@@ -32,11 +32,14 @@ an isolated directory containing poisoned expected answers. Release test
 assertions remain enabled. Solution-cache checks receive the current executable
 path and regenerate exports, rather than discovering an unrelated old build.
 
-The complete diagnostic-parity corpus remains a separate, visible gap: after
-removing the fixture-answer lookup, the initial independent audit passed 196 of
-321 cases. Run `puzzlescript_cpp test diagnostics-corpus
-src/tests/resources/errormessage_testdata.js` to inspect those real compiler
-differences; the registered diagnostic regressions do not claim full parity.
+The registered diagnostic corpus passes all 321 fixtures. Its independent
+regression test repeats every case with source comments, poisoned expected
+answers in the working directory, and renamed object/property identifiers.
+The initial 196/321 audit exposed missing compiler validation; those checks now
+run from the parsed source. Run `puzzlescript_cpp test diagnostics-corpus
+src/tests/resources/errormessage_testdata.js` directly, or use CTest. See the
+[diagnostic parity report](../docs/benchmarks/2026-10-24-native-diagnostic-parity.md)
+for scope and validation.
 
 Validate benchmark solutions in a separate process using the ordinary,
 unpruned interpreter:

@@ -1,7 +1,6 @@
 #include "compiler/compile_diagnostics.hpp"
 
 #include <algorithm>
-#include <array>
 #include <cctype>
 #include <cmath>
 #include <cstdlib>
@@ -12,8 +11,10 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <utf8proc.h>
 
 #include "compiler/rule_text.hpp"
+#include "compiler/diagnostic_rules.hpp"
 
 namespace puzzlescript::compiler {
 namespace {
@@ -45,7 +46,7 @@ std::map<std::string, std::string> buildSynonyms(const ParserState& state) {
     std::map<std::string, std::string> synonyms;
     for (const auto& entry : state.legendSynonyms) {
         if (!entry.items.empty()) {
-            synonyms[toLowerAsciiCopy(entry.name)] = toLowerAsciiCopy(entry.items.front());
+            synonyms.emplace(toLowerAsciiCopy(entry.name), toLowerAsciiCopy(entry.items.front()));
         }
     }
     return synonyms;
@@ -66,7 +67,10 @@ std::map<std::string, std::vector<std::string>> buildLegendMap(const std::vector
 bool isObjectDefined(const ParserState& state, std::string_view name) {
     const std::string lowered = toLowerAsciiCopy(name);
     return state.objects.find(lowered) != state.objects.end()
-        || containsName(state.names, lowered);
+        || containsName(state.names, lowered)
+        || std::any_of(state.legendSynonyms.begin(), state.legendSynonyms.end(), [&](const auto& entry) { return entry.name == lowered; })
+        || std::any_of(state.legendProperties.begin(), state.legendProperties.end(), [&](const auto& entry) { return entry.name == lowered; })
+        || std::any_of(state.legendAggregates.begin(), state.legendAggregates.end(), [&](const auto& entry) { return entry.name == lowered; });
 }
 
 std::vector<std::string> resolveObjectsForName(
@@ -116,7 +120,7 @@ std::map<std::string, int32_t> objectLayers(const ParserState& state) {
     return layers;
 }
 
-void emitBasicPostParseDiagnostics(const ParserState& state, DiagnosticSink& diagnostics) {
+bool emitRequiredDefinitions(const ParserState& state, DiagnosticSink& diagnostics) {
     const bool playerDefined = isObjectDefined(state, "player");
     const bool backgroundDefined = isObjectDefined(state, "background");
     if (!playerDefined) {
@@ -137,290 +141,158 @@ void emitBasicPostParseDiagnostics(const ParserState& state, DiagnosticSink& dia
             DiagnosticCode::GenericError,
             std::nullopt,
             "No collision layers defined.  All objects need to be in collision layers.");
-        return;
+        return false;
     }
+    return true;
+}
 
+void emitExtraMemberDiagnostics(const ParserState& state, DiagnosticSink& diagnostics) {
     const auto layers = objectLayers(state);
+    for (const auto& name : state.objectDefinitionOrder) {
+        const auto& object = state.objects.at(name);
+        if (object.colors.size() > 10) diagnostics.error(DiagnosticCode::GenericError, object.lineNumber + 1,
+            "a sprite cannot have more than 10 colors. Why you would want more than 10 is beyond me.");
+        if (object.colors.empty()) diagnostics.error(DiagnosticCode::GenericError, object.lineNumber, "color not specified for object \"" + name + "\".");
+        if (!object.spritematrix.empty()) {
+            const bool valid = object.spritematrix.size() == 5 && std::all_of(object.spritematrix.begin(), object.spritematrix.end(), [](const auto& row) { return row.size() == 5; });
+            if (!valid) diagnostics.warning(DiagnosticCode::GenericWarning, object.lineNumber, "Sprite graphics must be 5 wide and 5 high exactly.");
+        }
+    }
+    const auto synonyms = buildSynonyms(state);
+    const auto aggregates = buildLegendMap(state.legendAggregates);
+    const auto properties = buildLegendMap(state.legendProperties);
+    for (const auto& entry : state.legendAggregates) {
+        std::map<int32_t, std::string> occupied;
+        for (const auto& item : entry.items) for (const auto& name : resolveObjectsForName(state, synonyms, aggregates, properties, item)) {
+            if (!layers.contains(name)) continue;
+            const auto layer = layers.at(name);
+            if (occupied.contains(layer)) diagnostics.error(DiagnosticCode::GenericError, entry.lineNumber,
+                "Trying to create an aggregate object (something defined in the LEGEND section using AND) with both \"" + toUpperAsciiCopy(name) + "\" and \"" + toUpperAsciiCopy(occupied.at(layer)) + "\", which are on the same layer and therefore can't coexist.");
+            else occupied[layer] = name;
+        }
+    }
+    auto aggregateEntries = state.legendAggregates, propertyEntries = state.legendProperties;
+    for (const auto& alias : state.legendSynonyms) {
+        if (alias.items.empty()) continue;
+        auto target = alias.items.front();
+        std::set<std::string> seen;
+        while (synonyms.contains(target) && seen.insert(target).second) target = synonyms.at(target);
+        if (properties.contains(target)) propertyEntries.push_back({alias.name, properties.at(target), alias.lineNumber});
+        if (aggregates.contains(target)) aggregateEntries.push_back({alias.name, aggregates.at(target), alias.lineNumber});
+    }
+    for (const auto& [kind, entries] : std::vector<std::pair<std::string, const std::vector<ParserLegendEntry>*>>{{"aggregate", &aggregateEntries}, {"property", &propertyEntries}}) {
+        const auto& opposite = kind == "aggregate" ? properties : aggregates;
+        for (const auto& entry : *entries) for (auto name : entry.items) {
+            std::set<std::string> seen;
+            while (synonyms.contains(name) && seen.insert(name).second) name = synonyms.at(name);
+            if (opposite.contains(name)) diagnostics.error(DiagnosticCode::GenericError, std::nullopt,
+                "Trying to define " + kind + " \"" + toUpperAsciiCopy(entry.name) + "\" in terms of " + (kind == "aggregate" ? "property" : "aggregate") + " \"" + toUpperAsciiCopy(name) + "\".");
+        }
+    }
     if (layers.empty()) {
         diagnostics.error(DiagnosticCode::GenericError, std::nullopt, "You need to have some objects defined");
     }
-
-    if (!playerDefined) {
-        diagnostics.error(
-            DiagnosticCode::GenericError,
-            std::nullopt,
-            "Error, didn't find any object called player, either in the objects section, or the legends section.");
-    }
-    if (!backgroundDefined) {
+    if (!state.objects.contains("background")) {
+        auto background = std::string("background");
+        std::set<std::string> seen;
+        while (synonyms.contains(background) && seen.insert(background).second) background = synonyms.at(background);
+        const auto line = state.originalLineNumbers.contains("background") ? state.originalLineNumbers.at("background") : 0;
+        if (aggregates.contains(background)) diagnostics.error(DiagnosticCode::GenericError, line,
+            "background cannot be an aggregate (declared with 'and'), it has to be a simple type, or property (declared in terms of others using 'or').");
+        else if (properties.contains(background)) {
+            const auto members = resolveObjectsForName(state, synonyms, aggregates, properties, background);
+            std::set<int32_t> memberLayers;
+            for (const auto& member : members) if (layers.contains(member)) memberLayers.insert(layers.at(member));
+            if (memberLayers.size() > 1) diagnostics.error(DiagnosticCode::GenericError, line, "Background objects must be on the same layer");
+        } else if (!isObjectDefined(state, "background")) {
         diagnostics.error(DiagnosticCode::GenericError, std::nullopt, "Seriously, you have to define something to be the background.");
+        }
     }
+    if (!isObjectDefined(state, "player")) diagnostics.error(DiagnosticCode::GenericError, std::nullopt,
+        "Error, didn't find any object called player, either in the objects section, or the legends section.");
+}
 
-    if (state.levels.empty()
-        || std::all_of(state.levels.begin(), state.levels.end(), [](const ParserLevelEntry& level) {
-            return !level.isMessage && level.rows.empty();
-        })) {
-        diagnostics.error(DiagnosticCode::GenericError, std::nullopt, "No levels found.  Add some levels!");
-    }
-
-    for (const auto& [name, object] : state.objects) {
+void emitLayerDiagnostics(const ParserState& state, DiagnosticSink& diagnostics) {
+    const auto layers = objectLayers(state);
+    for (const auto& name : state.objectDefinitionOrder) {
+        const auto& object = state.objects.at(name);
         if (layers.find(name) == layers.end()) {
             diagnostics.error(
                 DiagnosticCode::GenericError,
                 object.lineNumber,
                 "Object \"" + toUpperAsciiCopy(name) + "\" has been defined, but not assigned to a layer.");
         }
-        if (object.colors.empty()) {
-            diagnostics.error(DiagnosticCode::GenericError, object.lineNumber, "color not specified for object \"" + name + "\".");
-        }
-        if (!object.spritematrix.empty()) {
-            bool fiveByFive = object.spritematrix.size() == 5;
-            for (const auto& row : object.spritematrix) {
-                fiveByFive = fiveByFive && row.size() == 5;
-            }
-            if (!fiveByFive) {
-                diagnostics.warning(
-                    DiagnosticCode::GenericWarning,
-                    object.lineNumber,
-                    "Sprite graphics must be 5 wide and 5 high exactly.");
-            }
-        }
     }
 }
 
-bool isRuleDirectionOrModifier(std::string_view token) {
-    static constexpr std::array<const char*, 19> kWords = {
-        ">", "<", "^", "v",
-        "up", "down", "left", "right",
-        "moving", "stationary", "no", "randomdir", "random",
-        "horizontal", "vertical", "orthogonal", "perpendicular", "parallel", "action",
-    };
-    for (const char* word : kWords) {
-        if (token == word) {
-            return true;
-        }
+size_t wrappedRows(const std::string& text, size_t width = 34) {
+    size_t rows = 0, start = 0;
+    while (start < text.size()) {
+        ++rows;
+        size_t end = std::min(start + width, text.size());
+        if (end == text.size()) break;
+        size_t split = end;
+        while (split > start && !std::isspace(static_cast<unsigned char>(text[split]))) --split;
+        start = split > start ? split + 1 : end;
     }
-    return false;
+    return rows;
 }
 
-bool isLegendPropertyName(const ParserState& state, std::string_view name) {
-    const std::string lowered = toLowerAsciiCopy(name);
-    for (const auto& entry : state.legendProperties) {
-        if (toLowerAsciiCopy(entry.name) == lowered) {
-            return true;
-        }
-    }
-    return false;
-}
-
-void emitRuleDuplicateCellDiagnostics(const ParserState& state, DiagnosticSink& diagnostics) {
-    for (const auto& entry : state.rules) {
-        const auto tokens = ruletext::tokenizeRuleLine(entry.rule);
-        std::vector<std::string> curcell;
-        bool incellrow = false;
-        for (const auto& rawToken : tokens) {
-            const std::string token = toLowerAsciiCopy(rawToken);
-            if (token == "[") {
-                incellrow = true;
-                curcell.clear();
-                continue;
-            }
-            if (token == "]") {
-                incellrow = false;
-                curcell.clear();
-                continue;
-            }
-            if (!incellrow) {
-                continue;
-            }
-            if (token == "|") {
-                curcell.clear();
-                continue;
-            }
-            if (isRuleDirectionOrModifier(token)) {
-                curcell.push_back(token);
-                continue;
-            }
-            if (token == "...") {
-                curcell.push_back("...");
-                curcell.push_back("...");
-                continue;
-            }
-            if (state.namesSet.find(token) == state.namesSet.end()) {
-                continue;
-            }
-            const std::string incomingModifier = curcell.size() % 2 == 1 ? curcell.back() : std::string{};
-            for (size_t index = 0; index + 1 < curcell.size(); index += 2) {
-                if (curcell[index + 1] != token) {
-                    continue;
-                }
-                if (curcell[index] == "no" && incomingModifier == "no") {
-                    diagnostics.warning(
-                        DiagnosticCode::GenericWarning,
-                        entry.lineNumber,
-                        "You're specifying \"no " + token + "\" more than once in a single cell. That's redundant (but harmless) - you can remove one.");
-                } else {
-                    diagnostics.error(
-                        DiagnosticCode::GenericError,
-                        entry.lineNumber,
-                        "You cannot specify the same object more than once in a single cell (in this case " + token + " occurs multiple times).");
-                    if (isLegendPropertyName(state, token)) {
-                        diagnostics.warning(
-                            DiagnosticCode::GenericWarning,
-                            std::nullopt,
-                            "( However, noticing that you're committing this crime with <i>properties</i>, and not being able to help but acknowledge that you <i>may</i> be trying to do something esoteric and <i>clever</i> with the property inference system,  I might be brought to suggest that you consider this: you can have multiple equivalent properties with different names. )");
-                    }
-                }
-            }
-            if (curcell.size() % 2 == 0) {
-                curcell.push_back("");
-                curcell.push_back(token);
-            } else {
-                curcell.push_back(token);
-            }
-        }
-    }
-}
-
-// Validate syntax independently of rule lowering, including recovery after a
-// movement with no object. Loop marker comments have already been stripped.
-void emitRuleStructureDiagnostics(const ParserState& state, DiagnosticSink& diagnostics) {
-    std::vector<int32_t> loops;
+void emitLevelDiagnostics(const ParserState& state, DiagnosticSink& diagnostics) {
     const auto synonyms = buildSynonyms(state);
-    for (const auto& entry : state.rules) {
-        const auto tokens = ruletext::tokenizeRuleLine(entry.rule);
-        if (tokens.size() == 1 && tokens.front() == "startloop") { loops.push_back(entry.lineNumber); continue; }
-        if (tokens.size() == 1 && tokens.front() == "endloop") {
-            if (loops.empty()) diagnostics.error(DiagnosticCode::GenericError, entry.lineNumber, "Yo I found an ENDLOOP without a corresponding STARTLOOP.");
-            else loops.pop_back();
-            continue;
-        }
-        const auto error = [&](const std::string& message) { diagnostics.error(DiagnosticCode::GenericError, entry.lineNumber, message); };
-        if (entry.mixedCase.find('(') != std::string::npos && entry.rule.find("->") == std::string::npos) {
-            error("You can't have comments inside rules, sorry. In PuzzleScript, '(' starts a comment, so everything after the first '(' on this line was ignored before your rule was parsed.");
-            continue;
-        }
-        size_t cellItems = 0, rowCells = 0;
-        std::string firstItem;
-        bool inside = false, rhs = false;
-        std::vector<size_t> lhsRows, rhsRows;
-        for (size_t i = 0; i < tokens.size(); ++i) {
-            const auto& token = tokens[i];
-            if (rhs && token == "message") break;
-            if (token == "[") {
-                if (cellItems) error("Error, malformed cell rule - encountered a \"[\"\" before previous bracket was closed");
-                inside = true; cellItems = 0; firstItem.clear();
-            } else if (token == "|" || token == "]") {
-                if (cellItems % 2) {
-                    error(firstItem == "..." && token == "]" ? "Cannot end a rule with ellipses." : "In a rule, if you specify a movement, it has to act on an object.");
-                } else {
-                    ++rowCells; cellItems = 0; firstItem.clear();
-                }
-                if (token == "]") {
-                    (rhs ? rhsRows : lhsRows).push_back(rowCells); rowCells = 0; inside = false;
-                }
-            } else if (token == "->" && !inside) {
-                rhs = true;
-            } else if (inside && token == "...") {
-                if (!cellItems) firstItem = token;
-                cellItems += 2;
-            } else if (inside && isRuleDirectionOrModifier(token)) {
-                if (!cellItems) firstItem = token;
-                ++cellItems;
-            } else if (inside && state.namesSet.count(token)) {
-                cellItems += cellItems % 2 ? 1 : 2;
-                if (rhs && i > 0 && tokens[i - 1] == "random") {
-                    auto resolved = token;
-                    std::set<std::string> seen;
-                    while (synonyms.count(resolved) && seen.insert(resolved).second) resolved = synonyms.at(resolved);
-                    if (!isObjectDefined(state, resolved) && !isLegendPropertyName(state, resolved))
-                        error("You want to spawn a random \"" + toUpperAsciiCopy(resolved) + "\", but I don't know how to do that");
-                }
-            }
-        }
-        if (lhsRows.size() == rhsRows.size()) {
-            for (size_t i = 0; i < lhsRows.size(); ++i) {
-                if (lhsRows[i] != rhsRows[i]) error("In a rule, each pattern to match on the left must have a corresponding pattern on the right of equal length (number of cells).");
-                if (!lhsRows[i]) diagnostics.error(DiagnosticCode::GenericError, std::nullopt, "You have an totally empty pattern on the left-hand side.  This will match *everything*.  You certainly don't want this.");
-            }
-        }
-    }
-    for (int32_t line : loops) diagnostics.error(DiagnosticCode::GenericError, line, "Yo I found a STARTLOOP without a corresponding ENDLOOP.");
-}
-
-void emitRuleMaskDiagnostics(const ParserState& state, DiagnosticSink& diagnostics) {
-    using Cell = std::vector<std::string>;
-    using Row = std::vector<Cell>;
-    const auto synonyms = buildSynonyms(state);
-    const auto aggregates = buildLegendMap(state.legendAggregates);
-    const auto properties = buildLegendMap(state.legendProperties);
+    const auto aggregates = buildLegendMap(state.legendAggregates), properties = buildLegendMap(state.legendProperties);
     const auto layers = objectLayers(state);
-    for (const auto& entry : state.rules) {
-        const auto tokens = ruletext::tokenizeRuleLine(entry.rule);
-        std::vector<Row> lhs, rhs;
-        Row row; Cell cell;
-        bool inside = false, afterArrow = false, malformed = false;
-        for (const auto& token : tokens) {
-            if (afterArrow && token == "message") break;
-            if (token == "[") { inside = true; cell.clear(); row.clear(); }
-            else if (token == "|" || token == "]") {
-                if (!inside) { malformed = true; break; }
-                if (!cell.empty() && isRuleDirectionOrModifier(cell.back())) malformed = true;
-                row.push_back(cell); cell.clear();
-                if (token == "]") { (afterArrow ? rhs : lhs).push_back(row); inside = false; }
-            } else if (token == "->" && !inside) { afterArrow = true; }
-            else if (inside) { cell.push_back(token); }
+    for (const auto& level : state.levels) {
+        if (level.isMessage) {
+            if (wrappedRows(level.message) > 12) diagnostics.warning(DiagnosticCode::GenericWarning, level.lineNumber, "Message too long to fit on screen.");
+            continue;
         }
-        const auto opening = std::find(tokens.begin(), tokens.end(), "[");
-        if (std::find(tokens.begin(), opening, "+") != opening && std::find(tokens.begin(), opening, "random") != opening) {
-            diagnostics.error(DiagnosticCode::GenericError, entry.lineNumber,
-                "A rule-group can only be marked random by the opening rule in the group (aka, a '+' and 'random' can't appear as rule modifiers on the same line). Why? Well, you see \"random\" isn't a property of individual rules, but of whole rule groups. It indicates that a single possible application of some rule from the whole group should be applied at random.");
-        }
-        if (malformed || inside || lhs.empty()) continue;
-        const auto error = [&](const std::string& message) { diagnostics.error(DiagnosticCode::GenericError, entry.lineNumber, message); };
-        bool discarded = false;
-        for (size_t r = 0; r < lhs.size() && !discarded; ++r) {
-            for (size_t c = 0; c < lhs[r].size() && !discarded; ++c) {
-                const auto& left = lhs[r][c];
-                const Cell* right = r < rhs.size() && c < rhs[r].size() ? &rhs[r][c] : nullptr;
-                const bool ellipsis = std::find(left.begin(), left.end(), "...") != left.end();
-                if (ellipsis) {
-                    if (left.size() != 1) { error("You can't have anything in with an ellipsis. Sorry."); discarded = true; continue; }
-                    if (!c || c + 1 == lhs[r].size()) { error("There's no point in putting an ellipsis at the very start or the end of a rule"); discarded = true; }
-                    if (right && (*right != Cell{"..."})) { error("An ellipsis on the left must be matched by one in the corresponding place on the right."); discarded = true; }
-                } else if (right && !right->empty() && right->front() == "...") {
-                    error("An ellipsis on the right must be matched by one in the corresponding place on the left.");
-                }
-                if (discarded) continue;
-                if (right && right->size() != 1 && std::find(right->begin(), right->end(), "...") != right->end()) error("You can't have anything in with an ellipsis. Sorry.");
-                // A negative test is redundant if disjoint required objects
-                // already occupy every collision layer it could use.
-                std::set<std::string> possible;
-                std::map<int32_t, std::string> occupied;
-                std::vector<std::string> excluded;
-                for (size_t i = 0; i < left.size(); ++i) {
-                    if (left[i] == "no" && i + 1 < left.size()) { excluded.push_back(left[++i]); continue; }
-                    if (!state.namesSet.count(left[i])) continue;
-                    const auto members = resolveObjectsForName(state, synonyms, aggregates, properties, left[i]);
-                    possible.insert(members.begin(), members.end());
-                    std::set<int32_t> memberLayers;
-                    for (const auto& member : members) if (layers.count(member)) memberLayers.insert(layers.at(member));
-                    if (memberLayers.size() == 1) occupied[*memberLayers.begin()] = left[i];
-                }
-                for (const auto& name : excluded) {
-                    const auto members = resolveObjectsForName(state, synonyms, aggregates, properties, name);
-                    if (members.empty() || occupied.empty()) continue;
-                    const bool redundant = std::all_of(members.begin(), members.end(), [&](const auto& member) {
-                        return !possible.count(member) && layers.count(member) && occupied.count(layers.at(member));
-                    });
-                    if (!redundant) continue;
-                    std::string names, layerNames;
-                    for (const auto& [layer, occupier] : occupied) {
-                        if (!names.empty()) { names += ", "; layerNames += ", "; }
-                        names += toUpperAsciiCopy(occupier); layerNames += std::to_string(layer + 1);
-                    }
-                    diagnostics.warning(DiagnosticCode::GenericWarning, entry.lineNumber, "You have specified that there should be NO " + toUpperAsciiCopy(name) + " but there is also a requirement that " + names + " be there, which collectively occupies the same layers (Layers " + layerNames + "), so you can leave this out.");
-                }
+        bool stopped = false;
+        std::vector<std::vector<std::string>> rows;
+        for (const auto& row : level.rows) {
+            rows.emplace_back();
+            for (size_t offset = 0; offset < row.size();) {
+                utf8proc_int32_t codepoint = 0;
+                const auto width = utf8proc_iterate(reinterpret_cast<const utf8proc_uint8_t*>(row.data()+offset), static_cast<utf8proc_ssize_t>(row.size()-offset), &codepoint);
+                const size_t bytes = width > 0 ? static_cast<size_t>(width) : 1;
+                rows.back().push_back(row.substr(offset, bytes)); offset += bytes;
             }
+        }
+        const size_t width = rows.empty() ? 0 : rows.front().size();
+        for (size_t x = 0; x < width && !stopped; ++x) for (size_t y = 0; y < level.rows.size() && !stopped; ++y) {
+            if (rows[y].empty()) continue;
+            const auto& glyph = rows[y][std::min(x, rows[y].size()-1)];
+            auto name = glyph;
+            std::set<std::string> seen;
+            while (synonyms.contains(name) && seen.insert(name).second) name = synonyms.at(name);
+            const auto members = resolveObjectsForName(state, synonyms, aggregates, properties, name);
+            const bool isProperty = !state.objects.contains(name) && properties.contains(name);
+            if (!isProperty && !members.empty() && std::all_of(members.begin(), members.end(), [&](const auto& member) { return layers.contains(member); })) continue;
+            diagnostics.error(DiagnosticCode::GenericError, level.lineNumber.value_or(0) + static_cast<int32_t>(y), isProperty
+                ? "Error, symbol \"" + glyph + "\" is defined using OR, and therefore ambiguous - it cannot be used in a map. Did you mean to define it in terms of AND?"
+                : "Error, symbol \"" + glyph + "\", used in map, not found.");
+            stopped = true;
+        }
+    }
+}
+
+void emitWinDiagnostics(const ParserState& state, DiagnosticSink& diagnostics) {
+    const auto synonyms = buildSynonyms(state);
+    const auto aggregates = buildLegendMap(state.legendAggregates), properties = buildLegendMap(state.legendProperties);
+    const auto layers = objectLayers(state);
+    for (const auto& condition : state.winconditions) {
+        if (condition.tokens.empty()) break;
+        if (condition.tokens.size() < 2) {
+            diagnostics.error(DiagnosticCode::GenericError, condition.lineNumber, "Win conditions is badly formatted - needs to look something like \"No Fruit\", \"All Target On Crate\", \"Some Fruit\", \"Some Gold on Chest\", \"No Gold on Chest\", or the like."); continue;
+        }
+        for (size_t index : {size_t{1}, size_t{3}}) {
+            if (index >= condition.tokens.size()) continue;
+            const auto& name = condition.tokens[index];
+            auto resolved = name;
+            std::set<std::string> seen;
+            while (synonyms.contains(resolved) && seen.insert(resolved).second) resolved = synonyms.at(resolved);
+            if (!layers.contains(resolved) && !properties.contains(resolved) && !aggregates.contains(resolved))
+                diagnostics.error(DiagnosticCode::GenericError, condition.lineNumber, "Unwelcome term \"" + name + "\" found in win condition. I don't know what I'm supposed to do with this.");
         }
     }
 }
@@ -429,8 +301,7 @@ void emitTitleDiagnostic(const ParserState& state, DiagnosticSink& diagnostics) 
     if (state.levels.empty()) return;
     std::map<std::string, std::string> metadata;
     for (size_t i = 0; i + 1 < state.metadata.size(); i += 2) metadata[state.metadata[i]] = state.metadata[i + 1];
-    if (!metadata.count("title")) return;
-    const auto& title = metadata.at("title");
+    const auto title = metadata.count("title") ? metadata.at("title") : std::string("Puzzle Script Game");
     // The native diagnostic has no renderer font table. ASCII titles use the
     // same 34-column pixel-font wrapping as the JS title screen.
     if (std::any_of(title.begin(), title.end(), [](unsigned char ch) { return ch >= 128; })) return;
@@ -445,12 +316,36 @@ void emitTitleDiagnostic(const ParserState& state, DiagnosticSink& diagnostics) 
     }
     const bool extraRow = metadata.count("noaction") || (metadata.count("noundo") && metadata.count("norestart"));
     const size_t capacity = 5 + (extraRow ? 1 : 0) - (metadata.count("author") ? 1 : 0);
-    if (rows > capacity) diagnostics.warning(DiagnosticCode::GenericWarning, state.metadataLines.at("title"), "Game title is too long to fit on screen; truncating to fit.");
+    if (rows > capacity && metadata.count("title")) diagnostics.warning(DiagnosticCode::GenericWarning, state.metadataLines.at("title"), "Game title is too long to fit on screen; truncating to fit.");
+    if (metadata.count("author") && wrappedRows("by " + metadata.at("author")) > 1
+        && rows + wrappedRows("by " + metadata.at("author")) > 5 + (extraRow ? 1 : 0))
+        diagnostics.warning(DiagnosticCode::GenericWarning, state.metadataLines.at("author"), "Author name is too long to fit on screen; truncating to fit.");
 }
 
 void emitSoundDiagnostics(const ParserState& state, DiagnosticSink& diagnostics) {
+    std::set<std::string> declared;
+    const auto aggregates = buildLegendMap(state.legendAggregates);
+    const auto properties = buildLegendMap(state.legendProperties);
+    const auto synonyms = buildSynonyms(state);
+    const auto layers = objectLayers(state);
     for (const auto& sound : state.sounds) {
-        if (sound.tokens.size() < 2) diagnostics.warning(DiagnosticCode::GenericWarning, sound.lineNumber, "incorrect sound declaration.");
+        if (sound.tokens.size() < 2) {
+            diagnostics.warning(DiagnosticCode::GenericWarning, sound.lineNumber, "incorrect sound declaration.");
+            continue;
+        }
+        if (sound.tokens.back().kind != "SOUND") diagnostics.error(DiagnosticCode::GenericError, sound.lineNumber,
+            "Expecting sfx data, instead found \"" + sound.tokens.back().text + "\".");
+        const auto& name = sound.tokens.front().text;
+        if (sound.tokens.front().kind == "SOUNDEVENT") {
+            if (!declared.insert(name).second) diagnostics.warning(DiagnosticCode::GenericWarning, sound.lineNumber, toUpperAsciiCopy(name) + " already declared.");
+        } else {
+            auto target = name;
+            std::set<std::string> seen;
+            while (synonyms.contains(target) && seen.insert(target).second) target = synonyms.at(target);
+            if (aggregates.contains(target)) diagnostics.error(DiagnosticCode::GenericError, sound.lineNumber,
+                "cannot assign sound events to aggregate objects (declared with \"and\"), only to regular objects, or properties, things defined in terms of \"or\" (\"" + name + "\").");
+            else if (!properties.contains(target) && !layers.contains(target)) diagnostics.error(DiagnosticCode::GenericError, sound.lineNumber, "Object \"" + name + "\" not found.");
+        }
     }
 }
 
@@ -459,8 +354,15 @@ void emitMetadataDiagnostics(const ParserState& state, DiagnosticSink& diagnosti
         "arnecolors", "mastersystem", "gameboycolour", "amiga", "arnecolors",
         "famicom", "atari", "pastel", "ega", "amstrad", "proteus_mellow",
         "proteus_rich", "proteus_night", "c64", "whitingjp",
+        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14",
     };
-    for (size_t index = 0; index + 1 < state.metadata.size(); index += 2) {
+    std::vector<size_t> indices;
+    // twiddleMetaData processes flickscreen before zoomscreen regardless of
+    // their order in the source preamble.
+    for (const auto& pass : {std::string("flickscreen"), std::string("zoomscreen"), std::string{}})
+        for (size_t i = 0; i + 1 < state.metadata.size(); i += 2)
+            if (pass.empty() ? (state.metadata[i] != "flickscreen" && state.metadata[i] != "zoomscreen") : state.metadata[i] == pass) indices.push_back(i);
+    for (size_t index : indices) {
         const std::string& key = state.metadata[index];
         const std::string& value = state.metadata[index + 1];
         const auto lineIt = state.metadataLines.find(key);
@@ -472,6 +374,13 @@ void emitMetadataDiagnostics(const ParserState& state, DiagnosticSink& diagnosti
                 DiagnosticCode::GenericError,
                 0,
                 "Palette \"" + value + "\" not found, defaulting to arnecolors.");
+        }
+        if (key == "text_color" || key == "background_color") {
+            static const std::set<std::string> colors = {"black", "white", "gray", "grey", "darkgray", "darkgrey", "lightgray", "lightgrey", "red", "darkred", "lightred", "brown", "darkbrown", "lightbrown", "orange", "yellow", "green", "darkgreen", "lightgreen", "blue", "darkblue", "lightblue", "purple", "pink", "transparent"};
+            const bool hex = (value.size() == 4 || value.size() == 7) && value.front() == '#'
+                && std::all_of(value.begin()+1, value.end(), [](unsigned char c) { return std::isxdigit(c); });
+            if (!colors.contains(value) && !hex) diagnostics.error(DiagnosticCode::GenericError, line,
+                key + " in incorrect format - found " + value + ", but I expect a color name (like 'pink') or hex-formatted color (like '#1412FA'). Defaulting to " + (key == "text_color" ? "white." : "black."));
         }
         if (key == "flickscreen" || key == "zoomscreen") {
             const auto split = value.find('x');
@@ -519,14 +428,21 @@ void runCompileDiagnostics(
 ) {
     for (const auto& diagnostic : parserDiagnostics) {
         diagnostics.add(diagnostic.severity, diagnostic.code, diagnostic.line, diagnostic.message);
+        // loadFile stops tokenization immediately after the sixth parser error.
+        if (std::count_if(diagnostics.diagnostics().begin(), diagnostics.diagnostics().end(),
+            [](const auto& item) { return item.severity == Severity::Error; }) > 5) return;
     }
-    emitRuleDuplicateCellDiagnostics(state, diagnostics);
-    emitRuleStructureDiagnostics(state, diagnostics);
-    emitRuleMaskDiagnostics(state, diagnostics);
-    emitTitleDiagnostic(state, diagnostics);
-    emitSoundDiagnostics(state, diagnostics);
-    emitBasicPostParseDiagnostics(state, diagnostics);
+    if (!emitRequiredDefinitions(state, diagnostics)) return;
+    emitExtraMemberDiagnostics(state, diagnostics);
+    emitLevelDiagnostics(state, diagnostics);
+    if (!runRuleDiagnostics(state, diagnostics)) return;
+    emitWinDiagnostics(state, diagnostics);
+    emitLayerDiagnostics(state, diagnostics);
     emitMetadataDiagnostics(state, diagnostics);
+    emitSoundDiagnostics(state, diagnostics);
+    if (state.levels.empty() || std::all_of(state.levels.begin(), state.levels.end(), [](const auto& level) { return !level.isMessage && level.rows.empty(); }))
+        diagnostics.error(DiagnosticCode::GenericError, std::nullopt, "No levels found. Add some levels!");
+    emitTitleDiagnostic(state, diagnostics);
 }
 
 } // namespace puzzlescript::compiler

@@ -89,6 +89,7 @@ set(PUZZLESCRIPT_COMPILER_SOURCES
   src/compiler/c_api.cpp
   src/compiler/source_c_api.cpp
   src/compiler/diagnostic.cpp
+  src/compiler/diagnostic_rules.cpp
   src/compiler/lower_to_runtime.cpp
   src/compiler/parser.cpp
   src/compiler/parser_glyphs.cpp
@@ -2622,6 +2623,8 @@ add_test(NAME solver_compiled_profile_replay
 
 add_test(NAME native_diagnostic_regressions_node
   COMMAND ${NODE_EXECUTABLE} ${PUZZLESCRIPT_REPO_ROOT}/src/tests/native_diagnostic_regressions_node.js $<TARGET_FILE:puzzlescript_cpp>)
+add_test(NAME native_diagnostics_corpus
+  COMMAND puzzlescript_cpp test diagnostics-corpus ${PUZZLESCRIPT_REPO_ROOT}/src/tests/resources/errormessage_testdata.js --progress-every 0)
 add_test(NAME compiled_solver_profiles_node
   COMMAND ${NODE_EXECUTABLE} ${PUZZLESCRIPT_REPO_ROOT}/src/tests/compiled_solver_profiles_node.js --compiler $<TARGET_FILE:puzzlescript_cpp>)
 add_test(NAME solver_stale_frontier_node

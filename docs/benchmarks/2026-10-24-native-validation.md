@@ -1,5 +1,10 @@
 The native build configuration and independent diagnostic validation are restored.
 
+Subsequent work repaired all 125 exposed diagnostic differences. The full
+321-case corpus is now registered in CTest and passes, including source/comment,
+poisoned-answer and renamed-identifier variants. See the
+[diagnostic parity follow-up](2026-10-24-native-diagnostic-parity.md).
+
 `05fc3435` had emptied `native/CMakeLists.txt`, the ambient-light policy header
 and its test source. Their last complete versions were restored, then updated
 to register the newer solver-profile, static-tag and sparse-replacement checks.
@@ -17,17 +22,17 @@ were repaired. The later board-specialization experiment adds its own checks;
 its results are recorded separately.
 
 The diagnostic compiler no longer reads expected answers from fixture files.
-Seventeen recent regression cases pass with unique source comments and again
-with the original sources while the working directory contains deliberately
+The initial seventeen regression cases passed with unique source comments and
+again with the original sources while the working directory contained deliberately
 poisoned fixture answers. The poison must have no effect on compilation.
 
-Full native diagnostic parity is still incomplete. An independent audit of all
-321 fixtures passed **196**, with **125** real differences in messages, counts,
-ordering or semantic validation. This matches the pre-removal compiler when run
+The initial independent audit of all 321 fixtures passed **196**, with **125**
+real differences in messages, counts, ordering or semantic validation. This
+matched the pre-removal compiler when run
 from a directory where the old lookup could not find fixtures. The lookup had
-hidden these gaps; it did not implement those checks. The native README gives
-the direct full-corpus command, and does not describe the smaller registered
-regression test as full parity.
+hidden these gaps; it did not implement those checks. The subsequent diagnostic
+repair implements them from source and expands the independent regressions to
+all 321 cases. The native README gives the direct full-corpus command.
 
 For routine validation, configure a new build directory and follow the commands
 in [the native README](../../native/README.md). The separate

@@ -1,4 +1,5 @@
 #include "compiler/parser.hpp"
+#include "compiler/rule_text.hpp"
 
 #include <utf8proc.h>
 
@@ -1266,9 +1267,7 @@ void parseObjectsLine(ParserState& state, DiagnosticSink& diagnostics, std::stri
                     "Name \"" + toUpperCopy(candLower) + "\" already in use.");
             }
         }
-        // parser.js keyword_array_set applies to primary object/legend names only; same-line glyph
-        // aliases (e.g. "sprt_1_1 ^") are abbrev keys, not keyword object names.
-        if (sol && isLegendKeywordName(candLower)) {
+        if (isLegendKeywordName(candLower)) {
             diagnostics.warning(
                 DiagnosticCode::GenericWarning,
                 state.lineNumber,
@@ -1582,6 +1581,7 @@ void parseLegendLine(ParserState& state, DiagnosticSink& diagnostics, std::strin
     }
 
     const std::string joiner = legendTokens.size() >= 4 ? toLowerCopy(trim(std::string(legendTokens[3]))) : std::string{};
+    bool validAggregate = true;
     std::unordered_set<std::string> expandingAggregate;
     std::unordered_set<std::string> expandingProperty;
     std::function<std::vector<std::string>(const std::string&)> expandAggregate;
@@ -1614,6 +1614,8 @@ void parseLegendLine(ParserState& state, DiagnosticSink& diagnostics, std::strin
         for (const auto& property : state.legendProperties) {
             if (property.name == lowered) {
                 diagnostics.error(DiagnosticCode::GenericError, state.lineNumber, "Cannot define an aggregate (using 'and') in terms of properties (something that uses 'or').");
+                diagnostics.error(DiagnosticCode::GenericError, std::nullopt, "Trying to define aggregate \"" + toUpperCopy(entry.name) + "\" in terms of property \"" + toUpperCopy(lowered) + "\".");
+                validAggregate = false;
                 return {lowered};
             }
         }
@@ -1661,7 +1663,7 @@ void parseLegendLine(ParserState& state, DiagnosticSink& diagnostics, std::strin
             const auto expanded = expandAggregate(trim(std::string(legendTokens[index])));
             entry.items.insert(entry.items.end(), expanded.begin(), expanded.end());
         }
-        state.legendAggregates.push_back(std::move(entry));
+        if (validAggregate) state.legendAggregates.push_back(std::move(entry));
     } else if (joiner == "or") {
         if (legendTokens.size() >= 3) {
             const auto expanded = expandProperty(trim(std::string(legendTokens[2])));
@@ -2175,59 +2177,25 @@ bool namesVectorContains(const ParserState& state, const std::string& lowered) {
     return state.namesSet.count(lowered) != 0;
 }
 
-// parser.js parseRulesToken only flags a narrow set of errors during the tokenizer pass; a full line
-// scanner false-positives on valid games. Emit the errormessage corpus cases by shape only.
-void tryEmitRulesLineParitySpotChecks(const ParserState& state, DiagnosticSink& diagnostics, std::string_view lowered) {
-    if (lowered.find('[') == std::string_view::npos || lowered.find("->") == std::string_view::npos) {
-        return;
-    }
-    const size_t start = skipUnicodeZsAndAsciiSpace(lowered, 0);
-    if (start >= lowered.size()) {
-        return;
-    }
-    // Fixture 156: declared object name as first prelude token before '['.
-    if (start + 6 <= lowered.size() && lowered.substr(start, 6) == "player") {
-        const size_t afterWord = start + 6;
-        const bool boundaryOk = afterWord >= lowered.size() || !std::isalnum(static_cast<unsigned char>(lowered[afterWord]));
-        if (boundaryOk && namesVectorContains(state, "player")) {
-            const size_t openBracket = skipUnicodeZsAndAsciiSpace(lowered, afterWord);
-            if (openBracket < lowered.size() && lowered[openBracket] == '[') {
-                diagnostics.error(
-                    DiagnosticCode::GenericError,
-                    state.lineNumber,
-                    "Objects cannot appear outside of square brackets in rules, only directions can.");
-                return;
-            }
-        }
-    }
-    // Fixture 157: unknown name in a cell.
-    const std::string flat(lowered);
-    if ((flat.find("| fasd ") != std::string::npos || flat.find("|fasd") != std::string::npos) && !namesVectorContains(state, "fasd")) {
-        diagnostics.error(
-            DiagnosticCode::GenericError,
-            state.lineNumber,
-            "Name \"fasd\", referred to in a rule, does not exist.");
-        return;
-    }
-    // Fixtures 177 / 178: prelude starts with relative marker / apostrophe (not a declared name).
-    if (lowered[start] == '^') {
-        const size_t after = skipUnicodeZsAndAsciiSpace(lowered, start + 1);
-        if (after < lowered.size() && lowered[after] == '[' && !namesVectorContains(state, "^")) {
-            diagnostics.error(
-                DiagnosticCode::GenericError,
-                state.lineNumber,
-                "Name \"^\", referred to in a rule, does not exist.");
-        }
-        return;
-    }
-    if (lowered[start] == '\'') {
-        const size_t after = skipUnicodeZsAndAsciiSpace(lowered, start + 1);
-        if (after < lowered.size() && lowered[after] == '[' && !namesVectorContains(state, "'")) {
-            diagnostics.error(
-                DiagnosticCode::GenericError,
-                state.lineNumber,
-                "Name \"'\", referred to in a rule, does not exist.");
-        }
+// Lex rule tokens with the same prelude/cell distinction as parser.js.
+// Unknown names must be diagnosed for arbitrary identifiers, not fixture names.
+void emitRuleTokenDiagnostics(const ParserState& state, DiagnosticSink& diagnostics, std::string_view lowered) {
+    static const std::set<std::string> preludeDirections = {"up", "down", "left", "right", "horizontal", "vertical", "orthogonal", "late", "rigid"};
+    static const std::set<std::string> cellDirections = {"action", "up", "down", "left", "right", "^", "v", "<", ">", "moving", "stationary", "parallel", "perpendicular", "horizontal", "orthogonal", "vertical", "no", "randomdir", "random"};
+    static const std::set<std::string> commands = {"sfx0", "sfx1", "sfx2", "sfx3", "sfx4", "sfx5", "sfx6", "sfx7", "sfx8", "sfx9", "sfx10", "cancel", "checkpoint", "restart", "win", "message", "again"};
+    const auto tokens = ruletext::tokenizeRuleLine(lowered);
+    bool bracket = false;
+    for (size_t i = 0; i < tokens.size(); ++i) {
+        const auto& token = tokens[i];
+        if (token == "->" || token == "+") continue;
+        if (token == "[" || token == "]" || token == "|") { bracket = true; continue; }
+        if (!bracket && (token == "startloop" || token == "endloop" || preludeDirections.contains(token))) continue;
+        if (bracket && cellDirections.contains(token)) continue;
+        if (state.namesSet.contains(token)) {
+            if (i == 0) diagnostics.error(DiagnosticCode::GenericError, state.lineNumber, "Objects cannot appear outside of square brackets in rules, only directions can.");
+        } else if (token == "..." || token == "rigid" || token == "random") continue;
+        else if (commands.contains(token)) { if (token == "message") break; }
+        else diagnostics.error(DiagnosticCode::GenericError, state.lineNumber, "Name \"" + token + "\", referred to in a rule, does not exist.");
     }
 }
 
@@ -2351,7 +2319,7 @@ void parseWinConditionsLine(ParserState& state, DiagnosticSink& diagnostics, std
 }
 
 void parseRulesLine(ParserState& state, DiagnosticSink& diagnostics, std::string_view trimmedLine, std::string_view mixedCaseRaw) {
-    tryEmitRulesLineParitySpotChecks(state, diagnostics, toLowerCopy(trim(std::string(trimmedLine))));
+    emitRuleTokenDiagnostics(state, diagnostics, toLowerCopy(trim(std::string(trimmedLine))));
     bool arrowPassed = false;
     bool insideCell = false;
     bool rulePrelude = true;
