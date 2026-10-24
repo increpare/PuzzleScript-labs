@@ -1,0 +1,1897 @@
+{
+  "settings": {
+    "timeoutMs": 250,
+    "jobs": 1,
+    "strategy": "weighted-astar",
+    "order": [
+      "before",
+      "after",
+      "after",
+      "before"
+    ],
+    "playableLevels": 1346,
+    "compiledGames": 180,
+    "totalGames": 184,
+    "fallbackGames": [
+      "SWIMMING TIME.txt",
+      "dreizack.txt",
+      "easyenigma.txt",
+      "it dies in the light.txt"
+    ]
+  },
+  "variants": {
+    "before": {
+      "runs": 2,
+      "wallMs": 163095.682,
+      "solved": [
+        692,
+        692
+      ],
+      "errors": [
+        0,
+        0
+      ],
+      "totals": {
+        "levels": 2790,
+        "solved": 692,
+        "timeout": 522,
+        "exhausted": 132,
+        "skipped_message": 1444,
+        "errors": 0,
+        "expanded": 4200242.5,
+        "generated": 20055064,
+        "hda_remote_sends": 0,
+        "hda_inbox_drains": 0,
+        "hda_owner_shard_solves": 0,
+        "compact_turn_attempts": 0,
+        "compact_turn_hits": 0,
+        "compact_turn_native_attempts": 0,
+        "compact_turn_native_hits": 0,
+        "compact_turn_bridge_attempts": 0,
+        "compact_turn_bridge_hits": 0,
+        "compact_turn_unhandled": 0,
+        "compact_turn_fallbacks": 0,
+        "compact_turn_unsupported": 0,
+        "compact_turn_oracle_checks": 0,
+        "compact_turn_oracle_failures": 0,
+        "solver_hash_projection_projected_objects": 0,
+        "removed_win_irrelevant_rules": 0,
+        "compile_ms": 5888.23,
+        "load_ms": 265.3905,
+        "clone_ms": 13301.6,
+        "materialize_ms": 0,
+        "step_ms": 118775.5,
+        "hash_ms": 5281.15,
+        "state_capture_ms": 1949.44,
+        "queue_ms": 0,
+        "frontier_pop_ms": 360.33299999999997,
+        "frontier_push_ms": 264.062,
+        "visited_lookup_ms": 637.833,
+        "visited_insert_ms": 1934.73,
+        "visited_lookup_probes": 9038100,
+        "visited_insert_probes": 39573916.5,
+        "visited_grows": 1638.5,
+        "visited_capacity": 65536,
+        "visited_max_probe": 112,
+        "visited_key_collisions": 0,
+        "compact_state_bytes": 7140212492.5,
+        "compact_max_state_bytes": 51987,
+        "node_store_ms": 646.139,
+        "heuristic_ms": 7683.6849999999995,
+        "solved_check_ms": 396.36199999999997,
+        "timeout_check_ms": 938.9615,
+        "reconstruct_ms": 2.45935,
+        "unattributed_ms": 9076.58
+      },
+      "generatedPerStepMs": 168.84849148182917,
+      "generatedPerSearchMs": 124.1688145646366,
+      "generatedPerWallMs": 122.96502123213783
+    },
+    "after": {
+      "runs": 2,
+      "wallMs": 161547.66355,
+      "solved": [
+        699,
+        696
+      ],
+      "errors": [
+        0,
+        0
+      ],
+      "totals": {
+        "levels": 2790,
+        "solved": 697.5,
+        "timeout": 517,
+        "exhausted": 131.5,
+        "skipped_message": 1444,
+        "errors": 0,
+        "expanded": 4469127,
+        "generated": 21340670,
+        "hda_remote_sends": 0,
+        "hda_inbox_drains": 0,
+        "hda_owner_shard_solves": 0,
+        "compact_turn_attempts": 0,
+        "compact_turn_hits": 0,
+        "compact_turn_native_attempts": 0,
+        "compact_turn_native_hits": 0,
+        "compact_turn_bridge_attempts": 0,
+        "compact_turn_bridge_hits": 0,
+        "compact_turn_unhandled": 0,
+        "compact_turn_fallbacks": 0,
+        "compact_turn_unsupported": 0,
+        "compact_turn_oracle_checks": 0,
+        "compact_turn_oracle_failures": 0,
+        "solver_hash_projection_projected_objects": 0,
+        "removed_win_irrelevant_rules": 0,
+        "compile_ms": 5935.4,
+        "load_ms": 295.1015,
+        "clone_ms": 14309.05,
+        "materialize_ms": 0,
+        "step_ms": 114846,
+        "hash_ms": 4958.115,
+        "state_capture_ms": 2074.335,
+        "queue_ms": 0,
+        "frontier_pop_ms": 376.22450000000003,
+        "frontier_push_ms": 295.5575,
+        "visited_lookup_ms": 676.9259999999999,
+        "visited_insert_ms": 2070.045,
+        "visited_lookup_probes": 9652642.5,
+        "visited_insert_probes": 42339243,
+        "visited_grows": 1708,
+        "visited_capacity": 65536,
+        "visited_max_probe": 136.5,
+        "visited_key_collisions": 0,
+        "compact_state_bytes": 7535788727.5,
+        "compact_max_state_bytes": 51987,
+        "node_store_ms": 725.158,
+        "heuristic_ms": 8203.655,
+        "solved_check_ms": 423.039,
+        "timeout_check_ms": 1001.6925000000001,
+        "reconstruct_ms": 2.46655,
+        "unattributed_ms": 9710.84
+      },
+      "generatedPerStepMs": 185.81988053567386,
+      "generatedPerSearchMs": 133.4054516983031,
+      "generatedPerWallMs": 132.10138439046463
+    }
+  },
+  "commonIdenticalSolved": {
+    "levels": 685,
+    "beforeStepMs": 15930.059700000014,
+    "afterStepMs": 14623.835199999978,
+    "speedup": 1.0893216096964795,
+    "timeReductionPercent": 8.199746420285138
+  },
+  "parity": {
+    "differences": [],
+    "statusDifferences": [],
+    "stableBeforeSolved": 689,
+    "stableAfterSolved": 694,
+    "gained": [
+      {
+        "game": "Match-Maker.txt",
+        "level": 17
+      },
+      {
+        "game": "hedgehog stimulator.txt",
+        "level": 1
+      },
+      {
+        "game": "hedgehog stimulator.txt",
+        "level": 15
+      },
+      {
+        "game": "manic_ammo.txt",
+        "level": 10
+      }
+    ],
+    "lost": []
+  },
+  "gameResults": [
+    {
+      "game": "hedgehog stimulator.txt",
+      "levels": 3,
+      "beforeStepMs": 475.2855,
+      "afterStepMs": 192.7332,
+      "speedup": 2.466028167435605,
+      "timeSavedMs": 282.5523
+    },
+    {
+      "game": "CODEX LUBRICUS.txt",
+      "levels": 20,
+      "beforeStepMs": 457.70145,
+      "afterStepMs": 313.5096,
+      "speedup": 1.4599280213428873,
+      "timeSavedMs": 144.19185000000004
+    },
+    {
+      "game": "heroes_of_sokoban_2.txt",
+      "levels": 10,
+      "beforeStepMs": 426.9275,
+      "afterStepMs": 338.84490000000005,
+      "speedup": 1.2599496111642818,
+      "timeSavedMs": 88.08259999999996
+    },
+    {
+      "game": "Any hole is a goal.txt",
+      "levels": 5,
+      "beforeStepMs": 315.392,
+      "afterStepMs": 228.81585,
+      "speedup": 1.3783660528761446,
+      "timeSavedMs": 86.57614999999998
+    },
+    {
+      "game": "Bicycle-Kick Football.txt",
+      "levels": 6,
+      "beforeStepMs": 255.66589999999997,
+      "afterStepMs": 182.48135000000002,
+      "speedup": 1.4010522171169817,
+      "timeSavedMs": 73.18454999999994
+    },
+    {
+      "game": "S-tercourse.txt",
+      "levels": 4,
+      "beforeStepMs": 352.69255,
+      "afterStepMs": 293.16205,
+      "speedup": 1.2030634592710754,
+      "timeSavedMs": 59.53049999999996
+    },
+    {
+      "game": "ledchallenge.txt",
+      "levels": 1,
+      "beforeStepMs": 176.9105,
+      "afterStepMs": 120.9105,
+      "speedup": 1.4631524970949588,
+      "timeSavedMs": 56.000000000000014
+    },
+    {
+      "game": "led challenge.txt",
+      "levels": 1,
+      "beforeStepMs": 174.6125,
+      "afterStepMs": 118.672,
+      "speedup": 1.471387521909128,
+      "timeSavedMs": 55.940500000000014
+    },
+    {
+      "game": "Van-to-Mobile-Living-Space-Conversion Window.txt",
+      "levels": 10,
+      "beforeStepMs": 550.1539,
+      "afterStepMs": 495.94255,
+      "speedup": 1.1093097375895657,
+      "timeSavedMs": 54.21135000000004
+    },
+    {
+      "game": "crate guardian.txt",
+      "levels": 4,
+      "beforeStepMs": 233.82984999999996,
+      "afterStepMs": 181.0431,
+      "speedup": 1.2915700736454465,
+      "timeSavedMs": 52.786749999999955
+    },
+    {
+      "game": "alternatey.txt",
+      "levels": 1,
+      "beforeStepMs": 204.889,
+      "afterStepMs": 157.6465,
+      "speedup": 1.2996736369028175,
+      "timeSavedMs": 47.24250000000001
+    },
+    {
+      "game": "take heart lass.txt",
+      "levels": 10,
+      "beforeStepMs": 129.58169999999998,
+      "afterStepMs": 97.26185,
+      "speedup": 1.332297298478283,
+      "timeSavedMs": 32.31984999999999
+    },
+    {
+      "game": "heroes_of_sokoban_3.txt",
+      "levels": 7,
+      "beforeStepMs": 203.45325000000003,
+      "afterStepMs": 173.21400000000003,
+      "speedup": 1.1745774013647856,
+      "timeSavedMs": 30.23925
+    },
+    {
+      "game": "the exit is under my left foot.txt",
+      "levels": 1,
+      "beforeStepMs": 60.60355,
+      "afterStepMs": 33.0557,
+      "speedup": 1.8333766944883938,
+      "timeSavedMs": 27.547849999999997
+    },
+    {
+      "game": "push.txt",
+      "levels": 14,
+      "beforeStepMs": 482.97110000000004,
+      "afterStepMs": 458.3922500000001,
+      "speedup": 1.0536196892508543,
+      "timeSavedMs": 24.57884999999993
+    },
+    {
+      "game": "dollyban.txt",
+      "levels": 5,
+      "beforeStepMs": 494.8202,
+      "afterStepMs": 470.88714999999996,
+      "speedup": 1.05082544724357,
+      "timeSavedMs": 23.933050000000037
+    },
+    {
+      "game": "the_saga_of_the_candy_scroll.txt",
+      "levels": 14,
+      "beforeStepMs": 342.39995,
+      "afterStepMs": 318.5076,
+      "speedup": 1.075013437669933,
+      "timeSavedMs": 23.892349999999965
+    },
+    {
+      "game": "pipe puffer.txt",
+      "levels": 4,
+      "beforeStepMs": 102.65305,
+      "afterStepMs": 79.23455000000001,
+      "speedup": 1.2955591973450973,
+      "timeSavedMs": 23.41849999999998
+    },
+    {
+      "game": "dropswap.txt",
+      "levels": 3,
+      "beforeStepMs": 84.4152,
+      "afterStepMs": 63.3809,
+      "speedup": 1.331871273522465,
+      "timeSavedMs": 21.0343
+    },
+    {
+      "game": "whaleworld.txt",
+      "levels": 3,
+      "beforeStepMs": 265.88464999999997,
+      "afterStepMs": 245.63695,
+      "speedup": 1.082429373919518,
+      "timeSavedMs": 20.247699999999952
+    },
+    {
+      "game": "no heroes necessary.txt",
+      "levels": 5,
+      "beforeStepMs": 171.35475,
+      "afterStepMs": 152.16910000000001,
+      "speedup": 1.1260811163370223,
+      "timeSavedMs": 19.18564999999998
+    },
+    {
+      "game": "BIAXIAL INVASION OF SATURN.txt",
+      "levels": 6,
+      "beforeStepMs": 78.84634999999999,
+      "afterStepMs": 60.8456,
+      "speedup": 1.2958430847916693,
+      "timeSavedMs": 18.00074999999999
+    },
+    {
+      "game": "Yellow Box.txt",
+      "levels": 15,
+      "beforeStepMs": 338.95415,
+      "afterStepMs": 322.64795000000004,
+      "speedup": 1.0505386753580799,
+      "timeSavedMs": 16.30619999999999
+    },
+    {
+      "game": "Explodoban.txt",
+      "levels": 6,
+      "beforeStepMs": 197.79474999999996,
+      "afterStepMs": 182.5541,
+      "speedup": 1.0834856626063176,
+      "timeSavedMs": 15.24064999999996
+    },
+    {
+      "game": "ponies jumping synchronously.txt",
+      "levels": 10,
+      "beforeStepMs": 128.23235,
+      "afterStepMs": 113.24459999999999,
+      "speedup": 1.132348474011123,
+      "timeSavedMs": 14.987750000000005
+    },
+    {
+      "game": "smother.txt",
+      "levels": 14,
+      "beforeStepMs": 151.88610000000003,
+      "afterStepMs": 138.11164999999997,
+      "speedup": 1.0997341643518128,
+      "timeSavedMs": 13.774450000000058
+    },
+    {
+      "game": "slidings.txt",
+      "levels": 11,
+      "beforeStepMs": 439.25515,
+      "afterStepMs": 426.10615000000007,
+      "speedup": 1.0308585079093553,
+      "timeSavedMs": 13.148999999999944
+    },
+    {
+      "game": "Vexatious Match 3.txt",
+      "levels": 3,
+      "beforeStepMs": 272.3469,
+      "afterStepMs": 261.10215,
+      "speedup": 1.0430664780048728,
+      "timeSavedMs": 11.24475000000001
+    },
+    {
+      "game": "slot machine.txt",
+      "levels": 1,
+      "beforeStepMs": 19.17915,
+      "afterStepMs": 8.6081,
+      "speedup": 2.228035222639142,
+      "timeSavedMs": 10.57105
+    },
+    {
+      "game": "Don't let your goals slip away.txt",
+      "levels": 8,
+      "beforeStepMs": 157.62525,
+      "afterStepMs": 147.12404999999998,
+      "speedup": 1.071376501666451,
+      "timeSavedMs": 10.501200000000011
+    },
+    {
+      "game": "castlemouse.txt",
+      "levels": 9,
+      "beforeStepMs": 220.85435000000004,
+      "afterStepMs": 210.41435,
+      "speedup": 1.0496163878556763,
+      "timeSavedMs": 10.440000000000026
+    },
+    {
+      "game": "crate swap.txt",
+      "levels": 8,
+      "beforeStepMs": 107.58375,
+      "afterStepMs": 97.63184999999999,
+      "speedup": 1.1019329245527971,
+      "timeSavedMs": 9.951900000000009
+    },
+    {
+      "game": "Schleimban.txt",
+      "levels": 6,
+      "beforeStepMs": 52.463550000000005,
+      "afterStepMs": 42.83154999999999,
+      "speedup": 1.2248809580787998,
+      "timeSavedMs": 9.632000000000012
+    },
+    {
+      "game": "Match-Maker.txt",
+      "levels": 4,
+      "beforeStepMs": 96.56815,
+      "afterStepMs": 87.0632,
+      "speedup": 1.1091729915739372,
+      "timeSavedMs": 9.504950000000008
+    },
+    {
+      "game": "slime vat filler.txt",
+      "levels": 9,
+      "beforeStepMs": 62.988850000000006,
+      "afterStepMs": 53.6253,
+      "speedup": 1.1746106781687002,
+      "timeSavedMs": 9.363550000000004
+    },
+    {
+      "game": "heroes_of_sokoban.txt",
+      "levels": 11,
+      "beforeStepMs": 48.38269999999999,
+      "afterStepMs": 39.2541,
+      "speedup": 1.232551504174086,
+      "timeSavedMs": 9.128599999999992
+    },
+    {
+      "game": "Subway upholstry snot smearing championship.txt",
+      "levels": 5,
+      "beforeStepMs": 114.30045000000001,
+      "afterStepMs": 106.08095,
+      "speedup": 1.0774832804570473,
+      "timeSavedMs": 8.21950000000001
+    },
+    {
+      "game": "15 push pull levels.txt",
+      "levels": 12,
+      "beforeStepMs": 351.88275000000004,
+      "afterStepMs": 345.22325,
+      "speedup": 1.0192904156947715,
+      "timeSavedMs": 6.659500000000037
+    },
+    {
+      "game": "The Monsterous Autoshove.txt",
+      "levels": 3,
+      "beforeStepMs": 35.337050000000005,
+      "afterStepMs": 28.79425,
+      "speedup": 1.2272259218420345,
+      "timeSavedMs": 6.542800000000003
+    },
+    {
+      "game": "castlecloset.txt",
+      "levels": 1,
+      "beforeStepMs": 58.5411,
+      "afterStepMs": 52.5694,
+      "speedup": 1.1135965029085362,
+      "timeSavedMs": 5.9716999999999985
+    },
+    {
+      "game": "Attractor Net.txt",
+      "levels": 10,
+      "beforeStepMs": 271.5958,
+      "afterStepMs": 265.74784999999997,
+      "speedup": 1.0220056342882926,
+      "timeSavedMs": 5.847950000000026
+    },
+    {
+      "game": "Eyeball-watching flowers bloom.txt",
+      "levels": 2,
+      "beforeStepMs": 41.91905,
+      "afterStepMs": 36.3481,
+      "speedup": 1.1532666081583356,
+      "timeSavedMs": 5.570949999999996
+    },
+    {
+      "game": "head skuller.txt",
+      "levels": 4,
+      "beforeStepMs": 98.87375000000002,
+      "afterStepMs": 94.0804,
+      "speedup": 1.0509495070174024,
+      "timeSavedMs": 4.793350000000018
+    },
+    {
+      "game": "diesinthelight.txt",
+      "levels": 2,
+      "beforeStepMs": 18.0625,
+      "afterStepMs": 13.32725,
+      "speedup": 1.3553058582978486,
+      "timeSavedMs": 4.735250000000001
+    },
+    {
+      "game": "Put the logs in the water, elephant.txt",
+      "levels": 2,
+      "beforeStepMs": 248.3795,
+      "afterStepMs": 243.905,
+      "speedup": 1.0183452573747975,
+      "timeSavedMs": 4.474500000000006
+    },
+    {
+      "game": "autohurdler.txt",
+      "levels": 3,
+      "beforeStepMs": 14.9765,
+      "afterStepMs": 10.7107,
+      "speedup": 1.3982746225736882,
+      "timeSavedMs": 4.2658000000000005
+    },
+    {
+      "game": "Muraphilic Monophobic Multiban.txt",
+      "levels": 5,
+      "beforeStepMs": 199.1142,
+      "afterStepMs": 194.92579999999998,
+      "speedup": 1.0214871504952143,
+      "timeSavedMs": 4.18840000000003
+    },
+    {
+      "game": "shy snake.txt",
+      "levels": 1,
+      "beforeStepMs": 17.31005,
+      "afterStepMs": 13.135,
+      "speedup": 1.3178568709554626,
+      "timeSavedMs": 4.175050000000001
+    },
+    {
+      "game": "All Green and Blue on Yellow.txt",
+      "levels": 5,
+      "beforeStepMs": 22.96595,
+      "afterStepMs": 18.86695,
+      "speedup": 1.2172582213871346,
+      "timeSavedMs": 4.099
+    },
+    {
+      "game": "make way.txt",
+      "levels": 1,
+      "beforeStepMs": 18.990650000000002,
+      "afterStepMs": 15.091,
+      "speedup": 1.2584089854880394,
+      "timeSavedMs": 3.899650000000003
+    },
+    {
+      "game": "wool-clawer.txt",
+      "levels": 2,
+      "beforeStepMs": 40.88755,
+      "afterStepMs": 37.6763,
+      "speedup": 1.0852326263460053,
+      "timeSavedMs": 3.2112499999999997
+    },
+    {
+      "game": "The Far Away Danish Pastry is always Delicio.txt",
+      "levels": 8,
+      "beforeStepMs": 95.32695,
+      "afterStepMs": 92.14520000000002,
+      "speedup": 1.0345297421895008,
+      "timeSavedMs": 3.1817499999999797
+    },
+    {
+      "game": "match three billiards.txt",
+      "levels": 3,
+      "beforeStepMs": 55.978350000000006,
+      "afterStepMs": 52.81815,
+      "speedup": 1.0598317055784803,
+      "timeSavedMs": 3.1602000000000032
+    },
+    {
+      "game": "pushit.txt",
+      "levels": 1,
+      "beforeStepMs": 41.541399999999996,
+      "afterStepMs": 38.4493,
+      "speedup": 1.0804201897043637,
+      "timeSavedMs": 3.092099999999995
+    },
+    {
+      "game": "big dog and little dog.txt",
+      "levels": 1,
+      "beforeStepMs": 155.361,
+      "afterStepMs": 152.29149999999998,
+      "speedup": 1.020155425614693,
+      "timeSavedMs": 3.069500000000005
+    },
+    {
+      "game": "8 happy snakes.txt",
+      "levels": 4,
+      "beforeStepMs": 15.7592,
+      "afterStepMs": 12.93975,
+      "speedup": 1.2178906083966072,
+      "timeSavedMs": 2.81945
+    },
+    {
+      "game": "manic_ammo.txt",
+      "levels": 9,
+      "beforeStepMs": 97.26910000000001,
+      "afterStepMs": 94.6606,
+      "speedup": 1.0275563433994714,
+      "timeSavedMs": 2.6085000000000065
+    },
+    {
+      "game": "Wand Spinner.txt",
+      "levels": 16,
+      "beforeStepMs": 337.3193,
+      "afterStepMs": 334.7228,
+      "speedup": 1.0077571650332753,
+      "timeSavedMs": 2.596499999999992
+    },
+    {
+      "game": "a distant sunset.txt",
+      "levels": 4,
+      "beforeStepMs": 31.43225,
+      "afterStepMs": 28.87245,
+      "speedup": 1.0886589118692733,
+      "timeSavedMs": 2.559799999999999
+    },
+    {
+      "game": "Crates move when you move.txt",
+      "levels": 10,
+      "beforeStepMs": 16.365500000000004,
+      "afterStepMs": 13.9571,
+      "speedup": 1.1725573364094264,
+      "timeSavedMs": 2.408400000000004
+    },
+    {
+      "game": "it dies in the light.txt",
+      "levels": 2,
+      "beforeStepMs": 15.7971,
+      "afterStepMs": 13.601049999999999,
+      "speedup": 1.1614617989052316,
+      "timeSavedMs": 2.1960500000000014
+    },
+    {
+      "game": "Legend of Swixero.txt",
+      "levels": 3,
+      "beforeStepMs": 16.525100000000002,
+      "afterStepMs": 14.518699999999999,
+      "speedup": 1.1381941909399604,
+      "timeSavedMs": 2.006400000000003
+    },
+    {
+      "game": "an ok multiban level.txt",
+      "levels": 1,
+      "beforeStepMs": 85.19715,
+      "afterStepMs": 83.40595,
+      "speedup": 1.0214756860871435,
+      "timeSavedMs": 1.7911999999999892
+    },
+    {
+      "game": "Recondite Star Sector Sigma.txt",
+      "levels": 10,
+      "beforeStepMs": 459.3110499999999,
+      "afterStepMs": 457.5786000000001,
+      "speedup": 1.0037861254875113,
+      "timeSavedMs": 1.732449999999801
+    },
+    {
+      "game": "cratopia.txt",
+      "levels": 6,
+      "beforeStepMs": 36.5179,
+      "afterStepMs": 34.929249999999996,
+      "speedup": 1.0454819384899476,
+      "timeSavedMs": 1.5886500000000012
+    },
+    {
+      "game": "gabelstapler.txt",
+      "levels": 1,
+      "beforeStepMs": 98.235,
+      "afterStepMs": 96.74255,
+      "speedup": 1.0154270277142787,
+      "timeSavedMs": 1.4924500000000052
+    },
+    {
+      "game": "kettle.txt",
+      "levels": 6,
+      "beforeStepMs": 28.2484,
+      "afterStepMs": 26.764900000000004,
+      "speedup": 1.0554270705289388,
+      "timeSavedMs": 1.4834999999999958
+    },
+    {
+      "game": "ALL GREEN TO BLUE.txt",
+      "levels": 10,
+      "beforeStepMs": 192.39695,
+      "afterStepMs": 191.28384999999997,
+      "speedup": 1.0058191007761503,
+      "timeSavedMs": 1.1131000000000313
+    },
+    {
+      "game": "Hole-Stuffer.txt",
+      "levels": 2,
+      "beforeStepMs": 131.231,
+      "afterStepMs": 130.15115,
+      "speedup": 1.008296891729347,
+      "timeSavedMs": 1.0798499999999933
+    },
+    {
+      "game": "Chevron Lodger.txt",
+      "levels": 5,
+      "beforeStepMs": 190.0345,
+      "afterStepMs": 189.02149999999997,
+      "speedup": 1.0053591787177651,
+      "timeSavedMs": 1.0130000000000337
+    },
+    {
+      "game": "Acorn Scorchery Paradise.txt",
+      "levels": 5,
+      "beforeStepMs": 32.63145,
+      "afterStepMs": 31.807250000000003,
+      "speedup": 1.0259123313081135,
+      "timeSavedMs": 0.8241999999999976
+    },
+    {
+      "game": "unewton.txt",
+      "levels": 1,
+      "beforeStepMs": 5.0108,
+      "afterStepMs": 4.3776,
+      "speedup": 1.1446454678362572,
+      "timeSavedMs": 0.6331999999999995
+    },
+    {
+      "game": "chaos wizard.txt",
+      "levels": 3,
+      "beforeStepMs": 28.201,
+      "afterStepMs": 27.7466,
+      "speedup": 1.0163767812993303,
+      "timeSavedMs": 0.4543999999999997
+    },
+    {
+      "game": "stick_candy_puzzle_saga.txt",
+      "levels": 1,
+      "beforeStepMs": 13.6258,
+      "afterStepMs": 13.31255,
+      "speedup": 1.0235304280547304,
+      "timeSavedMs": 0.31325000000000003
+    },
+    {
+      "game": "sacrament of the river god.txt",
+      "levels": 1,
+      "beforeStepMs": 0.8592500000000001,
+      "afterStepMs": 0.55415,
+      "speedup": 1.550572949562393,
+      "timeSavedMs": 0.30510000000000004
+    },
+    {
+      "game": "Cucumber Surprise.txt",
+      "levels": 2,
+      "beforeStepMs": 5.712,
+      "afterStepMs": 5.4145,
+      "speedup": 1.0549450549450547,
+      "timeSavedMs": 0.29749999999999943
+    },
+    {
+      "game": "m c eschers armageddon.txt",
+      "levels": 4,
+      "beforeStepMs": 7.9553,
+      "afterStepMs": 7.6692,
+      "speedup": 1.0373050644134982,
+      "timeSavedMs": 0.28610000000000024
+    },
+    {
+      "game": "Scalesoban.txt",
+      "levels": 3,
+      "beforeStepMs": 8.95765,
+      "afterStepMs": 8.700099999999999,
+      "speedup": 1.0296031080102528,
+      "timeSavedMs": 0.25755000000000017
+    },
+    {
+      "game": "i am a gust of wind.txt",
+      "levels": 3,
+      "beforeStepMs": 6.460749999999999,
+      "afterStepMs": 6.30495,
+      "speedup": 1.0247107431462579,
+      "timeSavedMs": 0.15579999999999927
+    },
+    {
+      "game": "Two-Step Pete.txt",
+      "levels": 6,
+      "beforeStepMs": 27.619950000000003,
+      "afterStepMs": 27.47695,
+      "speedup": 1.005204362201773,
+      "timeSavedMs": 0.14300000000000423
+    },
+    {
+      "game": "Des Poseidons Dreizack.txt",
+      "levels": 2,
+      "beforeStepMs": 0.5021,
+      "afterStepMs": 0.37325,
+      "speedup": 1.3452109845947755,
+      "timeSavedMs": 0.12884999999999996
+    },
+    {
+      "game": "dreizack.txt",
+      "levels": 2,
+      "beforeStepMs": 0.45355,
+      "afterStepMs": 0.35495000000000004,
+      "speedup": 1.2777856036061417,
+      "timeSavedMs": 0.09859999999999997
+    },
+    {
+      "game": "Varifocal Nightmare.txt",
+      "levels": 4,
+      "beforeStepMs": 36.38525,
+      "afterStepMs": 36.3168,
+      "speedup": 1.001884802625782,
+      "timeSavedMs": 0.06844999999999857
+    },
+    {
+      "game": "talo pipi 2.txt",
+      "levels": 1,
+      "beforeStepMs": 0.02605,
+      "afterStepMs": 0.01645,
+      "speedup": 1.5835866261398177,
+      "timeSavedMs": 0.009600000000000001
+    },
+    {
+      "game": "seize the flag.txt",
+      "levels": 1,
+      "beforeStepMs": 0.0348,
+      "afterStepMs": 0.02535,
+      "speedup": 1.3727810650887573,
+      "timeSavedMs": 0.009449999999999997
+    },
+    {
+      "game": "der hydra krypta.txt",
+      "levels": 1,
+      "beforeStepMs": 0.0089,
+      "afterStepMs": 0.0048000000000000004,
+      "speedup": 1.8541666666666665,
+      "timeSavedMs": 0.0040999999999999995
+    },
+    {
+      "game": "message_skip.txt",
+      "levels": 1,
+      "beforeStepMs": 0.00415,
+      "afterStepMs": 0.0033499999999999997,
+      "speedup": 1.2388059701492538,
+      "timeSavedMs": 0.0008000000000000004
+    },
+    {
+      "game": "car crash.txt",
+      "levels": 1,
+      "beforeStepMs": 0,
+      "afterStepMs": 0,
+      "speedup": null,
+      "timeSavedMs": 0
+    },
+    {
+      "game": "5-junctions-maker.txt",
+      "levels": 1,
+      "beforeStepMs": 0.0020499999999999997,
+      "afterStepMs": 0.0021,
+      "speedup": 0.9761904761904762,
+      "timeSavedMs": -0.00005000000000000013
+    },
+    {
+      "game": "Voitex Rasteriser.txt",
+      "levels": 1,
+      "beforeStepMs": 0.0036,
+      "afterStepMs": 0.0037,
+      "speedup": 0.9729729729729729,
+      "timeSavedMs": -0.00010000000000000026
+    },
+    {
+      "game": "one_move.txt",
+      "levels": 1,
+      "beforeStepMs": 0.00235,
+      "afterStepMs": 0.0026,
+      "speedup": 0.903846153846154,
+      "timeSavedMs": -0.0002499999999999998
+    },
+    {
+      "game": "multi_level.txt",
+      "levels": 2,
+      "beforeStepMs": 0.0084,
+      "afterStepMs": 0.009899999999999999,
+      "speedup": 0.8484848484848485,
+      "timeSavedMs": -0.0014999999999999996
+    },
+    {
+      "game": "karamell.txt",
+      "levels": 1,
+      "beforeStepMs": 0.038,
+      "afterStepMs": 0.0417,
+      "speedup": 0.9112709832134293,
+      "timeSavedMs": -0.003700000000000002
+    },
+    {
+      "game": "a clear view of the sky.txt",
+      "levels": 6,
+      "beforeStepMs": 0.0601,
+      "afterStepMs": 0.07014999999999999,
+      "speedup": 0.8567355666429082,
+      "timeSavedMs": -0.01004999999999999
+    },
+    {
+      "game": "oh no i accidentally swallowed myself.txt",
+      "levels": 3,
+      "beforeStepMs": 0.1029,
+      "afterStepMs": 0.1271,
+      "speedup": 0.8095987411487019,
+      "timeSavedMs": -0.024199999999999985
+    },
+    {
+      "game": "Pushy-V Pully-H.txt",
+      "levels": 11,
+      "beforeStepMs": 125.69465000000001,
+      "afterStepMs": 125.7441,
+      "speedup": 0.9996067409922216,
+      "timeSavedMs": -0.04944999999999311
+    },
+    {
+      "game": "dungeon janitor.txt",
+      "levels": 1,
+      "beforeStepMs": 0.4907,
+      "afterStepMs": 0.6319,
+      "speedup": 0.7765469219813261,
+      "timeSavedMs": -0.1412
+    },
+    {
+      "game": "midas.txt",
+      "levels": 5,
+      "beforeStepMs": 70.8425,
+      "afterStepMs": 71.17259999999999,
+      "speedup": 0.9953619791886206,
+      "timeSavedMs": -0.3300999999999874
+    },
+    {
+      "game": "coincounter.txt",
+      "levels": 11,
+      "beforeStepMs": 143.69405000000003,
+      "afterStepMs": 144.0714,
+      "speedup": 0.9973808125693234,
+      "timeSavedMs": -0.37734999999997854
+    },
+    {
+      "game": "tunnel rat.txt",
+      "levels": 2,
+      "beforeStepMs": 5.786700000000001,
+      "afterStepMs": 6.4162,
+      "speedup": 0.9018889685483621,
+      "timeSavedMs": -0.6294999999999993
+    },
+    {
+      "game": "butteater.txt",
+      "levels": 1,
+      "beforeStepMs": 6.468249999999999,
+      "afterStepMs": 7.2052499999999995,
+      "speedup": 0.8977134728149613,
+      "timeSavedMs": -0.7370000000000001
+    },
+    {
+      "game": "NIGHTMARECROBAN.txt",
+      "levels": 7,
+      "beforeStepMs": 98.45985,
+      "afterStepMs": 99.6533,
+      "speedup": 0.9880239791356633,
+      "timeSavedMs": -1.1934499999999986
+    },
+    {
+      "game": "Xorro The Chaos Warden.txt",
+      "levels": 2,
+      "beforeStepMs": 34.578149999999994,
+      "afterStepMs": 35.8441,
+      "speedup": 0.9646817746853735,
+      "timeSavedMs": -1.2659500000000037
+    },
+    {
+      "game": "byyourside.txt",
+      "levels": 10,
+      "beforeStepMs": 103.2354,
+      "afterStepMs": 104.77654999999999,
+      "speedup": 0.9852910789675744,
+      "timeSavedMs": -1.5411499999999876
+    },
+    {
+      "game": "atlas shrank.txt",
+      "levels": 4,
+      "beforeStepMs": 68.82685000000001,
+      "afterStepMs": 70.62674999999999,
+      "speedup": 0.9745153217442403,
+      "timeSavedMs": -1.7998999999999796
+    },
+    {
+      "game": "kishoutenketsu.txt",
+      "levels": 2,
+      "beforeStepMs": 9.34905,
+      "afterStepMs": 11.48485,
+      "speedup": 0.8140332699164552,
+      "timeSavedMs": -2.1357999999999997
+    },
+    {
+      "game": "Garten der Medusen.txt",
+      "levels": 3,
+      "beforeStepMs": 10.26445,
+      "afterStepMs": 12.9313,
+      "speedup": 0.7937678346337955,
+      "timeSavedMs": -2.66685
+    },
+    {
+      "game": "push pull.txt",
+      "levels": 3,
+      "beforeStepMs": 10.6676,
+      "afterStepMs": 14.039649999999998,
+      "speedup": 0.7598195111701503,
+      "timeSavedMs": -3.372049999999998
+    },
+    {
+      "game": "icecrates.txt",
+      "levels": 5,
+      "beforeStepMs": 40.75845,
+      "afterStepMs": 44.7362,
+      "speedup": 0.9110843120336553,
+      "timeSavedMs": -3.9777499999999932
+    },
+    {
+      "game": "Two-Tone Tango.txt",
+      "levels": 8,
+      "beforeStepMs": 188.14995,
+      "afterStepMs": 192.19945,
+      "speedup": 0.9789307409568548,
+      "timeSavedMs": -4.049500000000023
+    },
+    {
+      "game": "collapse.txt",
+      "levels": 1,
+      "beforeStepMs": 57.20285,
+      "afterStepMs": 62.561350000000004,
+      "speedup": 0.9143480759286683,
+      "timeSavedMs": -5.3585000000000065
+    },
+    {
+      "game": "Resin-Caster.txt",
+      "levels": 10,
+      "beforeStepMs": 105.38234999999999,
+      "afterStepMs": 112.42615,
+      "speedup": 0.9373473164383908,
+      "timeSavedMs": -7.043800000000019
+    },
+    {
+      "game": "fickle fred.txt",
+      "levels": 4,
+      "beforeStepMs": 39.53775,
+      "afterStepMs": 48.952450000000006,
+      "speedup": 0.8076766331409357,
+      "timeSavedMs": -9.414700000000003
+    },
+    {
+      "game": "slide pull.txt",
+      "levels": 7,
+      "beforeStepMs": 125.46009999999998,
+      "afterStepMs": 135.2724,
+      "speedup": 0.927462660527942,
+      "timeSavedMs": -9.812300000000022
+    },
+    {
+      "game": "limerick.txt",
+      "levels": 6,
+      "beforeStepMs": 64.7157,
+      "afterStepMs": 74.68445,
+      "speedup": 0.8665217458252689,
+      "timeSavedMs": -9.96875
+    },
+    {
+      "game": "gapfiller.txt",
+      "levels": 8,
+      "beforeStepMs": 117.4358,
+      "afterStepMs": 128.94935,
+      "speedup": 0.9107126170081508,
+      "timeSavedMs": -11.51355000000001
+    },
+    {
+      "game": "color chained.txt",
+      "levels": 3,
+      "beforeStepMs": 119.39905000000002,
+      "afterStepMs": 131.98884999999999,
+      "speedup": 0.9046146701028157,
+      "timeSavedMs": -12.589799999999968
+    },
+    {
+      "game": "constellationz.txt",
+      "levels": 9,
+      "beforeStepMs": 172.99285,
+      "afterStepMs": 186.37205,
+      "speedup": 0.9282124116786825,
+      "timeSavedMs": -13.379199999999997
+    },
+    {
+      "game": "mazezam.txt",
+      "levels": 23,
+      "beforeStepMs": 725.0089499999999,
+      "afterStepMs": 738.6232000000001,
+      "speedup": 0.9815680715146773,
+      "timeSavedMs": -13.614250000000197
+    },
+    {
+      "game": "flesh-handed hot casserole delivery bot.txt",
+      "levels": 7,
+      "beforeStepMs": 219.58394999999996,
+      "afterStepMs": 242.2326,
+      "speedup": 0.9065004049826487,
+      "timeSavedMs": -22.648650000000032
+    },
+    {
+      "game": "easyenigma.txt",
+      "levels": 16,
+      "beforeStepMs": 293.3356500000001,
+      "afterStepMs": 321.81179999999995,
+      "speedup": 0.9115130333940525,
+      "timeSavedMs": -28.476149999999848
+    },
+    {
+      "game": "gobble_rush.txt",
+      "levels": 18,
+      "beforeStepMs": 475.3169,
+      "afterStepMs": 512.7973499999999,
+      "speedup": 0.9269098211993491,
+      "timeSavedMs": -37.48044999999996
+    },
+    {
+      "game": "cakemonsters.txt",
+      "levels": 29,
+      "beforeStepMs": 334.61145,
+      "afterStepMs": 372.91065000000003,
+      "speedup": 0.8972965776118219,
+      "timeSavedMs": -38.29920000000004,
+      "followUp": {
+        "record": "2026-10-23-cakemonsters-regression-audit.json",
+        "status": "regression_not_reproduced",
+        "isolatedWholeGameMedianReductionPercent": 4.711537310134528
+      }
+    }
+  ],
+  "change": {
+    "stepThroughputPercent": 10.051252993084091,
+    "searchThroughputPercent": 7.438773709849933,
+    "wallThroughputPercent": 7.4300504865354,
+    "wallReductionPercent": 0.9491474151964385
+  },
+  "independentReplay": {
+    "candidate": {
+      "games": 123,
+      "solutions": 701,
+      "failures": 14,
+      "generatedBackends": false
+    },
+    "baseline": {
+      "games": 123,
+      "solutions": 696,
+      "failures": 14,
+      "generatedBackends": false
+    },
+    "newFailureCases": [],
+    "preExistingFailures": [
+      {
+        "game": "BIAXIAL INVASION OF SATURN.txt",
+        "level": 3,
+        "solution": [
+          "down",
+          "right",
+          "action",
+          "down",
+          "down",
+          "right",
+          "action"
+        ]
+      },
+      {
+        "game": "BIAXIAL INVASION OF SATURN.txt",
+        "level": 17,
+        "solution": [
+          "action",
+          "down",
+          "action"
+        ]
+      },
+      {
+        "game": "Cucumber Surprise.txt",
+        "level": 13,
+        "solution": [
+          "right",
+          "right",
+          "down",
+          "down",
+          "left",
+          "up",
+          "right",
+          "up",
+          "left",
+          "left",
+          "left",
+          "up",
+          "left",
+          "down",
+          "left",
+          "left",
+          "down",
+          "down",
+          "right",
+          "right",
+          "up",
+          "up",
+          "right",
+          "right",
+          "right",
+          "right",
+          "down",
+          "left",
+          "down"
+        ]
+      },
+      {
+        "game": "Match-Maker.txt",
+        "level": 7,
+        "solution": [
+          "up",
+          "up",
+          "up",
+          "right",
+          "right",
+          "up",
+          "down",
+          "left",
+          "left",
+          "down",
+          "down",
+          "down",
+          "right",
+          "right",
+          "up",
+          "left",
+          "down",
+          "left",
+          "up",
+          "left",
+          "up",
+          "up",
+          "right",
+          "right",
+          "up",
+          "right",
+          "down",
+          "down",
+          "up",
+          "left",
+          "left",
+          "left",
+          "down",
+          "down",
+          "right",
+          "up",
+          "left",
+          "up",
+          "right",
+          "left",
+          "up",
+          "right",
+          "right"
+        ]
+      },
+      {
+        "game": "Match-Maker.txt",
+        "level": 17,
+        "solution": [
+          "down",
+          "left",
+          "up",
+          "right",
+          "up",
+          "right",
+          "up",
+          "left",
+          "down",
+          "down",
+          "down",
+          "right",
+          "up",
+          "up"
+        ]
+      },
+      {
+        "game": "a distant sunset.txt",
+        "level": 1,
+        "solution": [
+          "up",
+          "up",
+          "up",
+          "up",
+          "up",
+          "up"
+        ]
+      },
+      {
+        "game": "alternatey.txt",
+        "level": 2,
+        "solution": [
+          "up",
+          "left",
+          "right",
+          "up",
+          "up",
+          "down",
+          "down"
+        ]
+      },
+      {
+        "game": "kishoutenketsu.txt",
+        "level": 2,
+        "solution": [
+          "left",
+          "up",
+          "left",
+          "up",
+          "left",
+          "left",
+          "down",
+          "left",
+          "right",
+          "right",
+          "right",
+          "up",
+          "right",
+          "down",
+          "down",
+          "left",
+          "up",
+          "right",
+          "right",
+          "right",
+          "right",
+          "left",
+          "left",
+          "left",
+          "up",
+          "right"
+        ]
+      },
+      {
+        "game": "kishoutenketsu.txt",
+        "level": 11,
+        "solution": [
+          "up",
+          "up",
+          "left",
+          "left",
+          "left",
+          "up",
+          "up",
+          "up",
+          "right",
+          "up",
+          "right",
+          "left",
+          "left",
+          "left",
+          "up",
+          "right",
+          "down",
+          "right",
+          "right",
+          "down",
+          "down",
+          "down",
+          "down",
+          "down",
+          "right",
+          "right",
+          "right"
+        ]
+      },
+      {
+        "game": "tunnel rat.txt",
+        "level": 1,
+        "solution": [
+          "up",
+          "right",
+          "up",
+          "right",
+          "up",
+          "right",
+          "up",
+          "right",
+          "up",
+          "right",
+          "up",
+          "right",
+          "up",
+          "right",
+          "up",
+          "right",
+          "up",
+          "right",
+          "up",
+          "right",
+          "up",
+          "left",
+          "up",
+          "left",
+          "up",
+          "left",
+          "up"
+        ]
+      },
+      {
+        "game": "tunnel rat.txt",
+        "level": 3,
+        "solution": [
+          "up",
+          "right",
+          "up"
+        ]
+      },
+      {
+        "game": "unewton.txt",
+        "level": 6,
+        "solution": [
+          "up",
+          "left",
+          "up",
+          "right",
+          "right",
+          "action",
+          "left",
+          "left",
+          "up",
+          "up",
+          "left",
+          "up",
+          "right",
+          "right",
+          "right",
+          "right",
+          "right",
+          "right",
+          "down",
+          "right",
+          "right",
+          "right",
+          "right",
+          "right",
+          "right",
+          "down",
+          "right",
+          "down",
+          "left",
+          "left",
+          "action"
+        ]
+      },
+      {
+        "game": "wool-clawer.txt",
+        "level": 3,
+        "solution": [
+          "up",
+          "left",
+          "up",
+          "up",
+          "action",
+          "up",
+          "up"
+        ]
+      },
+      {
+        "game": "wool-clawer.txt",
+        "level": 11,
+        "solution": [
+          "down",
+          "left",
+          "down",
+          "down",
+          "down",
+          "right"
+        ]
+      }
+    ],
+    "samples": [
+      {
+        "variant": "before",
+        "index": 1,
+        "reportedSolved": 692,
+        "failedIndependentReplay": 12,
+        "verifiedSolved": 680
+      },
+      {
+        "variant": "after",
+        "index": 2,
+        "reportedSolved": 699,
+        "failedIndependentReplay": 13,
+        "verifiedSolved": 686
+      },
+      {
+        "variant": "after",
+        "index": 3,
+        "reportedSolved": 696,
+        "failedIndependentReplay": 14,
+        "verifiedSolved": 682
+      },
+      {
+        "variant": "before",
+        "index": 4,
+        "reportedSolved": 692,
+        "failedIndependentReplay": 13,
+        "verifiedSolved": 679
+      }
+    ],
+    "commonIdenticalVerified": {
+      "levels": 674,
+      "beforeStepMs": 15551.938350000011,
+      "afterStepMs": 14314.934099999977,
+      "timeReductionPercent": 7.95401976371668
+    }
+  },
+  "notes": {
+    "comparison": "Original generated C++ versus the optimized generated-code prototype. The native generator port emits equivalent function bodies for every generated solver-corpus game.",
+    "build": "MSVC x64 Release, O2, no link-time optimization, same native runtime libraries",
+    "timing": "Two runs per version in before/after/after/before order; arithmetic means. No compilation ran during the timed benchmark.",
+    "solutionValidation": "Independent native interpreter with all generated backends disabled. All 14 replay disagreements reproduced with baseline solutions, including an additional 2-second baseline solve for Match-Maker level 17. These remain pre-existing failures, not passes.",
+    "interpretation": "Timeout-heavy wall time is mostly fixed; throughput and identical-work timings are more useful. Per-game differences from two samples need targeted confirmation; the Cakemonsters slowdown was not reproduced in the recorded follow-up.",
+    "replayUtility": "native/tests/solver_solution_replay.cpp; link only the native runtime and compiler libraries, without generated registries.",
+    "cakemonstersFollowUp": {
+      "record": "2026-10-23-cakemonsters-regression-audit.json",
+      "status": "regression_not_reproduced",
+      "isolatedWholeGameMedianReductionPercent": 4.711537310134528
+    }
+  },
+  "date": "2026-10-23",
+  "baselineCommit": "fe110a0e",
+  "prototypeTransformations": {
+    "sources": 180,
+    "setterSites": 24002,
+    "unusedGetterSites": 45845,
+    "commandShortcuts": 4,
+    "rechecksRemoved": 4095,
+    "onePassGroups": 2076,
+    "flatPhases": 345,
+    "directRuleCalls": 1610,
+    "batchedGroups": 1294,
+    "dependencyFlushes": 248
+  },
+  "generatorPortValidation": {
+    "sources": 180,
+    "normalizedFunctions": 51752,
+    "differences": 0,
+    "normalization": "Whitespace, group helper names, and local scalar declaration placement only",
+    "schedulingFixtures": 14,
+    "engineTests": 780,
+    "staticAnalysisFixtures": "passed",
+    "randomSolutionReplay": "passed",
+    "solverCorpus": {
+      "levels": 2790,
+      "solved": 702,
+      "timeout": 512,
+      "exhausted": 132,
+      "skipped_message": 1444,
+      "errors": 0,
+      "expanded": 4709102,
+      "generated": 22467220,
+      "hda_remote_sends": 0,
+      "hda_inbox_drains": 0,
+      "hda_owner_shard_solves": 0,
+      "compact_turn_attempts": 0,
+      "compact_turn_hits": 0,
+      "compact_turn_native_attempts": 0,
+      "compact_turn_native_hits": 0,
+      "compact_turn_bridge_attempts": 0,
+      "compact_turn_bridge_hits": 0,
+      "compact_turn_unhandled": 0,
+      "compact_turn_fallbacks": 0,
+      "compact_turn_unsupported": 0,
+      "compact_turn_oracle_checks": 0,
+      "compact_turn_oracle_failures": 0,
+      "solver_hash_projection_projected_objects": 0,
+      "solver_hash_projection_blocked": false,
+      "removed_win_irrelevant_rules": 0,
+      "compile_ms": 6210.68,
+      "load_ms": 250.156,
+      "clone_ms": 14029.6,
+      "materialize_ms": 0,
+      "step_ms": 113178,
+      "hash_ms": 5012.63,
+      "state_capture_ms": 2116.48,
+      "queue_ms": 0,
+      "frontier_pop_ms": 388.714,
+      "frontier_push_ms": 304.684,
+      "visited_lookup_ms": 693.128,
+      "visited_insert_ms": 2073.73,
+      "visited_lookup_probes": 10226805,
+      "visited_insert_probes": 44803756,
+      "visited_grows": 1753,
+      "visited_capacity": 65536,
+      "visited_max_probe": 132,
+      "visited_key_collisions": 0,
+      "compact_state_bytes": 7997769077,
+      "compact_max_state_bytes": 51987,
+      "node_store_ms": 718.24,
+      "heuristic_ms": 8109.6,
+      "solved_check_ms": 439.011,
+      "timeout_check_ms": 1039.45,
+      "reconstruct_ms": 2.2292,
+      "unattributed_ms": 9517.84
+    },
+    "sharedPrototypeSolutions": 699,
+    "solutionDifferences": 0,
+    "independentReplay": {
+      "games": 123,
+      "solutions": 702,
+      "failures": 14,
+      "generatedBackends": false
+    }
+  },
+  "samples": [
+    {
+      "variant": "before",
+      "index": 1,
+      "wallMs": 162812.9951,
+      "totals": {
+        "levels": 2790,
+        "solved": 692,
+        "timeout": 522,
+        "exhausted": 132,
+        "skipped_message": 1444,
+        "errors": 0,
+        "expanded": 4230438,
+        "generated": 20205929,
+        "hda_remote_sends": 0,
+        "hda_inbox_drains": 0,
+        "hda_owner_shard_solves": 0,
+        "compact_turn_attempts": 0,
+        "compact_turn_hits": 0,
+        "compact_turn_native_attempts": 0,
+        "compact_turn_native_hits": 0,
+        "compact_turn_bridge_attempts": 0,
+        "compact_turn_bridge_hits": 0,
+        "compact_turn_unhandled": 0,
+        "compact_turn_fallbacks": 0,
+        "compact_turn_unsupported": 0,
+        "compact_turn_oracle_checks": 0,
+        "compact_turn_oracle_failures": 0,
+        "solver_hash_projection_projected_objects": 0,
+        "solver_hash_projection_blocked": false,
+        "removed_win_irrelevant_rules": 0,
+        "compile_ms": 5854.46,
+        "load_ms": 270.696,
+        "clone_ms": 13218.1,
+        "materialize_ms": 0,
+        "step_ms": 118725,
+        "hash_ms": 5291.86,
+        "state_capture_ms": 1948.61,
+        "queue_ms": 0,
+        "frontier_pop_ms": 359.465,
+        "frontier_push_ms": 272.969,
+        "visited_lookup_ms": 610.275,
+        "visited_insert_ms": 1881.17,
+        "visited_lookup_probes": 9116509,
+        "visited_insert_probes": 39917561,
+        "visited_grows": 1645,
+        "visited_capacity": 65536,
+        "visited_max_probe": 112,
+        "visited_key_collisions": 0,
+        "compact_state_bytes": 7168076243,
+        "compact_max_state_bytes": 51987,
+        "node_store_ms": 642.304,
+        "heuristic_ms": 7688.2,
+        "solved_check_ms": 398.667,
+        "timeout_check_ms": 945.1,
+        "reconstruct_ms": 2.329,
+        "unattributed_ms": 8962.05
+      }
+    },
+    {
+      "variant": "after",
+      "index": 2,
+      "wallMs": 161088.7392,
+      "totals": {
+        "levels": 2790,
+        "solved": 699,
+        "timeout": 515,
+        "exhausted": 132,
+        "skipped_message": 1444,
+        "errors": 0,
+        "expanded": 4486454,
+        "generated": 21436908,
+        "hda_remote_sends": 0,
+        "hda_inbox_drains": 0,
+        "hda_owner_shard_solves": 0,
+        "compact_turn_attempts": 0,
+        "compact_turn_hits": 0,
+        "compact_turn_native_attempts": 0,
+        "compact_turn_native_hits": 0,
+        "compact_turn_bridge_attempts": 0,
+        "compact_turn_bridge_hits": 0,
+        "compact_turn_unhandled": 0,
+        "compact_turn_fallbacks": 0,
+        "compact_turn_unsupported": 0,
+        "compact_turn_oracle_checks": 0,
+        "compact_turn_oracle_failures": 0,
+        "solver_hash_projection_projected_objects": 0,
+        "solver_hash_projection_blocked": false,
+        "removed_win_irrelevant_rules": 0,
+        "compile_ms": 5876.29,
+        "load_ms": 262.246,
+        "clone_ms": 14238.4,
+        "materialize_ms": 0,
+        "step_ms": 114513,
+        "hash_ms": 4955.45,
+        "state_capture_ms": 2059.28,
+        "queue_ms": 0,
+        "frontier_pop_ms": 379.244,
+        "frontier_push_ms": 295.665,
+        "visited_lookup_ms": 682.649,
+        "visited_insert_ms": 2091.99,
+        "visited_lookup_probes": 9703231,
+        "visited_insert_probes": 42525422,
+        "visited_grows": 1711,
+        "visited_capacity": 65536,
+        "visited_max_probe": 161,
+        "visited_key_collisions": 0,
+        "compact_state_bytes": 7567554205,
+        "compact_max_state_bytes": 51987,
+        "node_store_ms": 722.24,
+        "heuristic_ms": 8182.72,
+        "solved_check_ms": 424.205,
+        "timeout_check_ms": 1004.19,
+        "reconstruct_ms": 2.443,
+        "unattributed_ms": 9710.16
+      }
+    },
+    {
+      "variant": "after",
+      "index": 3,
+      "wallMs": 162006.5879,
+      "totals": {
+        "levels": 2790,
+        "solved": 696,
+        "timeout": 519,
+        "exhausted": 131,
+        "skipped_message": 1444,
+        "errors": 0,
+        "expanded": 4451800,
+        "generated": 21244432,
+        "hda_remote_sends": 0,
+        "hda_inbox_drains": 0,
+        "hda_owner_shard_solves": 0,
+        "compact_turn_attempts": 0,
+        "compact_turn_hits": 0,
+        "compact_turn_native_attempts": 0,
+        "compact_turn_native_hits": 0,
+        "compact_turn_bridge_attempts": 0,
+        "compact_turn_bridge_hits": 0,
+        "compact_turn_unhandled": 0,
+        "compact_turn_fallbacks": 0,
+        "compact_turn_unsupported": 0,
+        "compact_turn_oracle_checks": 0,
+        "compact_turn_oracle_failures": 0,
+        "solver_hash_projection_projected_objects": 0,
+        "solver_hash_projection_blocked": false,
+        "removed_win_irrelevant_rules": 0,
+        "compile_ms": 5994.51,
+        "load_ms": 327.957,
+        "clone_ms": 14379.7,
+        "materialize_ms": 0,
+        "step_ms": 115179,
+        "hash_ms": 4960.78,
+        "state_capture_ms": 2089.39,
+        "queue_ms": 0,
+        "frontier_pop_ms": 373.205,
+        "frontier_push_ms": 295.45,
+        "visited_lookup_ms": 671.203,
+        "visited_insert_ms": 2048.1,
+        "visited_lookup_probes": 9602054,
+        "visited_insert_probes": 42153064,
+        "visited_grows": 1705,
+        "visited_capacity": 65536,
+        "visited_max_probe": 112,
+        "visited_key_collisions": 0,
+        "compact_state_bytes": 7504023250,
+        "compact_max_state_bytes": 51987,
+        "node_store_ms": 728.076,
+        "heuristic_ms": 8224.59,
+        "solved_check_ms": 421.873,
+        "timeout_check_ms": 999.195,
+        "reconstruct_ms": 2.4901,
+        "unattributed_ms": 9711.52
+      }
+    },
+    {
+      "variant": "before",
+      "index": 4,
+      "wallMs": 163378.3689,
+      "totals": {
+        "levels": 2790,
+        "solved": 692,
+        "timeout": 522,
+        "exhausted": 132,
+        "skipped_message": 1444,
+        "errors": 0,
+        "expanded": 4170047,
+        "generated": 19904199,
+        "hda_remote_sends": 0,
+        "hda_inbox_drains": 0,
+        "hda_owner_shard_solves": 0,
+        "compact_turn_attempts": 0,
+        "compact_turn_hits": 0,
+        "compact_turn_native_attempts": 0,
+        "compact_turn_native_hits": 0,
+        "compact_turn_bridge_attempts": 0,
+        "compact_turn_bridge_hits": 0,
+        "compact_turn_unhandled": 0,
+        "compact_turn_fallbacks": 0,
+        "compact_turn_unsupported": 0,
+        "compact_turn_oracle_checks": 0,
+        "compact_turn_oracle_failures": 0,
+        "solver_hash_projection_projected_objects": 0,
+        "solver_hash_projection_blocked": false,
+        "removed_win_irrelevant_rules": 0,
+        "compile_ms": 5922,
+        "load_ms": 260.085,
+        "clone_ms": 13385.1,
+        "materialize_ms": 0,
+        "step_ms": 118826,
+        "hash_ms": 5270.44,
+        "state_capture_ms": 1950.27,
+        "queue_ms": 0,
+        "frontier_pop_ms": 361.201,
+        "frontier_push_ms": 255.155,
+        "visited_lookup_ms": 665.391,
+        "visited_insert_ms": 1988.29,
+        "visited_lookup_probes": 8959691,
+        "visited_insert_probes": 39230272,
+        "visited_grows": 1632,
+        "visited_capacity": 65536,
+        "visited_max_probe": 112,
+        "visited_key_collisions": 0,
+        "compact_state_bytes": 7112348742,
+        "compact_max_state_bytes": 51987,
+        "node_store_ms": 649.974,
+        "heuristic_ms": 7679.17,
+        "solved_check_ms": 394.057,
+        "timeout_check_ms": 932.823,
+        "reconstruct_ms": 2.5897,
+        "unattributed_ms": 9191.11
+      }
+    }
+  ],
+  "reproduce": {
+    "schedulingTests": "node src/tests/compiled_rules_scheduling_node.js --compiler PATH_TO_PUZZLESCRIPT_CPP",
+    "comparison": "node src/tests/compare_compiled_solver_benchmark.js BEFORE_SOLVER AFTER_SOLVER src/tests/solver_tests --runs 2 --timeout-ms 250 --out-dir build/native/compiled-solver-comparison",
+    "codeGeneration": "puzzlescript_cpp compile-rules src/tests/solver_tests --emit-cpp-dir OUTPUT_DIR --emit-sources-list SOURCES_FILE --max-rows 99 --max-compiled-rules-per-source 5000 --max-generated-lines-per-source 200000"
+  }
+}

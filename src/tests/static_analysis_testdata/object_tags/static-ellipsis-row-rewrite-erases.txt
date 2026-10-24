@@ -45,7 +45,7 @@ Player, Wall, Asteroid
 RULES
 =====
 
-[[ > Player | ... | Star ] -> [ | ... | Player ]
+[ > Player | ... | Star ] -> [ | ... | Player ]
 
 =============
 WINCONDITIONS

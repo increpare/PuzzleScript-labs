@@ -1,8 +1,8 @@
 'use strict';
 
-let canSetHTMLColors=true;
-let canDump=false;
-let canOpenEditor=false;
+const canSetHTMLColors=true;
+const canDump=false;
+const canOpenEditor=false;
 let IDE=false;
 const diffToVisualize=null;
 

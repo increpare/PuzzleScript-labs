@@ -1330,7 +1330,7 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
         }
         // Handle loop markers.
         const std::string marker = tokens.front();
-        if (marker == "startloop" || marker == "endloop") {
+        if (tokens.size() == 1 && (marker == "startloop" || marker == "endloop")) {
             if (marker == "startloop") {
                 loopStartStack.push_back(entry.lineNumber);
             } else {
@@ -1338,6 +1338,8 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                     const int32_t startLine = loopStartStack.back();
                     loopStartStack.pop_back();
                     loopRanges.emplace_back(startLine, entry.lineNumber);
+                } else {
+                    return std::make_unique<puzzlescript::Error>("Yo I found an ENDLOOP without a corresponding STARTLOOP.");
                 }
             }
             continue;
@@ -4895,6 +4897,10 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
     }
 
     attachInputSpecializationMasks(*game);
+
+    if (!loopStartStack.empty()) {
+        return std::make_unique<puzzlescript::Error>("Yo I found a STARTLOOP without a corresponding ENDLOOP.");
+    }
 
     auto calculateLoopPoints = [](const std::vector<std::pair<int32_t, int32_t>>& loopRanges,
                                   const std::vector<std::vector<puzzlescript::Rule>>& ruleGroups) {

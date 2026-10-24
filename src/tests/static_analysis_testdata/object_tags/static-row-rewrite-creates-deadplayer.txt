@@ -1,4 +1,4 @@
-title Static Analysis Extra LHS Bracket Keeps RHS Rewrite
+title Static Analysis Row Rewrite Creates Deadplayer
 
 ========
 OBJECTS
@@ -40,7 +40,7 @@ Player, Sumo, Deadplayer
 RULES
 =====
 
-[[ Player | Sumo ] -> [ Deadplayer | Sumo ] message You Died!
+[ Player | Sumo ] -> [ Deadplayer | Sumo ] message You Died!
 
 =============
 WINCONDITIONS

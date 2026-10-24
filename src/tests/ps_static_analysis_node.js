@@ -2004,4 +2004,163 @@ assertActionUnnecessaryDiagnosticsExposeHypotheses();
 assertPushRulegroupFlowReplay();
 assertSplittableRulegroupTransformReplay();
 
+function assertMatchInteractionCertificates() {
+    const fixture = fs.readFileSync(path.join(__dirname,
+        'static_analysis_testdata/rule_tags/match-interactions.txt'), 'utf8').replace(/\r\n/g, '\n');
+    const sourceFor = (rules, board = 'aaa') => fixture
+        .replace(/RULES\n[\s\S]*?\nWINCONDITIONS/, `RULES\n${rules}\n\nWINCONDITIONS`)
+        .replace(/LEVELS\n[\s\S]*$/, `LEVELS\n${board}\n`);
+    const interactionTags = rule => [
+        rule.tags.may_invalidate_other_matches,
+        rule.tags.may_enable_other_matches,
+    ];
+
+    // Property expansion, random selection, random RHS draws and rigid rules
+    // do not make a one-cell replacement write a different cell. They still
+    // retain all of their execution semantics; these are not one-pass tags.
+    for (const rule of [
+        '[ choice ] -> [ random choice ]',
+        '[ alpha ] -> [ randomdir alpha ]',
+        'random [ alpha ] -> [ beta ]',
+        'rigid [ alpha ] -> [ right alpha ]',
+        '[ alpha ] -> [ beta ] again',
+    ]) {
+        const analysis = analyzeSource(sourceFor(rule));
+        assert.strictEqual(analysis.status, 'ok', `${rule}: ${analysis.errors}`);
+        const rules = analysis.ps_tagged.rule_sections.flatMap(section =>
+            section.groups.flatMap(group => group.rules));
+        assert.ok(rules.length > 0, rule);
+        for (const compiledRule of rules) {
+            assert.deepStrictEqual(interactionTags(compiledRule), [false, false], rule);
+        }
+    }
+
+    const reenable = analyzeSource(sourceFor('[ alpha ] -> [ beta ]\n+ [ beta ] -> [ alpha ]'));
+    assert.strictEqual(reenable.status, 'ok');
+    const group = reenable.ps_tagged.rule_sections[0].groups[0];
+    assert.ok(group.rules.every(rule => interactionTags(rule).every(value => value === false)));
+    assert.strictEqual(reenable.facts.rulegroup_flow[0].value.single_pass_safe, false,
+        'independent match locations do not certify a rule group against reruns');
+
+    // Exercise the real matcher/replacer directly, before movement resolution
+    // or group repetition, so we observe precisely the scope of these flags.
+    const checkFirstReplacement = (text, board, verify) => {
+        const source = sourceFor(text, board);
+        const analysis = analyzeSource(source);
+        assert.strictEqual(analysis.status, 'ok', `${text}: ${analysis.errors}`);
+        const tags = interactionTags(analysis.ps_tagged.rule_sections[0].groups[0].rules[0]);
+        withRuntimeSource(source, () => {
+            const rule = state.rules[0][0];
+            assert.deepStrictEqual([
+                rule.rulePlanMetadata.may_invalidate_other_matches,
+                rule.rulePlanMetadata.may_enable_other_matches,
+            ], tags, `${text}: lowered compiler and semantic analysis should agree`);
+            assert.strictEqual(rule.skipOtherMatchRecheck, !tags[0],
+                `${text}: compiler certificate should select the generated fast path`);
+            state.calculateRowColMasks(level);
+            const before = Array.from(rule.findMatches(level)[0] || []);
+            assert.ok(before.length > 0, `${text}: needs an initial match`);
+            const delta = ({ 1: -1, 2: 1, 4: -level.height, 8: level.height })[rule.direction];
+            rule.applyAt(level, [before[0]], false, delta);
+            state.calculateRowColMasks(level);
+            const after = Array.from(rule.findMatches(level)[0] || []);
+            verify({ before, after, tags });
+        });
+    };
+    for (const rule of [
+        '[ alpha ] -> [ beta ]',
+        '[ stationary alpha ] -> [ right alpha ]',
+        '[ alpha ] -> [ random choice ]',
+        '[ alpha ] -> [ randomdir alpha ]',
+    ]) {
+        checkFirstReplacement(rule, 'aaa', ({ before, after, tags }) => {
+            assert.deepStrictEqual(tags, [false, false]);
+            assert.strictEqual(before.length, 3);
+            assert.deepStrictEqual(after.filter(cell => cell !== before[0]), before.slice(1),
+                `${rule}: replacement must preserve matches at all other cells`);
+        });
+    }
+    checkFirstReplacement('[ no alpha ] -> [ alpha ]', 'a..', ({ before, after, tags }) => {
+        assert.deepStrictEqual(tags, [false, false]);
+        assert.strictEqual(before.length, 2);
+        assert.deepStrictEqual(after, before.slice(1), 'creation consumes only its own absence match');
+    });
+    checkFirstReplacement('right [ alpha | alpha ] -> [ beta | beta ]', 'aaa', ({ before, after, tags }) => {
+        assert.deepStrictEqual(tags, [true, false]);
+        assert.strictEqual(before.length, 2);
+        assert.ok(!after.includes(before[1]), 'overlapping replacement invalidates the second match');
+    });
+    checkFirstReplacement('right [ alpha | no alpha ] -> [ alpha | alpha ]', 'a..', ({ before, after, tags }) => {
+        assert.deepStrictEqual(tags, [true, true]);
+        assert.strictEqual(before.length, 1);
+        assert.ok(after.some(cell => !before.includes(cell)), 'replacement enables a new location');
+    });
+    checkFirstReplacement('right [ alpha | marker ] -> [ alpha | marker stationary flag ]',
+        'amam', ({ before, after, tags }) => {
+            assert.deepStrictEqual(tags, [false, false]);
+            assert.strictEqual(before.length, 2);
+            assert.deepStrictEqual(after, before, 'independent multi-cell writes preserve other matches');
+        });
+    checkFirstReplacement('right [ alpha | flag ] -> [ alpha stationary flag | flag ]',
+        'aaf', ({ before, after, tags }) => {
+            assert.deepStrictEqual(tags, [false, true]);
+            assert.strictEqual(before.length, 1);
+            assert.ok(after.some(cell => !before.includes(cell)), 'multi-cell write enables a new match');
+        });
+    checkFirstReplacement('right [ no flag | no flag ] -> [ no flag | flag ]',
+        'aaa', ({ before, after, tags }) => {
+            assert.deepStrictEqual(tags, [true, false]);
+            assert.strictEqual(before.length, 2);
+            assert.ok(!after.includes(before[1]), 'multi-cell write invalidates the second match');
+        });
+
+      const checkGroupPasses = (text, board, expectedSinglePass) => {
+          withRuntimeSource(sourceFor(text, board), () => {
+              const group = state.rules[0];
+              assert.strictEqual(group.length, 1, `${text}: needs one concrete rule`);
+              const rule = group[0];
+              assert.strictEqual(rule.skipSingleRuleGroupRescan, expectedSinglePass, text);
+              const boardObjects = { a: 'alpha', b: 'beta', m: 'marker', f: 'flag' };
+              const ids = Object.values(boardObjects).map(runtimeObjectId);
+              for (let index = 0; index < board.length; index++) {
+                  const cell = level.getCell(index);
+                  for (const id of ids) cell.ibitclear(id);
+                  cell.ibitset(runtimeObjectId(boardObjects[board[index]]));
+                  level.setCell(index, cell);
+              }
+              level.movements.fill(0);
+              state.calculateRowColMasks(level);
+              const previousInputSpecialization = inputSpecializationActive;
+              inputSpecializationActive = false;
+              let calls = 0;
+              const originalTryApply = rule.tryApply;
+              rule.tryApply = function (currentLevel) {
+                  calls++;
+                  return originalTryApply.call(this, currentLevel);
+              };
+              try {
+                  assert.strictEqual(applyRuleGroup(group), true, text);
+              } finally {
+                  rule.tryApply = originalTryApply;
+                  inputSpecializationActive = previousInputSpecialization;
+              }
+              if (expectedSinglePass) {
+                  assert.strictEqual(calls, 1, `${text}: certified group needs one scan`);
+              } else {
+                  assert.ok(calls > 1, `${text}: enabling rule needs another scan`);
+              }
+          });
+      };
+      checkGroupPasses('right [ alpha | marker ] -> [ alpha | marker stationary flag ]', 'amam', true);
+      checkGroupPasses('[ alpha ] -> [ beta ]', 'aaa', true);
+      checkGroupPasses('right [ no flag | no flag ] -> [ no flag | flag ]', 'aaa', false);
+      checkGroupPasses('right [ alpha | flag ] -> [ alpha stationary flag | flag ]', 'aaf', false);
+      withRuntimeSource(sourceFor('[ alpha ] -> [ randomdir alpha ]', 'aaa'), () => {
+          assert.strictEqual(state.rules[0][0].skipSingleRuleGroupRescan, false,
+              'a random draw may change an already-matching cell on a later scan');
+      });
+}
+
+assertMatchInteractionCertificates();
+
 console.log('ps_static_analysis_node: ok');

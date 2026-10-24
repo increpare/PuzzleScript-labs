@@ -26,6 +26,7 @@ enum class HeuristicKind {
 
 struct StaticAnalysisHints {
     bool available = false;
+    bool actionUnnecessaryProved = false;
     MaskVector staticObjects;
     bool solverHashProjectionAvailable = false;
     MaskVector solverHashProjectionObjects;

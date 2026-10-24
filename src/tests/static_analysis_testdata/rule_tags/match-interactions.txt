@@ -1,0 +1,56 @@
+title Match Interaction Tags
+OBJECTS
+
+Background
+black
+
+Alpha
+white
+
+Beta
+blue
+
+Marker
+red
+
+Flag
+green
+
+LEGEND
+. = Background
+a = Alpha
+b = Beta
+m = Marker
+f = Flag
+Player = Alpha
+Choice = Alpha or Beta
+
+SOUNDS
+
+COLLISIONLAYERS
+Background
+Alpha, Beta
+Marker
+Flag
+
+RULES
+[ alpha ] -> [ beta ]
+[ no alpha ] -> [ alpha ]
+[ stationary alpha ] -> [ right alpha ]
+[ ] -> [ stationary marker ]
+right [ alpha | alpha ] -> [ beta | beta ]
+right [ alpha | no alpha ] -> [ alpha | alpha ]
+[ alpha ] [ marker ] -> [ beta ] [ marker ]
+right [ alpha | ... | alpha ] -> [ beta | ... | beta ]
+right [ alpha | alpha ] -> [ alpha | alpha ]
+right [ alpha | alpha ] -> sfx0
+right [ alpha | marker ] -> [ alpha | marker stationary flag ]
+right [ alpha | flag ] -> [ alpha stationary flag | flag ]
+right [ alpha | no flag ] -> [ alpha | flag ]
+late [ alpha ] -> [ beta ]
+
+WINCONDITIONS
+
+LEVELS
+aaa
+m..

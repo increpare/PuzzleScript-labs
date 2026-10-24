@@ -1536,6 +1536,18 @@ function Rule(rule) {
 			this.patterns.length === 1 &&
 			this.commands.length === 0,
 	};
+	const matchInteractionFastPathDisabled = typeof process !== 'undefined' &&
+		process.env && process.env.PUZZLESCRIPT_DISABLE_MATCH_INTERACTION_OPT === '1';
+	const groupRescanFastPathDisabled = typeof process !== 'undefined' &&
+		process.env && process.env.PUZZLESCRIPT_DISABLE_GROUP_RESCAN_OPT === '1';
+	this.skipOtherMatchRecheck = !matchInteractionFastPathDisabled &&
+		this.rulePlanMetadata.may_invalidate_other_matches === false;
+	const isolatedMatchCell = this.patterns.length === 1 && this.patterns[0].length === 1 &&
+		this.ellipsisCount[0] === 0;
+	this.skipSingleRuleGroupRescan = !matchInteractionFastPathDisabled && !groupRescanFastPathDisabled &&
+		this.rulePlanMetadata.may_enable_other_matches === false &&
+		this.rulePlanMetadata.fixed_replacements === true &&
+		(isolatedMatchCell || this.rulePlanMetadata.may_invalidate_other_matches === false);
 	// Phase 7B-2b: aggregate-direction bindings populated between match and
 	// replace by captureAggregateBindings; consumed in CellReplacement.replace
 	// via the inferredAggregateBindings entries.
@@ -1555,7 +1567,8 @@ function Rule(rule) {
 	this.forceAlwaysRunReason = rule[18] || null;
 	this.activeInputsMask = 0b111111;
 	this.ruleMask = new BitVec(STRIDE_OBJ);
-	this.applyAt = this.generateApplyAt(this.patterns, this.ellipsisCount, STRIDE_OBJ, STRIDE_MOV);
+	this.applyAt = this.generateApplyAt(this.patterns, this.ellipsisCount, STRIDE_OBJ, STRIDE_MOV,
+		this.skipOtherMatchRecheck);
 	for (const m of this.cellRowMasks) {
 		this.ruleMask.ior(m);
 	}
@@ -2002,16 +2015,21 @@ CellPattern.prototype.generateMatchFunction = function() {
     const movStride = STRIDE_MOV === 1 ? '' : `*${STRIDE_MOV}`;
 
     let fn = '';
-
+    const expression = this.generateMatchString('this');
+    // Derive loads from the expression so advanced predicates (including
+    // layer-coupled properties and any-movement masks) cannot lose a word.
+    const referenced = new Set(expression.match(/\bcell(?:Objects|Movements)\d+\b/g));
     for (let i = 0; i < STRIDE_OBJ; ++i) {
-        fn += `const cellObjects${i} = objects[i${objStride}${i ? '+' + i : ''}];\n`;
+        if (referenced.has(`cellObjects${i}`)) {
+            fn += `const cellObjects${i} = objects[i${objStride}${i ? '+' + i : ''}];\n`;
+        }
     }
-
     for (let i = 0; i < STRIDE_MOV; ++i) {
-        fn += `const cellMovements${i} = movements[i${movStride}${i ? '+' + i : ''}];\n`;
+        if (referenced.has(`cellMovements${i}`)) {
+            fn += `const cellMovements${i} = movements[i${movStride}${i ? '+' + i : ''}];\n`;
+        }
     }
-
-    fn += `return ${this.generateMatchString('this')};`;
+    fn += `return ${expression};`;
 
     let result = CACHE_CELLPATTERN_MATCHFUNCTION.get(fn);
     if (result === undefined) {
@@ -2023,6 +2041,87 @@ CellPattern.prototype.generateMatchFunction = function() {
 
 let _o1, _o2, _o2_5, _o3, _o4, _o5, _o6, _o7, _o8, _o9, _o10, _o11, _o12;
 let _m1, _m2, _m3;
+
+function generateSparseReplaceFunction(replacement, objectSize, movementSize) {
+	const objectWords = [];
+	const movementWords = [];
+	for (let i = 0; i < objectSize; i++) {
+		if (replacement.objectsClear.data[i] || replacement.objectsSet.data[i]) objectWords.push(i);
+	}
+	for (let i = 0; i < movementSize; i++) {
+		if (replacement.movementsClear.data[i] || replacement.movementsLayerMask.data[i] || replacement.movementsSet.data[i]) movementWords.push(i);
+	}
+	if (objectWords.length === 0 && movementWords.length === 0) return FALSE_FUNCTION;
+
+	// Mask values vary between patterns; the generated code only depends on word positions and strides.
+	// Share generated functions between patterns with the same sparse shape.
+	const key = `sparse:${objectSize},${movementSize}:${objectWords}:${movementWords}`;
+	if (key in CACHE_CELLPATTERN_REPLACEFUNCTION) return CACHE_CELLPATTERN_REPLACEFUNCTION[key];
+
+	let reads = '';
+	let writes = '';
+	const changes = [];
+
+	for (const i of objectWords) {
+		reads += `
+			const oldObject${i} = level.objects[currentIndex * ${objectSize} + ${i}];
+			const newObject${i} = (oldObject${i} & ~replacement.objectsClear.data[${i}]) | replacement.objectsSet.data[${i}];
+		`;
+		changes.push(`oldObject${i} !== newObject${i}`);
+		writes += `
+			level.objects[currentIndex * ${objectSize} + ${i}] = newObject${i};
+			sfxCreateMask.data[${i}] |= newObject${i} & ~oldObject${i};
+			sfxDestroyMask.data[${i}] |= oldObject${i} & ~newObject${i};
+			level.rowCellContents[row].data[${i}] |= newObject${i};
+			level.colCellContents[col].data[${i}] |= newObject${i};
+			level.mapCellContents.data[${i}] |= newObject${i};
+		`;
+	}
+
+	for (const i of movementWords) {
+		reads += `
+			const oldMovement${i} = level.movements[currentIndex * ${movementSize} + ${i}];
+			const newMovement${i} = (oldMovement${i} & ~(replacement.movementsClear.data[${i}] | replacement.movementsLayerMask.data[${i}])) | replacement.movementsSet.data[${i}];
+		`;
+		changes.push(`oldMovement${i} !== newMovement${i}`);
+		writes += `
+			level.movements[currentIndex * ${movementSize} + ${i}] = newMovement${i};
+			level.rowCellContents_Movements[row].data[${i}] |= newMovement${i};
+			level.colCellContents_Movements[col].data[${i}] |= newMovement${i};
+			level.mapCellContents_Movements.data[${i}] |= newMovement${i};
+		`;
+	}
+
+	let trackObjects = '';
+	if (objectWords.length) {
+		trackObjects = `
+		if (${objectWords.map(i => `oldObject${i} !== newObject${i}`).join(' || ')}) {
+			turnObjectsModified = true;
+			// Hashing and target-version tracking consume a complete cell before
+			// the caller writes it. Preserve untouched words in that view.
+			if (level.solverZobristUpdateCell) {
+				const next = _o2_5;
+				for (let word = 0; word < ${objectSize}; word++) {
+					next.data[word] = level.objects[currentIndex * ${objectSize} + word];
+				}
+				${objectWords.map(i => `next.data[${i}] = newObject${i};`).join('\n')}
+				level.solverZobristUpdateCell(currentIndex, next);
+			}
+		}`;
+	}
+	// Summary masks accumulate bits during a turn; untouched words are already covered.
+	return CACHE_CELLPATTERN_REPLACEFUNCTION[key] = new Function('level', 'rule', 'currentIndex', generatedFunctionSource('cellPatternSparseReplace', `
+		'use strict';
+		const replacement = this.replacement;
+		${reads}
+		if (!(${changes.join(' || ')})) return false;
+		const row = currentIndex % level.height;
+		const col = (currentIndex / level.height) | 0;
+		${trackObjects}
+		${writes}
+		return true;
+	`));
+}
 
 let CACHE_CELLPATTERN_REPLACEFUNCTION = {}
 let _replace_function_key_array = new Int32Array(0);
@@ -2046,10 +2145,7 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 	let key;
 	if (deterministic && !rule.rigid && !hasCoupledReplacements &&
 		!hasInferredAggregateBindings && !hasInferredPropertyBindings && !hasInferredPropertySources) {
-		// The masks are all read from this.replacement at runtime, so the
-		// generated source for this (overwhelmingly common) case depends only
-		// on the strides - no need to build a key from the mask values.
-		key = OBJECT_SIZE + "," + MOVEMENT_SIZE;
+		return generateSparseReplaceFunction(this.replacement, OBJECT_SIZE, MOVEMENT_SIZE);
 	} else {
 		// The random-entity and rigid blocks still embed pattern/rule-specific
 		// constants in the source, so key on the full mask values.
@@ -2711,7 +2807,7 @@ function FOR(start, end, fn) {
 }
 
 let CACHE_RULE_APPLYAT = {}
-Rule.prototype.generateApplyAt = function (patterns, ellipsisCount, OBJECT_SIZE, MOVEMENT_SIZE) {
+Rule.prototype.generateApplyAt = function (patterns, ellipsisCount, OBJECT_SIZE, MOVEMENT_SIZE, skipOtherMatchRecheck) {
 	//have to double check the cell rows still apply
 	//(cf test ellipsis bug: rule matches two candidates, first replacement invalidates second).
 	//only the variant matching the row's ellipsis count is emitted - dead variants would
@@ -2721,7 +2817,7 @@ Rule.prototype.generateApplyAt = function (patterns, ellipsisCount, OBJECT_SIZE,
 	//before Phase 7B-2b/5c-4 aggregate bindings, because property-attached aggregate
 	//bindings need the captured alias layer to know where to read the source movement bit.
 	const fn = `'use strict';
-	if (check)
+	if (check && ${!skipOtherMatchRecheck})
 	{
 	${FOR(0, patterns.length, cellRowIndex => {
 		const rowEllipsisCount = ellipsisCount[cellRowIndex];
@@ -2845,7 +2941,14 @@ Rule.prototype.tryApply = function (level) {
 
 	let result = false;
 	if (this.hasReplacements) {
-		if (this.rulePlanMetadata.row_count === 1) {
+		if (this.patterns.length === 1 && this.patterns[0].length === 1 &&
+			this.ellipsisCount[0] === 0 && !verbose_logging &&
+			this.propertyBindingsArr === null && this.aggregateBindingsArr === null) {
+			const cell = this.patterns[0][0];
+			for (const index of matches[0]) {
+				result = cell.replace(level, this, index) || result;
+			}
+		} else if (this.rulePlanMetadata.row_count === 1) {
 			let tuple = [null];
 			let rowMatches = matches[0];
 			for (let tupleIndex = 0; tupleIndex < rowMatches.length; tupleIndex++) {
@@ -3089,6 +3192,7 @@ function applyRuleGroupUnconditional(ruleGroup) {
     const activeRuleGroup = inputSpecializedRuleGroup(ruleGroup);
     const GROUP_LENGTH = activeRuleGroup.length;
     if (GROUP_LENGTH === 0) return false;
+    const onePassGroup = GROUP_LENGTH === 1 && activeRuleGroup[0].skipSingleRuleGroupRescan;
     let hasChanges = false;
     let madeChangeThisLoop = true;
     let loopcount = 0;
@@ -3114,6 +3218,10 @@ function applyRuleGroupUnconditional(ruleGroup) {
                 addToDebugTimeline(level, -2);
             }
         }
+		// The compiler has proved that this rule's first scan reaches its
+		// fixed point: an isolated cell has no overlapping tuples; otherwise
+		// writes leave all match predicates unchanged. Replacements are fixed.
+        if (onePassGroup) break;
     }
     if (loopcount >= MAX_LOOP_COUNT) {
         logErrorCacheable("Got caught looping lots in a rule group :O", ruleGroup[0].lineNumber, true);
@@ -3144,6 +3252,7 @@ function applyRuleGroup(ruleGroup) {
         _lastGroupWriteMovements.setZero();
         return false;
     }
+    const onePassGroup = GROUP_LENGTH === 1 && activeRuleGroup[0].skipSingleRuleGroupRescan;
     let hasChanges = false;
     let madeChangeThisLoop = true;
     let loopcount = 0;
@@ -3271,6 +3380,8 @@ function applyRuleGroup(ruleGroup) {
                 addToDebugTimeline(level, -2);
             }
         }
+
+        if (onePassGroup) break;
 
         if (priorObjects === _allOnesObjects) {
             priorObjects = nextObjects;
@@ -3946,6 +4057,7 @@ function DoWin() {
 }
 
 function nextLevel() {
+	const startedInTextMode = textMode;
 	againing = false;
 	messagetext = "";
 	if (state && state.levels && (curlevel > state.levels.length)) {
@@ -3994,6 +4106,8 @@ function nextLevel() {
 		}
 		//continue existing game
 	}
+	// Inputs dismissing titles/messages are not part of the board recording.
+	if (startedInTextMode) clearInputHistory();
 	try {
 		storage_set(document.URL, curlevel);
 		if (curlevelTarget !== null) {

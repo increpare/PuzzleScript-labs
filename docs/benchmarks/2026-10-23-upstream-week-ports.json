@@ -1,0 +1,7366 @@
+{
+  "date": "2026-10-23",
+  "upstream": "b44aa2654f70fe347c8dcac16f82542b33547a12",
+  "baseline": "15435f724ff1b69007635d64de02f0dc51dbd3ec",
+  "engineCommit": "86e89bee",
+  "nativeCommit": "ff8bfdb5",
+  "platform": "Windows x64, Node 22.12.0, Visual Studio 2022 Release, PS_MASK_WORD_BITS=64",
+  "cohortDefinition": "Solved in all four runs; identical expanded/generated counts; each elapsed time below 100 ms; baseline mean at least 2 ms.",
+  "jsFixtures": [
+    {
+      "kind": "before",
+      "code": 0,
+      "wallMs": 12643,
+      "summary": [
+        "Passed:  794",
+        "Failed:  0",
+        "Errors:  0",
+        "Total:   794 tests in 12.49s",
+        "  Breakdown: compile 4672ms (794 calls), processInput 9477ms (22452 calls), undo 13ms (2926 calls), restart 33ms (81 calls)"
+      ]
+    },
+    {
+      "kind": "after",
+      "code": 0,
+      "wallMs": 11669,
+      "summary": [
+        "Passed:  794",
+        "Failed:  0",
+        "Errors:  0",
+        "Total:   794 tests in 11.54s",
+        "  Breakdown: compile 4406ms (794 calls), processInput 8553ms (22452 calls), undo 12ms (2926 calls), restart 28ms (81 calls)"
+      ]
+    },
+    {
+      "kind": "after",
+      "code": 0,
+      "wallMs": 11672,
+      "summary": [
+        "Passed:  794",
+        "Failed:  0",
+        "Errors:  0",
+        "Total:   794 tests in 11.55s",
+        "  Breakdown: compile 4380ms (794 calls), processInput 8589ms (22452 calls), undo 13ms (2926 calls), restart 27ms (81 calls)"
+      ]
+    },
+    {
+      "kind": "before",
+      "code": 0,
+      "wallMs": 12721,
+      "summary": [
+        "Passed:  794",
+        "Failed:  0",
+        "Errors:  0",
+        "Total:   794 tests in 12.59s",
+        "  Breakdown: compile 4762ms (794 calls), processInput 9480ms (22452 calls), undo 13ms (2926 calls), restart 33ms (81 calls)"
+      ]
+    }
+  ],
+  "native": {
+    "kind": "native",
+    "order": [
+      "before",
+      "after",
+      "after",
+      "before"
+    ],
+    "timeoutMs": 125,
+    "strategy": "weighted-astar",
+    "jobs": 1,
+    "runs": [
+      {
+        "levels": 2790,
+        "solved": 716,
+        "timeout": 623,
+        "exhausted": 7,
+        "skippedMessage": 1444,
+        "errors": 0
+      },
+      {
+        "levels": 2790,
+        "solved": 710,
+        "timeout": 629,
+        "exhausted": 7,
+        "skippedMessage": 1444,
+        "errors": 0
+      },
+      {
+        "levels": 2790,
+        "solved": 708,
+        "timeout": 631,
+        "exhausted": 7,
+        "skippedMessage": 1444,
+        "errors": 0
+      },
+      {
+        "levels": 2790,
+        "solved": 697,
+        "timeout": 642,
+        "exhausted": 7,
+        "skippedMessage": 1444,
+        "errors": 0
+      }
+    ],
+    "matchedCohort": {
+      "levels": 481,
+      "elapsedMs": {
+        "before": 11848,
+        "after": 11597.5,
+        "changePercent": -2.114280891289666
+      },
+      "stepMs": {
+        "before": 8489.74745000001,
+        "after": 8340.309000000001,
+        "changePercent": -1.7602225611553224
+      }
+    },
+    "levelComparisons": [
+      {
+        "game": "15 push pull levels.txt",
+        "level": 1,
+        "expanded": 1417,
+        "generated": 5667,
+        "beforeMs": 14.5,
+        "afterMs": 14
+      },
+      {
+        "game": "15 push pull levels.txt",
+        "level": 5,
+        "expanded": 4367,
+        "generated": 17468,
+        "beforeMs": 45.5,
+        "afterMs": 44
+      },
+      {
+        "game": "15 push pull levels.txt",
+        "level": 7,
+        "expanded": 7547,
+        "generated": 30185,
+        "beforeMs": 81.5,
+        "afterMs": 77
+      },
+      {
+        "game": "15 push pull levels.txt",
+        "level": 9,
+        "expanded": 4352,
+        "generated": 17408,
+        "beforeMs": 43,
+        "afterMs": 42.5
+      },
+      {
+        "game": "15 push pull levels.txt",
+        "level": 11,
+        "expanded": 1664,
+        "generated": 6656,
+        "beforeMs": 16.5,
+        "afterMs": 18
+      },
+      {
+        "game": "15 push pull levels.txt",
+        "level": 13,
+        "expanded": 1469,
+        "generated": 5876,
+        "beforeMs": 15,
+        "afterMs": 14.5
+      },
+      {
+        "game": "15 push pull levels.txt",
+        "level": 15,
+        "expanded": 1486,
+        "generated": 5943,
+        "beforeMs": 14.5,
+        "afterMs": 14.5
+      },
+      {
+        "game": "15 push pull levels.txt",
+        "level": 17,
+        "expanded": 3601,
+        "generated": 14401,
+        "beforeMs": 36,
+        "afterMs": 36
+      },
+      {
+        "game": "15 push pull levels.txt",
+        "level": 19,
+        "expanded": 7819,
+        "generated": 31276,
+        "beforeMs": 88,
+        "afterMs": 87
+      },
+      {
+        "game": "8 happy snakes.txt",
+        "level": 3,
+        "expanded": 230,
+        "generated": 917,
+        "beforeMs": 20.5,
+        "afterMs": 21
+      },
+      {
+        "game": "8 happy snakes.txt",
+        "level": 5,
+        "expanded": 91,
+        "generated": 364,
+        "beforeMs": 8.5,
+        "afterMs": 7
+      },
+      {
+        "game": "8 happy snakes.txt",
+        "level": 7,
+        "expanded": 258,
+        "generated": 1029,
+        "beforeMs": 30,
+        "afterMs": 31.5
+      },
+      {
+        "game": "ALL GREEN TO BLUE.txt",
+        "level": 5,
+        "expanded": 4518,
+        "generated": 22588,
+        "beforeMs": 55.5,
+        "afterMs": 54
+      },
+      {
+        "game": "ALL GREEN TO BLUE.txt",
+        "level": 7,
+        "expanded": 3591,
+        "generated": 17953,
+        "beforeMs": 52,
+        "afterMs": 45
+      },
+      {
+        "game": "ALL GREEN TO BLUE.txt",
+        "level": 9,
+        "expanded": 1448,
+        "generated": 7238,
+        "beforeMs": 18.5,
+        "afterMs": 16.5
+      },
+      {
+        "game": "ALL GREEN TO BLUE.txt",
+        "level": 15,
+        "expanded": 330,
+        "generated": 1648,
+        "beforeMs": 4,
+        "afterMs": 3
+      },
+      {
+        "game": "ALL GREEN TO BLUE.txt",
+        "level": 17,
+        "expanded": 2117,
+        "generated": 10583,
+        "beforeMs": 25.5,
+        "afterMs": 22.5
+      },
+      {
+        "game": "ALL GREEN TO BLUE.txt",
+        "level": 19,
+        "expanded": 196,
+        "generated": 977,
+        "beforeMs": 2,
+        "afterMs": 1.5
+      },
+      {
+        "game": "Acorn Scorchery Paradise.txt",
+        "level": 1,
+        "expanded": 520,
+        "generated": 2596,
+        "beforeMs": 7.5,
+        "afterMs": 5.5
+      },
+      {
+        "game": "Acorn Scorchery Paradise.txt",
+        "level": 3,
+        "expanded": 394,
+        "generated": 1967,
+        "beforeMs": 6,
+        "afterMs": 4.5
+      },
+      {
+        "game": "Acorn Scorchery Paradise.txt",
+        "level": 5,
+        "expanded": 1339,
+        "generated": 6693,
+        "beforeMs": 21.5,
+        "afterMs": 16.5
+      },
+      {
+        "game": "Acorn Scorchery Paradise.txt",
+        "level": 7,
+        "expanded": 343,
+        "generated": 1712,
+        "beforeMs": 5,
+        "afterMs": 3.5
+      },
+      {
+        "game": "Acorn Scorchery Paradise.txt",
+        "level": 9,
+        "expanded": 1734,
+        "generated": 8667,
+        "beforeMs": 25,
+        "afterMs": 20
+      },
+      {
+        "game": "All Green and Blue on Yellow.txt",
+        "level": 1,
+        "expanded": 199,
+        "generated": 795,
+        "beforeMs": 2.5,
+        "afterMs": 1.5
+      },
+      {
+        "game": "All Green and Blue on Yellow.txt",
+        "level": 5,
+        "expanded": 1269,
+        "generated": 5073,
+        "beforeMs": 13.5,
+        "afterMs": 10
+      },
+      {
+        "game": "All Green and Blue on Yellow.txt",
+        "level": 7,
+        "expanded": 1385,
+        "generated": 5540,
+        "beforeMs": 12,
+        "afterMs": 11
+      },
+      {
+        "game": "All Green and Blue on Yellow.txt",
+        "level": 9,
+        "expanded": 1222,
+        "generated": 4888,
+        "beforeMs": 10.5,
+        "afterMs": 10.5
+      },
+      {
+        "game": "Any hole is a goal.txt",
+        "level": 1,
+        "expanded": 17,
+        "generated": 81,
+        "beforeMs": 2,
+        "afterMs": 2
+      },
+      {
+        "game": "Any hole is a goal.txt",
+        "level": 3,
+        "expanded": 802,
+        "generated": 4006,
+        "beforeMs": 74.5,
+        "afterMs": 70.5
+      },
+      {
+        "game": "Any hole is a goal.txt",
+        "level": 7,
+        "expanded": 748,
+        "generated": 3736,
+        "beforeMs": 79,
+        "afterMs": 65.5
+      },
+      {
+        "game": "Attractor Net.txt",
+        "level": 1,
+        "expanded": 1536,
+        "generated": 7676,
+        "beforeMs": 54.5,
+        "afterMs": 51.5
+      },
+      {
+        "game": "Attractor Net.txt",
+        "level": 3,
+        "expanded": 1827,
+        "generated": 9134,
+        "beforeMs": 64,
+        "afterMs": 57
+      },
+      {
+        "game": "Attractor Net.txt",
+        "level": 5,
+        "expanded": 163,
+        "generated": 811,
+        "beforeMs": 7,
+        "afterMs": 5.5
+      },
+      {
+        "game": "Attractor Net.txt",
+        "level": 7,
+        "expanded": 497,
+        "generated": 2483,
+        "beforeMs": 23.5,
+        "afterMs": 16
+      },
+      {
+        "game": "Attractor Net.txt",
+        "level": 9,
+        "expanded": 1296,
+        "generated": 6479,
+        "beforeMs": 44,
+        "afterMs": 41.5
+      },
+      {
+        "game": "Attractor Net.txt",
+        "level": 11,
+        "expanded": 530,
+        "generated": 2648,
+        "beforeMs": 15,
+        "afterMs": 15
+      },
+      {
+        "game": "Attractor Net.txt",
+        "level": 13,
+        "expanded": 2357,
+        "generated": 11784,
+        "beforeMs": 76,
+        "afterMs": 73
+      },
+      {
+        "game": "Attractor Net.txt",
+        "level": 15,
+        "expanded": 1371,
+        "generated": 6854,
+        "beforeMs": 43,
+        "afterMs": 44
+      },
+      {
+        "game": "Attractor Net.txt",
+        "level": 19,
+        "expanded": 1849,
+        "generated": 9244,
+        "beforeMs": 55.5,
+        "afterMs": 58.5
+      },
+      {
+        "game": "Bicycle-Kick Football.txt",
+        "level": 7,
+        "expanded": 409,
+        "generated": 2045,
+        "beforeMs": 22.5,
+        "afterMs": 18.5
+      },
+      {
+        "game": "Bicycle-Kick Football.txt",
+        "level": 10,
+        "expanded": 71,
+        "generated": 355,
+        "beforeMs": 2.5,
+        "afterMs": 2
+      },
+      {
+        "game": "Bicycle-Kick Football.txt",
+        "level": 13,
+        "expanded": 901,
+        "generated": 4505,
+        "beforeMs": 54,
+        "afterMs": 50.5
+      },
+      {
+        "game": "Bicycle-Kick Football.txt",
+        "level": 16,
+        "expanded": 1447,
+        "generated": 7235,
+        "beforeMs": 67,
+        "afterMs": 62
+      },
+      {
+        "game": "CODEX LUBRICUS.txt",
+        "level": 2,
+        "expanded": 84,
+        "generated": 416,
+        "beforeMs": 6,
+        "afterMs": 8.5
+      },
+      {
+        "game": "CODEX LUBRICUS.txt",
+        "level": 4,
+        "expanded": 71,
+        "generated": 351,
+        "beforeMs": 11.5,
+        "afterMs": 11
+      },
+      {
+        "game": "CODEX LUBRICUS.txt",
+        "level": 6,
+        "expanded": 62,
+        "generated": 306,
+        "beforeMs": 16.5,
+        "afterMs": 14.5
+      },
+      {
+        "game": "CODEX LUBRICUS.txt",
+        "level": 8,
+        "expanded": 79,
+        "generated": 391,
+        "beforeMs": 9,
+        "afterMs": 7.5
+      },
+      {
+        "game": "CODEX LUBRICUS.txt",
+        "level": 10,
+        "expanded": 108,
+        "generated": 536,
+        "beforeMs": 23.5,
+        "afterMs": 22.5
+      },
+      {
+        "game": "CODEX LUBRICUS.txt",
+        "level": 12,
+        "expanded": 123,
+        "generated": 611,
+        "beforeMs": 16,
+        "afterMs": 17.5
+      },
+      {
+        "game": "CODEX LUBRICUS.txt",
+        "level": 14,
+        "expanded": 111,
+        "generated": 551,
+        "beforeMs": 15.5,
+        "afterMs": 16
+      },
+      {
+        "game": "CODEX LUBRICUS.txt",
+        "level": 16,
+        "expanded": 75,
+        "generated": 371,
+        "beforeMs": 9.5,
+        "afterMs": 9
+      },
+      {
+        "game": "CODEX LUBRICUS.txt",
+        "level": 18,
+        "expanded": 76,
+        "generated": 376,
+        "beforeMs": 18,
+        "afterMs": 18.5
+      },
+      {
+        "game": "CODEX LUBRICUS.txt",
+        "level": 20,
+        "expanded": 85,
+        "generated": 421,
+        "beforeMs": 18,
+        "afterMs": 19.5
+      },
+      {
+        "game": "CODEX LUBRICUS.txt",
+        "level": 22,
+        "expanded": 109,
+        "generated": 541,
+        "beforeMs": 16,
+        "afterMs": 21
+      },
+      {
+        "game": "CODEX LUBRICUS.txt",
+        "level": 24,
+        "expanded": 78,
+        "generated": 386,
+        "beforeMs": 11.5,
+        "afterMs": 15.5
+      },
+      {
+        "game": "CODEX LUBRICUS.txt",
+        "level": 26,
+        "expanded": 81,
+        "generated": 401,
+        "beforeMs": 14.5,
+        "afterMs": 18
+      },
+      {
+        "game": "CODEX LUBRICUS.txt",
+        "level": 28,
+        "expanded": 109,
+        "generated": 541,
+        "beforeMs": 28,
+        "afterMs": 26.5
+      },
+      {
+        "game": "CODEX LUBRICUS.txt",
+        "level": 30,
+        "expanded": 126,
+        "generated": 626,
+        "beforeMs": 33,
+        "afterMs": 31
+      },
+      {
+        "game": "CODEX LUBRICUS.txt",
+        "level": 34,
+        "expanded": 64,
+        "generated": 316,
+        "beforeMs": 11.5,
+        "afterMs": 13
+      },
+      {
+        "game": "CODEX LUBRICUS.txt",
+        "level": 36,
+        "expanded": 171,
+        "generated": 851,
+        "beforeMs": 24,
+        "afterMs": 20.5
+      },
+      {
+        "game": "CODEX LUBRICUS.txt",
+        "level": 38,
+        "expanded": 97,
+        "generated": 481,
+        "beforeMs": 13.5,
+        "afterMs": 13.5
+      },
+      {
+        "game": "CODEX LUBRICUS.txt",
+        "level": 40,
+        "expanded": 197,
+        "generated": 981,
+        "beforeMs": 47,
+        "afterMs": 43
+      },
+      {
+        "game": "Chevron Lodger.txt",
+        "level": 3,
+        "expanded": 1646,
+        "generated": 8228,
+        "beforeMs": 29,
+        "afterMs": 29
+      },
+      {
+        "game": "Chevron Lodger.txt",
+        "level": 7,
+        "expanded": 814,
+        "generated": 4068,
+        "beforeMs": 18,
+        "afterMs": 14
+      },
+      {
+        "game": "Crates move when you move.txt",
+        "level": 13,
+        "expanded": 332,
+        "generated": 1328,
+        "beforeMs": 6.5,
+        "afterMs": 4
+      },
+      {
+        "game": "Crates move when you move.txt",
+        "level": 15,
+        "expanded": 206,
+        "generated": 824,
+        "beforeMs": 4.5,
+        "afterMs": 3
+      },
+      {
+        "game": "Crates move when you move.txt",
+        "level": 19,
+        "expanded": 408,
+        "generated": 1631,
+        "beforeMs": 7,
+        "afterMs": 5
+      },
+      {
+        "game": "Cucumber Surprise.txt",
+        "level": 2,
+        "expanded": 174,
+        "generated": 866,
+        "beforeMs": 3.5,
+        "afterMs": 2
+      },
+      {
+        "game": "Cucumber Surprise.txt",
+        "level": 5,
+        "expanded": 145,
+        "generated": 721,
+        "beforeMs": 3,
+        "afterMs": 2
+      },
+      {
+        "game": "Cucumber Surprise.txt",
+        "level": 7,
+        "expanded": 1562,
+        "generated": 7806,
+        "beforeMs": 31.5,
+        "afterMs": 25
+      },
+      {
+        "game": "Cucumber Surprise.txt",
+        "level": 9,
+        "expanded": 4100,
+        "generated": 20497,
+        "beforeMs": 79.5,
+        "afterMs": 75.5
+      },
+      {
+        "game": "Cucumber Surprise.txt",
+        "level": 13,
+        "expanded": 1023,
+        "generated": 5113,
+        "beforeMs": 18,
+        "afterMs": 20.5
+      },
+      {
+        "game": "Cucumber Surprise.txt",
+        "level": 15,
+        "expanded": 1351,
+        "generated": 6752,
+        "beforeMs": 23.5,
+        "afterMs": 26.5
+      },
+      {
+        "game": "Cucumber Surprise.txt",
+        "level": 17,
+        "expanded": 875,
+        "generated": 4374,
+        "beforeMs": 14,
+        "afterMs": 16
+      },
+      {
+        "game": "Cucumber Surprise.txt",
+        "level": 19,
+        "expanded": 1762,
+        "generated": 8806,
+        "beforeMs": 34,
+        "afterMs": 31
+      },
+      {
+        "game": "Cucumber Surprise.txt",
+        "level": 23,
+        "expanded": 1185,
+        "generated": 5921,
+        "beforeMs": 22.5,
+        "afterMs": 19
+      },
+      {
+        "game": "Cucumber Surprise.txt",
+        "level": 25,
+        "expanded": 1093,
+        "generated": 5461,
+        "beforeMs": 17,
+        "afterMs": 16
+      },
+      {
+        "game": "Cucumber Surprise.txt",
+        "level": 29,
+        "expanded": 950,
+        "generated": 4747,
+        "beforeMs": 15,
+        "afterMs": 14.5
+      },
+      {
+        "game": "Cucumber Surprise.txt",
+        "level": 31,
+        "expanded": 661,
+        "generated": 3304,
+        "beforeMs": 11.5,
+        "afterMs": 10.5
+      },
+      {
+        "game": "Cucumber Surprise.txt",
+        "level": 35,
+        "expanded": 1220,
+        "generated": 6097,
+        "beforeMs": 22.5,
+        "afterMs": 21.5
+      },
+      {
+        "game": "Cucumber Surprise.txt",
+        "level": 37,
+        "expanded": 865,
+        "generated": 4324,
+        "beforeMs": 14,
+        "afterMs": 15.5
+      },
+      {
+        "game": "Don't let your goals slip away.txt",
+        "level": 3,
+        "expanded": 4680,
+        "generated": 23396,
+        "beforeMs": 68.5,
+        "afterMs": 65.5
+      },
+      {
+        "game": "Don't let your goals slip away.txt",
+        "level": 7,
+        "expanded": 567,
+        "generated": 2834,
+        "beforeMs": 7,
+        "afterMs": 7
+      },
+      {
+        "game": "Don't let your goals slip away.txt",
+        "level": 9,
+        "expanded": 1282,
+        "generated": 6408,
+        "beforeMs": 15,
+        "afterMs": 15.5
+      },
+      {
+        "game": "Don't let your goals slip away.txt",
+        "level": 11,
+        "expanded": 4972,
+        "generated": 24856,
+        "beforeMs": 74,
+        "afterMs": 71.5
+      },
+      {
+        "game": "Don't let your goals slip away.txt",
+        "level": 13,
+        "expanded": 1975,
+        "generated": 9873,
+        "beforeMs": 25,
+        "afterMs": 24.5
+      },
+      {
+        "game": "Explodoban.txt",
+        "level": 1,
+        "expanded": 2344,
+        "generated": 11720,
+        "beforeMs": 37,
+        "afterMs": 34.5
+      },
+      {
+        "game": "Explodoban.txt",
+        "level": 3,
+        "expanded": 192,
+        "generated": 960,
+        "beforeMs": 2,
+        "afterMs": 2
+      },
+      {
+        "game": "Explodoban.txt",
+        "level": 5,
+        "expanded": 4245,
+        "generated": 21225,
+        "beforeMs": 67,
+        "afterMs": 61.5
+      },
+      {
+        "game": "Explodoban.txt",
+        "level": 9,
+        "expanded": 4286,
+        "generated": 21430,
+        "beforeMs": 64.5,
+        "afterMs": 62
+      },
+      {
+        "game": "Explodoban.txt",
+        "level": 11,
+        "expanded": 2813,
+        "generated": 14065,
+        "beforeMs": 40,
+        "afterMs": 40
+      },
+      {
+        "game": "Eyeball-watching flowers bloom.txt",
+        "level": 3,
+        "expanded": 2668,
+        "generated": 13336,
+        "beforeMs": 63,
+        "afterMs": 65.5
+      },
+      {
+        "game": "Garten der Medusen.txt",
+        "level": 1,
+        "expanded": 6,
+        "generated": 21,
+        "beforeMs": 7,
+        "afterMs": 4.5
+      },
+      {
+        "game": "Garten der Medusen.txt",
+        "level": 3,
+        "expanded": 4,
+        "generated": 14,
+        "beforeMs": 4,
+        "afterMs": 3.5
+      },
+      {
+        "game": "Garten der Medusen.txt",
+        "level": 5,
+        "expanded": 6,
+        "generated": 21,
+        "beforeMs": 6,
+        "afterMs": 5
+      },
+      {
+        "game": "Hole-Stuffer.txt",
+        "level": 5,
+        "expanded": 178,
+        "generated": 888,
+        "beforeMs": 7,
+        "afterMs": 7
+      },
+      {
+        "game": "Legend of Swixero.txt",
+        "level": 1,
+        "expanded": 370,
+        "generated": 1847,
+        "beforeMs": 4.5,
+        "afterMs": 4
+      },
+      {
+        "game": "Legend of Swixero.txt",
+        "level": 3,
+        "expanded": 1581,
+        "generated": 7901,
+        "beforeMs": 23.5,
+        "afterMs": 19.5
+      },
+      {
+        "game": "Legend of Swixero.txt",
+        "level": 5,
+        "expanded": 366,
+        "generated": 1826,
+        "beforeMs": 6.5,
+        "afterMs": 4.5
+      },
+      {
+        "game": "Match-Maker.txt",
+        "level": 1,
+        "expanded": 155,
+        "generated": 772,
+        "beforeMs": 3,
+        "afterMs": 3
+      },
+      {
+        "game": "Match-Maker.txt",
+        "level": 5,
+        "expanded": 233,
+        "generated": 1164,
+        "beforeMs": 4,
+        "afterMs": 4
+      },
+      {
+        "game": "Match-Maker.txt",
+        "level": 7,
+        "expanded": 1864,
+        "generated": 9316,
+        "beforeMs": 48,
+        "afterMs": 46
+      },
+      {
+        "game": "Match-Maker.txt",
+        "level": 13,
+        "expanded": 2354,
+        "generated": 11768,
+        "beforeMs": 59,
+        "afterMs": 54
+      },
+      {
+        "game": "Muraphilic Monophobic Multiban.txt",
+        "level": 5,
+        "expanded": 4165,
+        "generated": 16659,
+        "beforeMs": 80.5,
+        "afterMs": 78.5
+      },
+      {
+        "game": "Muraphilic Monophobic Multiban.txt",
+        "level": 7,
+        "expanded": 4207,
+        "generated": 16826,
+        "beforeMs": 66.5,
+        "afterMs": 68
+      },
+      {
+        "game": "Muraphilic Monophobic Multiban.txt",
+        "level": 13,
+        "expanded": 1223,
+        "generated": 4890,
+        "beforeMs": 19,
+        "afterMs": 16
+      },
+      {
+        "game": "NIGHTMARECROBAN.txt",
+        "level": 1,
+        "expanded": 187,
+        "generated": 745,
+        "beforeMs": 2,
+        "afterMs": 2
+      },
+      {
+        "game": "NIGHTMARECROBAN.txt",
+        "level": 3,
+        "expanded": 1708,
+        "generated": 6830,
+        "beforeMs": 28,
+        "afterMs": 21
+      },
+      {
+        "game": "NIGHTMARECROBAN.txt",
+        "level": 5,
+        "expanded": 864,
+        "generated": 3456,
+        "beforeMs": 13,
+        "afterMs": 10.5
+      },
+      {
+        "game": "NIGHTMARECROBAN.txt",
+        "level": 7,
+        "expanded": 277,
+        "generated": 1105,
+        "beforeMs": 3,
+        "afterMs": 3
+      },
+      {
+        "game": "NIGHTMARECROBAN.txt",
+        "level": 9,
+        "expanded": 580,
+        "generated": 2319,
+        "beforeMs": 10,
+        "afterMs": 8
+      },
+      {
+        "game": "NIGHTMARECROBAN.txt",
+        "level": 11,
+        "expanded": 5669,
+        "generated": 22675,
+        "beforeMs": 89.5,
+        "afterMs": 90
+      },
+      {
+        "game": "NIGHTMARECROBAN.txt",
+        "level": 13,
+        "expanded": 3208,
+        "generated": 12832,
+        "beforeMs": 54,
+        "afterMs": 52.5
+      },
+      {
+        "game": "Pushy-V Pully-H.txt",
+        "level": 1,
+        "expanded": 611,
+        "generated": 2444,
+        "beforeMs": 6,
+        "afterMs": 5.5
+      },
+      {
+        "game": "Pushy-V Pully-H.txt",
+        "level": 5,
+        "expanded": 926,
+        "generated": 3703,
+        "beforeMs": 10,
+        "afterMs": 9
+      },
+      {
+        "game": "Pushy-V Pully-H.txt",
+        "level": 7,
+        "expanded": 1395,
+        "generated": 5579,
+        "beforeMs": 13.5,
+        "afterMs": 12
+      },
+      {
+        "game": "Pushy-V Pully-H.txt",
+        "level": 15,
+        "expanded": 4272,
+        "generated": 17086,
+        "beforeMs": 53.5,
+        "afterMs": 53.5
+      },
+      {
+        "game": "Pushy-V Pully-H.txt",
+        "level": 17,
+        "expanded": 2680,
+        "generated": 10720,
+        "beforeMs": 26,
+        "afterMs": 27.5
+      },
+      {
+        "game": "Recondite Star Sector Sigma.txt",
+        "level": 1,
+        "expanded": 773,
+        "generated": 3864,
+        "beforeMs": 9,
+        "afterMs": 8.5
+      },
+      {
+        "game": "Recondite Star Sector Sigma.txt",
+        "level": 11,
+        "expanded": 948,
+        "generated": 4736,
+        "beforeMs": 10.5,
+        "afterMs": 10.5
+      },
+      {
+        "game": "Recondite Star Sector Sigma.txt",
+        "level": 15,
+        "expanded": 3285,
+        "generated": 16423,
+        "beforeMs": 48.5,
+        "afterMs": 50
+      },
+      {
+        "game": "Recondite Star Sector Sigma.txt",
+        "level": 19,
+        "expanded": 1245,
+        "generated": 6224,
+        "beforeMs": 20.5,
+        "afterMs": 18
+      },
+      {
+        "game": "Resin-Caster.txt",
+        "level": 2,
+        "expanded": 1064,
+        "generated": 4255,
+        "beforeMs": 12,
+        "afterMs": 9.5
+      },
+      {
+        "game": "Resin-Caster.txt",
+        "level": 4,
+        "expanded": 769,
+        "generated": 3076,
+        "beforeMs": 8,
+        "afterMs": 6.5
+      },
+      {
+        "game": "Resin-Caster.txt",
+        "level": 6,
+        "expanded": 2073,
+        "generated": 8291,
+        "beforeMs": 23,
+        "afterMs": 17.5
+      },
+      {
+        "game": "Resin-Caster.txt",
+        "level": 8,
+        "expanded": 4444,
+        "generated": 17776,
+        "beforeMs": 45,
+        "afterMs": 40.5
+      },
+      {
+        "game": "Resin-Caster.txt",
+        "level": 10,
+        "expanded": 784,
+        "generated": 3134,
+        "beforeMs": 7,
+        "afterMs": 7
+      },
+      {
+        "game": "Resin-Caster.txt",
+        "level": 12,
+        "expanded": 1534,
+        "generated": 6135,
+        "beforeMs": 16,
+        "afterMs": 13
+      },
+      {
+        "game": "Resin-Caster.txt",
+        "level": 14,
+        "expanded": 3881,
+        "generated": 15524,
+        "beforeMs": 44,
+        "afterMs": 36
+      },
+      {
+        "game": "Resin-Caster.txt",
+        "level": 16,
+        "expanded": 582,
+        "generated": 2325,
+        "beforeMs": 5,
+        "afterMs": 4.5
+      },
+      {
+        "game": "Resin-Caster.txt",
+        "level": 18,
+        "expanded": 1066,
+        "generated": 4262,
+        "beforeMs": 12,
+        "afterMs": 9.5
+      },
+      {
+        "game": "Resin-Caster.txt",
+        "level": 20,
+        "expanded": 1515,
+        "generated": 6058,
+        "beforeMs": 13.5,
+        "afterMs": 13
+      },
+      {
+        "game": "S-tercourse.txt",
+        "level": 3,
+        "expanded": 937,
+        "generated": 3748,
+        "beforeMs": 70,
+        "afterMs": 57
+      },
+      {
+        "game": "S-tercourse.txt",
+        "level": 5,
+        "expanded": 516,
+        "generated": 2062,
+        "beforeMs": 33.5,
+        "afterMs": 29
+      },
+      {
+        "game": "Scalesoban.txt",
+        "level": 5,
+        "expanded": 1003,
+        "generated": 5013,
+        "beforeMs": 13,
+        "afterMs": 12.5
+      },
+      {
+        "game": "Schleimban.txt",
+        "level": 1,
+        "expanded": 198,
+        "generated": 987,
+        "beforeMs": 6,
+        "afterMs": 6
+      },
+      {
+        "game": "Schleimban.txt",
+        "level": 3,
+        "expanded": 789,
+        "generated": 3943,
+        "beforeMs": 23,
+        "afterMs": 25.5
+      },
+      {
+        "game": "Schleimban.txt",
+        "level": 5,
+        "expanded": 379,
+        "generated": 1894,
+        "beforeMs": 12,
+        "afterMs": 13
+      },
+      {
+        "game": "Schleimban.txt",
+        "level": 7,
+        "expanded": 810,
+        "generated": 4048,
+        "beforeMs": 24,
+        "afterMs": 29.5
+      },
+      {
+        "game": "Schleimban.txt",
+        "level": 9,
+        "expanded": 390,
+        "generated": 1946,
+        "beforeMs": 11.5,
+        "afterMs": 14.5
+      },
+      {
+        "game": "Subway upholstry snot smearing championship.txt",
+        "level": 4,
+        "expanded": 243,
+        "generated": 1214,
+        "beforeMs": 4.5,
+        "afterMs": 4.5
+      },
+      {
+        "game": "Subway upholstry snot smearing championship.txt",
+        "level": 6,
+        "expanded": 96,
+        "generated": 478,
+        "beforeMs": 2.5,
+        "afterMs": 2
+      },
+      {
+        "game": "Subway upholstry snot smearing championship.txt",
+        "level": 12,
+        "expanded": 1208,
+        "generated": 6039,
+        "beforeMs": 48.5,
+        "afterMs": 40
+      },
+      {
+        "game": "The Far Away Danish Pastry is always Delicio.txt",
+        "level": 5,
+        "expanded": 183,
+        "generated": 913,
+        "beforeMs": 3.5,
+        "afterMs": 2
+      },
+      {
+        "game": "The Far Away Danish Pastry is always Delicio.txt",
+        "level": 11,
+        "expanded": 3545,
+        "generated": 17721,
+        "beforeMs": 70,
+        "afterMs": 51.5
+      },
+      {
+        "game": "The Far Away Danish Pastry is always Delicio.txt",
+        "level": 13,
+        "expanded": 1232,
+        "generated": 6156,
+        "beforeMs": 26,
+        "afterMs": 18.5
+      },
+      {
+        "game": "The Far Away Danish Pastry is always Delicio.txt",
+        "level": 15,
+        "expanded": 4154,
+        "generated": 20769,
+        "beforeMs": 78.5,
+        "afterMs": 71
+      },
+      {
+        "game": "The Monsterous Autoshove.txt",
+        "level": 1,
+        "expanded": 699,
+        "generated": 3491,
+        "beforeMs": 17,
+        "afterMs": 13
+      },
+      {
+        "game": "The Monsterous Autoshove.txt",
+        "level": 3,
+        "expanded": 396,
+        "generated": 1976,
+        "beforeMs": 13,
+        "afterMs": 9.5
+      },
+      {
+        "game": "The Monsterous Autoshove.txt",
+        "level": 7,
+        "expanded": 552,
+        "generated": 2757,
+        "beforeMs": 14,
+        "afterMs": 13
+      },
+      {
+        "game": "Two-Step Pete.txt",
+        "level": 3,
+        "expanded": 1364,
+        "generated": 5454,
+        "beforeMs": 20,
+        "afterMs": 24.5
+      },
+      {
+        "game": "Two-Step Pete.txt",
+        "level": 5,
+        "expanded": 173,
+        "generated": 691,
+        "beforeMs": 2,
+        "afterMs": 1.5
+      },
+      {
+        "game": "Two-Step Pete.txt",
+        "level": 9,
+        "expanded": 1051,
+        "generated": 4202,
+        "beforeMs": 16,
+        "afterMs": 14.5
+      },
+      {
+        "game": "Two-Step Pete.txt",
+        "level": 13,
+        "expanded": 580,
+        "generated": 2319,
+        "beforeMs": 6,
+        "afterMs": 7
+      },
+      {
+        "game": "Two-Tone Tango.txt",
+        "level": 1,
+        "expanded": 1425,
+        "generated": 7121,
+        "beforeMs": 37,
+        "afterMs": 32.5
+      },
+      {
+        "game": "Two-Tone Tango.txt",
+        "level": 3,
+        "expanded": 441,
+        "generated": 2202,
+        "beforeMs": 10,
+        "afterMs": 10
+      },
+      {
+        "game": "Two-Tone Tango.txt",
+        "level": 5,
+        "expanded": 1031,
+        "generated": 5151,
+        "beforeMs": 24,
+        "afterMs": 22.5
+      },
+      {
+        "game": "Two-Tone Tango.txt",
+        "level": 11,
+        "expanded": 587,
+        "generated": 2931,
+        "beforeMs": 13,
+        "afterMs": 12.5
+      },
+      {
+        "game": "Two-Tone Tango.txt",
+        "level": 13,
+        "expanded": 2380,
+        "generated": 11896,
+        "beforeMs": 52.5,
+        "afterMs": 46
+      },
+      {
+        "game": "Two-Tone Tango.txt",
+        "level": 15,
+        "expanded": 2048,
+        "generated": 10237,
+        "beforeMs": 51.5,
+        "afterMs": 46
+      },
+      {
+        "game": "Van-to-Mobile-Living-Space-Conversion Window.txt",
+        "level": 3,
+        "expanded": 1349,
+        "generated": 6744,
+        "beforeMs": 45,
+        "afterMs": 47
+      },
+      {
+        "game": "Van-to-Mobile-Living-Space-Conversion Window.txt",
+        "level": 5,
+        "expanded": 206,
+        "generated": 1029,
+        "beforeMs": 6.5,
+        "afterMs": 7.5
+      },
+      {
+        "game": "Van-to-Mobile-Living-Space-Conversion Window.txt",
+        "level": 7,
+        "expanded": 1397,
+        "generated": 6984,
+        "beforeMs": 54.5,
+        "afterMs": 58
+      },
+      {
+        "game": "Van-to-Mobile-Living-Space-Conversion Window.txt",
+        "level": 17,
+        "expanded": 496,
+        "generated": 2476,
+        "beforeMs": 18.5,
+        "afterMs": 17.5
+      },
+      {
+        "game": "Van-to-Mobile-Living-Space-Conversion Window.txt",
+        "level": 23,
+        "expanded": 1154,
+        "generated": 5766,
+        "beforeMs": 42.5,
+        "afterMs": 39.5
+      },
+      {
+        "game": "Varifocal Nightmare.txt",
+        "level": 1,
+        "expanded": 800,
+        "generated": 3200,
+        "beforeMs": 16,
+        "afterMs": 12
+      },
+      {
+        "game": "Varifocal Nightmare.txt",
+        "level": 3,
+        "expanded": 493,
+        "generated": 1971,
+        "beforeMs": 7,
+        "afterMs": 6
+      },
+      {
+        "game": "Varifocal Nightmare.txt",
+        "level": 5,
+        "expanded": 1842,
+        "generated": 7368,
+        "beforeMs": 29.5,
+        "afterMs": 25.5
+      },
+      {
+        "game": "Varifocal Nightmare.txt",
+        "level": 9,
+        "expanded": 656,
+        "generated": 2621,
+        "beforeMs": 14.5,
+        "afterMs": 13
+      },
+      {
+        "game": "Vexatious Match 3.txt",
+        "level": 10,
+        "expanded": 5333,
+        "generated": 26665,
+        "beforeMs": 87.5,
+        "afterMs": 81
+      },
+      {
+        "game": "Wand Spinner.txt",
+        "level": 1,
+        "expanded": 267,
+        "generated": 1331,
+        "beforeMs": 3.5,
+        "afterMs": 3.5
+      },
+      {
+        "game": "Wand Spinner.txt",
+        "level": 3,
+        "expanded": 224,
+        "generated": 1118,
+        "beforeMs": 3,
+        "afterMs": 3
+      },
+      {
+        "game": "Wand Spinner.txt",
+        "level": 5,
+        "expanded": 440,
+        "generated": 2198,
+        "beforeMs": 7,
+        "afterMs": 6.5
+      },
+      {
+        "game": "Wand Spinner.txt",
+        "level": 7,
+        "expanded": 1808,
+        "generated": 9036,
+        "beforeMs": 32.5,
+        "afterMs": 27.5
+      },
+      {
+        "game": "Wand Spinner.txt",
+        "level": 9,
+        "expanded": 409,
+        "generated": 2041,
+        "beforeMs": 5.5,
+        "afterMs": 6
+      },
+      {
+        "game": "Wand Spinner.txt",
+        "level": 11,
+        "expanded": 2246,
+        "generated": 11229,
+        "beforeMs": 37,
+        "afterMs": 34
+      },
+      {
+        "game": "Wand Spinner.txt",
+        "level": 13,
+        "expanded": 1668,
+        "generated": 8337,
+        "beforeMs": 25.5,
+        "afterMs": 24.5
+      },
+      {
+        "game": "Wand Spinner.txt",
+        "level": 15,
+        "expanded": 1500,
+        "generated": 7498,
+        "beforeMs": 24,
+        "afterMs": 22.5
+      },
+      {
+        "game": "Wand Spinner.txt",
+        "level": 17,
+        "expanded": 3534,
+        "generated": 17669,
+        "beforeMs": 63,
+        "afterMs": 60.5
+      },
+      {
+        "game": "Wand Spinner.txt",
+        "level": 19,
+        "expanded": 1828,
+        "generated": 9136,
+        "beforeMs": 31.5,
+        "afterMs": 29
+      },
+      {
+        "game": "Wand Spinner.txt",
+        "level": 21,
+        "expanded": 727,
+        "generated": 3633,
+        "beforeMs": 11,
+        "afterMs": 10.5
+      },
+      {
+        "game": "Wand Spinner.txt",
+        "level": 23,
+        "expanded": 2256,
+        "generated": 11276,
+        "beforeMs": 42,
+        "afterMs": 36
+      },
+      {
+        "game": "Wand Spinner.txt",
+        "level": 25,
+        "expanded": 2795,
+        "generated": 13972,
+        "beforeMs": 46.5,
+        "afterMs": 45
+      },
+      {
+        "game": "Wand Spinner.txt",
+        "level": 31,
+        "expanded": 1058,
+        "generated": 5286,
+        "beforeMs": 20,
+        "afterMs": 16
+      },
+      {
+        "game": "Xorro The Chaos Warden.txt",
+        "level": 1,
+        "expanded": 170,
+        "generated": 846,
+        "beforeMs": 2.5,
+        "afterMs": 2
+      },
+      {
+        "game": "Xorro The Chaos Warden.txt",
+        "level": 5,
+        "expanded": 3575,
+        "generated": 17873,
+        "beforeMs": 62.5,
+        "afterMs": 56.5
+      },
+      {
+        "game": "Yellow Box.txt",
+        "level": 1,
+        "expanded": 841,
+        "generated": 4201,
+        "beforeMs": 22.5,
+        "afterMs": 19
+      },
+      {
+        "game": "Yellow Box.txt",
+        "level": 3,
+        "expanded": 147,
+        "generated": 732,
+        "beforeMs": 5,
+        "afterMs": 5
+      },
+      {
+        "game": "Yellow Box.txt",
+        "level": 5,
+        "expanded": 49,
+        "generated": 242,
+        "beforeMs": 2,
+        "afterMs": 2
+      },
+      {
+        "game": "Yellow Box.txt",
+        "level": 7,
+        "expanded": 225,
+        "generated": 1121,
+        "beforeMs": 8,
+        "afterMs": 7
+      },
+      {
+        "game": "Yellow Box.txt",
+        "level": 9,
+        "expanded": 1104,
+        "generated": 5518,
+        "beforeMs": 39.5,
+        "afterMs": 38
+      },
+      {
+        "game": "Yellow Box.txt",
+        "level": 11,
+        "expanded": 1296,
+        "generated": 6477,
+        "beforeMs": 53.5,
+        "afterMs": 48
+      },
+      {
+        "game": "Yellow Box.txt",
+        "level": 13,
+        "expanded": 1424,
+        "generated": 7116,
+        "beforeMs": 55.5,
+        "afterMs": 52
+      },
+      {
+        "game": "Yellow Box.txt",
+        "level": 17,
+        "expanded": 58,
+        "generated": 289,
+        "beforeMs": 3.5,
+        "afterMs": 2
+      },
+      {
+        "game": "Yellow Box.txt",
+        "level": 19,
+        "expanded": 145,
+        "generated": 723,
+        "beforeMs": 7,
+        "afterMs": 5.5
+      },
+      {
+        "game": "Yellow Box.txt",
+        "level": 27,
+        "expanded": 357,
+        "generated": 1781,
+        "beforeMs": 15,
+        "afterMs": 13.5
+      },
+      {
+        "game": "Yellow Box.txt",
+        "level": 29,
+        "expanded": 262,
+        "generated": 1306,
+        "beforeMs": 11,
+        "afterMs": 9.5
+      },
+      {
+        "game": "Yellow Box.txt",
+        "level": 33,
+        "expanded": 282,
+        "generated": 1406,
+        "beforeMs": 13,
+        "afterMs": 10.5
+      },
+      {
+        "game": "Yellow Box.txt",
+        "level": 35,
+        "expanded": 1868,
+        "generated": 9339,
+        "beforeMs": 81.5,
+        "afterMs": 82.5
+      },
+      {
+        "game": "a clear view of the sky.txt",
+        "level": 3,
+        "expanded": 240,
+        "generated": 1200,
+        "beforeMs": 32.5,
+        "afterMs": 34
+      },
+      {
+        "game": "a clear view of the sky.txt",
+        "level": 6,
+        "expanded": 232,
+        "generated": 1160,
+        "beforeMs": 23,
+        "afterMs": 21
+      },
+      {
+        "game": "a clear view of the sky.txt",
+        "level": 8,
+        "expanded": 559,
+        "generated": 2795,
+        "beforeMs": 42.5,
+        "afterMs": 41.5
+      },
+      {
+        "game": "a clear view of the sky.txt",
+        "level": 10,
+        "expanded": 36,
+        "generated": 180,
+        "beforeMs": 2.5,
+        "afterMs": 2
+      },
+      {
+        "game": "a clear view of the sky.txt",
+        "level": 12,
+        "expanded": 36,
+        "generated": 180,
+        "beforeMs": 3,
+        "afterMs": 3
+      },
+      {
+        "game": "a clear view of the sky.txt",
+        "level": 14,
+        "expanded": 193,
+        "generated": 965,
+        "beforeMs": 20,
+        "afterMs": 17
+      },
+      {
+        "game": "a distant sunset.txt",
+        "level": 1,
+        "expanded": 83,
+        "generated": 411,
+        "beforeMs": 21.5,
+        "afterMs": 21.5
+      },
+      {
+        "game": "alternatey.txt",
+        "level": 2,
+        "expanded": 151,
+        "generated": 601,
+        "beforeMs": 7,
+        "afterMs": 6.5
+      },
+      {
+        "game": "alternatey.txt",
+        "level": 4,
+        "expanded": 597,
+        "generated": 2385,
+        "beforeMs": 53.5,
+        "afterMs": 48
+      },
+      {
+        "game": "atlas shrank.txt",
+        "level": 4,
+        "expanded": 576,
+        "generated": 2876,
+        "beforeMs": 52.5,
+        "afterMs": 46
+      },
+      {
+        "game": "atlas shrank.txt",
+        "level": 5,
+        "expanded": 357,
+        "generated": 1781,
+        "beforeMs": 45,
+        "afterMs": 38
+      },
+      {
+        "game": "atlas shrank.txt",
+        "level": 10,
+        "expanded": 381,
+        "generated": 1901,
+        "beforeMs": 60.5,
+        "afterMs": 53
+      },
+      {
+        "game": "autohurdler.txt",
+        "level": 1,
+        "expanded": 124,
+        "generated": 493,
+        "beforeMs": 4,
+        "afterMs": 4
+      },
+      {
+        "game": "autohurdler.txt",
+        "level": 7,
+        "expanded": 274,
+        "generated": 1094,
+        "beforeMs": 10,
+        "afterMs": 9.5
+      },
+      {
+        "game": "butteater.txt",
+        "level": 1,
+        "expanded": 187,
+        "generated": 931,
+        "beforeMs": 8,
+        "afterMs": 9.5
+      },
+      {
+        "game": "byyourside.txt",
+        "level": 1,
+        "expanded": 583,
+        "generated": 2911,
+        "beforeMs": 19.5,
+        "afterMs": 21.5
+      },
+      {
+        "game": "byyourside.txt",
+        "level": 2,
+        "expanded": 185,
+        "generated": 924,
+        "beforeMs": 6,
+        "afterMs": 7.5
+      },
+      {
+        "game": "byyourside.txt",
+        "level": 4,
+        "expanded": 279,
+        "generated": 1392,
+        "beforeMs": 8.5,
+        "afterMs": 9
+      },
+      {
+        "game": "byyourside.txt",
+        "level": 5,
+        "expanded": 309,
+        "generated": 1543,
+        "beforeMs": 10,
+        "afterMs": 11
+      },
+      {
+        "game": "byyourside.txt",
+        "level": 8,
+        "expanded": 2094,
+        "generated": 10467,
+        "beforeMs": 73.5,
+        "afterMs": 76
+      },
+      {
+        "game": "byyourside.txt",
+        "level": 9,
+        "expanded": 1255,
+        "generated": 6273,
+        "beforeMs": 44.5,
+        "afterMs": 42
+      },
+      {
+        "game": "cakemonsters.txt",
+        "level": 7,
+        "expanded": 174,
+        "generated": 695,
+        "beforeMs": 3.5,
+        "afterMs": 3
+      },
+      {
+        "game": "cakemonsters.txt",
+        "level": 9,
+        "expanded": 240,
+        "generated": 957,
+        "beforeMs": 6.5,
+        "afterMs": 5
+      },
+      {
+        "game": "cakemonsters.txt",
+        "level": 13,
+        "expanded": 154,
+        "generated": 616,
+        "beforeMs": 4,
+        "afterMs": 3
+      },
+      {
+        "game": "cakemonsters.txt",
+        "level": 15,
+        "expanded": 272,
+        "generated": 1088,
+        "beforeMs": 6.5,
+        "afterMs": 4.5
+      },
+      {
+        "game": "cakemonsters.txt",
+        "level": 16,
+        "expanded": 951,
+        "generated": 3801,
+        "beforeMs": 26,
+        "afterMs": 25
+      },
+      {
+        "game": "cakemonsters.txt",
+        "level": 22,
+        "expanded": 220,
+        "generated": 880,
+        "beforeMs": 6.5,
+        "afterMs": 5.5
+      },
+      {
+        "game": "cakemonsters.txt",
+        "level": 28,
+        "expanded": 821,
+        "generated": 3283,
+        "beforeMs": 20,
+        "afterMs": 18
+      },
+      {
+        "game": "cakemonsters.txt",
+        "level": 29,
+        "expanded": 193,
+        "generated": 770,
+        "beforeMs": 5,
+        "afterMs": 3.5
+      },
+      {
+        "game": "cakemonsters.txt",
+        "level": 32,
+        "expanded": 1171,
+        "generated": 4681,
+        "beforeMs": 34,
+        "afterMs": 32
+      },
+      {
+        "game": "cakemonsters.txt",
+        "level": 35,
+        "expanded": 132,
+        "generated": 528,
+        "beforeMs": 3,
+        "afterMs": 3.5
+      },
+      {
+        "game": "cakemonsters.txt",
+        "level": 37,
+        "expanded": 1421,
+        "generated": 5681,
+        "beforeMs": 53.5,
+        "afterMs": 50
+      },
+      {
+        "game": "cakemonsters.txt",
+        "level": 40,
+        "expanded": 2911,
+        "generated": 11643,
+        "beforeMs": 65.5,
+        "afterMs": 62.5
+      },
+      {
+        "game": "cakemonsters.txt",
+        "level": 46,
+        "expanded": 936,
+        "generated": 3744,
+        "beforeMs": 19,
+        "afterMs": 25
+      },
+      {
+        "game": "car crash.txt",
+        "level": 2,
+        "expanded": 0,
+        "generated": 0,
+        "beforeMs": 10.5,
+        "afterMs": 11.5
+      },
+      {
+        "game": "castlemouse.txt",
+        "level": 1,
+        "expanded": 48,
+        "generated": 239,
+        "beforeMs": 4.5,
+        "afterMs": 4.5
+      },
+      {
+        "game": "castlemouse.txt",
+        "level": 3,
+        "expanded": 42,
+        "generated": 207,
+        "beforeMs": 5,
+        "afterMs": 5
+      },
+      {
+        "game": "castlemouse.txt",
+        "level": 5,
+        "expanded": 141,
+        "generated": 703,
+        "beforeMs": 18,
+        "afterMs": 18.5
+      },
+      {
+        "game": "castlemouse.txt",
+        "level": 9,
+        "expanded": 20,
+        "generated": 96,
+        "beforeMs": 2,
+        "afterMs": 2
+      },
+      {
+        "game": "castlemouse.txt",
+        "level": 15,
+        "expanded": 12,
+        "generated": 59,
+        "beforeMs": 3.5,
+        "afterMs": 3.5
+      },
+      {
+        "game": "castlemouse.txt",
+        "level": 19,
+        "expanded": 9,
+        "generated": 43,
+        "beforeMs": 2,
+        "afterMs": 2
+      },
+      {
+        "game": "chaos wizard.txt",
+        "level": 2,
+        "expanded": 975,
+        "generated": 4873,
+        "beforeMs": 53,
+        "afterMs": 41
+      },
+      {
+        "game": "chaos wizard.txt",
+        "level": 3,
+        "expanded": 178,
+        "generated": 886,
+        "beforeMs": 9,
+        "afterMs": 7.5
+      },
+      {
+        "game": "chaos wizard.txt",
+        "level": 22,
+        "expanded": 65,
+        "generated": 321,
+        "beforeMs": 4.5,
+        "afterMs": 4
+      },
+      {
+        "game": "coincounter.txt",
+        "level": 2,
+        "expanded": 69,
+        "generated": 342,
+        "beforeMs": 7,
+        "afterMs": 8
+      },
+      {
+        "game": "coincounter.txt",
+        "level": 3,
+        "expanded": 93,
+        "generated": 462,
+        "beforeMs": 7.5,
+        "afterMs": 7.5
+      },
+      {
+        "game": "coincounter.txt",
+        "level": 4,
+        "expanded": 284,
+        "generated": 1419,
+        "beforeMs": 31,
+        "afterMs": 29.5
+      },
+      {
+        "game": "coincounter.txt",
+        "level": 5,
+        "expanded": 284,
+        "generated": 1419,
+        "beforeMs": 30,
+        "afterMs": 28.5
+      },
+      {
+        "game": "coincounter.txt",
+        "level": 6,
+        "expanded": 721,
+        "generated": 3603,
+        "beforeMs": 74.5,
+        "afterMs": 76
+      },
+      {
+        "game": "coincounter.txt",
+        "level": 7,
+        "expanded": 640,
+        "generated": 3198,
+        "beforeMs": 61.5,
+        "afterMs": 64
+      },
+      {
+        "game": "coincounter.txt",
+        "level": 8,
+        "expanded": 51,
+        "generated": 253,
+        "beforeMs": 6.5,
+        "afterMs": 5.5
+      },
+      {
+        "game": "collapse.txt",
+        "level": 2,
+        "expanded": 186,
+        "generated": 741,
+        "beforeMs": 60.5,
+        "afterMs": 62
+      },
+      {
+        "game": "color chained.txt",
+        "level": 0,
+        "expanded": 124,
+        "generated": 618,
+        "beforeMs": 17.5,
+        "afterMs": 18
+      },
+      {
+        "game": "color chained.txt",
+        "level": 1,
+        "expanded": 29,
+        "generated": 143,
+        "beforeMs": 4.5,
+        "afterMs": 4
+      },
+      {
+        "game": "color chained.txt",
+        "level": 3,
+        "expanded": 625,
+        "generated": 3123,
+        "beforeMs": 86.5,
+        "afterMs": 83.5
+      },
+      {
+        "game": "constellationz.txt",
+        "level": 2,
+        "expanded": 72,
+        "generated": 356,
+        "beforeMs": 2,
+        "afterMs": 2
+      },
+      {
+        "game": "constellationz.txt",
+        "level": 4,
+        "expanded": 124,
+        "generated": 616,
+        "beforeMs": 3,
+        "afterMs": 3
+      },
+      {
+        "game": "constellationz.txt",
+        "level": 5,
+        "expanded": 28,
+        "generated": 136,
+        "beforeMs": 3.5,
+        "afterMs": 4
+      },
+      {
+        "game": "constellationz.txt",
+        "level": 7,
+        "expanded": 701,
+        "generated": 3501,
+        "beforeMs": 54.5,
+        "afterMs": 56.5
+      },
+      {
+        "game": "crate guardian.txt",
+        "level": 1,
+        "expanded": 3309,
+        "generated": 16543,
+        "beforeMs": 82,
+        "afterMs": 70
+      },
+      {
+        "game": "crate guardian.txt",
+        "level": 3,
+        "expanded": 1837,
+        "generated": 9181,
+        "beforeMs": 35,
+        "afterMs": 33
+      },
+      {
+        "game": "crate guardian.txt",
+        "level": 5,
+        "expanded": 2837,
+        "generated": 14182,
+        "beforeMs": 56,
+        "afterMs": 62
+      },
+      {
+        "game": "crate swap.txt",
+        "level": 1,
+        "expanded": 737,
+        "generated": 2948,
+        "beforeMs": 7,
+        "afterMs": 7.5
+      },
+      {
+        "game": "crate swap.txt",
+        "level": 3,
+        "expanded": 545,
+        "generated": 2179,
+        "beforeMs": 5,
+        "afterMs": 4.5
+      },
+      {
+        "game": "crate swap.txt",
+        "level": 5,
+        "expanded": 1725,
+        "generated": 6898,
+        "beforeMs": 16,
+        "afterMs": 17.5
+      },
+      {
+        "game": "crate swap.txt",
+        "level": 7,
+        "expanded": 1405,
+        "generated": 5617,
+        "beforeMs": 13.5,
+        "afterMs": 13.5
+      },
+      {
+        "game": "crate swap.txt",
+        "level": 9,
+        "expanded": 2230,
+        "generated": 8918,
+        "beforeMs": 20.5,
+        "afterMs": 20
+      },
+      {
+        "game": "crate swap.txt",
+        "level": 11,
+        "expanded": 3038,
+        "generated": 12150,
+        "beforeMs": 29,
+        "afterMs": 28
+      },
+      {
+        "game": "crate swap.txt",
+        "level": 13,
+        "expanded": 2652,
+        "generated": 10605,
+        "beforeMs": 25.5,
+        "afterMs": 26
+      },
+      {
+        "game": "crate swap.txt",
+        "level": 15,
+        "expanded": 2628,
+        "generated": 10510,
+        "beforeMs": 28,
+        "afterMs": 24.5
+      },
+      {
+        "game": "cratopia.txt",
+        "level": 2,
+        "expanded": 70,
+        "generated": 347,
+        "beforeMs": 3,
+        "afterMs": 2.5
+      },
+      {
+        "game": "cratopia.txt",
+        "level": 5,
+        "expanded": 764,
+        "generated": 3816,
+        "beforeMs": 41,
+        "afterMs": 36
+      },
+      {
+        "game": "cratopia.txt",
+        "level": 20,
+        "expanded": 31,
+        "generated": 151,
+        "beforeMs": 20.5,
+        "afterMs": 21.5
+      },
+      {
+        "game": "cratopia.txt",
+        "level": 21,
+        "expanded": 0,
+        "generated": 0,
+        "beforeMs": 28,
+        "afterMs": 35.5
+      },
+      {
+        "game": "cratopia.txt",
+        "level": 22,
+        "expanded": 0,
+        "generated": 0,
+        "beforeMs": 25,
+        "afterMs": 28.5
+      },
+      {
+        "game": "cratopia.txt",
+        "level": 23,
+        "expanded": 0,
+        "generated": 0,
+        "beforeMs": 25.5,
+        "afterMs": 29
+      },
+      {
+        "game": "der hydra krypta.txt",
+        "level": 1,
+        "expanded": 21,
+        "generated": 102,
+        "beforeMs": 18.5,
+        "afterMs": 24.5
+      },
+      {
+        "game": "diesinthelight.txt",
+        "level": 0,
+        "expanded": 101,
+        "generated": 403,
+        "beforeMs": 5.5,
+        "afterMs": 7
+      },
+      {
+        "game": "diesinthelight.txt",
+        "level": 1,
+        "expanded": 367,
+        "generated": 1468,
+        "beforeMs": 30.5,
+        "afterMs": 34.5
+      },
+      {
+        "game": "dollyban.txt",
+        "level": 1,
+        "expanded": 2582,
+        "generated": 12909,
+        "beforeMs": 38.5,
+        "afterMs": 40
+      },
+      {
+        "game": "dropswap.txt",
+        "level": 3,
+        "expanded": 453,
+        "generated": 1809,
+        "beforeMs": 34,
+        "afterMs": 46.5
+      },
+      {
+        "game": "dropswap.txt",
+        "level": 12,
+        "expanded": 404,
+        "generated": 1616,
+        "beforeMs": 66.5,
+        "afterMs": 50.5
+      },
+      {
+        "game": "easyenigma.txt",
+        "level": 7,
+        "expanded": 7,
+        "generated": 31,
+        "beforeMs": 2.5,
+        "afterMs": 4
+      },
+      {
+        "game": "easyenigma.txt",
+        "level": 8,
+        "expanded": 99,
+        "generated": 491,
+        "beforeMs": 74.5,
+        "afterMs": 85
+      },
+      {
+        "game": "easyenigma.txt",
+        "level": 9,
+        "expanded": 1,
+        "generated": 5,
+        "beforeMs": 2,
+        "afterMs": 3
+      },
+      {
+        "game": "easyenigma.txt",
+        "level": 10,
+        "expanded": 2,
+        "generated": 6,
+        "beforeMs": 6.5,
+        "afterMs": 9
+      },
+      {
+        "game": "easyenigma.txt",
+        "level": 12,
+        "expanded": 2,
+        "generated": 6,
+        "beforeMs": 16,
+        "afterMs": 11
+      },
+      {
+        "game": "easyenigma.txt",
+        "level": 13,
+        "expanded": 13,
+        "generated": 65,
+        "beforeMs": 6.5,
+        "afterMs": 6
+      },
+      {
+        "game": "easyenigma.txt",
+        "level": 15,
+        "expanded": 5,
+        "generated": 21,
+        "beforeMs": 3.5,
+        "afterMs": 2.5
+      },
+      {
+        "game": "fickle fred.txt",
+        "level": 1,
+        "expanded": 201,
+        "generated": 1002,
+        "beforeMs": 2,
+        "afterMs": 2.5
+      },
+      {
+        "game": "fickle fred.txt",
+        "level": 3,
+        "expanded": 1502,
+        "generated": 7508,
+        "beforeMs": 18.5,
+        "afterMs": 21
+      },
+      {
+        "game": "fickle fred.txt",
+        "level": 7,
+        "expanded": 2439,
+        "generated": 12192,
+        "beforeMs": 40.5,
+        "afterMs": 40.5
+      },
+      {
+        "game": "fickle fred.txt",
+        "level": 9,
+        "expanded": 637,
+        "generated": 3184,
+        "beforeMs": 7,
+        "afterMs": 7.5
+      },
+      {
+        "game": "flesh-handed hot casserole delivery bot.txt",
+        "level": 1,
+        "expanded": 272,
+        "generated": 1085,
+        "beforeMs": 2,
+        "afterMs": 2.5
+      },
+      {
+        "game": "flesh-handed hot casserole delivery bot.txt",
+        "level": 2,
+        "expanded": 879,
+        "generated": 3514,
+        "beforeMs": 6,
+        "afterMs": 7
+      },
+      {
+        "game": "flesh-handed hot casserole delivery bot.txt",
+        "level": 8,
+        "expanded": 1557,
+        "generated": 6225,
+        "beforeMs": 12.5,
+        "afterMs": 16.5
+      },
+      {
+        "game": "flesh-handed hot casserole delivery bot.txt",
+        "level": 12,
+        "expanded": 2299,
+        "generated": 9195,
+        "beforeMs": 20,
+        "afterMs": 24
+      },
+      {
+        "game": "flesh-handed hot casserole delivery bot.txt",
+        "level": 14,
+        "expanded": 4362,
+        "generated": 17446,
+        "beforeMs": 38.5,
+        "afterMs": 47
+      },
+      {
+        "game": "gabelstapler.txt",
+        "level": 1,
+        "expanded": 936,
+        "generated": 4679,
+        "beforeMs": 57,
+        "afterMs": 67.5
+      },
+      {
+        "game": "gapfiller.txt",
+        "level": 1,
+        "expanded": 383,
+        "generated": 1913,
+        "beforeMs": 5,
+        "afterMs": 6.5
+      },
+      {
+        "game": "gapfiller.txt",
+        "level": 5,
+        "expanded": 404,
+        "generated": 2016,
+        "beforeMs": 4.5,
+        "afterMs": 5
+      },
+      {
+        "game": "gapfiller.txt",
+        "level": 7,
+        "expanded": 1441,
+        "generated": 7203,
+        "beforeMs": 18.5,
+        "afterMs": 20
+      },
+      {
+        "game": "gapfiller.txt",
+        "level": 13,
+        "expanded": 332,
+        "generated": 1656,
+        "beforeMs": 5,
+        "afterMs": 4
+      },
+      {
+        "game": "gapfiller.txt",
+        "level": 17,
+        "expanded": 5051,
+        "generated": 25251,
+        "beforeMs": 78,
+        "afterMs": 77.5
+      },
+      {
+        "game": "gem soketeer.txt",
+        "level": 1,
+        "expanded": 563,
+        "generated": 2812,
+        "beforeMs": 56,
+        "afterMs": 56.5
+      },
+      {
+        "game": "gem soketeer.txt",
+        "level": 3,
+        "expanded": 269,
+        "generated": 1341,
+        "beforeMs": 18.5,
+        "afterMs": 20
+      },
+      {
+        "game": "gem soketeer.txt",
+        "level": 5,
+        "expanded": 111,
+        "generated": 554,
+        "beforeMs": 10,
+        "afterMs": 10.5
+      },
+      {
+        "game": "gem soketeer.txt",
+        "level": 7,
+        "expanded": 127,
+        "generated": 631,
+        "beforeMs": 9,
+        "afterMs": 8.5
+      },
+      {
+        "game": "gem soketeer.txt",
+        "level": 11,
+        "expanded": 53,
+        "generated": 263,
+        "beforeMs": 3,
+        "afterMs": 3.5
+      },
+      {
+        "game": "gobble_rush.txt",
+        "level": 0,
+        "expanded": 11,
+        "generated": 44,
+        "beforeMs": 2,
+        "afterMs": 0.5
+      },
+      {
+        "game": "gobble_rush.txt",
+        "level": 1,
+        "expanded": 42,
+        "generated": 168,
+        "beforeMs": 2.5,
+        "afterMs": 2
+      },
+      {
+        "game": "gobble_rush.txt",
+        "level": 2,
+        "expanded": 121,
+        "generated": 484,
+        "beforeMs": 7,
+        "afterMs": 7
+      },
+      {
+        "game": "gobble_rush.txt",
+        "level": 4,
+        "expanded": 92,
+        "generated": 365,
+        "beforeMs": 6.5,
+        "afterMs": 6
+      },
+      {
+        "game": "gobble_rush.txt",
+        "level": 5,
+        "expanded": 281,
+        "generated": 1124,
+        "beforeMs": 18,
+        "afterMs": 17.5
+      },
+      {
+        "game": "gobble_rush.txt",
+        "level": 6,
+        "expanded": 258,
+        "generated": 1030,
+        "beforeMs": 19,
+        "afterMs": 17.5
+      },
+      {
+        "game": "gobble_rush.txt",
+        "level": 7,
+        "expanded": 178,
+        "generated": 709,
+        "beforeMs": 16,
+        "afterMs": 14
+      },
+      {
+        "game": "gobble_rush.txt",
+        "level": 8,
+        "expanded": 156,
+        "generated": 622,
+        "beforeMs": 11.5,
+        "afterMs": 10.5
+      },
+      {
+        "game": "gobble_rush.txt",
+        "level": 9,
+        "expanded": 682,
+        "generated": 2726,
+        "beforeMs": 53.5,
+        "afterMs": 46.5
+      },
+      {
+        "game": "gobble_rush.txt",
+        "level": 13,
+        "expanded": 92,
+        "generated": 366,
+        "beforeMs": 8.5,
+        "afterMs": 6
+      },
+      {
+        "game": "gobble_rush.txt",
+        "level": 14,
+        "expanded": 145,
+        "generated": 579,
+        "beforeMs": 11,
+        "afterMs": 9
+      },
+      {
+        "game": "gobble_rush.txt",
+        "level": 15,
+        "expanded": 34,
+        "generated": 133,
+        "beforeMs": 3.5,
+        "afterMs": 2.5
+      },
+      {
+        "game": "gobble_rush.txt",
+        "level": 16,
+        "expanded": 489,
+        "generated": 1955,
+        "beforeMs": 40,
+        "afterMs": 34
+      },
+      {
+        "game": "gobble_rush.txt",
+        "level": 17,
+        "expanded": 188,
+        "generated": 752,
+        "beforeMs": 15,
+        "afterMs": 12
+      },
+      {
+        "game": "gobble_rush.txt",
+        "level": 18,
+        "expanded": 413,
+        "generated": 1650,
+        "beforeMs": 39.5,
+        "afterMs": 31.5
+      },
+      {
+        "game": "hairtug.txt",
+        "level": 1,
+        "expanded": 65,
+        "generated": 260,
+        "beforeMs": 6,
+        "afterMs": 6.5
+      },
+      {
+        "game": "head skuller.txt",
+        "level": 1,
+        "expanded": 718,
+        "generated": 2871,
+        "beforeMs": 9,
+        "afterMs": 7.5
+      },
+      {
+        "game": "head skuller.txt",
+        "level": 3,
+        "expanded": 6128,
+        "generated": 24511,
+        "beforeMs": 73,
+        "afterMs": 72.5
+      },
+      {
+        "game": "head skuller.txt",
+        "level": 7,
+        "expanded": 3742,
+        "generated": 14966,
+        "beforeMs": 52,
+        "afterMs": 49
+      },
+      {
+        "game": "hedgehog stimulator.txt",
+        "level": 5,
+        "expanded": 3351,
+        "generated": 16751,
+        "beforeMs": 73,
+        "afterMs": 85.5
+      },
+      {
+        "game": "heroes_of_sokoban.txt",
+        "level": 3,
+        "expanded": 659,
+        "generated": 3292,
+        "beforeMs": 11.5,
+        "afterMs": 11.5
+      },
+      {
+        "game": "heroes_of_sokoban.txt",
+        "level": 11,
+        "expanded": 278,
+        "generated": 1389,
+        "beforeMs": 5.5,
+        "afterMs": 6
+      },
+      {
+        "game": "heroes_of_sokoban.txt",
+        "level": 13,
+        "expanded": 1544,
+        "generated": 7716,
+        "beforeMs": 58.5,
+        "afterMs": 45
+      },
+      {
+        "game": "heroes_of_sokoban.txt",
+        "level": 17,
+        "expanded": 190,
+        "generated": 946,
+        "beforeMs": 6.5,
+        "afterMs": 8
+      },
+      {
+        "game": "heroes_of_sokoban.txt",
+        "level": 22,
+        "expanded": 437,
+        "generated": 2183,
+        "beforeMs": 10.5,
+        "afterMs": 11.5
+      },
+      {
+        "game": "heroes_of_sokoban_2.txt",
+        "level": 5,
+        "expanded": 35,
+        "generated": 174,
+        "beforeMs": 2,
+        "afterMs": 2.5
+      },
+      {
+        "game": "heroes_of_sokoban_2.txt",
+        "level": 6,
+        "expanded": 32,
+        "generated": 157,
+        "beforeMs": 2,
+        "afterMs": 2
+      },
+      {
+        "game": "heroes_of_sokoban_2.txt",
+        "level": 10,
+        "expanded": 73,
+        "generated": 361,
+        "beforeMs": 4.5,
+        "afterMs": 7
+      },
+      {
+        "game": "heroes_of_sokoban_2.txt",
+        "level": 15,
+        "expanded": 52,
+        "generated": 256,
+        "beforeMs": 3.5,
+        "afterMs": 3.5
+      },
+      {
+        "game": "heroes_of_sokoban_2.txt",
+        "level": 24,
+        "expanded": 153,
+        "generated": 763,
+        "beforeMs": 10.5,
+        "afterMs": 9.5
+      },
+      {
+        "game": "heroes_of_sokoban_3.txt",
+        "level": 5,
+        "expanded": 422,
+        "generated": 2106,
+        "beforeMs": 24,
+        "afterMs": 25
+      },
+      {
+        "game": "heroes_of_sokoban_3.txt",
+        "level": 6,
+        "expanded": 84,
+        "generated": 418,
+        "beforeMs": 4,
+        "afterMs": 4.5
+      },
+      {
+        "game": "heroes_of_sokoban_3.txt",
+        "level": 8,
+        "expanded": 114,
+        "generated": 566,
+        "beforeMs": 7.5,
+        "afterMs": 8
+      },
+      {
+        "game": "heroes_of_sokoban_3.txt",
+        "level": 11,
+        "expanded": 1605,
+        "generated": 8023,
+        "beforeMs": 73,
+        "afterMs": 75
+      },
+      {
+        "game": "heroes_of_sokoban_3.txt",
+        "level": 12,
+        "expanded": 180,
+        "generated": 899,
+        "beforeMs": 8,
+        "afterMs": 7.5
+      },
+      {
+        "game": "heroes_of_sokoban_3.txt",
+        "level": 31,
+        "expanded": 233,
+        "generated": 1163,
+        "beforeMs": 14.5,
+        "afterMs": 17.5
+      },
+      {
+        "game": "i am a gust of wind.txt",
+        "level": 3,
+        "expanded": 422,
+        "generated": 1687,
+        "beforeMs": 4.5,
+        "afterMs": 5
+      },
+      {
+        "game": "i am a gust of wind.txt",
+        "level": 5,
+        "expanded": 260,
+        "generated": 1040,
+        "beforeMs": 2.5,
+        "afterMs": 2.5
+      },
+      {
+        "game": "icecrates.txt",
+        "level": 5,
+        "expanded": 53,
+        "generated": 209,
+        "beforeMs": 4,
+        "afterMs": 3
+      },
+      {
+        "game": "icecrates.txt",
+        "level": 7,
+        "expanded": 909,
+        "generated": 3636,
+        "beforeMs": 77,
+        "afterMs": 78.5
+      },
+      {
+        "game": "icecrates.txt",
+        "level": 9,
+        "expanded": 282,
+        "generated": 1126,
+        "beforeMs": 32.5,
+        "afterMs": 32
+      },
+      {
+        "game": "it dies in the light.txt",
+        "level": 0,
+        "expanded": 101,
+        "generated": 403,
+        "beforeMs": 6.5,
+        "afterMs": 5.5
+      },
+      {
+        "game": "it dies in the light.txt",
+        "level": 1,
+        "expanded": 367,
+        "generated": 1468,
+        "beforeMs": 37.5,
+        "afterMs": 32.5
+      },
+      {
+        "game": "kettle.txt",
+        "level": 10,
+        "expanded": 696,
+        "generated": 2782,
+        "beforeMs": 27.5,
+        "afterMs": 30.5
+      },
+      {
+        "game": "kishoutenketsu.txt",
+        "level": 2,
+        "expanded": 466,
+        "generated": 1861,
+        "beforeMs": 32,
+        "afterMs": 32.5
+      },
+      {
+        "game": "kishoutenketsu.txt",
+        "level": 8,
+        "expanded": 41,
+        "generated": 161,
+        "beforeMs": 3.5,
+        "afterMs": 3
+      },
+      {
+        "game": "kreiseln.txt",
+        "level": 1,
+        "expanded": 215,
+        "generated": 1072,
+        "beforeMs": 11,
+        "afterMs": 9
+      },
+      {
+        "game": "limerick.txt",
+        "level": 1,
+        "expanded": 257,
+        "generated": 1281,
+        "beforeMs": 7.5,
+        "afterMs": 9
+      },
+      {
+        "game": "limerick.txt",
+        "level": 3,
+        "expanded": 2175,
+        "generated": 10871,
+        "beforeMs": 85.5,
+        "afterMs": 72.5
+      },
+      {
+        "game": "limerick.txt",
+        "level": 7,
+        "expanded": 402,
+        "generated": 2009,
+        "beforeMs": 13,
+        "afterMs": 16
+      },
+      {
+        "game": "limerick.txt",
+        "level": 9,
+        "expanded": 957,
+        "generated": 4784,
+        "beforeMs": 31,
+        "afterMs": 31
+      },
+      {
+        "game": "limerick.txt",
+        "level": 11,
+        "expanded": 300,
+        "generated": 1499,
+        "beforeMs": 11,
+        "afterMs": 7.5
+      },
+      {
+        "game": "limerick.txt",
+        "level": 17,
+        "expanded": 763,
+        "generated": 3811,
+        "beforeMs": 23,
+        "afterMs": 23
+      },
+      {
+        "game": "m c eschers armageddon.txt",
+        "level": 3,
+        "expanded": 156,
+        "generated": 780,
+        "beforeMs": 10,
+        "afterMs": 11
+      },
+      {
+        "game": "make way.txt",
+        "level": 3,
+        "expanded": 1983,
+        "generated": 7931,
+        "beforeMs": 31.5,
+        "afterMs": 30
+      },
+      {
+        "game": "manic_ammo.txt",
+        "level": 16,
+        "expanded": 2589,
+        "generated": 12943,
+        "beforeMs": 42,
+        "afterMs": 53
+      },
+      {
+        "game": "manic_ammo.txt",
+        "level": 22,
+        "expanded": 163,
+        "generated": 811,
+        "beforeMs": 7,
+        "afterMs": 11
+      },
+      {
+        "game": "match three billiards.txt",
+        "level": 3,
+        "expanded": 300,
+        "generated": 1497,
+        "beforeMs": 11.5,
+        "afterMs": 8.5
+      },
+      {
+        "game": "match three billiards.txt",
+        "level": 5,
+        "expanded": 3339,
+        "generated": 16694,
+        "beforeMs": 66,
+        "afterMs": 70
+      },
+      {
+        "game": "mazezam.txt",
+        "level": 5,
+        "expanded": 207,
+        "generated": 825,
+        "beforeMs": 3,
+        "afterMs": 3.5
+      },
+      {
+        "game": "mazezam.txt",
+        "level": 7,
+        "expanded": 534,
+        "generated": 2133,
+        "beforeMs": 12.5,
+        "afterMs": 12
+      },
+      {
+        "game": "mazezam.txt",
+        "level": 9,
+        "expanded": 654,
+        "generated": 2613,
+        "beforeMs": 13.5,
+        "afterMs": 12
+      },
+      {
+        "game": "mazezam.txt",
+        "level": 11,
+        "expanded": 500,
+        "generated": 1997,
+        "beforeMs": 10,
+        "afterMs": 9.5
+      },
+      {
+        "game": "mazezam.txt",
+        "level": 13,
+        "expanded": 1068,
+        "generated": 4269,
+        "beforeMs": 19.5,
+        "afterMs": 19
+      },
+      {
+        "game": "mazezam.txt",
+        "level": 15,
+        "expanded": 759,
+        "generated": 3033,
+        "beforeMs": 13.5,
+        "afterMs": 14.5
+      },
+      {
+        "game": "mazezam.txt",
+        "level": 17,
+        "expanded": 710,
+        "generated": 2837,
+        "beforeMs": 18,
+        "afterMs": 15
+      },
+      {
+        "game": "mazezam.txt",
+        "level": 21,
+        "expanded": 1443,
+        "generated": 5769,
+        "beforeMs": 28.5,
+        "afterMs": 30
+      },
+      {
+        "game": "mazezam.txt",
+        "level": 25,
+        "expanded": 3111,
+        "generated": 12441,
+        "beforeMs": 62,
+        "afterMs": 55.5
+      },
+      {
+        "game": "mazezam.txt",
+        "level": 27,
+        "expanded": 2487,
+        "generated": 9945,
+        "beforeMs": 50,
+        "afterMs": 55
+      },
+      {
+        "game": "mazezam.txt",
+        "level": 31,
+        "expanded": 932,
+        "generated": 3725,
+        "beforeMs": 26.5,
+        "afterMs": 26
+      },
+      {
+        "game": "mazezam.txt",
+        "level": 33,
+        "expanded": 1294,
+        "generated": 5173,
+        "beforeMs": 28,
+        "afterMs": 27
+      },
+      {
+        "game": "mazezam.txt",
+        "level": 37,
+        "expanded": 1063,
+        "generated": 4249,
+        "beforeMs": 23,
+        "afterMs": 23
+      },
+      {
+        "game": "mazezam.txt",
+        "level": 39,
+        "expanded": 2620,
+        "generated": 10477,
+        "beforeMs": 93.5,
+        "afterMs": 93.5
+      },
+      {
+        "game": "mazezam.txt",
+        "level": 41,
+        "expanded": 1906,
+        "generated": 7621,
+        "beforeMs": 45.5,
+        "afterMs": 45
+      },
+      {
+        "game": "mazezam.txt",
+        "level": 43,
+        "expanded": 3184,
+        "generated": 12733,
+        "beforeMs": 74,
+        "afterMs": 75
+      },
+      {
+        "game": "mazezam.txt",
+        "level": 45,
+        "expanded": 1749,
+        "generated": 6993,
+        "beforeMs": 39.5,
+        "afterMs": 39
+      },
+      {
+        "game": "mazezam.txt",
+        "level": 51,
+        "expanded": 2611,
+        "generated": 10441,
+        "beforeMs": 58,
+        "afterMs": 57
+      },
+      {
+        "game": "midas.txt",
+        "level": 0,
+        "expanded": 105,
+        "generated": 521,
+        "beforeMs": 3,
+        "afterMs": 3.5
+      },
+      {
+        "game": "midas.txt",
+        "level": 2,
+        "expanded": 318,
+        "generated": 1586,
+        "beforeMs": 11,
+        "afterMs": 11.5
+      },
+      {
+        "game": "midas.txt",
+        "level": 4,
+        "expanded": 285,
+        "generated": 1421,
+        "beforeMs": 10.5,
+        "afterMs": 10
+      },
+      {
+        "game": "midas.txt",
+        "level": 6,
+        "expanded": 681,
+        "generated": 3404,
+        "beforeMs": 21.5,
+        "afterMs": 22.5
+      },
+      {
+        "game": "no heroes necessary.txt",
+        "level": 1,
+        "expanded": 183,
+        "generated": 914,
+        "beforeMs": 15,
+        "afterMs": 15.5
+      },
+      {
+        "game": "no heroes necessary.txt",
+        "level": 3,
+        "expanded": 53,
+        "generated": 262,
+        "beforeMs": 5,
+        "afterMs": 6
+      },
+      {
+        "game": "no heroes necessary.txt",
+        "level": 5,
+        "expanded": 315,
+        "generated": 1573,
+        "beforeMs": 31,
+        "afterMs": 40
+      },
+      {
+        "game": "no heroes necessary.txt",
+        "level": 7,
+        "expanded": 83,
+        "generated": 411,
+        "beforeMs": 10.5,
+        "afterMs": 16
+      },
+      {
+        "game": "paint everything everywhere.txt",
+        "level": 1,
+        "expanded": 28,
+        "generated": 137,
+        "beforeMs": 10,
+        "afterMs": 13.5
+      },
+      {
+        "game": "paint everything everywhere.txt",
+        "level": 3,
+        "expanded": 104,
+        "generated": 516,
+        "beforeMs": 35,
+        "afterMs": 42.5
+      },
+      {
+        "game": "paint everything everywhere.txt",
+        "level": 5,
+        "expanded": 20,
+        "generated": 98,
+        "beforeMs": 34,
+        "afterMs": 35.5
+      },
+      {
+        "game": "paint everything everywhere.txt",
+        "level": 7,
+        "expanded": 55,
+        "generated": 273,
+        "beforeMs": 88,
+        "afterMs": 90.5
+      },
+      {
+        "game": "paint everything everywhere.txt",
+        "level": 13,
+        "expanded": 76,
+        "generated": 379,
+        "beforeMs": 47.5,
+        "afterMs": 42
+      },
+      {
+        "game": "paint everything everywhere.txt",
+        "level": 15,
+        "expanded": 44,
+        "generated": 216,
+        "beforeMs": 52,
+        "afterMs": 61.5
+      },
+      {
+        "game": "paint everything everywhere.txt",
+        "level": 19,
+        "expanded": 46,
+        "generated": 226,
+        "beforeMs": 28,
+        "afterMs": 24
+      },
+      {
+        "game": "pipe puffer.txt",
+        "level": 4,
+        "expanded": 317,
+        "generated": 1585,
+        "beforeMs": 10,
+        "afterMs": 12.5
+      },
+      {
+        "game": "pipe puffer.txt",
+        "level": 8,
+        "expanded": 382,
+        "generated": 1910,
+        "beforeMs": 23.5,
+        "afterMs": 28.5
+      },
+      {
+        "game": "pipe puffer.txt",
+        "level": 16,
+        "expanded": 70,
+        "generated": 350,
+        "beforeMs": 8,
+        "afterMs": 7.5
+      },
+      {
+        "game": "ponies jumping synchronously.txt",
+        "level": 10,
+        "expanded": 348,
+        "generated": 1736,
+        "beforeMs": 14,
+        "afterMs": 16.5
+      },
+      {
+        "game": "ponies jumping synchronously.txt",
+        "level": 14,
+        "expanded": 427,
+        "generated": 2134,
+        "beforeMs": 18,
+        "afterMs": 24
+      },
+      {
+        "game": "ponies jumping synchronously.txt",
+        "level": 19,
+        "expanded": 141,
+        "generated": 701,
+        "beforeMs": 6.5,
+        "afterMs": 10
+      },
+      {
+        "game": "push pull.txt",
+        "level": 1,
+        "expanded": 304,
+        "generated": 1216,
+        "beforeMs": 2.5,
+        "afterMs": 2.5
+      },
+      {
+        "game": "push pull.txt",
+        "level": 3,
+        "expanded": 238,
+        "generated": 952,
+        "beforeMs": 3,
+        "afterMs": 2
+      },
+      {
+        "game": "push pull.txt",
+        "level": 5,
+        "expanded": 884,
+        "generated": 3533,
+        "beforeMs": 8.5,
+        "afterMs": 9
+      },
+      {
+        "game": "push.txt",
+        "level": 5,
+        "expanded": 566,
+        "generated": 2262,
+        "beforeMs": 11,
+        "afterMs": 13
+      },
+      {
+        "game": "push.txt",
+        "level": 7,
+        "expanded": 86,
+        "generated": 342,
+        "beforeMs": 2,
+        "afterMs": 2.5
+      },
+      {
+        "game": "push.txt",
+        "level": 9,
+        "expanded": 231,
+        "generated": 922,
+        "beforeMs": 6,
+        "afterMs": 6.5
+      },
+      {
+        "game": "push.txt",
+        "level": 11,
+        "expanded": 849,
+        "generated": 3394,
+        "beforeMs": 28,
+        "afterMs": 34.5
+      },
+      {
+        "game": "push.txt",
+        "level": 13,
+        "expanded": 601,
+        "generated": 2401,
+        "beforeMs": 23,
+        "afterMs": 24.5
+      },
+      {
+        "game": "push.txt",
+        "level": 23,
+        "expanded": 173,
+        "generated": 690,
+        "beforeMs": 6.5,
+        "afterMs": 7.5
+      },
+      {
+        "game": "push.txt",
+        "level": 31,
+        "expanded": 2062,
+        "generated": 8246,
+        "beforeMs": 64,
+        "afterMs": 82
+      },
+      {
+        "game": "push.txt",
+        "level": 37,
+        "expanded": 91,
+        "generated": 361,
+        "beforeMs": 3,
+        "afterMs": 2.5
+      },
+      {
+        "game": "pushit.txt",
+        "level": 1,
+        "expanded": 5263,
+        "generated": 21049,
+        "beforeMs": 77,
+        "afterMs": 85.5
+      },
+      {
+        "game": "shy snake.txt",
+        "level": 1,
+        "expanded": 95,
+        "generated": 378,
+        "beforeMs": 9.5,
+        "afterMs": 12
+      },
+      {
+        "game": "slide pull.txt",
+        "level": 3,
+        "expanded": 504,
+        "generated": 2014,
+        "beforeMs": 5.5,
+        "afterMs": 5
+      },
+      {
+        "game": "slide pull.txt",
+        "level": 5,
+        "expanded": 4702,
+        "generated": 18808,
+        "beforeMs": 63.5,
+        "afterMs": 62
+      },
+      {
+        "game": "slide pull.txt",
+        "level": 7,
+        "expanded": 5574,
+        "generated": 22293,
+        "beforeMs": 81,
+        "afterMs": 79
+      },
+      {
+        "game": "slide pull.txt",
+        "level": 11,
+        "expanded": 2108,
+        "generated": 8431,
+        "beforeMs": 31,
+        "afterMs": 29.5
+      },
+      {
+        "game": "slide pull.txt",
+        "level": 13,
+        "expanded": 1392,
+        "generated": 5566,
+        "beforeMs": 17.5,
+        "afterMs": 18
+      },
+      {
+        "game": "slidings.txt",
+        "level": 9,
+        "expanded": 180,
+        "generated": 899,
+        "beforeMs": 3.5,
+        "afterMs": 3.5
+      },
+      {
+        "game": "slidings.txt",
+        "level": 19,
+        "expanded": 1778,
+        "generated": 8887,
+        "beforeMs": 41,
+        "afterMs": 45.5
+      },
+      {
+        "game": "slidings.txt",
+        "level": 21,
+        "expanded": 2743,
+        "generated": 13714,
+        "beforeMs": 64,
+        "afterMs": 64
+      },
+      {
+        "game": "slime vat filler.txt",
+        "level": 2,
+        "expanded": 159,
+        "generated": 793,
+        "beforeMs": 3,
+        "afterMs": 1.5
+      },
+      {
+        "game": "slime vat filler.txt",
+        "level": 14,
+        "expanded": 581,
+        "generated": 2903,
+        "beforeMs": 7,
+        "afterMs": 7.5
+      },
+      {
+        "game": "slime vat filler.txt",
+        "level": 18,
+        "expanded": 2546,
+        "generated": 12728,
+        "beforeMs": 40,
+        "afterMs": 39
+      },
+      {
+        "game": "slime vat filler.txt",
+        "level": 21,
+        "expanded": 3350,
+        "generated": 16748,
+        "beforeMs": 43.5,
+        "afterMs": 44
+      },
+      {
+        "game": "slot machine.txt",
+        "level": 1,
+        "expanded": 334,
+        "generated": 1667,
+        "beforeMs": 10,
+        "afterMs": 11.5
+      },
+      {
+        "game": "smother.txt",
+        "level": 2,
+        "expanded": 304,
+        "generated": 1518,
+        "beforeMs": 8.5,
+        "afterMs": 8.5
+      },
+      {
+        "game": "smother.txt",
+        "level": 4,
+        "expanded": 493,
+        "generated": 2463,
+        "beforeMs": 12,
+        "afterMs": 12
+      },
+      {
+        "game": "smother.txt",
+        "level": 6,
+        "expanded": 713,
+        "generated": 3563,
+        "beforeMs": 18.5,
+        "afterMs": 19
+      },
+      {
+        "game": "smother.txt",
+        "level": 8,
+        "expanded": 407,
+        "generated": 2031,
+        "beforeMs": 13.5,
+        "afterMs": 14.5
+      },
+      {
+        "game": "smother.txt",
+        "level": 10,
+        "expanded": 609,
+        "generated": 3041,
+        "beforeMs": 24.5,
+        "afterMs": 24.5
+      },
+      {
+        "game": "smother.txt",
+        "level": 20,
+        "expanded": 151,
+        "generated": 751,
+        "beforeMs": 3.5,
+        "afterMs": 3.5
+      },
+      {
+        "game": "smother.txt",
+        "level": 22,
+        "expanded": 527,
+        "generated": 2632,
+        "beforeMs": 13,
+        "afterMs": 13
+      },
+      {
+        "game": "smother.txt",
+        "level": 26,
+        "expanded": 478,
+        "generated": 2388,
+        "beforeMs": 14.5,
+        "afterMs": 13
+      },
+      {
+        "game": "smother.txt",
+        "level": 28,
+        "expanded": 1825,
+        "generated": 9122,
+        "beforeMs": 69,
+        "afterMs": 58.5
+      },
+      {
+        "game": "smother.txt",
+        "level": 30,
+        "expanded": 340,
+        "generated": 1697,
+        "beforeMs": 13,
+        "afterMs": 12
+      },
+      {
+        "game": "sokobond demake.txt",
+        "level": 10,
+        "expanded": 64,
+        "generated": 256,
+        "beforeMs": 2,
+        "afterMs": 3.5
+      },
+      {
+        "game": "sokobond demake.txt",
+        "level": 12,
+        "expanded": 49,
+        "generated": 196,
+        "beforeMs": 2,
+        "afterMs": 2
+      },
+      {
+        "game": "sokobond demake.txt",
+        "level": 14,
+        "expanded": 559,
+        "generated": 2236,
+        "beforeMs": 29,
+        "afterMs": 29.5
+      },
+      {
+        "game": "sokobond demake.txt",
+        "level": 16,
+        "expanded": 81,
+        "generated": 321,
+        "beforeMs": 3,
+        "afterMs": 3.5
+      },
+      {
+        "game": "sokobond demake.txt",
+        "level": 22,
+        "expanded": 774,
+        "generated": 3095,
+        "beforeMs": 29.5,
+        "afterMs": 33
+      },
+      {
+        "game": "sokobond demake.txt",
+        "level": 26,
+        "expanded": 3181,
+        "generated": 12723,
+        "beforeMs": 73.5,
+        "afterMs": 81.5
+      },
+      {
+        "game": "stick_candy_puzzle_saga.txt",
+        "level": 1,
+        "expanded": 920,
+        "generated": 3677,
+        "beforeMs": 31,
+        "afterMs": 24.5
+      },
+      {
+        "game": "sum three horizontally to 8.txt",
+        "level": 15,
+        "expanded": 611,
+        "generated": 3055,
+        "beforeMs": 30.5,
+        "afterMs": 30
+      },
+      {
+        "game": "sum three horizontally to 8.txt",
+        "level": 19,
+        "expanded": 109,
+        "generated": 545,
+        "beforeMs": 4.5,
+        "afterMs": 4.5
+      },
+      {
+        "game": "sum three horizontally to 8.txt",
+        "level": 22,
+        "expanded": 579,
+        "generated": 2895,
+        "beforeMs": 28.5,
+        "afterMs": 27.5
+      },
+      {
+        "game": "sum three horizontally to 8.txt",
+        "level": 24,
+        "expanded": 107,
+        "generated": 535,
+        "beforeMs": 5,
+        "afterMs": 5
+      },
+      {
+        "game": "sum three horizontally to 8.txt",
+        "level": 26,
+        "expanded": 489,
+        "generated": 2445,
+        "beforeMs": 25,
+        "afterMs": 23
+      },
+      {
+        "game": "sum three horizontally to 8.txt",
+        "level": 28,
+        "expanded": 238,
+        "generated": 1190,
+        "beforeMs": 11.5,
+        "afterMs": 11
+      },
+      {
+        "game": "take heart lass.txt",
+        "level": 9,
+        "expanded": 1385,
+        "generated": 6923,
+        "beforeMs": 46.5,
+        "afterMs": 50
+      },
+      {
+        "game": "take heart lass.txt",
+        "level": 11,
+        "expanded": 120,
+        "generated": 599,
+        "beforeMs": 4.5,
+        "afterMs": 4.5
+      },
+      {
+        "game": "take heart lass.txt",
+        "level": 13,
+        "expanded": 291,
+        "generated": 1452,
+        "beforeMs": 11.5,
+        "afterMs": 12
+      },
+      {
+        "game": "take heart lass.txt",
+        "level": 17,
+        "expanded": 49,
+        "generated": 244,
+        "beforeMs": 3.5,
+        "afterMs": 4.5
+      },
+      {
+        "game": "take heart lass.txt",
+        "level": 19,
+        "expanded": 505,
+        "generated": 2521,
+        "beforeMs": 28.5,
+        "afterMs": 32
+      },
+      {
+        "game": "take heart lass.txt",
+        "level": 21,
+        "expanded": 754,
+        "generated": 3767,
+        "beforeMs": 56.5,
+        "afterMs": 60.5
+      },
+      {
+        "game": "the exit is under my left foot.txt",
+        "level": 1,
+        "expanded": 102,
+        "generated": 506,
+        "beforeMs": 57.5,
+        "afterMs": 59
+      },
+      {
+        "game": "the red ring of immortality.txt",
+        "level": 1,
+        "expanded": 134,
+        "generated": 669,
+        "beforeMs": 2,
+        "afterMs": 2
+      },
+      {
+        "game": "the red ring of immortality.txt",
+        "level": 3,
+        "expanded": 998,
+        "generated": 4987,
+        "beforeMs": 23,
+        "afterMs": 23.5
+      },
+      {
+        "game": "the red ring of immortality.txt",
+        "level": 7,
+        "expanded": 1348,
+        "generated": 6739,
+        "beforeMs": 32,
+        "afterMs": 32.5
+      },
+      {
+        "game": "the red ring of immortality.txt",
+        "level": 9,
+        "expanded": 179,
+        "generated": 894,
+        "beforeMs": 4,
+        "afterMs": 3
+      },
+      {
+        "game": "the red ring of immortality.txt",
+        "level": 11,
+        "expanded": 380,
+        "generated": 1897,
+        "beforeMs": 7.5,
+        "afterMs": 8
+      },
+      {
+        "game": "the red ring of immortality.txt",
+        "level": 13,
+        "expanded": 2787,
+        "generated": 13934,
+        "beforeMs": 63.5,
+        "afterMs": 78
+      },
+      {
+        "game": "the red ring of immortality.txt",
+        "level": 15,
+        "expanded": 497,
+        "generated": 2481,
+        "beforeMs": 12.5,
+        "afterMs": 11.5
+      },
+      {
+        "game": "the red ring of immortality.txt",
+        "level": 17,
+        "expanded": 2149,
+        "generated": 10743,
+        "beforeMs": 51,
+        "afterMs": 52
+      },
+      {
+        "game": "the red ring of immortality.txt",
+        "level": 19,
+        "expanded": 275,
+        "generated": 1372,
+        "beforeMs": 5,
+        "afterMs": 5
+      },
+      {
+        "game": "the_saga_of_the_candy_scroll.txt",
+        "level": 6,
+        "expanded": 106,
+        "generated": 530,
+        "beforeMs": 2,
+        "afterMs": 2
+      },
+      {
+        "game": "the_saga_of_the_candy_scroll.txt",
+        "level": 18,
+        "expanded": 451,
+        "generated": 2255,
+        "beforeMs": 12,
+        "afterMs": 11.5
+      },
+      {
+        "game": "the_saga_of_the_candy_scroll.txt",
+        "level": 22,
+        "expanded": 104,
+        "generated": 520,
+        "beforeMs": 2,
+        "afterMs": 2
+      },
+      {
+        "game": "the_saga_of_the_candy_scroll.txt",
+        "level": 26,
+        "expanded": 993,
+        "generated": 4965,
+        "beforeMs": 24.5,
+        "afterMs": 25.5
+      },
+      {
+        "game": "the_saga_of_the_candy_scroll.txt",
+        "level": 31,
+        "expanded": 1042,
+        "generated": 5210,
+        "beforeMs": 31.5,
+        "afterMs": 34.5
+      },
+      {
+        "game": "the_saga_of_the_candy_scroll.txt",
+        "level": 53,
+        "expanded": 838,
+        "generated": 4190,
+        "beforeMs": 20,
+        "afterMs": 22
+      },
+      {
+        "game": "the_saga_of_the_candy_scroll.txt",
+        "level": 55,
+        "expanded": 364,
+        "generated": 1820,
+        "beforeMs": 9.5,
+        "afterMs": 9.5
+      },
+      {
+        "game": "the_saga_of_the_candy_scroll.txt",
+        "level": 116,
+        "expanded": 506,
+        "generated": 2530,
+        "beforeMs": 19,
+        "afterMs": 20
+      },
+      {
+        "game": "whaleworld.txt",
+        "level": 1,
+        "expanded": 120,
+        "generated": 599,
+        "beforeMs": 27.5,
+        "afterMs": 29.5
+      },
+      {
+        "game": "whaleworld.txt",
+        "level": 3,
+        "expanded": 234,
+        "generated": 1166,
+        "beforeMs": 24,
+        "afterMs": 23
+      }
+    ]
+  },
+  "js": {
+    "kind": "js",
+    "order": [
+      "before",
+      "after",
+      "after",
+      "before"
+    ],
+    "timeoutMs": 125,
+    "strategy": "weighted-astar",
+    "jobs": 1,
+    "runs": [
+      {
+        "levels": 2790,
+        "solved": 485,
+        "timeout": 825,
+        "exhausted": 36,
+        "skippedMessage": 1444,
+        "errors": 0
+      },
+      {
+        "levels": 2790,
+        "solved": 494,
+        "timeout": 816,
+        "exhausted": 36,
+        "skippedMessage": 1444,
+        "errors": 0
+      },
+      {
+        "levels": 2790,
+        "solved": 492,
+        "timeout": 818,
+        "exhausted": 36,
+        "skippedMessage": 1444,
+        "errors": 0
+      },
+      {
+        "levels": 2790,
+        "solved": 477,
+        "timeout": 833,
+        "exhausted": 36,
+        "skippedMessage": 1444,
+        "errors": 0
+      }
+    ],
+    "matchedCohort": {
+      "levels": 393,
+      "elapsedMs": {
+        "before": 12099.1771,
+        "after": 11311.693050000009,
+        "changePercent": -6.508575281537055
+      },
+      "stepMs": {
+        "before": 8868.370550001375,
+        "after": 8268.87450000169,
+        "changePercent": -6.759934608275842
+      }
+    },
+    "levelComparisons": [
+      {
+        "game": "15 push pull levels.txt",
+        "level": 1,
+        "expanded": 1617,
+        "generated": 8084,
+        "beforeMs": 75,
+        "afterMs": 78
+      },
+      {
+        "game": "15 push pull levels.txt",
+        "level": 3,
+        "expanded": 133,
+        "generated": 663,
+        "beforeMs": 13.5,
+        "afterMs": 12.5
+      },
+      {
+        "game": "15 push pull levels.txt",
+        "level": 11,
+        "expanded": 1557,
+        "generated": 7784,
+        "beforeMs": 40.5,
+        "afterMs": 39
+      },
+      {
+        "game": "15 push pull levels.txt",
+        "level": 13,
+        "expanded": 2042,
+        "generated": 10209,
+        "beforeMs": 54,
+        "afterMs": 52.5
+      },
+      {
+        "game": "15 push pull levels.txt",
+        "level": 15,
+        "expanded": 1727,
+        "generated": 8633,
+        "beforeMs": 44,
+        "afterMs": 44.5
+      },
+      {
+        "game": "15 push pull levels.txt",
+        "level": 17,
+        "expanded": 1924,
+        "generated": 9618,
+        "beforeMs": 49,
+        "afterMs": 47.5
+      },
+      {
+        "game": "8 happy snakes.txt",
+        "level": 1,
+        "expanded": 10,
+        "generated": 38,
+        "beforeMs": 5,
+        "afterMs": 5
+      },
+      {
+        "game": "8 happy snakes.txt",
+        "level": 3,
+        "expanded": 230,
+        "generated": 917,
+        "beforeMs": 53.5,
+        "afterMs": 54
+      },
+      {
+        "game": "8 happy snakes.txt",
+        "level": 5,
+        "expanded": 91,
+        "generated": 364,
+        "beforeMs": 16.5,
+        "afterMs": 17
+      },
+      {
+        "game": "8 happy snakes.txt",
+        "level": 7,
+        "expanded": 258,
+        "generated": 1029,
+        "beforeMs": 46.5,
+        "afterMs": 49.5
+      },
+      {
+        "game": "ALL GREEN TO BLUE.txt",
+        "level": 1,
+        "expanded": 59,
+        "generated": 292,
+        "beforeMs": 3.5,
+        "afterMs": 4
+      },
+      {
+        "game": "ALL GREEN TO BLUE.txt",
+        "level": 15,
+        "expanded": 330,
+        "generated": 1648,
+        "beforeMs": 13,
+        "afterMs": 10
+      },
+      {
+        "game": "ALL GREEN TO BLUE.txt",
+        "level": 17,
+        "expanded": 1016,
+        "generated": 5078,
+        "beforeMs": 44,
+        "afterMs": 33
+      },
+      {
+        "game": "ALL GREEN TO BLUE.txt",
+        "level": 19,
+        "expanded": 196,
+        "generated": 977,
+        "beforeMs": 10,
+        "afterMs": 7.5
+      },
+      {
+        "game": "ALL GREEN TO BLUE.txt",
+        "level": 21,
+        "expanded": 70,
+        "generated": 347,
+        "beforeMs": 7.5,
+        "afterMs": 4.5
+      },
+      {
+        "game": "Acorn Scorchery Paradise.txt",
+        "level": 1,
+        "expanded": 452,
+        "generated": 2256,
+        "beforeMs": 28,
+        "afterMs": 24
+      },
+      {
+        "game": "Acorn Scorchery Paradise.txt",
+        "level": 3,
+        "expanded": 426,
+        "generated": 2127,
+        "beforeMs": 23.5,
+        "afterMs": 21.5
+      },
+      {
+        "game": "Acorn Scorchery Paradise.txt",
+        "level": 5,
+        "expanded": 1177,
+        "generated": 5883,
+        "beforeMs": 58,
+        "afterMs": 59
+      },
+      {
+        "game": "Acorn Scorchery Paradise.txt",
+        "level": 7,
+        "expanded": 844,
+        "generated": 4217,
+        "beforeMs": 41.5,
+        "afterMs": 38
+      },
+      {
+        "game": "All Green and Blue on Yellow.txt",
+        "level": 1,
+        "expanded": 196,
+        "generated": 783,
+        "beforeMs": 8,
+        "afterMs": 7.5
+      },
+      {
+        "game": "All Green and Blue on Yellow.txt",
+        "level": 3,
+        "expanded": 200,
+        "generated": 799,
+        "beforeMs": 9.5,
+        "afterMs": 9
+      },
+      {
+        "game": "All Green and Blue on Yellow.txt",
+        "level": 5,
+        "expanded": 1147,
+        "generated": 4585,
+        "beforeMs": 47.5,
+        "afterMs": 36
+      },
+      {
+        "game": "All Green and Blue on Yellow.txt",
+        "level": 7,
+        "expanded": 1657,
+        "generated": 6628,
+        "beforeMs": 77,
+        "afterMs": 56
+      },
+      {
+        "game": "All Green and Blue on Yellow.txt",
+        "level": 9,
+        "expanded": 1022,
+        "generated": 4088,
+        "beforeMs": 46.5,
+        "afterMs": 38
+      },
+      {
+        "game": "Any hole is a goal.txt",
+        "level": 1,
+        "expanded": 17,
+        "generated": 81,
+        "beforeMs": 26,
+        "afterMs": 21.5
+      },
+      {
+        "game": "Attractor Net.txt",
+        "level": 5,
+        "expanded": 157,
+        "generated": 781,
+        "beforeMs": 16,
+        "afterMs": 11
+      },
+      {
+        "game": "Attractor Net.txt",
+        "level": 7,
+        "expanded": 605,
+        "generated": 3021,
+        "beforeMs": 59.5,
+        "afterMs": 43
+      },
+      {
+        "game": "Attractor Net.txt",
+        "level": 11,
+        "expanded": 631,
+        "generated": 3153,
+        "beforeMs": 56,
+        "afterMs": 54.5
+      },
+      {
+        "game": "Attractor Net.txt",
+        "level": 13,
+        "expanded": 749,
+        "generated": 3744,
+        "beforeMs": 71,
+        "afterMs": 62
+      },
+      {
+        "game": "Attractor Net.txt",
+        "level": 17,
+        "expanded": 19,
+        "generated": 93,
+        "beforeMs": 2.5,
+        "afterMs": 2
+      },
+      {
+        "game": "Bicycle-Kick Football.txt",
+        "level": 4,
+        "expanded": 33,
+        "generated": 165,
+        "beforeMs": 11.5,
+        "afterMs": 13.5
+      },
+      {
+        "game": "Bicycle-Kick Football.txt",
+        "level": 10,
+        "expanded": 71,
+        "generated": 355,
+        "beforeMs": 31.5,
+        "afterMs": 28
+      },
+      {
+        "game": "CODEX LUBRICUS.txt",
+        "level": 2,
+        "expanded": 84,
+        "generated": 416,
+        "beforeMs": 53,
+        "afterMs": 58.5
+      },
+      {
+        "game": "CODEX LUBRICUS.txt",
+        "level": 4,
+        "expanded": 72,
+        "generated": 356,
+        "beforeMs": 74.5,
+        "afterMs": 69.5
+      },
+      {
+        "game": "CODEX LUBRICUS.txt",
+        "level": 6,
+        "expanded": 62,
+        "generated": 306,
+        "beforeMs": 93.5,
+        "afterMs": 90.5
+      },
+      {
+        "game": "CODEX LUBRICUS.txt",
+        "level": 8,
+        "expanded": 79,
+        "generated": 391,
+        "beforeMs": 46.5,
+        "afterMs": 45.5
+      },
+      {
+        "game": "CODEX LUBRICUS.txt",
+        "level": 16,
+        "expanded": 76,
+        "generated": 376,
+        "beforeMs": 86,
+        "afterMs": 65
+      },
+      {
+        "game": "CODEX LUBRICUS.txt",
+        "level": 24,
+        "expanded": 82,
+        "generated": 406,
+        "beforeMs": 74,
+        "afterMs": 75.5
+      },
+      {
+        "game": "CODEX LUBRICUS.txt",
+        "level": 34,
+        "expanded": 64,
+        "generated": 316,
+        "beforeMs": 95,
+        "afterMs": 82
+      },
+      {
+        "game": "CODEX LUBRICUS.txt",
+        "level": 38,
+        "expanded": 97,
+        "generated": 481,
+        "beforeMs": 86.5,
+        "afterMs": 81
+      },
+      {
+        "game": "Chevron Lodger.txt",
+        "level": 1,
+        "expanded": 67,
+        "generated": 333,
+        "beforeMs": 8,
+        "afterMs": 6
+      },
+      {
+        "game": "Chevron Lodger.txt",
+        "level": 7,
+        "expanded": 830,
+        "generated": 4148,
+        "beforeMs": 71.5,
+        "afterMs": 54
+      },
+      {
+        "game": "Crates move when you move.txt",
+        "level": 1,
+        "expanded": 159,
+        "generated": 635,
+        "beforeMs": 9.5,
+        "afterMs": 10
+      },
+      {
+        "game": "Crates move when you move.txt",
+        "level": 3,
+        "expanded": 28,
+        "generated": 112,
+        "beforeMs": 2,
+        "afterMs": 2
+      },
+      {
+        "game": "Crates move when you move.txt",
+        "level": 5,
+        "expanded": 35,
+        "generated": 138,
+        "beforeMs": 3,
+        "afterMs": 3
+      },
+      {
+        "game": "Crates move when you move.txt",
+        "level": 7,
+        "expanded": 103,
+        "generated": 409,
+        "beforeMs": 5.5,
+        "afterMs": 6
+      },
+      {
+        "game": "Crates move when you move.txt",
+        "level": 9,
+        "expanded": 73,
+        "generated": 290,
+        "beforeMs": 5,
+        "afterMs": 4
+      },
+      {
+        "game": "Crates move when you move.txt",
+        "level": 13,
+        "expanded": 97,
+        "generated": 388,
+        "beforeMs": 4.5,
+        "afterMs": 5
+      },
+      {
+        "game": "Crates move when you move.txt",
+        "level": 15,
+        "expanded": 195,
+        "generated": 780,
+        "beforeMs": 9.5,
+        "afterMs": 10.5
+      },
+      {
+        "game": "Crates move when you move.txt",
+        "level": 17,
+        "expanded": 49,
+        "generated": 196,
+        "beforeMs": 2.5,
+        "afterMs": 3
+      },
+      {
+        "game": "Crates move when you move.txt",
+        "level": 19,
+        "expanded": 326,
+        "generated": 1303,
+        "beforeMs": 17,
+        "afterMs": 13.5
+      },
+      {
+        "game": "Cucumber Surprise.txt",
+        "level": 2,
+        "expanded": 149,
+        "generated": 741,
+        "beforeMs": 13.5,
+        "afterMs": 15.5
+      },
+      {
+        "game": "Cucumber Surprise.txt",
+        "level": 5,
+        "expanded": 263,
+        "generated": 1311,
+        "beforeMs": 27,
+        "afterMs": 28.5
+      },
+      {
+        "game": "Cucumber Surprise.txt",
+        "level": 7,
+        "expanded": 400,
+        "generated": 1996,
+        "beforeMs": 35,
+        "afterMs": 34.5
+      },
+      {
+        "game": "Cucumber Surprise.txt",
+        "level": 13,
+        "expanded": 320,
+        "generated": 1598,
+        "beforeMs": 27.5,
+        "afterMs": 30.5
+      },
+      {
+        "game": "Cucumber Surprise.txt",
+        "level": 17,
+        "expanded": 995,
+        "generated": 4974,
+        "beforeMs": 78.5,
+        "afterMs": 77
+      },
+      {
+        "game": "Cucumber Surprise.txt",
+        "level": 21,
+        "expanded": 210,
+        "generated": 1047,
+        "beforeMs": 18.5,
+        "afterMs": 19
+      },
+      {
+        "game": "Cucumber Surprise.txt",
+        "level": 25,
+        "expanded": 460,
+        "generated": 2296,
+        "beforeMs": 35.5,
+        "afterMs": 38
+      },
+      {
+        "game": "Cucumber Surprise.txt",
+        "level": 29,
+        "expanded": 865,
+        "generated": 4322,
+        "beforeMs": 72,
+        "afterMs": 69.5
+      },
+      {
+        "game": "Cucumber Surprise.txt",
+        "level": 37,
+        "expanded": 925,
+        "generated": 4624,
+        "beforeMs": 76,
+        "afterMs": 82.5
+      },
+      {
+        "game": "Des Poseidons Dreizack.txt",
+        "level": 6,
+        "expanded": 9,
+        "generated": 36,
+        "beforeMs": 9,
+        "afterMs": 8
+      },
+      {
+        "game": "Don't let your goals slip away.txt",
+        "level": 1,
+        "expanded": 63,
+        "generated": 312,
+        "beforeMs": 3.5,
+        "afterMs": 5
+      },
+      {
+        "game": "Don't let your goals slip away.txt",
+        "level": 5,
+        "expanded": 131,
+        "generated": 652,
+        "beforeMs": 7,
+        "afterMs": 6.5
+      },
+      {
+        "game": "Don't let your goals slip away.txt",
+        "level": 7,
+        "expanded": 570,
+        "generated": 2849,
+        "beforeMs": 32,
+        "afterMs": 26
+      },
+      {
+        "game": "Don't let your goals slip away.txt",
+        "level": 9,
+        "expanded": 1311,
+        "generated": 6553,
+        "beforeMs": 66.5,
+        "afterMs": 49
+      },
+      {
+        "game": "Explodoban.txt",
+        "level": 3,
+        "expanded": 233,
+        "generated": 1165,
+        "beforeMs": 19,
+        "afterMs": 20.5
+      },
+      {
+        "game": "Eyeball-watching flowers bloom.txt",
+        "level": 1,
+        "expanded": 53,
+        "generated": 263,
+        "beforeMs": 13.5,
+        "afterMs": 9
+      },
+      {
+        "game": "Garten der Medusen.txt",
+        "level": 1,
+        "expanded": 6,
+        "generated": 21,
+        "beforeMs": 15,
+        "afterMs": 15.5
+      },
+      {
+        "game": "Garten der Medusen.txt",
+        "level": 3,
+        "expanded": 4,
+        "generated": 14,
+        "beforeMs": 9.5,
+        "afterMs": 9
+      },
+      {
+        "game": "Garten der Medusen.txt",
+        "level": 5,
+        "expanded": 6,
+        "generated": 21,
+        "beforeMs": 10.5,
+        "afterMs": 10.5
+      },
+      {
+        "game": "Hole-Stuffer.txt",
+        "level": 5,
+        "expanded": 178,
+        "generated": 888,
+        "beforeMs": 23.5,
+        "afterMs": 17
+      },
+      {
+        "game": "Legend of Swixero.txt",
+        "level": 1,
+        "expanded": 370,
+        "generated": 1847,
+        "beforeMs": 20,
+        "afterMs": 21.5
+      },
+      {
+        "game": "Legend of Swixero.txt",
+        "level": 3,
+        "expanded": 1590,
+        "generated": 7946,
+        "beforeMs": 69.5,
+        "afterMs": 70.5
+      },
+      {
+        "game": "Legend of Swixero.txt",
+        "level": 5,
+        "expanded": 366,
+        "generated": 1826,
+        "beforeMs": 17,
+        "afterMs": 17.5
+      },
+      {
+        "game": "Match-Maker.txt",
+        "level": 1,
+        "expanded": 156,
+        "generated": 777,
+        "beforeMs": 35,
+        "afterMs": 30
+      },
+      {
+        "game": "Match-Maker.txt",
+        "level": 3,
+        "expanded": 31,
+        "generated": 152,
+        "beforeMs": 8.5,
+        "afterMs": 5
+      },
+      {
+        "game": "Match-Maker.txt",
+        "level": 5,
+        "expanded": 233,
+        "generated": 1164,
+        "beforeMs": 42.5,
+        "afterMs": 31
+      },
+      {
+        "game": "Muraphilic Monophobic Multiban.txt",
+        "level": 13,
+        "expanded": 1136,
+        "generated": 5677,
+        "beforeMs": 44.5,
+        "afterMs": 46
+      },
+      {
+        "game": "NIGHTMARECROBAN.txt",
+        "level": 1,
+        "expanded": 187,
+        "generated": 745,
+        "beforeMs": 18.5,
+        "afterMs": 16.5
+      },
+      {
+        "game": "NIGHTMARECROBAN.txt",
+        "level": 5,
+        "expanded": 888,
+        "generated": 3552,
+        "beforeMs": 82.5,
+        "afterMs": 60
+      },
+      {
+        "game": "NIGHTMARECROBAN.txt",
+        "level": 7,
+        "expanded": 278,
+        "generated": 1109,
+        "beforeMs": 26,
+        "afterMs": 21.5
+      },
+      {
+        "game": "NIGHTMARECROBAN.txt",
+        "level": 9,
+        "expanded": 582,
+        "generated": 2327,
+        "beforeMs": 49.5,
+        "afterMs": 47.5
+      },
+      {
+        "game": "Pushy-V Pully-H.txt",
+        "level": 5,
+        "expanded": 844,
+        "generated": 4218,
+        "beforeMs": 29,
+        "afterMs": 29
+      },
+      {
+        "game": "Pushy-V Pully-H.txt",
+        "level": 7,
+        "expanded": 1571,
+        "generated": 7854,
+        "beforeMs": 50,
+        "afterMs": 49
+      },
+      {
+        "game": "Pushy-V Pully-H.txt",
+        "level": 11,
+        "expanded": 92,
+        "generated": 456,
+        "beforeMs": 3.5,
+        "afterMs": 3
+      },
+      {
+        "game": "Pushy-V Pully-H.txt",
+        "level": 13,
+        "expanded": 90,
+        "generated": 446,
+        "beforeMs": 4,
+        "afterMs": 4
+      },
+      {
+        "game": "Pushy-V Pully-H.txt",
+        "level": 17,
+        "expanded": 572,
+        "generated": 2859,
+        "beforeMs": 17.5,
+        "afterMs": 21
+      },
+      {
+        "game": "Pushy-V Pully-H.txt",
+        "level": 19,
+        "expanded": 408,
+        "generated": 2039,
+        "beforeMs": 14,
+        "afterMs": 16.5
+      },
+      {
+        "game": "Recondite Star Sector Sigma.txt",
+        "level": 1,
+        "expanded": 775,
+        "generated": 3874,
+        "beforeMs": 30,
+        "afterMs": 29
+      },
+      {
+        "game": "Recondite Star Sector Sigma.txt",
+        "level": 11,
+        "expanded": 944,
+        "generated": 4716,
+        "beforeMs": 42.5,
+        "afterMs": 31.5
+      },
+      {
+        "game": "Recondite Star Sector Sigma.txt",
+        "level": 19,
+        "expanded": 1275,
+        "generated": 6374,
+        "beforeMs": 64.5,
+        "afterMs": 53.5
+      },
+      {
+        "game": "Resin-Caster.txt",
+        "level": 2,
+        "expanded": 1077,
+        "generated": 5383,
+        "beforeMs": 30.5,
+        "afterMs": 39.5
+      },
+      {
+        "game": "Resin-Caster.txt",
+        "level": 4,
+        "expanded": 777,
+        "generated": 3884,
+        "beforeMs": 22,
+        "afterMs": 25.5
+      },
+      {
+        "game": "Resin-Caster.txt",
+        "level": 6,
+        "expanded": 2081,
+        "generated": 10403,
+        "beforeMs": 59,
+        "afterMs": 69.5
+      },
+      {
+        "game": "Resin-Caster.txt",
+        "level": 10,
+        "expanded": 798,
+        "generated": 3987,
+        "beforeMs": 21.5,
+        "afterMs": 22
+      },
+      {
+        "game": "Resin-Caster.txt",
+        "level": 12,
+        "expanded": 1539,
+        "generated": 7693,
+        "beforeMs": 44,
+        "afterMs": 45
+      },
+      {
+        "game": "Resin-Caster.txt",
+        "level": 16,
+        "expanded": 583,
+        "generated": 2911,
+        "beforeMs": 17,
+        "afterMs": 19
+      },
+      {
+        "game": "Resin-Caster.txt",
+        "level": 18,
+        "expanded": 1068,
+        "generated": 5337,
+        "beforeMs": 33,
+        "afterMs": 32.5
+      },
+      {
+        "game": "Resin-Caster.txt",
+        "level": 20,
+        "expanded": 1517,
+        "generated": 7582,
+        "beforeMs": 48.5,
+        "afterMs": 42
+      },
+      {
+        "game": "Scalesoban.txt",
+        "level": 3,
+        "expanded": 92,
+        "generated": 456,
+        "beforeMs": 7.5,
+        "afterMs": 7.5
+      },
+      {
+        "game": "Scalesoban.txt",
+        "level": 5,
+        "expanded": 1048,
+        "generated": 5238,
+        "beforeMs": 61.5,
+        "afterMs": 63
+      },
+      {
+        "game": "Schleimban.txt",
+        "level": 1,
+        "expanded": 237,
+        "generated": 1182,
+        "beforeMs": 53.5,
+        "afterMs": 50.5
+      },
+      {
+        "game": "Schleimban.txt",
+        "level": 5,
+        "expanded": 432,
+        "generated": 2156,
+        "beforeMs": 80,
+        "afterMs": 68
+      },
+      {
+        "game": "Schleimban.txt",
+        "level": 9,
+        "expanded": 467,
+        "generated": 2331,
+        "beforeMs": 64,
+        "afterMs": 68
+      },
+      {
+        "game": "Subway upholstry snot smearing championship.txt",
+        "level": 4,
+        "expanded": 243,
+        "generated": 1214,
+        "beforeMs": 12.5,
+        "afterMs": 15
+      },
+      {
+        "game": "Subway upholstry snot smearing championship.txt",
+        "level": 6,
+        "expanded": 96,
+        "generated": 478,
+        "beforeMs": 7.5,
+        "afterMs": 9
+      },
+      {
+        "game": "The Far Away Danish Pastry is always Delicio.txt",
+        "level": 5,
+        "expanded": 183,
+        "generated": 913,
+        "beforeMs": 10,
+        "afterMs": 13
+      },
+      {
+        "game": "The Far Away Danish Pastry is always Delicio.txt",
+        "level": 7,
+        "expanded": 45,
+        "generated": 221,
+        "beforeMs": 2,
+        "afterMs": 2.5
+      },
+      {
+        "game": "The Far Away Danish Pastry is always Delicio.txt",
+        "level": 9,
+        "expanded": 74,
+        "generated": 368,
+        "beforeMs": 3,
+        "afterMs": 3.5
+      },
+      {
+        "game": "The Far Away Danish Pastry is always Delicio.txt",
+        "level": 13,
+        "expanded": 1232,
+        "generated": 6156,
+        "beforeMs": 47,
+        "afterMs": 42.5
+      },
+      {
+        "game": "The Monsterous Autoshove.txt",
+        "level": 3,
+        "expanded": 440,
+        "generated": 2196,
+        "beforeMs": 78.5,
+        "afterMs": 79
+      },
+      {
+        "game": "The Monsterous Autoshove.txt",
+        "level": 7,
+        "expanded": 398,
+        "generated": 1987,
+        "beforeMs": 72,
+        "afterMs": 62
+      },
+      {
+        "game": "The sponge what lights up the seafloor.txt",
+        "level": 7,
+        "expanded": 112,
+        "generated": 448,
+        "beforeMs": 89.5,
+        "afterMs": 87
+      },
+      {
+        "game": "Two-Step Pete.txt",
+        "level": 1,
+        "expanded": 61,
+        "generated": 242,
+        "beforeMs": 5.5,
+        "afterMs": 6
+      },
+      {
+        "game": "Two-Step Pete.txt",
+        "level": 5,
+        "expanded": 173,
+        "generated": 691,
+        "beforeMs": 13,
+        "afterMs": 11
+      },
+      {
+        "game": "Two-Step Pete.txt",
+        "level": 11,
+        "expanded": 99,
+        "generated": 394,
+        "beforeMs": 8,
+        "afterMs": 8.5
+      },
+      {
+        "game": "Two-Step Pete.txt",
+        "level": 13,
+        "expanded": 582,
+        "generated": 2327,
+        "beforeMs": 38.5,
+        "afterMs": 39
+      },
+      {
+        "game": "Two-Tone Tango.txt",
+        "level": 3,
+        "expanded": 533,
+        "generated": 2662,
+        "beforeMs": 46,
+        "afterMs": 45
+      },
+      {
+        "game": "Two-Tone Tango.txt",
+        "level": 5,
+        "expanded": 1138,
+        "generated": 5686,
+        "beforeMs": 88.5,
+        "afterMs": 89.5
+      },
+      {
+        "game": "Two-Tone Tango.txt",
+        "level": 9,
+        "expanded": 337,
+        "generated": 1682,
+        "beforeMs": 30,
+        "afterMs": 32.5
+      },
+      {
+        "game": "Two-Tone Tango.txt",
+        "level": 11,
+        "expanded": 618,
+        "generated": 3086,
+        "beforeMs": 59,
+        "afterMs": 50.5
+      },
+      {
+        "game": "Van-to-Mobile-Living-Space-Conversion Window.txt",
+        "level": 1,
+        "expanded": 72,
+        "generated": 356,
+        "beforeMs": 10.5,
+        "afterMs": 12
+      },
+      {
+        "game": "Varifocal Nightmare.txt",
+        "level": 1,
+        "expanded": 842,
+        "generated": 4209,
+        "beforeMs": 60.5,
+        "afterMs": 59.5
+      },
+      {
+        "game": "Varifocal Nightmare.txt",
+        "level": 3,
+        "expanded": 513,
+        "generated": 2563,
+        "beforeMs": 36,
+        "afterMs": 32
+      },
+      {
+        "game": "Varifocal Nightmare.txt",
+        "level": 9,
+        "expanded": 708,
+        "generated": 3536,
+        "beforeMs": 46,
+        "afterMs": 57
+      },
+      {
+        "game": "Wand Spinner.txt",
+        "level": 1,
+        "expanded": 277,
+        "generated": 1381,
+        "beforeMs": 19.5,
+        "afterMs": 18.5
+      },
+      {
+        "game": "Wand Spinner.txt",
+        "level": 3,
+        "expanded": 208,
+        "generated": 1038,
+        "beforeMs": 14.5,
+        "afterMs": 14.5
+      },
+      {
+        "game": "Wand Spinner.txt",
+        "level": 5,
+        "expanded": 1310,
+        "generated": 6548,
+        "beforeMs": 75,
+        "afterMs": 82
+      },
+      {
+        "game": "Wand Spinner.txt",
+        "level": 9,
+        "expanded": 389,
+        "generated": 1941,
+        "beforeMs": 19.5,
+        "afterMs": 18
+      },
+      {
+        "game": "Wand Spinner.txt",
+        "level": 15,
+        "expanded": 1407,
+        "generated": 7033,
+        "beforeMs": 73,
+        "afterMs": 70
+      },
+      {
+        "game": "Wand Spinner.txt",
+        "level": 21,
+        "expanded": 1192,
+        "generated": 5958,
+        "beforeMs": 63.5,
+        "afterMs": 62.5
+      },
+      {
+        "game": "Wand Spinner.txt",
+        "level": 31,
+        "expanded": 1340,
+        "generated": 6696,
+        "beforeMs": 70.5,
+        "afterMs": 75.5
+      },
+      {
+        "game": "Wand Spinner.txt",
+        "level": 33,
+        "expanded": 68,
+        "generated": 337,
+        "beforeMs": 4.5,
+        "afterMs": 5
+      },
+      {
+        "game": "Xorro The Chaos Warden.txt",
+        "level": 1,
+        "expanded": 391,
+        "generated": 1951,
+        "beforeMs": 59.5,
+        "afterMs": 49.5
+      },
+      {
+        "game": "Yellow Box.txt",
+        "level": 3,
+        "expanded": 234,
+        "generated": 1167,
+        "beforeMs": 39,
+        "afterMs": 39
+      },
+      {
+        "game": "Yellow Box.txt",
+        "level": 5,
+        "expanded": 50,
+        "generated": 247,
+        "beforeMs": 14,
+        "afterMs": 13
+      },
+      {
+        "game": "Yellow Box.txt",
+        "level": 7,
+        "expanded": 240,
+        "generated": 1196,
+        "beforeMs": 37.5,
+        "afterMs": 39.5
+      },
+      {
+        "game": "Yellow Box.txt",
+        "level": 17,
+        "expanded": 58,
+        "generated": 289,
+        "beforeMs": 13,
+        "afterMs": 12.5
+      },
+      {
+        "game": "Yellow Box.txt",
+        "level": 19,
+        "expanded": 146,
+        "generated": 728,
+        "beforeMs": 30.5,
+        "afterMs": 29
+      },
+      {
+        "game": "Yellow Box.txt",
+        "level": 23,
+        "expanded": 20,
+        "generated": 97,
+        "beforeMs": 4.5,
+        "afterMs": 3
+      },
+      {
+        "game": "Yellow Box.txt",
+        "level": 27,
+        "expanded": 377,
+        "generated": 1881,
+        "beforeMs": 70,
+        "afterMs": 63.5
+      },
+      {
+        "game": "Yellow Box.txt",
+        "level": 29,
+        "expanded": 262,
+        "generated": 1306,
+        "beforeMs": 49,
+        "afterMs": 43
+      },
+      {
+        "game": "Yellow Box.txt",
+        "level": 33,
+        "expanded": 282,
+        "generated": 1406,
+        "beforeMs": 51.5,
+        "afterMs": 47.5
+      },
+      {
+        "game": "a clear view of the sky.txt",
+        "level": 10,
+        "expanded": 36,
+        "generated": 180,
+        "beforeMs": 12.5,
+        "afterMs": 12.5
+      },
+      {
+        "game": "a clear view of the sky.txt",
+        "level": 12,
+        "expanded": 36,
+        "generated": 180,
+        "beforeMs": 18.5,
+        "afterMs": 16.5
+      },
+      {
+        "game": "alternatey.txt",
+        "level": 2,
+        "expanded": 167,
+        "generated": 665,
+        "beforeMs": 30,
+        "afterMs": 21
+      },
+      {
+        "game": "atlas shrank.txt",
+        "level": 1,
+        "expanded": 6,
+        "generated": 26,
+        "beforeMs": 3.5,
+        "afterMs": 4
+      },
+      {
+        "game": "autohurdler.txt",
+        "level": 3,
+        "expanded": 46,
+        "generated": 182,
+        "beforeMs": 11.5,
+        "afterMs": 14
+      },
+      {
+        "game": "butteater.txt",
+        "level": 1,
+        "expanded": 187,
+        "generated": 931,
+        "beforeMs": 41,
+        "afterMs": 32
+      },
+      {
+        "game": "byyourside.txt",
+        "level": 0,
+        "expanded": 17,
+        "generated": 83,
+        "beforeMs": 8,
+        "afterMs": 4.5
+      },
+      {
+        "game": "byyourside.txt",
+        "level": 1,
+        "expanded": 303,
+        "generated": 1511,
+        "beforeMs": 60,
+        "afterMs": 46
+      },
+      {
+        "game": "byyourside.txt",
+        "level": 2,
+        "expanded": 250,
+        "generated": 1249,
+        "beforeMs": 40,
+        "afterMs": 32.5
+      },
+      {
+        "game": "byyourside.txt",
+        "level": 3,
+        "expanded": 14,
+        "generated": 69,
+        "beforeMs": 2.5,
+        "afterMs": 2
+      },
+      {
+        "game": "byyourside.txt",
+        "level": 4,
+        "expanded": 237,
+        "generated": 1182,
+        "beforeMs": 30.5,
+        "afterMs": 32.5
+      },
+      {
+        "game": "byyourside.txt",
+        "level": 5,
+        "expanded": 301,
+        "generated": 1503,
+        "beforeMs": 39,
+        "afterMs": 36.5
+      },
+      {
+        "game": "byyourside.txt",
+        "level": 7,
+        "expanded": 16,
+        "generated": 76,
+        "beforeMs": 2,
+        "afterMs": 2
+      },
+      {
+        "game": "cakemonsters.txt",
+        "level": 4,
+        "expanded": 10,
+        "generated": 40,
+        "beforeMs": 2.5,
+        "afterMs": 3
+      },
+      {
+        "game": "cakemonsters.txt",
+        "level": 7,
+        "expanded": 192,
+        "generated": 767,
+        "beforeMs": 25.5,
+        "afterMs": 21
+      },
+      {
+        "game": "cakemonsters.txt",
+        "level": 9,
+        "expanded": 243,
+        "generated": 969,
+        "beforeMs": 31,
+        "afterMs": 26.5
+      },
+      {
+        "game": "cakemonsters.txt",
+        "level": 11,
+        "expanded": 25,
+        "generated": 100,
+        "beforeMs": 5,
+        "afterMs": 3.5
+      },
+      {
+        "game": "cakemonsters.txt",
+        "level": 13,
+        "expanded": 150,
+        "generated": 600,
+        "beforeMs": 16,
+        "afterMs": 14
+      },
+      {
+        "game": "cakemonsters.txt",
+        "level": 14,
+        "expanded": 43,
+        "generated": 172,
+        "beforeMs": 3.5,
+        "afterMs": 4.5
+      },
+      {
+        "game": "cakemonsters.txt",
+        "level": 15,
+        "expanded": 275,
+        "generated": 1100,
+        "beforeMs": 27.5,
+        "afterMs": 27
+      },
+      {
+        "game": "cakemonsters.txt",
+        "level": 17,
+        "expanded": 70,
+        "generated": 278,
+        "beforeMs": 7,
+        "afterMs": 7
+      },
+      {
+        "game": "cakemonsters.txt",
+        "level": 22,
+        "expanded": 221,
+        "generated": 884,
+        "beforeMs": 28.5,
+        "afterMs": 21.5
+      },
+      {
+        "game": "cakemonsters.txt",
+        "level": 24,
+        "expanded": 18,
+        "generated": 72,
+        "beforeMs": 3.5,
+        "afterMs": 2.5
+      },
+      {
+        "game": "cakemonsters.txt",
+        "level": 29,
+        "expanded": 197,
+        "generated": 786,
+        "beforeMs": 23,
+        "afterMs": 19.5
+      },
+      {
+        "game": "cakemonsters.txt",
+        "level": 31,
+        "expanded": 40,
+        "generated": 157,
+        "beforeMs": 5.5,
+        "afterMs": 4.5
+      },
+      {
+        "game": "cakemonsters.txt",
+        "level": 35,
+        "expanded": 143,
+        "generated": 572,
+        "beforeMs": 14.5,
+        "afterMs": 14
+      },
+      {
+        "game": "cakemonsters.txt",
+        "level": 39,
+        "expanded": 18,
+        "generated": 70,
+        "beforeMs": 2,
+        "afterMs": 3
+      },
+      {
+        "game": "cakemonsters.txt",
+        "level": 43,
+        "expanded": 34,
+        "generated": 136,
+        "beforeMs": 4,
+        "afterMs": 3
+      },
+      {
+        "game": "car crash.txt",
+        "level": 2,
+        "expanded": 0,
+        "generated": 0,
+        "beforeMs": 19.364950000002864,
+        "afterMs": 13.204450000004726
+      },
+      {
+        "game": "castlemouse.txt",
+        "level": 3,
+        "expanded": 42,
+        "generated": 207,
+        "beforeMs": 74,
+        "afterMs": 70
+      },
+      {
+        "game": "castlemouse.txt",
+        "level": 9,
+        "expanded": 20,
+        "generated": 96,
+        "beforeMs": 39,
+        "afterMs": 40.5
+      },
+      {
+        "game": "castlemouse.txt",
+        "level": 13,
+        "expanded": 6,
+        "generated": 27,
+        "beforeMs": 21,
+        "afterMs": 20
+      },
+      {
+        "game": "castlemouse.txt",
+        "level": 15,
+        "expanded": 12,
+        "generated": 59,
+        "beforeMs": 48.5,
+        "afterMs": 44
+      },
+      {
+        "game": "castlemouse.txt",
+        "level": 17,
+        "expanded": 3,
+        "generated": 11,
+        "beforeMs": 10.5,
+        "afterMs": 9
+      },
+      {
+        "game": "castlemouse.txt",
+        "level": 19,
+        "expanded": 9,
+        "generated": 43,
+        "beforeMs": 40.5,
+        "afterMs": 36
+      },
+      {
+        "game": "coincounter.txt",
+        "level": 0,
+        "expanded": 9,
+        "generated": 41,
+        "beforeMs": 7,
+        "afterMs": 7
+      },
+      {
+        "game": "coincounter.txt",
+        "level": 1,
+        "expanded": 22,
+        "generated": 106,
+        "beforeMs": 14,
+        "afterMs": 15
+      },
+      {
+        "game": "coincounter.txt",
+        "level": 2,
+        "expanded": 78,
+        "generated": 387,
+        "beforeMs": 44.5,
+        "afterMs": 40
+      },
+      {
+        "game": "coincounter.txt",
+        "level": 3,
+        "expanded": 105,
+        "generated": 522,
+        "beforeMs": 52,
+        "afterMs": 52.5
+      },
+      {
+        "game": "coincounter.txt",
+        "level": 8,
+        "expanded": 103,
+        "generated": 513,
+        "beforeMs": 60,
+        "afterMs": 48.5
+      },
+      {
+        "game": "coincounter.txt",
+        "level": 9,
+        "expanded": 7,
+        "generated": 33,
+        "beforeMs": 5,
+        "afterMs": 4.5
+      },
+      {
+        "game": "color chained.txt",
+        "level": 0,
+        "expanded": 124,
+        "generated": 618,
+        "beforeMs": 73.5,
+        "afterMs": 68
+      },
+      {
+        "game": "color chained.txt",
+        "level": 1,
+        "expanded": 29,
+        "generated": 143,
+        "beforeMs": 18.5,
+        "afterMs": 21.5
+      },
+      {
+        "game": "constellationz.txt",
+        "level": 0,
+        "expanded": 5,
+        "generated": 21,
+        "beforeMs": 2,
+        "afterMs": 1.5
+      },
+      {
+        "game": "constellationz.txt",
+        "level": 1,
+        "expanded": 5,
+        "generated": 21,
+        "beforeMs": 2,
+        "afterMs": 2
+      },
+      {
+        "game": "constellationz.txt",
+        "level": 2,
+        "expanded": 82,
+        "generated": 406,
+        "beforeMs": 11.5,
+        "afterMs": 10.5
+      },
+      {
+        "game": "constellationz.txt",
+        "level": 3,
+        "expanded": 10,
+        "generated": 48,
+        "beforeMs": 2,
+        "afterMs": 1.5
+      },
+      {
+        "game": "constellationz.txt",
+        "level": 4,
+        "expanded": 150,
+        "generated": 746,
+        "beforeMs": 18.5,
+        "afterMs": 14
+      },
+      {
+        "game": "constellationz.txt",
+        "level": 5,
+        "expanded": 28,
+        "generated": 136,
+        "beforeMs": 18.5,
+        "afterMs": 18
+      },
+      {
+        "game": "crate guardian.txt",
+        "level": 1,
+        "expanded": 601,
+        "generated": 3003,
+        "beforeMs": 68,
+        "afterMs": 47.5
+      },
+      {
+        "game": "crate guardian.txt",
+        "level": 3,
+        "expanded": 935,
+        "generated": 4671,
+        "beforeMs": 67,
+        "afterMs": 58
+      },
+      {
+        "game": "crate swap.txt",
+        "level": 1,
+        "expanded": 860,
+        "generated": 4299,
+        "beforeMs": 30,
+        "afterMs": 23.5
+      },
+      {
+        "game": "crate swap.txt",
+        "level": 3,
+        "expanded": 617,
+        "generated": 3083,
+        "beforeMs": 19.5,
+        "afterMs": 16
+      },
+      {
+        "game": "crate swap.txt",
+        "level": 5,
+        "expanded": 1451,
+        "generated": 7252,
+        "beforeMs": 46,
+        "afterMs": 41.5
+      },
+      {
+        "game": "crate swap.txt",
+        "level": 7,
+        "expanded": 1326,
+        "generated": 6626,
+        "beforeMs": 39,
+        "afterMs": 40
+      },
+      {
+        "game": "crate swap.txt",
+        "level": 9,
+        "expanded": 2314,
+        "generated": 11567,
+        "beforeMs": 65,
+        "afterMs": 60
+      },
+      {
+        "game": "crate swap.txt",
+        "level": 11,
+        "expanded": 3224,
+        "generated": 16116,
+        "beforeMs": 89,
+        "afterMs": 80.5
+      },
+      {
+        "game": "crate swap.txt",
+        "level": 13,
+        "expanded": 2745,
+        "generated": 13721,
+        "beforeMs": 76.5,
+        "afterMs": 74.5
+      },
+      {
+        "game": "crate swap.txt",
+        "level": 15,
+        "expanded": 2575,
+        "generated": 12872,
+        "beforeMs": 88,
+        "afterMs": 70
+      },
+      {
+        "game": "cratopia.txt",
+        "level": 2,
+        "expanded": 70,
+        "generated": 347,
+        "beforeMs": 30.5,
+        "afterMs": 27
+      },
+      {
+        "game": "cratopia.txt",
+        "level": 20,
+        "expanded": 31,
+        "generated": 151,
+        "beforeMs": 41.5,
+        "afterMs": 35
+      },
+      {
+        "game": "cratopia.txt",
+        "level": 21,
+        "expanded": 0,
+        "generated": 0,
+        "beforeMs": 24.13260000000082,
+        "afterMs": 21.68395000000237
+      },
+      {
+        "game": "cratopia.txt",
+        "level": 22,
+        "expanded": 0,
+        "generated": 0,
+        "beforeMs": 21.479099999996834,
+        "afterMs": 19.809299999997165
+      },
+      {
+        "game": "cratopia.txt",
+        "level": 23,
+        "expanded": 0,
+        "generated": 0,
+        "beforeMs": 20.700450000000274,
+        "afterMs": 18.49535000000469
+      },
+      {
+        "game": "diesinthelight.txt",
+        "level": 0,
+        "expanded": 101,
+        "generated": 403,
+        "beforeMs": 25.5,
+        "afterMs": 24.5
+      },
+      {
+        "game": "dreizack.txt",
+        "level": 6,
+        "expanded": 9,
+        "generated": 36,
+        "beforeMs": 8.5,
+        "afterMs": 8.5
+      },
+      {
+        "game": "dungeon janitor.txt",
+        "level": 2,
+        "expanded": 20,
+        "generated": 78,
+        "beforeMs": 4,
+        "afterMs": 5
+      },
+      {
+        "game": "easyenigma.txt",
+        "level": 0,
+        "expanded": 5,
+        "generated": 21,
+        "beforeMs": 26.5,
+        "afterMs": 21.5
+      },
+      {
+        "game": "easyenigma.txt",
+        "level": 1,
+        "expanded": 1,
+        "generated": 5,
+        "beforeMs": 5,
+        "afterMs": 3
+      },
+      {
+        "game": "easyenigma.txt",
+        "level": 3,
+        "expanded": 2,
+        "generated": 10,
+        "beforeMs": 4.5,
+        "afterMs": 3
+      },
+      {
+        "game": "easyenigma.txt",
+        "level": 4,
+        "expanded": 2,
+        "generated": 6,
+        "beforeMs": 2.5,
+        "afterMs": 2
+      },
+      {
+        "game": "easyenigma.txt",
+        "level": 6,
+        "expanded": 5,
+        "generated": 21,
+        "beforeMs": 7,
+        "afterMs": 6.5
+      },
+      {
+        "game": "easyenigma.txt",
+        "level": 7,
+        "expanded": 7,
+        "generated": 31,
+        "beforeMs": 11.5,
+        "afterMs": 9.5
+      },
+      {
+        "game": "easyenigma.txt",
+        "level": 9,
+        "expanded": 1,
+        "generated": 5,
+        "beforeMs": 13.5,
+        "afterMs": 9.5
+      },
+      {
+        "game": "easyenigma.txt",
+        "level": 10,
+        "expanded": 2,
+        "generated": 6,
+        "beforeMs": 11.5,
+        "afterMs": 18.5
+      },
+      {
+        "game": "easyenigma.txt",
+        "level": 12,
+        "expanded": 2,
+        "generated": 6,
+        "beforeMs": 18.5,
+        "afterMs": 13
+      },
+      {
+        "game": "easyenigma.txt",
+        "level": 13,
+        "expanded": 13,
+        "generated": 65,
+        "beforeMs": 21,
+        "afterMs": 21
+      },
+      {
+        "game": "easyenigma.txt",
+        "level": 14,
+        "expanded": 1,
+        "generated": 5,
+        "beforeMs": 4,
+        "afterMs": 4.5
+      },
+      {
+        "game": "easyenigma.txt",
+        "level": 15,
+        "expanded": 5,
+        "generated": 21,
+        "beforeMs": 13.5,
+        "afterMs": 14
+      },
+      {
+        "game": "easyenigma.txt",
+        "level": 18,
+        "expanded": 2,
+        "generated": 6,
+        "beforeMs": 6.5,
+        "afterMs": 6.5
+      },
+      {
+        "game": "fickle fred.txt",
+        "level": 1,
+        "expanded": 313,
+        "generated": 1562,
+        "beforeMs": 15,
+        "afterMs": 14
+      },
+      {
+        "game": "fickle fred.txt",
+        "level": 3,
+        "expanded": 1292,
+        "generated": 6458,
+        "beforeMs": 52.5,
+        "afterMs": 57.5
+      },
+      {
+        "game": "fickle fred.txt",
+        "level": 7,
+        "expanded": 1896,
+        "generated": 9479,
+        "beforeMs": 76.5,
+        "afterMs": 75
+      },
+      {
+        "game": "fickle fred.txt",
+        "level": 9,
+        "expanded": 538,
+        "generated": 2689,
+        "beforeMs": 19.5,
+        "afterMs": 18.5
+      },
+      {
+        "game": "flesh-handed hot casserole delivery bot.txt",
+        "level": 1,
+        "expanded": 276,
+        "generated": 1376,
+        "beforeMs": 6,
+        "afterMs": 6
+      },
+      {
+        "game": "flesh-handed hot casserole delivery bot.txt",
+        "level": 2,
+        "expanded": 907,
+        "generated": 4532,
+        "beforeMs": 21,
+        "afterMs": 21.5
+      },
+      {
+        "game": "flesh-handed hot casserole delivery bot.txt",
+        "level": 8,
+        "expanded": 1980,
+        "generated": 9896,
+        "beforeMs": 55.5,
+        "afterMs": 48.5
+      },
+      {
+        "game": "gapfiller.txt",
+        "level": 1,
+        "expanded": 383,
+        "generated": 1913,
+        "beforeMs": 25.5,
+        "afterMs": 20
+      },
+      {
+        "game": "gapfiller.txt",
+        "level": 5,
+        "expanded": 404,
+        "generated": 2016,
+        "beforeMs": 26,
+        "afterMs": 20
+      },
+      {
+        "game": "gapfiller.txt",
+        "level": 9,
+        "expanded": 76,
+        "generated": 377,
+        "beforeMs": 4.5,
+        "afterMs": 3.5
+      },
+      {
+        "game": "gapfiller.txt",
+        "level": 13,
+        "expanded": 332,
+        "generated": 1656,
+        "beforeMs": 22,
+        "afterMs": 19
+      },
+      {
+        "game": "gapfiller.txt",
+        "level": 15,
+        "expanded": 87,
+        "generated": 434,
+        "beforeMs": 4.5,
+        "afterMs": 5
+      },
+      {
+        "game": "gem soketeer.txt",
+        "level": 5,
+        "expanded": 112,
+        "generated": 559,
+        "beforeMs": 66.5,
+        "afterMs": 51.5
+      },
+      {
+        "game": "gem soketeer.txt",
+        "level": 7,
+        "expanded": 127,
+        "generated": 631,
+        "beforeMs": 57,
+        "afterMs": 39.5
+      },
+      {
+        "game": "gem soketeer.txt",
+        "level": 11,
+        "expanded": 53,
+        "generated": 263,
+        "beforeMs": 22,
+        "afterMs": 15
+      },
+      {
+        "game": "gobble_rush.txt",
+        "level": 0,
+        "expanded": 11,
+        "generated": 44,
+        "beforeMs": 5.5,
+        "afterMs": 4.5
+      },
+      {
+        "game": "gobble_rush.txt",
+        "level": 1,
+        "expanded": 36,
+        "generated": 144,
+        "beforeMs": 10.5,
+        "afterMs": 11
+      },
+      {
+        "game": "gobble_rush.txt",
+        "level": 2,
+        "expanded": 105,
+        "generated": 420,
+        "beforeMs": 37,
+        "afterMs": 31.5
+      },
+      {
+        "game": "gobble_rush.txt",
+        "level": 4,
+        "expanded": 75,
+        "generated": 297,
+        "beforeMs": 25.5,
+        "afterMs": 21
+      },
+      {
+        "game": "gobble_rush.txt",
+        "level": 5,
+        "expanded": 173,
+        "generated": 692,
+        "beforeMs": 75,
+        "afterMs": 54.5
+      },
+      {
+        "game": "gobble_rush.txt",
+        "level": 8,
+        "expanded": 95,
+        "generated": 378,
+        "beforeMs": 46.5,
+        "afterMs": 36
+      },
+      {
+        "game": "gobble_rush.txt",
+        "level": 11,
+        "expanded": 231,
+        "generated": 923,
+        "beforeMs": 70.5,
+        "afterMs": 50
+      },
+      {
+        "game": "gobble_rush.txt",
+        "level": 13,
+        "expanded": 89,
+        "generated": 354,
+        "beforeMs": 45.5,
+        "afterMs": 39
+      },
+      {
+        "game": "gobble_rush.txt",
+        "level": 14,
+        "expanded": 191,
+        "generated": 763,
+        "beforeMs": 80.5,
+        "afterMs": 64
+      },
+      {
+        "game": "gobble_rush.txt",
+        "level": 15,
+        "expanded": 35,
+        "generated": 138,
+        "beforeMs": 16,
+        "afterMs": 14
+      },
+      {
+        "game": "gobble_rush.txt",
+        "level": 17,
+        "expanded": 162,
+        "generated": 646,
+        "beforeMs": 72,
+        "afterMs": 62
+      },
+      {
+        "game": "gobble_rush.txt",
+        "level": 20,
+        "expanded": 4,
+        "generated": 15,
+        "beforeMs": 2,
+        "afterMs": 2
+      },
+      {
+        "game": "hairtug.txt",
+        "level": 1,
+        "expanded": 124,
+        "generated": 496,
+        "beforeMs": 64.5,
+        "afterMs": 53
+      },
+      {
+        "game": "head skuller.txt",
+        "level": 1,
+        "expanded": 729,
+        "generated": 3643,
+        "beforeMs": 43.5,
+        "afterMs": 31.5
+      },
+      {
+        "game": "heroes_of_sokoban.txt",
+        "level": 3,
+        "expanded": 693,
+        "generated": 3462,
+        "beforeMs": 88.5,
+        "afterMs": 70
+      },
+      {
+        "game": "heroes_of_sokoban.txt",
+        "level": 5,
+        "expanded": 26,
+        "generated": 127,
+        "beforeMs": 4,
+        "afterMs": 2.5
+      },
+      {
+        "game": "heroes_of_sokoban.txt",
+        "level": 9,
+        "expanded": 56,
+        "generated": 277,
+        "beforeMs": 6.5,
+        "afterMs": 6
+      },
+      {
+        "game": "heroes_of_sokoban.txt",
+        "level": 11,
+        "expanded": 284,
+        "generated": 1419,
+        "beforeMs": 31,
+        "afterMs": 25
+      },
+      {
+        "game": "heroes_of_sokoban.txt",
+        "level": 17,
+        "expanded": 206,
+        "generated": 1026,
+        "beforeMs": 39.5,
+        "afterMs": 29
+      },
+      {
+        "game": "heroes_of_sokoban.txt",
+        "level": 22,
+        "expanded": 508,
+        "generated": 2538,
+        "beforeMs": 70,
+        "afterMs": 53
+      },
+      {
+        "game": "heroes_of_sokoban.txt",
+        "level": 27,
+        "expanded": 84,
+        "generated": 416,
+        "beforeMs": 10,
+        "afterMs": 7
+      },
+      {
+        "game": "heroes_of_sokoban_2.txt",
+        "level": 5,
+        "expanded": 35,
+        "generated": 174,
+        "beforeMs": 11,
+        "afterMs": 8
+      },
+      {
+        "game": "heroes_of_sokoban_2.txt",
+        "level": 6,
+        "expanded": 32,
+        "generated": 157,
+        "beforeMs": 11,
+        "afterMs": 8
+      },
+      {
+        "game": "heroes_of_sokoban_2.txt",
+        "level": 10,
+        "expanded": 77,
+        "generated": 381,
+        "beforeMs": 28.5,
+        "afterMs": 18
+      },
+      {
+        "game": "heroes_of_sokoban_2.txt",
+        "level": 15,
+        "expanded": 52,
+        "generated": 256,
+        "beforeMs": 26,
+        "afterMs": 23
+      },
+      {
+        "game": "heroes_of_sokoban_2.txt",
+        "level": 23,
+        "expanded": 21,
+        "generated": 104,
+        "beforeMs": 7,
+        "afterMs": 5
+      },
+      {
+        "game": "heroes_of_sokoban_3.txt",
+        "level": 6,
+        "expanded": 85,
+        "generated": 423,
+        "beforeMs": 30.5,
+        "afterMs": 31.5
+      },
+      {
+        "game": "heroes_of_sokoban_3.txt",
+        "level": 8,
+        "expanded": 114,
+        "generated": 566,
+        "beforeMs": 42.5,
+        "afterMs": 40
+      },
+      {
+        "game": "heroes_of_sokoban_3.txt",
+        "level": 12,
+        "expanded": 181,
+        "generated": 904,
+        "beforeMs": 54,
+        "afterMs": 57
+      },
+      {
+        "game": "i am a gust of wind.txt",
+        "level": 1,
+        "expanded": 69,
+        "generated": 343,
+        "beforeMs": 5.5,
+        "afterMs": 5
+      },
+      {
+        "game": "i am a gust of wind.txt",
+        "level": 3,
+        "expanded": 1634,
+        "generated": 8168,
+        "beforeMs": 81.5,
+        "afterMs": 62
+      },
+      {
+        "game": "i am a gust of wind.txt",
+        "level": 5,
+        "expanded": 250,
+        "generated": 1249,
+        "beforeMs": 13.5,
+        "afterMs": 9
+      },
+      {
+        "game": "icecrates.txt",
+        "level": 1,
+        "expanded": 6,
+        "generated": 22,
+        "beforeMs": 2.5,
+        "afterMs": 3
+      },
+      {
+        "game": "icecrates.txt",
+        "level": 3,
+        "expanded": 9,
+        "generated": 34,
+        "beforeMs": 4.5,
+        "afterMs": 5.5
+      },
+      {
+        "game": "icecrates.txt",
+        "level": 5,
+        "expanded": 53,
+        "generated": 209,
+        "beforeMs": 29,
+        "afterMs": 27.5
+      },
+      {
+        "game": "it dies in the light.txt",
+        "level": 0,
+        "expanded": 101,
+        "generated": 403,
+        "beforeMs": 32.5,
+        "afterMs": 21
+      },
+      {
+        "game": "kishoutenketsu.txt",
+        "level": 8,
+        "expanded": 34,
+        "generated": 133,
+        "beforeMs": 22,
+        "afterMs": 18
+      },
+      {
+        "game": "limerick.txt",
+        "level": 1,
+        "expanded": 257,
+        "generated": 1281,
+        "beforeMs": 28.5,
+        "afterMs": 25.5
+      },
+      {
+        "game": "limerick.txt",
+        "level": 7,
+        "expanded": 402,
+        "generated": 2009,
+        "beforeMs": 57,
+        "afterMs": 55.5
+      },
+      {
+        "game": "limerick.txt",
+        "level": 11,
+        "expanded": 300,
+        "generated": 1499,
+        "beforeMs": 40.5,
+        "afterMs": 26
+      },
+      {
+        "game": "m c eschers armageddon.txt",
+        "level": 0,
+        "expanded": 11,
+        "generated": 55,
+        "beforeMs": 2.5,
+        "afterMs": 2.5
+      },
+      {
+        "game": "m c eschers armageddon.txt",
+        "level": 2,
+        "expanded": 12,
+        "generated": 60,
+        "beforeMs": 2.5,
+        "afterMs": 3
+      },
+      {
+        "game": "manic_ammo.txt",
+        "level": 1,
+        "expanded": 9,
+        "generated": 44,
+        "beforeMs": 2.5,
+        "afterMs": 2
+      },
+      {
+        "game": "manic_ammo.txt",
+        "level": 3,
+        "expanded": 9,
+        "generated": 42,
+        "beforeMs": 2,
+        "afterMs": 2.5
+      },
+      {
+        "game": "manic_ammo.txt",
+        "level": 5,
+        "expanded": 90,
+        "generated": 448,
+        "beforeMs": 17.5,
+        "afterMs": 13
+      },
+      {
+        "game": "manic_ammo.txt",
+        "level": 8,
+        "expanded": 9,
+        "generated": 42,
+        "beforeMs": 2,
+        "afterMs": 1
+      },
+      {
+        "game": "manic_ammo.txt",
+        "level": 12,
+        "expanded": 115,
+        "generated": 574,
+        "beforeMs": 23.5,
+        "afterMs": 15.5
+      },
+      {
+        "game": "manic_ammo.txt",
+        "level": 18,
+        "expanded": 12,
+        "generated": 59,
+        "beforeMs": 3,
+        "afterMs": 2.5
+      },
+      {
+        "game": "manic_ammo.txt",
+        "level": 22,
+        "expanded": 160,
+        "generated": 796,
+        "beforeMs": 44,
+        "afterMs": 40.5
+      },
+      {
+        "game": "match three billiards.txt",
+        "level": 1,
+        "expanded": 3,
+        "generated": 11,
+        "beforeMs": 3.5,
+        "afterMs": 3.5
+      },
+      {
+        "game": "mazezam.txt",
+        "level": 1,
+        "expanded": 39,
+        "generated": 153,
+        "beforeMs": 4.5,
+        "afterMs": 5
+      },
+      {
+        "game": "mazezam.txt",
+        "level": 3,
+        "expanded": 148,
+        "generated": 589,
+        "beforeMs": 10,
+        "afterMs": 10
+      },
+      {
+        "game": "mazezam.txt",
+        "level": 5,
+        "expanded": 207,
+        "generated": 825,
+        "beforeMs": 13,
+        "afterMs": 11.5
+      },
+      {
+        "game": "mazezam.txt",
+        "level": 7,
+        "expanded": 574,
+        "generated": 2293,
+        "beforeMs": 33,
+        "afterMs": 35
+      },
+      {
+        "game": "mazezam.txt",
+        "level": 9,
+        "expanded": 705,
+        "generated": 2817,
+        "beforeMs": 36,
+        "afterMs": 38.5
+      },
+      {
+        "game": "mazezam.txt",
+        "level": 11,
+        "expanded": 559,
+        "generated": 2233,
+        "beforeMs": 33,
+        "afterMs": 28.5
+      },
+      {
+        "game": "mazezam.txt",
+        "level": 13,
+        "expanded": 1411,
+        "generated": 5641,
+        "beforeMs": 81,
+        "afterMs": 69
+      },
+      {
+        "game": "mazezam.txt",
+        "level": 15,
+        "expanded": 807,
+        "generated": 3225,
+        "beforeMs": 43.5,
+        "afterMs": 43.5
+      },
+      {
+        "game": "mazezam.txt",
+        "level": 17,
+        "expanded": 728,
+        "generated": 2909,
+        "beforeMs": 44,
+        "afterMs": 42.5
+      },
+      {
+        "game": "mazezam.txt",
+        "level": 31,
+        "expanded": 956,
+        "generated": 3821,
+        "beforeMs": 57.5,
+        "afterMs": 55
+      },
+      {
+        "game": "mazezam.txt",
+        "level": 33,
+        "expanded": 1396,
+        "generated": 5581,
+        "beforeMs": 80.5,
+        "afterMs": 71
+      },
+      {
+        "game": "mazezam.txt",
+        "level": 37,
+        "expanded": 1079,
+        "generated": 4313,
+        "beforeMs": 60,
+        "afterMs": 66
+      },
+      {
+        "game": "midas.txt",
+        "level": 0,
+        "expanded": 105,
+        "generated": 521,
+        "beforeMs": 14.5,
+        "afterMs": 13.5
+      },
+      {
+        "game": "midas.txt",
+        "level": 2,
+        "expanded": 318,
+        "generated": 1586,
+        "beforeMs": 38,
+        "afterMs": 36.5
+      },
+      {
+        "game": "midas.txt",
+        "level": 4,
+        "expanded": 285,
+        "generated": 1421,
+        "beforeMs": 34,
+        "afterMs": 28.5
+      },
+      {
+        "game": "midas.txt",
+        "level": 6,
+        "expanded": 681,
+        "generated": 3404,
+        "beforeMs": 76.5,
+        "afterMs": 62
+      },
+      {
+        "game": "no heroes necessary.txt",
+        "level": 1,
+        "expanded": 188,
+        "generated": 939,
+        "beforeMs": 31.5,
+        "afterMs": 41
+      },
+      {
+        "game": "no heroes necessary.txt",
+        "level": 3,
+        "expanded": 63,
+        "generated": 312,
+        "beforeMs": 12.5,
+        "afterMs": 15.5
+      },
+      {
+        "game": "no heroes necessary.txt",
+        "level": 5,
+        "expanded": 385,
+        "generated": 1923,
+        "beforeMs": 74.5,
+        "afterMs": 79
+      },
+      {
+        "game": "paint everything everywhere.txt",
+        "level": 1,
+        "expanded": 28,
+        "generated": 137,
+        "beforeMs": 50,
+        "afterMs": 51.5
+      },
+      {
+        "game": "paint everything everywhere.txt",
+        "level": 5,
+        "expanded": 20,
+        "generated": 98,
+        "beforeMs": 88.5,
+        "afterMs": 82.5
+      },
+      {
+        "game": "paint everything everywhere.txt",
+        "level": 19,
+        "expanded": 46,
+        "generated": 226,
+        "beforeMs": 55.5,
+        "afterMs": 63
+      },
+      {
+        "game": "pipe puffer.txt",
+        "level": 4,
+        "expanded": 277,
+        "generated": 1385,
+        "beforeMs": 53,
+        "afterMs": 50
+      },
+      {
+        "game": "pipe puffer.txt",
+        "level": 8,
+        "expanded": 338,
+        "generated": 1690,
+        "beforeMs": 85,
+        "afterMs": 76.5
+      },
+      {
+        "game": "ponies jumping synchronously.txt",
+        "level": 0,
+        "expanded": 8,
+        "generated": 36,
+        "beforeMs": 3,
+        "afterMs": 3
+      },
+      {
+        "game": "ponies jumping synchronously.txt",
+        "level": 2,
+        "expanded": 9,
+        "generated": 41,
+        "beforeMs": 4,
+        "afterMs": 3
+      },
+      {
+        "game": "ponies jumping synchronously.txt",
+        "level": 4,
+        "expanded": 7,
+        "generated": 34,
+        "beforeMs": 3,
+        "afterMs": 2.5
+      },
+      {
+        "game": "ponies jumping synchronously.txt",
+        "level": 6,
+        "expanded": 9,
+        "generated": 41,
+        "beforeMs": 2.5,
+        "afterMs": 2.5
+      },
+      {
+        "game": "ponies jumping synchronously.txt",
+        "level": 8,
+        "expanded": 32,
+        "generated": 156,
+        "beforeMs": 10,
+        "afterMs": 8
+      },
+      {
+        "game": "ponies jumping synchronously.txt",
+        "level": 10,
+        "expanded": 353,
+        "generated": 1761,
+        "beforeMs": 87,
+        "afterMs": 75.5
+      },
+      {
+        "game": "ponies jumping synchronously.txt",
+        "level": 12,
+        "expanded": 8,
+        "generated": 36,
+        "beforeMs": 3,
+        "afterMs": 3
+      },
+      {
+        "game": "ponies jumping synchronously.txt",
+        "level": 19,
+        "expanded": 143,
+        "generated": 711,
+        "beforeMs": 47.5,
+        "afterMs": 52.5
+      },
+      {
+        "game": "push pull.txt",
+        "level": 1,
+        "expanded": 263,
+        "generated": 1314,
+        "beforeMs": 9.5,
+        "afterMs": 12
+      },
+      {
+        "game": "push pull.txt",
+        "level": 3,
+        "expanded": 184,
+        "generated": 919,
+        "beforeMs": 8,
+        "afterMs": 9
+      },
+      {
+        "game": "push pull.txt",
+        "level": 5,
+        "expanded": 829,
+        "generated": 4141,
+        "beforeMs": 34.5,
+        "afterMs": 30
+      },
+      {
+        "game": "push.txt",
+        "level": 1,
+        "expanded": 6,
+        "generated": 22,
+        "beforeMs": 2,
+        "afterMs": 1
+      },
+      {
+        "game": "push.txt",
+        "level": 3,
+        "expanded": 13,
+        "generated": 50,
+        "beforeMs": 3,
+        "afterMs": 2.5
+      },
+      {
+        "game": "push.txt",
+        "level": 5,
+        "expanded": 568,
+        "generated": 2270,
+        "beforeMs": 86,
+        "afterMs": 78.5
+      },
+      {
+        "game": "push.txt",
+        "level": 7,
+        "expanded": 86,
+        "generated": 342,
+        "beforeMs": 13,
+        "afterMs": 13
+      },
+      {
+        "game": "push.txt",
+        "level": 9,
+        "expanded": 232,
+        "generated": 926,
+        "beforeMs": 37,
+        "afterMs": 36.5
+      },
+      {
+        "game": "push.txt",
+        "level": 23,
+        "expanded": 184,
+        "generated": 734,
+        "beforeMs": 27.5,
+        "afterMs": 26.5
+      },
+      {
+        "game": "push.txt",
+        "level": 37,
+        "expanded": 91,
+        "generated": 361,
+        "beforeMs": 15,
+        "afterMs": 15
+      },
+      {
+        "game": "slide pull.txt",
+        "level": 1,
+        "expanded": 79,
+        "generated": 394,
+        "beforeMs": 4,
+        "afterMs": 3
+      },
+      {
+        "game": "slide pull.txt",
+        "level": 3,
+        "expanded": 401,
+        "generated": 2002,
+        "beforeMs": 18,
+        "afterMs": 14.5
+      },
+      {
+        "game": "slide pull.txt",
+        "level": 7,
+        "expanded": 931,
+        "generated": 4654,
+        "beforeMs": 49.5,
+        "afterMs": 47.5
+      },
+      {
+        "game": "slide pull.txt",
+        "level": 9,
+        "expanded": 149,
+        "generated": 744,
+        "beforeMs": 7,
+        "afterMs": 7
+      },
+      {
+        "game": "slide pull.txt",
+        "level": 11,
+        "expanded": 1471,
+        "generated": 7353,
+        "beforeMs": 75,
+        "afterMs": 73
+      },
+      {
+        "game": "slide pull.txt",
+        "level": 13,
+        "expanded": 1207,
+        "generated": 6032,
+        "beforeMs": 61.5,
+        "afterMs": 50.5
+      },
+      {
+        "game": "slidings.txt",
+        "level": 1,
+        "expanded": 43,
+        "generated": 213,
+        "beforeMs": 4,
+        "afterMs": 4
+      },
+      {
+        "game": "slidings.txt",
+        "level": 3,
+        "expanded": 17,
+        "generated": 84,
+        "beforeMs": 2,
+        "afterMs": 2
+      },
+      {
+        "game": "slidings.txt",
+        "level": 5,
+        "expanded": 35,
+        "generated": 174,
+        "beforeMs": 3,
+        "afterMs": 4
+      },
+      {
+        "game": "slidings.txt",
+        "level": 7,
+        "expanded": 95,
+        "generated": 473,
+        "beforeMs": 11,
+        "afterMs": 12.5
+      },
+      {
+        "game": "slidings.txt",
+        "level": 9,
+        "expanded": 79,
+        "generated": 394,
+        "beforeMs": 10.5,
+        "afterMs": 8
+      },
+      {
+        "game": "slime vat filler.txt",
+        "level": 2,
+        "expanded": 139,
+        "generated": 693,
+        "beforeMs": 9.5,
+        "afterMs": 11
+      },
+      {
+        "game": "slime vat filler.txt",
+        "level": 4,
+        "expanded": 36,
+        "generated": 177,
+        "beforeMs": 2,
+        "afterMs": 3.5
+      },
+      {
+        "game": "slime vat filler.txt",
+        "level": 6,
+        "expanded": 49,
+        "generated": 243,
+        "beforeMs": 4,
+        "afterMs": 4.5
+      },
+      {
+        "game": "slime vat filler.txt",
+        "level": 8,
+        "expanded": 81,
+        "generated": 401,
+        "beforeMs": 6,
+        "afterMs": 6.5
+      },
+      {
+        "game": "slime vat filler.txt",
+        "level": 10,
+        "expanded": 112,
+        "generated": 557,
+        "beforeMs": 8.5,
+        "afterMs": 10.5
+      },
+      {
+        "game": "slime vat filler.txt",
+        "level": 14,
+        "expanded": 555,
+        "generated": 2773,
+        "beforeMs": 37,
+        "afterMs": 35.5
+      },
+      {
+        "game": "smother.txt",
+        "level": 2,
+        "expanded": 366,
+        "generated": 1828,
+        "beforeMs": 49,
+        "afterMs": 49.5
+      },
+      {
+        "game": "smother.txt",
+        "level": 4,
+        "expanded": 573,
+        "generated": 2863,
+        "beforeMs": 58.5,
+        "afterMs": 58
+      },
+      {
+        "game": "smother.txt",
+        "level": 6,
+        "expanded": 845,
+        "generated": 4223,
+        "beforeMs": 87.5,
+        "afterMs": 88
+      },
+      {
+        "game": "smother.txt",
+        "level": 8,
+        "expanded": 456,
+        "generated": 2276,
+        "beforeMs": 70.5,
+        "afterMs": 68.5
+      },
+      {
+        "game": "smother.txt",
+        "level": 16,
+        "expanded": 32,
+        "generated": 159,
+        "beforeMs": 3.5,
+        "afterMs": 3
+      },
+      {
+        "game": "smother.txt",
+        "level": 18,
+        "expanded": 36,
+        "generated": 178,
+        "beforeMs": 4,
+        "afterMs": 4
+      },
+      {
+        "game": "smother.txt",
+        "level": 20,
+        "expanded": 151,
+        "generated": 751,
+        "beforeMs": 20.5,
+        "afterMs": 19
+      },
+      {
+        "game": "smother.txt",
+        "level": 22,
+        "expanded": 527,
+        "generated": 2632,
+        "beforeMs": 55,
+        "afterMs": 55
+      },
+      {
+        "game": "smother.txt",
+        "level": 26,
+        "expanded": 486,
+        "generated": 2428,
+        "beforeMs": 59.5,
+        "afterMs": 58.5
+      },
+      {
+        "game": "smother.txt",
+        "level": 30,
+        "expanded": 344,
+        "generated": 1717,
+        "beforeMs": 47,
+        "afterMs": 52
+      },
+      {
+        "game": "sokobond demake.txt",
+        "level": 2,
+        "expanded": 38,
+        "generated": 151,
+        "beforeMs": 4,
+        "afterMs": 4
+      },
+      {
+        "game": "sokobond demake.txt",
+        "level": 4,
+        "expanded": 18,
+        "generated": 72,
+        "beforeMs": 2,
+        "afterMs": 3
+      },
+      {
+        "game": "sokobond demake.txt",
+        "level": 6,
+        "expanded": 16,
+        "generated": 61,
+        "beforeMs": 2,
+        "afterMs": 2.5
+      },
+      {
+        "game": "sokobond demake.txt",
+        "level": 8,
+        "expanded": 20,
+        "generated": 79,
+        "beforeMs": 2.5,
+        "afterMs": 3.5
+      },
+      {
+        "game": "sokobond demake.txt",
+        "level": 10,
+        "expanded": 64,
+        "generated": 256,
+        "beforeMs": 9,
+        "afterMs": 9
+      },
+      {
+        "game": "sokobond demake.txt",
+        "level": 12,
+        "expanded": 49,
+        "generated": 196,
+        "beforeMs": 4.5,
+        "afterMs": 6
+      },
+      {
+        "game": "sokobond demake.txt",
+        "level": 14,
+        "expanded": 559,
+        "generated": 2236,
+        "beforeMs": 55.5,
+        "afterMs": 59
+      },
+      {
+        "game": "sokobond demake.txt",
+        "level": 16,
+        "expanded": 81,
+        "generated": 321,
+        "beforeMs": 7,
+        "afterMs": 7.5
+      },
+      {
+        "game": "sokobond demake.txt",
+        "level": 22,
+        "expanded": 801,
+        "generated": 3203,
+        "beforeMs": 69.5,
+        "afterMs": 69
+      },
+      {
+        "game": "sum three horizontally to 8.txt",
+        "level": 4,
+        "expanded": 15,
+        "generated": 75,
+        "beforeMs": 7,
+        "afterMs": 6.5
+      },
+      {
+        "game": "sum three horizontally to 8.txt",
+        "level": 6,
+        "expanded": 8,
+        "generated": 40,
+        "beforeMs": 4.5,
+        "afterMs": 5
+      },
+      {
+        "game": "sum three horizontally to 8.txt",
+        "level": 8,
+        "expanded": 6,
+        "generated": 30,
+        "beforeMs": 5,
+        "afterMs": 6
+      },
+      {
+        "game": "sum three horizontally to 8.txt",
+        "level": 10,
+        "expanded": 13,
+        "generated": 65,
+        "beforeMs": 5.5,
+        "afterMs": 7.5
+      },
+      {
+        "game": "sum three horizontally to 8.txt",
+        "level": 13,
+        "expanded": 27,
+        "generated": 135,
+        "beforeMs": 11.5,
+        "afterMs": 14
+      },
+      {
+        "game": "sum three horizontally to 8.txt",
+        "level": 17,
+        "expanded": 19,
+        "generated": 95,
+        "beforeMs": 12,
+        "afterMs": 14
+      },
+      {
+        "game": "sum three horizontally to 8.txt",
+        "level": 19,
+        "expanded": 111,
+        "generated": 555,
+        "beforeMs": 39.5,
+        "afterMs": 48
+      },
+      {
+        "game": "sum three horizontally to 8.txt",
+        "level": 24,
+        "expanded": 107,
+        "generated": 535,
+        "beforeMs": 39.5,
+        "afterMs": 50.5
+      },
+      {
+        "game": "take heart lass.txt",
+        "level": 3,
+        "expanded": 25,
+        "generated": 123,
+        "beforeMs": 7.5,
+        "afterMs": 7
+      },
+      {
+        "game": "take heart lass.txt",
+        "level": 5,
+        "expanded": 8,
+        "generated": 38,
+        "beforeMs": 3,
+        "afterMs": 2.5
+      },
+      {
+        "game": "take heart lass.txt",
+        "level": 7,
+        "expanded": 28,
+        "generated": 138,
+        "beforeMs": 7.5,
+        "afterMs": 6.5
+      },
+      {
+        "game": "take heart lass.txt",
+        "level": 11,
+        "expanded": 120,
+        "generated": 599,
+        "beforeMs": 29.5,
+        "afterMs": 40
+      },
+      {
+        "game": "take heart lass.txt",
+        "level": 13,
+        "expanded": 291,
+        "generated": 1452,
+        "beforeMs": 64.5,
+        "afterMs": 93
+      },
+      {
+        "game": "take heart lass.txt",
+        "level": 17,
+        "expanded": 49,
+        "generated": 244,
+        "beforeMs": 21.5,
+        "afterMs": 20
+      },
+      {
+        "game": "the red ring of immortality.txt",
+        "level": 1,
+        "expanded": 137,
+        "generated": 684,
+        "beforeMs": 14.5,
+        "afterMs": 19
+      },
+      {
+        "game": "the red ring of immortality.txt",
+        "level": 5,
+        "expanded": 52,
+        "generated": 259,
+        "beforeMs": 4.5,
+        "afterMs": 6
+      },
+      {
+        "game": "the red ring of immortality.txt",
+        "level": 9,
+        "expanded": 182,
+        "generated": 909,
+        "beforeMs": 13,
+        "afterMs": 17.5
+      },
+      {
+        "game": "the red ring of immortality.txt",
+        "level": 11,
+        "expanded": 382,
+        "generated": 1907,
+        "beforeMs": 33.5,
+        "afterMs": 42
+      },
+      {
+        "game": "the red ring of immortality.txt",
+        "level": 15,
+        "expanded": 498,
+        "generated": 2486,
+        "beforeMs": 45.5,
+        "afterMs": 61.5
+      },
+      {
+        "game": "the red ring of immortality.txt",
+        "level": 19,
+        "expanded": 276,
+        "generated": 1377,
+        "beforeMs": 21,
+        "afterMs": 28.5
+      },
+      {
+        "game": "the_saga_of_the_candy_scroll.txt",
+        "level": 6,
+        "expanded": 117,
+        "generated": 585,
+        "beforeMs": 17.5,
+        "afterMs": 14.5
+      },
+      {
+        "game": "the_saga_of_the_candy_scroll.txt",
+        "level": 10,
+        "expanded": 8,
+        "generated": 40,
+        "beforeMs": 2,
+        "afterMs": 1.5
+      },
+      {
+        "game": "the_saga_of_the_candy_scroll.txt",
+        "level": 18,
+        "expanded": 465,
+        "generated": 2325,
+        "beforeMs": 89.5,
+        "afterMs": 83
+      },
+      {
+        "game": "the_saga_of_the_candy_scroll.txt",
+        "level": 22,
+        "expanded": 104,
+        "generated": 520,
+        "beforeMs": 19.5,
+        "afterMs": 23
+      },
+      {
+        "game": "the_saga_of_the_candy_scroll.txt",
+        "level": 50,
+        "expanded": 61,
+        "generated": 305,
+        "beforeMs": 11.5,
+        "afterMs": 12
+      },
+      {
+        "game": "whaleworld.txt",
+        "level": 1,
+        "expanded": 287,
+        "generated": 1434,
+        "beforeMs": 64,
+        "afterMs": 67.5
+      },
+      {
+        "game": "whaleworld.txt",
+        "level": 3,
+        "expanded": 235,
+        "generated": 1171,
+        "beforeMs": 27.5,
+        "afterMs": 27
+      }
+    ]
+  },
+  "nativeControls": [
+    {
+      "game": "manic_ammo.txt",
+      "level": 24,
+      "beforeMs": 90,
+      "afterMs": 89.5,
+      "before": [
+        91,
+        90,
+        90,
+        88,
+        89,
+        90
+      ],
+      "after": [
+        88,
+        89,
+        90,
+        88,
+        91,
+        90
+      ],
+      "sameWork": true
+    },
+    {
+      "game": "no heroes necessary.txt",
+      "level": 5,
+      "beforeMs": 33.5,
+      "afterMs": 34,
+      "before": [
+        34,
+        33,
+        32,
+        33,
+        34,
+        34
+      ],
+      "after": [
+        35,
+        33,
+        37,
+        34,
+        33,
+        34
+      ],
+      "sameWork": true
+    },
+    {
+      "game": "push.txt",
+      "level": 31,
+      "beforeMs": 69,
+      "afterMs": 70,
+      "before": [
+        72,
+        69,
+        69,
+        68,
+        69,
+        67
+      ],
+      "after": [
+        74,
+        70,
+        74,
+        70,
+        68,
+        69
+      ],
+      "sameWork": true
+    },
+    {
+      "game": "gabelstapler.txt",
+      "level": 1,
+      "beforeMs": 57.5,
+      "afterMs": 57.5,
+      "before": [
+        58,
+        57,
+        55,
+        56,
+        59,
+        60
+      ],
+      "after": [
+        56,
+        59,
+        57,
+        58,
+        56,
+        58
+      ],
+      "sameWork": true
+    },
+    {
+      "game": "flesh-handed hot casserole delivery bot.txt",
+      "level": 14,
+      "beforeMs": 41,
+      "afterMs": 41.5,
+      "before": [
+        39,
+        41,
+        41,
+        44,
+        41,
+        41
+      ],
+      "after": [
+        42,
+        41,
+        43,
+        41,
+        41,
+        43
+      ],
+      "sameWork": true
+    },
+    {
+      "game": "cakemonsters.txt",
+      "level": 33,
+      "beforeMs": 104,
+      "afterMs": 103,
+      "before": [
+        107,
+        107,
+        104,
+        100,
+        104,
+        103
+      ],
+      "after": [
+        103,
+        103,
+        104,
+        101,
+        106,
+        101
+      ],
+      "sameWork": true
+    }
+  ],
+  "generatedSourceSize": {
+    "before": {
+      "files": 234,
+      "bytes": 210546566
+    },
+    "after": {
+      "files": 234,
+      "bytes": 207822312
+    },
+    "bytesChangePercent": -1.293896192066124
+  },
+  "validation": {
+    "jsFixtures": {
+      "passed": 794,
+      "failed": 0
+    },
+    "swcFixtures": {
+      "passed": 794,
+      "failed": 0
+    },
+    "nativeGameplay": {
+      "passed": 473,
+      "failed": 0
+    },
+    "independentNativeDiagnostics": {
+      "passed": 17,
+      "failed": 0
+    },
+    "staticAnalysisFixtures": "passed",
+    "cm6AndRelease": {
+      "passed": 199,
+      "failed": 0,
+      "skipped": 1,
+      "skipReason": "Windows symlink privilege unavailable"
+    },
+    "playerBrowserLayouts": {
+      "passed": 16,
+      "failed": 0
+    },
+    "nativeSolutionReplay": {
+      "games": 126,
+      "solutions": 724,
+      "failures": 0,
+      "generatedBackends": false
+    },
+    "jsSolutionReplay": {
+      "solutions": 507,
+      "failures": 0,
+      "engine": "baseline"
+    },
+    "brotliSidecarsVerified": 234,
+    "sparseNativeInvariantTest": "passed"
+  }
+}

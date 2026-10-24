@@ -587,11 +587,6 @@ function processRuleString(rule, state, curRules) {
     let lineNumber = rule[1];
     let origLine = rule[2];
 
-    if (String(origLine).includes('(') && !String(line).includes('->')) {
-        logError("You can't have comments inside rules, sorry. In PuzzleScript, '(' starts a comment, so everything after the first '(' on this line was ignored before your rule was parsed.", lineNumber);
-        return null;
-    }
-
     // STEP ONE, TOKENIZE
     let tokens = tokenizeRuleLine(line);
 
@@ -641,6 +636,11 @@ function processRuleString(rule, state, curRules) {
             }
             return rule_line;
         }
+    }
+
+    if (String(origLine).includes('(') && !String(line).includes('->')) {
+        logError("You can't have comments inside rules, sorry. In PuzzleScript, '(' starts a comment, so everything after the first '(' on this line was ignored before your rule was parsed.", lineNumber);
+        return null;
     }
 
     if (!tokens.includes('->')) {
@@ -3700,7 +3700,111 @@ function commandNamesForRulePlan(commands) {
     return commands.map(command => String(command[0]));
 }
 
-function buildLiveRulePlanMetadata(rule) {
+function ruleMatchInteractionMetadata(state, rule) {
+    const mayInteract = {
+        may_invalidate_other_matches: true,
+        may_enable_other_matches: true,
+    };
+    if (!rule[2] || (rule[1].length === 1 && rule[1][0].length === 1 &&
+            rule[4][0] === 0)) {
+        return { may_invalidate_other_matches: false, may_enable_other_matches: false };
+    }
+
+    const objectReadsPresent = new BitVec(STRIDE_OBJ);
+    const objectReadsAbsent = new BitVec(STRIDE_OBJ);
+    const movementReadsPresent = new BitVec(STRIDE_MOV);
+    const movementReadsAbsent = new BitVec(STRIDE_MOV);
+    const objectWritesSet = new BitVec(STRIDE_OBJ);
+    const objectWritesClear = new BitVec(STRIDE_OBJ);
+    const movementWritesSet = new BitVec(STRIDE_MOV);
+    const movementWritesClear = new BitVec(STRIDE_MOV);
+    for (const row of rule[1]) for (const cell of row) {
+        if (cell === ellipsisPattern) continue;
+        if (!cell.objectsPresent || !cell.objectsMissing ||
+                !cell.movementsPresent || !cell.movementsMissing) return mayInteract;
+        objectReadsPresent.ior(cell.objectsPresent);
+        objectReadsAbsent.ior(cell.objectsMissing);
+        movementReadsPresent.ior(cell.movementsPresent);
+        movementReadsAbsent.ior(cell.movementsMissing);
+        for (const mask of cell.anyObjectsPresent || []) objectReadsPresent.ior(mask);
+        for (const mask of cell.anyMovementsPresent || []) movementReadsPresent.ior(mask);
+        for (const coupled of cell.layerCoupledMovementMasks || []) {
+            for (const layer of coupled.layers || []) {
+                objectReadsPresent.ior(layer.objectMask);
+                movementReadsPresent.ior(layer.movementsAny);
+                movementReadsPresent.ior(layer.movementsPresent);
+                movementReadsAbsent.ior(layer.movementsMissing);
+            }
+        }
+        const replacement = cell.replacement;
+        if (!replacement) continue;
+        // Dynamic aliases and random choices can touch layers absent from the
+        // fixed masks. Keep them on the ordinary recheck path.
+        if (!replacement.randomEntityMask.iszero() ||
+                !replacement.randomDirMask.iszero() ||
+                replacement.layerCoupledMovementReplacements.length > 0 ||
+                replacement.inferredAggregateBindings.length > 0 ||
+                replacement.inferredPropertyBindings.length > 0 ||
+                replacement.inferredPropertySources.length > 0) return mayInteract;
+        const objectSetHere = replacement.objectsSet.clone();
+        objectSetHere.iclear(cell.objectsPresent);
+        objectWritesSet.ior(objectSetHere);
+        const objectClearHere = replacement.objectsClear.clone();
+        objectClearHere.iclear(replacement.objectsSet);
+        objectWritesClear.ior(objectClearHere);
+        const movementSetHere = replacement.movementsSet.clone();
+        movementSetHere.iclear(cell.movementsPresent);
+        movementWritesSet.ior(movementSetHere);
+        const movementClearHere = replacement.movementsClear.clone();
+        movementClearHere.ior(replacement.movementsLayerMask);
+        movementClearHere.iclear(replacement.movementsSet);
+        movementWritesClear.ior(movementClearHere);
+    }
+    for (const binding of rule[12] || []) {
+        movementReadsPresent.ishiftor(binding.aggregateMask & 0x1f, 5 * binding.sourceLayer);
+    }
+    // An object write can also reset movement on its collision layer. Cover
+    // that whole layer even if a particular replacement mask omits the bits.
+    for (const object of Object.values(state.objects)) {
+        if (objectWritesSet.get(object.id) || objectWritesClear.get(object.id)) {
+            const layerMask = new BitVec(STRIDE_MOV);
+            layerMask.ishiftor(0x1f, 5 * object.layer);
+            movementWritesClear.ior(layerMask);
+        }
+    }
+    // Set wins over clear within one replacement cell; clears elsewhere in
+    // the row still count because different matches may overlap those cells.
+    return {
+        may_invalidate_other_matches:
+            objectWritesSet.anyBitsInCommon(objectReadsAbsent) ||
+            objectWritesClear.anyBitsInCommon(objectReadsPresent) ||
+            movementWritesSet.anyBitsInCommon(movementReadsAbsent) ||
+            movementWritesClear.anyBitsInCommon(movementReadsPresent),
+        may_enable_other_matches:
+            objectWritesSet.anyBitsInCommon(objectReadsPresent) ||
+            objectWritesClear.anyBitsInCommon(objectReadsAbsent) ||
+            movementWritesSet.anyBitsInCommon(movementReadsPresent) ||
+            movementWritesClear.anyBitsInCommon(movementReadsAbsent),
+    };
+}
+
+function ruleHasFixedReplacements(rule) {
+    for (const row of rule[1]) for (const cell of row) {
+        if (cell === ellipsisPattern || !cell.replacement) continue;
+        const replacement = cell.replacement;
+        // An already-matching tuple can change again if a later application
+        // draws a new object/direction or reads a new captured binding.
+        if (!replacement.randomEntityMask.iszero() ||
+                !replacement.randomDirMask.iszero() ||
+                replacement.layerCoupledMovementReplacements.length > 0 ||
+                replacement.inferredAggregateBindings.length > 0 ||
+                replacement.inferredPropertyBindings.length > 0 ||
+                replacement.inferredPropertySources.length > 0) return false;
+    }
+    return true;
+}
+
+function buildLiveRulePlanMetadata(state, rule) {
     const ellipsisCount = rule[4];
     const commands = rule[7];
     const hasEllipsis = ellipsisCount.some(count => count > 0);
@@ -3711,6 +3815,8 @@ function buildLiveRulePlanMetadata(rule) {
         row_count: rule[1].length,
         has_commands: commandNames.length > 0,
         command_names: commandNames,
+        ...ruleMatchInteractionMetadata(state, rule),
+        fixed_replacements: ruleHasFixedReplacements(rule),
         simple_deterministic_row_rule: !rule[8] &&
             !rule[6] &&
             !hasEllipsis &&
@@ -4185,7 +4291,7 @@ function collapseRules(groups, state) {
             newrule.push(oldrule.randomRule);
             newrule.push(cellRowMasksGeneric(newrule, STRIDE_OBJ, 'objectsPresent'));
             newrule.push(cellRowMasksGeneric(newrule, STRIDE_MOV, 'movementsPresent'));
-            newrule.push(buildLiveRulePlanMetadata(newrule));
+            newrule.push(buildLiveRulePlanMetadata(state, newrule));
             newrule.push(oldrule.aggregateBindingsArr || null);
             newrule.push(oldrule.propertyBindingsArr || null);
             const readMovements = computeReadMovements(state, newrule);

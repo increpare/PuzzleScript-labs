@@ -3,6 +3,9 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cmath>
+#include <cstdlib>
+#include <limits>
 #include <map>
 #include <optional>
 #include <set>
@@ -410,6 +413,179 @@ void emitRuleDuplicateCellDiagnostics(const ParserState& state, DiagnosticSink& 
     }
 }
 
+// Validate syntax independently of rule lowering, including recovery after a
+// movement with no object. Loop marker comments have already been stripped.
+void emitRuleStructureDiagnostics(const ParserState& state, DiagnosticSink& diagnostics) {
+    std::vector<int32_t> loops;
+    const auto synonyms = buildSynonyms(state);
+    for (const auto& entry : state.rules) {
+        const auto tokens = ruletext::tokenizeRuleLine(entry.rule);
+        if (tokens.size() == 1 && tokens.front() == "startloop") { loops.push_back(entry.lineNumber); continue; }
+        if (tokens.size() == 1 && tokens.front() == "endloop") {
+            if (loops.empty()) diagnostics.error(DiagnosticCode::GenericError, entry.lineNumber, "Yo I found an ENDLOOP without a corresponding STARTLOOP.");
+            else loops.pop_back();
+            continue;
+        }
+        const auto error = [&](const std::string& message) { diagnostics.error(DiagnosticCode::GenericError, entry.lineNumber, message); };
+        if (entry.mixedCase.find('(') != std::string::npos && entry.rule.find("->") == std::string::npos) {
+            error("You can't have comments inside rules, sorry. In PuzzleScript, '(' starts a comment, so everything after the first '(' on this line was ignored before your rule was parsed.");
+            continue;
+        }
+        size_t cellItems = 0, rowCells = 0;
+        std::string firstItem;
+        bool inside = false, rhs = false;
+        std::vector<size_t> lhsRows, rhsRows;
+        for (size_t i = 0; i < tokens.size(); ++i) {
+            const auto& token = tokens[i];
+            if (rhs && token == "message") break;
+            if (token == "[") {
+                if (cellItems) error("Error, malformed cell rule - encountered a \"[\"\" before previous bracket was closed");
+                inside = true; cellItems = 0; firstItem.clear();
+            } else if (token == "|" || token == "]") {
+                if (cellItems % 2) {
+                    error(firstItem == "..." && token == "]" ? "Cannot end a rule with ellipses." : "In a rule, if you specify a movement, it has to act on an object.");
+                } else {
+                    ++rowCells; cellItems = 0; firstItem.clear();
+                }
+                if (token == "]") {
+                    (rhs ? rhsRows : lhsRows).push_back(rowCells); rowCells = 0; inside = false;
+                }
+            } else if (token == "->" && !inside) {
+                rhs = true;
+            } else if (inside && token == "...") {
+                if (!cellItems) firstItem = token;
+                cellItems += 2;
+            } else if (inside && isRuleDirectionOrModifier(token)) {
+                if (!cellItems) firstItem = token;
+                ++cellItems;
+            } else if (inside && state.namesSet.count(token)) {
+                cellItems += cellItems % 2 ? 1 : 2;
+                if (rhs && i > 0 && tokens[i - 1] == "random") {
+                    auto resolved = token;
+                    std::set<std::string> seen;
+                    while (synonyms.count(resolved) && seen.insert(resolved).second) resolved = synonyms.at(resolved);
+                    if (!isObjectDefined(state, resolved) && !isLegendPropertyName(state, resolved))
+                        error("You want to spawn a random \"" + toUpperAsciiCopy(resolved) + "\", but I don't know how to do that");
+                }
+            }
+        }
+        if (lhsRows.size() == rhsRows.size()) {
+            for (size_t i = 0; i < lhsRows.size(); ++i) {
+                if (lhsRows[i] != rhsRows[i]) error("In a rule, each pattern to match on the left must have a corresponding pattern on the right of equal length (number of cells).");
+                if (!lhsRows[i]) diagnostics.error(DiagnosticCode::GenericError, std::nullopt, "You have an totally empty pattern on the left-hand side.  This will match *everything*.  You certainly don't want this.");
+            }
+        }
+    }
+    for (int32_t line : loops) diagnostics.error(DiagnosticCode::GenericError, line, "Yo I found a STARTLOOP without a corresponding ENDLOOP.");
+}
+
+void emitRuleMaskDiagnostics(const ParserState& state, DiagnosticSink& diagnostics) {
+    using Cell = std::vector<std::string>;
+    using Row = std::vector<Cell>;
+    const auto synonyms = buildSynonyms(state);
+    const auto aggregates = buildLegendMap(state.legendAggregates);
+    const auto properties = buildLegendMap(state.legendProperties);
+    const auto layers = objectLayers(state);
+    for (const auto& entry : state.rules) {
+        const auto tokens = ruletext::tokenizeRuleLine(entry.rule);
+        std::vector<Row> lhs, rhs;
+        Row row; Cell cell;
+        bool inside = false, afterArrow = false, malformed = false;
+        for (const auto& token : tokens) {
+            if (afterArrow && token == "message") break;
+            if (token == "[") { inside = true; cell.clear(); row.clear(); }
+            else if (token == "|" || token == "]") {
+                if (!inside) { malformed = true; break; }
+                if (!cell.empty() && isRuleDirectionOrModifier(cell.back())) malformed = true;
+                row.push_back(cell); cell.clear();
+                if (token == "]") { (afterArrow ? rhs : lhs).push_back(row); inside = false; }
+            } else if (token == "->" && !inside) { afterArrow = true; }
+            else if (inside) { cell.push_back(token); }
+        }
+        const auto opening = std::find(tokens.begin(), tokens.end(), "[");
+        if (std::find(tokens.begin(), opening, "+") != opening && std::find(tokens.begin(), opening, "random") != opening) {
+            diagnostics.error(DiagnosticCode::GenericError, entry.lineNumber,
+                "A rule-group can only be marked random by the opening rule in the group (aka, a '+' and 'random' can't appear as rule modifiers on the same line). Why? Well, you see \"random\" isn't a property of individual rules, but of whole rule groups. It indicates that a single possible application of some rule from the whole group should be applied at random.");
+        }
+        if (malformed || inside || lhs.empty()) continue;
+        const auto error = [&](const std::string& message) { diagnostics.error(DiagnosticCode::GenericError, entry.lineNumber, message); };
+        bool discarded = false;
+        for (size_t r = 0; r < lhs.size() && !discarded; ++r) {
+            for (size_t c = 0; c < lhs[r].size() && !discarded; ++c) {
+                const auto& left = lhs[r][c];
+                const Cell* right = r < rhs.size() && c < rhs[r].size() ? &rhs[r][c] : nullptr;
+                const bool ellipsis = std::find(left.begin(), left.end(), "...") != left.end();
+                if (ellipsis) {
+                    if (left.size() != 1) { error("You can't have anything in with an ellipsis. Sorry."); discarded = true; continue; }
+                    if (!c || c + 1 == lhs[r].size()) { error("There's no point in putting an ellipsis at the very start or the end of a rule"); discarded = true; }
+                    if (right && (*right != Cell{"..."})) { error("An ellipsis on the left must be matched by one in the corresponding place on the right."); discarded = true; }
+                } else if (right && !right->empty() && right->front() == "...") {
+                    error("An ellipsis on the right must be matched by one in the corresponding place on the left.");
+                }
+                if (discarded) continue;
+                if (right && right->size() != 1 && std::find(right->begin(), right->end(), "...") != right->end()) error("You can't have anything in with an ellipsis. Sorry.");
+                // A negative test is redundant if disjoint required objects
+                // already occupy every collision layer it could use.
+                std::set<std::string> possible;
+                std::map<int32_t, std::string> occupied;
+                std::vector<std::string> excluded;
+                for (size_t i = 0; i < left.size(); ++i) {
+                    if (left[i] == "no" && i + 1 < left.size()) { excluded.push_back(left[++i]); continue; }
+                    if (!state.namesSet.count(left[i])) continue;
+                    const auto members = resolveObjectsForName(state, synonyms, aggregates, properties, left[i]);
+                    possible.insert(members.begin(), members.end());
+                    std::set<int32_t> memberLayers;
+                    for (const auto& member : members) if (layers.count(member)) memberLayers.insert(layers.at(member));
+                    if (memberLayers.size() == 1) occupied[*memberLayers.begin()] = left[i];
+                }
+                for (const auto& name : excluded) {
+                    const auto members = resolveObjectsForName(state, synonyms, aggregates, properties, name);
+                    if (members.empty() || occupied.empty()) continue;
+                    const bool redundant = std::all_of(members.begin(), members.end(), [&](const auto& member) {
+                        return !possible.count(member) && layers.count(member) && occupied.count(layers.at(member));
+                    });
+                    if (!redundant) continue;
+                    std::string names, layerNames;
+                    for (const auto& [layer, occupier] : occupied) {
+                        if (!names.empty()) { names += ", "; layerNames += ", "; }
+                        names += toUpperAsciiCopy(occupier); layerNames += std::to_string(layer + 1);
+                    }
+                    diagnostics.warning(DiagnosticCode::GenericWarning, entry.lineNumber, "You have specified that there should be NO " + toUpperAsciiCopy(name) + " but there is also a requirement that " + names + " be there, which collectively occupies the same layers (Layers " + layerNames + "), so you can leave this out.");
+                }
+            }
+        }
+    }
+}
+
+void emitTitleDiagnostic(const ParserState& state, DiagnosticSink& diagnostics) {
+    if (state.levels.empty()) return;
+    std::map<std::string, std::string> metadata;
+    for (size_t i = 0; i + 1 < state.metadata.size(); i += 2) metadata[state.metadata[i]] = state.metadata[i + 1];
+    if (!metadata.count("title")) return;
+    const auto& title = metadata.at("title");
+    // The native diagnostic has no renderer font table. ASCII titles use the
+    // same 34-column pixel-font wrapping as the JS title screen.
+    if (std::any_of(title.begin(), title.end(), [](unsigned char ch) { return ch >= 128; })) return;
+    size_t rows = 0, start = 0;
+    while (start < title.size()) {
+        ++rows;
+        size_t end = std::min(start + 34, title.size());
+        if (end == title.size()) break;
+        size_t split = end;
+        while (split > start && !std::isspace(static_cast<unsigned char>(title[split]))) --split;
+        start = split > start ? split + 1 : end;
+    }
+    const bool extraRow = metadata.count("noaction") || (metadata.count("noundo") && metadata.count("norestart"));
+    const size_t capacity = 5 + (extraRow ? 1 : 0) - (metadata.count("author") ? 1 : 0);
+    if (rows > capacity) diagnostics.warning(DiagnosticCode::GenericWarning, state.metadataLines.at("title"), "Game title is too long to fit on screen; truncating to fit.");
+}
+
+void emitSoundDiagnostics(const ParserState& state, DiagnosticSink& diagnostics) {
+    for (const auto& sound : state.sounds) {
+        if (sound.tokens.size() < 2) diagnostics.warning(DiagnosticCode::GenericWarning, sound.lineNumber, "incorrect sound declaration.");
+    }
+}
+
 void emitMetadataDiagnostics(const ParserState& state, DiagnosticSink& diagnostics) {
     static const std::set<std::string> kKnownPalettes = {
         "arnecolors", "mastersystem", "gameboycolour", "amiga", "arnecolors",
@@ -429,8 +605,38 @@ void emitMetadataDiagnostics(const ParserState& state, DiagnosticSink& diagnosti
                 0,
                 "Palette \"" + value + "\" not found, defaulting to arnecolors.");
         }
-        if ((key == "flickscreen" || key == "zoomscreen") && value.find('x') == std::string::npos) {
-            diagnostics.warning(DiagnosticCode::GenericWarning, line, "Dimensions must be of the form AxB.");
+        if (key == "flickscreen" || key == "zoomscreen") {
+            const auto split = value.find('x');
+            if (split == std::string::npos || value.find('x', split + 1) != std::string::npos) {
+                diagnostics.warning(DiagnosticCode::GenericWarning, line, "Dimensions must be of the form AxB.");
+            } else {
+                bool valid = true;
+                bool positive = true;
+                for (const auto& component : {value.substr(0, split), value.substr(split + 1)}) {
+                    char* end = nullptr;
+                    const double number = std::strtod(component.c_str(), &end);
+                    const bool parsedNumber = end != component.c_str();
+                    while (end && std::isspace(static_cast<unsigned char>(*end))) ++end;
+                    // Mirror isFinite/isInt followed by parseInt, including
+                    // integer-valued exponents with no integer prefix (.1e1).
+                    if (!parsedNumber || *end || !std::isfinite(number) || std::trunc(number) != number
+                        || number < std::numeric_limits<int32_t>::min() || number > std::numeric_limits<int32_t>::max()) {
+                        diagnostics.warning(DiagnosticCode::GenericWarning, line, "Wasn't able to make sense of \"" + component + "\" as a (whole number) dimension.");
+                        valid = false;
+                        continue;
+                    }
+                    const long integer = std::strtol(component.c_str(), &end, 10);
+                    if (end == component.c_str()) {
+                        diagnostics.warning(DiagnosticCode::GenericWarning, line, "Wasn't able to make sense of \"" + component + "\" as a dimension.");
+                        valid = false;
+                    } else if (integer <= 0) {
+                        diagnostics.warning(DiagnosticCode::GenericWarning, line, "The dimension given to me (you gave \"" + component + "\") is baad - it should be greater than 0.");
+                        positive = false;
+                    }
+                }
+                if (!valid) diagnostics.warning(DiagnosticCode::GenericWarning, line, "Couldn't understand the dimensions given to me (you gave \"" + value + "\") - should be of the form AxB.");
+                else if (!positive) diagnostics.warning(DiagnosticCode::GenericWarning, line, "The dimensions given to me (you gave \"" + value + "\") are baad - they should be > 0.");
+            }
         }
     }
 }
@@ -450,6 +656,10 @@ void runCompileDiagnostics(
         diagnostics.add(diagnostic.severity, diagnostic.code, diagnostic.line, diagnostic.message);
     }
     emitRuleDuplicateCellDiagnostics(state, diagnostics);
+    emitRuleStructureDiagnostics(state, diagnostics);
+    emitRuleMaskDiagnostics(state, diagnostics);
+    emitTitleDiagnostic(state, diagnostics);
+    emitSoundDiagnostics(state, diagnostics);
     emitBasicPostParseDiagnostics(state, diagnostics);
     emitMetadataDiagnostics(state, diagnostics);
 }

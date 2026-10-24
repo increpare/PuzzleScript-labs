@@ -351,6 +351,16 @@ function tagRule(rule) {
     rule.tags.reads_action = rule.summary.lhs_movement.some(term => term.movement === 'action');
     rule.tags.has_again = rule.summary.semantic_commands.includes('again');
     rule.tags.force_always_run = ruleHasEmptyLhs(rule);
+    // These describe distinct match locations of this rule, not the predicate
+    // at the location just replaced, other compiled rules, or group reruns.
+    // One cell TOTAL matters: [ A ] [ B ] has overlapping match tuples too.
+    const singleCell = rule.lhs.length === 1 && rule.lhs[0].length === 1
+        && !rule.summary.lhs_terms.some(term => term.ref.type === 'ellipsis')
+        && (!hasReplacement || (rule.rhs.length === 1 && rule.rhs[0].length === 1));
+    // Without an RHS, commands are queued separately and no cells are written.
+    // Keep every other shape conservative until there is an overlap proof.
+    rule.tags.may_invalidate_other_matches = hasReplacement && !singleCell;
+    rule.tags.may_enable_other_matches = hasReplacement && !singleCell;
     const hasNonInertEffect = objectMutating || writesMovement || hasSemanticCommand;
     rule.tags.solver_state_active = !rule.tags.inert_command_only && hasNonInertEffect;
     if (rule.rigid && hasNonInertEffect) {
@@ -553,6 +563,7 @@ function buildPsTagged(state, options = {}) {
     normalizeTermRefs(psTagged);
     psTagged.objects_originating_movement = computeObjectsOriginatingMovement(psTagged);
     tagRuleObjectTags(psTagged);
+    tagRuleMatchInteractions(psTagged);
     tagInertCollisionLayers(psTagged);
     tagCosmeticRules(psTagged);
     tagCosmeticObjects(psTagged);
@@ -2870,6 +2881,35 @@ function tagRuleObjectTags(psTagged) {
         rule.tags.movements_matched = uniqueSorted(reads.movements_matched);
         rule.tags.movements_written = uniqueSorted(movementsWritten);
         rule.tags.movements_removed = uniqueSorted(movementsRemoved);
+    }
+}
+
+function tagRuleMatchInteractions(psTagged) {
+    for (const { rule } of allRuleEntries(psTagged)) {
+        if (!rule.tags.may_invalidate_other_matches && !rule.tags.may_enable_other_matches) continue;
+        // The semantic IR has precise concrete-object effects for this subset.
+        // Properties, aggregates, randomness and dynamic directions need the
+        // lowered compiler masks; leave their public tags conservative.
+        if (rule.summary.lhs_terms.concat(rule.summary.rhs_terms).some(term =>
+            !term.ref || term.ref.type !== 'object' ||
+            (term.kind !== 'present' && term.kind !== 'absent') ||
+            term.movement === 'randomdir'
+        )) continue;
+        const reads = ruleFlowReads(rule);
+        const writes = ruleFlowWrites(psTagged, rule);
+        const writtenObjects = new Set([...writes.object_present, ...writes.object_absent]);
+        const movementReadLayers = new Set(reads.movement.map(read => layerForObject(psTagged, read.object)));
+        const movementWriteLayers = new Set([
+            ...Array.from(writtenObjects, name => layerForObject(psTagged, name)),
+            ...writes.movement.map(write => layerForObject(psTagged, write.object)),
+        ]);
+        const touchesMovementRead = Array.from(movementWriteLayers).some(layer => movementReadLayers.has(layer));
+        rule.tags.may_invalidate_other_matches = touchesMovementRead ||
+            setIntersects(writes.object_present, reads.object_absent) ||
+            setIntersects(writes.object_absent, reads.object_present);
+        rule.tags.may_enable_other_matches = touchesMovementRead ||
+            setIntersects(writes.object_present, reads.object_present) ||
+            setIntersects(writes.object_absent, reads.object_absent);
     }
 }
 

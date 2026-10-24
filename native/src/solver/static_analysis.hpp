@@ -46,6 +46,11 @@ MovementLayerAnalysis analyzeMovementLayers(const Game& game);
 
 SolverHashProjectionAnalysis analyzeSolverHashProjection(const Game& game);
 
+// A game-scoped proof: ACTION cannot change the persistent board, consume RNG
+// or queue a semantic command, for any injected initial board. No authored-
+// level absence or transient-object assumptions are used.
+bool actionInputIsUnnecessary(const Game& game);
+
 std::vector<std::string> objectNamesForMask(
     const Game& game,
     const MaskVector& objects

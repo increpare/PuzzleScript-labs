@@ -130,9 +130,13 @@ test("plugin bootstrap fails early at every runtime and ordering boundary", asyn
 })
 
 test("the checked dependency tree has one state, view, and language runtime", () => {
-  const tree = JSON.parse(execFileSync("npm", ["ls", "--json", "--all"], {
+  const npmScript = process.env.npm_execpath
+  const command = npmScript ? process.execPath : "npm"
+  const args = [...(npmScript ? [npmScript] : []), "ls", "--json", "--all"]
+  const tree = JSON.parse(execFileSync(command, args, {
     cwd: root,
-    encoding: "utf8"
+    encoding: "utf8",
+    shell: process.platform === "win32" && !npmScript
   }))
   for (const packageName of ["@codemirror/state", "@codemirror/view", "@codemirror/language"]) {
     const versions = new Set()

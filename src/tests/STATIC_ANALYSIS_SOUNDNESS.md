@@ -114,3 +114,54 @@ sources.
 
 This closes the gap described in the labs `rulesToMask` overlap audit (commit
 `d0b19420`).
+
+## 4. Match interaction tags describe other locations within one rule invocation
+
+Rule tags `may_invalidate_other_matches` and `may_enable_other_matches` are
+conservative possibility flags: **false is the certificate**; true means the
+interaction is possible or has not been ruled out. They refer to distinct
+tuples of cell locations for the same concrete compiled rule. They exclude the
+tuple just applied, which can consume its own match (`[ A ] -> [ B ]`).
+
+The initial proof covers exactly one cell total: one bracket containing one
+non-ellipsis cell. Replacements affect only that cell, so they cannot change
+the object or movement predicates at any other cell. It also covers rules
+without RHS replacements: they write no cells and queue commands separately.
+For multi-cell rules containing only concrete object terms, the analyzer also
+compares possible object additions/removals with positive and negative match
+reads. Movement reads and writes are compared by collision layer: any object
+write on a movement-read layer is treated as possibly changing its movement.
+The flags can differ. A write that only satisfies a positive read can enable
+another match without invalidating an existing match; a write that only
+violates a negative read can invalidate without enabling. Properties,
+aggregates, random RHS terms and dynamic directions remain conservative.
+
+The live compiler can inspect lowered object and movement masks directly. It
+applies the same polarity check to more rule forms, while treating random
+choices and dynamic property/aggregate sinks as uncertain. It omits later
+match rechecks only where its `may_invalidate_other_matches` result is false.
+When exactly one rule is active in a non-random rule group, a false
+`may_enable_other_matches` result can eliminate later group scans if its
+replacement is fixed and either the rule has one isolated match cell or it
+also cannot invalidate other matches. The isolated-cell case cannot affect
+another tuple. In the multi-cell case neither certificate permits a change
+to any match predicate, so the fixed replacements reach a fixed point after
+one scan. Other rules in a group may enable one another, so their group still
+iterates. Collecting all matches first means new matches are not visited
+within the same scan.
+
+`[ A ] [ B ]` is not a single-cell rule: different Cartesian-product tuples
+can share a cell. Ellipsis matches can also overlap. `[ A | A ] -> [ B | B ]`
+on `AAA` can invalidate a collected match; `[ A | no A ] -> [ A | A ]` on
+`A..` can create a new match absent from the original collection.
+
+The compiled JavaScript interpreter consumes the invalidation certificate to
+omit redundant rechecks of previously collected matches. It consumes the
+enabling certificate to avoid later scans of a one-rule group. Fusing scanning
+and application would additionally require stable scan bookkeeping and the
+existing match order. Neither flag permits applying every match of a random
+rule, changing RNG consumption, or bypassing bindings or queued commands.
+Single-cell rules can still re-enable each other when grouped together, and a
+randomized replacement can still change again at the same cell; those cases
+retain the existing group loop.
+`rulegroup_flow.single_pass_safe` is a separate certificate.

@@ -13,7 +13,7 @@
 #                           Run direct C++ simulation tests with JS-style 32-bit mask words.
 #   make tests             Run the full native correctness suite.
 
-.DEFAULT_GOAL := all
+.DEFAULT_GOAL := help
 
 # The suite's default app is the Win95 MIS workbench. Native tools and the
 # historical openFrameworks app keep their existing, explicitly named targets.
@@ -22,8 +22,14 @@ MIS_NPM := npm.cmd
 else
 MIS_NPM ?= npm
 endif
-.PHONY: all install serve mis_app mis_app_start mis_app_tests mis_web_bundle
-all: mis_app
+.PHONY: all desktop distro install serve mis_app mis_app_start mis_app_tests mis_web_bundle
+all: desktop
+
+desktop: mis_app
+	$(NODE) scripts/gui95-app.mjs paths
+
+distro: desktop
+	$(NODE) scripts/gui95-distro.mjs
 
 mis_app: desktop/mis/node_modules/.package-lock.json
 	$(NODE) scripts/build-mis-app.mjs
@@ -33,7 +39,7 @@ mis_app: desktop/mis/node_modules/.package-lock.json
 install: all
 	$(NODE) scripts/gui95-app.mjs install
 
-serve: all
+serve: mis_web_bundle
 	$(NODE) scripts/serve-mis.mjs
 
 mis_web_bundle:
@@ -460,7 +466,10 @@ COMPILED_RULES_FINGERPRINT_INPUTS := \
 	native/src/runtime/compiled_rules.hpp \
 	native/src/runtime/core.cpp \
 	native/src/runtime/core.hpp \
-	native/src/solver/main.cpp
+	native/src/solver/main.cpp \
+	native/src/solver/static_analysis.cpp \
+	native/src/solver/static_analysis.hpp \
+	native/src/solver/static_analysis_hints.hpp
 COMPILED_RULES_FRESH_ARGS = $(foreach file,$(COMPILED_RULES_FINGERPRINT_INPUTS),--newer-than "$(file)")
 SOLVER_FOCUS_BENCHMARK_FINGERPRINT_INPUTS := \
 	Makefile \
@@ -563,6 +572,8 @@ GENERATOR_TARGET_PREREQ := $(PUZZLESCRIPT_GENERATOR)
 endif
 
 help:
+	@echo "GUI95: make desktop builds this host; make serve prepares only the web app and prints LAN links."
+	@echo "make distro assembles host archives and GUI95_DIST_INPUT from other platforms."
 	@echo "PuzzleScript C++ workflow"
 	@echo ""
 	@echo "Common commands:"
@@ -1621,6 +1632,11 @@ compact_turn_codegen_regression_tests: build
 	$(call COMPILED_RULES_CONFIGURE,$$build_dir,-DPS_COMPILED_RULES_SOURCE= -DPS_COMPILED_RULES_SOURCES_FILE="$$PWD/$$sources_file"); \
 	$(CMAKE) --build "$$build_dir" $(COMPILED_RULES_BUILD_PARALLEL_ARG) --target puzzlescript_solver; \
 	$(NODE) src/tests/run_solver_compact_parity.js "$$build_dir/native/puzzlescript_solver" "$(COMPACT_TURN_CODEGEN_REGRESSION_CORPUS)" --timeout-ms $(SOLVER_COMPACT_PARITY_TIMEOUT_MS) --strategy $(SOLVER_COMPACT_PARITY_STRATEGY) --compact-turn-oracle --require-compact-oracle-checks --require-compact-handled
+
+.PHONY: compiled_rules_scheduling_tests
+compiled_rules_scheduling_tests: build
+	$(NODE) src/tests/compiled_rules_scheduling_node.js --compiler "$(PUZZLESCRIPT_CPP)"
+	$(NODE) src/tests/compiled_solver_profiles_node.js --compiler "$(PUZZLESCRIPT_CPP)"
 
 .PHONY: compact_turn_codegen_dirty_shape
 compact_turn_codegen_dirty_shape: build

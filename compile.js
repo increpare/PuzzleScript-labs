@@ -18,12 +18,28 @@ let webResourceInliner = require("web-resource-inliner");
 const ncp = require('ncp').ncp;
 const gifsicle = require('gifsicle').default || require('gifsicle');
 const concat = require('concat');
-const cssmin = require('ycssmin').cssmin;
-const { minify } = require("terser");
+const { transform } = require('lightningcss');
+const { minify } = require('@swc/core');
+const { TraceMap, eachMapping } = require('@jridgewell/trace-mapping');
+const { GenMapping, addMapping, setSourceContent, toEncodedMap } = require('@jridgewell/gen-mapping');
 const { Compress } = require('gzipper');
 const htmlminify = require('html-minifier-terser').minify;
 const glob = require("glob")
 const { removeLocalScriptTags, useSourceScriptTags } = require("./build-html");
+
+// Keep the same inputs when invoked from another working directory.
+process.chdir(__dirname);
+
+function cssmin(css) {
+    return transform({code: Buffer.from(css), minify: true}).code.toString();
+}
+
+const developmentNames = new Set(['.git', '.claude', '.codex', '.cursor', '.local-ai', 'AGENTS.md']);
+function includeInRelease(filename) {
+    const parts = path.relative(path.join(__dirname, 'src'), filename).split(path.sep);
+    return parts[0] !== 'tests' &&
+        !parts.some(part => developmentNames.has(part) || /\.(bak|orig)$/i.test(part));
+}
 
 const releaseCompressionOptions = Object.freeze({
     brotli: true,
@@ -35,7 +51,7 @@ const releaseCompressionOptions = Object.freeze({
 
 function copyDirectory(source, destination) {
     return new Promise((resolve, reject) => {
-        ncp(source, destination, error => {
+        ncp(source, destination, {filter: includeInRelease}, error => {
             if (error) {
                 reject(error);
             } else {
@@ -78,21 +94,55 @@ function compressPngImages() {
     });
 }
 
-async function generateFrom(files, outputSource, outputBin) {
-    const corpus = {};
-    for (const filePath of files) {
-        corpus["source/" + filePath.slice(9)] = fs.readFileSync(filePath, encoding = 'utf-8');
-    }
-
-    const result = await minify(corpus, {
-        sourceMap: {
-            filename: outputSource,
-            url: outputSource + ".map"
-        }
+async function generateFrom(toinclude, output_src, output_bin) {
+    let lineOffset = 0;
+    const sources = toinclude.map(fpath => {
+        const code = fs.readFileSync(fpath, 'utf8');
+        const lineCount = (code.match(/\n/g) || []).length + 1;
+        const source = { name: "source/" + fpath.slice(9), code, lineOffset, lineCount };
+        lineOffset += lineCount + 1;
+        return source;
     });
-    fs.writeFileSync(outputBin, result.code);
-    fs.writeFileSync(outputBin + ".map", result.map);
-}
+    // Files are separate scripts in development. Preserve that boundary even
+    // when a file ends without a semicolon and the next starts with an IIFE.
+    const result = await minify(sources.map(source => source.code).join('\n;\n'), {
+        // Inline HTML handlers and generated engine functions share these globals.
+        module: false,
+        toplevel: false,
+        compress: { toplevel: false, passes: 3 },
+        mangle: { toplevel: false },
+        format: { comments: 'some', inlineScript: true },
+        sourceMap: true,
+        inlineSourcesContent: false
+    });
+
+    // SWC maps the concatenated input. Restore the original file boundaries
+    // so browser debugging still opens the individual source files.
+    const map = new GenMapping({ file: output_src });
+    sources.forEach(source => setSourceContent(map, source.name, source.code));
+    eachMapping(new TraceMap(result.map), mapping => {
+        const generated = { line: mapping.generatedLine, column: mapping.generatedColumn };
+        if (mapping.originalLine === null) {
+            addMapping(map, { generated });
+            return;
+        }
+        const source = sources.find((source, index) =>
+            index === sources.length - 1 || mapping.originalLine <= sources[index + 1].lineOffset);
+        if (mapping.originalLine - source.lineOffset > source.lineCount) {
+            addMapping(map, { generated });
+            return;
+        }
+        addMapping(map, {
+            generated,
+            source: source.name,
+            original: { line: mapping.originalLine - source.lineOffset, column: mapping.originalColumn },
+            name: mapping.name || undefined
+        });
+    });
+    fs.writeFileSync(output_bin, result.code + "\n//# sourceMappingURL=" + output_src + ".map\n");
+    fs.writeFileSync(output_bin + ".map", JSON.stringify(toEncodedMap(map)));
+};
+
 
 async function main() {
     execFileSync(process.execPath, [
@@ -148,13 +198,18 @@ async function main() {
         "./src/css/gamecanvas.css",
         "./src/css/soundbar.css",
         "./src/css/layout.css",
-        "./src/css/toolbar.css"],
+        "./src/css/toolbar.css",
+        "./src/css/player.css",
+        "./src/css/editorplayer.css"],
         "./bin/css/combined.css");
     console.log('css files concatenated')
 
     let css = fs.readFileSync("./bin/css/combined.css", encoding = 'utf8');
     let min = cssmin(css);
     fs.writeFileSync("./bin/css/combined.css", min, encoding = "utf8");
+
+    css = fs.readFileSync("./src/css/player.css", 'utf8');
+    fs.writeFileSync("./bin/css/player.css", cssmin(css), 'utf8');
 
     css = fs.readFileSync("./bin/Documentation/css/bootstrap.css", encoding = 'utf8');
     min = cssmin(css);
@@ -238,7 +293,8 @@ async function main() {
         "./src/js/github.js",
         "./src/js/compiler.js",
         "./src/js/inputoutput.js",
-        "./src/js/mobile.js"];
+        "./src/js/mobile.js",
+        "./src/js/play.js"];
     await generateFrom(includesPlay, "scripts_play_compiled.js", "./bin/js/scripts_play_compiled.js");
 
     await copyDirectory("./src/js", "./bin/js/source");
@@ -271,11 +327,14 @@ async function main() {
 
     console.log("inlining standalone template")
     const standaloneRaw = fs.readFileSync("./src/standalone.html", 'utf8');
+    await generateFrom(
+        Array.from(standaloneRaw.matchAll(/<script src="([^"]+)"><\/script>/g), match => "./src/" + match[1]),
+        "scripts_standalone_compiled.js", "./bin/js/scripts_standalone_compiled.js");
     const sourceStandalone = await inlineResources({fileContent: standaloneRaw, relativeTo: "src/"});
     fs.writeFileSync("./src/standalone_inlined.txt", sourceStandalone);
 
     let releaseStandaloneRaw = removeLocalScriptTags(standaloneRaw);
-    releaseStandaloneRaw = releaseStandaloneRaw.replace(/<!--___SCRIPTINSERT___-->/g, '<script src="js\/scripts_play_compiled.js"><\/script>');
+    releaseStandaloneRaw = releaseStandaloneRaw.replace(/<!--___SCRIPTINSERT___-->/g, '<script src="js\/scripts_standalone_compiled.js"><\/script>');
     const releaseStandalone = await inlineResources({fileContent: releaseStandaloneRaw, relativeTo: "bin/"});
     const minifiedStandalone = await htmlminify(releaseStandalone, {
         collapseBooleanAttributes: true,
@@ -284,6 +343,7 @@ async function main() {
         minifyURLs: true,
         removeComments: true,
         removeEmptyAttributes: true,
+        removeAttributeQuotes: false,
     });
     fs.writeFileSync("./bin/standalone_inlined.txt", minifiedStandalone);
     fs.unlinkSync("./bin/standalone.html");

@@ -32,6 +32,7 @@
 #include "gbc/exporter.hpp"
 #include "runtime/json.hpp"
 #include "runtime/compiled_rules.hpp"
+#include "solver/static_analysis_hints.hpp"
 #include "runtime/layout_metrics.hpp"
 #include "runtime/locality_survey.hpp"
 #include "puzzlescript/compiler.h"
@@ -45,6 +46,8 @@ int puzzlescript_cpp_run_player_for_game(ps_game* game, const std::string& saveK
 namespace {
 
 using puzzlescript::compiler::areAllGroupsCompilable;
+using puzzlescript::compiler::analyzeCompiledRuleScheduling;
+using puzzlescript::compiler::canEmitStraightLineCompiledPhase;
 using puzzlescript::compiler::canGenerateCompiledRuleCommandQueue;
 using puzzlescript::compiler::compiledGroupMissReason;
 using puzzlescript::compiler::compiledMaskWordLiteral;
@@ -56,6 +59,9 @@ using puzzlescript::compiler::compactTurnSupportForGame;
 using puzzlescript::compiler::CompiledRulesOptions;
 using puzzlescript::compiler::cppStringLiteral;
 using puzzlescript::compiler::emitCompactTurnBackend;
+using puzzlescript::compiler::emitCompiledGroupFunctions;
+using puzzlescript::compiler::emitCompiledGroupDispatch;
+using puzzlescript::compiler::emitStraightLineCompiledPhase;
 using puzzlescript::compiler::isCompilableGroup;
 using puzzlescript::compiler::isCompilableReplacement;
 using puzzlescript::compiler::isCompilableRule;
@@ -4743,7 +4749,21 @@ bool ruleHasRandomReplacement(const puzzlescript::Rule& rule) {
 }
 
 bool ruleUsesRuntimeRowHelpers(const puzzlescript::Rule& rule) {
-    return rule.rigid || ruleHasEllipsis(rule) || ruleHasRandomReplacement(rule);
+    if (rule.rigid || ruleHasEllipsis(rule) || ruleHasRandomReplacement(rule)
+        || !rule.aggregateBindings.empty() || !rule.propertyBindings.empty()) {
+        return true;
+    }
+    for (const auto& row : rule.patterns) {
+        for (const auto& pattern : row) {
+            // The inline matcher/setters only implement fixed masks. Preserve
+            // property/layer coupling and dynamic RHS bindings in the runtime.
+            if (pattern.anyMovementsCount != 0 || !pattern.layerCoupledMovementMasks.empty()
+                || (pattern.replacement && pattern.replacement->dynamic)) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 void emitInlineMaskBitsSetCheck(
@@ -4839,9 +4859,21 @@ void emitPatternPredicate(
     const std::string& suffix,
     const std::string& tileExpr
 ) {
-    out << "    const int32_t tileIdx" << suffix << " = static_cast<int32_t>(" << tileExpr << ");\n"
-        << "    const MaskWord* objects" << suffix << " = compiledRuleCellObjects(session, tileIdx" << suffix << ");\n"
-        << "    const MaskWord* movements" << suffix << " = compiledRuleCellMovements(session, tileIdx" << suffix << ");\n";
+    const auto hasBits = [&](puzzlescript::MaskOffset offset, uint32_t width) {
+        const auto words = compiledMaskWords(game, offset, width);
+        return std::any_of(words.begin(), words.end(), [](auto word) { return word != 0; });
+    };
+    bool readsObjects = (pattern.hasObjectsPresent && hasBits(pattern.objectsPresent, game.wordCount))
+        || (pattern.hasObjectsMissing && hasBits(pattern.objectsMissing, game.wordCount));
+    for (uint32_t i = 0; i < pattern.anyObjectsCount; ++i) {
+        const size_t index = pattern.anyObjectsFirst + i;
+        if (index < game.anyObjectOffsets.size()) readsObjects = readsObjects || hasBits(game.anyObjectOffsets[index], game.wordCount);
+    }
+    const bool readsMovements = (pattern.hasMovementsPresent && hasBits(pattern.movementsPresent, game.movementWordCount))
+        || (pattern.hasMovementsMissing && hasBits(pattern.movementsMissing, game.movementWordCount));
+    out << "    const int32_t tileIdx" << suffix << " = static_cast<int32_t>(" << tileExpr << ");\n";
+    if (readsObjects) out << "    const MaskWord* objects" << suffix << " = compiledRuleCellObjects(session, tileIdx" << suffix << ");\n";
+    if (readsMovements) out << "    const MaskWord* movements" << suffix << " = compiledRuleCellMovements(session, tileIdx" << suffix << ");\n";
     if (pattern.hasObjectsPresent) {
         emitMaskBitsSetCheck(out, game, "objectsPresent" + suffix, pattern.objectsPresent, game.wordCount, "objects" + suffix, std::to_string(game.wordCount) + "U");
     }
@@ -4898,6 +4930,20 @@ void emitReplacementApply(
     };
     const bool hasObjectEffect = anyNonZero(objectsClear) || anyNonZero(objectsSet);
     const bool hasMovementEffect = anyNonZero(movementsClear) || anyNonZero(movementsSet) || anyNonZero(movementsLayerMask);
+    std::vector<uint32_t> objectWords, movementWords;
+    for (uint32_t word = 0; word < game.wordCount; ++word) {
+        if ((objectsClear[word] | objectsSet[word]) != 0) objectWords.push_back(word);
+    }
+    for (uint32_t word = 0; word < game.movementWordCount; ++word) {
+        if ((movementsClear[word] | movementsSet[word] | movementsLayerMask[word]) != 0) movementWords.push_back(word);
+    }
+    const bool sparseObjects = game.wordCount >= 3 && objectWords.size() * 2 <= game.wordCount;
+    const bool sparseMovements = game.movementWordCount >= 3 && movementWords.size() * 2 <= game.movementWordCount;
+    auto emitIndices = [&](const char* name, const std::vector<uint32_t>& words) {
+        out << "        static constexpr uint32_t " << name << "[] = {";
+        for (uint32_t word : words) out << word << "U,";
+        out << "};\n";
+    };
     out << "    {\n"
         << "        const int32_t tile = " << tileExpr << ";\n"
         << "        bool objectsChanged = false;\n"
@@ -4908,6 +4954,7 @@ void emitReplacementApply(
             << "        MaskWord created[" << game.wordCount << "];\n"
             << "        MaskWord destroyed[" << game.wordCount << "];\n";
         for (uint32_t word = 0; word < game.wordCount; ++word) {
+            if (sparseObjects && (objectsClear[word] | objectsSet[word]) == 0) continue;
             out << "        {\n"
                 << "            const MaskWord before = oldObjects[" << word << "];\n"
                 << "            const MaskWord after = (before & ~" << compiledMaskWordLiteral(objectsClear[static_cast<size_t>(word)])
@@ -4918,8 +4965,9 @@ void emitReplacementApply(
                 << "            objectsChanged = objectsChanged || after != before;\n"
                 << "        }\n";
         }
-        if (game.wordCount == 1) {
-            out << "        if (objectsChanged) compiledRuleSetCellObjectsWord1(session, tile, newObjects[0], created[0], destroyed[0]);\n";
+        if (sparseObjects) {
+            emitIndices("objectWords", objectWords);
+            out << "        if (objectsChanged) compiledRuleSetCellObjectsSparseFromWords(session, tile, newObjects, created, destroyed, objectWords, " << objectWords.size() << "U);\n";
         } else {
             out << "        if (objectsChanged) compiledRuleSetCellObjectsFromWords(session, tile, newObjects, created, destroyed);\n";
         }
@@ -4928,6 +4976,7 @@ void emitReplacementApply(
         out << "        const MaskWord* oldMovements = compiledRuleCellMovements(session, tile);\n"
             << "        MaskWord newMovements[" << game.movementWordCount << "];\n";
         for (uint32_t word = 0; word < game.movementWordCount; ++word) {
+            if (sparseMovements && (movementsClear[word] | movementsSet[word] | movementsLayerMask[word]) == 0) continue;
             const auto clearWord = static_cast<puzzlescript::MaskWord>(
                 static_cast<puzzlescript::MaskWordUnsigned>(movementsClear[static_cast<size_t>(word)])
                 | static_cast<puzzlescript::MaskWordUnsigned>(movementsLayerMask[static_cast<size_t>(word)])
@@ -4940,7 +4989,10 @@ void emitReplacementApply(
                 << "            movementsChanged = movementsChanged || after != before;\n"
                 << "        }\n";
         }
-        if (game.movementWordCount == 1) {
+        if (sparseMovements) {
+            emitIndices("movementWords", movementWords);
+            out << "        if (movementsChanged) compiledRuleSetCellMovementsSparseFromWords(session, tile, newMovements, movementWords, " << movementWords.size() << "U);\n";
+        } else if (game.movementWordCount == 1) {
             out << "        if (movementsChanged) compiledRuleSetCellMovementsWord1(session, tile, newMovements[0]);\n";
         } else {
             out << "        if (movementsChanged) compiledRuleSetCellMovementsFromWords(session, tile, newMovements);\n";
@@ -5334,18 +5386,29 @@ void emitRuleFunctions(
         emitRuleRowFunctions(out, game, rule, prefix, rowIndex);
     }
 
+    const auto scheduling = analyzeCompiledRuleScheduling(game, rule);
+    const std::string ruleExpr = std::string("game.") + (late ? "lateRules" : "rules")
+        + "[" + std::to_string(groupIndex) + "][" + std::to_string(ruleIndex) + "]";
     out << "bool apply_rule_" << prefix << "(FullState& session, CommandState& commands) {\n"
-        << "    const Game& game = *session.game;\n"
-        << "    bool changed = false;\n";
+        << "    const Game& game = *session.game;\n";
+    if (scheduling.unconditional && !rule.hasReplacements) {
+        out << "    if (currentLevelWidth(session) <= 0 || currentLevelHeight(session) <= 0) return false;\n";
+        emitCompiledRuleCommandQueue(out, rule, ruleExpr);
+        out << "    return false;\n}\n\n";
+        return;
+    }
+    out << "    bool changed = false;\n";
     const bool oneRow = rule.patterns.size() == 1;
     for (size_t rowIndex = 0; rowIndex < rule.patterns.size(); ++rowIndex) {
         emitCollectRowMatches(out, game, rule, prefix, rowIndex, "matches_" + std::to_string(rowIndex), oneRow);
     }
     if (oneRow) {
         out << "    for (size_t matchIndex = 0; matchIndex < matches_0.size(); ++matchIndex) {\n"
-            << "        const int32_t startIndex = matches_0[matchIndex];\n"
-            << "        if (matchIndex > 0 && !match_" << prefix << "_row0(session, startIndex)) continue;\n"
-            << "        changed = apply_replacements_" << prefix << "_row0(session, startIndex) || changed;\n"
+            << "        const int32_t startIndex = matches_0[matchIndex];\n";
+        if (!scheduling.simpleRow || scheduling.mayInvalidateOtherMatches) {
+            out << "        if (matchIndex > 0 && !match_" << prefix << "_row0(session, startIndex)) continue;\n";
+        }
+        out << "        changed = apply_replacements_" << prefix << "_row0(session, startIndex) || changed;\n"
             << "    }\n";
     } else {
         out << "    std::array<const std::vector<int32_t>*, " << rule.patterns.size() << "> allMatches = {";
@@ -5398,6 +5461,7 @@ struct CodegenSource {
     std::string source;
     std::shared_ptr<const puzzlescript::Game> game;
     uint64_t hash = 0;
+    puzzlescript::SolverRulePruning solverPruning;
 };
 
 struct CompiledRulesCoverage {
@@ -5976,6 +6040,34 @@ std::string generateRuntimeIrCacheJson(const std::vector<CodegenSource>& sources
     return out.str();
 }
 
+std::string generateSolverProfileFinder(
+    const std::vector<CodegenSource>& sources,
+    const std::vector<std::string>& groups,
+    const std::vector<std::string>& turns,
+    const std::vector<std::string>& compactTurns
+) {
+    std::ostringstream out;
+    out << "extern \"C\" const puzzlescript::SolverCompiledRulesProfile* ps_solver_compiled_rules_find_profile(uint64_t sourceHash, uint64_t profileHash) {\n"
+        << "    (void)profileHash;\n    switch (sourceHash) {\n";
+    for (size_t i = 0; i < sources.size(); ++i) {
+        const auto& source = sources[i];
+        const auto& pruning = source.solverPruning;
+        out << "        case " << source.hash << "ULL: {\n"
+            << "            if (profileHash != " << pruning.profileHash << "ULL) return nullptr;\n"
+            << "            static const uint32_t removed[] = {";
+        for (size_t k = 0; k < pruning.removedRules.size(); ++k) {
+            if (k) out << ", ";
+            out << pruning.removedRules[k] << "U";
+        }
+        out << "};\n            static const puzzlescript::SolverCompiledRulesProfile profile = {"
+            << source.hash << "ULL, " << pruning.profileHash << "ULL, removed, " << pruning.removedRules.size()
+            << "U, " << groups[i] << ", " << turns[i] << ", " << compactTurns[i] << "};\n"
+            << "            return &profile;\n        }\n";
+    }
+    out << "        default: return nullptr;\n    }\n}\n\n";
+    return out.str();
+}
+
 std::string generateCompiledRulesCpp(
     const std::vector<CodegenSource>& sources,
     std::string_view symbol,
@@ -6000,8 +6092,9 @@ std::string generateCompiledRulesCpp(
         << "#include <cstddef>\n"
         << "#include <cstdint>\n"
         << "#include <vector>\n"
-        << "#include \"runtime/compiled_rules.hpp\"\n\n"
-        << "namespace {\n"
+        << "#include \"runtime/compiled_rules.hpp\"\n\n";
+    if (emitGlobalFinder && options.solverProfile) out << "namespace ps_solver_profiles {\n";
+    out << "namespace {\n"
         << "using namespace puzzlescript;\n\n";
 
     uint32_t totalCompiledRules = 0;
@@ -6044,87 +6137,13 @@ std::string generateCompiledRulesCpp(
         totalCompiledGroups += sourceCompiledGroups;
 
         if (!compactTurnOnly) {
+            emitCompiledGroupFunctions(out, game, sourceIndex, options);
             out << "SpecializedRulegroupOutcome apply_source_" << sourceIndex << "(FullState& session, int32_t groupIndex, bool late, CommandState& commands) {\n"
-                << "    const Game& game = *session.game;\n"
-                << "    if (late) {\n"
-                << "    switch (groupIndex) {\n";
-        for (size_t groupIndex = 0; groupIndex < game.lateRules.size(); ++groupIndex) {
-            const auto& group = game.lateRules[groupIndex];
-            if (!isCompilableGroup(group, options)) {
-                continue;
-            }
-            out << "        case " << groupIndex << ": {\n"
-                << (group[0].isRandom
-                    ? "            return {true, compiledRuleApplyRandomGroup(session, game.lateRules[groupIndex], commands)};\n"
-                    : "")
-                << (group[0].isRandom ? "        }\n" : "");
-            if (group[0].isRandom) {
-                continue;
-            }
-            out
-                << "            bool hasChanges = false;\n"
-                << "            bool madeChange = true;\n"
-                << "            int loopCount = 0;\n"
-                << "            if (session.scratch.anyMasksDirty || session.scratch.objectCellIndexDirty) {\n"
-                << "                compiledRuleRebuildMasks(session);\n"
-                << "            }\n"
-                << "            while (madeChange && loopCount++ < 200) {\n"
-                << "                madeChange = false;\n";
-            for (size_t ruleIndex = 0; ruleIndex < group.size(); ++ruleIndex) {
-                out << "                if (apply_rule_s" << sourceIndex << "_l_g" << groupIndex << "_r" << ruleIndex << "(session, commands)) {\n"
-                    << "                    madeChange = true;\n"
-                    << "                    if (session.scratch.anyMasksDirty || session.scratch.objectCellIndexDirty) {\n"
-                    << "                        compiledRuleRebuildMasks(session);\n"
-                    << "                    }\n"
-                    << "                }\n";
-            }
-            out << "                hasChanges = hasChanges || madeChange;\n"
-                << "            }\n"
-                << "            return {true, hasChanges};\n"
-                << "        }\n";
-        }
-        out << "        default: return {false, false};\n"
-            << "    }\n"
-            << "    }\n"
-            << "    switch (groupIndex) {\n";
-        for (size_t groupIndex = 0; groupIndex < game.rules.size(); ++groupIndex) {
-            const auto& group = game.rules[groupIndex];
-            if (!isCompilableGroup(group, options)) {
-                continue;
-            }
-            out << "        case " << groupIndex << ": {\n"
-                << (group[0].isRandom
-                    ? "            return {true, compiledRuleApplyRandomGroup(session, game.rules[groupIndex], commands)};\n"
-                    : "")
-                << (group[0].isRandom ? "        }\n" : "");
-            if (group[0].isRandom) {
-                continue;
-            }
-            out
-                << "            bool hasChanges = false;\n"
-                << "            bool madeChange = true;\n"
-                << "            int loopCount = 0;\n"
-                << "            if (session.scratch.anyMasksDirty || session.scratch.objectCellIndexDirty) {\n"
-                << "                compiledRuleRebuildMasks(session);\n"
-                << "            }\n"
-                << "            while (madeChange && loopCount++ < 200) {\n"
-                << "                madeChange = false;\n";
-            for (size_t ruleIndex = 0; ruleIndex < group.size(); ++ruleIndex) {
-                out << "                if (apply_rule_s" << sourceIndex << "_e_g" << groupIndex << "_r" << ruleIndex << "(session, commands)) {\n"
-                    << "                    madeChange = true;\n"
-                    << "                    if (session.scratch.anyMasksDirty || session.scratch.objectCellIndexDirty) {\n"
-                    << "                        compiledRuleRebuildMasks(session);\n"
-                    << "                    }\n"
-                    << "                }\n";
-            }
-            out << "                hasChanges = hasChanges || madeChange;\n"
-                << "            }\n"
-                << "            return {true, hasChanges};\n"
-                << "        }\n";
-        }
-        out << "        default: return {false, false};\n"
-            << "    }\n"
-            << "}\n\n";
+                << "    if (late) {\n";
+            emitCompiledGroupDispatch(out, game, sourceIndex, true, options);
+            out << "    }\n";
+            emitCompiledGroupDispatch(out, game, sourceIndex, false, options);
+            out << "}\n\n";
 
         out << "SpecializedRulegroupsForInterpretedTurnOutcome apply_early_groups_source_" << sourceIndex << "(FullState& session, CommandState& commands, std::vector<bool>* bannedGroups) {\n";
         if (compactTurnOnly || !areAllGroupsCompilable(game.rules, options)) {
@@ -6133,6 +6152,8 @@ std::string generateCompiledRulesCpp(
                 << "    (void)bannedGroups;\n"
                 << "    return {false, false};\n"
                 << "}\n\n";
+        } else if (canEmitStraightLineCompiledPhase(game, game.loopPoint)) {
+            emitStraightLineCompiledPhase(out, game, sourceIndex, false);
         } else {
             out << "    bool loopPropagated = false;\n"
                 << "    bool hasChanges = false;\n"
@@ -6184,6 +6205,8 @@ std::string generateCompiledRulesCpp(
                 << "    (void)bannedGroups;\n"
                 << "    return {false, false};\n"
                 << "}\n\n";
+        } else if (canEmitStraightLineCompiledPhase(game, game.lateLoopPoint)) {
+            emitStraightLineCompiledPhase(out, game, sourceIndex, true);
         } else {
             out << "    bool loopPropagated = false;\n"
                 << "    bool hasChanges = false;\n"
@@ -6259,7 +6282,15 @@ std::string generateCompiledRulesCpp(
     }
 
     out << "} // namespace\n\n";
-    if (emitGlobalFinder) {
+    if (emitGlobalFinder && options.solverProfile) {
+        std::vector<std::string> groups, turns, compactTurns;
+        for (size_t i = 0; i < sources.size(); ++i) {
+            groups.push_back("&backend_" + std::to_string(i));
+            turns.push_back("&tick_backend_" + std::to_string(i));
+            compactTurns.push_back("&specialized_compact_turn_backend_" + std::to_string(i));
+        }
+        out << generateSolverProfileFinder(sources, groups, turns, compactTurns);
+    } else if (emitGlobalFinder) {
         if (compactTurnOnly) {
             out << "extern \"C\" const puzzlescript::SpecializedRulegroupsBackend* "
                 << "ps_specialized_rulegroups_find_backend(uint64_t) {\n"
@@ -6356,6 +6387,7 @@ std::string generateCompiledRulesCpp(
     }
     out << "extern \"C\" const uint32_t " << safeSymbol << "_compiled_rule_count = " << totalCompiledRules << "U;\n"
         << "extern \"C\" const uint32_t " << safeSymbol << "_compiled_group_count = " << totalCompiledGroups << "U;\n";
+    if (emitGlobalFinder && options.solverProfile) out << "} // namespace ps_solver_profiles\n";
     return out.str();
 }
 
@@ -6366,7 +6398,8 @@ std::string generateCompiledRulesRegistryCpp(
     const std::vector<std::string>& tickBackendAccessorSymbols,
     const std::vector<std::string>& compactTurnBackendAccessorSymbols,
     const CompiledRulesCoverage& coverage,
-    bool compactTurnOnly = false
+    bool compactTurnOnly = false,
+    bool solverProfile = false
 ) {
     std::ostringstream out;
     const std::string safeSymbol = safeCppIdentifier(symbol);
@@ -6386,6 +6419,18 @@ std::string generateCompiledRulesRegistryCpp(
     for (const auto& backendSymbol : compactTurnBackendAccessorSymbols) {
         out << "extern \"C\" const puzzlescript::SpecializedCompactTurnBackend* "
             << safeCppIdentifier(backendSymbol) << "();\n";
+    }
+    if (solverProfile) {
+        std::vector<std::string> groups, turns, compactTurns;
+        for (size_t i = 0; i < sources.size(); ++i) {
+            groups.push_back(safeCppIdentifier(backendAccessorSymbols[i]) + "()");
+            turns.push_back(safeCppIdentifier(tickBackendAccessorSymbols[i]) + "()");
+            compactTurns.push_back(safeCppIdentifier(compactTurnBackendAccessorSymbols[i]) + "()");
+        }
+        out << generateSolverProfileFinder(sources, groups, turns, compactTurns);
+        out << "extern \"C\" const uint32_t " << safeSymbol << "_compiled_rule_count = " << coverage.compiledRules << "U;\n"
+            << "extern \"C\" const uint32_t " << safeSymbol << "_compiled_group_count = " << coverage.compiledGroups << "U;\n";
+        return out.str();
     }
     out << "\nextern \"C\" const puzzlescript::SpecializedRulegroupsBackend* "
         << "ps_specialized_rulegroups_find_backend(uint64_t sourceHash) {\n"
@@ -6447,7 +6492,7 @@ std::string generateCompiledRulesRegistryCpp(
 uint32_t writeCompiledRulesCppDirectory(
     const std::vector<CodegenSource>& sources,
     const std::filesystem::path& emitCppDir,
-    const std::filesystem::path& emitSourcesList,
+    std::vector<std::filesystem::path>& generatedPaths,
     std::string_view symbol,
     const CompiledRulesOptions& options,
     const CompactCodegenOptions& compactOptions,
@@ -6455,12 +6500,11 @@ uint32_t writeCompiledRulesCppDirectory(
     bool compactTurnOnly = false
 ) {
     const std::string safeSymbol = safeCppIdentifier(symbol);
-    std::vector<std::filesystem::path> generatedPaths;
     std::vector<std::string> backendAccessorSymbols;
     std::vector<std::string> tickBackendAccessorSymbols;
     std::vector<std::string> compactTurnBackendAccessorSymbols;
     uint32_t wroteCount = 0;
-    generatedPaths.reserve(sources.size() + 1);
+    generatedPaths.reserve(generatedPaths.size() + sources.size() + 1);
     backendAccessorSymbols.reserve(sources.size());
     tickBackendAccessorSymbols.reserve(sources.size());
     compactTurnBackendAccessorSymbols.reserve(sources.size());
@@ -6469,7 +6513,7 @@ uint32_t writeCompiledRulesCppDirectory(
         std::ostringstream hashHex;
         hashHex << std::hex << sources[sourceIndex].hash;
         const std::string hashSuffix = hashHex.str();
-        const std::filesystem::path cppPath = emitCppDir / ("source_" + hashSuffix + ".cpp");
+        const std::filesystem::path cppPath = emitCppDir / ((options.solverProfile ? "solver_profile_" : "source_") + hashSuffix + ".cpp");
         const std::string sourceSymbol = safeSymbol + "_source_" + hashSuffix;
         const std::string backendSymbol = safeSymbol + "_backend_" + hashSuffix;
         const std::string tickBackendSymbol = safeSymbol + "_tick_backend_" + hashSuffix;
@@ -6494,7 +6538,7 @@ uint32_t writeCompiledRulesCppDirectory(
         generatedPaths.push_back(std::filesystem::absolute(cppPath));
     }
 
-    const std::filesystem::path registryPath = emitCppDir / "registry.cpp";
+    const std::filesystem::path registryPath = emitCppDir / (options.solverProfile ? "solver_profile_registry.cpp" : "registry.cpp");
     if (writeFileIfChanged(
         registryPath,
         generateCompiledRulesRegistryCpp(
@@ -6504,20 +6548,14 @@ uint32_t writeCompiledRulesCppDirectory(
             tickBackendAccessorSymbols,
             compactTurnBackendAccessorSymbols,
             compactTurnOnly ? CompiledRulesCoverage{} : coverage,
-            compactTurnOnly
+            compactTurnOnly,
+            options.solverProfile
         )
     )) {
         ++wroteCount;
     }
     generatedPaths.push_back(std::filesystem::absolute(registryPath));
 
-    std::ostringstream list;
-    for (const auto& path : generatedPaths) {
-        list << path.string() << "\n";
-    }
-    if (writeFileIfChanged(emitSourcesList, list.str())) {
-        ++wroteCount;
-    }
     return wroteCount;
 }
 
@@ -6548,7 +6586,8 @@ std::vector<CodegenSource> selectCompiledRuleSourcesForEmission(
             std::vector<CodegenSource>{source},
             options
         );
-        if (sourceCoverage.compiledRules > *maxCompiledRulesPerSource) {
+        if (maxCompiledRulesPerSource.has_value()
+            && sourceCoverage.compiledRules > *maxCompiledRulesPerSource) {
             ++skippedSources;
             skippedCompiledRules += sourceCoverage.compiledRules;
             continue;
@@ -6586,6 +6625,7 @@ int compileRulesCommand(const std::string& sourcePath, int argc, char** argv) {
     std::optional<std::filesystem::path> emitSourcesList;
     std::optional<std::filesystem::path> emitRuntimeIrCache;
     std::optional<std::filesystem::path> coverageJson;
+    std::optional<std::filesystem::path> solverHintsPath;
     std::optional<uint64_t> maxCompiledRulesPerSource;
     std::optional<uint64_t> maxGeneratedLinesPerSource;
     std::optional<size_t> caseIndex;
@@ -6623,6 +6663,9 @@ int compileRulesCommand(const std::string& sourcePath, int argc, char** argv) {
                 throw std::runtime_error("--coverage-json requires a path");
             }
             coverageJson = std::filesystem::path(argv[index]);
+        } else if (arg == "--solver-static-analysis-hints") {
+            if (++index >= argc) throw std::runtime_error("--solver-static-analysis-hints requires a path");
+            solverHintsPath = std::filesystem::path(argv[index]);
         } else if (arg == "--symbol") {
             if (++index >= argc) {
                 throw std::runtime_error("--symbol requires a name");
@@ -6707,11 +6750,30 @@ int compileRulesCommand(const std::string& sourcePath, int argc, char** argv) {
         }
     }
 
+    std::vector<CodegenSource> solverProfiles;
     const std::vector<CodegenSource> inputSources = collectCompiledRuleSources(
         std::filesystem::path(sourcePath),
         caseIndex,
         caseNameFilter
     );
+    if (solverHintsPath) {
+        if (compactTurnOnly || emitRuntimeIrCache) {
+            throw std::runtime_error("solver profiles require rulegroups and cannot be exported as ordinary runtime-IR caches");
+        }
+        const auto hints = puzzlescript::json::parse(readFile(*solverHintsPath));
+        for (const auto& original : inputSources) {
+            auto source = original;
+            const auto* report = puzzlescript::solver::findGameStaticAnalysis(hints, source.path.filename().string());
+            if (!report || !source.game) continue;
+            const auto lines = puzzlescript::solver::provedWinIrrelevantSourceLines(*report);
+            if (lines.empty()) continue;
+            auto game = std::make_shared<puzzlescript::Game>(*source.game);
+            source.solverPruning = puzzlescript::pruneSolverRules(*game, lines);
+            if (source.solverPruning.removedRules.empty()) continue;
+            source.game = std::move(game);
+            solverProfiles.push_back(std::move(source));
+        }
+    }
     uint64_t skippedSources = 0;
     uint64_t skippedCompiledRules = 0;
     uint64_t skippedGeneratedLineSources = 0;
@@ -6729,6 +6791,17 @@ int compileRulesCommand(const std::string& sourcePath, int argc, char** argv) {
         skippedGeneratedLines
     );
     const CompiledRulesCoverage coverage = measureCompiledRulesCoverage(sources, options);
+    auto profileOptions = options;
+    profileOptions.solverProfile = true;
+    if (solverHintsPath) {
+        uint64_t ignoredSources = 0, ignoredRules = 0, ignoredLineSources = 0, ignoredLines = 0;
+        solverProfiles = selectCompiledRuleSourcesForEmission(solverProfiles, profileOptions, compactOptions,
+            maxCompiledRulesPerSource, maxGeneratedLinesPerSource, false,
+            ignoredSources, ignoredRules, ignoredLineSources, ignoredLines);
+        uint64_t removed = 0;
+        for (const auto& profile : solverProfiles) removed += profile.solverPruning.removedRuleCount();
+        std::cerr << "solver-compiled-profiles: sources=" << solverProfiles.size() << " removed_rules=" << removed << "\n";
+    }
     if (emitRuntimeIrCache.has_value()) {
         writeFileIfChanged(
             *emitRuntimeIrCache,
@@ -6768,20 +6841,32 @@ int compileRulesCommand(const std::string& sourcePath, int argc, char** argv) {
     uint32_t wroteCount = 0;
     std::string outputPath;
     if (emitCpp.has_value()) {
-        const std::string generated = generateCompiledRulesCpp(sources, symbol, options, compactOptions, true, {}, {}, {}, compactTurnOnly);
+        std::string generated = generateCompiledRulesCpp(sources, symbol, options, compactOptions, true, {}, {}, {}, compactTurnOnly);
+        if (solverHintsPath) {
+            generated += generateCompiledRulesCpp(solverProfiles, symbol + "_solver", profileOptions, compactOptions);
+        }
         wroteCount = writeFileIfChanged(*emitCpp, generated) ? 1U : 0U;
         outputPath = emitCpp->string();
     } else {
+        std::vector<std::filesystem::path> generatedPaths;
         wroteCount = writeCompiledRulesCppDirectory(
             sources,
             *emitCppDir,
-            *emitSourcesList,
+            generatedPaths,
             symbol,
             options,
             compactOptions,
             coverage,
             compactTurnOnly
         );
+        if (solverHintsPath) {
+            wroteCount += writeCompiledRulesCppDirectory(solverProfiles, *emitCppDir, generatedPaths,
+                symbol + "_solver", profileOptions, compactOptions,
+                measureCompiledRulesCoverage(solverProfiles, profileOptions));
+        }
+        std::ostringstream list;
+        for (const auto& path : generatedPaths) list << path.string() << "\n";
+        if (writeFileIfChanged(*emitSourcesList, list.str())) ++wroteCount;
         outputPath = emitCppDir->string();
     }
     std::cerr << "compiled-rules: sources=" << sources.size()
@@ -7357,6 +7442,7 @@ void printCompileRulesHelp() {
         << "--stats-only to print coverage and miss buckets without writing generated code. --coverage-json writes per-source coverage. --max-rows defaults to 1;\n"
         << "higher values enable experimental deterministic multi-row kernels. --compact-turn-mode defaults to interpreter; compiler mode emits the native compact kernel when supported and falls back to the interpreter bridge otherwise.\n"
         << "--compact-turn-only emits compact turn backends and registry stubs without generated rule kernels, useful for compact oracle coverage builds.\n"
+        << "--solver-static-analysis-hints PATH additionally emits isolated solver profiles with proved win-irrelevant rules removed. Link the complete sources list; ordinary player backends are retained. Enable the profiles with solver --static-analysis-hints PATH --solver-opt win-relevance. Profiles cannot be combined with --compact-turn-only or runtime-IR cache export.\n"
         << "--compact-tick-only remains as a compatibility alias. --emit-runtime-ir-cache writes loadable runtime metadata keyed by source hash. --runtime-ir-cache-omit-rules is experimental and only valid when callers do not need load-level rule execution. --max-compiled-rules-per-source and --max-generated-lines-per-source skip oversized sharded sources so the runtime can fall back for those games.\n\n"
         << "Examples:\n"
         << "  puzzlescript_cpp specialize-rulegroups src/demo/sokoban_basic.txt --emit-cpp build/compiled-rules/sokoban.cpp --symbol sokoban\n"

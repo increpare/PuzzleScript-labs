@@ -1,0 +1,699 @@
+{
+  "date": "2026-10-23",
+  "game": "cakemonsters.txt",
+  "compilerCommit": "b65e9502",
+  "baselineGeneratorCommit": "fe110a0e",
+  "conclusion": {
+    "status": "regression_not_reproduced",
+    "originalReportedSlowdownPercent": 11.445872518707901,
+    "explanation": "The original two-sample mean was dominated by one slow optimized sample. Repeated isolated and corpus-prefix comparisons do not establish a systematic slowdown; identical binaries have large occasional timing spikes. No C++ rollback or workaround is indicated.",
+    "isolatedWholeGameMedianReductionPercent": 4.711537310134528,
+    "original29LevelMedianReductionPercent": 4.737380196526386
+  },
+  "method": {
+    "build": "Original retained MSVC x64 Release executables; no recompilation or changes to timing instrumentation",
+    "strategy": "weighted-astar",
+    "jobs": 1,
+    "independentPerLevelRuns": 12,
+    "perLevelTimeoutMs": 2000,
+    "wholeGameTimeoutMs": 250,
+    "wholeGameRunsPerVariant": 4,
+    "prefixRunsPerVariant": 2,
+    "counterRunsExcludedFromTiming": true,
+    "limits": "The exact cause of individual timing spikes was not established. CPU scheduling, clock rate and allocator/cache state were not independently profiled; the evidence establishes measurement variability, not which mechanism caused it."
+  },
+  "binaries": {
+    "before": {
+      "sha256": "21801441f12657d37c251a7b28a002760642b0a1e41d09c43d717c752e3a8cd3"
+    },
+    "prototype": {
+      "sha256": "f13fb7c73521d448e50a1a619b009425fc1dd91d08e5ad7ddd2aff51dd5573b8"
+    },
+    "production": {
+      "sha256": "88cd0ad7cf193a7ae06fbdf755dd6aead5ae971674cd494144a80531047b88d1"
+    }
+  },
+  "originalSharedLevels": [
+    2,
+    4,
+    7,
+    9,
+    11,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    21,
+    22,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    31,
+    32,
+    33,
+    35,
+    37,
+    38,
+    39,
+    40,
+    43,
+    46
+  ],
+  "originalSamples": [
+    {
+      "variant": "before",
+      "stepMs": 344.17830000000004
+    },
+    {
+      "variant": "prototype",
+      "stepMs": 420.7948
+    },
+    {
+      "variant": "prototype",
+      "stepMs": 325.02649999999994
+    },
+    {
+      "variant": "before",
+      "stepMs": 325.0446
+    }
+  ],
+  "perLevel": [
+    {
+      "level": 38,
+      "byVariant": {
+        "before": {
+          "runs": 12,
+          "generated": 29284,
+          "medianStepMs": 83.28380000000001,
+          "minStepMs": 82.5255,
+          "maxStepMs": 84.7374,
+          "medianElapsedMs": 125
+        },
+        "prototype": {
+          "runs": 12,
+          "generated": 29284,
+          "medianStepMs": 81.6729,
+          "minStepMs": 80.4962,
+          "maxStepMs": 84.6471,
+          "medianElapsedMs": 121.5
+        },
+        "production": {
+          "runs": 12,
+          "generated": 29284,
+          "medianStepMs": 81.54955,
+          "minStepMs": 80.4163,
+          "maxStepMs": 84.7937,
+          "medianElapsedMs": 122
+        }
+      },
+      "sampleStepMs": {
+        "before": [
+          83.3349,
+          83.8512,
+          84.7374,
+          83.1263,
+          83.2763,
+          83.5682,
+          83.8632,
+          82.5255,
+          83.2173,
+          82.5695,
+          82.719,
+          83.2913
+        ],
+        "prototype": [
+          82.5047,
+          81.8895,
+          82.3198,
+          84.6471,
+          80.8858,
+          80.4962,
+          81.1985,
+          82.5722,
+          80.7077,
+          81.6481,
+          81.6977,
+          81.0267
+        ],
+        "production": [
+          81.372,
+          82.3427,
+          81.6592,
+          80.4163,
+          81.3586,
+          81.4956,
+          82.5001,
+          81.4759,
+          84.7937,
+          81.6035,
+          81.0581,
+          82.5428
+        ]
+      }
+    },
+    {
+      "level": 21,
+      "byVariant": {
+        "before": {
+          "runs": 12,
+          "generated": 21607,
+          "medianStepMs": 69.4547,
+          "minStepMs": 68.6304,
+          "maxStepMs": 70.36,
+          "medianElapsedMs": 102
+        },
+        "prototype": {
+          "runs": 12,
+          "generated": 21607,
+          "medianStepMs": 67.03715,
+          "minStepMs": 65.6394,
+          "maxStepMs": 70.0862,
+          "medianElapsedMs": 99
+        },
+        "production": {
+          "runs": 12,
+          "generated": 21607,
+          "medianStepMs": 67.30615,
+          "minStepMs": 66.5552,
+          "maxStepMs": 68.7125,
+          "medianElapsedMs": 99
+        }
+      },
+      "sampleStepMs": {
+        "before": [
+          68.6304,
+          69.8797,
+          69.0616,
+          70.0974,
+          69.0413,
+          68.7425,
+          69.1387,
+          69.5546,
+          69.9261,
+          69.3548,
+          69.7274,
+          70.36
+        ],
+        "prototype": [
+          67.6223,
+          68.9753,
+          67.2078,
+          65.6394,
+          66.7332,
+          67.1031,
+          66.254,
+          66.961,
+          67.4575,
+          66.9303,
+          70.0862,
+          66.9712
+        ],
+        "production": [
+          67.2139,
+          67.4947,
+          67.6613,
+          67.0389,
+          66.8125,
+          67.3984,
+          68.7125,
+          66.5552,
+          67.478,
+          67.1007,
+          67.8216,
+          67.2046
+        ]
+      }
+    },
+    {
+      "level": 33,
+      "byVariant": {
+        "before": {
+          "runs": 12,
+          "generated": 19272,
+          "medianStepMs": 46.20805,
+          "minStepMs": 44.683,
+          "maxStepMs": 49.9288,
+          "medianElapsedMs": 78.5
+        },
+        "prototype": {
+          "runs": 12,
+          "generated": 19272,
+          "medianStepMs": 42.40445,
+          "minStepMs": 41.1635,
+          "maxStepMs": 43.8526,
+          "medianElapsedMs": 74.5
+        },
+        "production": {
+          "runs": 12,
+          "generated": 19272,
+          "medianStepMs": 42.41605,
+          "minStepMs": 42.1164,
+          "maxStepMs": 44.068,
+          "medianElapsedMs": 75
+        }
+      },
+      "sampleStepMs": {
+        "before": [
+          44.683,
+          46.5945,
+          45.7339,
+          47.2111,
+          46.4562,
+          47.2772,
+          45.6783,
+          45.2259,
+          46.5448,
+          45.9599,
+          49.9288,
+          44.8946
+        ],
+        "prototype": [
+          42.4018,
+          42.5064,
+          43.8526,
+          42.2588,
+          41.9401,
+          42.5974,
+          42.7225,
+          42.4071,
+          41.1635,
+          42.1082,
+          43.5751,
+          41.9762
+        ],
+        "production": [
+          42.6841,
+          44.068,
+          42.6045,
+          42.2565,
+          42.4986,
+          42.1164,
+          42.2609,
+          42.2336,
+          42.1766,
+          42.3335,
+          43.9523,
+          42.6596
+        ]
+      }
+    },
+    {
+      "level": 40,
+      "byVariant": {
+        "before": {
+          "runs": 12,
+          "generated": 11643,
+          "medianStepMs": 29.4052,
+          "minStepMs": 28.8797,
+          "maxStepMs": 30.5196,
+          "medianElapsedMs": 46
+        },
+        "prototype": {
+          "runs": 12,
+          "generated": 11643,
+          "medianStepMs": 28.59365,
+          "minStepMs": 28.0654,
+          "maxStepMs": 33.3178,
+          "medianElapsedMs": 44
+        },
+        "production": {
+          "runs": 12,
+          "generated": 11643,
+          "medianStepMs": 28.67815,
+          "minStepMs": 28.1759,
+          "maxStepMs": 29.7723,
+          "medianElapsedMs": 44.5
+        }
+      },
+      "sampleStepMs": {
+        "before": [
+          29.2184,
+          29.6817,
+          29.4798,
+          29.2144,
+          29.4126,
+          30.4982,
+          28.8797,
+          29.5008,
+          29.3978,
+          29.1747,
+          29.3921,
+          30.5196
+        ],
+        "prototype": [
+          28.5675,
+          28.113,
+          28.6935,
+          28.3082,
+          28.824,
+          28.6198,
+          29.4298,
+          28.6661,
+          33.3178,
+          28.0654,
+          28.4376,
+          28.3412
+        ],
+        "production": [
+          28.6133,
+          28.6561,
+          29.0367,
+          28.8871,
+          28.3259,
+          29.7723,
+          28.7002,
+          28.7174,
+          28.6181,
+          28.1759,
+          29.058,
+          28.3698
+        ]
+      }
+    }
+  ],
+  "wholeGame": {
+    "game": "cakemonsters.txt",
+    "timeoutMs": 250,
+    "order": [
+      "before",
+      "after",
+      "after",
+      "before",
+      "before",
+      "after",
+      "after",
+      "before"
+    ],
+    "commonIdenticalSolved": 30,
+    "variants": {
+      "before": {
+        "runs": 4,
+        "solved": [
+          30,
+          30,
+          30,
+          30
+        ],
+        "commonStepMs": [
+          455.6714999999999,
+          458.92069999999995,
+          459.6903,
+          506.34560000000005
+        ],
+        "medianGeneratedPerStepMs": 330.12064018347075,
+        "medianWallMs": 2423.9119,
+        "medianCommonStepMs": 459.30549999999994
+      },
+      "after": {
+        "runs": 4,
+        "solved": [
+          30,
+          30,
+          30,
+          30
+        ],
+        "commonStepMs": [
+          437.29029999999995,
+          437.6508,
+          437.67949999999996,
+          438.3121
+        ],
+        "medianGeneratedPerStepMs": 345.00141893642046,
+        "medianWallMs": 2396.2492,
+        "medianCommonStepMs": 437.66515
+      }
+    },
+    "commonTimeReductionPercent": 4.711537310134528,
+    "stepThroughputPercent": 4.507678994163911
+  },
+  "wholeGameOnOriginal29Levels": {
+    "before": {
+      "sampleStepMs": [
+        349.10260000000005,
+        315.61269999999996,
+        315.73549999999994,
+        318.86629999999997
+      ],
+      "meanStepMs": 324.829275,
+      "medianStepMs": 317.30089999999996
+    },
+    "after": {
+      "sampleStepMs": [
+        301.78829999999994,
+        302.95509999999996,
+        302.3895,
+        302.1488
+      ],
+      "meanStepMs": 302.32042499999994,
+      "medianStepMs": 302.26914999999997
+    }
+  },
+  "corpusPrefix": {
+    "prefixGames": 70,
+    "order": [
+      "before",
+      "prototype",
+      "production",
+      "production",
+      "prototype",
+      "before"
+    ],
+    "commonIdenticalSolved": 30,
+    "differences": 0,
+    "variants": {
+      "before": {
+        "runs": 2,
+        "commonStepMs": [
+          455.63770000000005,
+          509.339
+        ],
+        "meanCommonStepMs": 482.48835
+      },
+      "prototype": {
+        "runs": 2,
+        "commonStepMs": [
+          443.0977,
+          440.62340000000006
+        ],
+        "meanCommonStepMs": 441.86055
+      },
+      "production": {
+        "runs": 2,
+        "commonStepMs": [
+          495.288,
+          452.47669999999994
+        ],
+        "meanCommonStepMs": 473.88235
+      }
+    }
+  },
+  "corpusPrefixOnOriginal29Levels": {
+    "before": {
+      "sampleStepMs": [
+        312.99070000000006,
+        366.567
+      ],
+      "meanStepMs": 339.77885000000003,
+      "medianStepMs": 339.77885000000003
+    },
+    "prototype": {
+      "sampleStepMs": [
+        306.0137,
+        300.83940000000007
+      ],
+      "meanStepMs": 303.42655,
+      "medianStepMs": 303.42655
+    },
+    "production": {
+      "sampleStepMs": [
+        357.26300000000003,
+        302.16869999999994
+      ],
+      "meanStepMs": 329.71585,
+      "medianStepMs": 329.71585
+    }
+  },
+  "generatedCode": {
+    "groupRescanLoops": {
+      "before": 34,
+      "after": 34
+    },
+    "matchRecheckSites": {
+      "before": 136,
+      "after": 136
+    },
+    "movementGetterSites": {
+      "before": 404,
+      "after": 340
+    },
+    "allocatingSetterSites": {
+      "before": 228,
+      "after": 0
+    },
+    "arraySetterSites": {
+      "before": 0,
+      "after": 228
+    }
+  },
+  "counters": {
+    "comparedNonTimingFields": 78,
+    "differences": [],
+    "values": {
+      "rules_visited": 0,
+      "rules_skipped_by_mask": 0,
+      "rule_group_invocations": 0,
+      "rule_group_passes": 0,
+      "rule_group_confirmation_passes": 0,
+      "rule_group_confirmation_rule_visits": 0,
+      "candidate_cells_tested": 0,
+      "pattern_tests": 0,
+      "pattern_matches": 0,
+      "replacements_attempted": 0,
+      "replacements_applied": 0,
+      "row_scans": 0,
+      "ellipsis_scans": 0,
+      "mask_rebuild_calls": 114960,
+      "mask_rebuild_dirty_calls": 81394,
+      "mask_rebuild_rows": 237903,
+      "mask_rebuild_columns": 196873,
+      "mask_rebuild_object_rows": 140408,
+      "mask_rebuild_object_columns": 110391,
+      "mask_rebuild_movement_rows": 97495,
+      "mask_rebuild_movement_columns": 86482,
+      "mask_rebuild_object_row_cells_scanned": 702056,
+      "mask_rebuild_object_column_cells_scanned": 993507,
+      "mask_rebuild_movement_row_cells_scanned": 487491,
+      "mask_rebuild_movement_column_cells_scanned": 778326,
+      "mask_rebuild_object_count_full_rebuilds": 0,
+      "mask_rebuild_object_count_full_rebuild_cells_scanned": 0,
+      "mask_rebuild_object_count_index_rebuilds": 0,
+      "mask_rebuild_object_count_index_bits_visited": 0,
+      "mask_dirty_object_cells_changed": 207349,
+      "mask_dirty_object_bits_changed": 220112,
+      "mask_dirty_object_bits_cleared": 110064,
+      "mask_dirty_object_marks": 207349,
+      "mask_dirty_object_add_only_marks": 97285,
+      "mask_dirty_object_clear_marks": 110064,
+      "mask_dirty_object_refcount_bit_updates": 0,
+      "mask_dirty_object_refcount_fallbacks": 0,
+      "mask_dirty_movement_cells_changed": 125230,
+      "mask_dirty_movement_bits_changed": 125230,
+      "mask_dirty_movement_bits_cleared": 46886,
+      "mask_dirty_movement_marks": 125230,
+      "mask_dirty_movement_clear_marks": 46886,
+      "mask_dirty_movement_line_all_marks": 78344,
+      "specialized_rulegroup_attempts": 0,
+      "specialized_rulegroup_hits": 0,
+      "specialized_rulegroup_fallbacks": 0,
+      "specialized_full_turn_attempts": 29302,
+      "specialized_full_turn_hits": 29302,
+      "specialized_full_turn_fallbacks": 0,
+      "compact_turn_native_calls": 0,
+      "compact_turn_bridge_calls": 0,
+      "compact_turn_setup_ns": 0,
+      "compact_turn_early_rules_ns": 0,
+      "compact_turn_movement_ns": 0,
+      "compact_turn_late_rules_ns": 0,
+      "compact_turn_win_ns": 0,
+      "compact_turn_canonicalize_ns": 0,
+      "compact_turn_again_probe_calls": 0,
+      "compact_turn_again_probe_ns": 0,
+      "compact_turn_bridge_create_ns": 0,
+      "compact_turn_bridge_materialize_ns": 0,
+      "compact_turn_bridge_turn_ns": 0,
+      "compact_turn_bridge_copyback_ns": 0,
+      "compact_turn_rule_mask_precheck_passes": 0,
+      "compact_turn_rule_mask_precheck_failures": 0,
+      "compact_turn_rule_apply_calls": 0,
+      "compact_turn_rule_apply_no_match": 0,
+      "compact_turn_rule_apply_changed": 0,
+      "compact_turn_rebuild_rule_derived_state_calls": 0,
+      "compact_turn_rebuild_rule_derived_state_objects_dirty": 0,
+      "compact_turn_rebuild_rule_derived_state_movements_dirty": 0,
+      "compact_turn_simple_replacement_fast_path_calls": 0,
+      "compact_turn_simple_replacement_fast_path_noops": 0,
+      "compact_turn_simple_replacement_fast_path_changes": 0,
+      "movement_anchor_overlap_cells_scanned": 0,
+      "movement_anchor_collection_cells_scanned": 0,
+      "movement_anchor_collections_used": 0,
+      "movement_anchor_runtime_mask_builds": 0,
+      "compact_turn_attempts": 0,
+      "compact_turn_hits": 0,
+      "compact_turn_native_attempts": 0,
+      "compact_turn_native_hits": 0,
+      "compact_turn_bridge_attempts": 0,
+      "compact_turn_bridge_hits": 0,
+      "compact_turn_unhandled": 0,
+      "compact_turn_fallbacks": 0,
+      "compact_turn_unsupported": 0,
+      "compact_turn_oracle_checks": 0,
+      "compact_turn_oracle_failures": 0
+    }
+  },
+  "prefixSpikes": [
+    {
+      "variant": "before",
+      "run": 1,
+      "step_ms": 82.3661,
+      "clone_ms": 10.2612,
+      "hash_ms": 6.0756,
+      "elapsed_ms": 116,
+      "generated": 29284
+    },
+    {
+      "variant": "prototype",
+      "run": 2,
+      "step_ms": 83.4981,
+      "clone_ms": 12.2052,
+      "hash_ms": 5.3525,
+      "elapsed_ms": 122,
+      "generated": 29284
+    },
+    {
+      "variant": "production",
+      "run": 3,
+      "step_ms": 131.693,
+      "clone_ms": 17.6327,
+      "hash_ms": 7.1207,
+      "elapsed_ms": 182,
+      "generated": 29284
+    },
+    {
+      "variant": "production",
+      "run": 4,
+      "step_ms": 80.7468,
+      "clone_ms": 10.3087,
+      "hash_ms": 5.1453,
+      "elapsed_ms": 113,
+      "generated": 29284
+    },
+    {
+      "variant": "prototype",
+      "run": 5,
+      "step_ms": 81.6063,
+      "clone_ms": 10.7258,
+      "hash_ms": 5.2124,
+      "elapsed_ms": 115,
+      "generated": 29284
+    },
+    {
+      "variant": "before",
+      "run": 6,
+      "step_ms": 86.3983,
+      "clone_ms": 11.9867,
+      "hash_ms": 6.3217,
+      "elapsed_ms": 126,
+      "generated": 29284
+    }
+  ],
+  "reproduction": {
+    "wholeGame": "node src/tests/compare_compiled_solver_benchmark.js BEFORE AFTER src/tests/solver_tests --game cakemonsters.txt --runs 4 --timeout-ms 250 --out-dir build/native/cakemonsters-repeat",
+    "singleLevel": "node src/tests/compare_compiled_solver_benchmark.js BEFORE AFTER src/tests/solver_tests --game cakemonsters.txt --level 38 --runs 12 --timeout-ms 2000 --out-dir build/native/cakemonsters-level-38",
+    "prefix": "Copy the first 70 games in solver traversal order, through cakemonsters.txt inclusive, preserving filenames and source bytes; rerun before/prototype/production/production/prototype/before with 250 ms per level. All compared Cakemonsters solutions and search counts match."
+  }
+}

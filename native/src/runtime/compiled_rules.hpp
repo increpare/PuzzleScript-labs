@@ -95,6 +95,28 @@ uint64_t compiledRulesHashSource(std::string_view source);
 void attachLinkedCompiledRules(Game& game, std::string_view source);
 void attachLinkedCompiledRules(Game& game, uint64_t sourceHash);
 
+struct SolverRulePruning {
+    // Exact (phase, original group index, original rule index) triples. Retain
+    // them alongside the lookup hash so a hash collision cannot attach a
+    // backend generated for a different pruning decision.
+    std::vector<uint32_t> removedRules;
+    uint64_t profileHash = 0;
+    size_t removedRuleCount() const { return removedRules.size() / 3; }
+};
+
+struct SolverCompiledRulesProfile {
+    uint64_t sourceHash;
+    uint64_t profileHash;
+    const uint32_t* removedRules;
+    size_t removedRulesSize;
+    const SpecializedRulegroupsBackend* rulegroups;
+    const SpecializedFullTurnBackend* fullTurn;
+    const SpecializedCompactTurnBackend* compactTurn;
+};
+
+SolverRulePruning pruneSolverRules(Game& game, const std::vector<int32_t>& sourceLines);
+bool attachLinkedSolverRules(Game& game, uint64_t sourceHash, const SolverRulePruning& pruning);
+
 const MaskWord* compiledRuleMaskPtr(const Game& game, MaskOffset offset);
 SpecializedCompactTurnOutcome compactStateInterpretedTurnBridge(
     const Game& game,
@@ -108,6 +130,14 @@ const MaskWord* compiledRuleCellObjects(const FullState& state, int32_t tileInde
 const MaskWord* compiledRuleCellMovements(const FullState& state, int32_t tileIndex);
 bool compiledRuleBitsSet(const MaskWord* required, size_t requiredCount, const MaskWord* actual, size_t actualCount);
 bool compiledRuleAnyBits(const MaskWord* lhs, size_t lhsCount, const MaskWord* rhs, size_t rhsCount);
+// Sparse inputs contain values only at the sorted indices in words.
+void compiledRuleSetCellObjectsSparseFromWords(
+    FullState& session, int32_t tileIndex, const MaskWord* objects,
+    const MaskWord* created, const MaskWord* destroyed,
+    const uint32_t* words, size_t wordCount);
+void compiledRuleSetCellMovementsSparseFromWords(
+    FullState& session, int32_t tileIndex, const MaskWord* movements,
+    const uint32_t* words, size_t wordCount);
 void compiledRuleSetCellObjectsFromWords(
     FullState& state,
     int32_t tileIndex,

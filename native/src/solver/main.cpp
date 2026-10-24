@@ -37,6 +37,7 @@
 #include "runtime/json.hpp"
 #include "search/search_common.hpp"
 #include "solver/heuristics.hpp"
+#include "solver/static_analysis_hints.hpp"
 
 #ifdef PUZZLESCRIPT_SOLVER_C_API
 #include "runtime/c_api_internal.hpp"
@@ -350,6 +351,7 @@ struct Result {
     std::string strategy = "bfs";
     std::string heuristic = "none";
     std::string staticAnalysisHints;
+    bool actionInputPruned = false;
     std::vector<std::string> solution;
     int64_t elapsedMs = 0;
     uint64_t expanded = 0;
@@ -581,81 +583,11 @@ std::vector<std::string> optionalJsonStringArrayField(
     return values;
 }
 
-std::unordered_map<std::string, int32_t> ruleSourceLinesByStaticRuleId(
-    const puzzlescript::json::Value::Object& object
-) {
-    std::unordered_map<std::string, int32_t> byId;
-    const auto tagged = object.find("ps_tagged");
-    if (tagged == object.end() || !tagged->second.isObject()) {
-        return byId;
-    }
-    const auto& taggedObject = tagged->second.asObject();
-    const auto sections = taggedObject.find("rule_sections");
-    if (sections == taggedObject.end() || !sections->second.isArray()) {
-        return byId;
-    }
-    for (const puzzlescript::json::Value& sectionValue : sections->second.asArray()) {
-        if (!sectionValue.isObject()) {
-            continue;
-        }
-        const auto& sectionObject = sectionValue.asObject();
-        const auto groups = sectionObject.find("groups");
-        if (groups == sectionObject.end() || !groups->second.isArray()) {
-            continue;
-        }
-        for (const puzzlescript::json::Value& groupValue : groups->second.asArray()) {
-            if (!groupValue.isObject()) {
-                continue;
-            }
-            const auto& groupObject = groupValue.asObject();
-            const auto rules = groupObject.find("rules");
-            if (rules == groupObject.end() || !rules->second.isArray()) {
-                continue;
-            }
-            for (const puzzlescript::json::Value& ruleValue : rules->second.asArray()) {
-                if (!ruleValue.isObject()) {
-                    continue;
-                }
-                const auto& ruleObject = ruleValue.asObject();
-                const auto id = optionalJsonStringField(ruleObject, "id");
-                const auto sourceLine = optionalJsonIntField(ruleObject, "source_line");
-                if (id.has_value() && sourceLine.has_value()) {
-                    byId[*id] = *sourceLine;
-                }
-            }
-        }
-    }
-    return byId;
-}
-
 const puzzlescript::json::Value* findStaticAnalysisForGame(
     const puzzlescript::json::Value& root,
     const std::string& gameName
 ) {
-    if (!root.isObject()) {
-        return nullptr;
-    }
-    const auto& rootObject = root.asObject();
-    const auto games = rootObject.find("games");
-    if (games == rootObject.end() || !games->second.isObject()) {
-        return &root;
-    }
-
-    const auto& gamesObject = games->second.asObject();
-    const std::string baseName = std::filesystem::path(gameName).filename().generic_string();
-    const std::array<std::string, 4> keys{
-        gameName,
-        baseName,
-        lowercase(gameName),
-        lowercase(baseName),
-    };
-    for (const std::string& key : keys) {
-        const auto it = gamesObject.find(key);
-        if (it != gamesObject.end()) {
-            return &it->second;
-        }
-    }
-    return nullptr;
+    return puzzlescript::solver::findGameStaticAnalysis(root, gameName);
 }
 
 puzzlescript::solver::StaticAnalysisHints parseStaticAnalysisHintsForGame(
@@ -737,6 +669,19 @@ puzzlescript::solver::StaticAnalysisHints parseStaticAnalysisHintsForGame(
     const auto facts = object.find("facts");
     if (facts != object.end() && facts->second.isObject()) {
         const auto& factsObject = facts->second.asObject();
+        if (const auto actionFacts = factsObject.find("movement_action");
+            actionFacts != factsObject.end() && actionFacts->second.isArray()) {
+            for (const auto& fact : actionFacts->second.asArray()) {
+                if (!fact.isObject()) continue;
+                const auto& entry = fact.asObject();
+                const auto value = entry.find("value");
+                if (optionalJsonStringField(entry, "id") == "action_unnecessary"
+                    && optionalJsonStringField(entry, "status") == "proved"
+                    && value != entry.end() && value->second.isBool() && value->second.asBool()) {
+                    hints.actionUnnecessaryProved = true;
+                }
+            }
+        }
         const auto projectionFacts = factsObject.find("solver_hash_projection");
         if (projectionFacts != factsObject.end() && projectionFacts->second.isArray()) {
             for (const puzzlescript::json::Value& factValue : projectionFacts->second.asArray()) {
@@ -792,44 +737,8 @@ puzzlescript::solver::StaticAnalysisHints parseStaticAnalysisHintsForGame(
             }
         }
 
-        const auto winRelevanceFacts = factsObject.find("win_relevance");
-        if (winRelevanceFacts != factsObject.end() && winRelevanceFacts->second.isArray()) {
-            const std::unordered_map<std::string, int32_t> lineByRuleId =
-                ruleSourceLinesByStaticRuleId(object);
-            for (const puzzlescript::json::Value& factValue : winRelevanceFacts->second.asArray()) {
-                if (!factValue.isObject()) {
-                    continue;
-                }
-                const auto& factObject = factValue.asObject();
-                if (const auto factId = optionalJsonStringField(factObject, "id");
-                    factId.has_value() && *factId != "win_relevance") {
-                    continue;
-                }
-                const auto status = optionalJsonStringField(factObject, "status");
-                if (!status.has_value() || lowercase(*status) != "proved") {
-                    continue;
-                }
-                const auto valueIt = factObject.find("value");
-                if (valueIt == factObject.end() || !valueIt->second.isObject()) {
-                    continue;
-                }
-                const auto irrelevantRuleIds =
-                    optionalJsonStringArrayField(valueIt->second.asObject(), "irrelevant_rule_ids");
-                std::unordered_set<int32_t> uniqueLines;
-                for (const std::string& ruleId : irrelevantRuleIds) {
-                    const auto found = lineByRuleId.find(ruleId);
-                    if (found != lineByRuleId.end()) {
-                        uniqueLines.insert(found->second);
-                    }
-                }
-                hints.winRelevanceAvailable = true;
-                hints.winIrrelevantRuleSourceLines.assign(uniqueLines.begin(), uniqueLines.end());
-                std::sort(
-                    hints.winIrrelevantRuleSourceLines.begin(),
-                    hints.winIrrelevantRuleSourceLines.end());
-                break;
-            }
-        }
+        hints.winIrrelevantRuleSourceLines = puzzlescript::solver::provedWinIrrelevantSourceLines(value);
+        hints.winRelevanceAvailable = !hints.winIrrelevantRuleSourceLines.empty();
     }
     return hints;
 }
@@ -841,6 +750,7 @@ puzzlescript::solver::StaticAnalysisHints deriveNativeStaticAnalysisHints(const 
         puzzlescript::solver::analyzeStaticObjects(game);
     hints.available = true;
     hints.staticObjects = staticAnalysis.staticObjects;
+    hints.actionUnnecessaryProved = puzzlescript::solver::actionInputIsUnnecessary(game);
 
     const puzzlescript::solver::SolverHashProjectionAnalysis projection =
         puzzlescript::solver::analyzeSolverHashProjection(game);
@@ -918,14 +828,22 @@ std::string inputName(ps_input input) {
     return "unknown";
 }
 
-std::vector<ps_input> solverInputsForGame(const Game& game) {
+std::vector<ps_input> solverInputsForGame(
+    const Game& game,
+    const puzzlescript::solver::StaticAnalysisHints* staticAnalysisHints
+) {
     std::vector<ps_input> inputs{
         PS_INPUT_RIGHT,
         PS_INPUT_UP,
         PS_INPUT_DOWN,
         PS_INPUT_LEFT,
     };
-    if (game.metadata.values.find("noaction") == game.metadata.values.end()) {
+    static const bool useActionPruning = [] {
+        const char* value = std::getenv("PUZZLESCRIPT_SOLVER_ACTION_PRUNING");
+        return value == nullptr || std::string_view(value) != "0";
+    }();
+    if (game.metadata.values.find("noaction") == game.metadata.values.end()
+        && !(useActionPruning && staticAnalysisHints && staticAnalysisHints->actionUnnecessaryProved)) {
         inputs.push_back(PS_INPUT_ACTION);
     }
     return inputs;
@@ -1307,59 +1225,21 @@ void attachSolverHashProjectionMetadata(
     }
 }
 
-uint64_t dropRulesBySourceLine(
-    std::vector<std::vector<puzzlescript::Rule>>& groups,
-    const std::unordered_set<int32_t>& sourceLines
-) {
-    uint64_t removed = 0;
-    if (sourceLines.empty()) {
-        return removed;
-    }
-    for (std::vector<puzzlescript::Rule>& group : groups) {
-        if (group.empty()) {
-            continue;
-        }
-        std::vector<puzzlescript::Rule> kept;
-        kept.reserve(group.size());
-        for (puzzlescript::Rule& rule : group) {
-            if (!rule.isRandom && sourceLines.find(rule.lineNumber) != sourceLines.end()) {
-                ++removed;
-                continue;
-            }
-            kept.push_back(std::move(rule));
-        }
-        group = std::move(kept);
-    }
-    return removed;
-}
-
 uint64_t applyWinRelevancePruning(
     puzzlescript::LoadedGame& loadedGame,
     const puzzlescript::solver::StaticAnalysisHints& hints,
-    bool enabled
+    bool enabled,
+    std::string_view source
 ) {
-    if (!enabled
-        || !hints.winRelevanceAvailable
-        || hints.winIrrelevantRuleSourceLines.empty()
-        || !loadedGame.information) {
-        return 0;
-    }
-
-    auto prunedGame = std::make_shared<puzzlescript::Game>(*loadedGame.information);
-    const std::unordered_set<int32_t> sourceLines(
-        hints.winIrrelevantRuleSourceLines.begin(),
-        hints.winIrrelevantRuleSourceLines.end());
-    uint64_t removed = dropRulesBySourceLine(prunedGame->rules, sourceLines);
-    removed += dropRulesBySourceLine(prunedGame->lateRules, sourceLines);
-    if (removed == 0) {
-        return 0;
-    }
-
-    prunedGame->specializedRulegroups = nullptr;
-    prunedGame->specializedFullTurn = nullptr;
-    prunedGame->specializedCompactTurn = nullptr;
+    if (!enabled || !hints.winRelevanceAvailable || hints.winIrrelevantRuleSourceLines.empty()
+        || !loadedGame.information) return 0;
+    auto prunedGame = std::make_shared<Game>(*loadedGame.information);
+    const auto pruning = puzzlescript::pruneSolverRules(*prunedGame, hints.winIrrelevantRuleSourceLines);
+    if (pruning.removedRules.empty()) return 0;
+    // Missing/stale solver profiles retain the ordinary interpreter fallback.
+    puzzlescript::attachLinkedSolverRules(*prunedGame, puzzlescript::compiledRulesHashSource(source), pruning);
     loadedGame.information = std::move(prunedGame);
-    return removed;
+    return pruning.removedRuleCount();
 }
 
 StateKey persistentLevelStateKey(
@@ -2691,7 +2571,8 @@ Result runSearch(
         && heuristicKind == puzzlescript::solver::HeuristicKind::MisCostEstimate;
 
     uint64_t nextTie = 1;
-    const auto inputs = solverInputsForGame(*game);
+    const auto inputs = solverInputsForGame(*game, staticAnalysisHints);
+    result.actionInputPruned = inputs.size() == 4 && !game->metadata.values.contains("noaction");
     const bool copyRestartSnapshot = gameHasRuleCommand(*game, "restart");
     auto stopReason = [&]() -> const char* {
         if (cancelRequested && cancelRequested->load(std::memory_order_relaxed)) {
@@ -3039,7 +2920,8 @@ Result runAdaptivePortfolioSearch(
     }
     result.maxFrontier = totalFrontier;
 
-    const auto inputs = solverInputsForGame(*game);
+    const auto inputs = solverInputsForGame(*game, staticAnalysisHints);
+    result.actionInputPruned = inputs.size() == 4 && !game->metadata.values.contains("noaction");
     const bool copyRestartSnapshot = gameHasRuleCommand(*game, "restart");
     const bool allowLockedBfsProbe = inputs.size() <= 4;
     // The lock is decided from measured step time, so it is off in
@@ -3368,6 +3250,7 @@ void addSearchWork(Result& target, const Result& source) {
     if (!source.staticAnalysisHints.empty()) {
         target.staticAnalysisHints = source.staticAnalysisHints;
     }
+    target.actionInputPruned = target.actionInputPruned || source.actionInputPruned;
     addTiming(target.timing, source.timing);
 }
 
@@ -3747,7 +3630,8 @@ Result runHashDistributedWeightedAStarSearch(
     HdaWinner winner;
     std::mutex winnerMutex;
 
-    const auto inputs = solverInputsForGame(*game);
+    const auto inputs = solverInputsForGame(*game, staticAnalysisHints);
+    result.actionInputPruned = inputs.size() == 4 && !game->metadata.values.contains("noaction");
     const bool copyRestartSnapshot = gameHasRuleCommand(*game, "restart");
 
     struct OutstandingWorkGuard {
@@ -4273,6 +4157,7 @@ Result solveSeededLevel(
     int32_t astarWeight,
     size_t portfolioJobs,
     puzzlescript::solver::HeuristicKind heuristicKind,
+    const puzzlescript::solver::StaticAnalysisHints* staticAnalysisHints,
     uint64_t maxExpanded = 0,
     const std::string& randomSeed = {},
     SearchControl control = {}
@@ -4377,7 +4262,7 @@ Result solveSeededLevel(
             compactTurnSearch,
             astarWeight,
             puzzlescript::solver::HeuristicKind::Auto,
-            nullptr,
+            staticAnalysisHints,
             false,
             nullptr,
             std::move(initial),
@@ -4399,7 +4284,7 @@ Result solveSeededLevel(
             compactTurnSearch,
             astarWeight,
             heuristicKind,
-            nullptr,
+            staticAnalysisHints,
             false,
             nullptr,
             std::move(initial),
@@ -4421,7 +4306,7 @@ Result solveSeededLevel(
             compactTurnSearch,
             astarWeight,
             heuristicKind,
-            nullptr,
+            staticAnalysisHints,
             false,
             nullptr,
             std::move(initial),
@@ -4443,7 +4328,7 @@ Result solveSeededLevel(
             compactTurnSearch,
             astarWeight,
             heuristicKind,
-            nullptr,
+            staticAnalysisHints,
             false,
             nullptr,
             std::move(initial),
@@ -4464,7 +4349,7 @@ Result solveSeededLevel(
         compactTurnSearch,
         astarWeight,
         heuristicKind,
-        nullptr,
+        staticAnalysisHints,
         false,
         std::move(initial), control);
     result.portfolioJobs = static_cast<uint32_t>(std::max<size_t>(1, std::min<size_t>(
@@ -4632,6 +4517,7 @@ void printJsonResult(const Result& result, std::ostream& out) {
         out << ",\"static_analysis_hints\":" << jsonString(result.staticAnalysisHints);
     }
     out << ",\"worker_id\":" << result.workerId;
+    out << ",\"action_input_pruned\":" << (result.actionInputPruned ? "true" : "false");
     if (!result.error.empty()) {
         out << ",\"error\":" << jsonString(result.error);
     }
@@ -5190,6 +5076,7 @@ std::vector<Result> runCorpus(const Options& options) {
             continue;
         }
         compiled.staticAnalysisHints = deriveNativeStaticAnalysisHints(*compiled.game);
+        const bool nativeActionUnnecessary = compiled.staticAnalysisHints.actionUnnecessaryProved;
         if (staticAnalysisRoot.has_value()) {
             if (const puzzlescript::json::Value* analysis =
                     findStaticAnalysisForGame(*staticAnalysisRoot, gameName)) {
@@ -5197,10 +5084,14 @@ std::vector<Result> runCorpus(const Options& options) {
                     parseStaticAnalysisHintsForGame(*compiled.game, *analysis);
             }
         }
+        compiled.staticAnalysisHints.actionUnnecessaryProved =
+            compiled.staticAnalysisHints.actionUnnecessaryProved
+            || nativeActionUnnecessary;
         compiled.removedWinIrrelevantRules = applyWinRelevancePruning(
             compiled.loadedGame,
             compiled.staticAnalysisHints,
-            options.solverOptWinRelevance);
+            options.solverOptWinRelevance,
+            compiled.source);
         compiled.game = compiled.loadedGame.information;
 
         const int32_t levelCount = static_cast<int32_t>(compiled.game->levels.size());
@@ -5447,6 +5338,15 @@ extern "C" bool ps_solve_level_layer_cell_object_ids(
         effective.portfolio_jobs = 1;
     }
 
+    std::call_once(game->solverHintCache->once, [&] {
+        if (!game->impl.information) return;
+        auto hints = std::make_shared<puzzlescript::solver::StaticAnalysisHints>();
+        hints->actionUnnecessaryProved = puzzlescript::solver::actionInputIsUnnecessary(*game->impl.information);
+        const auto analysis = puzzlescript::solver::analyzeStaticObjects(*game->impl.information);
+        hints->available = true;
+        hints->staticObjects = analysis.staticObjects;
+        game->solverHintCache->hints = std::move(hints);
+    });
     Result result = solveSeededLevel(
         game->impl,
         "puzzlescriptmis",
@@ -5465,6 +5365,7 @@ extern "C" bool ps_solve_level_layer_cell_object_ids(
         effective.astar_weight,
         effective.portfolio_jobs,
         heuristicKindFromApiOptions(effective),
+        game->solverHintCache->hints.get(),
         effective.max_expanded,
         effective.random_seed ? effective.random_seed : "",
         SearchControl{effective.should_cancel, effective.cancel_context, effective.max_expanded, effective.deterministic});

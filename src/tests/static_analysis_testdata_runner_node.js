@@ -67,6 +67,8 @@ function run() {
             'objects_erased',
             'movements_written',
             'movements_removed',
+            'may_invalidate_other_matches',
+            'may_enable_other_matches',
             'cosmetic',
         ]);
         const movementActionReport = analyzeSource(`title Static Analysis Movement Action Name
