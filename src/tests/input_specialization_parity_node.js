@@ -8,6 +8,59 @@ const {
     replayInputSpecializationTrace,
 } = require('./run_static_analysis_runtime_contracts_node');
 
+function randomdirFixtures() {
+    const directions = [
+        ['up', 'P\nC\n.', 'random-rule-sound-0'],
+        ['left', 'PC.', 'random-rule-sound-3'],
+        ['down', 'C\nP\n.', 'random-rule-sound-5'],
+        ['right', 'CP.', 'random-rule-sound-6'],
+    ];
+    return [0, 4].flatMap(extraLayers => directions.map(([direction, board, randomSeed]) => {
+        const padding = Array.from({ length: extraLayers }, (_, index) => `Padding${index}`);
+        return {
+            testName: `randomdir command ${direction}${extraLayers ? ' across movement words' : ''}`,
+            source: `title Random direction command
+
+OBJECTS
+Background
+black
+
+Player
+yellow
+
+Crate
+brown
+
+${padding.map(name => `${name}\ngrey\n`).join('\n')}
+LEGEND
+. = Background
+P = Player
+C = Crate
+
+SOUNDS
+
+COLLISIONLAYERS
+Background
+Player
+${padding.join('\n')}
+Crate
+
+RULES
+[ stationary Crate ] -> [ randomdir Crate ]
+${direction} [ > Crate | Player ] -> sfx0
+
+WINCONDITIONS
+
+LEVELS
+${board}
+`,
+            inputs: [0],
+            randomSeed,
+            expectedCommandQueue: ['sfx0'],
+        };
+    }));
+}
+
 function parseArgs(argv) {
     const options = { filter: null, help: false };
     for (let index = 2; index < argv.length; index++) {
@@ -31,7 +84,7 @@ function usage() {
         'Usage: node src/tests/input_specialization_parity_node.js [--filter NAME]',
         '',
         'Replays src/tests/resources/testdata.js with input specialization off and on,',
-        'then compares the boundary trace after every input.',
+        'plus randomdir regressions. Compares boards, sounds, rule-phase commands and RNG state.',
     ].join('\n');
 }
 
@@ -44,7 +97,11 @@ function formatDiff(testName, diff) {
 }
 
 function runAll(options = {}) {
-    const fixtures = loadRuntimeContractFixtures(options.filter || null);
+    const fixtures = [
+        ...randomdirFixtures().filter(fixture => !options.filter
+            || fixture.testName.toLowerCase().includes(options.filter.toLowerCase())),
+        ...loadRuntimeContractFixtures(options.filter || null),
+    ];
     if (fixtures.length === 0) {
         throw new Error(options.filter
             ? `No simulation tests matched filter ${JSON.stringify(options.filter)}`
@@ -63,6 +120,13 @@ function runAll(options = {}) {
                 randomSeed: fixture.randomSeed,
             }
         );
+        if (fixture.expectedCommandQueue) {
+            assert.deepStrictEqual(
+                offTrace.find(entry => entry.phase === 'main').commandQueue,
+                fixture.expectedCommandQueue,
+                `${fixture.testName}: reference must queue the sound command`,
+            );
+        }
         const onTrace = replayInputSpecializationTrace(
             fixture.testName,
             fixture.source,
