@@ -1,6 +1,6 @@
 'use strict';
 
-// PuzzleScript+MIS (web prototype) - shared core.
+// MIS95 - shared core.
 //
 // Loaded after the PuzzleScript engine scripts, both on the page (for editing,
 // rendering and playtesting) and inside the solver/generator Web Workers. It

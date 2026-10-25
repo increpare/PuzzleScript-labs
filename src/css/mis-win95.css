@@ -142,6 +142,7 @@
 .dialog-caption { font-weight: bold; }
 .about-content { display: flex; gap: 20px; padding: 22px 24px 8px; }
 .about-content .app-icon { margin-top: 4px; }
+.about-credit a { color: #000080; }
 .mis-win95 dialog form { display: flex; justify-content: flex-end; padding: 0 12px 12px; }
 .mis-win95 dialog button { min-width: 75px; outline: 1px solid #000; outline-offset: 1px; }
 .mis-win95 #fatal { background: #80808088; }

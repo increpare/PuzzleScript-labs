@@ -1,4 +1,4 @@
-# Build and host PuzzleScript+MIS on this PC
+# Build and host MIS95 on this PC
 
 Run these commands from the PuzzleScript-labs repository root. For the packaged
 desktop app and its faster web-only build, see `desktop/mis/README.md`.
@@ -63,7 +63,7 @@ remains `make mis_web`. For quick source development, serve `src` instead of
 
 ## Publishing online later
 
-PS+MIS runs in the browser, including its workers and WebAssembly solver. The
+MIS95 runs in the browser, including its workers and WebAssembly solver. The
 deployable website is the **contents of `bin`**, retaining all subdirectories.
 Use a static host with HTTPS and WebAssembly MIME support
 (`application/wasm`); the application is at `/mis.html`. Its workers and demos

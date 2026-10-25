@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-// Benchmark score for the PuzzleScript+MIS level generator: does a change make
+// Benchmark score for the MIS95 level generator: does a change make
 // generation better? Faster solving, better choices of candidates, discarding
 // dead ends sooner: anything that helps shows up as a better shortlist in the
 // same time.

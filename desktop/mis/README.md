@@ -1,6 +1,8 @@
-# PuzzleScript+MIS desktop
+# MIS95 desktop
 
-The Win95 mixed-initiative workbench in `src/mis.html`, packaged as a GUI95 app.
+MIS95, the Win95 mixed-initiative workbench in `src/mis.html`, packaged as a
+GUI95 app. It is a redesign of Kevin De Keyser's PuzzleScript+MIS
+(<https://dekeyser.ch/puzzlescriptmis/>).
 It uses the same engine, Web Workers, native WebAssembly solver and CodeMirror
 editor as the browser version. It runs offline, including its bundled demos.
 The older openFrameworks application in `tools/puzzlescriptmis-app` is separate.
@@ -18,9 +20,9 @@ node desktop/mis/smoke.cjs # packaged host check (after make; needs root npm dep
 make help            # existing engine, solver, hardware and web targets
 ```
 
-Outputs: `build/mis-web/mis.html`, `release/mis/win-unpacked/puzzlescript-mis.exe`
-on Windows, `release/mis/mac-arm64/PuzzleScript+MIS.app` on macOS, and
-`release/mis/linux-unpacked/puzzlescript-mis` on Linux. Archives go to
+Outputs: `build/mis-web/mis.html`, `release/mis/win-unpacked/mis95.exe`
+on Windows, `release/mis/mac-arm64/MIS95.app` on macOS, and
+`release/mis/linux-unpacked/mis95` on Linux. Archives go to
 `gui95-dist/`. Electron dependencies are isolated in `desktop/mis/node_modules`;
 the normal PuzzleScript npm dependencies are unchanged.
 
@@ -40,7 +42,7 @@ saves keep the game dirty. Browser Save continues to download a text file.
 The renderer has no Node access. Local app assets use a stable private origin,
 so worker/wasm loading and recovery storage work without an HTTP server. User
 games, recovery and preferences live outside the installed app. Automated checks
-must set `PUZZLESCRIPT_MIS_USER_DATA` to an isolated directory.
+must set `MIS95_USER_DATA` to an isolated directory.
 
 Artwork: `icon.svg` is an original GUI95-style workbench icon by Stephen Lavelle.
 The shared `scripts/gui95-{app,icons}.mjs` helpers are copied unchanged from

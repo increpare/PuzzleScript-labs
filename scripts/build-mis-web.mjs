@@ -18,7 +18,7 @@ export async function buildWeb(destination = path.join(root, 'build/mis-web')) {
       filter: p => !p.split(path.sep).some(part => part === 'node_modules' || part === '.git') });
   }
   await cp(path.join(root, 'LICENSE'), path.join(destination, 'LICENSE'));
-  console.log(`PuzzleScript+MIS web: ${destination}/mis.html`);
+  console.log(`MIS95 web: ${destination}/mis.html`);
   return destination;
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await buildWeb();

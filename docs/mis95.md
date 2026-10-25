@@ -1,6 +1,10 @@
-# PuzzleScript+MIS web prototype
+# MIS95
 
-A browser version of the PuzzleScript+MIS mixed-initiative level designer. It
+This variant is called **MIS95**. PuzzleScript+MIS was created by
+**Kevin De Keyser**; MIS95 is a redesign built on his original tool and
+research (<https://dekeyser.ch/puzzlescriptmis/>).
+
+MIS95 is a browser-based mixed-initiative level designer. It
 follows the UX pass on `tools/puzzlescriptmis-app`. The page uses the real
 PuzzleScript JavaScript engine for editing and playtesting. Solving and
 generating run in Web Workers, by default on the **native C++ compiler and

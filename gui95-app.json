@@ -1,14 +1,14 @@
 {
   "icons": [{ "name": "mis", "svg": "desktop/mis/icon.svg", "style": "pixel" }],
   "apps": [{
-    "id": "puzzlescript-mis",
-    "name": "PuzzleScript+MIS",
+    "id": "mis95",
+    "name": "MIS95",
     "version": "desktop/mis/package.json",
     "icon": "gui95-icons/mis.png",
     "builds": {
-      "windows": { "dir": "release/mis/win-unpacked", "exe": "puzzlescript-mis.exe" },
-      "macos": { "dir": "release/mis/mac-arm64", "bundle": "PuzzleScript+MIS.app" },
-      "linux": { "dir": "release/mis/linux-unpacked", "exe": "puzzlescript-mis" }
+      "windows": { "dir": "release/mis/win-unpacked", "exe": "mis95.exe" },
+      "macos": { "dir": "release/mis/mac-arm64", "bundle": "MIS95.app" },
+      "linux": { "dir": "release/mis/linux-unpacked", "exe": "mis95" }
     }
   }]
 }

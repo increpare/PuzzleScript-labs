@@ -26,7 +26,7 @@
       ['Generate / stop', '#gen-btn', 'G'], ['Peek a sample', '#peek-btn'],
       ['Watch solution', '#watch-btn'], ['Simplify level', '#simplify-btn'],
     ]],
-    ['Help', [['Workbench help', '#help-btn', 'F1'], null, ['About PuzzleScript+MIS…', () => $('about-dialog').showModal()]]],
+    ['Help', [['Workbench help', '#help-btn', 'F1'], null, ['About MIS95…', () => $('about-dialog').showModal()]]],
   ];
   if (desktop) menus[0][1].push(null, ['(No recent files)', () => {}], null, ['Exit', () => desktop.close(), desktop.platform === 'darwin' ? 'Cmd+Q' : 'Alt+F4']);
   const triggers = [], popups = [];
@@ -199,7 +199,7 @@
     const dirty = $('dirty-dot').classList.contains('on') ? ' *' : '';
     $('caption-document').textContent = name + dirty;
     $('project-document').textContent = name;
-    document.title = name + dirty + ' – PuzzleScript+MIS';
+    document.title = name + dirty + ' – MIS95';
   }
   const titleObserver = new MutationObserver(syncTitle);
   titleObserver.observe($('game-title'), { childList: true, characterData: true, subtree: true });

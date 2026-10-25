@@ -1,6 +1,6 @@
 'use strict';
 
-// PuzzleScript+MIS (web prototype) - native backend adapter.
+// MIS95 - native backend adapter.
 //
 // Wraps the WebAssembly build of the native compiler/solver
 // (native/src/wasm/mis_wasm.cpp, built by native/wasm/build_mis_wasm.sh) behind

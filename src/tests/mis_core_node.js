@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-// Checks for the PuzzleScript+MIS web prototype core (src/js/mis/mis_core.js):
+// Checks for the MIS95 core (src/js/mis/mis_core.js):
 // transform language, board <-> source write-back, solver, presets, simplify.
 //
 //   node src/tests/mis_core_node.js

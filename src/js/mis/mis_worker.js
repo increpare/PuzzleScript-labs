@@ -1,6 +1,6 @@
 'use strict';
 
-// PuzzleScript+MIS (web prototype) - solver/generator worker.
+// MIS95 - solver/generator worker.
 //
 // Each worker owns its own copy of the engine. The page cancels work by
 // terminating the worker, so loops here don't need to poll for stop requests.

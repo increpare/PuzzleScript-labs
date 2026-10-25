@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-// Instrumented profile of the PuzzleScript+MIS web generator loop
+// Instrumented profile of the MIS95 web generator loop
 // (src/js/mis/mis_generator.js), the same code the browser workers run.
 //
 //   node src/tests/mis_generator_profile_node.js [--seconds N] [--backend js|native|both]

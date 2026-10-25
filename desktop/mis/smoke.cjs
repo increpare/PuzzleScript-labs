@@ -8,13 +8,13 @@ const { _electron } = requireApp('playwright');
 const work = path.join(root, 'build/mis-desktop-checks');
 const profile = path.join(work, 'profile-' + Date.now());
 const input = path.join(work, 'opened game.txt'), saved = path.join(work, 'saved game.txt');
-const executable = { win32: 'release/mis/win-unpacked/puzzlescript-mis.exe', darwin: 'release/mis/mac-arm64/PuzzleScript+MIS.app/Contents/MacOS/puzzlescript-mis', linux: 'release/mis/linux-unpacked/puzzlescript-mis' }[process.platform];
+const executable = { win32: 'release/mis/win-unpacked/mis95.exe', darwin: 'release/mis/mac-arm64/MIS95.app/Contents/MacOS/MIS95', linux: 'release/mis/linux-unpacked/mis95' }[process.platform];
 if (!executable) throw new Error('Unsupported desktop test platform');
 const exe = path.join(root, executable);
 (async () => {
   await fs.mkdir(work, { recursive: true });
   await fs.writeFile(input, await fs.readFile(path.join(root, 'src/demo/sokoban_basic.txt'), 'utf8') + '\n(MIS transform\nchoose 1 [Wall] -> []\nMIS end)\n');
-  const env = { ...process.env, PUZZLESCRIPT_MIS_USER_DATA: profile }; delete env.ELECTRON_RUN_AS_NODE;
+  const env = { ...process.env, MIS95_USER_DATA: profile }; delete env.ELECTRON_RUN_AS_NODE;
   const launch = args => _electron.launch({ executablePath: exe, args, env });
   let app;
   const errors = [];

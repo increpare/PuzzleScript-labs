@@ -19,4 +19,4 @@ process.env.ELECTRON_BUILDER_CACHE ||= path.join(root, 'desktop/mis/.cache/build
 // The GUI95 manifest deliberately targets Apple silicon, matching the other suite apps.
 const arch = process.platform === 'darwin' ? Arch.arm64 : Arch[process.arch];
 await build({ projectDir: path.join(root, 'desktop/mis'), targets: platforms[process.platform].createTarget('dir', arch) });
-console.log(`PuzzleScript+MIS desktop: ${path.join(root, 'release/mis')}`);
+console.log(`MIS95 desktop: ${path.join(root, 'release/mis')}`);

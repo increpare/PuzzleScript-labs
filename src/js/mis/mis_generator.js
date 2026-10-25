@@ -1,6 +1,6 @@
 'use strict';
 
-// PuzzleScript+MIS (web prototype) - candidate generation loop.
+// MIS95 - candidate generation loop.
 //
 // Shared by the Web Worker and the Node profiler (src/tests/mis_generator_profile_node.js)
 // so both run the same code. Mirrors the MIS app's curator: sample a

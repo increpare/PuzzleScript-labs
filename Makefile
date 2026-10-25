@@ -34,7 +34,7 @@ distro: desktop
 mis_app: desktop/mis/node_modules/.package-lock.json
 	$(NODE) scripts/build-mis-app.mjs
 	$(NODE) scripts/gui95-app.mjs pack
-	$(NODE) -e "console.log('PuzzleScript+MIS ready in release/mis/; make install creates the stable GUI95 launcher.')"
+	$(NODE) -e "console.log('MIS95 ready in release/mis/; make install creates the stable GUI95 launcher.')"
 
 install: all
 	$(NODE) scripts/gui95-app.mjs install
@@ -734,7 +734,7 @@ help:
 	@echo "                                     Analyze instrumentation-pack strategy/static-tag results"
 	@echo "  make clean                         Remove native build outputs and JS parity data"
 	@echo ""
-	@echo "PuzzleScript+MIS web prototype (src/mis.html):"
+	@echo "MIS95 (src/mis.html):"
 	@echo "  make mis_web                       Release-build the site into bin/, mis.html included (compile.js; ~10 min)"
 	@echo "  make mis_web_serve                 Serve bin/ at http://localhost:$(MIS_WEB_PORT)/mis.html"
 	@echo "  make mis_wasm                      Rebuild the wasm solver in src/js/mis/wasm (needs Emscripten)"
@@ -1874,7 +1874,7 @@ solver_compact_parity_smoke: $(PUZZLESCRIPT_SOLVER)
 solver_compact_parity: $(PUZZLESCRIPT_SOLVER)
 	$(NODE) src/tests/run_solver_compact_parity.js $(PUZZLESCRIPT_SOLVER) $(SOLVER_COMPACT_PARITY_CORPUS) --timeout-ms $(SOLVER_COMPACT_PARITY_TIMEOUT_MS) --strategy $(SOLVER_COMPACT_PARITY_STRATEGY) $(SOLVER_COMPACT_PARITY_GAME_ARG) $(SOLVER_COMPACT_PARITY_LEVEL_ARG) $(SOLVER_COMPACT_PARITY_MAX_GAMES_ARG)
 
-# PuzzleScript+MIS web prototype (src/mis.html). mis_wasm needs Emscripten on PATH
+# MIS95 (src/mis.html). mis_wasm needs Emscripten on PATH
 # (source emsdk_env.sh); it rebuilds src/js/mis/wasm/mis_native.{js,wasm}.
 # On Windows, executing the .sh directly follows `#!/usr/bin/env bash`, and the
 # `bash` on PATH is often the WSL app alias (WindowsApps\bash.exe). That alias

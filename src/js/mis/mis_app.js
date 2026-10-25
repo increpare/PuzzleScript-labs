@@ -1,6 +1,6 @@
 'use strict';
 
-// PuzzleScript+MIS (web prototype) - page controller.
+// MIS95 - page controller.
 //
 // Owns the source text (the single source of truth), the compiled model, the
 // board editor, the level strip, the transformer session and the workers.
@@ -166,7 +166,7 @@
 	// Recompile `text`. Returns true if it compiled.
 	function compileSource(text) {
 		const res = misCompile(text);
-		document.title = 'PuzzleScript+MIS';
+		document.title = 'MIS95';
 		showSourceDiagnostics(res.errors, res.ok, res.hasErrors);
 		if (!res.ok) return false;
 		let model = null;
@@ -1520,7 +1520,7 @@
 			if (!r.ok) throw new Error(r.status + ' ' + r.statusText);
 			return r.text();
 		}).then(function (t) { openText(t, name || path.split('/').pop()); })
-			.catch(function (e) { fatal('Could not load <code>' + escapeHtml(path) + '</code> (' + escapeHtml(e.message) + ').<br><br>PuzzleScript+MIS needs to be served over HTTP so it can start Web Workers — e.g. run <code>npx http-server src</code> from the repository root and open <code>/mis.html</code>.'); });
+			.catch(function (e) { fatal('Could not load <code>' + escapeHtml(path) + '</code> (' + escapeHtml(e.message) + ').<br><br>MIS95 needs to be served over HTTP so it can start Web Workers — e.g. run <code>npx http-server src</code> from the repository root and open <code>/mis.html</code>.'); });
 	}
 
 	function fatal(html) {
