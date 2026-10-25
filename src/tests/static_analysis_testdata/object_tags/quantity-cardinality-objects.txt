@@ -1,0 +1,89 @@
+title Static Analysis Object Tag Quantity Cardinality Objects
+
+(Player: one per level, only relocates -> exactly one.
+ Crate: count preserved, but two in a level -> neither.
+ Key: one per level, may be destroyed -> at most one.
+ Gem: one in the first level, none in the second, preserved -> at most one.
+ Coin: one per level, may be created -> neither.
+ Ghost: in no level and never created -> exactly zero (so at most one).
+ Bomb: in no level, but may be created -> neither.)
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Crate
+orange
+
+Key
+yellow
+
+Gem
+blue
+
+Coin
+green
+
+Ghost
+grey
+
+Wall
+brown
+
+Bomb
+red
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+C = Crate
+K = Key
+G = Gem
+O = Coin
+# = Wall
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Key, Gem, Ghost
+Coin
+Player, Crate, Wall
+Bomb
+
+=====
+RULES
+=====
+
+[ > Player | Crate ] -> [ > Player | > Crate ]
+[ Player Key ] -> [ Player ]
+[ Wall | no Coin ] -> [ Wall | Coin ]
+[ Gem ] -> [ Gem Bomb ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+PCCKGO#
+
+PC.KO..

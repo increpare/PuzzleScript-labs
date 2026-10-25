@@ -4,7 +4,7 @@
     {
       "name": "object_tags",
       "description": "Fixtures for per-object static-analysis tags.",
-      "specification": "Each object_tags fixture contains an objectTag array. Every row identifies one compiled object by display name and then lists one or more object analysis tags to assert for that object.",
+      "specification": "Each object_tags fixture contains an objectTag array. Every row identifies one compiled object by display name and then lists one or more object analysis tags to assert for that object. An optional propertyTag array does the same for legend OR properties.",
       "fields": [
         {
           "name": "schema",
@@ -49,7 +49,11 @@
                 "type": "enum",
                 "description": "Whether the object appears in all, some, or no playable levels.",
                 "specification": "Message levels are ignored. The value all means there is at least one playable level and the object appears in every playable level. The value some means the object appears in at least one but not every playable level. The value none means the object appears in no playable levels; if a valid source has zero playable levels, every object has level_presence none.",
-                "values": ["all", "some", "none"]
+                "values": [
+                  "all",
+                  "some",
+                  "none"
+                ]
               },
               {
                 "name": "created_by_rules",
@@ -93,6 +97,71 @@
                 "type": "boolean",
                 "description": "No solver-active rule decreases the total board count of this object.",
                 "specification": "An object has quantity_never_decreases when no solver-active, object-mutating rule may decrease the total count of that object across all board cells. Relocation is count-neutral; unbalanced destruction, explicit erasure, and uncertain same-layer overwrite reject this claim."
+              },
+              {
+                "name": "quantity_exactly_zero",
+                "type": "boolean",
+                "description": "None of this object is on the board in any playable level, at any point of play.",
+                "specification": "An object has quantity_exactly_zero when no playable level (message levels ignored, at least one playable level required) contains it and quantity_never_increases holds. Synthetic arbitrary-board analysis never sets this claim."
+              },
+              {
+                "name": "quantity_exactly_one",
+                "type": "boolean",
+                "description": "Exactly one of this object is on the board in every playable level, at every point of play.",
+                "specification": "An object has quantity_exactly_one when every playable level (message levels ignored, at least one playable level required) contains exactly one instance of it, and both quantity_never_increases and quantity_never_decreases hold, so no rule application changes the count. Synthetic arbitrary-board analysis never sets this claim."
+              },
+              {
+                "name": "quantity_at_most_one",
+                "type": "boolean",
+                "description": "At most one of this object is on the board in every playable level, at every point of play.",
+                "specification": "An object has quantity_at_most_one when every playable level (message levels ignored, at least one playable level required) contains zero or one instance of it, and quantity_never_increases holds. An object present in no level and never created is trivially at most one. Synthetic arbitrary-board analysis never sets this claim."
+              }
+            ]
+          }
+        },
+        {
+          "name": "propertyTag",
+          "type": "array",
+          "description": "Per-property (OR group) tag expectation rows.",
+          "specification": "Optional. Each row names one legend property defined with \"or\" and lists property tags to assert. The counted quantity is the sum of the member object counts. Synonyms and aggregates carry no property tags.",
+          "items": {
+            "type": "object",
+            "fields": [
+              {
+                "name": "property",
+                "type": "string",
+                "description": "Display name of the legend property under test.",
+                "specification": "The runner resolves this name against ps_tagged.properties entries of kind property."
+              },
+              {
+                "name": "quantity_never_increases",
+                "type": "boolean",
+                "description": "No solver-active rule increases the summed board count of the property members.",
+                "specification": "A property has quantity_never_increases when no solver-active, object-mutating rule application may increase the sum of its member object counts. A rule passes when no member may individually increase, when its exact count delta sums to at most zero over the members, or when a per-cell, per-collision-layer analysis of member presence bounds its effect at or below zero. Swaps between members are count-neutral."
+              },
+              {
+                "name": "quantity_never_decreases",
+                "type": "boolean",
+                "description": "No solver-active rule decreases the summed board count of the property members.",
+                "specification": "The mirror of the property quantity_never_increases claim: no solver-active, object-mutating rule application may decrease the sum of the member object counts."
+              },
+              {
+                "name": "quantity_exactly_zero",
+                "type": "boolean",
+                "description": "No property member is on the board in any playable level, at any point of play.",
+                "specification": "A property has quantity_exactly_zero when no playable level contains any of its members and the property quantity_never_increases claim holds. Synthetic arbitrary-board analysis never sets this claim."
+              },
+              {
+                "name": "quantity_exactly_one",
+                "type": "boolean",
+                "description": "Exactly one property member is on the board in every playable level, at every point of play.",
+                "specification": "A property has quantity_exactly_one when, in every playable level, its member object counts sum to exactly one, and both property quantity claims hold. Synthetic arbitrary-board analysis never sets this claim."
+              },
+              {
+                "name": "quantity_at_most_one",
+                "type": "boolean",
+                "description": "At most one property member is on the board in every playable level, at every point of play.",
+                "specification": "A property has quantity_at_most_one when, in every playable level, its member object counts sum to at most one, and the property quantity_never_increases claim holds. Synthetic arbitrary-board analysis never sets this claim."
               }
             ]
           }
@@ -870,7 +939,10 @@
                 "type": "enum",
                 "description": "Whether the pair is a merge candidate or rejected.",
                 "specification": "candidate means the mergeability proof found no blockers. rejected means at least one blocker was found.",
-                "values": ["candidate", "rejected"]
+                "values": [
+                  "candidate",
+                  "rejected"
+                ]
               },
               {
                 "name": "blockers",
@@ -1309,7 +1381,10 @@
                 "type": "enum",
                 "description": "Whether the linear invariant is proved or rejected.",
                 "specification": "proved means the analyzer proved the unit-coefficient sum is preserved by every solver-active object-mutating rule. rejected means the object set was a transform candidate but at least one rule may violate or obscure that preservation.",
-                "values": ["proved", "rejected"]
+                "values": [
+                  "proved",
+                  "rejected"
+                ]
               },
               {
                 "name": "terms",
@@ -1606,6 +1681,12 @@
               "type": "integer",
               "description": "Runtime boundary checks performed for constant-quantity objects.",
               "specification": "Copied from result.quantityBoundaryChecks."
+            },
+            {
+              "name": "cardinalityBoundaryChecks",
+              "type": "integer",
+              "description": "Number of exactly-one / at-most-one checks performed at stable playable boards.",
+              "specification": "Copied from result.cardinalityBoundaryChecks."
             },
             {
               "name": "linearCountInvariantChecks",

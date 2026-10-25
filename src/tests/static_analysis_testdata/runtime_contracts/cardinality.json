@@ -1,0 +1,10 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "human_verified": false,
+  "inputs": ["LEFT", "RIGHT", "RIGHT", "LEFT"],
+  "expectedFinalLevel": "background playerl:0,background:1,background wall:2,\n",
+  "expect": {
+    "cardinalityBoundaryChecks": 10,
+    "quantityBoundaryChecks": 24
+  }
+}

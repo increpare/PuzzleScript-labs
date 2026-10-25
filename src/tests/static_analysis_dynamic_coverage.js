@@ -11,6 +11,8 @@ register('object.static', 'runtime', 'objectBoundaryChecks');
 register('layer.static', 'runtime', 'staticLayerBoundaryChecks');
 register('layer.inert', 'runtime', 'inertLayerBoundaryChecks');
 register('object.quantity.never_increases object.quantity.never_decreases', 'runtime', 'quantityBoundaryChecks');
+register('property.quantity.never_increases property.quantity.never_decreases', 'runtime', 'quantityBoundaryChecks');
+register('object.quantity.exactly_zero object.quantity.exactly_one object.quantity.at_most_one property.quantity.exactly_zero property.quantity.exactly_one property.quantity.at_most_one', 'runtime', 'cardinalityBoundaryChecks');
 register('object.temporary', 'runtime', 'temporaryBoundaryChecks');
 register('level.unreachable_objects', 'runtime', 'perLevelObjectUniverseChecks');
 register('level.reachable_objects', 'descriptive', null, 'Over-approximation; unreachable complement is checked.');
@@ -97,7 +99,10 @@ function addRuntimeCoverage(inventory, result) {
     return inventory;
 }
 function runtimeFailureClaims(message) {
+    const cardinality = message.match(/claim:\s*((?:object|property)\.quantity\.(?:exactly_zero|exactly_one|at_most_one))/);
+    if (/cardinality claim violated/.test(message) && cardinality) return [cardinality[1]];
     const quantity = message.match(/claim:\s*(quantity\.(?:never_increases|never_decreases))/);
+    if (/property quantity monotonicity claim violated/.test(message) && quantity) return [`property.${quantity[1]}`];
     if (/quantity monotonicity claim violated/.test(message) && quantity) {
         return ['fact.count_layer_invariants', `object.${quantity[1]}`];
     }

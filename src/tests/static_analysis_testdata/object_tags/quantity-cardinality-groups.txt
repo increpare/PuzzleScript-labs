@@ -1,0 +1,116 @@
+title Static Analysis Object Tag Quantity Cardinality Groups
+
+(Each property starts with one member per level.
+ Hero: swaps between its members -> exactly one.
+ Ghost: a member may be destroyed -> at most one.
+ Clone: a member may be added next to another -> neither.
+ Split: members on different layers; SplitA becomes SplitB, which may
+ land on a cell already holding SplitB -> at most one.
+ Phantom: in no level; its members only swap -> exactly zero.)
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Wall
+brown
+
+Spike
+grey
+
+HeroAlive
+green
+
+HeroDead
+red
+
+GhostA
+lightblue
+
+GhostB
+blue
+
+CloneA
+yellow
+
+CloneB
+orange
+
+SplitA
+pink
+
+SplitB
+purple
+
+PhantomA
+white
+
+PhantomB
+white
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+# = Wall
+^ = Spike
+H = HeroAlive
+G = GhostA
+C = CloneA
+S = SplitA
+Hero = HeroAlive or HeroDead
+Ghost = GhostA or GhostB
+Clone = CloneA or CloneB
+Split = SplitA or SplitB
+Phantom = PhantomA or PhantomB
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Spike
+Player, Wall
+HeroAlive, HeroDead
+GhostA, GhostB
+CloneA, CloneB
+SplitA
+SplitB
+PhantomA, PhantomB
+
+=====
+RULES
+=====
+
+[ action Hero ] -> [ Hero ]
+[ HeroAlive Spike ] -> [ HeroDead Spike ]
+[ GhostA Spike ] -> [ Spike ]
+[ CloneA | no Clone ] -> [ CloneA | CloneB ]
+[ SplitA Spike ] -> [ SplitB Spike ]
+[ PhantomA ] -> [ PhantomB ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+PHGCS^#
+
+#^SCGHP

@@ -69,6 +69,7 @@ const RUNTIME_CONTRACT_EXPECT_FIELDS = [
     'staticLayerBoundaryChecks',
     'inertLayerBoundaryChecks',
     'quantityBoundaryChecks',
+    'cardinalityBoundaryChecks',
     'linearCountInvariantChecks',
     'temporaryBoundaryChecks',
     'neverAppearsBoundaryChecks',
@@ -131,13 +132,25 @@ function deriveObjectTagValue(report, object, tagName) {
     if (tagName === 'destroyed_by_rules') {
         return !!((object.tags || {}).may_be_destroyed);
     }
-    if (tagName === 'quantity_never_increases') {
-        return !!(object.tags && object.tags.quantity && object.tags.quantity.never_increases);
-    }
-    if (tagName === 'quantity_never_decreases') {
-        return !!(object.tags && object.tags.quantity && object.tags.quantity.never_decreases);
+    if (tagName.startsWith('quantity_')) {
+        return quantityTagValue(object, tagName);
     }
     return !!((object.tags || {})[tagName]);
+}
+
+function quantityTagValue(item, tagName) {
+    const quantity = (item.tags && item.tags.quantity) || {};
+    return quantity[tagName.slice('quantity_'.length)] === true;
+}
+
+function propertyTagFields(claimDescriptions) {
+    return fixtureFieldsAtPath(fixtureSchemaByName(claimDescriptions, 'object_tags'), ['propertyTag'])
+        .filter(field => field.name !== 'property');
+}
+
+// Group (OR-property) rows; synonyms and aggregates carry no group tags.
+function groupProperties(report) {
+    return ((report.ps_tagged && report.ps_tagged.properties) || []).filter(item => item.kind === 'property');
 }
 
 function buildObjectTagExpectations(report, claimDescriptions) {
@@ -151,10 +164,16 @@ function buildObjectTagExpectations(report, claimDescriptions) {
         }
         objectTag.push(row);
     }
+    const propertyTag = groupProperties(report).map(property => {
+        const row = { property: property.name };
+        for (const tag of propertyTagFields(claimDescriptions)) row[tag.name] = quantityTagValue(property, tag.name);
+        return row;
+    });
     return {
         schema: FIXTURE_SCHEMA,
         human_verified: false,
         objectTag,
+        ...(propertyTag.length > 0 ? { propertyTag } : {}),
     };
 }
 
@@ -178,6 +197,34 @@ function validateExpectationShape(filePath, payload) {
         for (const tagName of Object.keys(item)) {
             assert.ok(tagName === 'object' || tagName.length > 0, `${filePath}: objectTag[${index}] has an empty tag name`);
         }
+    }
+    if (payload.propertyTag === undefined) return;
+    assert.ok(Array.isArray(payload.propertyTag), `${filePath}: propertyTag must be an array`);
+    for (const [index, item] of payload.propertyTag.entries()) {
+        assert.ok(item && typeof item === 'object' && !Array.isArray(item), `${filePath}: propertyTag[${index}] must be an object`);
+        assert.ok(typeof item.property === 'string' && item.property.length > 0, `${filePath}: propertyTag[${index}] missing property`);
+    }
+}
+
+function checkPropertyTagExpectation(filePath, report, claimDescriptions, row, tagName) {
+    const claim = fieldByName(propertyTagFields(claimDescriptions), tagName);
+    assert.ok(claim, `${filePath}: unknown property tag ${tagName}`);
+    const wanted = row.property.toLowerCase();
+    const property = groupProperties(report).find(item =>
+        item.name === row.property || String(item.canonical_name).toLowerCase() === wanted);
+    if (!property) {
+        const available = groupProperties(report).map(item => item.name).join(', ');
+        assert.fail(`${filePath}: unknown property ${row.property}; available properties: ${available}`);
+    }
+    const expected = row[tagName];
+    assert.strictEqual(typeof expected, 'boolean', `${filePath}: ${tagName} expected value must be boolean`);
+    const actual = quantityTagValue(property, tagName);
+    if (actual !== expected) {
+        assert.fail([
+            `${filePath}`,
+            `propertyTag ${row.property}.${tagName} expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`,
+            `  members: ${property.members.join(', ')}`,
+        ].join('\n'));
     }
 }
 
@@ -218,6 +265,11 @@ function checkFixture(txtPath, jsonPath, claimDescriptions) {
     for (const row of payload.objectTag) {
         for (const tagName of Object.keys(row)) {
             if (tagName !== 'object') checkObjectTagExpectation(jsonPath, report, claimDescriptions, row, tagName);
+        }
+    }
+    for (const row of payload.propertyTag || []) {
+        for (const tagName of Object.keys(row)) {
+            if (tagName !== 'property') checkPropertyTagExpectation(jsonPath, report, claimDescriptions, row, tagName);
         }
     }
 }

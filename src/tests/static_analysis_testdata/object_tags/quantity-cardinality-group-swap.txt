@@ -1,0 +1,62 @@
+title Static Analysis Object Tag Quantity Cardinality Group Swap
+
+(The player turns to face its movement. Neither facing object keeps its
+ count, but the Player property always holds exactly one.)
+
+========
+OBJECTS
+========
+
+Background
+black
+
+PlayerL
+white
+
+PlayerR
+white
+
+Wall
+brown
+
+========
+LEGEND
+========
+
+. = Background
+L = PlayerL
+R = PlayerR
+# = Wall
+Player = PlayerL or PlayerR
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+PlayerL, PlayerR, Wall
+
+=====
+RULES
+=====
+
+[ left Player ] -> [ left PlayerL ]
+[ right Player ] -> [ right PlayerR ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+L.#
+
+#.R

@@ -1,0 +1,49 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "human_verified": false,
+  "objectTag": [
+    {
+      "object": "Player",
+      "quantity_exactly_zero": false,
+      "quantity_exactly_one": true,
+      "quantity_at_most_one": true
+    },
+    {
+      "object": "Crate",
+      "quantity_never_increases": true,
+      "quantity_never_decreases": true,
+      "quantity_exactly_one": false,
+      "quantity_at_most_one": false
+    },
+    {
+      "object": "Key",
+      "quantity_exactly_zero": false,
+      "quantity_exactly_one": false,
+      "quantity_at_most_one": true
+    },
+    {
+      "object": "Gem",
+      "quantity_exactly_zero": false,
+      "quantity_exactly_one": false,
+      "quantity_at_most_one": true
+    },
+    {
+      "object": "Coin",
+      "quantity_exactly_zero": false,
+      "quantity_exactly_one": false,
+      "quantity_at_most_one": false
+    },
+    {
+      "object": "Ghost",
+      "quantity_exactly_zero": true,
+      "quantity_exactly_one": false,
+      "quantity_at_most_one": true
+    },
+    {
+      "object": "Bomb",
+      "quantity_exactly_zero": false,
+      "quantity_exactly_one": false,
+      "quantity_at_most_one": false
+    }
+  ]
+}
