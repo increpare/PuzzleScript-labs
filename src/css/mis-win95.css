@@ -267,7 +267,9 @@ body.resizing-panes, body.resizing-panes * { cursor: var(--resize-cursor) !impor
 .mis-win95 .mis-code-editor .cm-scroller { overflow: auto; overscroll-behavior: contain; }
 .mis-win95 .mis-code-editor .cm-content { caret-color: #000; }
 .mis-win95 .mis-code-editor .cm-gutters { background: #eee; border-right: 1px solid #c0c0c0; color: #808080; }
-.mis-win95 .mis-code-editor .cm-activeLine { background: #f4f4f4; }
+/* Line tints sit above CM6's selection layer. Use alpha so selected text
+   stays visible through active-line, diagnostic and playback feedback. */
+.mis-win95 .mis-code-editor .cm-activeLine { background: #0000000b; }
 .mis-win95 .mis-code-editor .cm-activeLineGutter { background: #dfdfdf; }
 .mis-win95 .mis-code-editor .cm-selectionBackground { background: #c0c0c0 !important; }
 .mis-win95 .mis-code-editor.cm-focused .cm-selectionBackground { background: #c2c2e4 !important; }
@@ -293,7 +295,7 @@ body.resizing-panes, body.resizing-panes * { cursor: var(--resize-cursor) !impor
 .mis-win95 .mis-code-editor span:is(.cm-comment,.cm-COMMENT) { color: #008000; font-style: normal; }
 .mis-win95 .mis-code-editor span:is(.cm-METADATATEXT,.cm-MESSAGE,.cm-LEVEL,.cm-number) { color: #800000; }
 .mis-win95 .mis-code-editor span:is(.cm-SPRITEMATRIX,.cm-MATRIX,.cm-ASSIGNMENT,.cm-SOUNDVERB,.cm-SOUNDEVENT) { color: #805000; }
-.mis-win95 .mis-code-editor .err-line { background: #ffe5e5; }
+.mis-win95 .mis-code-editor .err-line { background: #ff00001a; }
 
 /* Rule gutter: what the current level's solution does with each rule, and
    the designer's rule goals (click: need -> ban -> neither). */
@@ -308,11 +310,11 @@ body.resizing-panes, body.resizing-panes * { cursor: var(--resize-cursor) !impor
 .mis-win95 .mis-rule-mark.need.pending, .mis-win95 .mis-rule-mark.ban.pending { color: #808080; }
 .mis-win95 .mis-rule-mark.need.bad, .mis-win95 .mis-rule-mark.ban.bad { color: var(--bad); }
 .mis-win95 .mis-rule-mark.flower { color: #808000; cursor: default; }
-.mis-win95 .mis-code-editor .mis-rule-heat-1 { background: #fffbea; }
-.mis-win95 .mis-code-editor .mis-rule-heat-2 { background: #fff5d0; }
-.mis-win95 .mis-code-editor .mis-rule-heat-3 { background: #ffecb0; }
-.mis-win95 .mis-code-editor .mis-rule-heat-4 { background: #ffe08c; }
-.mis-win95 .mis-code-editor .mis-rule-flash { background: #c8d0f0; box-shadow: inset 3px 0 #000080; }
+.mis-win95 .mis-code-editor .mis-rule-heat-1 { background: #ffce0015; }
+.mis-win95 .mis-code-editor .mis-rule-heat-2 { background: #ffc9002f; }
+.mis-win95 .mis-code-editor .mis-rule-heat-3 { background: #ffc2004f; }
+.mis-win95 .mis-code-editor .mis-rule-heat-4 { background: #ffba0073; }
+.mis-win95 .mis-code-editor .mis-rule-flash { background: #0025b937; box-shadow: inset 3px 0 #000080; }
 .mis-win95 .mis-rule-tip { position: fixed; z-index: 1000; max-width: 300px; padding: 2px 5px 3px; background: #ffffe1; color: #000; border: 1px solid #000; font-size: 11px; line-height: 1.35; white-space: pre-line; pointer-events: none; }
 .mis-win95 #rule-goals { white-space: nowrap; }
 .mis-win95 #rule-goals.bad { color: var(--bad); }
