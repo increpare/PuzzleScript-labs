@@ -6,6 +6,63 @@ analyzer (`src/tests/ps_static_analysis.js`, front-ended by
 for these decisions — there is no repo-root `TODO.md` (an old, unrelated solver
 `TODO.md` was deleted in commit `07d73fb3`; do not cite it).
 
+## Setup rule certificates
+
+Rule tags `self_disabling`, `persistent_guard`, `idempotent_effect`, and
+`setup_only` distinguish a local rewrite from a whole-program lifetime claim.
+They are derived independently of fact-family filtering. Each `rule_setup`
+fact has the same four boolean tags; its status refers specifically to
+`setup_only`. A rejected setup fact can still certify local self-disabling or
+idempotence through those boolean tags.
+
+The first proof supports concrete-object, fixed-width single-row patterns.
+Synonyms and compiler-expanded concrete alternatives work after normalization;
+unresolved object sets, multiple independent pattern rows, ellipses and movement
+gates remain unproved. RHS `stationary` assignments are allowed: the compiler
+inserts them for unguarded object creation. Positive RHS movement is excluded.
+Commands, random selection and rigid groups block idempotence and setup proofs.
+
+`self_disabling` means that a successful replacement falsifies at least one
+read at exactly the same pattern cell. `persistent_guard` means at least one
+effect is irreversible during committed forward play. For unguarded writes it
+can describe a lasting effect even though the rule still matches. Permanence
+uses **all** rule writers and erasers, including cosmetic and late rules, plus
+movement origins and player input. Preserved object count is not permanence:
+relocation can reopen a setup opportunity.
+Movement is tracked conservatively by collision layer, since a replacement can
+inherit its predecessor's cardinal movement without an explicit RHS write.
+
+`idempotent_effect` concerns an exhaustive invocation in isolation. Concrete
+assignments that cannot enable new match tuples leave a fixed point; external
+rules and movement resolution are outside that claim. It does not imply group
+idempotence or justify changing group repetition.
+
+`setup_only` is conditional: a permanent disabling witness, or permanent
+idempotent effects, must combine with eligibility that becomes invariant after
+already-proved setup dependencies settle. The least fixed point leaves cyclic
+dependencies unproved. Fact values contain `guards` (zero-based row and cell,
+object name, established `present` boolean, and `persistent` boolean),
+`setup_dependencies` (rule ids), `retirement` (`after_setup_quiescence` when
+proved, otherwise null), and `scope`
+(`forward_play_between_state_restorations`). Blockers and evidence identify
+unproved conditions and interfering rule ids. These are analyzer facts only;
+no engine or solver consumer currently retires rules using them.
+
+The idempotent retirement route also checks transient movement effects. A
+seemingly redundant `stationary` write can keep clearing another rule's `action`
+state every turn and suppress an action-sensitive consumer. Every RHS
+stationary layer, including compiler-injected writes, must therefore be unable
+to receive positive movement or action. This additional check is unnecessary
+when permanent disablers make the entire pattern impossible after setup.
+
+Quiescence must actually be reached and committed. Without
+`run_rules_on_level_start`, setup can start on the first input; a dependency
+chain in reverse source order can require several turns. Random selection,
+rigid rollback and the engine's bounded loop iteration are not an initialization
+guarantee. Undo, restart, level load and snapshot restoration require any future
+consumer to reconsider retirement from the restored board. A global mutable
+"this rule already ran" flag would be unsound for solver branches too.
+
 The analyzer is designed to **never over-claim**: a `proved` fact / a positive
 tag is meant to hold for every reachable runtime state. The runtime-contract
 suite (`run_static_analysis_runtime_contracts_node.js`) is the dynamic oracle —

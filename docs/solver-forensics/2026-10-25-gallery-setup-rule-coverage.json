@@ -1,0 +1,3098 @@
+{
+  "generatedAt": "2026-10-25T00:28:55.429Z",
+  "corpus": "google_gist_scraper/gallery_profiling/manifest.json",
+  "corpusManifestSha256": "14ea19b290217fd6d90ade918daf91b32421e880759e504bb0695bcc29cc5937",
+  "corpusGallerySha256": "7066db2ed14063e110f979b892234b9ff6ba6dc2508231210baaed1efbcfdc60",
+  "localGallerySha256AtScan": "db34326a93364d566a9f357faf6178dab0e096704769c5e8fa00b9be79d94c15",
+  "counting": "Source rules are grouped by 1-based source line within each game. All-variants counts require the tag on every emitted variant. Any-variant counts require at least one. Cached source bodies are not rewritten. No runtime speedup is measured.",
+  "all": {
+    "gamesTotal": 142,
+    "gamesAnalyzed": 141,
+    "gamesSkipped": [
+      {
+        "title": "Cyber-Lasso",
+        "status": "compile_error",
+        "errors": [
+          "<a onclick=\"jumpToLine(895);\"  href=\"javascript:void(0);\"><span class=\"errorTextLineNumber\"> line 895</span></a> : <span class=\"warningText\">You named an object \"|\", but this is a keyword. Don't do that!</span>",
+          "<a onclick=\"jumpToLine(958);\"  href=\"javascript:void(0);\"><span class=\"errorTextLineNumber\"> line 958</span></a> : <span class=\"warningText\">Object \"WALL\" included in multiple collision layers ( layers #9, #12 ). You should fix this!</span>",
+          "<a onclick=\"jumpToLine(1210);\"  href=\"javascript:void(0);\"><span class=\"errorTextLineNumber\"> line 1210</span></a> : <span class=\"errorText\">You cannot specify the same object more than once in a single cell (in this case ELECTRICFLOOR occurs multiple times).</span>",
+          "<a onclick=\"jumpToLine(1210);\"  href=\"javascript:void(0);\"><span class=\"errorTextLineNumber\"> line 1210</span></a> : <span class=\"errorText\">You have specified that there should be NO ELECTRICFLOOR but there is also a requirement that ELECTRICFLOOR, POWERED, CLAIMED be here.  This is a mistake right?</span>",
+          "<a onclick=\"jumpToLine(1304);\"  href=\"javascript:void(0);\"><span class=\"errorTextLineNumber\"> line 1304</span></a> : <span class=\"warningText\">You have specified that there should be NO SQUASHEDPLAYER but there is also a requirement that DOORUP, PLAYER be there, which collectively occupies the same layers (Layers 9, 12), so you can leave this out.</span>"
+        ]
+      }
+    ],
+    "sourceRulesTotal": 9428,
+    "compiledRulesTotal": 33891,
+    "tags": {
+      "self_disabling": {
+        "compiledRules": 4224,
+        "sourceRulesAnyVariant": 1895,
+        "sourceRulesAllVariants": 1890,
+        "gamesAnyVariant": 123,
+        "gamesAllVariants": 123
+      },
+      "persistent_guard": {
+        "compiledRules": 315,
+        "sourceRulesAnyVariant": 162,
+        "sourceRulesAllVariants": 160,
+        "gamesAnyVariant": 50,
+        "gamesAllVariants": 50
+      },
+      "idempotent_effect": {
+        "compiledRules": 3214,
+        "sourceRulesAnyVariant": 1882,
+        "sourceRulesAllVariants": 1881,
+        "gamesAnyVariant": 119,
+        "gamesAllVariants": 119
+      },
+      "setup_only": {
+        "compiledRules": 25,
+        "sourceRulesAnyVariant": 19,
+        "sourceRulesAllVariants": 18,
+        "gamesAnyVariant": 13,
+        "gamesAllVariants": 12
+      }
+    },
+    "noncosmeticSetupSourceRules": 10,
+    "gamesWithNoncosmeticSetup": 9,
+    "setupGamesWithStartupMetadata": 12
+  },
+  "verified": {
+    "gamesTotal": 140,
+    "gamesAnalyzed": 139,
+    "gamesSkipped": [
+      {
+        "title": "Cyber-Lasso",
+        "status": "compile_error",
+        "errors": [
+          "<a onclick=\"jumpToLine(895);\"  href=\"javascript:void(0);\"><span class=\"errorTextLineNumber\"> line 895</span></a> : <span class=\"warningText\">You named an object \"|\", but this is a keyword. Don't do that!</span>",
+          "<a onclick=\"jumpToLine(958);\"  href=\"javascript:void(0);\"><span class=\"errorTextLineNumber\"> line 958</span></a> : <span class=\"warningText\">Object \"WALL\" included in multiple collision layers ( layers #9, #12 ). You should fix this!</span>",
+          "<a onclick=\"jumpToLine(1210);\"  href=\"javascript:void(0);\"><span class=\"errorTextLineNumber\"> line 1210</span></a> : <span class=\"errorText\">You cannot specify the same object more than once in a single cell (in this case ELECTRICFLOOR occurs multiple times).</span>",
+          "<a onclick=\"jumpToLine(1210);\"  href=\"javascript:void(0);\"><span class=\"errorTextLineNumber\"> line 1210</span></a> : <span class=\"errorText\">You have specified that there should be NO ELECTRICFLOOR but there is also a requirement that ELECTRICFLOOR, POWERED, CLAIMED be here.  This is a mistake right?</span>",
+          "<a onclick=\"jumpToLine(1304);\"  href=\"javascript:void(0);\"><span class=\"errorTextLineNumber\"> line 1304</span></a> : <span class=\"warningText\">You have specified that there should be NO SQUASHEDPLAYER but there is also a requirement that DOORUP, PLAYER be there, which collectively occupies the same layers (Layers 9, 12), so you can leave this out.</span>"
+        ]
+      }
+    ],
+    "sourceRulesTotal": 9371,
+    "compiledRulesTotal": 33767,
+    "tags": {
+      "self_disabling": {
+        "compiledRules": 4222,
+        "sourceRulesAnyVariant": 1894,
+        "sourceRulesAllVariants": 1889,
+        "gamesAnyVariant": 122,
+        "gamesAllVariants": 122
+      },
+      "persistent_guard": {
+        "compiledRules": 315,
+        "sourceRulesAnyVariant": 162,
+        "sourceRulesAllVariants": 160,
+        "gamesAnyVariant": 50,
+        "gamesAllVariants": 50
+      },
+      "idempotent_effect": {
+        "compiledRules": 3212,
+        "sourceRulesAnyVariant": 1881,
+        "sourceRulesAllVariants": 1880,
+        "gamesAnyVariant": 118,
+        "gamesAllVariants": 118
+      },
+      "setup_only": {
+        "compiledRules": 25,
+        "sourceRulesAnyVariant": 19,
+        "sourceRulesAllVariants": 18,
+        "gamesAnyVariant": 13,
+        "gamesAllVariants": 12
+      }
+    },
+    "noncosmeticSetupSourceRules": 10,
+    "gamesWithNoncosmeticSetup": 9,
+    "setupGamesWithStartupMetadata": 12
+  },
+  "provisional": {
+    "gamesTotal": 2,
+    "gamesAnalyzed": 2,
+    "gamesSkipped": [],
+    "sourceRulesTotal": 57,
+    "compiledRulesTotal": 124,
+    "tags": {
+      "self_disabling": {
+        "compiledRules": 2,
+        "sourceRulesAnyVariant": 1,
+        "sourceRulesAllVariants": 1,
+        "gamesAnyVariant": 1,
+        "gamesAllVariants": 1
+      },
+      "persistent_guard": {
+        "compiledRules": 0,
+        "sourceRulesAnyVariant": 0,
+        "sourceRulesAllVariants": 0,
+        "gamesAnyVariant": 0,
+        "gamesAllVariants": 0
+      },
+      "idempotent_effect": {
+        "compiledRules": 2,
+        "sourceRulesAnyVariant": 1,
+        "sourceRulesAllVariants": 1,
+        "gamesAnyVariant": 1,
+        "gamesAllVariants": 1
+      },
+      "setup_only": {
+        "compiledRules": 0,
+        "sourceRulesAnyVariant": 0,
+        "sourceRulesAllVariants": 0,
+        "gamesAnyVariant": 0,
+        "gamesAllVariants": 0
+      }
+    },
+    "noncosmeticSetupSourceRules": 0,
+    "gamesWithNoncosmeticSetup": 0,
+    "setupGamesWithStartupMetadata": 0
+  },
+  "activationCheck": {
+    "method": "A compiled variant is definitely unreachable if it requires an object absent from every authored playable level and absent from every rule object-present write. Other cases are not claimed to execute: this is a necessary-condition check, not a gameplay reachability proof.",
+    "definitelyUnreachableSetupSourceRules": [
+      {
+        "game": "Broken Abacus",
+        "line": 419,
+        "text": "[auxPush] -> []",
+        "requiredMissing": [
+          "auxPush"
+        ]
+      },
+      {
+        "game": "Broken Abacus",
+        "line": 487,
+        "text": "[auxPush] -> []",
+        "requiredMissing": [
+          "auxPush"
+        ]
+      }
+    ],
+    "fullyCoveredSetupSourceRulesNotProvedUnreachable": 16,
+    "gamesWithFullyCoveredSetupNotProvedUnreachable": 11
+  },
+  "canonicalizerOverlap": {
+    "summary": {
+      "allFullyCovered": {
+        "sourceRules": 18,
+        "games": 12,
+        "cosmeticSourceRules": 8,
+        "cosmeticGames": 4,
+        "cosmeticCullEligible": 1,
+        "removedByCosmeticPass": 1,
+        "removedByAllPasses": 3,
+        "retainedByAllPasses": 15,
+        "retainedByAllPassesGames": 11,
+        "compiledSetupVariants": 24,
+        "cosmeticCompiledSetupVariants": 8
+      },
+      "excludingDefinitelyUnreachable": {
+        "sourceRules": 16,
+        "games": 11,
+        "cosmeticSourceRules": 6,
+        "cosmeticGames": 3,
+        "cosmeticCullEligible": 1,
+        "removedByCosmeticPass": 1,
+        "removedByAllPasses": 1,
+        "retainedByAllPasses": 15,
+        "retainedByAllPassesGames": 11,
+        "compiledSetupVariants": 22,
+        "cosmeticCompiledSetupVariants": 6
+      },
+      "includingPartialSourceCoverage": {
+        "sourceRules": 19,
+        "games": 13,
+        "cosmeticSourceRules": 8,
+        "cosmeticGames": 4,
+        "cosmeticCullEligible": 1,
+        "removedByCosmeticPass": 1,
+        "removedByAllPasses": 3,
+        "retainedByAllPasses": 16,
+        "retainedByAllPassesGames": 12,
+        "compiledSetupVariants": 25,
+        "cosmeticCompiledSetupVariants": 9
+      }
+    },
+    "rules": [
+      {
+        "game": "SwapBot",
+        "line": 513,
+        "text": "[MagicReplace] -> [MagicEnd]",
+        "fullySetup": true,
+        "definitelyUnreachable": false,
+        "compiledSetupVariants": 1,
+        "cosmeticSetupVariants": 0,
+        "allVariantsCosmetic": false,
+        "cosmeticCullEligible": false,
+        "retained": {
+          "default": true,
+          "cosmeticRules": true,
+          "all": true
+        },
+        "gameHasAgain": true,
+        "gameCanonicalRuleCounts": {
+          "default": 174,
+          "cosmeticRules": 174,
+          "all": 174
+        }
+      },
+      {
+        "game": "Rock, Paper, Scissors",
+        "line": 353,
+        "text": "[startlevel] -> []",
+        "fullySetup": true,
+        "definitelyUnreachable": false,
+        "compiledSetupVariants": 1,
+        "cosmeticSetupVariants": 0,
+        "allVariantsCosmetic": false,
+        "cosmeticCullEligible": false,
+        "retained": {
+          "default": true,
+          "cosmeticRules": true,
+          "all": true
+        },
+        "gameHasAgain": false,
+        "gameCanonicalRuleCounts": {
+          "default": 104,
+          "cosmeticRules": 91,
+          "all": 91
+        }
+      },
+      {
+        "game": "JAM3 Game",
+        "line": 375,
+        "text": "[startlevel] -> []",
+        "fullySetup": true,
+        "definitelyUnreachable": false,
+        "compiledSetupVariants": 1,
+        "cosmeticSetupVariants": 0,
+        "allVariantsCosmetic": false,
+        "cosmeticCullEligible": false,
+        "retained": {
+          "default": true,
+          "cosmeticRules": true,
+          "all": true
+        },
+        "gameHasAgain": true,
+        "gameCanonicalRuleCounts": {
+          "default": 105,
+          "cosmeticRules": 105,
+          "all": 105
+        }
+      },
+      {
+        "game": "Dharma Dojo demake",
+        "line": 279,
+        "text": "[SetsToken] -> [no SetsToken]",
+        "fullySetup": true,
+        "definitelyUnreachable": false,
+        "compiledSetupVariants": 7,
+        "cosmeticSetupVariants": 0,
+        "allVariantsCosmetic": false,
+        "cosmeticCullEligible": false,
+        "retained": {
+          "default": true,
+          "cosmeticRules": true,
+          "all": true
+        },
+        "gameHasAgain": true,
+        "gameCanonicalRuleCounts": {
+          "default": 92,
+          "cosmeticRules": 92,
+          "all": 92
+        }
+      },
+      {
+        "game": "ParaLands",
+        "line": 807,
+        "text": "[TempAnimTurn] -> []",
+        "fullySetup": false,
+        "definitelyUnreachable": false,
+        "compiledSetupVariants": 1,
+        "cosmeticSetupVariants": 1,
+        "allVariantsCosmetic": false,
+        "cosmeticCullEligible": false,
+        "retained": {
+          "default": true,
+          "cosmeticRules": true,
+          "all": true
+        },
+        "gameHasAgain": true,
+        "gameCanonicalRuleCounts": {
+          "default": 254,
+          "cosmeticRules": 254,
+          "all": 246
+        }
+      },
+      {
+        "game": "i herd u liek water templs",
+        "line": 250,
+        "text": "[Initialize] -> []",
+        "fullySetup": true,
+        "definitelyUnreachable": false,
+        "compiledSetupVariants": 1,
+        "cosmeticSetupVariants": 0,
+        "allVariantsCosmetic": false,
+        "cosmeticCullEligible": false,
+        "retained": {
+          "default": true,
+          "cosmeticRules": true,
+          "all": true
+        },
+        "gameHasAgain": false,
+        "gameCanonicalRuleCounts": {
+          "default": 54,
+          "cosmeticRules": 52,
+          "all": 52
+        }
+      },
+      {
+        "game": "Easy Enigma",
+        "line": 988,
+        "text": "[timer9] -> [timer8]",
+        "fullySetup": true,
+        "definitelyUnreachable": false,
+        "compiledSetupVariants": 1,
+        "cosmeticSetupVariants": 0,
+        "allVariantsCosmetic": false,
+        "cosmeticCullEligible": false,
+        "retained": {
+          "default": true,
+          "cosmeticRules": true,
+          "all": true
+        },
+        "gameHasAgain": false,
+        "gameCanonicalRuleCounts": {
+          "default": 855,
+          "cosmeticRules": 827,
+          "all": 827
+        }
+      },
+      {
+        "game": "Maera Public Works",
+        "line": 1719,
+        "text": "DOWN [ | LadderUp ] -> [ LadderUpTop | LadderUp ]",
+        "fullySetup": true,
+        "definitelyUnreachable": false,
+        "compiledSetupVariants": 1,
+        "cosmeticSetupVariants": 1,
+        "allVariantsCosmetic": true,
+        "cosmeticCullEligible": false,
+        "retained": {
+          "default": true,
+          "cosmeticRules": true,
+          "all": true
+        },
+        "gameHasAgain": true,
+        "gameCanonicalRuleCounts": {
+          "default": 161,
+          "cosmeticRules": 161,
+          "all": 160
+        }
+      },
+      {
+        "game": "Maera Public Works",
+        "line": 1720,
+        "text": "DOWN [ LadderDown | ] -> [ LadderDown | LadderDownTop ]",
+        "fullySetup": true,
+        "definitelyUnreachable": false,
+        "compiledSetupVariants": 1,
+        "cosmeticSetupVariants": 1,
+        "allVariantsCosmetic": true,
+        "cosmeticCullEligible": false,
+        "retained": {
+          "default": true,
+          "cosmeticRules": true,
+          "all": true
+        },
+        "gameHasAgain": true,
+        "gameCanonicalRuleCounts": {
+          "default": 161,
+          "cosmeticRules": 161,
+          "all": 160
+        }
+      },
+      {
+        "game": "Maera Public Works",
+        "line": 1721,
+        "text": "RIGHT [ | LadderLeft ] -> [ LadderLeftTop | LadderLeft ]",
+        "fullySetup": true,
+        "definitelyUnreachable": false,
+        "compiledSetupVariants": 1,
+        "cosmeticSetupVariants": 1,
+        "allVariantsCosmetic": true,
+        "cosmeticCullEligible": false,
+        "retained": {
+          "default": true,
+          "cosmeticRules": true,
+          "all": true
+        },
+        "gameHasAgain": true,
+        "gameCanonicalRuleCounts": {
+          "default": 161,
+          "cosmeticRules": 161,
+          "all": 160
+        }
+      },
+      {
+        "game": "Maera Public Works",
+        "line": 1722,
+        "text": "RIGHT [ LadderRight | ] -> [ LadderRight | LadderRightTop ]",
+        "fullySetup": true,
+        "definitelyUnreachable": false,
+        "compiledSetupVariants": 1,
+        "cosmeticSetupVariants": 1,
+        "allVariantsCosmetic": true,
+        "cosmeticCullEligible": false,
+        "retained": {
+          "default": true,
+          "cosmeticRules": true,
+          "all": true
+        },
+        "gameHasAgain": true,
+        "gameCanonicalRuleCounts": {
+          "default": 161,
+          "cosmeticRules": 161,
+          "all": 160
+        }
+      },
+      {
+        "game": "Broken Abacus",
+        "line": 419,
+        "text": "[auxPush] -> []",
+        "fullySetup": true,
+        "definitelyUnreachable": true,
+        "compiledSetupVariants": 1,
+        "cosmeticSetupVariants": 1,
+        "allVariantsCosmetic": true,
+        "cosmeticCullEligible": false,
+        "retained": {
+          "default": true,
+          "cosmeticRules": true,
+          "all": false
+        },
+        "gameHasAgain": true,
+        "gameCanonicalRuleCounts": {
+          "default": 199,
+          "cosmeticRules": 199,
+          "all": 183
+        }
+      },
+      {
+        "game": "Broken Abacus",
+        "line": 487,
+        "text": "[auxPush] -> []",
+        "fullySetup": true,
+        "definitelyUnreachable": true,
+        "compiledSetupVariants": 1,
+        "cosmeticSetupVariants": 1,
+        "allVariantsCosmetic": true,
+        "cosmeticCullEligible": false,
+        "retained": {
+          "default": true,
+          "cosmeticRules": true,
+          "all": false
+        },
+        "gameHasAgain": true,
+        "gameCanonicalRuleCounts": {
+          "default": 199,
+          "cosmeticRules": 199,
+          "all": 183
+        }
+      },
+      {
+        "game": "Indigestion",
+        "line": 542,
+        "text": "[start] -> []",
+        "fullySetup": true,
+        "definitelyUnreachable": false,
+        "compiledSetupVariants": 1,
+        "cosmeticSetupVariants": 1,
+        "allVariantsCosmetic": true,
+        "cosmeticCullEligible": false,
+        "retained": {
+          "default": true,
+          "cosmeticRules": true,
+          "all": true
+        },
+        "gameHasAgain": true,
+        "gameCanonicalRuleCounts": {
+          "default": 271,
+          "cosmeticRules": 271,
+          "all": 236
+        }
+      },
+      {
+        "game": "Caramelban",
+        "line": 334,
+        "text": "left [ wall no wallV | wall ] -> [ wall wallV | wall ]",
+        "fullySetup": true,
+        "definitelyUnreachable": false,
+        "compiledSetupVariants": 1,
+        "cosmeticSetupVariants": 0,
+        "allVariantsCosmetic": false,
+        "cosmeticCullEligible": false,
+        "retained": {
+          "default": true,
+          "cosmeticRules": true,
+          "all": true
+        },
+        "gameHasAgain": false,
+        "gameCanonicalRuleCounts": {
+          "default": 99,
+          "cosmeticRules": 92,
+          "all": 92
+        }
+      },
+      {
+        "game": "Caramelban",
+        "line": 335,
+        "text": "down [ wall no wallH | wall ] -> [ wall wallH | wall ]",
+        "fullySetup": true,
+        "definitelyUnreachable": false,
+        "compiledSetupVariants": 1,
+        "cosmeticSetupVariants": 0,
+        "allVariantsCosmetic": false,
+        "cosmeticCullEligible": false,
+        "retained": {
+          "default": true,
+          "cosmeticRules": true,
+          "all": true
+        },
+        "gameHasAgain": false,
+        "gameCanonicalRuleCounts": {
+          "default": 99,
+          "cosmeticRules": 92,
+          "all": 92
+        }
+      },
+      {
+        "game": "Caramelban",
+        "line": 336,
+        "text": "down [ wallV no wallC | wallV ] -> [ wallV wallC | wallV ]",
+        "fullySetup": true,
+        "definitelyUnreachable": false,
+        "compiledSetupVariants": 1,
+        "cosmeticSetupVariants": 1,
+        "allVariantsCosmetic": true,
+        "cosmeticCullEligible": true,
+        "retained": {
+          "default": true,
+          "cosmeticRules": false,
+          "all": false
+        },
+        "gameHasAgain": false,
+        "gameCanonicalRuleCounts": {
+          "default": 99,
+          "cosmeticRules": 92,
+          "all": 92
+        }
+      },
+      {
+        "game": "Billy Bob's Uphill Climb",
+        "line": 436,
+        "text": "[ ] -> [ SetupDone ]",
+        "fullySetup": true,
+        "definitelyUnreachable": false,
+        "compiledSetupVariants": 1,
+        "cosmeticSetupVariants": 0,
+        "allVariantsCosmetic": false,
+        "cosmeticCullEligible": false,
+        "retained": {
+          "default": true,
+          "cosmeticRules": true,
+          "all": true
+        },
+        "gameHasAgain": false,
+        "gameCanonicalRuleCounts": {
+          "default": 589,
+          "cosmeticRules": 589,
+          "all": 589
+        }
+      },
+      {
+        "game": "A CLEAR VIEW OF THE SKY",
+        "line": 349,
+        "text": "[tl]->[tl exploding]",
+        "fullySetup": true,
+        "definitelyUnreachable": false,
+        "compiledSetupVariants": 1,
+        "cosmeticSetupVariants": 0,
+        "allVariantsCosmetic": false,
+        "cosmeticCullEligible": false,
+        "retained": {
+          "default": true,
+          "cosmeticRules": true,
+          "all": true
+        },
+        "gameHasAgain": true,
+        "gameCanonicalRuleCounts": {
+          "default": 54,
+          "cosmeticRules": 54,
+          "all": 54
+        }
+      }
+    ]
+  },
+  "games": [
+    {
+      "title": "2D Whale World",
+      "sourceStatus": "ready",
+      "sourceFile": "6841165.txt",
+      "sha256": "d341f7c681d41677f9f85d9cc5196db0b7a3f29408c7d8c8f7bb48f563d1d297",
+      "analysisStatus": "ok",
+      "sourceRules": 8,
+      "compiledVariants": 23,
+      "sourceTagAllCounts": {
+        "self_disabling": 2,
+        "persistent_guard": 0,
+        "idempotent_effect": 2,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Microban",
+      "sourceStatus": "ready",
+      "sourceFile": "6841219.txt",
+      "sha256": "f3b2815e76d4192a325f069e50dc5bd1d5aa336e72b79b606320cf30a0b0cc13",
+      "analysisStatus": "ok",
+      "sourceRules": 1,
+      "compiledVariants": 4,
+      "sourceTagAllCounts": {
+        "self_disabling": 0,
+        "persistent_guard": 0,
+        "idempotent_effect": 0,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Lime Rick",
+      "sourceStatus": "ready",
+      "sourceFile": "6841210.txt",
+      "sha256": "e8625400924fe39cbe93687fcc3427059c819980fb707b8afc8899ab5ed22901",
+      "analysisStatus": "ok",
+      "sourceRules": 11,
+      "compiledVariants": 16,
+      "sourceTagAllCounts": {
+        "self_disabling": 0,
+        "persistent_guard": 0,
+        "idempotent_effect": 0,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Multi-word Dictionary Game",
+      "sourceStatus": "ready",
+      "sourceFile": "6845074.txt",
+      "sha256": "ec595bf18ea4c3f7493a571a01e96f310b2d57dea701e4676fc12cc28b55794b",
+      "analysisStatus": "ok",
+      "sourceRules": 4,
+      "compiledVariants": 10,
+      "sourceTagAllCounts": {
+        "self_disabling": 0,
+        "persistent_guard": 2,
+        "idempotent_effect": 0,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Midas",
+      "sourceStatus": "ready",
+      "sourceFile": "6878337.txt",
+      "sha256": "1375abffab652e1cacfefa2f151d3d57bb028bca3c0eb3bac522519d9f2ee091",
+      "analysisStatus": "ok",
+      "sourceRules": 15,
+      "compiledVariants": 29,
+      "sourceTagAllCounts": {
+        "self_disabling": 5,
+        "persistent_guard": 1,
+        "idempotent_effect": 2,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "It Dies In The Light",
+      "sourceStatus": "ready",
+      "sourceFile": "6847423.txt",
+      "sha256": "d0360b9db069d1dcf1772a60d896be3fb81ada0961f24a9fc5a584924eeeaa87",
+      "analysisStatus": "ok",
+      "sourceRules": 19,
+      "compiledVariants": 35,
+      "sourceTagAllCounts": {
+        "self_disabling": 2,
+        "persistent_guard": 0,
+        "idempotent_effect": 5,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Love and Pieces",
+      "sourceStatus": "ready",
+      "sourceFile": "6846450.txt",
+      "sha256": "f4a145c90a6867521c0923ab379b53fa282c88127902773f2a0ca91e2e44331b",
+      "analysisStatus": "ok",
+      "sourceRules": 2,
+      "compiledVariants": 8,
+      "sourceTagAllCounts": {
+        "self_disabling": 1,
+        "persistent_guard": 0,
+        "idempotent_effect": 0,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Heroes of Sokoban",
+      "sourceStatus": "ready",
+      "sourceFile": "6860122.txt",
+      "sha256": "81a1d27115fc40c04f27bb39d0ef12ebffbea513e3fe9f550b5173bb683728a3",
+      "analysisStatus": "ok",
+      "sourceRules": 22,
+      "compiledVariants": 55,
+      "sourceTagAllCounts": {
+        "self_disabling": 3,
+        "persistent_guard": 0,
+        "idempotent_effect": 1,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "MC Escher's Equestrian Armageddon",
+      "sourceStatus": "ready",
+      "sourceFile": "6851495.txt",
+      "sha256": "4b78e1872e8b25b5986fc3a59d899e64c3c05be6ece0cfe1fb1f5c7653d54dc1",
+      "analysisStatus": "ok",
+      "sourceRules": 19,
+      "compiledVariants": 37,
+      "sourceTagAllCounts": {
+        "self_disabling": 0,
+        "persistent_guard": 0,
+        "idempotent_effect": 0,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "IceCrates",
+      "sourceStatus": "ready",
+      "sourceFile": "6877049.txt",
+      "sha256": "ac6d396fe7688649fb59e06b42282ca2d0de1b53f17c7647e6f35c129d57f53b",
+      "analysisStatus": "ok",
+      "sourceRules": 50,
+      "compiledVariants": 50,
+      "sourceTagAllCounts": {
+        "self_disabling": 7,
+        "persistent_guard": 0,
+        "idempotent_effect": 7,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Dungeon Janitor",
+      "sourceStatus": "ready",
+      "sourceFile": "6866423.txt",
+      "sha256": "3a28955fd5386f144aad5f41bc3934e4694c83b15075d8c6a6d4b80e6dbea37e",
+      "analysisStatus": "ok",
+      "sourceRules": 28,
+      "compiledVariants": 44,
+      "sourceTagAllCounts": {
+        "self_disabling": 11,
+        "persistent_guard": 0,
+        "idempotent_effect": 17,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Collapse",
+      "sourceStatus": "ready",
+      "sourceFile": "11358856.txt",
+      "sha256": "07d0cb245ff1822ed0be6a8e9cc5ee4415222182171c44a4f79062afc7df53d2",
+      "analysisStatus": "ok",
+      "sourceRules": 31,
+      "compiledVariants": 51,
+      "sourceTagAllCounts": {
+        "self_disabling": 5,
+        "persistent_guard": 0,
+        "idempotent_effect": 3,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Explod",
+      "sourceStatus": "ready",
+      "sourceFile": "6877929.txt",
+      "sha256": "d8dc7ad911d91accc9e6543cd6b8a8081218b3a0316219ee8d1f7e989f88b74a",
+      "analysisStatus": "ok",
+      "sourceRules": 27,
+      "compiledVariants": 57,
+      "sourceTagAllCounts": {
+        "self_disabling": 17,
+        "persistent_guard": 0,
+        "idempotent_effect": 6,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Cake Monsters",
+      "sourceStatus": "ready",
+      "sourceFile": "fcf4b43ee6c679ef9389.txt",
+      "sha256": "2dc20187b2be5d387f36dc9ff25bacbc1a87f8c98acd55e2b3c4ea90470803d2",
+      "analysisStatus": "ok",
+      "sourceRules": 34,
+      "compiledVariants": 136,
+      "sourceTagAllCounts": {
+        "self_disabling": 0,
+        "persistent_guard": 0,
+        "idempotent_effect": 0,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Kettle",
+      "sourceStatus": "ready",
+      "sourceFile": "6878681.txt",
+      "sha256": "df99ad2980afbe2e8b71c11272b54a43cbf7e7f2c9907a7e706e8b9c85ae18ef",
+      "analysisStatus": "ok",
+      "sourceRules": 14,
+      "compiledVariants": 20,
+      "sourceTagAllCounts": {
+        "self_disabling": 0,
+        "persistent_guard": 0,
+        "idempotent_effect": 0,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Ebony & Ivory",
+      "sourceStatus": "ready",
+      "sourceFile": "6879013.txt",
+      "sha256": "81f31d61883fcb26c2c37dfdb49c2a29bbfac0794d5604425b6a3a08a6190c2d",
+      "analysisStatus": "ok",
+      "sourceRules": 9,
+      "compiledVariants": 33,
+      "sourceTagAllCounts": {
+        "self_disabling": 1,
+        "persistent_guard": 0,
+        "idempotent_effect": 1,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Bouncers",
+      "sourceStatus": "ready",
+      "sourceFile": "9675709.txt",
+      "sha256": "3b555da89430147a3e1bce70c8a98da9256024c05a8d2d237ab52a521578bd11",
+      "analysisStatus": "ok",
+      "sourceRules": 23,
+      "compiledVariants": 38,
+      "sourceTagAllCounts": {
+        "self_disabling": 9,
+        "persistent_guard": 4,
+        "idempotent_effect": 0,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "The Legend of Zokoban",
+      "sourceStatus": "ready",
+      "sourceFile": "6880313.txt",
+      "sha256": "73fc0b03c92e6b1cbd48ef4151c29553a08b9ac47a762fddde3dfc8ba4ace17f",
+      "analysisStatus": "ok",
+      "sourceRules": 10,
+      "compiledVariants": 42,
+      "sourceTagAllCounts": {
+        "self_disabling": 1,
+        "persistent_guard": 1,
+        "idempotent_effect": 0,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Dang I'm Huge",
+      "sourceStatus": "ready",
+      "sourceFile": "9a76ddbe9e8f687c2a75.txt",
+      "sha256": "03a3c3058316d5d88433b6f8cf0f2211ce07da9c49ccfcf95f662875f6155386",
+      "analysisStatus": "ok",
+      "sourceRules": 29,
+      "compiledVariants": 76,
+      "sourceTagAllCounts": {
+        "self_disabling": 9,
+        "persistent_guard": 0,
+        "idempotent_effect": 9,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "tiny treasure hunt",
+      "sourceStatus": "ready",
+      "sourceFile": "7072266.txt",
+      "sha256": "98388cead0e79611b2ff44abb13eacb91abd93cbac4be4998ed5698869e4a730",
+      "analysisStatus": "ok",
+      "sourceRules": 29,
+      "compiledVariants": 57,
+      "sourceTagAllCounts": {
+        "self_disabling": 1,
+        "persistent_guard": 0,
+        "idempotent_effect": 1,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Heroes of Sokoban II: Monsters",
+      "sourceStatus": "ready",
+      "sourceFile": "6910207.txt",
+      "sha256": "1cfdaca0f27c8a3cb7c8168a497ba88833077d0820420c91100a8087486fa890",
+      "analysisStatus": "ok",
+      "sourceRules": 51,
+      "compiledVariants": 106,
+      "sourceTagAllCounts": {
+        "self_disabling": 6,
+        "persistent_guard": 0,
+        "idempotent_effect": 5,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Sok7",
+      "sourceStatus": "ready",
+      "sourceFile": "6906326.txt",
+      "sha256": "2182c2ff4b4f86ecd271e5a3e67743d5b52274fafea8dad89f9207c1383605ed",
+      "analysisStatus": "ok",
+      "sourceRules": 44,
+      "compiledVariants": 140,
+      "sourceTagAllCounts": {
+        "self_disabling": 38,
+        "persistent_guard": 0,
+        "idempotent_effect": 12,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Take Heart Lass",
+      "sourceStatus": "ready",
+      "sourceFile": "6902186.txt",
+      "sha256": "acfdc7fde4c15511b8a2e82cc65a8c368c0dffb96423b93b8391ad6a88991032",
+      "analysisStatus": "ok",
+      "sourceRules": 17,
+      "compiledVariants": 50,
+      "sourceTagAllCounts": {
+        "self_disabling": 6,
+        "persistent_guard": 1,
+        "idempotent_effect": 6,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Ponies Jumping Synchronously",
+      "sourceStatus": "ready",
+      "sourceFile": "6872613.txt",
+      "sha256": "8b82f3605c73dcb1fac05746777d052c3b2f8a0aefdd6f258d90d4963bcfcff5",
+      "analysisStatus": "ok",
+      "sourceRules": 53,
+      "compiledVariants": 211,
+      "sourceTagAllCounts": {
+        "self_disabling": 3,
+        "persistent_guard": 2,
+        "idempotent_effect": 3,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Closure Demake",
+      "sourceStatus": "ready",
+      "sourceFile": "9675998.txt",
+      "sha256": "7f293a08e76ff8b75d4437aa8e4a2583151e427ac9284cb6d432a739eb610ed0",
+      "analysisStatus": "ok",
+      "sourceRules": 37,
+      "compiledVariants": 53,
+      "sourceTagAllCounts": {
+        "self_disabling": 11,
+        "persistent_guard": 1,
+        "idempotent_effect": 9,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Memories Of Castlemouse",
+      "sourceStatus": "ready",
+      "sourceFile": "6976592.txt",
+      "sha256": "6c355c0a116cbb400aafcff82a9aa6a72f921e70c9a2bc569efe779043b3e83e",
+      "analysisStatus": "ok",
+      "sourceRules": 93,
+      "compiledVariants": 188,
+      "sourceTagAllCounts": {
+        "self_disabling": 0,
+        "persistent_guard": 0,
+        "idempotent_effect": 0,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Atlas Shrank",
+      "sourceStatus": "ready",
+      "sourceFile": "6994394.txt",
+      "sha256": "5e3b8e9b0e01911742632dfda598b7818383e4e09a6f44940aa72a1188752eb3",
+      "analysisStatus": "ok",
+      "sourceRules": 44,
+      "compiledVariants": 65,
+      "sourceTagAllCounts": {
+        "self_disabling": 8,
+        "persistent_guard": 0,
+        "idempotent_effect": 7,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Colour Chained",
+      "sourceStatus": "ready",
+      "sourceFile": "6990366.txt",
+      "sha256": "82c30587f3ea98e9e082868d81c54a421fd3dbea0c3e8cb573ea9a62cd61132a",
+      "analysisStatus": "ok",
+      "sourceRules": 46,
+      "compiledVariants": 163,
+      "sourceTagAllCounts": {
+        "self_disabling": 7,
+        "persistent_guard": 0,
+        "idempotent_effect": 14,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Sokobond: The Demake",
+      "sourceStatus": "ready",
+      "sourceFile": "7005648.txt",
+      "sha256": "901503220447f50c22af82126ca1aa26ddfc6017c886af342a80ebb828df9845",
+      "analysisStatus": "ok",
+      "sourceRules": 60,
+      "compiledVariants": 78,
+      "sourceTagAllCounts": {
+        "self_disabling": 36,
+        "persistent_guard": 0,
+        "idempotent_effect": 36,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Tunnel Rat",
+      "sourceStatus": "ready",
+      "sourceFile": "7047165.txt",
+      "sha256": "4d463f5be75cb6672c2883a7d2127865794fa45f2b312cbdf3abe326f4d045a7",
+      "analysisStatus": "ok",
+      "sourceRules": 70,
+      "compiledVariants": 133,
+      "sourceTagAllCounts": {
+        "self_disabling": 12,
+        "persistent_guard": 0,
+        "idempotent_effect": 3,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "cute train",
+      "sourceStatus": "ready",
+      "sourceFile": "9121824.txt",
+      "sha256": "e15ec9fcf093e6ef16573a0650577944329ace16214082008b62c674cab280bd",
+      "analysisStatus": "ok",
+      "sourceRules": 45,
+      "compiledVariants": 63,
+      "sourceTagAllCounts": {
+        "self_disabling": 3,
+        "persistent_guard": 0,
+        "idempotent_effect": 3,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Manic Ammo",
+      "sourceStatus": "ready",
+      "sourceFile": "7057244.txt",
+      "sha256": "66a18f3c19d27587faa98bbaa7bce6dab7fce81751bd26ba21bb6b3b5deda79b",
+      "analysisStatus": "ok",
+      "sourceRules": 38,
+      "compiledVariants": 77,
+      "sourceTagAllCounts": {
+        "self_disabling": 3,
+        "persistent_guard": 1,
+        "idempotent_effect": 1,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Heroes of Sokoban III: The Bard and The Druid",
+      "sourceStatus": "ready",
+      "sourceFile": "7072276.txt",
+      "sha256": "f66ceb8f8a2c23a3cb270bad62cdf194e47479772cab94f154ed26f0ff7c20e0",
+      "analysisStatus": "ok",
+      "sourceRules": 79,
+      "compiledVariants": 210,
+      "sourceTagAllCounts": {
+        "self_disabling": 8,
+        "persistent_guard": 0,
+        "idempotent_effect": 4,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Cratopia",
+      "sourceStatus": "ready",
+      "sourceFile": "7114130.txt",
+      "sha256": "93c0d50befa084b5a5c6e0c569a53d7a0b99414e76512b5627c1a0720c72dfee",
+      "analysisStatus": "ok",
+      "sourceRules": 50,
+      "compiledVariants": 86,
+      "sourceTagAllCounts": {
+        "self_disabling": 10,
+        "persistent_guard": 1,
+        "idempotent_effect": 8,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Flying Kick",
+      "sourceStatus": "ready",
+      "sourceFile": "7324598.txt",
+      "sha256": "baee22210423022607c176d15c78e25d807c603c24c31d3fca01dace58282ac2",
+      "analysisStatus": "ok",
+      "sourceRules": 46,
+      "compiledVariants": 56,
+      "sourceTagAllCounts": {
+        "self_disabling": 17,
+        "persistent_guard": 0,
+        "idempotent_effect": 3,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Drop Swap",
+      "sourceStatus": "ready",
+      "sourceFile": "c784daec18555b9d48f3.txt",
+      "sha256": "5eba25c603674f2b9889a5939bd1c538d41f384a46e483cad406dba3e9593ca9",
+      "analysisStatus": "ok",
+      "sourceRules": 59,
+      "compiledVariants": 158,
+      "sourceTagAllCounts": {
+        "self_disabling": 16,
+        "persistent_guard": 0,
+        "idempotent_effect": 6,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "chaos wizard",
+      "sourceStatus": "ready",
+      "sourceFile": "provided-chaos_wizard.txt",
+      "sha256": "3877d40a3f626e35008dc94e56e380f7aba4faaca262e065890b146f69609bd5",
+      "analysisStatus": "ok",
+      "sourceRules": 42,
+      "compiledVariants": 95,
+      "sourceTagAllCounts": {
+        "self_disabling": 4,
+        "persistent_guard": 0,
+        "idempotent_effect": 4,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Slidings",
+      "sourceStatus": "ready",
+      "sourceFile": "8931824.txt",
+      "sha256": "d0f5ea631f1b45d122b1dde700a23e2db1c40ee18b1c9c5ee8b4c0cecb069267",
+      "analysisStatus": "ok",
+      "sourceRules": 10,
+      "compiledVariants": 25,
+      "sourceTagAllCounts": {
+        "self_disabling": 1,
+        "persistent_guard": 0,
+        "idempotent_effect": 1,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Threes: The Demake",
+      "sourceStatus": "ready",
+      "sourceFile": "9123086.txt",
+      "sha256": "bad8e1ab3b07050ab7e766b631c96b080a6d51ed4fb9315b0729a010d5a45cfb",
+      "analysisStatus": "ok",
+      "sourceRules": 187,
+      "compiledVariants": 497,
+      "sourceTagAllCounts": {
+        "self_disabling": 25,
+        "persistent_guard": 1,
+        "idempotent_effect": 15,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Gobble Rush!",
+      "sourceStatus": "ready",
+      "sourceFile": "9582263.txt",
+      "sha256": "2cbe7b21cd9211a8f9c56f477506f53def086d9227b3f2e2aa2fe2c645166555",
+      "analysisStatus": "ok",
+      "sourceRules": 36,
+      "compiledVariants": 51,
+      "sourceTagAllCounts": {
+        "self_disabling": 10,
+        "persistent_guard": 0,
+        "idempotent_effect": 7,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Smother",
+      "sourceStatus": "ready",
+      "sourceFile": "6decdfe5107e7f2beee586e01680e850.txt",
+      "sha256": "1cb8ab1caf6a507640fa5c739c4c7d0a073479a176aeb1c056a78d8935dae89b",
+      "analysisStatus": "ok",
+      "sourceRules": 19,
+      "compiledVariants": 28,
+      "sourceTagAllCounts": {
+        "self_disabling": 0,
+        "persistent_guard": 0,
+        "idempotent_effect": 0,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "The Saga of the Candy Scroll",
+      "sourceStatus": "ready",
+      "sourceFile": "8565753.txt",
+      "sha256": "63bc46493b7ea834c5d4b5c8ae3ca709bd16f0c7a3bac28fc713f73212ea8190",
+      "analysisStatus": "ok",
+      "sourceRules": 21,
+      "compiledVariants": 84,
+      "sourceTagAllCounts": {
+        "self_disabling": 6,
+        "persistent_guard": 0,
+        "idempotent_effect": 4,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Pants, Shirt, Cap",
+      "sourceStatus": "ready",
+      "sourceFile": "9440559.txt",
+      "sha256": "3fc32d9084b98f4bc796015cf99672d7a0f0df7a179213f026412b2020db66f4",
+      "analysisStatus": "ok",
+      "sourceRules": 17,
+      "compiledVariants": 56,
+      "sourceTagAllCounts": {
+        "self_disabling": 4,
+        "persistent_guard": 0,
+        "idempotent_effect": 4,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Sticky Candy Puzzle Saga",
+      "sourceStatus": "ready",
+      "sourceFile": "8569268.txt",
+      "sha256": "2de99450a991ea64b826c067599c62323787ff5d0e8c43a565263614352d4bff",
+      "analysisStatus": "ok",
+      "sourceRules": 22,
+      "compiledVariants": 66,
+      "sourceTagAllCounts": {
+        "self_disabling": 4,
+        "persistent_guard": 0,
+        "idempotent_effect": 4,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "MazezaM",
+      "sourceStatus": "ready",
+      "sourceFile": "7718522.txt",
+      "sha256": "8cd2879b16a865b37049b46b15e100d8e44e659e39f0daf6d0e67a3a100f69f8",
+      "analysisStatus": "ok",
+      "sourceRules": 8,
+      "compiledVariants": 13,
+      "sourceTagAllCounts": {
+        "self_disabling": 0,
+        "persistent_guard": 0,
+        "idempotent_effect": 0,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Modality",
+      "sourceStatus": "ready",
+      "sourceFile": "6888061.txt",
+      "sha256": "924a27515c6169a07800e79b1c32872773bbe17db60bc40a8794bc59a0d1aad8",
+      "analysisStatus": "ok",
+      "sourceRules": 4,
+      "compiledVariants": 16,
+      "sourceTagAllCounts": {
+        "self_disabling": 0,
+        "persistent_guard": 0,
+        "idempotent_effect": 0,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "PUSH",
+      "sourceStatus": "ready",
+      "sourceFile": "9867759.txt",
+      "sha256": "c90f61e41cef4ba5abfefd1a759eaa690d8dafcbc12e8d01857eb7c9f7ecf0e3",
+      "analysisStatus": "ok",
+      "sourceRules": 30,
+      "compiledVariants": 62,
+      "sourceTagAllCounts": {
+        "self_disabling": 2,
+        "persistent_guard": 0,
+        "idempotent_effect": 2,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "You're Pulleying My Leg",
+      "sourceStatus": "ready",
+      "sourceFile": "11345687.txt",
+      "sha256": "e621b887e773a5a4745ae0224810826aaf5d427a3be8c6e3bbdd842bb2c6e399",
+      "analysisStatus": "ok",
+      "sourceRules": 87,
+      "compiledVariants": 162,
+      "sourceTagAllCounts": {
+        "self_disabling": 3,
+        "persistent_guard": 0,
+        "idempotent_effect": 18,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Beam Islands",
+      "sourceStatus": "ready",
+      "sourceFile": "11359118.txt",
+      "sha256": "eaf927aec9579f830e704e69370dda786b675d730e0c0b26a9443fc5c465f940",
+      "analysisStatus": "ok",
+      "sourceRules": 84,
+      "compiledVariants": 139,
+      "sourceTagAllCounts": {
+        "self_disabling": 44,
+        "persistent_guard": 0,
+        "idempotent_effect": 55,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Singleton Traffic",
+      "sourceStatus": "ready",
+      "sourceFile": "eb0f9102f85b5ea536b1.txt",
+      "sha256": "0eb5a411bd0d16e36d6a8532485eda33398183d48401ed6ad108cdc1b73a8438",
+      "analysisStatus": "ok",
+      "sourceRules": 10,
+      "compiledVariants": 25,
+      "sourceTagAllCounts": {
+        "self_disabling": 3,
+        "persistent_guard": 0,
+        "idempotent_effect": 3,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Aaaah! I'm Being Attacked by a Giant Tentacle!",
+      "sourceStatus": "ready",
+      "sourceFile": "cffeb1b80f76458b742a.txt",
+      "sha256": "dccab7c105bf1165b86e961c7cd61e4559593b4339e3ed2c5be98fa395b257ec",
+      "analysisStatus": "ok",
+      "sourceRules": 55,
+      "compiledVariants": 92,
+      "sourceTagAllCounts": {
+        "self_disabling": 12,
+        "persistent_guard": 1,
+        "idempotent_effect": 15,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Pornography for Beginners",
+      "sourceStatus": "ready",
+      "sourceFile": "6ec59e0b3f1f306acdc1.txt",
+      "sha256": "0f500461551a9df3286fc0ce526a519e6e876d299398a91f2440f5567cde6e50",
+      "analysisStatus": "ok",
+      "sourceRules": 358,
+      "compiledVariants": 3525,
+      "sourceTagAllCounts": {
+        "self_disabling": 44,
+        "persistent_guard": 0,
+        "idempotent_effect": 45,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "SwapBot",
+      "sourceStatus": "ready",
+      "sourceFile": "0590a6662f9e8e6afe4a.txt",
+      "sha256": "45524c02bbf9e2343f90eee45a73c9ceb68ed0ee316b27b12f2c5bf6f327ea59",
+      "analysisStatus": "ok",
+      "sourceRules": 72,
+      "compiledVariants": 174,
+      "sourceTagAllCounts": {
+        "self_disabling": 16,
+        "persistent_guard": 1,
+        "idempotent_effect": 6,
+        "setup_only": 1
+      },
+      "setupRules": [
+        {
+          "line": 513,
+          "text": "[MagicReplace] -> [MagicEnd]",
+          "compiledVariants": 1,
+          "setupVariants": 1,
+          "allVariantsSetup": true,
+          "allVariantsCosmetic": false,
+          "definitelyUnreachable": false
+        }
+      ]
+    },
+    {
+      "title": "Spacekoban",
+      "sourceStatus": "ready",
+      "sourceFile": "6a6c07f71d7039e4155e.txt",
+      "sha256": "9fbf6435443823f6d384448871c56ad2cc05368bdbc284a9af334477bce3e419",
+      "analysisStatus": "ok",
+      "sourceRules": 26,
+      "compiledVariants": 32,
+      "sourceTagAllCounts": {
+        "self_disabling": 1,
+        "persistent_guard": 0,
+        "idempotent_effect": 1,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "pretender to the crown",
+      "sourceStatus": "ready",
+      "sourceFile": "09d9778d0e69116c5406.txt",
+      "sha256": "11839f324547c89d1d28766998094a47af4a761c90fefe9f53520e8fd9b7ad4c",
+      "analysisStatus": "ok",
+      "sourceRules": 23,
+      "compiledVariants": 32,
+      "sourceTagAllCounts": {
+        "self_disabling": 7,
+        "persistent_guard": 0,
+        "idempotent_effect": 7,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Boxes & Balloons",
+      "sourceStatus": "ready",
+      "sourceFile": "ac003a3b7e159dd54eb8.txt",
+      "sha256": "a8e5b34d474a57b4ce8b3e0202acbe4a4821aa3a78f2abfc3300a5f04351a0c5",
+      "analysisStatus": "ok",
+      "sourceRules": 50,
+      "compiledVariants": 59,
+      "sourceTagAllCounts": {
+        "self_disabling": 8,
+        "persistent_guard": 0,
+        "idempotent_effect": 6,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Pushcat Jr",
+      "sourceStatus": "ready",
+      "sourceFile": "a8f4e5aed01de7c9ef50.txt",
+      "sha256": "44c2d497b85a39714066b52417934e88d33b0c53421fe54ed1f84f56ce2199c2",
+      "analysisStatus": "ok",
+      "sourceRules": 19,
+      "compiledVariants": 56,
+      "sourceTagAllCounts": {
+        "self_disabling": 10,
+        "persistent_guard": 0,
+        "idempotent_effect": 8,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Sokoboros",
+      "sourceStatus": "ready",
+      "sourceFile": "d210a5248fa713153950.txt",
+      "sha256": "83ced3c8c7b3eb12be79e505ce90a6f5b397a6176ebab5ff84c6c9cde1bd2651",
+      "analysisStatus": "ok",
+      "sourceRules": 90,
+      "compiledVariants": 90,
+      "sourceTagAllCounts": {
+        "self_disabling": 20,
+        "persistent_guard": 0,
+        "idempotent_effect": 15,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Marble Shoot",
+      "sourceStatus": "ready",
+      "sourceFile": "81b9430a6c09b355f6379c0f63beb04c.txt",
+      "sha256": "7be2d55fbfd63846954dfdc57cbf61d4a9c5c8bb55a788c54ac81bc247fd1bf8",
+      "analysisStatus": "ok",
+      "sourceRules": 85,
+      "compiledVariants": 126,
+      "sourceTagAllCounts": {
+        "self_disabling": 24,
+        "persistent_guard": 0,
+        "idempotent_effect": 1,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Cyber-Lasso",
+      "sourceStatus": "ready",
+      "sourceFile": "e3e444f7c63fb21b6ec0.txt",
+      "sha256": "4d16153c8213989b004a678e87ca0b6c413872b18a7c95565c6f3bde435ff5f5",
+      "analysisStatus": "compile_error",
+      "sourceRules": 0,
+      "compiledVariants": 0,
+      "sourceTagAllCounts": {},
+      "setupRules": []
+    },
+    {
+      "title": "Train Braining",
+      "sourceStatus": "ready",
+      "sourceFile": "a4195276e6979f5bdb21.txt",
+      "sha256": "839b0cc4a15d19ced58ed3d8c94ecd1a86399327720319245b79f94bff10d029",
+      "analysisStatus": "ok",
+      "sourceRules": 75,
+      "compiledVariants": 130,
+      "sourceTagAllCounts": {
+        "self_disabling": 2,
+        "persistent_guard": 0,
+        "idempotent_effect": 1,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Enqueue",
+      "sourceStatus": "ready",
+      "sourceFile": "e8ce49f2b9834e80516d.txt",
+      "sha256": "ca7ddfb348b3930fae14a44134b5e3f16f4c2e331f04f70a4168c2aa8147ca2a",
+      "analysisStatus": "ok",
+      "sourceRules": 33,
+      "compiledVariants": 63,
+      "sourceTagAllCounts": {
+        "self_disabling": 16,
+        "persistent_guard": 8,
+        "idempotent_effect": 14,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Tidy the Cafe!",
+      "sourceStatus": "ready",
+      "sourceFile": "6faf74de7d562674e71a.txt",
+      "sha256": "d3ebc929f6a858295d75e2de1f157d9b9aae30a9843bfc73c1e83682e6ece9fe",
+      "analysisStatus": "ok",
+      "sourceRules": 23,
+      "compiledVariants": 26,
+      "sourceTagAllCounts": {
+        "self_disabling": 2,
+        "persistent_guard": 0,
+        "idempotent_effect": 4,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Flower Dance",
+      "sourceStatus": "ready",
+      "sourceFile": "2c9edcf6ba4a4d8720a7.txt",
+      "sha256": "6cce95591724ccdcdcfda36519fa7eee3f29e517c6f95d85e264a5d9cbd171a2",
+      "analysisStatus": "ok",
+      "sourceRules": 6,
+      "compiledVariants": 9,
+      "sourceTagAllCounts": {
+        "self_disabling": 3,
+        "persistent_guard": 1,
+        "idempotent_effect": 3,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Stairways",
+      "sourceStatus": "ready",
+      "sourceFile": "21e3784aaa7675dc4b08.txt",
+      "sha256": "9a196c4cd07bc778b27bf6975bb3a267b6cc07a7f05724cf04acdd0f4fe266d7",
+      "analysisStatus": "ok",
+      "sourceRules": 6,
+      "compiledVariants": 24,
+      "sourceTagAllCounts": {
+        "self_disabling": 0,
+        "persistent_guard": 0,
+        "idempotent_effect": 0,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Rock, Paper, Scissors",
+      "sourceStatus": "ready",
+      "sourceFile": "62070c89dc7604de2484.txt",
+      "sha256": "a461fae9400038e5c2ed574a87cb89d6e13cd97e7cf72436ac66c813e4e18cce",
+      "analysisStatus": "ok",
+      "sourceRules": 62,
+      "compiledVariants": 106,
+      "sourceTagAllCounts": {
+        "self_disabling": 3,
+        "persistent_guard": 1,
+        "idempotent_effect": 10,
+        "setup_only": 1
+      },
+      "setupRules": [
+        {
+          "line": 353,
+          "text": "[startlevel] -> []",
+          "compiledVariants": 1,
+          "setupVariants": 1,
+          "allVariantsSetup": true,
+          "allVariantsCosmetic": false,
+          "definitelyUnreachable": false
+        }
+      ]
+    },
+    {
+      "title": "Hazard Golf",
+      "sourceStatus": "ready",
+      "sourceFile": "ed5ba4e63cf2c92788da.txt",
+      "sha256": "5eccad8fb44e32e3f9fa8695922f98c2f1d3c4c6e31b4a0d3836131f4fe5410e",
+      "analysisStatus": "ok",
+      "sourceRules": 52,
+      "compiledVariants": 187,
+      "sourceTagAllCounts": {
+        "self_disabling": 7,
+        "persistent_guard": 1,
+        "idempotent_effect": 4,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Collapsable Sokoban",
+      "sourceStatus": "ready",
+      "sourceFile": "fd4e3445b63068676f72.txt",
+      "sha256": "e8810a7845ce13d62d3c7418e592eb29437a12ea91bcc561c688567a7021468e",
+      "analysisStatus": "ok",
+      "sourceRules": 2,
+      "compiledVariants": 8,
+      "sourceTagAllCounts": {
+        "self_disabling": 0,
+        "persistent_guard": 0,
+        "idempotent_effect": 0,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Skipping Stones to Lonely Homes",
+      "sourceStatus": "ready",
+      "sourceFile": "d6fd6fcf84de185e2584.txt",
+      "sha256": "3f154da892e5f1a903d8077b46383628f170e53f10a22df4320f4574c209b964",
+      "analysisStatus": "ok",
+      "sourceRules": 227,
+      "compiledVariants": 633,
+      "sourceTagAllCounts": {
+        "self_disabling": 38,
+        "persistent_guard": 1,
+        "idempotent_effect": 22,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "the undertaking",
+      "sourceStatus": "ready",
+      "sourceFile": "09b30f559f01393008af.txt",
+      "sha256": "d476e4170de2ab1fccb1cbb0a58ef095735f74b6ac941c829bc5f561d04c45f5",
+      "analysisStatus": "ok",
+      "sourceRules": 1,
+      "compiledVariants": 1,
+      "sourceTagAllCounts": {
+        "self_disabling": 1,
+        "persistent_guard": 1,
+        "idempotent_effect": 1,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "JAM3 Game",
+      "sourceStatus": "ready",
+      "sourceFile": "1bca2d279640ab3839c0.txt",
+      "sha256": "d44f565422fb0c766741aef73b9fd26326441a4dfd67e508507f7ea1b00a7a81",
+      "analysisStatus": "ok",
+      "sourceRules": 64,
+      "compiledVariants": 125,
+      "sourceTagAllCounts": {
+        "self_disabling": 7,
+        "persistent_guard": 1,
+        "idempotent_effect": 7,
+        "setup_only": 1
+      },
+      "setupRules": [
+        {
+          "line": 375,
+          "text": "[startlevel] -> []",
+          "compiledVariants": 1,
+          "setupVariants": 1,
+          "allVariantsSetup": true,
+          "allVariantsCosmetic": false,
+          "definitelyUnreachable": false
+        }
+      ]
+    },
+    {
+      "title": "Dharma Dojo demake",
+      "sourceStatus": "ready",
+      "sourceFile": "4e66fc851edbf42ae008.txt",
+      "sha256": "e146eee0fc1fdc4d78aece9a704b73d630d310bf07b04006fe1f8f2e7bc3e767",
+      "analysisStatus": "ok",
+      "sourceRules": 56,
+      "compiledVariants": 92,
+      "sourceTagAllCounts": {
+        "self_disabling": 9,
+        "persistent_guard": 1,
+        "idempotent_effect": 4,
+        "setup_only": 1
+      },
+      "setupRules": [
+        {
+          "line": 279,
+          "text": "[SetsToken] -> [no SetsToken]",
+          "compiledVariants": 7,
+          "setupVariants": 7,
+          "allVariantsSetup": true,
+          "allVariantsCosmetic": false,
+          "definitelyUnreachable": false
+        }
+      ]
+    },
+    {
+      "title": "Vines",
+      "sourceStatus": "ready",
+      "sourceFile": "c7da961162348381d271.txt",
+      "sha256": "5b74dc4e77ec8c0331a347aa322f942d44aa387dcd442720102b9648eebd665c",
+      "analysisStatus": "ok",
+      "sourceRules": 26,
+      "compiledVariants": 31,
+      "sourceTagAllCounts": {
+        "self_disabling": 5,
+        "persistent_guard": 1,
+        "idempotent_effect": 4,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Unconventional Guns",
+      "sourceStatus": "ready",
+      "sourceFile": "f4959a4150da120e6117a8c4e7c1a69d.txt",
+      "sha256": "5d90d44a538709e24661258193c25b80772b5a0825ad1e8b800aee726ddbf5e5",
+      "analysisStatus": "ok",
+      "sourceRules": 112,
+      "compiledVariants": 213,
+      "sourceTagAllCounts": {
+        "self_disabling": 14,
+        "persistent_guard": 0,
+        "idempotent_effect": 10,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Newton's Crates",
+      "sourceStatus": "ready",
+      "sourceFile": "9cf57ca82a0181de97e4e225bc9bf4ca.txt",
+      "sha256": "301e419c953778b586869f59ddf6542f710854a4577a802185e44288685188ef",
+      "analysisStatus": "ok",
+      "sourceRules": 107,
+      "compiledVariants": 172,
+      "sourceTagAllCounts": {
+        "self_disabling": 19,
+        "persistent_guard": 11,
+        "idempotent_effect": 8,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Count Mover",
+      "sourceStatus": "ready",
+      "sourceFile": "ed8845d930c8940bef1236cf18ca5bd2.txt",
+      "sha256": "37b008ffe3a3e3b4d70a062995d8802bddae65ac7cd7b2a7e83ea9759455d721",
+      "analysisStatus": "ok",
+      "sourceRules": 41,
+      "compiledVariants": 53,
+      "sourceTagAllCounts": {
+        "self_disabling": 27,
+        "persistent_guard": 2,
+        "idempotent_effect": 26,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Boxes Love Boxing Gloves",
+      "sourceStatus": "ready",
+      "sourceFile": "c2d717a77f9aa02ecb1b793111f3a921.txt",
+      "sha256": "45d02bc351ec8a17b510b0103b82aab99f662270641cedf5cadf5f7199c9e72f",
+      "analysisStatus": "ok",
+      "sourceRules": 174,
+      "compiledVariants": 711,
+      "sourceTagAllCounts": {
+        "self_disabling": 10,
+        "persistent_guard": 1,
+        "idempotent_effect": 15,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Vacuum",
+      "sourceStatus": "ready",
+      "sourceFile": "b1de1cc4f616b950f59b52e703457a37.txt",
+      "sha256": "7d9cec284bf1f87633c5af357ff0cf6ccab762348717988691d62b102ecfd8c0",
+      "analysisStatus": "ok",
+      "sourceRules": 116,
+      "compiledVariants": 336,
+      "sourceTagAllCounts": {
+        "self_disabling": 14,
+        "persistent_guard": 0,
+        "idempotent_effect": 3,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "ParaLands",
+      "sourceStatus": "ready",
+      "sourceFile": "1fa8e206e54b1a66926bec98d3df63cd.txt",
+      "sha256": "2bc9707c755f34879250432847afb747e5071039d7fead73ff853679f7b25ee6",
+      "analysisStatus": "ok",
+      "sourceRules": 131,
+      "compiledVariants": 255,
+      "sourceTagAllCounts": {
+        "self_disabling": 18,
+        "persistent_guard": 1,
+        "idempotent_effect": 12,
+        "setup_only": 0
+      },
+      "setupRules": [
+        {
+          "line": 807,
+          "text": "[TempAnimTurn] -> []",
+          "compiledVariants": 5,
+          "setupVariants": 1,
+          "allVariantsSetup": false,
+          "allVariantsCosmetic": false,
+          "definitelyUnreachable": false
+        }
+      ]
+    },
+    {
+      "title": "Some lines were meant to be crossed",
+      "sourceStatus": "ready",
+      "sourceFile": "33eee323d8edfbdc20ee2d584cee2b4b.txt",
+      "sha256": "580cfebcc04d33788be9311adf2b5b207df5d6ccf0382caccc4d738d89ac0b12",
+      "analysisStatus": "ok",
+      "sourceRules": 7,
+      "compiledVariants": 15,
+      "sourceTagAllCounts": {
+        "self_disabling": 4,
+        "persistent_guard": 5,
+        "idempotent_effect": 3,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Stand Off",
+      "sourceStatus": "ready",
+      "sourceFile": "14a2f967a1978e28e91118126ac22d6a.txt",
+      "sha256": "45de474c63a7636e60c82d90d53bf93fea4fb3df0ff3d36af579f5ef7cda92f1",
+      "analysisStatus": "ok",
+      "sourceRules": 31,
+      "compiledVariants": 76,
+      "sourceTagAllCounts": {
+        "self_disabling": 5,
+        "persistent_guard": 0,
+        "idempotent_effect": 6,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "🍡 -ooo- 🍡",
+      "sourceStatus": "ready",
+      "sourceFile": "e41e523af2fba4ac36f1f635d13654e3.txt",
+      "sha256": "2d7de1a298c73e78bc7088f72187f8826d8ebd88c1b9afe451964aa35d652532",
+      "analysisStatus": "ok",
+      "sourceRules": 30,
+      "compiledVariants": 70,
+      "sourceTagAllCounts": {
+        "self_disabling": 6,
+        "persistent_guard": 0,
+        "idempotent_effect": 6,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Rose",
+      "sourceStatus": "ready",
+      "sourceFile": "0f174b98074b628e8de5514c5839efae.txt",
+      "sha256": "9db4283bfdfcc33bffb8d61df06ec97ff24a327024dc364d855f2805d7942c90",
+      "analysisStatus": "ok",
+      "sourceRules": 375,
+      "compiledVariants": 1459,
+      "sourceTagAllCounts": {
+        "self_disabling": 123,
+        "persistent_guard": 31,
+        "idempotent_effect": 152,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Season Finale",
+      "sourceStatus": "ready",
+      "sourceFile": "d42bf2a870aab3a2deca6132ff6ebad5.txt",
+      "sha256": "c0826cb0b9bd625bcd5c1d61947c232772b9d913d211455d10fefe771931a5e8",
+      "analysisStatus": "ok",
+      "sourceRules": 294,
+      "compiledVariants": 826,
+      "sourceTagAllCounts": {
+        "self_disabling": 30,
+        "persistent_guard": 0,
+        "idempotent_effect": 49,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Spider's Hollow",
+      "sourceStatus": "ready",
+      "sourceFile": "fbbcdbcf3e28bc08fe953f8853446e9f.txt",
+      "sha256": "9a69734bbfa77a8716fb628df9fa27038b82a7b44c306e359d9088da0c1faaf0",
+      "analysisStatus": "ok",
+      "sourceRules": 30,
+      "compiledVariants": 87,
+      "sourceTagAllCounts": {
+        "self_disabling": 6,
+        "persistent_guard": 0,
+        "idempotent_effect": 6,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "i herd u liek water templs",
+      "sourceStatus": "ready",
+      "sourceFile": "3a614a286aff60b6b3cd4032c1eb384b.txt",
+      "sha256": "361fbd7ac5897d571eeb58cc660dac4dcef8257f5008d969cb967cb1b8cca7bd",
+      "analysisStatus": "ok",
+      "sourceRules": 49,
+      "compiledVariants": 54,
+      "sourceTagAllCounts": {
+        "self_disabling": 2,
+        "persistent_guard": 1,
+        "idempotent_effect": 3,
+        "setup_only": 1
+      },
+      "setupRules": [
+        {
+          "line": 250,
+          "text": "[Initialize] -> []",
+          "compiledVariants": 1,
+          "setupVariants": 1,
+          "allVariantsSetup": true,
+          "allVariantsCosmetic": false,
+          "definitelyUnreachable": false
+        }
+      ]
+    },
+    {
+      "title": "PrograMaze",
+      "sourceStatus": "ready",
+      "sourceFile": "983d3fe448e281182289826597fe5a4b.txt",
+      "sha256": "dab4f0ef1eddee6671679525e1b9844c64bc90db1495c742393f6af11aebe1b7",
+      "analysisStatus": "ok",
+      "sourceRules": 29,
+      "compiledVariants": 29,
+      "sourceTagAllCounts": {
+        "self_disabling": 2,
+        "persistent_guard": 0,
+        "idempotent_effect": 2,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Symbolism",
+      "sourceStatus": "ready",
+      "sourceFile": "57da05bc817b904d037df40fefa78d66.txt",
+      "sha256": "083f7c830ed1b9215d99fe744ddf02a43a070aa2fb134824a8822bf43751c445",
+      "analysisStatus": "ok",
+      "sourceRules": 165,
+      "compiledVariants": 316,
+      "sourceTagAllCounts": {
+        "self_disabling": 27,
+        "persistent_guard": 0,
+        "idempotent_effect": 31,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Vertebrae",
+      "sourceStatus": "ready",
+      "sourceFile": "ce2474f62432e2a703bba3fb65f5b01f.txt",
+      "sha256": "3859a1645bb54883ca68e133de0260da2c4953bda3bb241d5cf4bdfd235af423",
+      "analysisStatus": "ok",
+      "sourceRules": 551,
+      "compiledVariants": 4619,
+      "sourceTagAllCounts": {
+        "self_disabling": 101,
+        "persistent_guard": 0,
+        "idempotent_effect": 83,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "The Flames",
+      "sourceStatus": "ready",
+      "sourceFile": "provided-the_flames.txt",
+      "sha256": "3ee52401b21107506dc270a279189e1b692b2fff3cfd7813e17921791748dbd6",
+      "analysisStatus": "ok",
+      "sourceRules": 54,
+      "compiledVariants": 153,
+      "sourceTagAllCounts": {
+        "self_disabling": 41,
+        "persistent_guard": 5,
+        "idempotent_effect": 33,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Watch Your Step",
+      "sourceStatus": "ready",
+      "sourceFile": "0e692c47ab0b18099c2485d644590b4e.txt",
+      "sha256": "2fb61ebada18401cd0315acbfca3e7f68b412ebf4e317e31f3cd4f2832079019",
+      "analysisStatus": "ok",
+      "sourceRules": 11,
+      "compiledVariants": 26,
+      "sourceTagAllCounts": {
+        "self_disabling": 0,
+        "persistent_guard": 0,
+        "idempotent_effect": 0,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Spikes 'n' Stuff",
+      "sourceStatus": "ready",
+      "sourceFile": "dc5c4a669e362e389e994025075f7d0b.txt",
+      "sha256": "65ef4e0a8bc87c441f52760e08617ebdb73308e29f1964ae0a213f1960f4a2b9",
+      "analysisStatus": "ok",
+      "sourceRules": 152,
+      "compiledVariants": 667,
+      "sourceTagAllCounts": {
+        "self_disabling": 19,
+        "persistent_guard": 2,
+        "idempotent_effect": 9,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "XL-Plan",
+      "sourceStatus": "ready",
+      "sourceFile": "537878634acb9aa4cfbd5298856ea1ef.txt",
+      "sha256": "93d7c68ccfebedc10b4f0e57652e9b938000f1219441896451f96f25ec13b980",
+      "analysisStatus": "ok",
+      "sourceRules": 26,
+      "compiledVariants": 115,
+      "sourceTagAllCounts": {
+        "self_disabling": 0,
+        "persistent_guard": 0,
+        "idempotent_effect": 0,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Coin Counter",
+      "sourceStatus": "ready",
+      "sourceFile": "9ebe1e5ad44ac22259343de170a3b337.txt",
+      "sha256": "3e2af047f77420ea56a298c880b58dac59df9ea7199c00bdca1a43a3f5ac678f",
+      "analysisStatus": "ok",
+      "sourceRules": 94,
+      "compiledVariants": 100,
+      "sourceTagAllCounts": {
+        "self_disabling": 7,
+        "persistent_guard": 2,
+        "idempotent_effect": 6,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Easy Enigma",
+      "sourceStatus": "ready",
+      "sourceFile": "a95269130d520a58adf710b692d1e52e.txt",
+      "sha256": "cd7c0ff33456fe54b5161ef9442b84c1fc15566862eb1af145f5681d6f29d0ae",
+      "analysisStatus": "ok",
+      "sourceRules": 153,
+      "compiledVariants": 899,
+      "sourceTagAllCounts": {
+        "self_disabling": 15,
+        "persistent_guard": 1,
+        "idempotent_effect": 18,
+        "setup_only": 1
+      },
+      "setupRules": [
+        {
+          "line": 988,
+          "text": "[timer9] -> [timer8]",
+          "compiledVariants": 1,
+          "setupVariants": 1,
+          "allVariantsSetup": true,
+          "allVariantsCosmetic": false,
+          "definitelyUnreachable": false
+        }
+      ]
+    },
+    {
+      "title": "the art of cloning",
+      "sourceStatus": "ready",
+      "sourceFile": "45f13378f02acf2d2583d91fac32e729.txt",
+      "sha256": "e54a4ed695ca90de633f417f1a51942d1db9daab3b135009af2e224853e4eb99",
+      "analysisStatus": "ok",
+      "sourceRules": 6,
+      "compiledVariants": 18,
+      "sourceTagAllCounts": {
+        "self_disabling": 1,
+        "persistent_guard": 0,
+        "idempotent_effect": 1,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "interconnection",
+      "sourceStatus": "ready",
+      "sourceFile": "3acdd359dea642168ff946bfc26f0152.txt",
+      "sha256": "052c499aad780af560e37a0eccbcfa2aed0a7ea6ccec36ec3f062446ad6d5223",
+      "analysisStatus": "ok",
+      "sourceRules": 38,
+      "compiledVariants": 72,
+      "sourceTagAllCounts": {
+        "self_disabling": 16,
+        "persistent_guard": 0,
+        "idempotent_effect": 15,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Path lines",
+      "sourceStatus": "ready",
+      "sourceFile": "b1c07b54e2091c40221cf48fe66d25ab.txt",
+      "sha256": "3be16629f7d7c14e8b0d52837cec3949ec735048b59a755eae070fc051a07a5a",
+      "analysisStatus": "ok",
+      "sourceRules": 28,
+      "compiledVariants": 40,
+      "sourceTagAllCounts": {
+        "self_disabling": 7,
+        "persistent_guard": 0,
+        "idempotent_effect": 12,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Maera Public Works",
+      "sourceStatus": "ready",
+      "sourceFile": "provided-maera_public_works.txt",
+      "sha256": "6414901cc0e4906989e6e60ad1a25bf7a640f7bd09742cdf916107336e0bccdb",
+      "analysisStatus": "ok",
+      "sourceRules": 114,
+      "compiledVariants": 162,
+      "sourceTagAllCounts": {
+        "self_disabling": 19,
+        "persistent_guard": 5,
+        "idempotent_effect": 14,
+        "setup_only": 4
+      },
+      "setupRules": [
+        {
+          "line": 1719,
+          "text": "DOWN [ | LadderUp ] -> [ LadderUpTop | LadderUp ]",
+          "compiledVariants": 1,
+          "setupVariants": 1,
+          "allVariantsSetup": true,
+          "allVariantsCosmetic": true,
+          "definitelyUnreachable": false
+        },
+        {
+          "line": 1720,
+          "text": "DOWN [ LadderDown | ] -> [ LadderDown | LadderDownTop ]",
+          "compiledVariants": 1,
+          "setupVariants": 1,
+          "allVariantsSetup": true,
+          "allVariantsCosmetic": true,
+          "definitelyUnreachable": false
+        },
+        {
+          "line": 1721,
+          "text": "RIGHT [ | LadderLeft ] -> [ LadderLeftTop | LadderLeft ]",
+          "compiledVariants": 1,
+          "setupVariants": 1,
+          "allVariantsSetup": true,
+          "allVariantsCosmetic": true,
+          "definitelyUnreachable": false
+        },
+        {
+          "line": 1722,
+          "text": "RIGHT [ LadderRight | ] -> [ LadderRight | LadderRightTop ]",
+          "compiledVariants": 1,
+          "setupVariants": 1,
+          "allVariantsSetup": true,
+          "allVariantsCosmetic": true,
+          "definitelyUnreachable": false
+        }
+      ]
+    },
+    {
+      "title": "I'm too far gone",
+      "sourceStatus": "ready",
+      "sourceFile": "a4bb2bf44284bdb9347cf3f1399d4f11.txt",
+      "sha256": "0229081deef43cc0f0622da584fffa588c6bc23f7543cefe95138e4c62ed4d20",
+      "analysisStatus": "ok",
+      "sourceRules": 42,
+      "compiledVariants": 98,
+      "sourceTagAllCounts": {
+        "self_disabling": 7,
+        "persistent_guard": 0,
+        "idempotent_effect": 11,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "VEXT EDIT",
+      "sourceStatus": "ready",
+      "sourceFile": "9eb8f8f3df4efb450b798a279eeba2e0.txt",
+      "sha256": "36109ed05ffcd1c1006bcf9a1c9d143583e629b0fea32be169db0f82206281a3",
+      "analysisStatus": "ok",
+      "sourceRules": 277,
+      "compiledVariants": 3585,
+      "sourceTagAllCounts": {
+        "self_disabling": 54,
+        "persistent_guard": 1,
+        "idempotent_effect": 113,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Soliquid",
+      "sourceStatus": "ready",
+      "sourceFile": "4adc7b17c2c0449c3a8b6c730e8cbfc9.txt",
+      "sha256": "12494c4bdc0cedd6583f5b3ad48cf3c9125f0981c6eeeedada5d7818eb7d6242",
+      "analysisStatus": "ok",
+      "sourceRules": 40,
+      "compiledVariants": 56,
+      "sourceTagAllCounts": {
+        "self_disabling": 12,
+        "persistent_guard": 0,
+        "idempotent_effect": 10,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Broken Abacus",
+      "sourceStatus": "ready",
+      "sourceFile": "f7518dbe107486ab1a50e6119f4bc3f2.txt",
+      "sha256": "ec41b3d35a5017adb08008bafa045e53394ef534beed26d017c88188444e7b5b",
+      "analysisStatus": "ok",
+      "sourceRules": 115,
+      "compiledVariants": 199,
+      "sourceTagAllCounts": {
+        "self_disabling": 32,
+        "persistent_guard": 3,
+        "idempotent_effect": 32,
+        "setup_only": 2
+      },
+      "setupRules": [
+        {
+          "line": 419,
+          "text": "[auxPush] -> []",
+          "compiledVariants": 1,
+          "setupVariants": 1,
+          "allVariantsSetup": true,
+          "allVariantsCosmetic": true,
+          "definitelyUnreachable": true
+        },
+        {
+          "line": 487,
+          "text": "[auxPush] -> []",
+          "compiledVariants": 1,
+          "setupVariants": 1,
+          "allVariantsSetup": true,
+          "allVariantsCosmetic": true,
+          "definitelyUnreachable": true
+        }
+      ]
+    },
+    {
+      "title": "Mini Nomerads",
+      "sourceStatus": "ready",
+      "sourceFile": "7572972f749909993b12d84991e47ec9.txt",
+      "sha256": "16669620f14e4fcc5692cd4bc584cbeecb0d7a607e94b5d08de7a0b5b0ad631b",
+      "analysisStatus": "ok",
+      "sourceRules": 35,
+      "compiledVariants": 54,
+      "sourceTagAllCounts": {
+        "self_disabling": 18,
+        "persistent_guard": 0,
+        "idempotent_effect": 1,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Fall Leaves",
+      "sourceStatus": "ready",
+      "sourceFile": "58325085befa37ab497168cd803c64cb.txt",
+      "sha256": "ed9e9c5b8e0584c5648626aff6ef24c5a4f9f561ac907dc44e8944d56f75b25f",
+      "analysisStatus": "ok",
+      "sourceRules": 27,
+      "compiledVariants": 36,
+      "sourceTagAllCounts": {
+        "self_disabling": 8,
+        "persistent_guard": 0,
+        "idempotent_effect": 8,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Mad Queens",
+      "sourceStatus": "ready",
+      "sourceFile": "8ba10d6a0a5a0edd640e0b9431858259.txt",
+      "sha256": "4a0d46d004f949c172b5378be6767d65640ff95df1f0605e24f247c0a1a8aedd",
+      "analysisStatus": "ok",
+      "sourceRules": 27,
+      "compiledVariants": 50,
+      "sourceTagAllCounts": {
+        "self_disabling": 4,
+        "persistent_guard": 0,
+        "idempotent_effect": 15,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Indigestion",
+      "sourceStatus": "ready",
+      "sourceFile": "35861399c74d3f57f39aaf64daadde65.txt",
+      "sha256": "e783e1a53486754515d66582f5b55e41943a2606fafbafe1deb9d9637fe66f99",
+      "analysisStatus": "ok",
+      "sourceRules": 73,
+      "compiledVariants": 279,
+      "sourceTagAllCounts": {
+        "self_disabling": 6,
+        "persistent_guard": 1,
+        "idempotent_effect": 21,
+        "setup_only": 1
+      },
+      "setupRules": [
+        {
+          "line": 542,
+          "text": "[start] -> []",
+          "compiledVariants": 1,
+          "setupVariants": 1,
+          "allVariantsSetup": true,
+          "allVariantsCosmetic": true,
+          "definitelyUnreachable": false
+        }
+      ]
+    },
+    {
+      "title": "Pushing It",
+      "sourceStatus": "ready",
+      "sourceFile": "2fe3172d2b9fe684977d184f1b6226d5.txt",
+      "sha256": "c7c54bd07ead0d24de38bda35d093e3daf1cb9d50ba724e997d3efdc719db3a0",
+      "analysisStatus": "ok",
+      "sourceRules": 7,
+      "compiledVariants": 16,
+      "sourceTagAllCounts": {
+        "self_disabling": 2,
+        "persistent_guard": 0,
+        "idempotent_effect": 5,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Shall We Golf?",
+      "sourceStatus": "ready",
+      "sourceFile": "provided-Shall We Golf.txt",
+      "sha256": "1e18d6b7a70f86ff7ed9fa629617565ad929edb76db0682c1b299855c5617659",
+      "analysisStatus": "ok",
+      "sourceRules": 199,
+      "compiledVariants": 319,
+      "sourceTagAllCounts": {
+        "self_disabling": 66,
+        "persistent_guard": 20,
+        "idempotent_effect": 83,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "At the Hedges of Time",
+      "sourceStatus": "ready",
+      "sourceFile": "provided-at-the-hedges-of-time.txt",
+      "sha256": "d4f32899d902626cef86419700b1a41a28c0a924bd26ac3d7f48952d9d9d45c5",
+      "analysisStatus": "ok",
+      "sourceRules": 299,
+      "compiledVariants": 2496,
+      "sourceTagAllCounts": {
+        "self_disabling": 53,
+        "persistent_guard": 2,
+        "idempotent_effect": 82,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Sokodig",
+      "sourceStatus": "ready",
+      "sourceFile": "3754910c54ef200ac105b4152654bbea.txt",
+      "sha256": "c48a585920ffbebebc812df607e5c73513f7db71933e72f2e3366ba038f37875",
+      "analysisStatus": "ok",
+      "sourceRules": 11,
+      "compiledVariants": 35,
+      "sourceTagAllCounts": {
+        "self_disabling": 2,
+        "persistent_guard": 1,
+        "idempotent_effect": 1,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Two Worlds",
+      "sourceStatus": "ready",
+      "sourceFile": "provided-two-worlds.txt",
+      "sha256": "58404384d8aa020d598dc32de91617d0b7119e3239012656e609a09c1cddf547",
+      "analysisStatus": "ok",
+      "sourceRules": 242,
+      "compiledVariants": 390,
+      "sourceTagAllCounts": {
+        "self_disabling": 85,
+        "persistent_guard": 5,
+        "idempotent_effect": 111,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "I Need To Stop My Teleport Gun",
+      "sourceStatus": "ready",
+      "sourceFile": "74aa33ccefeb1255f90227bca5ea4076.txt",
+      "sha256": "21de478183f18e98bebb6f4d9342522f9c487bd2b8d89f667e033f7b758857b8",
+      "analysisStatus": "ok",
+      "sourceRules": 45,
+      "compiledVariants": 75,
+      "sourceTagAllCounts": {
+        "self_disabling": 23,
+        "persistent_guard": 0,
+        "idempotent_effect": 15,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Lightdown",
+      "sourceStatus": "ready",
+      "sourceFile": "361283c1cef6837b6563d25e8f01e444.txt",
+      "sha256": "a2b15c20f19905309c8dead0d363e6c1606bf0e0db534ebe30cd37dbe83bc124",
+      "analysisStatus": "ok",
+      "sourceRules": 18,
+      "compiledVariants": 46,
+      "sourceTagAllCounts": {
+        "self_disabling": 2,
+        "persistent_guard": 0,
+        "idempotent_effect": 4,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Every Star Needs a Tree",
+      "sourceStatus": "ready",
+      "sourceFile": "7fe2230e6d59af738b85826dd62b6e1d.txt",
+      "sha256": "73bc65cd550f129046c7fabb7ea9af44709dce2547b72b3cacd1e0f7e5d59bb2",
+      "analysisStatus": "ok",
+      "sourceRules": 24,
+      "compiledVariants": 31,
+      "sourceTagAllCounts": {
+        "self_disabling": 11,
+        "persistent_guard": 0,
+        "idempotent_effect": 12,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Long Haul Space Flight",
+      "sourceStatus": "ready",
+      "sourceFile": "44a295d7a2ab17a2048f555d72781a29.txt",
+      "sha256": "410e2786d68ecd65604bc6e86d62d2fcf800f6fcdfd12997ba32d6d7537b3d22",
+      "analysisStatus": "ok",
+      "sourceRules": 3,
+      "compiledVariants": 6,
+      "sourceTagAllCounts": {
+        "self_disabling": 2,
+        "persistent_guard": 2,
+        "idempotent_effect": 2,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Caramelban",
+      "sourceStatus": "ready",
+      "sourceFile": "bc59f54ac76fd119991b250979de70e0.txt",
+      "sha256": "adf6b7a95ed3eef1cdc607d2a591581997d2d435babc096feb07c2d77ec6629e",
+      "analysisStatus": "ok",
+      "sourceRules": 71,
+      "compiledVariants": 99,
+      "sourceTagAllCounts": {
+        "self_disabling": 15,
+        "persistent_guard": 3,
+        "idempotent_effect": 14,
+        "setup_only": 3
+      },
+      "setupRules": [
+        {
+          "line": 334,
+          "text": "left [ wall no wallV | wall ] -> [ wall wallV | wall ]",
+          "compiledVariants": 1,
+          "setupVariants": 1,
+          "allVariantsSetup": true,
+          "allVariantsCosmetic": false,
+          "definitelyUnreachable": false
+        },
+        {
+          "line": 335,
+          "text": "down [ wall no wallH | wall ] -> [ wall wallH | wall ]",
+          "compiledVariants": 1,
+          "setupVariants": 1,
+          "allVariantsSetup": true,
+          "allVariantsCosmetic": false,
+          "definitelyUnreachable": false
+        },
+        {
+          "line": 336,
+          "text": "down [ wallV no wallC | wallV ] -> [ wallV wallC | wallV ]",
+          "compiledVariants": 1,
+          "setupVariants": 1,
+          "allVariantsSetup": true,
+          "allVariantsCosmetic": true,
+          "definitelyUnreachable": false
+        }
+      ]
+    },
+    {
+      "title": "Clearing Space",
+      "sourceStatus": "ready",
+      "sourceFile": "fe33549f62cd7666ea14eedcfc3863a3.txt",
+      "sha256": "0d8064ceb15740879586620e0d6eab47dc4ee50b67f9075de94e1e8a9dc15201",
+      "analysisStatus": "ok",
+      "sourceRules": 26,
+      "compiledVariants": 29,
+      "sourceTagAllCounts": {
+        "self_disabling": 5,
+        "persistent_guard": 0,
+        "idempotent_effect": 9,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Crate Assembler",
+      "sourceStatus": "ready",
+      "sourceFile": "bc8f853dae0cf7a2ad336a75ab24ba09.txt",
+      "sha256": "e61e21098487fe93838f50f2d076afc05a5c8df4e7514697dd4f81fc9cd1488a",
+      "analysisStatus": "ok",
+      "sourceRules": 90,
+      "compiledVariants": 1112,
+      "sourceTagAllCounts": {
+        "self_disabling": 24,
+        "persistent_guard": 0,
+        "idempotent_effect": 24,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Single Screen Scream",
+      "sourceStatus": "ready",
+      "sourceFile": "provided-single-screen-scream.txt",
+      "sha256": "1b8c89638622c68b582ad5c2190a3d160ec7bc9720bcaac2df3b9d8ea507f6b4",
+      "analysisStatus": "ok",
+      "sourceRules": 378,
+      "compiledVariants": 1201,
+      "sourceTagAllCounts": {
+        "self_disabling": 4,
+        "persistent_guard": 0,
+        "idempotent_effect": 3,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Sokoban... in 3D!",
+      "sourceStatus": "ready",
+      "sourceFile": "fce521be3852cca725e85154d122e53f.txt",
+      "sha256": "611e04cd2f032769d750e9c06bc035fde253786fd59e3809e0ea708499cce212",
+      "analysisStatus": "ok",
+      "sourceRules": 80,
+      "compiledVariants": 137,
+      "sourceTagAllCounts": {
+        "self_disabling": 38,
+        "persistent_guard": 0,
+        "idempotent_effect": 29,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Pipe Bend",
+      "sourceStatus": "ready",
+      "sourceFile": "8627569e70bdd911680d458ba6d0826a.txt",
+      "sha256": "4c2b90dbaac6243cc44f77e1b50f52a1460ecc41330593f9c50be9ca0577c2b6",
+      "analysisStatus": "ok",
+      "sourceRules": 70,
+      "compiledVariants": 104,
+      "sourceTagAllCounts": {
+        "self_disabling": 24,
+        "persistent_guard": 1,
+        "idempotent_effect": 24,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Raking Sokoban",
+      "sourceStatus": "ready",
+      "sourceFile": "ea5982c0e23eb7f892325d003423f65f.txt",
+      "sha256": "a624235f1d2e1c32fc466bca738a1b4ad07f05bce0161bb76083dd10d50997eb",
+      "analysisStatus": "ok",
+      "sourceRules": 25,
+      "compiledVariants": 40,
+      "sourceTagAllCounts": {
+        "self_disabling": 0,
+        "persistent_guard": 0,
+        "idempotent_effect": 0,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "The observer's paradox",
+      "sourceStatus": "ready",
+      "sourceFile": "42a7e74f578b9d0bdc9c66469d97b262.txt",
+      "sha256": "45bca76d6df5a45b4cc2d304e45e5da23672033c7aa4207559cde0b8937e89b1",
+      "analysisStatus": "ok",
+      "sourceRules": 18,
+      "compiledVariants": 28,
+      "sourceTagAllCounts": {
+        "self_disabling": 6,
+        "persistent_guard": 0,
+        "idempotent_effect": 13,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "IBurnedDownBigBenBecauseRishiSunakF**kingRobbedMyFish",
+      "sourceStatus": "ready",
+      "sourceFile": "e2b7b25668f077084a5c31f0fa84973a.txt",
+      "sha256": "7e9bbaf76d098be3d78309fd2b80a574b977b21962ce232fad7e784c8f2d8cb1",
+      "analysisStatus": "ok",
+      "sourceRules": 59,
+      "compiledVariants": 122,
+      "sourceTagAllCounts": {
+        "self_disabling": 24,
+        "persistent_guard": 5,
+        "idempotent_effect": 20,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Quantum Rails",
+      "sourceStatus": "ready",
+      "sourceFile": "e614e414e570294e45533109426245d4.txt",
+      "sha256": "0db549259cb3e5c06491b99552c7de2acdac05542b8b95e9f152cf0ff6018f92",
+      "analysisStatus": "ok",
+      "sourceRules": 75,
+      "compiledVariants": 155,
+      "sourceTagAllCounts": {
+        "self_disabling": 23,
+        "persistent_guard": 0,
+        "idempotent_effect": 13,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Billy Bob's Uphill Climb",
+      "sourceStatus": "ready",
+      "sourceFile": "3bcc0608540276e7b190caf9d2583a1f.txt",
+      "sha256": "fc323f2c77d80c40c56d439df934e338afb07993f2c522b39faac6615960fbea",
+      "analysisStatus": "ok",
+      "sourceRules": 80,
+      "compiledVariants": 589,
+      "sourceTagAllCounts": {
+        "self_disabling": 39,
+        "persistent_guard": 1,
+        "idempotent_effect": 42,
+        "setup_only": 1
+      },
+      "setupRules": [
+        {
+          "line": 436,
+          "text": "[ ] -> [ SetupDone ]",
+          "compiledVariants": 1,
+          "setupVariants": 1,
+          "allVariantsSetup": true,
+          "allVariantsCosmetic": false,
+          "definitelyUnreachable": false
+        }
+      ]
+    },
+    {
+      "title": "I am two",
+      "sourceStatus": "ready",
+      "sourceFile": "25ee2f1c9000620aa7b6f429c958d095.txt",
+      "sha256": "89e1a7935a533c27b72a6a49500f54d7f585f944f30647ce544b88120c5f57f4",
+      "analysisStatus": "ok",
+      "sourceRules": 69,
+      "compiledVariants": 113,
+      "sourceTagAllCounts": {
+        "self_disabling": 4,
+        "persistent_guard": 2,
+        "idempotent_effect": 9,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Transition",
+      "sourceStatus": "ready",
+      "sourceFile": "95dc770efe45854e528fa80a48eeca0a.txt",
+      "sha256": "26fc96112258f81eddeb10837ccc3573f6a91e415af51eb39987bb705629fcc4",
+      "analysisStatus": "ok",
+      "sourceRules": 68,
+      "compiledVariants": 95,
+      "sourceTagAllCounts": {
+        "self_disabling": 0,
+        "persistent_guard": 0,
+        "idempotent_effect": 0,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "YukiAsobi",
+      "sourceStatus": "ready",
+      "sourceFile": "be5d4f8a38062b1ac9d795c85979e4b6.txt",
+      "sha256": "0940bdfcc9af4b66800740671764338a82b081c09da34e319851fac355664eb2",
+      "analysisStatus": "ok",
+      "sourceRules": 302,
+      "compiledVariants": 327,
+      "sourceTagAllCounts": {
+        "self_disabling": 98,
+        "persistent_guard": 3,
+        "idempotent_effect": 90,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "paint everything everywhere!",
+      "sourceStatus": "ready",
+      "sourceFile": "6a412035f6f1999cc773ddcb071de6e6.txt",
+      "sha256": "5c224df2c7c8495b11e9962a757827698685039d0977fa6163f33f9044d7972a",
+      "analysisStatus": "ok",
+      "sourceRules": 28,
+      "compiledVariants": 105,
+      "sourceTagAllCounts": {
+        "self_disabling": 6,
+        "persistent_guard": 0,
+        "idempotent_effect": 7,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "A CLEAR VIEW OF THE SKY",
+      "sourceStatus": "ready",
+      "sourceFile": "b6020a515c32a33ad309fbd5a63f3588.txt",
+      "sha256": "cff3f7958f4a51d93ce108a990dc41dc60b3fb14d8aa26ef710996f8458f2918",
+      "analysisStatus": "ok",
+      "sourceRules": 45,
+      "compiledVariants": 54,
+      "sourceTagAllCounts": {
+        "self_disabling": 12,
+        "persistent_guard": 6,
+        "idempotent_effect": 15,
+        "setup_only": 1
+      },
+      "setupRules": [
+        {
+          "line": 349,
+          "text": "[tl]->[tl exploding]",
+          "compiledVariants": 1,
+          "setupVariants": 1,
+          "allVariantsSetup": true,
+          "allVariantsCosmetic": false,
+          "definitelyUnreachable": false
+        }
+      ]
+    },
+    {
+      "title": "WITCH LIFTER",
+      "sourceStatus": "ready",
+      "sourceFile": "9b405f4c165349eb617779b5547cdf52.txt",
+      "sha256": "69792c13f27ac42414c711ac39eae4ac9aee8dbbd3a00c56d3e12f858bd9733e",
+      "analysisStatus": "ok",
+      "sourceRules": 49,
+      "compiledVariants": 105,
+      "sourceTagAllCounts": {
+        "self_disabling": 6,
+        "persistent_guard": 0,
+        "idempotent_effect": 5,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "The sponge what lights up the seafloor",
+      "sourceStatus": "ready",
+      "sourceFile": "33d42cc9f33cd58f74fa2ee31b494314.txt",
+      "sha256": "b47ac6e31aa5d1ccdb488e95a47f1c41c76b1ba4bed0569d54bb437a2f0eb4f9",
+      "analysisStatus": "ok",
+      "sourceRules": 74,
+      "compiledVariants": 119,
+      "sourceTagAllCounts": {
+        "self_disabling": 12,
+        "persistent_guard": 0,
+        "idempotent_effect": 12,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Put the logs in the water, elephant!",
+      "sourceStatus": "ready",
+      "sourceFile": "c75c21d481107aa5cb78dc91378f8d9b.txt",
+      "sha256": "c4e5d94a3f915f5360775cb72d0ab9c1766d1a2d625da5f3395589d3dde9a85c",
+      "analysisStatus": "ok",
+      "sourceRules": 12,
+      "compiledVariants": 24,
+      "sourceTagAllCounts": {
+        "self_disabling": 0,
+        "persistent_guard": 0,
+        "idempotent_effect": 0,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Karamell",
+      "sourceStatus": "ready",
+      "sourceFile": "1f22424c2178d3e64c33c2e25203365b.txt",
+      "sha256": "270ac4ef504214b776f1829af407477c69e37fb4554410cc73edc2490c5d2a9a",
+      "analysisStatus": "ok",
+      "sourceRules": 68,
+      "compiledVariants": 107,
+      "sourceTagAllCounts": {
+        "self_disabling": 12,
+        "persistent_guard": 0,
+        "idempotent_effect": 13,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Omniban",
+      "sourceStatus": "ready",
+      "sourceFile": "96608bd07725a3a105bb0027a7b73da3.txt",
+      "sha256": "130d49aa2b62fd02f31eabc53067ffcfd1a3c8fbb0976a3abc2053640f8c475f",
+      "analysisStatus": "ok",
+      "sourceRules": 24,
+      "compiledVariants": 93,
+      "sourceTagAllCounts": {
+        "self_disabling": 1,
+        "persistent_guard": 0,
+        "idempotent_effect": 0,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Bring the ice cube to the goal without exposing it to heat.",
+      "sourceStatus": "ready",
+      "sourceFile": "bf3272fd7b73c43acb4f835478fb25ee.txt",
+      "sha256": "c4c16314508e64a0bdf17d26d965c310042c9a0f415e4f6c48c23de77273f6a2",
+      "analysisStatus": "ok",
+      "sourceRules": 8,
+      "compiledVariants": 14,
+      "sourceTagAllCounts": {
+        "self_disabling": 3,
+        "persistent_guard": 1,
+        "idempotent_effect": 4,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Un-Lock",
+      "sourceStatus": "ready",
+      "sourceFile": "0bde9b6117e2c7aebb4f226b47cbdc47.txt",
+      "sha256": "c86879451a0fbcf74a019e8f08be9acf17f4af73e776d276cd20b0cef4b28330",
+      "analysisStatus": "ok",
+      "sourceRules": 36,
+      "compiledVariants": 63,
+      "sourceTagAllCounts": {
+        "self_disabling": 13,
+        "persistent_guard": 3,
+        "idempotent_effect": 12,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Seven-Layer Dip",
+      "sourceStatus": "provisional",
+      "sourceFile": "f34d1ea5b2636c253edf725bd2679976.txt",
+      "sha256": "d4b2ef5988a2eef15c8dd7fb9abe8e81bd3e264d9e593b3c395860dc06e046c1",
+      "analysisStatus": "ok",
+      "sourceRules": 34,
+      "compiledVariants": 61,
+      "sourceTagAllCounts": {
+        "self_disabling": 0,
+        "persistent_guard": 0,
+        "idempotent_effect": 0,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Being Alan Hazelden",
+      "sourceStatus": "ready",
+      "sourceFile": "dbb32000738925f19cd89453e64b54c0.txt",
+      "sha256": "0aeb26ed27180128d3a5472c81daf50f3365d43ac54628b1e85581610fab2e2a",
+      "analysisStatus": "ok",
+      "sourceRules": 9,
+      "compiledVariants": 20,
+      "sourceTagAllCounts": {
+        "self_disabling": 1,
+        "persistent_guard": 0,
+        "idempotent_effect": 4,
+        "setup_only": 0
+      },
+      "setupRules": []
+    },
+    {
+      "title": "Lock & Pin",
+      "sourceStatus": "provisional",
+      "sourceFile": "11118b5d6e0d22b5bfc26f3043c888db.txt",
+      "sha256": "3935704b0b91343fa47acc700a359ad7d2dc3a9e80f5a12a322a0ebd63ae0427",
+      "analysisStatus": "ok",
+      "sourceRules": 23,
+      "compiledVariants": 63,
+      "sourceTagAllCounts": {
+        "self_disabling": 1,
+        "persistent_guard": 0,
+        "idempotent_effect": 1,
+        "setup_only": 0
+      },
+      "setupRules": []
+    }
+  ],
+  "analyzerFilesAtScan": {
+    "src/tests/ps_static_analysis.js": "dbe9f5f7e1c899b843bf448929bcf999a00be63bbe6c42d97629b3352ed93c8c",
+    "src/tests/static_analysis_setup.js": "ff5a223b298b30b3053c132f0f5111a6c9020ffedc12ca924bbb1c30d6b20d88",
+    "src/canonicalize.js": "a8d7701ed6689cead3aeed83867e62dc782a54b677842b4f1dcf80c0fc5f641d",
+    "src/js/compiler.js": "e70a257c72800fabcce574b3cd1f4676b9b6cb73ebaf71790303d2f9ff83afab"
+  },
+  "analyzerLayoutNote": "Capture predates the shared-runtime extraction; the setup helper is now src/js/static_analysis_setup.js and the Node source adapter remains src/tests/ps_static_analysis.js."
+}

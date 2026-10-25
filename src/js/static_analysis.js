@@ -1,5 +1,6 @@
 'use strict';
 
+const { tagSetupRules, deriveRuleSetupFacts } = require('./static_analysis_setup');
 
 const SCHEMA = 'ps-static-analysis-v1';
 const INERT_COMMANDS = new Set(['message', 'sfx0', 'sfx1', 'sfx2', 'sfx3', 'sfx4', 'sfx5', 'sfx6', 'sfx7', 'sfx8', 'sfx9', 'sfx10']);
@@ -575,6 +576,7 @@ function buildPsTagged(state, options = {}) {
     psTagged.objects_originating_movement = computeObjectsOriginatingMovement(psTagged);
     tagRuleObjectTags(psTagged);
     tagRuleMatchInteractions(psTagged);
+    tagSetupRules(psTagged);
     tagInertCollisionLayers(psTagged);
     tagCosmeticRules(psTagged);
     tagCosmeticObjects(psTagged);
@@ -596,6 +598,7 @@ function emptyFacts() {
         program_flow: [],
         winflow: [],
         win_relevance: [],
+        rule_setup: [],
     };
 }
 
@@ -3559,6 +3562,7 @@ function factDerivers() {
         program_flow: deriveProgramFlowFacts,
         winflow: deriveWinflowFacts,
         win_relevance: deriveWinRelevanceFacts,
+        rule_setup: deriveRuleSetupFacts,
     };
 }
 

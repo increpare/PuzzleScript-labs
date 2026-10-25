@@ -1,0 +1,16 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "human_verified": false,
+  "ruleTag": [
+    {
+      "line": 64,
+      "text": "[ floor ] [ no mark ] -> [ floor ] [ stationary mark ]",
+      "tags": {
+        "self_disabling": false,
+        "persistent_guard": false,
+        "idempotent_effect": false,
+        "setup_only": false
+      }
+    }
+  ]
+}

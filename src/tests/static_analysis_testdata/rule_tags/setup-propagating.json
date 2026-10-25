@@ -1,0 +1,16 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "human_verified": false,
+  "ruleTag": [
+    {
+      "line": 64,
+      "text": "right [ stage | no stage ] -> [ stage | stationary stage ]",
+      "tags": {
+        "self_disabling": true,
+        "persistent_guard": true,
+        "idempotent_effect": false,
+        "setup_only": false
+      }
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "human_verified": false,
+  "ruleTag": [
+    {
+      "line": 64,
+      "text": "[ stage ] -> [ stage stationary seed ]",
+      "tags": {
+        "self_disabling": false,
+        "persistent_guard": true,
+        "idempotent_effect": true,
+        "setup_only": false
+      }
+    },
+    {
+      "line": 65,
+      "text": "[ seed ] -> [ seed stationary stage ]",
+      "tags": {
+        "self_disabling": false,
+        "persistent_guard": true,
+        "idempotent_effect": true,
+        "setup_only": false
+      }
+    }
+  ]
+}

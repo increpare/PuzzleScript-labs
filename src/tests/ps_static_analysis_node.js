@@ -2171,4 +2171,6 @@ function assertMatchInteractionCertificates() {
 
 assertMatchInteractionCertificates();
 
+require('./static_analysis_setup_node');
+
 console.log('ps_static_analysis_node: ok');

@@ -266,6 +266,13 @@ assert.ok(game.rule_rows.some(row =>
     row.cosmetic === true
 ));
 assert.ok(game.rule_rows.every(row => row.inspector && row.inspector.title && Array.isArray(row.inspector.facts)));
+const setupRow = game.rule_rows.find(row => row.text.includes('Alpha') && row.text.includes('MarkerX'));
+assert.ok(setupRow, 'setup rule should be represented in the explorer');
+assert.strictEqual(setupRow.self_disabling, false);
+assert.strictEqual(setupRow.persistent_guard, true);
+assert.strictEqual(setupRow.idempotent_effect, true);
+assert.strictEqual(setupRow.setup_only, true);
+assert.ok(setupRow.inspector.facts.some(item => item.label === 'setup only' && item.value === 'yes'));
 assert.ok(game.rulegroup_rows.some(row =>
     row.id === 'early_group_0' &&
     row.rule_count > 0
