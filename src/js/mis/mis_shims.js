@@ -1,4 +1,4 @@
-// PuzzleScript+MIS (web prototype) - headless engine shims.
+// MIS95 - headless engine shims.
 //
 // The engine normally shares globals with graphics.js / inputoutput.js /
 // console.js. MIS draws and handles input itself, so those scripts are not

@@ -2,11 +2,11 @@ const { app, BrowserWindow, Menu, ipcMain, protocol, dialog, session } = require
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { Files } = require('./files.cjs');
-const ORIGIN = 'puzzlescript-mis://app/';
-app.setName('PuzzleScript+MIS');
-if (process.env.PUZZLESCRIPT_MIS_USER_DATA) app.setPath('userData', path.resolve(process.env.PUZZLESCRIPT_MIS_USER_DATA));
+const ORIGIN = 'mis95://app/';
+app.setName('MIS95');
+if (process.env.MIS95_USER_DATA) app.setPath('userData', path.resolve(process.env.MIS95_USER_DATA));
 app.commandLine.appendSwitch('disable-lcd-text');
-protocol.registerSchemesAsPrivileged([{ scheme: 'puzzlescript-mis', privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
+protocol.registerSchemesAsPrivileged([{ scheme: 'mis95', privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
 let win, files, ready = false, closing = false, opening = false;
 const pending = [];
 const delivered = new Set();
@@ -47,7 +47,7 @@ app.whenReady().then(async () => {
   files = new Files(app.getPath('userData')); await files.load();
   Menu.setApplicationMenu(process.platform === 'darwin' ? Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }, { role: 'windowMenu' }]) : null);
   const web = path.join(__dirname, 'web');
-  protocol.handle('puzzlescript-mis', async request => {
+  protocol.handle('mis95', async request => {
     try {
       const url = new URL(request.url);
       const file = path.resolve(web, '.' + decodeURIComponent(url.pathname === '/' ? '/mis.html' : url.pathname));
@@ -58,7 +58,7 @@ app.whenReady().then(async () => {
   session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) => callback(false));
   session.defaultSession.setPermissionCheckHandler(() => false);
   win = new BrowserWindow({ width: 1360, height: 900, minWidth: 600, minHeight: 420,
-    frame: false, show: false, backgroundColor: '#c0c0c0', title: 'PuzzleScript+MIS',
+    frame: false, show: false, backgroundColor: '#c0c0c0', title: 'MIS95',
     ...(process.platform !== 'darwin' ? { icon: path.join(__dirname, 'icons', process.platform === 'win32' ? 'app.ico' : 'app.png') } : {}),
     webPreferences: { preload: path.join(__dirname, 'preload.cjs'), nodeIntegration: false, contextIsolation: true, sandbox: true }
   });
@@ -103,7 +103,7 @@ app.whenReady().then(async () => {
     if (action === 'maximize') { if (win.isMaximized()) win.unmaximize(); else win.maximize(); }
     if (action === 'close') win.close();
   });
-  win.webContents.on('did-fail-load', (_event, code, message) => { if (code !== -3) { win.show(); dialog.showErrorBox('PuzzleScript+MIS could not start', message); } });
+  win.webContents.on('did-fail-load', (_event, code, message) => { if (code !== -3) { win.show(); dialog.showErrorBox('MIS95 could not start', message); } });
   const showFallback = setTimeout(() => { if (win && !win.isDestroyed()) win.show(); }, 10000);
   showFallback.unref();
   await win.loadURL(ORIGIN + 'mis.html');

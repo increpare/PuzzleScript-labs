@@ -158,7 +158,7 @@ compile() {
   if [[ "$src" == *.c ]]; then lang_flags=(-std=c11); else lang_flags=(-std=c++20); fi
   local extra=()
   [[ "$src" == third_party/* ]] && extra=(-Wno-everything)
-  "$EMXX" -x "$([[ "$src" == *.c ]] && echo c || echo c++)" "${lang_flags[@]}" "${COMMON[@]}" "${extra[@]}" -MMD -MF "$obj.d" -c "$NATIVE/$src" -o "$obj"
+  "$EMXX" -x "$([[ "$src" == *.c ]] && echo c || echo c++)" "${lang_flags[@]}" "${COMMON[@]}" ${extra[@]+"${extra[@]}"} -MMD -MF "$obj.d" -c "$NATIVE/$src" -o "$obj"
 }
 
 all=("${SOURCES[@]}" third_party/utf8proc/utf8proc.c)
@@ -171,7 +171,7 @@ for src in "${all[@]}"; do
     if (( ${#pids[@]} >= JOBS )); then wait "${pids[0]}"; pids=("${pids[@]:1}"); fi
   fi
 done
-for p in "${pids[@]}"; do wait "$p"; done
+for p in ${pids[@]+"${pids[@]}"}; do wait "$p"; done
 
 "$EMXX" "${COMMON[@]}" "${objects[@]}" -o "$OUT_DIR/mis_native.js" \
   -sMODULARIZE=1 -sEXPORT_NAME=createMisNative \

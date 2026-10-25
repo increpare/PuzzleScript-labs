@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-// Profile the PuzzleScript+MIS web prototype's two solver backends on the same
+// Profile MIS95's two solver backends on the same
 // levels: the JavaScript engine solver (src/js/mis/mis_core.js) and the
 // WebAssembly build of the native solver (src/js/mis/wasm, see
 // native/wasm/build_mis_wasm.sh).

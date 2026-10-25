@@ -22,7 +22,7 @@ MIS_NPM := npm.cmd
 else
 MIS_NPM ?= npm
 endif
-.PHONY: all desktop distro install serve mis_app mis_app_start mis_app_tests mis_web_bundle
+.PHONY: all desktop distro install serve mis_app mis_app_start mis_app_tests mis_web_bundle mis_web_tests mis_scrollbar_tests mis_analysis_tests mis_palette_tests mis_publish
 all: desktop
 
 desktop: mis_app
@@ -34,7 +34,7 @@ distro: desktop
 mis_app: desktop/mis/node_modules/.package-lock.json
 	$(NODE) scripts/build-mis-app.mjs
 	$(NODE) scripts/gui95-app.mjs pack
-	$(NODE) -e "console.log('PuzzleScript+MIS ready in release/mis/; make install creates the stable GUI95 launcher.')"
+	$(NODE) -e "console.log('MIS95 ready in release/mis/; make install creates the stable GUI95 launcher.')"
 
 install: all
 	$(NODE) scripts/gui95-app.mjs install
@@ -44,6 +44,21 @@ serve: mis_web_bundle
 
 mis_web_bundle:
 	$(NODE) scripts/build-mis-web.mjs
+
+mis_web_tests:
+	$(NODE) src/tests/mis_web_browser.cjs
+
+mis_scrollbar_tests:
+	$(NODE) src/tests/mis_scrollbars_browser.cjs
+
+mis_analysis_tests:
+	$(NODE) src/tests/mis_analysis_browser.cjs
+
+mis_palette_tests:
+	$(NODE) src/tests/mis_palette_browser.cjs
+
+mis_publish:
+	$(NODE) scripts/publish-mis.mjs
 
 mis_app_start: all
 	$(MIS_NPM) --prefix desktop/mis start
@@ -734,7 +749,15 @@ help:
 	@echo "                                     Analyze instrumentation-pack strategy/static-tag results"
 	@echo "  make clean                         Remove native build outputs and JS parity data"
 	@echo ""
-	@echo "PuzzleScript+MIS web prototype (src/mis.html):"
+	@echo "MIS95 (src/mis.html):"
+	@echo "  make mis_publish                   Build, test and upload MIS95 to https://www.puzzlescript.net/mis95/"
+	@echo "  make mis_web_bundle                Build the standalone MIS95 web bundle into build/mis-web/"
+	@echo "  make serve                         Build the bundle and serve it locally"
+	@echo "  make mis_web_tests                 Build the bundle and test it in Chrome"
+	@echo "  make desktop                       Build the MIS95 desktop app into release/mis/ (also: make)"
+	@echo "  make install                       Build and install the desktop app with a GUI95 launcher"
+	@echo "  make mis_app_start                 Build and launch the desktop app"
+	@echo "  make mis_app_tests                 Run the desktop app's file and preference checks"
 	@echo "  make mis_web                       Release-build the site into bin/, mis.html included (compile.js; ~10 min)"
 	@echo "  make mis_web_serve                 Serve bin/ at http://localhost:$(MIS_WEB_PORT)/mis.html"
 	@echo "  make mis_wasm                      Rebuild the wasm solver in src/js/mis/wasm (needs Emscripten)"
@@ -1874,7 +1897,7 @@ solver_compact_parity_smoke: $(PUZZLESCRIPT_SOLVER)
 solver_compact_parity: $(PUZZLESCRIPT_SOLVER)
 	$(NODE) src/tests/run_solver_compact_parity.js $(PUZZLESCRIPT_SOLVER) $(SOLVER_COMPACT_PARITY_CORPUS) --timeout-ms $(SOLVER_COMPACT_PARITY_TIMEOUT_MS) --strategy $(SOLVER_COMPACT_PARITY_STRATEGY) $(SOLVER_COMPACT_PARITY_GAME_ARG) $(SOLVER_COMPACT_PARITY_LEVEL_ARG) $(SOLVER_COMPACT_PARITY_MAX_GAMES_ARG)
 
-# PuzzleScript+MIS web prototype (src/mis.html). mis_wasm needs Emscripten on PATH
+# MIS95 (src/mis.html). mis_wasm needs Emscripten on PATH
 # (source emsdk_env.sh); it rebuilds src/js/mis/wasm/mis_native.{js,wasm}.
 # On Windows, executing the .sh directly follows `#!/usr/bin/env bash`, and the
 # `bash` on PATH is often the WSL app alias (WindowsApps\bash.exe). That alias
@@ -1904,6 +1927,10 @@ mis_web_serve:
 
 mis_tests:
 	$(NODE) src/tests/mis_core_node.js
+	$(NODE) src/tests/portable_semantics_node.js
+	$(NODE) src/tests/aggregate_win_semantics_node.js
+	$(NODE) src/tests/mis_optimization_node.js
+	$(NODE) src/tests/mis_rule_goals_node.js
 
 mis_backend_bench:
 	$(NODE) src/tests/mis_backend_bench_node.js

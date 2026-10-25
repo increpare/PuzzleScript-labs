@@ -1,0 +1,48 @@
+title MIS optimization regression
+
+OBJECTS
+
+Background
+black
+
+Player
+white
+
+WallA
+red
+
+WallB
+blue
+
+Goal
+yellow
+
+Decoration
+green
+
+LEGEND
+. = Background
+P = Player
+A = WallA
+B = WallB
+G = Goal
+D = Decoration
+
+SOUNDS
+sfx0 123
+
+COLLISIONLAYERS
+Background
+Player, WallA, WallB
+Goal
+Decoration
+
+RULES
+[ Decoration ] -> [ ]
+[ Player ] -> [ Player ] sfx0
+
+WINCONDITIONS
+all Player on Goal
+
+LEVELS
+P.G

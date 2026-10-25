@@ -525,6 +525,10 @@ function summarizeRuleRows(report) {
             cosmetic: Boolean(entry.rule.tags && entry.rule.tags.cosmetic),
             inert_command: Boolean(entry.rule.tags && entry.rule.tags.inert_command_only),
             command_only: Boolean(entry.rule.tags && entry.rule.tags.command_only),
+            self_disabling: Boolean(entry.rule.tags && entry.rule.tags.self_disabling),
+            persistent_guard: Boolean(entry.rule.tags && entry.rule.tags.persistent_guard),
+            idempotent_effect: Boolean(entry.rule.tags && entry.rule.tags.idempotent_effect),
+            setup_only: Boolean(entry.rule.tags && entry.rule.tags.setup_only),
         };
         row.inspector = inspectorPayload(`Rule ${entry.rule.id}`, [
             factItem('line', Number.isFinite(entry.rule.source_line) ? entry.rule.source_line : 'compiled'),
@@ -533,6 +537,13 @@ function summarizeRuleRows(report) {
             factItem('cosmetic', yesNo(row.cosmetic)),
             factItem('inert command', yesNo(row.inert_command)),
             factItem('command only', yesNo(row.command_only)),
+            factItem('self disabling', yesNo(row.self_disabling)),
+            factItem('persistent guard', yesNo(row.persistent_guard)),
+            factItem('idempotent effect', yesNo(row.idempotent_effect)),
+            factItem('setup only', yesNo(row.setup_only)),
+            factItem('setup retirement', entry.rule.setup_analysis && entry.rule.setup_analysis.retirement),
+            factItem('setup dependencies', entry.rule.setup_analysis && entry.rule.setup_analysis.setup_dependencies.join(', ')),
+            factItem('setup blockers', entry.rule.setup_analysis && entry.rule.setup_analysis.blockers.join(', ')),
         ], [row.text]);
         return row;
     });
@@ -1474,6 +1485,10 @@ function reportDefinitionsForGame(game) {
         { key: 'cosmetic', label: 'Cosmetic', type: 'boolean', claim: 'rule_tags.cosmetic' },
         { key: 'inert_command', label: 'Inert command', type: 'boolean' },
         { key: 'command_only', label: 'Command only', type: 'boolean' },
+        { key: 'self_disabling', label: 'Self disabling', type: 'boolean', claim: 'rule_tags.self_disabling' },
+        { key: 'persistent_guard', label: 'Persistent guard', type: 'boolean', claim: 'rule_tags.persistent_guard' },
+        { key: 'idempotent_effect', label: 'Idempotent effect', type: 'boolean', claim: 'rule_tags.idempotent_effect' },
+        { key: 'setup_only', label: 'Setup only', type: 'boolean', claim: 'rule_tags.setup_only' },
         { key: 'text', label: 'Rule', type: 'preview' },
       ],
       rows: game.rule_rows,

@@ -162,6 +162,8 @@ async function main() {
     fs.mkdirSync('./bin');
 
     console.log("Copying files")
+    const { buildMisOptimizer } = await import('./scripts/build-mis-optimizer.mjs');
+    await buildMisOptimizer();
     ncp.limit = 16;
     await copyDirectory("./src", "./bin/");
 

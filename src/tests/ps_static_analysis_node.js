@@ -714,6 +714,14 @@ assert.strictEqual(rigidRule.ps_tagged.game.tags.has_rigid, true, 'rigid rules s
 assert.strictEqual(rigidRuleIr.rigid, true);
 assert.strictEqual(rigidRuleIr.tags.rigid_active, true, 'solver-active rigid rules should receive rigid_active');
 
+assert.strictEqual(report.ps_tagged.game.tags.can_win, true, 'win conditions make a game winnable');
+const NO_WIN_GAME = SIMPLE_GAME.replace('Some Player on Goal', '');
+assert.strictEqual(analyzeSource(NO_WIN_GAME, { sourcePath: 'no_win.txt' }).ps_tagged.game.tags.can_win, false,
+    'no win conditions and no win command means no level can be won');
+const WIN_COMMAND_GAME = NO_WIN_GAME.replace('[ > Hero ] -> [ > Hero ]', '[ Hero | Goal ] -> [ Hero | Goal ] win');
+assert.strictEqual(analyzeSource(WIN_COMMAND_GAME, { sourcePath: 'win_command.txt' }).ps_tagged.game.tags.can_win, true,
+    'a rule with the win command makes a game winnable');
+
 const countFacts = report.facts.count_layer_invariants;
 assert.ok(countFacts.some(item => item.id === 'object_Hero_count_preserved'), 'Hero count fact should exist');
 assert.ok(countFacts.some(item => item.id === 'layer_0_static'), 'Background layer static fact should exist');
@@ -2162,5 +2170,7 @@ function assertMatchInteractionCertificates() {
 }
 
 assertMatchInteractionCertificates();
+
+require('./static_analysis_setup_node');
 
 console.log('ps_static_analysis_node: ok');

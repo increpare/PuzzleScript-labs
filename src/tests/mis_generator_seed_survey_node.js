@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-// Seed corpus + productivity survey for the PuzzleScript+MIS level generator.
+// Seed corpus + productivity survey for the MIS95 level generator.
 //
 //   node src/tests/mis_generator_seed_survey_node.js seeds  [--out seeds.json] [--solve-ms 500]
 //   node src/tests/mis_generator_seed_survey_node.js survey [--seeds seeds.json] [--out survey.json] [--seed 7]

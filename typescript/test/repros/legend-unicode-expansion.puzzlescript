@@ -1,0 +1,30 @@
+title Pending Unicode Legend Expansion
+
+objects
+Background .
+black
+
+Player P
+white
+
+I
+red
+
+Crate C
+blue
+
+legend
+X = İ or Crate
+
+sounds
+
+collisionlayers
+Background
+Player, I, Crate
+
+rules
+
+winconditions
+
+levels
+X.

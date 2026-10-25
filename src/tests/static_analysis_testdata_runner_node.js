@@ -69,6 +69,10 @@ function run() {
             'movements_removed',
             'may_invalidate_other_matches',
             'may_enable_other_matches',
+            'self_disabling',
+            'persistent_guard',
+            'idempotent_effect',
+            'setup_only',
             'cosmetic',
         ]);
         const movementActionReport = analyzeSource(`title Static Analysis Movement Action Name

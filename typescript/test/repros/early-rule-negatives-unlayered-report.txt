@@ -1,0 +1,80 @@
+Early negative terms: native unlayered-object recovery
+====================================================
+
+Authority: the pinned vanilla src/js/compiler.js checkSuperfluousCoincidences,
+after actual codeMirrorFn parsing, generateExtraMembers, generateMasks and
+processRuleString. No later orientation or name substitution runs in these probes.
+
+Reproduction 1: a raw concrete RHS positive uses recovered object membership
+-------------------------------------------------------------------------
+
+Starting from test/scenarios.mjs movementSource, use:
+
+  movementSource({ rules: '[ Player ] -> [ Wall no Background ]' })
+    .replace('Player, Crate, Wall', 'Player, Crate')
+
+WALL is unlayered. The first raw assignment is BACKGROUND, which retains its
+assignment. Before and after the native pass, the rule remains unchanged:
+
+  [ Player ] -> [ Wall no Background ]
+
+The native pass emits this error at line 30 (countsAsError true):
+
+  You have specified that there should be NO BACKGROUND but there is also a requirement that WALL be here.  This is a mistake right?
+
+The initial object-identity-only candidate emitted no diagnostic. Native positive
+WALL requirements recover the same object membership as the first raw assignment.
+Raw concrete requirements must also remain separate from source-ordered named
+lookups: adding a conflicting "Wall = Player" legend does not change this check.
+
+Reproduction 2: layer coverage and diagnostic labels are different data
+--------------------------------------------------------------------
+
+Starting from the same helper, use:
+
+  movementSource({ rules: '[ Crate no Wall ] -> [ Crate ]' })
+    .replace('Background\nPlayer, Crate, Wall',
+      'Background, Wall\nPlayer\nBackground')
+
+CRATE is unlayered. BACKGROUND's first raw assignment is replaced by a later
+assignment. The initial assignment remains writable as a distinct orphan.
+WALL's final layer is the first layer. The native pass changes the LHS to:
+
+  [ Crate ] -> [ Crate ]
+
+It emits this warning at line 31 (countsAsError false):
+
+  You have specified that there should be NO WALL but there is also a requirement that  be there, which collectively occupies the same layers (Layers ), so you can leave this out.
+
+The initial candidate retained NO WALL and emitted no diagnostic. An unlayered
+positive occupies the first layer during this native recovery check, but its
+undefined layer does not supply a numeric diagnostic label. Consequently occupied
+layers and the map of labels must remain separate.
+
+Readable representation
+-----------------------
+
+rawObjectLookups maps authored concrete identities directly to object sets,
+before final namedObjects legend overrides. An unlayered name recovers the first
+raw assignment. If a later assignment replaced it, one frozen orphan with the
+same name and an orphanedFrom link preserves that writable identity. Multiple
+unlayered names share the same orphan. Zero raw assignments produce empty sets.
+
+Native runtime evidence (orphaned-objects.test.mjs):
+
+  movementSource({ rules: '[ Crate ] -> [ random Player ]', level: 'C' })
+    .replace('Background\nPlayer, Crate, Wall',
+      'Background\nBackground\nCrate, Wall')
+
+Actual compile/load followed by processInput(-1) changes the board from [6] to
+[1]. Final Background has native id 1; the orphan is the earlier assignment.
+Native getPlayerPositions returns [0]. Aggregate/win checks become satisfiable
+after this write, disproving the previous empty-set/unavailable/Never model.
+Intent follows the linked declaration's current layer, but physical collision
+and movement membership excludes the orphan. Initial glyphs do not contain it.
+Other obsolete native assignments and padding remain outside this bounded
+source-domain model; no source lookup can select them.
+
+The candidate stores no masks, packed objects, object ids or storage slots.
+rule-negatives.test.mjs compares exact native outputs/diagnostics for both probes,
+orphan overlap, property/aggregate members and zero raw assignments.

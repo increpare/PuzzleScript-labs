@@ -1,6 +1,6 @@
 'use strict';
 
-// PuzzleScript+MIS (web prototype) - shared core.
+// MIS95 - shared core.
 //
 // Loaded after the PuzzleScript engine scripts, both on the page (for editing,
 // rendering and playtesting) and inside the solver/generator Web Workers. It
@@ -222,6 +222,19 @@ const MISCore = (function () {
 	// Game model (extracted from the compiled engine `state`)
 	/////////////////////////////////////////////////////////////////////
 
+	// A level can only be won through WINCONDITIONS or a rule's `win` command.
+	function gameCanWin() {
+		if (state.winconditions && state.winconditions.length) return true;
+		const groups = (state.rules || []).concat(state.lateRules || []);
+		for (let g = 0; g < groups.length; g++) {
+			for (let r = 0; r < groups[g].length; r++) {
+				const cmds = groups[g][r].commands || [];
+				for (let c = 0; c < cmds.length; c++) if (cmds[c][0] === 'win') return true;
+			}
+		}
+		return false;
+	}
+
 	function extractModel(sourceText) {
 		if (typeof state === 'undefined' || !state || !state.objects || !state.collisionLayers) return null;
 		const stride = STRIDE_OBJ;
@@ -331,6 +344,7 @@ const MISCore = (function () {
 			bgcolor: state.bgcolor,
 			fgcolor: state.fgcolor,
 			noaction: !!(state.metadata && state.metadata.noaction !== undefined),
+			canWin: gameCanWin(),
 			winText: parseWinconditionText(lines),
 			movers: parseMovingNames(lines),
 			usesRandom: /\brandom(dir)?\b/i.test(sourceText),
@@ -963,6 +977,7 @@ const MISCore = (function () {
 
 	function loadBoardIntoEngine(model, board, seed) {
 		installEngineHooks();
+		wonFlag = false;
 		const lv = new Level(0, board.w, board.h, model.layerCount, new Int32Array(board.cells));
 		loadLevelFromLevelDat(state, lv, seed || 'mis');
 		curlevel = 0;
@@ -1087,13 +1102,16 @@ const MISCore = (function () {
 	function solve(model, board, opts) {
 		opts = opts || {};
 		const strategy = opts.strategy || 'astar';
-		const maxExpanded = opts.maxExpanded || 200000;
-		const deadline = opts.timeMs ? Date.now() + opts.timeMs : Infinity;
+		if (model.canWin === false) return { status: 'unsolvable', reason: 'nowin', expanded: 0, strategy: strategy, ms: 0 };
+		// Explicit zero states / negative time remove the interactive solver's
+		// limits. Omitted options retain the generator and quick-check defaults.
+		const maxExpanded = opts.maxExpanded === 0 ? Infinity : opts.maxExpanded || 200000;
+		const deadline = opts.timeMs > 0 ? Date.now() + opts.timeMs : Infinity;
 		const inputs = model.noaction ? [0, 1, 2, 3] : [0, 1, 2, 3, 4];
 		const t0 = Date.now();
 		loadBoardIntoEngine(model, board, opts.seed);
 		const root = new Int32Array(level.objects);
-		if (winconditionsNow()) return { status: 'solved', solution: [], expanded: 0, strategy: strategy, ms: 0 };
+		if (wonFlag || winconditionsNow()) return { status: 'solved', solution: [], expanded: 0, strategy: strategy, ms: 0 };
 		const snaps = [root], parent = [-1], action = [-1], depth = [0];
 		const visited = new Set([cellsKey(root)]);
 		let expanded = 0;
@@ -1124,7 +1142,7 @@ const MISCore = (function () {
 				const step = engineStep(inputs[k]);
 				if (!step.changed && !step.won) continue;
 				const key = cellsKey(level.objects);
-				if (visited.has(key)) continue;
+				if (!step.won && visited.has(key)) continue;
 				visited.add(key);
 				const id = snaps.length;
 				snaps.push(new Int32Array(level.objects));
@@ -1145,7 +1163,7 @@ const MISCore = (function () {
 	// yields the true shortest solution when it finishes inside the cap.
 	function assess(model, board, opts) {
 		opts = opts || {};
-		const primary = solve(model, board, { strategy: 'astar', timeMs: opts.timeMs || 1500, maxExpanded: opts.maxExpanded || 150000, shouldStop: opts.shouldStop });
+		const primary = solve(model, board, { strategy: 'astar', timeMs: opts.timeMs || 1500, maxExpanded: opts.maxExpanded === undefined ? 150000 : opts.maxExpanded, shouldStop: opts.shouldStop });
 		const out = { status: primary.status, expanded: primary.expanded, lanes: { astar: primary.expanded }, solution: primary.solution || null, optimal: false, ms: primary.ms };
 		if (primary.status !== 'solved') return out;
 		out.effort = Math.max(1, primary.expanded);
@@ -1156,10 +1174,11 @@ const MISCore = (function () {
 		// final min from above, so skip refinement below the shortlist floor.
 		if (opts.refineGate !== undefined && opts.refineGate >= 0 && primary.expanded < opts.refineGate) return out;
 		const cap = primary.expanded + 6;
-		const greedy = solve(model, board, { strategy: 'greedy', maxExpanded: cap, timeMs: opts.timeMs || 1500 });
+		const refineTimeMs = opts.timeMs < 0 ? opts.refineTimeMs || 1500 : opts.timeMs || 1500;
+		const greedy = solve(model, board, { strategy: 'greedy', maxExpanded: cap, timeMs: refineTimeMs });
 		if (greedy.status === 'solved') { out.lanes.greedy = greedy.expanded; out.effort = Math.min(out.effort, Math.max(1, greedy.expanded)); }
 		const bfsCap = Math.max(cap, opts.bfsFloor || 0);
-		const bfs = solve(model, board, { strategy: 'bfs', maxExpanded: bfsCap, timeMs: opts.bfsTimeMs || opts.timeMs || 1500 });
+		const bfs = solve(model, board, { strategy: 'bfs', maxExpanded: bfsCap, timeMs: opts.bfsTimeMs || refineTimeMs });
 		if (bfs.status === 'solved') {
 			if (bfs.expanded <= cap) { out.lanes.bfs = bfs.expanded; out.effort = Math.min(out.effort, Math.max(1, bfs.expanded)); }
 			out.solution = bfs.solution;
@@ -1181,6 +1200,164 @@ const MISCore = (function () {
 		return frames;
 	}
 
+	// Check a worker's solution with the original rules, including explicit WIN
+	// commands and wins during run_rules_on_level_start.
+	function validateSolution(model, board, solution) {
+		if (!Array.isArray(solution)) return false;
+		loadBoardIntoEngine(model, board);
+		if (wonFlag || winconditionsNow()) return true;
+		for (const input of solution) {
+			if (!Number.isInteger(input) || input < 0 || input > 4) return false;
+			if (engineStep(input).won || winconditionsNow()) return true;
+		}
+		return false;
+	}
+
+	/////////////////////////////////////////////////////////////////////
+	// Rule goals: which rule lines solutions use
+	/////////////////////////////////////////////////////////////////////
+	//
+	// A goal says a rule line is needed (every solution fires it) or banned (no
+	// solution fires it). A rule "fires" when it changes the level or queues a
+	// command, on any turn including level start and again ticks.
+
+	// Source lines (1-based) of the compiled game's rules. The searches below
+	// treat each turn as deterministic, so callers skip games with `random`.
+	function compiledRuleLines() {
+		const lines = new Set();
+		let random = false;
+		[state.rules || [], state.lateRules || []].forEach(function (groups) {
+			groups.forEach(function (group) {
+				group.forEach(function (rule) {
+					lines.add(rule.lineNumber);
+					if (rule.isRandom) random = true;
+				});
+			});
+		});
+		return { lines: Array.from(lines).sort(function (a, b) { return a - b; }), random: random };
+	}
+
+	// Runs fn() with the engine reporting each rule line that fires to onFire.
+	function withRuleHook(onFire, fn) {
+		const proto = Rule.prototype, tryApply = proto.tryApply, queueCommands = proto.queueCommands;
+		proto.tryApply = function (lv) {
+			const changed = tryApply.call(this, lv);
+			if (changed) onFire(this.lineNumber);
+			return changed;
+		};
+		proto.queueCommands = function () {
+			if (this.commands.length) onFire(this.lineNumber);
+			return queueCommands.call(this);
+		};
+		try { return fn(); }
+		finally { proto.tryApply = tryApply; proto.queueCommands = queueCommands; }
+	}
+
+	// Replays a solution and records the rule lines that fired on each step:
+	// steps[0] is level start, steps[i] the turn after input i.
+	function traceRules(model, board, solution) {
+		const steps = [];
+		let current = new Set();
+		withRuleHook(function (line) { current.add(line); }, function () {
+			loadBoardIntoEngine(model, board);
+			steps.push(Array.from(current));
+			for (let i = 0; i < solution.length; i++) {
+				current = new Set();
+				engineStep(solution[i]);
+				steps.push(Array.from(current));
+			}
+		});
+		return steps;
+	}
+
+	// Per line: how many steps it fired on, and the first such step.
+	function summarizeTrace(steps) {
+		const lines = {};
+		steps.forEach(function (fired, step) {
+			fired.forEach(function (line) {
+				const s = lines[line] || (lines[line] = { steps: 0, first: step });
+				s.steps++;
+			});
+		});
+		return lines;
+	}
+
+	// Do all solutions of this level meet the goals { need: [lines], ban: [lines] }?
+	// Searches the level breadth-first, tracking per path which needed rules
+	// have fired and whether a banned one has. Returns
+	//   { status: 'met' }                  no solution breaks a goal
+	//   { status: 'broken', solution }     a shortest solution that breaks one
+	//   { status: 'unknown' }              the search ran out of budget
+	// A path that has fired every needed rule (with nothing banned) can't break
+	// a goal any more, so it isn't followed further. Banned rules allow no such
+	// shortcut: proving one is never used means exploring the whole level.
+	function ruleGoalSearch(model, board, goals, opts) {
+		opts = opts || {};
+		const need = goals.need || [], ban = goals.ban || [];
+		if (need.length > 30) throw new Error('at most 30 needed rules');
+		const needBit = new Map(), banned = new Set(ban);
+		need.forEach(function (line, i) { needBit.set(line, 1 << i); });
+		const ALL = need.length ? (1 << need.length) - 1 : 0;
+		const BANNED = -1; // a banned rule fired: only "can this still win?" matters
+		const maxExpanded = opts.maxExpanded === 0 ? Infinity : opts.maxExpanded || 200000;
+		const deadline = opts.timeMs > 0 ? Date.now() + opts.timeMs : Infinity;
+		const inputs = model.noaction ? [0, 1, 2, 3] : [0, 1, 2, 3, 4];
+		let fired = 0;
+		function onFire(line) {
+			if (fired === BANNED) return;
+			if (banned.has(line)) fired = BANNED;
+			else if (needBit.has(line)) fired |= needBit.get(line);
+		}
+		const breaks = function (mask) { return mask === BANNED || (mask & ALL) !== ALL; };
+		const settled = function (mask) { return !ban.length && mask === ALL; };
+		return withRuleHook(onFire, function () {
+			const t0 = Date.now();
+			fired = 0;
+			loadBoardIntoEngine(model, board);
+			const snaps = [new Int32Array(level.objects)], masks = [fired], parent = [-1], action = [-1];
+			const done = function (status, last) {
+				const res = { status: status, expanded: expanded, ms: Date.now() - t0 };
+				if (status === 'broken') {
+					const sol = [];
+					for (let n = last; n > 0; n = parent[n]) sol.push(action[n]);
+					res.solution = sol.reverse();
+				}
+				return res;
+			};
+			let expanded = 0;
+			if (wonFlag || winconditionsNow()) return done(breaks(masks[0]) ? 'broken' : 'met', 0);
+			if (settled(masks[0])) return done('met');
+			const visited = new Set([cellsKey(snaps[0]) + '|' + masks[0]]);
+			for (let head = 0; head < snaps.length; head++) {
+				if (expanded >= maxExpanded) return done('unknown');
+				if ((expanded & 31) === 0 && Date.now() > deadline) return done('unknown');
+				expanded++;
+				for (let k = 0; k < inputs.length; k++) {
+					restoreTo(snaps[head]);
+					fired = masks[head];
+					const step = engineStep(inputs[k]);
+					const mask = fired;
+					// A turn that changes nothing still counts if it fired a goal
+					// rule (e.g. a banned `cancel` rule when bumping a wall).
+					if (!step.changed && !step.won && mask === masks[head]) continue;
+					const id = snaps.length;
+					if (step.won || winconditionsNow()) {
+						if (!breaks(mask)) continue;
+						parent.push(head); action.push(inputs[k]); snaps.push(null); masks.push(mask);
+						return done('broken', id);
+					}
+					if (settled(mask)) continue;
+					const key = cellsKey(level.objects) + '|' + mask;
+					if (visited.has(key)) continue;
+					visited.add(key);
+					snaps.push(new Int32Array(level.objects)); masks.push(mask);
+					parent.push(head); action.push(inputs[k]);
+				}
+			}
+			return done('met');
+		});
+	}
+
 	/////////////////////////////////////////////////////////////////////
 	// Simplify ("window dressing") and Tighten
 	/////////////////////////////////////////////////////////////////////
@@ -1190,14 +1367,15 @@ const MISCore = (function () {
 	// same criterion as native/src/search/simplify.cpp. Tighten does the
 	// reverse for a chosen static object (e.g. Wall).
 
-	function optimalLength(model, board, cap, timeMs) {
-		const r = solve(model, board, { strategy: 'bfs', maxExpanded: cap, timeMs: timeMs });
+	function optimalLength(model, board, cap, timeMs, solver) {
+		const r = solver ? solver(board, { strategy: 'bfs', maxExpanded: cap, timeMs: timeMs })
+			: solve(model, board, { strategy: 'bfs', maxExpanded: cap, timeMs: timeMs });
 		return r.status === 'solved' ? { length: r.solution.length, expanded: r.expanded } : { length: -1, status: r.status, expanded: r.expanded };
 	}
 
 	function simplify(model, board, opts) {
 		opts = opts || {};
-		const base = optimalLength(model, board, opts.cap || 400000, opts.timeMs || 20000);
+		const base = optimalLength(model, board, opts.cap || 400000, opts.timeMs || 20000, opts.solve);
 		if (base.length < 0) return { ok: false, reason: base.status === 'unsolvable' ? 'The level is unsolvable.' : "Couldn't find the shortest solution in time (level too big for exhaustive search)." };
 		const trialCap = Math.max(256, base.expanded * 2);
 		const work = cloneBoard(board);
@@ -1232,7 +1410,7 @@ const MISCore = (function () {
 			if (mode === 'simplify') { if (!hasBit(work.cells, t, id, model.stride)) continue; clearBit(work.cells, t, id, model.stride); ensureBackground(model, work.cells, t); }
 			else placeObject(model, work.cells, t, id);
 			tried++;
-			const r = optimalLength(model, work, trialCap, 4000);
+			const r = optimalLength(model, work, trialCap, 4000, opts.solve);
 			if (r.length === base.length) changed++;
 			else work.cells.set(saved, t * model.stride);
 			if (opts.onProgress && (c & 3) === 0) opts.onProgress(c + 1, candidates.length);
@@ -1263,6 +1441,10 @@ const MISCore = (function () {
 		insertLevelInSource: insertLevelInSource,
 		parseTransform: parseTransform,
 		runTransform: runTransform,
+		compiledRuleLines: compiledRuleLines,
+		traceRules: traceRules,
+		summarizeTrace: summarizeTrace,
+		ruleGoalSearch: ruleGoalSearch,
 		derivePresets: derivePresets,
 		staticSolids: staticSolids,
 		restoreTo: restoreTo,
@@ -1272,6 +1454,7 @@ const MISCore = (function () {
 		solve: solve,
 		assess: assess,
 		replayFrames: replayFrames,
+		validateSolution: validateSolution,
 		simplify: simplify,
 	};
 })();

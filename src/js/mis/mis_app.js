@@ -1,6 +1,6 @@
 'use strict';
 
-// PuzzleScript+MIS (web prototype) - page controller.
+// MIS95 - page controller.
 //
 // Owns the source text (the single source of truth), the compiled model, the
 // board editor, the level strip, the transformer session and the workers.
@@ -68,6 +68,9 @@
 		pinned: [],
 		special: null,           // simplify/tighten result card
 		gen: null,               // generation session
+		rules: null,             // compiled rule lines: { lines, random, keyOf, lineOf }
+		ruleTags: {},            // line -> 'cosmetic' | 'inert' (from the workers' analysis)
+		ruleGoals: {},           // levelIndex -> { rule key: 'need' | 'ban' }
 	};
 
 	/////////////////////////////////////////////////////////////////////
@@ -83,6 +86,7 @@
 				handle.ready = true;
 				handle.backend = m.backend;
 				if (m.ok) showBackend(m.backend, m.note);
+				if (m.ok && (handle === focusWorker || handle === ruleWorker)) { app.ruleTags = m.ruleTags || {}; renderRuleGutter(); }
 				if (handle.onReady) handle.onReady(m);
 				pump(handle);
 				return;
@@ -98,7 +102,16 @@
 			}
 			if (handle.onMessage) handle.onMessage(m);
 		};
-		w.onerror = function (e) { console.error('MIS worker error', e.message); };
+		w.onerror = function (e) {
+			console.error('MIS worker error', e.message);
+			const job = handle.current;
+			kill(handle);
+			if (job && handle.handlers[job.msg.id]) {
+				delete handle.handlers[job.msg.id];
+				handle.busy = false;
+				job.done({ type: 'error', message: e.message || 'Solver worker failed.' });
+			} else if (handle.onMessage) handle.onMessage({ type: 'genError', message: e.message || 'Solver worker failed.' });
+		};
 		w.postMessage({ type: 'init', source: source, backend: app.backendPref });
 		return handle;
 	}
@@ -139,10 +152,12 @@
 	function ensureWorkers(force) {
 		// Workers only need the rules; boards are always sent explicitly, so
 		// level edits don't require a restart.
-		if (!force && focusWorker && bgWorker && workerSourceSig === app.rulesSig) return;
-		kill(focusWorker); kill(bgWorker);
+		if (!force && focusWorker && bgWorker && ruleWorker && workerSourceSig === app.rulesSig) return;
+		kill(focusWorker); kill(bgWorker); kill(ruleWorker);
 		focusWorker = spawnWorker(app.source);
 		bgWorker = spawnWorker(app.source);
+		ruleWorker = spawnWorker(app.source);
+		ruleWorkerKey = null;
 		workerSourceSig = app.rulesSig;
 		healthQueued.clear();
 		if (simplifyRunning) { simplifyRunning = false; $('simplify-btn').textContent = '✂ Simplify'; }
@@ -166,18 +181,20 @@
 	// Recompile `text`. Returns true if it compiled.
 	function compileSource(text) {
 		const res = misCompile(text);
-		document.title = 'PuzzleScript+MIS';
+		document.title = 'MIS95';
 		showSourceDiagnostics(res.errors, res.ok, res.hasErrors);
 		if (!res.ok) return false;
 		let model = null;
 		try { model = C.extractModel(text); } catch (e) { console.error(e); }
 		if (!model) return false;
 		app.model = model;
+		app.rules = computeRules(text);
 		if (!model.levelMapOK) $('source-diag').insertAdjacentHTML('afterbegin', '<div class="warn">Note: this LEVELS layout can\'t be edited from the board (read-only).</div>');
 		const sig = rulesSignature(text);
 		const rulesChanged = sig !== app.rulesSig;
 		app.rulesSig = sig;
 		if (rulesChanged) {
+			app.ruleTags = {};
 			transformCM.setGameSource(text);
 			ensureWorkers(true);
 			buildPalette();
@@ -268,13 +285,15 @@
 	function snapshot() {
 		const locks = {};
 		Object.keys(app.locks).forEach(function (k) { locks[k] = Array.from(app.locks[k]); });
-		return { source: app.source, levelIndex: app.levelIndex, locks: locks };
+		return { source: app.source, levelIndex: app.levelIndex, locks: locks, ruleGoals: JSON.parse(JSON.stringify(app.ruleGoals)) };
 	}
 	function restoreSnapshot(s) {
 		app.locks = {};
 		Object.keys(s.locks).forEach(function (k) { app.locks[k] = Uint8Array.from(s.locks[k]); });
 		app.levelIndex = s.levelIndex;
+		app.ruleGoals = s.ruleGoals || {};
 		setSource(s.source, { noUndo: true });
+		renderRuleGutter();
 	}
 	function pushUndo() {
 		app.undo.push(snapshot());
@@ -717,6 +736,7 @@
 	}
 	function exitPlay() {
 		app.play = null;
+		renderRuleGutter();
 	}
 	function engineBoard() { return { w: level.width, h: level.height, cells: new Int32Array(level.objects) }; }
 	function updatePlayMoves() { $('play-moves').textContent = app.play ? app.play.moves + ' moves' : ''; }
@@ -759,6 +779,7 @@
 	let currentResult = null;
 	let provisional = null; // quick result (e.g. from a suggestion) shown while the deep solve runs
 	let analyzeStarted = 0;
+	let solving = false;
 
 	// Backends measure effort differently, so results are cached per backend.
 	function cacheKey(board) { return app.backendPref + '|' + app.rulesSig + '|' + C.cellsKey(board.cells); }
@@ -770,28 +791,40 @@
 		el.title = note || '';
 	}
 
+	// Result for every level of a game with no WINCONDITIONS and no `win` command.
+	const NO_WIN = { status: 'unsolvable', reason: 'nowin', deep: true };
+
 	function analyzeCurrent() {
-		currentResult = null;
-		provisional = null;
-		if (!app.board || !app.model) { renderStatus(); return; }
-		const key = cacheKey(app.board);
-		const cached = app.assessCache.get(key);
-		if (cached && cached.deep) { currentResult = cached; renderStatus(); onCurrentResult(); return; }
-		provisional = cached || null;
-		// Restart the focus worker if it's chewing on a stale board.
-		if (focusWorker && focusWorker.busy) {
+		const job = ++focusJob;
+		solving = false;
+		clearTimeout(renderStatus.t);
+		// Cancel before consulting the cache: switching to an already-solved
+		// level must also stop an unlimited search on the previous board.
+		if (focusWorker && (focusWorker.busy || focusWorker.queue.length || focusWorker.dead)) {
 			kill(focusWorker);
 			focusWorker = spawnWorker(app.source);
 		}
+		currentResult = null;
+		provisional = null;
+		renderRuleGutter();
+		if (!app.board || !app.model) { renderStatus(); return; }
+		if (!app.model.canWin) { currentResult = NO_WIN; renderStatus(); onCurrentResult(); return; }
+		const key = cacheKey(app.board);
+		const cached = app.assessCache.get(key);
+		if (cached && cached.deep && (cached.status === 'solved' || cached.status === 'unsolvable')) { currentResult = cached; renderStatus(); onCurrentResult(); return; }
+		provisional = cached && cached.status === 'solved' ? cached : null;
 		ensureWorkers(false);
-		const job = ++focusJob;
 		analyzeStarted = Date.now();
+		solving = true;
 		renderStatus();
-		enqueue(focusWorker, { type: 'assess', board: packBoard(app.board), opts: { timeMs: 6000, maxExpanded: 600000, bfsFloor: 250000, bfsTimeMs: 8000 } }, function (m) {
-			const r = m.type === 'assessed' ? m.result : { status: 'timeout', error: m.message };
-			r.deep = true;
-			app.assessCache.set(key, r);
+		// This is the selected-level solver, not a generator candidate. Search
+		// until a result or explicit cancellation; only optional refinement is bounded.
+		enqueue(focusWorker, { type: 'assess', board: packBoard(app.board), opts: { timeMs: -1, maxExpanded: 0, bfsFloor: 250000, bfsTimeMs: 8000, refineTimeMs: 1500 } }, function (m) {
 			if (job !== focusJob) return;
+			solving = false;
+			const r = m.type === 'assessed' ? m.result : { status: 'error', error: m.message };
+			r.deep = r.status === 'solved' || r.status === 'unsolvable';
+			app.assessCache.set(key, r);
 			currentResult = r;
 			renderStatus();
 			onCurrentResult();
@@ -799,9 +832,24 @@
 		});
 	}
 
+	function stopCurrentSolve() {
+		if (!solving) return;
+		++focusJob;
+		kill(focusWorker);
+		focusWorker = spawnWorker(app.source);
+		solving = false;
+		currentResult = provisional || { status: 'stopped', deep: false };
+		app.assessCache.set(cacheKey(app.board), currentResult);
+		renderStatus();
+		onCurrentResult();
+		refreshLevelStrip();
+	}
+
 	function onCurrentResult() {
 		renderCards();
 		updateMeter();
+		startRuleCheck();
+		renderRuleGutter();
 	}
 
 	function effortScore(e) { return e > 0 ? Math.log2(e) : 0; }
@@ -812,6 +860,10 @@
 
 	function renderStatus() {
 		const dot = $('status-dot'), text = $('status-text'), eff = $('status-effort');
+		clearTimeout(renderStatus.t);
+		const solveButton = $('solve-btn');
+		solveButton.hidden = !app.board || (!solving && (!currentResult || currentResult.status === 'solved' || currentResult.status === 'unsolvable'));
+		solveButton.textContent = solving ? 'Stop solver' : 'Retry solve';
 		$('watch-btn').style.display = 'none';
 		eff.innerHTML = '';
 		dot.className = 'dot';
@@ -820,25 +872,15 @@
 		if (lv.message !== undefined) { text.textContent = 'Message: “' + lv.message + '”'; return; }
 		if (app.blind && !app.revealed) {
 			text.innerHTML = 'Solver info hidden <button class="ghost" id="reveal-btn">reveal</button>';
-			$('reveal-btn').onclick = function () { app.revealed = true; renderStatus(); refreshLevelStrip(); };
+			$('reveal-btn').onclick = function () { app.revealed = true; renderStatus(); refreshLevelStrip(); renderRuleGutter(); };
 			return;
 		}
 		const r = currentResult;
-		if (!r && provisional) {
-			dot.className = 'dot busy';
-			text.textContent = (provisional.status === 'solved' ? 'Solvable · ≈' + provisional.length + ' moves' : 'Checking…') + ' (refining)';
-			return;
-		}
 		if (!r) {
 			dot.className = 'dot busy';
-			text.textContent = 'Solving…';
-			clearTimeout(renderStatus.t);
-			const tick = function () {
-				if (currentResult || !app.board) return;
-				text.textContent = 'Solving… ' + ((Date.now() - analyzeStarted) / 1000).toFixed(0) + 's';
-				renderStatus.t = setTimeout(tick, 1000);
-			};
-			renderStatus.t = setTimeout(tick, 1000);
+			const elapsed = ((Date.now() - analyzeStarted) / 1000).toFixed(0) + 's';
+			text.textContent = provisional ? 'Solvable · ≈' + provisional.length + ' moves (refining · ' + elapsed + ')' : 'Solving… ' + elapsed;
+			if (solving) renderStatus.t = setTimeout(renderStatus, 1000);
 			return;
 		}
 		if (r.status === 'solved') {
@@ -847,14 +889,23 @@
 			eff.innerHTML = 'effort <span class="effort-bar"><i style="width:' + Math.min(100, effortScore(r.effort) / 18 * 100).toFixed(0) + '%"></i></span> <span class="mono">' + effortLabel(r.effort) + '</span>';
 			eff.title = 'States the solver explored (lower of: ' + Object.keys(r.lanes).map(function (k) { return k + ' ' + r.lanes[k]; }).join(', ') + ')' + (r.optimal ? '' : '\nShortest length not proven (BFS ran out of budget).');
 			$('watch-btn').style.display = '';
+		} else if (r.reason === 'nowin') {
+			dot.className = 'dot bad';
+			text.textContent = 'Can’t be won';
+			eff.innerHTML = '<span class="faint">The game has no WINCONDITIONS and no rule with the win command.</span>';
 		} else if (r.status === 'unsolvable') {
 			dot.className = 'dot bad';
 			text.textContent = 'Unsolvable';
 			eff.innerHTML = '<span class="faint">Tip: lock what you like and let the transformer find a working version.</span>';
+		} else if (r.status === 'error') {
+			dot.className = 'dot warn';
+			text.textContent = 'Solver error';
+			eff.textContent = r.error || 'The solver could not complete this search.';
+		} else if (r.status === 'stopped') {
+			text.textContent = 'Solver stopped';
 		} else {
 			dot.className = 'dot warn';
-			text.textContent = 'Unknown — solver gave up';
-			eff.innerHTML = '<span class="faint">Too big for a quick proof; smaller levels work best.</span>';
+			text.textContent = 'No solution found yet';
 		}
 	}
 
@@ -881,10 +932,11 @@
 			item.appendChild(cv);
 			const meta = document.createElement('div');
 			meta.className = 'level-meta';
-			const r = app.assessCache.get(cacheKey(board));
+			const r = app.model.canWin ? app.assessCache.get(cacheKey(board)) : NO_WIN;
 			let chip = '<span class="chip busy">…</span>';
 			if (r) {
-				if (r.status === 'solved') { solved++; chip = '<span class="chip good" title="effort ' + r.effort + '">' + (r.optimal ? '' : '≈') + r.length + ' mv</span>'; }
+				if (r.reason === 'nowin') { bad++; chip = '<span class="chip bad">can’t win</span>'; }
+				else if (r.status === 'solved') { solved++; chip = '<span class="chip good" title="effort ' + r.effort + '">' + (r.optimal ? '' : '≈') + r.length + ' mv</span>'; }
 				else if (r.status === 'unsolvable') { bad++; chip = '<span class="chip bad">unsolvable</span>'; }
 				else chip = '<span class="chip warn">?</span>';
 			}
@@ -947,21 +999,249 @@
 		stopWatching();
 		if (!solution || !solution.length) return;
 		const frames = C.replayFrames(app.model, board, solution);
-		app.watching = { frames: frames, i: 0 };
+		let steps = null;
+		try { steps = C.traceRules(app.model, board, solution); } catch (e) { console.error(e); }
+		app.watching = { frames: frames, i: 0, steps: steps };
 		app.watching.timer = setInterval(function () {
 			const w = app.watching;
 			if (!w) return;
 			if (w.i < w.frames.length - 1) w.i++;
 			else { stopWatching(); return; }
 			renderBoard();
+			flashWatchedRules();
 		}, Math.max(60, Math.min(220, 5000 / frames.length)));
 		renderBoard();
+		flashWatchedRules();
 	}
 	function stopWatching() {
 		if (!app.watching) return;
 		clearInterval(app.watching.timer);
 		app.watching = null;
 		renderBoard();
+		flashWatchedRules();
+	}
+	function flashWatchedRules() {
+		const w = app.watching;
+		if (sourceCM) sourceCM.setFlashLines(w && w.steps ? w.steps[w.i] || [] : []);
+	}
+
+	/////////////////////////////////////////////////////////////////////
+	// Rule gutter and rule goals
+	/////////////////////////////////////////////////////////////////////
+	//
+	// The Game source gutter shows what the current level's solution does
+	// with each rule: never fires (faint dot), fires (grey dot, and the line
+	// warms with how often), needed (black dot: every solution fires it).
+	// Cosmetic and sound-only rules get a flower. Clicking a rule's marker
+	// cycles its goal for this level: need it (tick: every solution fires it),
+	// ban it (cross: no solution fires it), neither. Goals filter what the
+	// generator suggests.
+
+	let ruleWorker = null, ruleWorkerKey = null;
+	const traceCache = new Map();  // board key + solution -> { steps, summary }
+	const ruleChecks = new Map();  // board key + banned lines -> { lines: {line: result}, done }
+
+	function normalizeRule(text) {
+		let t = text, prev;
+		do { prev = t; t = t.replace(/\([^()]*\)/g, ' '); } while (t !== prev);
+		return t.replace(/\s+/g, ' ').trim().toLowerCase();
+	}
+
+	// Rule lines of the game just compiled on this page, keyed by their text so
+	// goals follow a rule when lines above it move.
+	function computeRules(text) {
+		const compiled = C.compiledRuleLines();
+		const src = text.split('\n');
+		const keyOf = new Map(), lineOf = new Map(), seen = {};
+		compiled.lines.forEach(function (line) {
+			const base = normalizeRule(src[line - 1] || '');
+			seen[base] = (seen[base] || 0) + 1;
+			const key = seen[base] > 1 ? base + ' #' + seen[base] : base;
+			keyOf.set(line, key);
+			lineOf.set(key, line);
+		});
+		return { lines: compiled.lines, random: compiled.random, keyOf: keyOf, lineOf: lineOf };
+	}
+
+	function levelGoals(i) { return app.ruleGoals[i === undefined ? app.levelIndex : i] || {}; }
+
+	// The current level's goals as rule lines of the current source.
+	function goalLines() {
+		const goals = levelGoals(), out = { need: [], ban: [] };
+		if (!app.rules || app.rules.random) return out;
+		Object.keys(goals).forEach(function (key) {
+			const line = app.rules.lineOf.get(key);
+			if (line && !app.ruleTags[line]) out[goals[key]].push(line);
+		});
+		return out;
+	}
+
+	function toggleRuleGoal(line) {
+		if (!app.rules || app.rules.random || app.ruleTags[line]) return;
+		const key = app.rules.keyOf.get(line);
+		if (!key) return;
+		pushUndo();
+		const goals = Object.assign({}, levelGoals());
+		const next = goals[key] === undefined ? 'need' : goals[key] === 'need' ? 'ban' : undefined;
+		if (next) goals[key] = next; else delete goals[key];
+		if (Object.keys(goals).length) app.ruleGoals[app.levelIndex] = goals;
+		else delete app.ruleGoals[app.levelIndex];
+		markDirty(true);
+		autosave();
+		startRuleCheck();
+		renderRuleGutter();
+		if (app.gen && app.gen.running) restartGeneration();
+	}
+
+	function solverInfoHidden() { return app.blind && !app.revealed; }
+
+	// Which rules the shown solution fires, per step. Uses the page's engine,
+	// so not while playtesting (that would replace the game being played).
+	function currentTrace() {
+		const r = currentResult;
+		if (!r || r.status !== 'solved' || !r.solution || app.play || !app.board) return null;
+		const k = cacheKey(app.board) + '|' + r.solution.join('');
+		let t = traceCache.get(k);
+		if (!t) {
+			const steps = C.traceRules(app.model, app.board, r.solution);
+			t = { steps: steps, summary: C.summarizeTrace(steps) };
+			traceCache.set(k, t);
+			if (traceCache.size > 200) traceCache.delete(traceCache.keys().next().value);
+		}
+		return t;
+	}
+
+	// Ask the rule worker what each rule means for this level (one worker,
+	// current level only: an unfinished check for another level is abandoned).
+	function startRuleCheck() {
+		const r = currentResult;
+		if (!app.rules || app.rules.random || !r || r.status !== 'solved' || !app.board) return;
+		const banLines = goalLines().ban;
+		const key = ruleCheckKey();
+		if (ruleChecks.has(key)) return;
+		ensureWorkers(false);
+		if (ruleWorkerKey && ruleWorkerKey !== key && (ruleWorker.busy || ruleWorker.queue.length)) {
+			kill(ruleWorker);
+			ruleChecks.forEach(function (entry, k) { if (!entry.done) ruleChecks.delete(k); });
+			ruleWorker = spawnWorker(app.source);
+		}
+		ruleWorkerKey = key;
+		// Answers about needing a rule don't depend on the bans: reuse them.
+		const entry = { lines: {}, done: false };
+		const boardKey = cacheKey(app.board) + '|';
+		ruleChecks.forEach(function (other, k) {
+			if (!other.done || k.indexOf(boardKey) !== 0) return;
+			Object.keys(other.lines).forEach(function (l) { if (other.lines[l].need !== 'unknown') entry.lines[l] = { need: other.lines[l].need }; });
+		});
+		ruleChecks.set(key, entry);
+		const sig = app.rulesSig;
+		const lines = app.rules.lines.filter(function (l) { return !app.ruleTags[l] && (!entry.lines[l] || banLines.indexOf(l) >= 0); });
+		enqueue(ruleWorker, {
+			type: 'ruleCheck', board: packBoard(app.board), solution: r.solution,
+			lines: lines, banLines: banLines, timeMs: 3000, maxExpanded: 300000,
+		}, function (m) {
+			if (m.type === 'ruleChecked') Object.assign(entry.lines, m.result);
+			else entry.failed = true;
+			entry.done = true;
+			if (sig === app.rulesSig) renderRuleGutter();
+		}, function (m) {
+			entry.lines[m.line] = m.result;
+			if (sig === app.rulesSig) renderRuleGutter();
+		});
+	}
+
+	// Checks depend on which rules are banned (each banned line gets a search).
+	function ruleCheckKey() { return cacheKey(app.board) + '|' + goalLines().ban.join(','); }
+
+	// What the check found, minus what the shown solution already says.
+	function ruleFinding(res, goal, fired) {
+		if (goal === 'ban') {
+			if (res.ban === 'never') return 'No solution fires it.';
+			if (res.ban === 'used') return fired ? '' : 'Some other solution fires it.';
+			return res.ban === 'unknown' ? 'Couldn\u2019t check every solution: the search ran out of time.' : '';
+		}
+		if (res.need === 'required') return 'Needed: every solution fires it.';
+		if (res.need === 'optional') return fired ? 'Not needed: some solution never fires it.' : '';
+		return res.need === 'unknown' ? 'Couldn\u2019t tell whether every solution needs it: the search ran out of time.' : '';
+	}
+
+	// 'ok' | 'bad' | 'pending' for a goal, given that rule's check result.
+	function goalState(goal, res) {
+		const answer = res && (goal === 'need' ? res.need : res.ban);
+		if (!answer || answer === 'unknown') return 'pending';
+		return goal === 'need' ? (answer === 'required' ? 'ok' : 'bad') : (answer === 'never' ? 'ok' : 'bad');
+	}
+
+	function renderRuleGutter() {
+		if (!sourceCM) return;
+		const info = new Map();
+		const summary = { goals: 0, bad: 0, pending: 0 };
+		if (!app.rules || !app.board) { sourceCM.setRuleInfo(info); renderGoalSummary(summary); return; }
+		const r = currentResult, hidden = solverInfoHidden();
+		const solved = !hidden && r && r.status === 'solved';
+		const trace = solved ? currentTrace() : null;
+		const check = solved ? ruleChecks.get(ruleCheckKey()) : null;
+		const goals = levelGoals();
+		const moves = trace ? trace.steps.length - 1 : 0;
+		let maxSteps = 0;
+		if (trace) Object.keys(trace.summary).forEach(function (l) { maxSteps = Math.max(maxSteps, trace.summary[l].steps); });
+		app.rules.lines.forEach(function (line) {
+			const tag = app.ruleTags[line];
+			if (tag) {
+				info.set(line, { mark: 'flower', tip: tag === 'inert'
+					? 'Only plays sounds or similar effects, so it can\u2019t change how a level is solved.'
+					: 'Cosmetic: it only changes decoration that nothing else depends on, so it can\u2019t change how a level is solved.' });
+				return;
+			}
+			if (app.rules.random) return;
+			const goal = goals[app.rules.keyOf.get(line)];
+			const fired = trace && trace.summary[line];
+			const res = check && check.lines[line];
+			const it = { toggle: true };
+			if (fired && maxSteps) it.heat = Math.max(1, Math.min(4, Math.ceil(4 * fired.steps / maxSteps)));
+			let facts;
+			if (hidden) facts = 'Solver information is hidden (Blind mode).';
+			else if (!r) facts = 'Waiting for the solver\u2026';
+			else if (!solved) facts = r.status === 'unsolvable' ? 'This level is unsolvable.' : 'No solution yet.';
+			else {
+				facts = fired
+					? 'Fires on ' + fired.steps + ' of the solution\u2019s ' + moves + ' moves' + (fired.first === 0 ? ', starting at level start.' : ', first on move ' + fired.first + '.')
+					: 'Never fires in the solution.';
+				const finding = res ? ruleFinding(res, goal, !!fired) : '';
+				const waiting = check && !check.done && (!res || (goal === 'ban' && !res.ban));
+				if (finding) facts += '\n' + finding;
+				else if (waiting) facts += goal === 'ban' ? '\nChecking every solution\u2026' : '\nChecking whether every solution needs it\u2026';
+			}
+			if (goal) {
+				it.mark = goal;
+				it.state = solved ? goalState(goal, res) : 'pending';
+				summary.goals++;
+				if (it.state === 'bad') summary.bad++;
+				if (it.state === 'pending') summary.pending++;
+				const head = goal === 'need'
+					? 'Needed here: every solution of a generated level must fire this rule.'
+					: 'Banned here: no solution of a generated level may fire this rule.';
+				const verdict = it.state === 'ok' ? ' This level meets it.' : it.state === 'bad' ? ' This level doesn\u2019t.' : '';
+				it.tip = head + verdict + '\n' + facts + '\nClick to ' + (goal === 'need' ? 'ban it instead.' : 'clear.');
+			} else {
+				it.mark = res && res.need === 'required' ? 'required' : fired ? 'fired' : 'idle';
+				it.glyph = it.mark === 'required' ? 'bigdot' : 'dot';
+				it.tip = facts + '\nClick to require it in generated levels; click again to ban it.';
+			}
+			info.set(line, it);
+		});
+		sourceCM.setRuleInfo(info);
+		renderGoalSummary(summary);
+	}
+
+	function renderGoalSummary(summary) {
+		const el = $('rule-goals');
+		if (!el) return;
+		el.className = summary.bad ? 'bad' : '';
+		if (!summary.goals) { el.textContent = ''; el.title = ''; return; }
+		const n = summary.goals + ' rule goal' + (summary.goals > 1 ? 's' : '');
+		el.textContent = summary.bad ? n + ': ' + summary.bad + ' not met' : summary.pending ? n + ': checking\u2026' : n + ' met';
+		el.title = 'Set in the Game source gutter. Generated levels must meet them.';
 	}
 
 	/////////////////////////////////////////////////////////////////////
@@ -1099,6 +1379,7 @@
 	function startGeneration() {
 		const prog = validateTransform();
 		if (!prog || !prog.statements.length || !app.board) return;
+		if (!app.model.canWin) { toast('This game can’t be won: add WINCONDITIONS or a rule with the win command.', true); return; }
 		stopGeneration(true);
 		const session = {
 			running: true, workers: [], stats: [], started: Date.now(),
@@ -1119,6 +1400,7 @@
 					transform: app.transform, seed: (Date.now() + i * 7919) >>> 0, keep: SHOWN_CARDS,
 					transforms: isAuto() ? autoPrograms().map(function (p) { return { id: p.id, text: p.text }; }) : undefined,
 					baseEffort: currentResult && currentResult.status === 'solved' ? currentResult.effort : undefined,
+					goals: goalLines(),
 				});
 			};
 			h.onMessage = (function (idx) {
@@ -1184,10 +1466,10 @@
 	}
 
 	function totals(session) {
-		const t = { generated: 0, duplicates: 0, unchanged: 0, solved: 0, unsolvable: 0, timeout: 0, budgetMs: 0 };
+		const t = { generated: 0, duplicates: 0, unchanged: 0, solved: 0, unsolvable: 0, timeout: 0, offGoal: 0, budgetMs: 0 };
 		session.stats.forEach(function (s) {
 			if (!s) return;
-			Object.keys(t).forEach(function (k) { t[k] = k === 'budgetMs' ? Math.max(t[k], s[k]) : t[k] + s[k]; });
+			Object.keys(t).forEach(function (k) { t[k] = k === 'budgetMs' ? Math.max(t[k], s[k]) : t[k] + (s[k] || 0); });
 		});
 		return t;
 	}
@@ -1210,6 +1492,7 @@
 			'<span><b>' + tried.toLocaleString() + '</b> tried · <b>' + (tried / secs).toFixed(1) + '</b>/s</span>' +
 			'<span class="outcome-bar" title="solved / unsolvable / solver timed out"><i class="s" style="width:' + pct(t.solved) + '%"></i><i class="u" style="width:' + pct(t.unsolvable) + '%"></i><i class="t" style="width:' + pct(t.timeout) + '%"></i></span>' +
 			'<span><span style="color:var(--good)">✓' + t.solved + '</span> <span style="color:var(--bad)">✗' + t.unsolvable + '</span> <span style="color:var(--warn)">⏱' + t.timeout + '</span></span>' +
+			(t.offGoal ? '<span title="Solvable levels that missed this level\u2019s rule goals">' + t.offGoal.toLocaleString() + ' missed rule goals</span>' : '') +
 			'<span title="Samples that repeated one already seen, or changed nothing">repeats ' + (100 * repeatFrac).toFixed(0) + '%</span>' +
 			'<span class="interesting" title="Suggestions the solver rates harder than your current level, per minute (the MIS thesis\'s usefulness measure)"><b>' + s.interesting + '</b> harder than current · <b>' + perMin.toFixed(1) + '</b>/min</span>' +
 			'<span title="Per-candidate solver time budget; grows as harder levels turn up">budget ' + (t.budgetMs / 1000).toFixed(1) + 's</span>' +
@@ -1409,6 +1692,7 @@
 	function runSimplify(mode, objectId) {
 		if (!app.board || simplifyRunning) return;
 		if (app.model.usesRandom) { toast("This game uses randomness, so 'same shortest solution' can't be checked.", true); return; }
+		if (!app.model.canWin) { toast('This game can’t be won, so there is no solution to keep.', true); return; }
 		simplifyRunning = true;
 		ensureWorkers(false);
 		const btn = mode === 'simplify' ? $('simplify-btn') : null;
@@ -1449,7 +1733,7 @@
 	// Files: demos, open, save (with MIS metadata), autosave
 	/////////////////////////////////////////////////////////////////////
 
-	const META_RE = /\n?\(MIS transform\n([\s\S]*?)\nMIS end\)\n?|\n?\(MIS locks (\d+)\n([\s\S]*?)\nMIS end\)\n?/g;
+	const META_RE = /\n?\(MIS transform\n([\s\S]*?)\nMIS end\)\n?|\n?\(MIS locks (\d+)\n([\s\S]*?)\nMIS end\)\n?|\n?\(MIS rule goals (\d+)\n([\s\S]*?)\nMIS end\)\n?/g;
 
 	// PuzzleScript comments nest, so a block wrapped in ( ... ) is ignored by
 	// the engine even though the transform text has its own parentheses.
@@ -1468,13 +1752,26 @@
 			}
 			out += '(MIS locks ' + k + '\n' + rows.join('\n') + '\nMIS end)\n';
 		});
+		Object.keys(app.ruleGoals).forEach(function (k) {
+			const goals = app.ruleGoals[k], keys = Object.keys(goals);
+			if (!keys.length) return;
+			out += '(MIS rule goals ' + k + '\n' + keys.map(function (key) { return goals[key] + ' ' + key; }).join('\n') + '\nMIS end)\n';
+		});
 		return out;
 	}
 	function stripMeta(text) { return text.replace(META_RE, '\n'); }
 	function readMeta(text) {
-		const meta = { transform: null, locks: {} };
-		text.replace(META_RE, function (all, tr, lvl, rows) {
+		const meta = { transform: null, locks: {}, ruleGoals: {} };
+		text.replace(META_RE, function (all, tr, lvl, rows, goalLvl, goalRows) {
 			if (tr !== undefined) meta.transform = tr;
+			else if (goalLvl !== undefined) {
+				const goals = {};
+				goalRows.split('\n').forEach(function (row) {
+					const m = /^(need|ban) (.+)$/.exec(row.trim());
+					if (m) goals[m[2]] = m[1];
+				});
+				if (Object.keys(goals).length) meta.ruleGoals[goalLvl] = goals;
+			}
 			else if (lvl !== undefined) {
 				const rs = rows.split('\n');
 				const h = rs.length, w = rs[0].length;
@@ -1494,6 +1791,7 @@
 		app.filePath = filePath || null;
 		app.levelIndex = 0;
 		app.locks = meta.locks;
+		app.ruleGoals = meta.ruleGoals;
 		app.lineage = {};
 		app.cards = []; app.pinned = []; app.special = null;
 		app.undo = []; app.redo = [];
@@ -1520,7 +1818,7 @@
 			if (!r.ok) throw new Error(r.status + ' ' + r.statusText);
 			return r.text();
 		}).then(function (t) { openText(t, name || path.split('/').pop()); })
-			.catch(function (e) { fatal('Could not load <code>' + escapeHtml(path) + '</code> (' + escapeHtml(e.message) + ').<br><br>PuzzleScript+MIS needs to be served over HTTP so it can start Web Workers — e.g. run <code>npx http-server src</code> from the repository root and open <code>/mis.html</code>.'); });
+			.catch(function (e) { fatal('Could not load <code>' + escapeHtml(path) + '</code> (' + escapeHtml(e.message) + ').<br><br>MIS95 needs to be served over HTTP so it can start Web Workers — e.g. run <code>npx http-server src</code> from the repository root and open <code>/mis.html</code>.'); });
 	}
 
 	function fatal(html) {
@@ -1612,7 +1910,8 @@
 	}
 
 	function initEditors() {
-		sourceCM = MISCodeEditor.create($('source-text'));
+		sourceCM = MISCodeEditor.create($('source-text'), { ruleGutter: true });
+		sourceCM.on('ruleToggle', function (line) { toggleRuleGoal(line); });
 		transformCM = MISCodeEditor.create($('transform-text'), { transform: true, lineWrapping: true });
 
 		sourceCM.on('change', function () {
@@ -1674,6 +1973,7 @@
 	$('clear-cards').onclick = function () { app.cards = []; if (app.gen) app.gen.seen.clear(); renderCards(); };
 	$('peek-btn').onclick = peekSample;
 	$('watch-btn').onclick = function () { if (currentResult && currentResult.solution) watch(app.board, currentResult.solution); };
+	$('solve-btn').onclick = function () { if (solving) stopCurrentSolve(); else analyzeCurrent(); };
 	$('simplify-btn').onclick = function () { runSimplify('simplify'); };
 	$('tighten-select').onchange = function (e) {
 		const v = e.target.value;
@@ -1700,7 +2000,7 @@
 		refreshLevelStrip();
 		if (wasRunning) startGeneration(); else updateGenButton();
 	};
-	$('blind-toggle').onchange = function (e) { app.blind = e.target.checked; app.revealed = false; renderStatus(); refreshLevelStrip(); };
+	$('blind-toggle').onchange = function (e) { app.blind = e.target.checked; app.revealed = false; renderStatus(); refreshLevelStrip(); renderRuleGutter(); };
 	$('open-btn').onclick = function () { if (desktop) openNative(); else $('file-input').click(); };
 	$('file-input').onchange = async function (e) {
 		const f = e.target.files[0];

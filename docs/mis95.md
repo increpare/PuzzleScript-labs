@@ -1,11 +1,50 @@
-# PuzzleScript+MIS web prototype
+# MIS95
 
-A browser version of the PuzzleScript+MIS mixed-initiative level designer. It
+This variant is called **MIS95** and is published at
+<https://www.puzzlescript.net/mis95/>. PuzzleScript+MIS was created by
+**Kevin De Keyser**; MIS95 is a redesign built on his original tool and
+research (<https://dekeyser.ch/puzzlescriptmis/>).
+
+MIS95 is a browser-based mixed-initiative level designer. It
 follows the UX pass on `tools/puzzlescriptmis-app`. The page uses the real
 PuzzleScript JavaScript engine for editing and playtesting. Solving and
 generating run in Web Workers, by default on the **native C++ compiler and
 solver compiled to WebAssembly**, with the JS engine solver as a fallback
 (**Solver** menu, or `?backend=js|native`).
+
+## Solver preparation
+
+Each worker prepares a private solver ruleset once at initialization. The shared
+static analyzer considers every declared object potentially present, including
+objects introduced by painting or transforms. Its game-wide tags drive inert
+command and cosmetic rule removal, cosmetic object removal, equivalent immutable
+object merging, ACTION elimination, and win-relevance pruning. The shared semantic
+canonicalizer and source emitter then produce the source compiled by both the JS
+and WebAssembly solvers. Editor source, palette, playtesting and transforms keep
+their original objects; an explicit provenance map projects candidate boards into
+the reduced solver representation, including merges and changes of bitset stride.
+When ACTION elimination is the only reduction and the native solver independently
+proves it unnecessary, native workers reuse their existing original-game solver
+and replay path. This avoids extra projection and validation work for an already
+optimized native ruleset.
+
+No authored-level reachability, count, transient-boundary or setup-retirement
+facts are consumed. Random games, games with compile errors, and failed solver
+preparation retain their original rules. An optimized path is checked in the original
+JS game before its result reaches the generator's shortlist or the UI. Native
+workers also retain an unoptimized native game for ordinary-runtime validation.
+A rejected replay disables that worker's optimized profile and retries with the
+original JS rules. Simplify and Tighten edit original object IDs and validate their
+trial solves through the same adapter.
+
+`scripts/build-mis-optimizer.mjs` bundles the shared helpers into the checked-in
+`src/js/mis/mis_optimizer_bundle.js`; rebuild it after changing those helpers.
+The web, full-site and desktop builds run this bundler automatically. The bundle
+has no Node or network dependencies and is included in the offline desktop app.
+`make mis_tests` covers portable parity, aggregate WIN semantics, board projection,
+both backends, required ACTION, editing and fallback. Run
+`node src/tests/mis_optimization_browser.cjs` for paired real-worker measurements
+and independent original-game replay, including deterministic transformed boards.
 
 ## Running it
 
@@ -87,6 +126,49 @@ real native-solver results, and browser work areas/raster scales of 100%, 125%,
 | Throughput | Candidates tried and rate; solved/unsolvable/timeout split; repeat rate; **harder than current per minute** (the thesis's usefulness measure); current solver budget; warnings when the transform runs dry or finds nothing solvable. |
 | History | Each level has a branching history: go back to any step, and new edits branch from there. |
 | Simplify / Tighten | Remove every object the puzzle doesn't need, or add a wall-like object wherever it's harmless. Both keep the BFS shortest solution length exactly the same, like `native/src/search/simplify.cpp`. |
+
+## Rule gutter and rule goals
+
+The Game source editor has a gutter column beside the line numbers. For the
+current level it shows what the solution does with each rule line: a faint dot
+(never fires), a grey dot (fires; the line is tinted by how often), or a black
+dot (needed: every solution fires it). Lines whose rules the solver drops as
+cosmetic or sound-only get a flower and can't be toggled. Hovering a mark
+explains it; **Watch solution** highlights the rules that fire on each step.
+Blind mode hides all of this except the goals.
+
+A rule *fires* on a turn when it changes the level or queues a command, at
+level start and in `again` ticks too. Clicking a mark cycles a goal for the
+current level:
+
+- **✓ need**: every solution fires the rule.
+- **✗ ban**: no solution fires the rule, including roundabout ones. A rule that
+  can fire on the way to a win, however pointlessly, breaks it; so the
+  mechanic must be unreachable, or make the level unwinnable once it fires.
+- then back to no goal.
+
+Both are decided by `MISCore.ruleGoalSearch`: a breadth-first search of the
+real game that tracks, per path, which needed rules have fired and whether a
+banned one has (the engine's `Rule.prototype.tryApply` / `queueCommands` are
+wrapped to report firing). A win reached with a needed rule unfired, or a
+banned rule fired, breaks the goals and is returned as a witness. A path that
+has fired every needed rule (with no bans set) is not followed further. Bans
+have no such shortcut: proving one means exploring every reachable position,
+so on large levels the search can run out of budget and answer *unknown*.
+Turns that leave the board unchanged still count when they fire a goal rule
+(bumping a wall can fire a banned `cancel` rule). The search runs on the JS
+engine with the game's original rules, since the solver's reduced rules don't
+keep source lines. Random games get no marks.
+
+The solution already found answers some questions for free: a rule it never
+fires isn't needed, and a rule it fires isn't banned. The generator applies
+those tests first and runs the search only on candidates that pass, rejecting
+any it can't prove within 2 s / 200k positions; the meter counts rejects as
+"missed rule goals". Flowers use the optimizer's own cosmetic-rule lines
+(`cosmeticRuleSourceLines`) plus lines whose every rule is `inert_command_only`.
+Goals are saved with the game as `(MIS rule goals <level> … MIS end)` comments,
+one `need …` / `ban …` line per rule, keyed by the rule's text.
+`node src/tests/mis_rule_goals_node.js` checks the worker side.
 
 ## Transform language
 

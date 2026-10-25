@@ -1,0 +1,121 @@
+Vanilla orientation/name-stage recovery observations
+===================================================
+
+Authority: increpare/PuzzleScript 5a94bde1a5127a3a45306ea28598eba2874d446d.
+The native host verifies pinned SHA-256 hashes before loading compiler.js.
+Production JavaScript is unchanged.
+
+InPlace plus relative movement
+-----------------------------
+
+In the ordinary movementSource fixture, use:
+
+    moving [ > Player ] -> [ Player ]
+
+Native syntax retains selectors up, down, left, right, action. The first four
+orientations resolve, then convertRelativeDirsToAbsolute throws TypeError on the
+action orientation. The observed Node message was:
+
+    Cannot read properties of undefined (reading '3')
+
+The typed orientation stage explicitly throws TypeError with an InPlace-relative
+message. Host-specific property-access wording is not a language diagnostic.
+Without relative terms, `moving [ Player | Crate ] -> [ Player | Crate ]` retains
+all five variants, including Direction.InPlace. Neither case is deduplicated.
+
+Terminating empty aggregate
+--------------------------
+
+This complete source is reproduced by emptyAggregate() in oriented-rules.test.mjs:
+
+    title TypeScript movement comparison
+
+    objects
+    Background
+    black
+
+    Player
+    white
+
+    Crate
+    red
+
+    Wall
+    blue
+
+    legend
+    . = Background
+    C = Crate
+    Pair = Player and Player
+    Player = Pair
+    # = Wall
+
+    sounds
+
+    collisionlayers
+    Background
+    Player, Crate, Wall
+
+    rules
+    right [ Player ] -> [ Player ]
+
+    winconditions
+
+    levels
+    PC.
+
+The missing P glyph is incidental to the rule-stage failure; P = Player is
+deliberately absent because retaining that alias changes native normalization
+termination, as described below. The source already has declaration errors.
+
+Native generateExtraMembers terminates with aggregatesDict entries pair=[] and
+player=[]. Rule syntax accepts Player. Native atomizeAggregates replaces both
+Player names with actual JavaScript undefined, and rephraseSynonyms leaves them
+undefined. This isolated name stage produces no new diagnostics. Native full
+compilation then throws TypeError in rulesToMask; the observed Node message was:
+
+    Cannot read properties of undefined (reading 'toUpperCase')
+
+The typed stage keeps NamedRuleTerm.name:string truthful and throws TypeError
+with an explicit empty-aggregate message instead of constructing an undefined
+name. This invalid-source case therefore fails earlier in the typed pipeline.
+Exact intermediate name-stage output and host exception text are not claimed for
+this recovery case. No name is discarded, widened or replaced with a sentinel.
+The regression independently runs native full compilation and the candidate
+pipeline in child processes, each with a four-second timeout, compares the
+failure category, and separately verifies frozen candidate inputs on throw.
+
+The superficially simpler legend `Player = Player and Player` does not produce
+an empty aggregate: native parser self-reference recovery removes that entry.
+
+Related native normalization loop
+---------------------------------
+
+Retain P = Player from the standard movementSource fixture, add:
+
+    Pair = Player and Player
+    Player = Pair
+
+and use:
+
+    right [ Pair ] -> [ Pair ]
+
+Native generateExtraMembers does not return. A child-process probe with the
+unchanged native compiler and a fixed 2000ms timeout ended with ETIMEDOUT and
+SIGTERM, with no output. This is an earlier invalid-declaration normalization
+loop, not a new orientation rule. No nontermination emulation or declaration
+resolver change is introduced in this stage.
+
+Malformed row boundary fixture
+------------------------------
+
+Native syntax rejects unequal bracket-row counts by returning null. To test the
+orientation/name APIs on an unmatched RHS row, the oracle independently parses
+an ordinary two-row source on each path, then applies the fixed edit of keeping
+only the first LHS row immediately before orientation. Native records never come
+from candidate terms. This test is explicitly labelled an artificial stage
+boundary. Ordinary malformed extra RHS cells remain actual native syntax output.
+
+The exact corpus gate has no such edits or skips: every retained simulation source
+compares original syntax, post-negative inputs, oriented variants, expanded names,
+new diagnostics, order, metadata and evidence identity.

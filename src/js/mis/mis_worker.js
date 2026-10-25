@@ -1,6 +1,6 @@
 'use strict';
 
-// PuzzleScript+MIS (web prototype) - solver/generator worker.
+// MIS95 - solver/generator worker.
 //
 // Each worker owns its own copy of the engine. The page cancels work by
 // terminating the worker, so loops here don't need to poll for stop requests.
@@ -16,12 +16,15 @@ misAfterEngineLoaded();
 importScripts('mis_core.js');
 importScripts('mis_native.js');
 importScripts('mis_generator.js');
+importScripts('../semantic_compile.js', 'mis_optimizer_bundle.js');
 
 let model = null;
 // Solver backend: the WebAssembly build of the native solver when available
 // (native/wasm/build_mis_wasm.sh), otherwise the JS engine solver in MISCore.
 let native = null;
 let backendNote = '';
+let solverBackend = null;
+let preparation = null;
 
 function loadNative() {
 	if (loadNative.promise) return loadNative.promise;
@@ -39,16 +42,9 @@ function loadNative() {
 }
 
 const backend = {
-	assess: function (board, opts) { return native ? native.assess(board, opts) : MISCore.assess(model, board, opts); },
-	solve: function (board, opts) { return native ? native.solve(board, opts) : MISCore.solve(model, board, opts); },
-	simplify: function (board, opts) {
-		// The native simplifier only removes; Tighten stays on the JS path.
-		if (native && (opts.mode || 'simplify') === 'simplify') {
-			const r = native.simplify(board, opts);
-			if (r.ok || !/time budget|in time/.test(r.reason || '')) return r;
-		}
-		return MISCore.simplify(model, board, opts);
-	},
+	assess: function (board, opts) { return solverBackend.assess(board, opts); },
+	solve: function (board, opts) { return solverBackend.solve(board, opts); },
+	simplify: function (board, opts) { return solverBackend.simplify(board, opts); },
 };
 
 function reply(msg) { self.postMessage(msg); }
@@ -60,7 +56,8 @@ function boardFrom(msg) {
 function packResult(r) {
 	return {
 		status: r.status, effort: r.effort, length: r.length, lanes: r.lanes,
-		solution: r.solution, optimal: r.optimal, ms: r.ms,
+		solution: r.solution, optimal: r.optimal, ms: r.ms, expanded: r.expanded, error: r.error,
+		optimization: preparation && preparation.telemetry,
 	};
 }
 
@@ -71,23 +68,35 @@ self.onmessage = function (e) {
 			const res = misCompile(msg.source);
 			model = res.ok ? MISCore.extractModel(msg.source) : null;
 			native = null;
+			preparation = model ? MISOptimizer.prepare(msg.source, model, { enabled: msg.optimize !== false, hasErrors: res.hasErrors }) : null;
+			solverBackend = preparation ? MISOptimizer.createBackend(preparation) : null;
 			if (!model || msg.backend === 'js') {
 				backendNote = msg.backend === 'js' ? 'JS solver (chosen)' : '';
-				reply({ type: 'ready', ok: !!model, errors: res.errors, backend: 'js', note: backendNote });
+				reply({ type: 'ready', ok: !!model, errors: res.errors, backend: 'js', note: backendNote, optimization: preparation && preparation.telemetry, ruleTags: preparation && preparation.ruleTags });
 				return;
 			}
 			loadNative().then(function (M) {
+				let originalNative = false;
 				if (!M) { backendNote = 'native solver not built — using JS'; }
 				else {
 					const n = MISNative.create(M);
-					const attached = n.attach(msg.source, model);
-					if (attached.ok) { native = n; backendNote = 'native solver (WebAssembly)'; }
+					let attached;
+					if (preparation.telemetry.enabled && !MISOptimizer.hasRuleReductions(preparation)) {
+						attached = n.attach(msg.source, model);
+						originalNative = attached.ok && (model.noaction || n.actionUnnecessary());
+					}
+					if (!originalNative) attached = n.attach(preparation.source, preparation.model);
+					if (attached.ok) {
+						native = n; backendNote = 'native solver (WebAssembly)';
+						if (preparation.telemetry.enabled && !originalNative) n.attachOriginal(msg.source, model);
+					}
 					else backendNote = attached.reason + ' — using JS';
 				}
-				reply({ type: 'ready', ok: true, errors: res.errors, backend: native ? 'native' : 'js', note: backendNote });
+				solverBackend = MISOptimizer.createBackend(preparation, native, { originalNative });
+				reply({ type: 'ready', ok: true, errors: res.errors, backend: native ? 'native' : 'js', note: backendNote, optimization: preparation.telemetry, ruleTags: preparation.ruleTags });
 			});
 		} else if (msg.type === 'assess') {
-			const r = backend.assess(boardFrom(msg.board), msg.opts || {});
+			const r = backend.assess(boardFrom(msg.board), Object.assign({ verifyOriginalJS: true }, msg.opts));
 			reply({ type: 'assessed', id: msg.id, result: packResult(r) });
 		} else if (msg.type === 'simplify') {
 			const r = backend.simplify(boardFrom(msg.board), Object.assign({}, msg.opts, {
@@ -98,8 +107,10 @@ self.onmessage = function (e) {
 		} else if (msg.type === 'prove') {
 			// Shortest solution for a suggestion card (the generator leaves proofs
 			// to whoever shows the candidate).
-			const r = backend.solve(boardFrom(msg.board), Object.assign({ strategy: 'bfs' }, msg.opts));
+			const r = backend.solve(boardFrom(msg.board), Object.assign({ strategy: 'bfs', verifyOriginalJS: true }, msg.opts));
 			reply({ type: 'proved', id: msg.id, result: { status: r.status, solution: r.status === 'solved' ? r.solution : null } });
+		} else if (msg.type === 'ruleCheck') {
+			ruleCheck(msg);
 		} else if (msg.type === 'generate') {
 			generate(msg);
 		}
@@ -107,6 +118,71 @@ self.onmessage = function (e) {
 		reply({ type: 'error', id: msg.id, message: String(err && err.message || err), stack: err && err.stack });
 	}
 };
+
+/////////////////////////////////////////////////////////////////////
+// Rule goals: does every solution fire a rule? does any?
+/////////////////////////////////////////////////////////////////////
+//
+// MISCore.ruleGoalSearch tracks which rules fire, so it runs on the JS engine
+// with the game's original rules (the solver's reduced rules renumber lines).
+
+function goalSearch(board, goals, limits) {
+	if (preparation) preparation.activateOriginal();
+	return MISCore.ruleGoalSearch(model, board, goals, limits);
+}
+
+function firedLines(board, solution) {
+	if (preparation) preparation.activateOriginal();
+	const fired = new Set();
+	MISCore.traceRules(model, board, solution).forEach(function (step) { step.forEach(function (line) { fired.add(line); }); });
+	return fired;
+}
+
+// What a rule line means for this level, given a solution that's known:
+//   need: 'required' (every solution fires it) | 'optional' | 'unknown'
+//   ban:  'never' (no solution fires it) | 'used' | 'unknown'   (only if asked)
+// The known solution answers some of these for free.
+function ruleStatus(line, board, fired, wantBan, limits) {
+	const out = {};
+	if (!fired.has(line)) out.need = 'optional';
+	else {
+		const r = goalSearch(board, { need: [line] }, limits);
+		out.need = r.status === 'met' ? 'required' : r.status === 'broken' ? 'optional' : 'unknown';
+	}
+	if (wantBan) {
+		if (fired.has(line)) out.ban = 'used';
+		else {
+			const r = goalSearch(board, { ban: [line] }, limits);
+			out.ban = r.status === 'met' ? 'never' : r.status === 'broken' ? 'used' : 'unknown';
+		}
+	}
+	return out;
+}
+
+function ruleCheck(msg) {
+	const board = boardFrom(msg.board);
+	const limits = { timeMs: msg.timeMs || 3000, maxExpanded: msg.maxExpanded || 300000 };
+	const fired = firedLines(board, msg.solution);
+	const ban = new Set(msg.banLines || []);
+	const out = {};
+	msg.lines.forEach(function (line) {
+		out[line] = ruleStatus(line, board, fired, ban.has(line), limits);
+		reply({ type: 'progress', id: msg.id, line: line, result: out[line] });
+	});
+	reply({ type: 'ruleChecked', id: msg.id, result: out });
+}
+
+// Generator filter for rule goals { need: [lines], ban: [lines] }: every
+// solution must fire each needed rule, and none may fire a banned one. The
+// candidate's own solution rejects most misses without a search.
+function goalFilter(goals, limits) {
+	return function (board, r) {
+		const fired = firedLines(board, r.solution);
+		for (let i = 0; i < goals.need.length; i++) if (!fired.has(goals.need[i])) return false;
+		for (let i = 0; i < goals.ban.length; i++) if (fired.has(goals.ban[i])) return false;
+		return goalSearch(board, goals, limits).status === 'met';
+	};
+}
 
 /////////////////////////////////////////////////////////////////////
 // Generation loop (logic in mis_generator.js)
@@ -146,6 +222,8 @@ function generate(msg) {
 		optimalCap: msg.optimalCap, initialBudgetMs: msg.initialBudgetMs, maxBudgetMs: msg.maxBudgetMs,
 		shard: msg.shardCount > 1 ? { index: msg.shardIndex, count: msg.shardCount } : null,
 		pipeline: msg.pipeline,
+		accept: msg.goals && (msg.goals.need.length || msg.goals.ban.length)
+			? goalFilter(msg.goals, { timeMs: 2000, maxExpanded: 200000 }) : null,
 	});
 	let lastStats = 0;
 	function flushStats(force) {

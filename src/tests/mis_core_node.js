@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-// Checks for the PuzzleScript+MIS web prototype core (src/js/mis/mis_core.js):
+// Checks for the MIS95 core (src/js/mis/mis_core.js):
 // transform language, board <-> source write-back, solver, presets, simplify.
 //
 //   node src/tests/mis_core_node.js
@@ -50,6 +50,17 @@ function load(rel) {
 const C = MISCore;
 const soko = load('demo/sokoban_basic.txt');
 const firstLevel = soko.model.levels.find(l => l.board);
+
+test('selected-level search can disable both the clock and expansion limits', () => {
+	const now = Date.now;
+	let clock = 0;
+	try {
+		Date.now = () => (clock += 100000);
+		const r = C.assess(soko.model, firstLevel.board, { timeMs: -1, maxExpanded: 0, refine: false });
+		assert.strictEqual(r.status, 'solved');
+		assert(r.solution.length > 0);
+	} finally { Date.now = now; }
+});
 
 test('model: names, glyphs and levels', () => {
 	const m = soko.model;
@@ -145,6 +156,23 @@ test('solver: BFS optimum, unsolvable detection, MIS effort', () => {
 	assert.strictEqual(C.solve(m, b, { strategy: 'astar' }).status, 'unsolvable');
 });
 
+test('games with no win conditions and no win command are reported unwinnable without searching', () => {
+	assert.strictEqual(soko.model.canWin, true);
+	const noWin = soko.text.replace(/(WINCONDITIONS\s*=+\s*\n)[\s\S]*?(\n=+\s*\nLEVELS)/i, '$1\n$2');
+	assert(misCompile(noWin).ok);
+	const m = C.extractModel(noWin);
+	assert.strictEqual(m.canWin, false);
+	const r = C.solve(m, m.levels.find(l => l.board).board, { strategy: 'bfs' });
+	assert.strictEqual(r.status, 'unsolvable');
+	assert.strictEqual(r.reason, 'nowin');
+	assert.strictEqual(r.expanded, 0);
+	// A rule with the win command is enough.
+	const winCmd = noWin.replace(/(RULES\s*=+\s*\n)/i, '$1\nlate [ Player ] -> [ Player ] win\n');
+	assert(misCompile(winCmd).ok);
+	assert.strictEqual(C.extractModel(winCmd).canWin, true);
+	assert(misCompile(soko.text).ok); // later tests share the engine's compiled game
+});
+
 test('replayed solution frames end in a win', () => {
 	const m = soko.model;
 	const r = C.solve(m, firstLevel.board, { strategy: 'astar' });
@@ -213,6 +241,94 @@ function checkConstructionSamples(options) {
 test('generator: choose counts stay literal by default', () => checkConstructionSamples({ parents: 'seed' }));
 test('generator: samples use the starting board by default', () => checkConstructionSamples({ adaptive: false }));
 test('generator: construction transform keeps exactly two feet', () => checkConstructionSamples({}));
+
+// Rule goals: sokoban_basic's only rule (line 78) pushes crates.
+const ICE_GAME = soko.text.replace('[ > Player | Crate ] -> [ > Player | > Crate ]',
+	'[ > Player | Crate ] -> [ > Player | > Crate ]\n+ [ > Crate | Crate ] -> [ > Crate | > Crate ]\n[ Target Crate ] -> [ Target Crate ] sfx0');
+
+test('rule goals: compiled rule lines', () => {
+	misCompile(soko.text);
+	assert.deepStrictEqual(C.compiledRuleLines(), { lines: [78], random: false });
+});
+
+test('rule goals: a solution trace names the rules that fired, per step', () => {
+	misCompile(soko.text);
+	const r = C.solve(soko.model, firstLevel.board, { strategy: 'bfs' });
+	const steps = C.traceRules(soko.model, firstLevel.board, r.solution);
+	assert.strictEqual(steps.length, r.solution.length + 1);
+	assert.deepStrictEqual(steps[0], []);
+	const summary = C.summarizeTrace(steps);
+	assert.deepStrictEqual(Object.keys(summary), ['78']);
+	assert(summary[78].steps > 0 && summary[78].steps <= r.solution.length);
+	assert(summary[78].first >= 1);
+	// The engine's own hooks are restored afterwards.
+	assert(!Rule.prototype.tryApply.toString().includes('current.add'));
+});
+
+test('rule goals: command-only rules count as firing', () => {
+	misCompile(ICE_GAME);
+	const model = C.extractModel(ICE_GAME);
+	const board = model.levels.find(l => l.board).board;
+	const r = C.solve(model, board, { strategy: 'bfs' });
+	const summary = C.summarizeTrace(C.traceRules(model, board, r.solution));
+	assert(summary[80], 'the sfx-only rule fires when a crate sits on a target');
+	misCompile(soko.text);
+});
+
+// Sokoban with one extra rule on line 79.
+function withRule(rule) {
+	const text = soko.text.replace('[ > Player | Crate ] -> [ > Player | > Crate ]', '[ > Player | Crate ] -> [ > Player | > Crate ]\n' + rule);
+	assert(misCompile(text).ok);
+	return C.extractModel(text);
+}
+
+test('rule goals: every solution pushes, so push is needed and can\'t be banned', () => {
+	misCompile(soko.text);
+	assert.strictEqual(C.ruleGoalSearch(soko.model, firstLevel.board, { need: [78] }).status, 'met');
+	const r = C.ruleGoalSearch(soko.model, firstLevel.board, { ban: [78] });
+	assert.strictEqual(r.status, 'broken');
+	assert(C.validateSolution(soko.model, firstLevel.board, r.solution), 'the witness is a real solution');
+	assert(C.summarizeTrace(C.traceRules(soko.model, firstLevel.board, r.solution))[78]);
+	// The witness is a shortest solution (33 moves on level 1).
+	assert.strictEqual(r.solution.length, C.solve(soko.model, firstLevel.board, { strategy: 'bfs' }).solution.length);
+});
+
+test('rule goals: an optional rule is neither needed nor banned', () => {
+	const model = withRule('[ > Player | Wall ] -> [ > Player | ]'); // bore through walls
+	const board = model.levels.find(l => l.board).board;
+	assert.strictEqual(C.ruleGoalSearch(model, board, { need: [79] }).status, 'broken');
+	assert.strictEqual(C.ruleGoalSearch(model, board, { ban: [79] }).status, 'broken');
+	misCompile(soko.text);
+});
+
+test('rule goals: a rule that can never fire is banned only after searching everything', () => {
+	const model = withRule('[ Player Target ] [ Crate Player ] -> [ Player Target ] [ ]'); // Player and Crate share a layer
+	const board = model.levels.find(l => l.board).board;
+	const r = C.ruleGoalSearch(model, board, { ban: [79] }, { maxExpanded: 0 });
+	assert.strictEqual(r.status, 'met');
+	const firstSolution = C.solve(model, board, { strategy: 'bfs', maxExpanded: 0 });
+	assert(r.expanded > firstSolution.expanded, 'proving a ban explores past the first solution, to the whole level');
+	assert.strictEqual(C.ruleGoalSearch(model, board, { ban: [79] }, { maxExpanded: 50 }).status, 'unknown');
+	// Needing push and banning the dead rule together.
+	assert.strictEqual(C.ruleGoalSearch(model, board, { need: [78], ban: [79] }).status, 'met');
+	misCompile(soko.text);
+});
+
+test('rule goals: turns that change nothing still count (bumping a wall fires a cancel rule)', () => {
+	const model = withRule('[ > Player | Wall ] -> cancel');
+	const board = model.levels.find(l => l.board).board;
+	const r = C.ruleGoalSearch(model, board, { ban: [79] });
+	assert.strictEqual(r.status, 'broken');
+	assert(C.summarizeTrace(C.traceRules(model, board, r.solution))[79], 'the witness bumps a wall');
+	misCompile(soko.text);
+});
+
+test('rule goals: once every needed rule has fired, the search stops following that path', () => {
+	misCompile(soko.text);
+	const needed = C.ruleGoalSearch(soko.model, firstLevel.board, { need: [78] }, { maxExpanded: 0 });
+	const plain = C.solve(soko.model, firstLevel.board, { strategy: 'bfs', maxExpanded: 0 });
+	assert(needed.expanded < plain.expanded, needed.expanded + ' < ' + plain.expanded);
+});
 
 
 // ---- Native (WebAssembly) backend, when built (native/wasm/build_mis_wasm.sh) ----

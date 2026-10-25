@@ -23,6 +23,7 @@ struct DifficultyBreakdown {
 };
 
 struct DifficultyOptions {
+    // Negative: no primary deadline (interactive single-level solving).
     int64_t timeoutMs = 250;
     bool runSupplemental = false;
     std::function<bool(int64_t primaryExpanded)> supplementalGate;

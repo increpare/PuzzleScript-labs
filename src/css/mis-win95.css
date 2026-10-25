@@ -142,6 +142,7 @@
 .dialog-caption { font-weight: bold; }
 .about-content { display: flex; gap: 20px; padding: 22px 24px 8px; }
 .about-content .app-icon { margin-top: 4px; }
+.about-credit a { color: #000080; }
 .mis-win95 dialog form { display: flex; justify-content: flex-end; padding: 0 12px 12px; }
 .mis-win95 dialog button { min-width: 75px; outline: 1px solid #000; outline-offset: 1px; }
 .mis-win95 #fatal { background: #80808088; }
@@ -174,7 +175,7 @@
 .mis-win95 { font-size: 12px; --results-height: 220px; }
 .mis-win95 main { grid-template-columns: 142px minmax(280px,1fr) 7px minmax(300px,var(--code-width,34%)); gap: 3px; }
 .mis-win95 #levels { grid-column: 1; grid-row: 1; }
-.mis-win95 #stage { grid-column: 2; grid-row: 1; grid-template-rows: 20px auto minmax(120px,1fr) auto 7px var(--results-height); }
+.mis-win95 #stage { grid-column: 2; grid-row: 1; grid-template-columns: minmax(0,1fr); grid-template-rows: 20px auto minmax(120px,1fr) auto 7px var(--results-height); }
 .mis-win95 #side { grid-column: 4; grid-row: 1; }
 .mis-win95 .pane-title { font-size: 12px; }
 .pane-splitter { position: relative; touch-action: none; user-select: none; }
@@ -185,9 +186,11 @@
 #results-splitter::after { left: 43%; right: 43%; height: 1px; top: 2px; }
 .pane-splitter:focus-visible { outline: 1px dotted #000; outline-offset: -1px; }
 body.resizing-panes, body.resizing-panes * { cursor: var(--resize-cursor) !important; user-select: none !important; }
-.mis-win95 .toolbar { gap: 6px; padding: 5px 2px; align-content: start; }
-.mis-win95 #palette { order: 5; flex: 1 0 100% !important; width: 100%; max-width: 100%; padding: 5px 3px 3px; border-top: 1px solid #808080; box-shadow: inset 0 1px #fff; }
-.mis-win95 #palette::before { content: "Objects"; margin-right: 6px; color: #444; font-size: 11px; }
+.mis-win95 .toolbar { min-width: 0; gap: 6px; padding: 5px 2px; align-content: start; }
+/* Keep full-size tools in rows; large palettes scroll within their own well.
+   The stage's zero-minimum column keeps this palette from widening the board. */
+.mis-win95 #palette { order: 5; flex: 1 1 100% !important; width: 100%; max-width: 100%; max-height: 100px; flex-wrap: wrap; align-content: start; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: auto; padding: 5px 3px 3px; border-top: 1px solid #808080; box-shadow: inset 0 1px #fff; }
+.mis-win95 #palette::before { content: "Objects"; flex: none; margin-right: 6px; color: #444; font-size: 11px; }
 .mis-win95 .swatch { flex: 0 0 28px; height: 28px; width: 28px; }
 .mis-win95 .swatch.on { background: #fff; outline-offset: -4px; }
 .mis-win95 :is(.lock-tools.on,.play-tools.on) { order: 6; width: 100%; }
@@ -226,7 +229,9 @@ body.resizing-panes, body.resizing-panes * { cursor: var(--resize-cursor) !impor
 .mis-win95 .menu-popup button:focus:not(:disabled) { color: #fff; background: #000080; }
 .mis-win95 #toast { max-width: calc(100% - 24px); text-align: center; }
 .mis-win95 .app-status { font-size: 11px; }
-.mis-win95 ::-webkit-scrollbar-button:single-button { display: block; width: 16px; height: 16px; background-color: #c0c0c0; box-shadow: var(--raised); background-repeat: no-repeat; background-position: center; }
+/* Some hosts generate arrow slots that do not match :single-button. Give every
+   slot the full base style so its tiny directional SVG cannot tile. */
+.mis-win95 ::-webkit-scrollbar-button { display: block; width: 16px; height: 16px; background-color: #c0c0c0; box-shadow: var(--raised); background-repeat: no-repeat; background-position: center; }
 .mis-win95 ::-webkit-scrollbar-button:vertical:decrement { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='7' height='4'%3E%3Cpath d='M0 4 3.5 0 7 4Z'/%3E%3C/svg%3E"); }
 .mis-win95 ::-webkit-scrollbar-button:vertical:increment { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='7' height='4'%3E%3Cpath d='M0 0 3.5 4 7 0Z'/%3E%3C/svg%3E"); }
 .mis-win95 ::-webkit-scrollbar-button:horizontal:decrement { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='7'%3E%3Cpath d='M4 0 0 3.5 4 7Z'/%3E%3C/svg%3E"); }
@@ -273,6 +278,28 @@ body.resizing-panes, body.resizing-panes * { cursor: var(--resize-cursor) !impor
 .mis-win95 .mis-code-editor span:is(.cm-METADATATEXT,.cm-MESSAGE,.cm-LEVEL,.cm-number) { color: #800000; }
 .mis-win95 .mis-code-editor span:is(.cm-SPRITEMATRIX,.cm-MATRIX,.cm-ASSIGNMENT,.cm-SOUNDVERB,.cm-SOUNDEVENT) { color: #805000; }
 .mis-win95 .mis-code-editor .err-line { background: #ffe5e5; }
+
+/* Rule gutter: what the current level's solution does with each rule, and
+   the designer's rule goals (click: need -> ban -> neither). */
+.mis-win95 .mis-code-editor .mis-rule-gutter { background: #eee; }
+.mis-win95 .mis-rule-mark { display: flex; align-items: center; justify-content: center; width: 13px; height: 100%; min-height: 14px; color: #c8c8c8; }
+.mis-win95 .mis-rule-mark svg { display: block; }
+.mis-win95 .mis-rule-mark.toggle { cursor: pointer; }
+.mis-win95 .mis-rule-mark.toggle:hover { color: #000080; }
+.mis-win95 .mis-rule-mark.fired { color: #808080; }
+.mis-win95 .mis-rule-mark.required { color: #000; }
+.mis-win95 .mis-rule-mark.need, .mis-win95 .mis-rule-mark.ban { color: #000; }
+.mis-win95 .mis-rule-mark.need.pending, .mis-win95 .mis-rule-mark.ban.pending { color: #808080; }
+.mis-win95 .mis-rule-mark.need.bad, .mis-win95 .mis-rule-mark.ban.bad { color: var(--bad); }
+.mis-win95 .mis-rule-mark.flower { color: #808000; cursor: default; }
+.mis-win95 .mis-code-editor .mis-rule-heat-1 { background: #fffbea; }
+.mis-win95 .mis-code-editor .mis-rule-heat-2 { background: #fff5d0; }
+.mis-win95 .mis-code-editor .mis-rule-heat-3 { background: #ffecb0; }
+.mis-win95 .mis-code-editor .mis-rule-heat-4 { background: #ffe08c; }
+.mis-win95 .mis-code-editor .mis-rule-flash { background: #c8d0f0; box-shadow: inset 3px 0 #000080; }
+.mis-win95 .mis-rule-tip { position: fixed; z-index: 1000; max-width: 300px; padding: 2px 5px 3px; background: #ffffe1; color: #000; border: 1px solid #000; font-size: 11px; line-height: 1.35; white-space: pre-line; pointer-events: none; }
+.mis-win95 #rule-goals { white-space: nowrap; }
+.mis-win95 #rule-goals.bad { color: var(--bad); }
 .mis-win95 .mis-code-editor .cm-tooltip-autocomplete { color: #000; background: #fff; border-radius: 0; border: 1px solid #808080; box-shadow: 1px 1px #000; font: 13px/1.45 Consolas,monospace; }
 .mis-win95 .mis-code-editor .cm-tooltip-autocomplete ul li { color: #000; border-radius: 0; }
 .mis-win95 .mis-code-editor .cm-tooltip-autocomplete ul li[aria-selected] { background: #000080; color: #fff; }

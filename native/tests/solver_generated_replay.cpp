@@ -68,6 +68,32 @@ int main() {
     auto longSource = source;
     longSource.replace(longSource.rfind("PT"), 2, "P....................T");
     auto longGame = compile(longSource);
+    // Unlimited time must survive the C API and replay, while explicit state
+    // caps and cancellation remain effective. Delay a poll beyond the old
+    // negative-timeout clamp of 1 ms so this does not depend on machine speed.
+    for (auto strategy : {PS_SOLVE_STRATEGY_BFS, PS_SOLVE_STRATEGY_PORTFOLIO}) {
+        auto unlimited = ps_solve_default_options();
+        unlimited.strategy = strategy;
+        unlimited.timeout_ms = -1;
+        unlimited.compact_node_storage = true;
+        bool delayed = false;
+        unlimited.cancel_context = &delayed;
+        unlimited.should_cancel = [](void* context) {
+            auto& once = *static_cast<bool*>(context);
+            if (!once) { once = true; std::this_thread::sleep_for(std::chrono::milliseconds(5)); }
+            return false;
+        };
+        result = solve(longGame, longGame.information->levels[0], &unlimited);
+        assert(delayed && result->status == PS_SOLVE_STATUS_SOLVED && result->solution_count == 21);
+        unlimited.should_cancel = nullptr;
+        unlimited.max_expanded = 1;
+        result = solve(longGame, longGame.information->levels[0], &unlimited);
+        assert(result->status == PS_SOLVE_STATUS_TIMEOUT && result->expanded == 1);
+        unlimited.max_expanded = 0;
+        unlimited.should_cancel = [](void*) { return true; };
+        result = solve(longGame, longGame.information->levels[0], &unlimited);
+        assert(result->status == PS_SOLVE_STATUS_TIMEOUT && result->expanded == 0);
+    }
     // The game-scoped proof removes ACTION for every injected board, and the
     // immutable handle shares that proof safely across concurrent searches.
     ps_game cachedGame; cachedGame.impl = longGame;

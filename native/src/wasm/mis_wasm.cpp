@@ -14,6 +14,7 @@
 #include "runtime/c_api_internal.hpp"
 #include "search/difficulty.hpp"
 #include "search/simplify.hpp"
+#include "solver/static_analysis.hpp"
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
@@ -30,6 +31,7 @@
 namespace {
 
 ps_game* gGame = nullptr;
+ps_game* gOriginalGame = nullptr;
 std::string gError;
 std::vector<int32_t> gGrid;
 std::string gObjectName;
@@ -74,6 +76,7 @@ extern "C" {
 // Compile PuzzleScript source. Returns 1 on success; see misw_error() otherwise.
 EMSCRIPTEN_KEEPALIVE int misw_compile(const char* source, int length) {
     gError.clear();
+    if (gOriginalGame) { ps_free_game(gOriginalGame); gOriginalGame = nullptr; }
     if (gGame) {
         ps_free_game(gGame);
         gGame = nullptr;
@@ -101,9 +104,67 @@ EMSCRIPTEN_KEEPALIVE int misw_compile(const char* source, int length) {
     return 1;
 }
 
+// Keep a second immutable game for cheap ordinary-runtime verification of
+// solutions found using the canonical solver game. Never optimize this game.
+EMSCRIPTEN_KEEPALIVE int misw_compile_original(const char* source, int length) {
+    if (gOriginalGame) { ps_free_game(gOriginalGame); gOriginalGame = nullptr; }
+    ps_compile_result* result = nullptr;
+    try {
+        if (!ps_compile_source(source, static_cast<size_t>(length), &result) || !result) {
+            if (result) ps_free_compile_result(result);
+            return 0;
+        }
+        gOriginalGame = const_cast<ps_game*>(ps_compile_result_game(result));
+        ps_free_compile_result(result);
+        return gOriginalGame ? 1 : 0;
+    } catch (...) {
+        if (result) ps_free_compile_result(result);
+        return 0;
+    }
+}
+
+EMSCRIPTEN_KEEPALIVE int misw_original_object_count() { return gOriginalGame ? ps_game_object_count(gOriginalGame) : 0; }
+EMSCRIPTEN_KEEPALIVE int misw_original_layer_count() { return gOriginalGame ? ps_game_layer_count(gOriginalGame) : 0; }
+EMSCRIPTEN_KEEPALIVE const char* misw_original_object_name(int id) {
+    ps_object_info info{};
+    gObjectName = (gOriginalGame && ps_game_object_info(gOriginalGame, id, &info) && info.name) ? info.name : "";
+    return gObjectName.c_str();
+}
+EMSCRIPTEN_KEEPALIVE int misw_original_object_layer(int id) {
+    ps_object_info info{};
+    return (gOriginalGame && ps_game_object_info(gOriginalGame, id, &info)) ? info.layer : -1;
+}
+
+EMSCRIPTEN_KEEPALIVE int misw_validate_original(int width, int height, int count, const int32_t* inputs, int inputCount) {
+    if (!gOriginalGame || width <= 0 || height <= 0 || count < 0
+        || static_cast<size_t>(count) > gGrid.size() || inputCount <= 0 || !inputs) return 0;
+    try {
+        const auto level = puzzlescript::search::levelTemplateFromLayerCellObjectIds(
+            *gOriginalGame->impl.information, width, height,
+            std::vector<int32_t>(gGrid.begin(), gGrid.begin() + count));
+        auto session = puzzlescript::createFullStateWithLoadedLevelSeed(gOriginalGame->impl, "mis");
+        session->meta.suppressRuleMessages = true;
+        constexpr puzzlescript::RuntimeStepOptions options{
+            .playableUndo = false, .emitAudio = false, .solverMode = false,
+            .againPolicy = puzzlescript::AgainPolicy::Drain,
+        };
+        if (puzzlescript::loadLevelTemplate(*session, level, 0, options)) return 0;
+        if (session->meta.currentLevelIndex != 0 || session->meta.titleScreen) return 1;
+        for (int i = 0; i < inputCount; ++i) {
+            if (inputs[i] < 0 || inputs[i] > 4) return 0;
+            const auto step = puzzlescript::turn(*session, static_cast<ps_input>(inputs[i]), options);
+            if (step.won || session->meta.currentLevelIndex != 0 || session->meta.titleScreen) return 1;
+        }
+    } catch (...) { return 0; }
+    return 0;
+}
+
 EMSCRIPTEN_KEEPALIVE const char* misw_error() { return gError.c_str(); }
 EMSCRIPTEN_KEEPALIVE int misw_object_count() { return gGame ? ps_game_object_count(gGame) : 0; }
 EMSCRIPTEN_KEEPALIVE int misw_layer_count() { return gGame ? ps_game_layer_count(gGame) : 0; }
+EMSCRIPTEN_KEEPALIVE int misw_action_unnecessary() {
+    return gGame && puzzlescript::solver::actionInputIsUnnecessary(*gGame->impl.information);
+}
 
 EMSCRIPTEN_KEEPALIVE const char* misw_object_name(int id) {
     ps_object_info info{};

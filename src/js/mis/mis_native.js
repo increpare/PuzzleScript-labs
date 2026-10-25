@@ -1,6 +1,6 @@
 'use strict';
 
-// PuzzleScript+MIS (web prototype) - native backend adapter.
+// MIS95 - native backend adapter.
 //
 // Wraps the WebAssembly build of the native compiler/solver
 // (native/src/wasm/mis_wasm.cpp, built by native/wasm/build_mis_wasm.sh) behind
@@ -18,6 +18,7 @@ const MISNative = (function () {
 	function create(module) {
 		const M = module;
 		let model = null;
+		let originalModel = null;
 
 		function writeString(text) {
 			const len = M.lengthBytesUTF8(text);
@@ -29,14 +30,15 @@ const MISNative = (function () {
 		// JS engine board (column-major bitsets) -> native layer-cell grid
 		// (layer-major, row-major, -1 = empty).
 		let lastGridPtr = 0;
-		function writeGrid(board) {
-			const layers = model.layerCount, w = board.w, h = board.h, stride = model.stride;
+		function writeGrid(board, gridModel) {
+			gridModel = gridModel || model;
+			const layers = gridModel.layerCount, w = board.w, h = board.h, stride = gridModel.stride;
 			const count = layers * w * h;
 			const ptr = M._misw_grid_buffer(count) >> 2;
 			lastGridPtr = ptr;
 			const heap = M.HEAP32;
 			for (let l = 0; l < layers; l++) {
-				const ids = model.layerObjects[l];
+				const ids = gridModel.layerObjects[l];
 				for (let y = 0; y < h; y++) {
 					for (let x = 0; x < w; x++) {
 						const tile = x * h + y;
@@ -75,8 +77,19 @@ const MISNative = (function () {
 
 		function lane(v) { return v >= 0 ? v : undefined; }
 
+		function tablesAgree(jsModel, prefix) {
+			if (M[prefix + 'object_count']() !== jsModel.objectCount || M[prefix + 'layer_count']() !== jsModel.layerCount) return false;
+			for (let id = 0; id < jsModel.objectCount; id++) {
+				const object = jsModel.objects[id], layer = M[prefix + 'object_layer'](id);
+				if (!object && layer < 0) continue;
+				if (!object || layer !== object.layer || M.UTF8ToString(M[prefix + 'object_name'](id)).toLowerCase() !== object.name) return false;
+			}
+			return true;
+		}
+
 		return {
 			backend: 'native',
+			actionUnnecessary: function () { return !!(M._misw_action_unnecessary && M._misw_action_unnecessary()); },
 
 			// The native layer-cell grid for a board (for replay corpora).
 			grid: function (board) {
@@ -86,6 +99,7 @@ const MISNative = (function () {
 
 			// Compile `sourceText` natively and check it agrees with the JS model.
 			attach: function (sourceText, jsModel) {
+				originalModel = null;
 				const s = writeString(sourceText);
 				const ok = M._misw_compile(s.ptr, s.len);
 				M._free(s.ptr);
@@ -104,6 +118,28 @@ const MISNative = (function () {
 				}
 				model = jsModel;
 				return { ok: true };
+			},
+
+			attachOriginal: function (sourceText, jsModel) {
+				if (!M._misw_compile_original || !M._misw_original_object_count) return { ok: false };
+				const s = writeString(sourceText);
+				try {
+					const ok = !!M._misw_compile_original(s.ptr, s.len) && tablesAgree(jsModel, '_misw_original_');
+					originalModel = ok ? jsModel : null;
+					return { ok: ok };
+				} finally { M._free(s.ptr); }
+			},
+
+			validateOriginalSolution: function (board, solution) {
+				// Zero-input wins also need a direct condition check. The JS
+				// validator handles these without issuing an extra tick.
+				if (!originalModel || !solution.length || !M._misw_validate_original) return null;
+				const count = writeGrid(board, originalModel);
+				const ptr = M._malloc(solution.length * 4);
+				try {
+					M.HEAP32.set(solution, ptr >> 2);
+					return !!M._misw_validate_original(board.w, board.h, count, ptr, solution.length);
+				} finally { M._free(ptr); }
 			},
 
 			solve: function (board, opts) {

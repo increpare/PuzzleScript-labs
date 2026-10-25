@@ -1,0 +1,29 @@
+{
+  "repository": "https://github.com/increpare/PuzzleScript",
+  "revision": "5a94bde1a5127a3a45306ea28598eba2874d446d",
+  "implementation": "vanilla",
+  "sourceSha256": {
+    "js/storagewrapper.js": "3b6b3dfee738beefa33ed0d38a3c26b16557c45a59378cf382f62b270bf41014",
+    "js/bitvec.js": "51e1fdd82fc4f82e509d09da47659867152cf1d406629b1384269f7d4dfbab3f",
+    "js/level.js": "7db48c669bdb1e9a0d40eb737388e95ca3e2c2e022e23d71eb4e5a13dd882271",
+    "js/languageConstants.js": "f6556cb9b0a4fc0a1e10ff2b32303d7cbd98001be87027957554b0db33ab2245",
+    "js/globalVariables.js": "2e8820c606f4e3d723646a0e377fb0b978fc841adcfd9a33c05d53fd9c3d36fe",
+    "js/debug.js": "b36e5f7959c279032804a99a19d10526d7dc06847aff17b5ccd6649d1db6ec8d",
+    "js/debug_off.js": "d7878ec111060bc17894a48d05a6d901ec679ee3bfcc0ae5d49c699e742f733f",
+    "js/font.js": "da17f798ddf0b4a1d6a778396c96d0d2f3eaf7511d0e3bf8fdfa83fda9f436eb",
+    "js/rng.js": "9570e7354eb86fe13f22c1e74c258c5e0e39fd8b69e117096463be8d8612b723",
+    "js/riffwave.js": "960e4337169f9db67af4131c8d696c1c7282b41ed9796798301553a4ea3b6924",
+    "js/sfxr.js": "b4707692c61d42ceebf8063fffda92933b1e032d9fe75251e51b27a6f4401b87",
+    "js/colorhelpers.js": "cfefd6f524866fe1c07cf2e2b448e66b858bd5ceadcef948fe03e2a69ed9e53e",
+    "js/colors.js": "b842cef3c8252d430aaa500269a0c6f19d57ea5697de88f679b553b2e084a798",
+    "js/engine.js": "b66587221dd58ff0bad1b985a3a4e2c062f56db8e799c9498dd721f093267e44",
+    "js/parser.js": "0369403ef3cd5ed68295d19b4604d619368453ebf7b6e548bcf8a7402bb4ef3d",
+    "js/compiler.js": "16a38257cef21aef496199a948c78ee3c2891bce919572b3c85222e456c2b18b",
+    "js/soundbar.js": "8dc24f1d4f2d14b44fcbb0a2bddd5c572252e478e6d26af8350364ab59457b86",
+    "js/codemirror/stringstream.js": "78947b75195ee9b03d09c0bc9e6008e9821a76ed3414c9355f6ab2b056f89b2b",
+    "tests/resources/testingFrameWork.js": "bba9bc7ebf5aa63b97a0ebf99abc990984194f66e0f997cddf13aecb54447ce0",
+    "tests/resources/testdata.js": "59d52a2a01bf171f0a4de015303b79f7cc833697167ceb76fefec0f8adc8e453",
+    "tests/resources/errormessage_testdata.js": "c53391caba3af6f1c2cbfca75754a5864b85af9bd2434b2c87d0f943713080a5",
+    "js/inputoutput.js": "fa161868f4327263e7c003e9405ecf538ffe513b6365d08b88d1b3a7dca5be3a"
+  }
+}

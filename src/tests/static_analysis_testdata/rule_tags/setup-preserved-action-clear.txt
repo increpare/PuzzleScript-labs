@@ -1,0 +1,74 @@
+title Setup rule analysis
+
+========
+OBJECTS
+========
+Background
+black
+
+Player
+white
+
+Floor
+gray
+
+Mark
+red
+
+Other
+blue
+
+Seed
+yellow
+
+Stage
+orange
+
+Crate
+green
+
+Target
+pink
+
+========
+LEGEND
+========
+. = Background
+P = Player
+F = Floor
+M = Mark
+O = Other
+S = Seed
+G = Stage
+C = Crate
+T = Target
+Alias = Floor
+Choice = Mark or Other
+X = Floor and Seed
+========
+SOUNDS
+========
+================
+COLLISIONLAYERS
+================
+Background
+Player, Crate
+Floor
+Mark, Other
+Seed
+Stage
+Target
+========
+RULES
+========
+[ seed ] -> [ action seed ]
+[ floor seed ] -> [ floor stationary seed stationary mark ]
+[ action seed ] -> [ seed stationary stage ]
+=============
+WINCONDITIONS
+=============
+Some Player on Target
+========
+LEVELS
+========
+X...P..

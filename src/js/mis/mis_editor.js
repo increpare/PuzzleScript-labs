@@ -52,9 +52,106 @@
 		return { from: input.cursor - word[0].length, to: input.cursor, list };
 	}
 
-	function create(textarea, { transform = false, lineWrapping = false } = {}) {
+	// Rule gutter: one marker per rule line (see mis_app.js renderRuleGutter),
+	// a heat tint on lines that fired in the solution, and a flash on the lines
+	// that fire on the step being watched. Info is keyed by 1-based line.
+	// 9x9 pixel glyphs, drawn with currentColor ('#' = pixel).
+	function bitmap(rows) {
+		const top = Math.floor((9 - rows.length) / 2), left = Math.floor((9 - rows[0].length) / 2);
+		let out = '';
+		rows.forEach((row, y) => { for (let x = 0; x < row.length; x++) if (row[x] === '#') out += '<rect x="' + (left + x) + '" y="' + (top + y) + '" width="1" height="1"/>'; });
+		return out;
+	}
+	const GLYPHS = {
+		dot: bitmap(['###', '###', '###']),
+		bigdot: bitmap(['.###.', '#####', '#####', '#####', '.###.']),
+		// The Windows 95 check box tick.
+		need: bitmap(['......#', '.....##', '#...###', '##.###.', '#####..', '.###...', '..#....']),
+		ban: bitmap(['##....##', '.##..##.', '..####..', '...##...', '..####..', '.##..##.', '##....##']),
+		flower: bitmap(['.#.#.', '#####', '.###.', '..#..', '.##..', '..#..']),
+	};
+	class RuleMarker extends R.GutterMarker {
+		constructor(info) { super(); this.info = info; }
+		eq(other) { return ['mark', 'glyph', 'state', 'tip', 'toggle'].every(k => other.info[k] === this.info[k]); }
+		toDOM() {
+			const el = document.createElement('span');
+			el.className = 'mis-rule-mark ' + this.info.mark + (this.info.state ? ' ' + this.info.state : '') + (this.info.toggle ? ' toggle' : '');
+			el.innerHTML = '<svg viewBox="0 0 9 9" width="9" height="9" aria-hidden="true" fill="currentColor" shape-rendering="crispEdges">' + (GLYPHS[this.info.glyph || this.info.mark] || '') + '</svg>';
+			return el;
+		}
+	}
+	const spacer = new (class extends R.GutterMarker { toDOM() { const el = document.createElement('span'); el.className = 'mis-rule-mark'; return el; } })();
+
+	function create(textarea, { transform = false, lineWrapping = false, ruleGutter = false } = {}) {
 		const listeners = new Map(), markedLines = new Set();
 		let source = '', view, language;
+		const setRules = R.StateEffect.define(), setFlash = R.StateEffect.define();
+		// { info: Map line -> info, markers: RangeSet, heat: DecorationSet, flash: DecorationSet }
+		const rules = R.StateField.define({
+			create: () => ({ info: new Map(), markers: R.RangeSet.empty, heat: R.Decoration.none, flash: R.Decoration.none }),
+			update(value, tr) {
+				if (tr.docChanged) {
+					// Lines move until the app re-renders after recompiling.
+					value = { info: new Map(), markers: value.markers.map(tr.changes), heat: value.heat.map(tr.changes), flash: R.Decoration.none };
+				}
+				for (const effect of tr.effects) {
+					if (effect.is(setRules)) {
+						const doc = tr.state.doc, markers = [], heat = [];
+						const info = new Map([...effect.value].filter(([line]) => line >= 1 && line <= doc.lines));
+						[...info.keys()].sort((a, b) => a - b).forEach(line => {
+							const it = info.get(line), from = doc.line(line).from;
+							markers.push(new RuleMarker(it).range(from));
+							if (it.heat) heat.push(R.Decoration.line({ class: 'mis-rule-heat-' + it.heat }).range(from));
+						});
+						value = { info, markers: R.RangeSet.of(markers), heat: R.Decoration.set(heat), flash: value.flash };
+					} else if (effect.is(setFlash)) {
+						const doc = tr.state.doc;
+						const lines = [...new Set(effect.value)].filter(l => l >= 1 && l <= doc.lines).sort((a, b) => a - b);
+						value = Object.assign({}, value, { flash: R.Decoration.set(lines.map(l => R.Decoration.line({ class: 'mis-rule-flash' }).range(doc.line(l).from))) });
+					}
+				}
+				return value;
+			},
+			provide: field => [R.EditorView.decorations.from(field, v => v.heat), R.EditorView.decorations.from(field, v => v.flash)]
+		});
+		let tip = null;
+		function hideTip() { if (tip) { tip.remove(); tip = null; } }
+		function showTip(line, target) {
+			const it = view.state.field(rules).info.get(line);
+			hideTip();
+			if (!it || !it.tip) return;
+			tip = document.createElement('div');
+			tip.className = 'mis-rule-tip';
+			tip.textContent = it.tip;
+			document.body.appendChild(tip);
+			const r = target.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
+			const left = Math.min(window.innerWidth - w - 4, r.right + 6);
+			const top = r.bottom + 4 + h < window.innerHeight ? r.bottom + 4 : r.top - h - 4;
+			tip.style.left = Math.max(4, left) + 'px';
+			tip.style.top = Math.max(4, top) + 'px';
+		}
+		const lineOfBlock = block => view.state.doc.lineAt(block.from).number;
+		const ruleGutterExtension = R.gutter({
+			class: 'mis-rule-gutter',
+			markers: v => v.state.field(rules).markers,
+			initialSpacer: () => spacer,
+			domEventHandlers: {
+				mousedown(v, block, event) {
+					const line = lineOfBlock(block), it = v.state.field(rules).info.get(line);
+					if (!it || !it.toggle || event.button !== 0) return false;
+					event.preventDefault();
+					hideTip();
+					(listeners.get('ruleToggle') || []).forEach(fn => fn(line));
+					return true;
+				},
+				mousemove(v, block, event) {
+					const line = lineOfBlock(block);
+					if (!tip || tip.dataset.line !== String(line)) { showTip(line, event.target.closest('.cm-gutterElement') || event.target); if (tip) tip.dataset.line = line; }
+					return false;
+				},
+				mouseleave() { hideTip(); return false; }
+			}
+		});
 		const setMarks = R.StateEffect.define();
 		const marks = R.StateField.define({
 			create: () => R.Decoration.none,
@@ -79,7 +176,8 @@
 			return [
 				R.EditorView.editorAttributes.of({ class: 'puzzlescript-editor mis-code-editor' }),
 				R.EditorView.contentAttributes.of({ 'aria-label': transform ? 'Transform code' : 'Game source code' }),
-				R.lineNumbers(), R.highlightActiveLine(), R.highlightActiveLineGutter(), R.drawSelection(), R.dropCursor(),
+				R.lineNumbers(), ...(ruleGutter ? [rules, ruleGutterExtension] : []),
+				R.highlightActiveLine(), R.highlightActiveLineGutter(), R.drawSelection(), R.dropCursor(),
 				R.history(), R.EditorState.tabSize.of(4), ...(lineWrapping ? [R.EditorView.lineWrapping] : []),
 				language.extension, ...exactPrefixExtensions, tokenPresentation({ language }), marks, updates,
 				R.autocompletion({
@@ -120,6 +218,12 @@
 			scrollTo(left, top) { view.scrollDOM.scrollTo(left, top); },
 			addLineClass(line) { if (line >= 0) markedLines.add(line); view.dispatch({ effects: setMarks.of([...markedLines]) }); return line; },
 			removeLineClass(line) { markedLines.delete(line); view.dispatch({ effects: setMarks.of([...markedLines]) }); },
+			// Map line -> { mark, glyph?, state?, heat? (1-4), tip?, toggle? }
+			setRuleInfo(info) { if (ruleGutter) view.dispatch({ effects: setRules.of(info) }); },
+			setFlashLines(lines) { if (ruleGutter) view.dispatch({ effects: setFlash.of(lines || []) }); },
+			scrollLineIntoView(line) {
+				if (line >= 1 && line <= view.state.doc.lines) view.dispatch({ effects: R.EditorView.scrollIntoView(view.state.doc.line(line).from, { y: 'nearest' }) });
+			},
 			setGameSource(text) {
 				if (!transform || text === source) return;
 				source = text;

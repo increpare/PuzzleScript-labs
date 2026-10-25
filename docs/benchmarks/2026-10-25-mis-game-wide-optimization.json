@@ -1,0 +1,3809 @@
+{
+  "reports": [
+    {
+      "name": "tests/fixtures/mis-optimization/game.txt",
+      "backend": "js",
+      "results": [
+        {
+          "optimize": false,
+          "preparation": {
+            "enabled": false,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "reason": "disabled",
+            "prepareMs": 0.30000007152557373,
+            "nativePassthrough": false
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 2.200000047683716,
+              "expanded": 2,
+              "length": 2
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 0.5,
+              "expanded": 2,
+              "length": 2
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 0.30000007152557373,
+              "expanded": 2,
+              "length": 2
+            }
+          ]
+        },
+        {
+          "optimize": true,
+          "preparation": {
+            "enabled": true,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "removed_inert_rules": 1,
+            "removed_cosmetic_objects": 1,
+            "removed_collision_layers": 1,
+            "removed_cosmetic_rules": 1,
+            "removed_win_irrelevant_rules": 0,
+            "merged_object_aliases": 1,
+            "merged_object_groups": 1,
+            "inserted_noaction_metadata": 1,
+            "ms_inert": 0.10000002384185791,
+            "ms_cosmetic": 0.7000000476837158,
+            "ms_cosmetic_rules": 0.19999992847442627,
+            "ms_win_relevance": 0.10000002384185791,
+            "ms_merge": 0.19999992847442627,
+            "ms_action": 0,
+            "originalObjects": 6,
+            "solverObjects": 4,
+            "originalLayers": 4,
+            "solverLayers": 3,
+            "analysisFamilies": [
+              "mergeability",
+              "movement_action",
+              "win_relevance"
+            ],
+            "prepareMs": 9.300000071525574,
+            "nativePassthrough": false
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 2.1999999284744263,
+              "expanded": 2,
+              "length": 2
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 0.40000009536743164,
+              "expanded": 2,
+              "length": 2
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 0.5,
+              "expanded": 2,
+              "length": 2
+            }
+          ]
+        },
+        {
+          "optimize": true,
+          "preparation": {
+            "enabled": true,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "removed_inert_rules": 1,
+            "removed_cosmetic_objects": 1,
+            "removed_collision_layers": 1,
+            "removed_cosmetic_rules": 1,
+            "removed_win_irrelevant_rules": 0,
+            "merged_object_aliases": 1,
+            "merged_object_groups": 1,
+            "inserted_noaction_metadata": 1,
+            "ms_inert": 0.09999990463256836,
+            "ms_cosmetic": 0.6999999284744263,
+            "ms_cosmetic_rules": 0.30000007152557373,
+            "ms_win_relevance": 0,
+            "ms_merge": 0.30000007152557373,
+            "ms_action": 0.10000002384185791,
+            "originalObjects": 6,
+            "solverObjects": 4,
+            "originalLayers": 4,
+            "solverLayers": 3,
+            "analysisFamilies": [
+              "mergeability",
+              "movement_action",
+              "win_relevance"
+            ],
+            "prepareMs": 8.899999976158142,
+            "nativePassthrough": false
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 2.100000023841858,
+              "expanded": 2,
+              "length": 2
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 0.20000004768371582,
+              "expanded": 2,
+              "length": 2
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 0.2999999523162842,
+              "expanded": 2,
+              "length": 2
+            }
+          ]
+        },
+        {
+          "optimize": false,
+          "preparation": {
+            "enabled": false,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "reason": "disabled",
+            "prepareMs": 0.30000007152557373,
+            "nativePassthrough": false
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 1.899999976158142,
+              "expanded": 2,
+              "length": 2
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 0.2999999523162842,
+              "expanded": 2,
+              "length": 2
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 0.20000004768371582,
+              "expanded": 2,
+              "length": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "tests/fixtures/mis-optimization/game.txt",
+      "backend": "native",
+      "results": [
+        {
+          "optimize": false,
+          "preparation": {
+            "enabled": false,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "reason": "disabled",
+            "prepareMs": 0.30000007152557373,
+            "nativePassthrough": false
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 0.5,
+              "expanded": 2,
+              "length": 2
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 0.20000004768371582,
+              "expanded": 2,
+              "length": 2
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 0.10000002384185791,
+              "expanded": 2,
+              "length": 2
+            }
+          ]
+        },
+        {
+          "optimize": true,
+          "preparation": {
+            "enabled": true,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "removed_inert_rules": 1,
+            "removed_cosmetic_objects": 1,
+            "removed_collision_layers": 1,
+            "removed_cosmetic_rules": 1,
+            "removed_win_irrelevant_rules": 0,
+            "merged_object_aliases": 1,
+            "merged_object_groups": 1,
+            "inserted_noaction_metadata": 1,
+            "ms_inert": 0,
+            "ms_cosmetic": 0.7999999523162842,
+            "ms_cosmetic_rules": 0.19999992847442627,
+            "ms_win_relevance": 0.10000002384185791,
+            "ms_merge": 0.40000009536743164,
+            "ms_action": 0,
+            "originalObjects": 6,
+            "solverObjects": 4,
+            "originalLayers": 4,
+            "solverLayers": 3,
+            "analysisFamilies": [
+              "mergeability",
+              "movement_action",
+              "win_relevance"
+            ],
+            "prepareMs": 8.699999928474426,
+            "nativePassthrough": false
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 1.8000000715255737,
+              "expanded": 2,
+              "length": 2
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 0.2999999523162842,
+              "expanded": 2,
+              "length": 2
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 0.10000002384185791,
+              "expanded": 2,
+              "length": 2
+            }
+          ]
+        },
+        {
+          "optimize": true,
+          "preparation": {
+            "enabled": true,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "removed_inert_rules": 1,
+            "removed_cosmetic_objects": 1,
+            "removed_collision_layers": 1,
+            "removed_cosmetic_rules": 1,
+            "removed_win_irrelevant_rules": 0,
+            "merged_object_aliases": 1,
+            "merged_object_groups": 1,
+            "inserted_noaction_metadata": 1,
+            "ms_inert": 0.10000002384185791,
+            "ms_cosmetic": 0.5999999046325684,
+            "ms_cosmetic_rules": 0.20000004768371582,
+            "ms_win_relevance": 0.10000002384185791,
+            "ms_merge": 0.30000007152557373,
+            "ms_action": 0,
+            "originalObjects": 6,
+            "solverObjects": 4,
+            "originalLayers": 4,
+            "solverLayers": 3,
+            "analysisFamilies": [
+              "mergeability",
+              "movement_action",
+              "win_relevance"
+            ],
+            "prepareMs": 8,
+            "nativePassthrough": false
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 1.7000000476837158,
+              "expanded": 2,
+              "length": 2
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 0.30000007152557373,
+              "expanded": 2,
+              "length": 2
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 0.30000007152557373,
+              "expanded": 2,
+              "length": 2
+            }
+          ]
+        },
+        {
+          "optimize": false,
+          "preparation": {
+            "enabled": false,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "reason": "disabled",
+            "prepareMs": 0.30000007152557373,
+            "nativePassthrough": false
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 0.5,
+              "expanded": 2,
+              "length": 2
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 0.20000004768371582,
+              "expanded": 2,
+              "length": 2
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 0.10000002384185791,
+              "expanded": 2,
+              "length": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "demo/sokoban_basic.txt",
+      "backend": "js",
+      "results": [
+        {
+          "optimize": false,
+          "preparation": {
+            "enabled": false,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "reason": "disabled",
+            "prepareMs": 0.20000004768371582,
+            "nativePassthrough": false
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 15.400000095367432,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 4.5,
+              "expanded": 104,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 12.5,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 0,
+              "status": "unsolvable",
+              "ms": 8.299999952316284,
+              "expanded": 388
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 8.699999928474426,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 2.200000047683716,
+              "expanded": 104,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 9.600000023841858,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 1,
+              "status": "unsolvable",
+              "ms": 6.799999952316284,
+              "expanded": 388
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 9,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 2.100000023841858,
+              "expanded": 104,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 9.600000023841858,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 2,
+              "status": "unsolvable",
+              "ms": 7,
+              "expanded": 388
+            }
+          ]
+        },
+        {
+          "optimize": true,
+          "preparation": {
+            "enabled": true,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "removed_inert_rules": 0,
+            "removed_cosmetic_objects": 0,
+            "removed_collision_layers": 0,
+            "removed_cosmetic_rules": 0,
+            "removed_win_irrelevant_rules": 0,
+            "merged_object_aliases": 0,
+            "merged_object_groups": 0,
+            "inserted_noaction_metadata": 1,
+            "ms_inert": 0,
+            "ms_cosmetic": 0.20000004768371582,
+            "ms_cosmetic_rules": 0.19999992847442627,
+            "ms_win_relevance": 0.20000004768371582,
+            "ms_merge": 0,
+            "ms_action": 0.09999990463256836,
+            "originalObjects": 5,
+            "solverObjects": 5,
+            "originalLayers": 3,
+            "solverLayers": 3,
+            "analysisFamilies": [
+              "mergeability",
+              "movement_action",
+              "win_relevance"
+            ],
+            "prepareMs": 10.799999952316284,
+            "nativePassthrough": false
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 15.100000023841858,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 3.5,
+              "expanded": 104,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 9.199999928474426,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 0,
+              "status": "unsolvable",
+              "ms": 8.899999976158142,
+              "expanded": 388
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 8.800000071525574,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 5.5,
+              "expanded": 104,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 10.699999928474426,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 1,
+              "status": "unsolvable",
+              "ms": 5.699999928474426,
+              "expanded": 388
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 9.100000023841858,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 3.1999999284744263,
+              "expanded": 104,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 9.599999904632568,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 2,
+              "status": "unsolvable",
+              "ms": 5.700000047683716,
+              "expanded": 388
+            }
+          ]
+        },
+        {
+          "optimize": true,
+          "preparation": {
+            "enabled": true,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "removed_inert_rules": 0,
+            "removed_cosmetic_objects": 0,
+            "removed_collision_layers": 0,
+            "removed_cosmetic_rules": 0,
+            "removed_win_irrelevant_rules": 0,
+            "merged_object_aliases": 0,
+            "merged_object_groups": 0,
+            "inserted_noaction_metadata": 1,
+            "ms_inert": 0,
+            "ms_cosmetic": 0.30000007152557373,
+            "ms_cosmetic_rules": 0.19999992847442627,
+            "ms_win_relevance": 0,
+            "ms_merge": 0.09999990463256836,
+            "ms_action": 0,
+            "originalObjects": 5,
+            "solverObjects": 5,
+            "originalLayers": 3,
+            "solverLayers": 3,
+            "analysisFamilies": [
+              "mergeability",
+              "movement_action",
+              "win_relevance"
+            ],
+            "prepareMs": 11.599999904632568,
+            "nativePassthrough": false
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 16.299999952316284,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 3.3000000715255737,
+              "expanded": 104,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 8.700000047683716,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 0,
+              "status": "unsolvable",
+              "ms": 6.700000047683716,
+              "expanded": 388
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 9.100000023841858,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 1.7000000476837158,
+              "expanded": 104,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 7.799999952316284,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 1,
+              "status": "unsolvable",
+              "ms": 6.5,
+              "expanded": 388
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 8.399999976158142,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 1.6999999284744263,
+              "expanded": 104,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 8,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 2,
+              "status": "unsolvable",
+              "ms": 6,
+              "expanded": 388
+            }
+          ]
+        },
+        {
+          "optimize": false,
+          "preparation": {
+            "enabled": false,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "reason": "disabled",
+            "prepareMs": 0.30000007152557373,
+            "nativePassthrough": false
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 16.700000047683716,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 4.800000071525574,
+              "expanded": 104,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 11,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 0,
+              "status": "unsolvable",
+              "ms": 8.100000023841858,
+              "expanded": 388
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 9.099999904632568,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 3.1999999284744263,
+              "expanded": 104,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 10.100000023841858,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 1,
+              "status": "unsolvable",
+              "ms": 7.600000023841858,
+              "expanded": 388
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 10.399999976158142,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 2,
+              "expanded": 104,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 10.399999976158142,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 2,
+              "status": "unsolvable",
+              "ms": 7.400000095367432,
+              "expanded": 388
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "demo/sokoban_basic.txt",
+      "backend": "native",
+      "results": [
+        {
+          "optimize": false,
+          "preparation": {
+            "enabled": false,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "reason": "disabled",
+            "prepareMs": 0.2999999523162842,
+            "nativePassthrough": false
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 5.700000047683716,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 0.8999999761581421,
+              "expanded": 57,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 5.200000047683716,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 0,
+              "status": "unsolvable",
+              "ms": 4.5,
+              "expanded": 391
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 5.299999952316284,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 0.8000000715255737,
+              "expanded": 57,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 5.300000071525574,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 1,
+              "status": "unsolvable",
+              "ms": 4.299999952316284,
+              "expanded": 391
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 5.299999952316284,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 0.7999999523162842,
+              "expanded": 57,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 5.5,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 2,
+              "status": "unsolvable",
+              "ms": 4.299999952316284,
+              "expanded": 391
+            }
+          ]
+        },
+        {
+          "optimize": true,
+          "preparation": {
+            "enabled": true,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "removed_inert_rules": 0,
+            "removed_cosmetic_objects": 0,
+            "removed_collision_layers": 0,
+            "removed_cosmetic_rules": 0,
+            "removed_win_irrelevant_rules": 0,
+            "merged_object_aliases": 0,
+            "merged_object_groups": 0,
+            "inserted_noaction_metadata": 1,
+            "ms_inert": 0,
+            "ms_cosmetic": 0.20000004768371582,
+            "ms_cosmetic_rules": 0.19999992847442627,
+            "ms_win_relevance": 0.10000002384185791,
+            "ms_merge": 0.09999990463256836,
+            "ms_action": 0,
+            "originalObjects": 5,
+            "solverObjects": 5,
+            "originalLayers": 3,
+            "solverLayers": 3,
+            "analysisFamilies": [
+              "mergeability",
+              "movement_action",
+              "win_relevance"
+            ],
+            "prepareMs": 11.5,
+            "nativePassthrough": true
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 5.700000047683716,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 0.7999999523162842,
+              "expanded": 57,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 6.600000023841858,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 0,
+              "status": "unsolvable",
+              "ms": 4.600000023841858,
+              "expanded": 391
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 5.900000095367432,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 0.8000000715255737,
+              "expanded": 57,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 5.399999976158142,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 1,
+              "status": "unsolvable",
+              "ms": 5,
+              "expanded": 391
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 5.200000047683716,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 0.8999999761581421,
+              "expanded": 57,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 5.100000023841858,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 2,
+              "status": "unsolvable",
+              "ms": 4.299999952316284,
+              "expanded": 391
+            }
+          ]
+        },
+        {
+          "optimize": true,
+          "preparation": {
+            "enabled": true,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "removed_inert_rules": 0,
+            "removed_cosmetic_objects": 0,
+            "removed_collision_layers": 0,
+            "removed_cosmetic_rules": 0,
+            "removed_win_irrelevant_rules": 0,
+            "merged_object_aliases": 0,
+            "merged_object_groups": 0,
+            "inserted_noaction_metadata": 1,
+            "ms_inert": 0.10000002384185791,
+            "ms_cosmetic": 0.20000004768371582,
+            "ms_cosmetic_rules": 0.2999999523162842,
+            "ms_win_relevance": 0,
+            "ms_merge": 0.20000004768371582,
+            "ms_action": 0,
+            "originalObjects": 5,
+            "solverObjects": 5,
+            "originalLayers": 3,
+            "solverLayers": 3,
+            "analysisFamilies": [
+              "mergeability",
+              "movement_action",
+              "win_relevance"
+            ],
+            "prepareMs": 12.799999952316284,
+            "nativePassthrough": true
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 5.5,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 0.8000000715255737,
+              "expanded": 57,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 5.200000047683716,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 0,
+              "status": "unsolvable",
+              "ms": 4.399999976158142,
+              "expanded": 391
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 5.299999952316284,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 0.8000000715255737,
+              "expanded": 57,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 5.200000047683716,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 1,
+              "status": "unsolvable",
+              "ms": 4.399999976158142,
+              "expanded": 391
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 5.100000023841858,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 0.7999999523162842,
+              "expanded": 57,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 6.700000047683716,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 2,
+              "status": "unsolvable",
+              "ms": 7.799999952316284,
+              "expanded": 391
+            }
+          ]
+        },
+        {
+          "optimize": false,
+          "preparation": {
+            "enabled": false,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "reason": "disabled",
+            "prepareMs": 0.30000007152557373,
+            "nativePassthrough": false
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 6.700000047683716,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 0.8999999761581421,
+              "expanded": 57,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 5.199999928474426,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 0,
+              "status": "unsolvable",
+              "ms": 4.100000023841858,
+              "expanded": 391
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 4.899999976158142,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 0.8000000715255737,
+              "expanded": 57,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 5.5,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 1,
+              "status": "unsolvable",
+              "ms": 6.299999952316284,
+              "expanded": 391
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 5.199999928474426,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 0.8999999761581421,
+              "expanded": 57,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 6.199999928474426,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 2,
+              "status": "unsolvable",
+              "ms": 5,
+              "expanded": 391
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "demo/microban.txt",
+      "backend": "js",
+      "results": [
+        {
+          "optimize": false,
+          "preparation": {
+            "enabled": false,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "reason": "disabled",
+            "prepareMs": 0.20000004768371582,
+            "nativePassthrough": false
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 16.199999928474426,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 7.199999928474426,
+              "expanded": 104,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 11.199999928474426,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 0,
+              "status": "unsolvable",
+              "ms": 7.900000095367432,
+              "expanded": 388
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 9.200000047683716,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 2.200000047683716,
+              "expanded": 104,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 9.200000047683716,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 1,
+              "status": "unsolvable",
+              "ms": 7.700000047683716,
+              "expanded": 388
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 11.300000071525574,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 2,
+              "expanded": 104,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 9.300000071525574,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 2,
+              "status": "unsolvable",
+              "ms": 6.800000071525574,
+              "expanded": 388
+            }
+          ]
+        },
+        {
+          "optimize": true,
+          "preparation": {
+            "enabled": true,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "removed_inert_rules": 0,
+            "removed_cosmetic_objects": 0,
+            "removed_collision_layers": 0,
+            "removed_cosmetic_rules": 0,
+            "removed_win_irrelevant_rules": 0,
+            "merged_object_aliases": 0,
+            "merged_object_groups": 0,
+            "inserted_noaction_metadata": 1,
+            "ms_inert": 0.10000002384185791,
+            "ms_cosmetic": 0.30000007152557373,
+            "ms_cosmetic_rules": 0.19999992847442627,
+            "ms_win_relevance": 0,
+            "ms_merge": 0.19999992847442627,
+            "ms_action": 0,
+            "originalObjects": 5,
+            "solverObjects": 5,
+            "originalLayers": 3,
+            "solverLayers": 3,
+            "analysisFamilies": [
+              "mergeability",
+              "movement_action",
+              "win_relevance"
+            ],
+            "prepareMs": 12.800000071525574,
+            "nativePassthrough": false
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 15.299999952316284,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 3.100000023841858,
+              "expanded": 104,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 9.400000095367432,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 0,
+              "status": "unsolvable",
+              "ms": 6.200000047683716,
+              "expanded": 388
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 8.700000047683716,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 2.100000023841858,
+              "expanded": 104,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 9.100000023841858,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 1,
+              "status": "unsolvable",
+              "ms": 6.899999976158142,
+              "expanded": 388
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 8.5,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 2.100000023841858,
+              "expanded": 104,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 8.899999976158142,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 2,
+              "status": "unsolvable",
+              "ms": 6.899999976158142,
+              "expanded": 388
+            }
+          ]
+        },
+        {
+          "optimize": true,
+          "preparation": {
+            "enabled": true,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "removed_inert_rules": 0,
+            "removed_cosmetic_objects": 0,
+            "removed_collision_layers": 0,
+            "removed_cosmetic_rules": 0,
+            "removed_win_irrelevant_rules": 0,
+            "merged_object_aliases": 0,
+            "merged_object_groups": 0,
+            "inserted_noaction_metadata": 1,
+            "ms_inert": 0.10000002384185791,
+            "ms_cosmetic": 0.20000004768371582,
+            "ms_cosmetic_rules": 0.10000002384185791,
+            "ms_win_relevance": 0.09999990463256836,
+            "ms_merge": 0.20000004768371582,
+            "ms_action": 0,
+            "originalObjects": 5,
+            "solverObjects": 5,
+            "originalLayers": 3,
+            "solverLayers": 3,
+            "analysisFamilies": [
+              "mergeability",
+              "movement_action",
+              "win_relevance"
+            ],
+            "prepareMs": 16.300000071525574,
+            "nativePassthrough": false
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 28.199999928474426,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 4.600000023841858,
+              "expanded": 104,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 11.200000047683716,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 0,
+              "status": "unsolvable",
+              "ms": 6.100000023841858,
+              "expanded": 388
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 7.699999928474426,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 3.9000000953674316,
+              "expanded": 104,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 8.5,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 1,
+              "status": "unsolvable",
+              "ms": 6.5,
+              "expanded": 388
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 8.799999952316284,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 1.8000000715255737,
+              "expanded": 104,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 9.100000023841858,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 2,
+              "status": "unsolvable",
+              "ms": 6.399999976158142,
+              "expanded": 388
+            }
+          ]
+        },
+        {
+          "optimize": false,
+          "preparation": {
+            "enabled": false,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "reason": "disabled",
+            "prepareMs": 0.2999999523162842,
+            "nativePassthrough": false
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 18.90000009536743,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 4.399999976158142,
+              "expanded": 104,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 12,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 0,
+              "status": "unsolvable",
+              "ms": 8.199999928474426,
+              "expanded": 388
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 9.5,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 2.3000000715255737,
+              "expanded": 104,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 10,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 1,
+              "status": "unsolvable",
+              "ms": 7.100000023841858,
+              "expanded": 388
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 9.799999952316284,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 2.200000047683716,
+              "expanded": 104,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 9.199999928474426,
+              "expanded": 498,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 2,
+              "status": "unsolvable",
+              "ms": 6.900000095367432,
+              "expanded": 388
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "demo/microban.txt",
+      "backend": "native",
+      "results": [
+        {
+          "optimize": false,
+          "preparation": {
+            "enabled": false,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "reason": "disabled",
+            "prepareMs": 0.19999992847442627,
+            "nativePassthrough": false
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 5.699999928474426,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 0.7999999523162842,
+              "expanded": 57,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 5.199999928474426,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 0,
+              "status": "unsolvable",
+              "ms": 4.599999904632568,
+              "expanded": 391
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 5.200000047683716,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 0.6999999284744263,
+              "expanded": 57,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 5.300000071525574,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 1,
+              "status": "unsolvable",
+              "ms": 4.299999952316284,
+              "expanded": 391
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 5.200000047683716,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 0.8000000715255737,
+              "expanded": 57,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 5.5,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 2,
+              "status": "unsolvable",
+              "ms": 4.699999928474426,
+              "expanded": 391
+            }
+          ]
+        },
+        {
+          "optimize": true,
+          "preparation": {
+            "enabled": true,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "removed_inert_rules": 0,
+            "removed_cosmetic_objects": 0,
+            "removed_collision_layers": 0,
+            "removed_cosmetic_rules": 0,
+            "removed_win_irrelevant_rules": 0,
+            "merged_object_aliases": 0,
+            "merged_object_groups": 0,
+            "inserted_noaction_metadata": 1,
+            "ms_inert": 0,
+            "ms_cosmetic": 0.2999999523162842,
+            "ms_cosmetic_rules": 0.3999999761581421,
+            "ms_win_relevance": 0.10000002384185791,
+            "ms_merge": 0.10000002384185791,
+            "ms_action": 0,
+            "originalObjects": 5,
+            "solverObjects": 5,
+            "originalLayers": 3,
+            "solverLayers": 3,
+            "analysisFamilies": [
+              "mergeability",
+              "movement_action",
+              "win_relevance"
+            ],
+            "prepareMs": 11.699999928474426,
+            "nativePassthrough": true
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 6.799999952316284,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 0.8000000715255737,
+              "expanded": 57,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 5.200000047683716,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 0,
+              "status": "unsolvable",
+              "ms": 4.5,
+              "expanded": 391
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 5.600000023841858,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 0.7999999523162842,
+              "expanded": 57,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 5.600000023841858,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 1,
+              "status": "unsolvable",
+              "ms": 4.399999976158142,
+              "expanded": 391
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 5.100000023841858,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 0.7999999523162842,
+              "expanded": 57,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 5.299999952316284,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 2,
+              "status": "unsolvable",
+              "ms": 4.299999952316284,
+              "expanded": 391
+            }
+          ]
+        },
+        {
+          "optimize": true,
+          "preparation": {
+            "enabled": true,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "removed_inert_rules": 0,
+            "removed_cosmetic_objects": 0,
+            "removed_collision_layers": 0,
+            "removed_cosmetic_rules": 0,
+            "removed_win_irrelevant_rules": 0,
+            "merged_object_aliases": 0,
+            "merged_object_groups": 0,
+            "inserted_noaction_metadata": 1,
+            "ms_inert": 0,
+            "ms_cosmetic": 0.20000004768371582,
+            "ms_cosmetic_rules": 0.2999999523162842,
+            "ms_win_relevance": 0.10000002384185791,
+            "ms_merge": 0.19999992847442627,
+            "ms_action": 0,
+            "originalObjects": 5,
+            "solverObjects": 5,
+            "originalLayers": 3,
+            "solverLayers": 3,
+            "analysisFamilies": [
+              "mergeability",
+              "movement_action",
+              "win_relevance"
+            ],
+            "prepareMs": 12,
+            "nativePassthrough": true
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 5.899999976158142,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 0.8000000715255737,
+              "expanded": 57,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 5.900000095367432,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 0,
+              "status": "unsolvable",
+              "ms": 6.799999952316284,
+              "expanded": 391
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 5.5,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 0.8000000715255737,
+              "expanded": 57,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 5.199999928474426,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 1,
+              "status": "unsolvable",
+              "ms": 4.400000095367432,
+              "expanded": 391
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 5.400000095367432,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 0.7999999523162842,
+              "expanded": 57,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 5,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 2,
+              "status": "unsolvable",
+              "ms": 4.600000023841858,
+              "expanded": 391
+            }
+          ]
+        },
+        {
+          "optimize": false,
+          "preparation": {
+            "enabled": false,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "reason": "disabled",
+            "prepareMs": 0.2999999523162842,
+            "nativePassthrough": false
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 5.699999928474426,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 0.7000000476837158,
+              "expanded": 57,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 5.199999928474426,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 0,
+              "status": "unsolvable",
+              "ms": 4.5,
+              "expanded": 391
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 5.200000047683716,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 0.8000000715255737,
+              "expanded": 57,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 5.200000047683716,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 1,
+              "status": "unsolvable",
+              "ms": 4.299999952316284,
+              "expanded": 391
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 5.199999928474426,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 1,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 0.8999999761581421,
+              "expanded": 57,
+              "length": 16
+            },
+            {
+              "index": 2,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 5.100000023841858,
+              "expanded": 475,
+              "length": 33
+            },
+            {
+              "index": 3,
+              "repeat": 2,
+              "status": "unsolvable",
+              "ms": 4.399999976158142,
+              "expanded": 391
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "demo/lunar_lockout.txt",
+      "backend": "js",
+      "results": [
+        {
+          "optimize": false,
+          "preparation": {
+            "enabled": false,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "reason": "disabled",
+            "prepareMs": 0.2999999523162842,
+            "nativePassthrough": false
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 48.60000002384186,
+              "expanded": 1328,
+              "length": 20
+            },
+            {
+              "index": 1,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 125.39999997615814,
+              "expanded": 4094,
+              "length": 17
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 36.699999928474426,
+              "expanded": 1328,
+              "length": 20
+            },
+            {
+              "index": 1,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 115,
+              "expanded": 4094,
+              "length": 17
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 36.300000071525574,
+              "expanded": 1328,
+              "length": 20
+            },
+            {
+              "index": 1,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 111.20000004768372,
+              "expanded": 4094,
+              "length": 17
+            }
+          ]
+        },
+        {
+          "optimize": true,
+          "preparation": {
+            "enabled": true,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "removed_inert_rules": 0,
+            "removed_cosmetic_objects": 0,
+            "removed_collision_layers": 0,
+            "removed_cosmetic_rules": 0,
+            "removed_win_irrelevant_rules": 0,
+            "merged_object_aliases": 0,
+            "merged_object_groups": 0,
+            "inserted_noaction_metadata": 1,
+            "ms_inert": 0.10000002384185791,
+            "ms_cosmetic": 0.20000004768371582,
+            "ms_cosmetic_rules": 0.3999999761581421,
+            "ms_win_relevance": 0.10000002384185791,
+            "ms_merge": 0.19999992847442627,
+            "ms_action": 0.10000002384185791,
+            "originalObjects": 8,
+            "solverObjects": 7,
+            "originalLayers": 5,
+            "solverLayers": 5,
+            "analysisFamilies": [
+              "mergeability",
+              "movement_action",
+              "win_relevance"
+            ],
+            "prepareMs": 20.200000047683716,
+            "nativePassthrough": false
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 44,
+              "expanded": 1328,
+              "length": 20
+            },
+            {
+              "index": 1,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 104.89999997615814,
+              "expanded": 4094,
+              "length": 17
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 30.199999928474426,
+              "expanded": 1328,
+              "length": 20
+            },
+            {
+              "index": 1,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 98.30000007152557,
+              "expanded": 4094,
+              "length": 17
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 34.200000047683716,
+              "expanded": 1328,
+              "length": 20
+            },
+            {
+              "index": 1,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 104,
+              "expanded": 4094,
+              "length": 17
+            }
+          ]
+        },
+        {
+          "optimize": true,
+          "preparation": {
+            "enabled": true,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "removed_inert_rules": 0,
+            "removed_cosmetic_objects": 0,
+            "removed_collision_layers": 0,
+            "removed_cosmetic_rules": 0,
+            "removed_win_irrelevant_rules": 0,
+            "merged_object_aliases": 0,
+            "merged_object_groups": 0,
+            "inserted_noaction_metadata": 1,
+            "ms_inert": 0,
+            "ms_cosmetic": 0.19999992847442627,
+            "ms_cosmetic_rules": 0.6000000238418579,
+            "ms_win_relevance": 0.10000002384185791,
+            "ms_merge": 0.10000002384185791,
+            "ms_action": 0,
+            "originalObjects": 8,
+            "solverObjects": 7,
+            "originalLayers": 5,
+            "solverLayers": 5,
+            "analysisFamilies": [
+              "mergeability",
+              "movement_action",
+              "win_relevance"
+            ],
+            "prepareMs": 20.399999976158142,
+            "nativePassthrough": false
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 41.59999990463257,
+              "expanded": 1328,
+              "length": 20
+            },
+            {
+              "index": 1,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 102.30000007152557,
+              "expanded": 4094,
+              "length": 17
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 30.700000047683716,
+              "expanded": 1328,
+              "length": 20
+            },
+            {
+              "index": 1,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 98.60000002384186,
+              "expanded": 4094,
+              "length": 17
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 29.699999928474426,
+              "expanded": 1328,
+              "length": 20
+            },
+            {
+              "index": 1,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 101.20000004768372,
+              "expanded": 4094,
+              "length": 17
+            }
+          ]
+        },
+        {
+          "optimize": false,
+          "preparation": {
+            "enabled": false,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "reason": "disabled",
+            "prepareMs": 0.19999992847442627,
+            "nativePassthrough": false
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 48,
+              "expanded": 1328,
+              "length": 20
+            },
+            {
+              "index": 1,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 121.5,
+              "expanded": 4094,
+              "length": 17
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 38.5,
+              "expanded": 1328,
+              "length": 20
+            },
+            {
+              "index": 1,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 118.90000009536743,
+              "expanded": 4094,
+              "length": 17
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 33.699999928474426,
+              "expanded": 1328,
+              "length": 20
+            },
+            {
+              "index": 1,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 113.09999990463257,
+              "expanded": 4094,
+              "length": 17
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "demo/lunar_lockout.txt",
+      "backend": "native",
+      "results": [
+        {
+          "optimize": false,
+          "preparation": {
+            "enabled": false,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "reason": "disabled",
+            "prepareMs": 0.10000002384185791,
+            "nativePassthrough": false
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 5.300000071525574,
+              "expanded": 299,
+              "length": 20
+            },
+            {
+              "index": 1,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 17.5,
+              "expanded": 1160,
+              "length": 17
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 5,
+              "expanded": 299,
+              "length": 20
+            },
+            {
+              "index": 1,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 17.5,
+              "expanded": 1160,
+              "length": 17
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 4.899999976158142,
+              "expanded": 299,
+              "length": 20
+            },
+            {
+              "index": 1,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 17.399999976158142,
+              "expanded": 1160,
+              "length": 17
+            }
+          ]
+        },
+        {
+          "optimize": true,
+          "preparation": {
+            "enabled": true,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "removed_inert_rules": 0,
+            "removed_cosmetic_objects": 0,
+            "removed_collision_layers": 0,
+            "removed_cosmetic_rules": 0,
+            "removed_win_irrelevant_rules": 0,
+            "merged_object_aliases": 0,
+            "merged_object_groups": 0,
+            "inserted_noaction_metadata": 1,
+            "ms_inert": 0.10000002384185791,
+            "ms_cosmetic": 0.2999999523162842,
+            "ms_cosmetic_rules": 0.3999999761581421,
+            "ms_win_relevance": 0.10000002384185791,
+            "ms_merge": 0.10000002384185791,
+            "ms_action": 0.10000002384185791,
+            "originalObjects": 8,
+            "solverObjects": 7,
+            "originalLayers": 5,
+            "solverLayers": 5,
+            "analysisFamilies": [
+              "mergeability",
+              "movement_action",
+              "win_relevance"
+            ],
+            "prepareMs": 19.399999976158142,
+            "nativePassthrough": true
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 4.899999976158142,
+              "expanded": 299,
+              "length": 20
+            },
+            {
+              "index": 1,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 19.200000047683716,
+              "expanded": 1160,
+              "length": 17
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 5,
+              "expanded": 299,
+              "length": 20
+            },
+            {
+              "index": 1,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 17,
+              "expanded": 1160,
+              "length": 17
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 4.899999976158142,
+              "expanded": 299,
+              "length": 20
+            },
+            {
+              "index": 1,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 18.300000071525574,
+              "expanded": 1160,
+              "length": 17
+            }
+          ]
+        },
+        {
+          "optimize": true,
+          "preparation": {
+            "enabled": true,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "removed_inert_rules": 0,
+            "removed_cosmetic_objects": 0,
+            "removed_collision_layers": 0,
+            "removed_cosmetic_rules": 0,
+            "removed_win_irrelevant_rules": 0,
+            "merged_object_aliases": 0,
+            "merged_object_groups": 0,
+            "inserted_noaction_metadata": 1,
+            "ms_inert": 0,
+            "ms_cosmetic": 0.19999992847442627,
+            "ms_cosmetic_rules": 0.3999999761581421,
+            "ms_win_relevance": 0.10000002384185791,
+            "ms_merge": 0.20000004768371582,
+            "ms_action": 0,
+            "originalObjects": 8,
+            "solverObjects": 7,
+            "originalLayers": 5,
+            "solverLayers": 5,
+            "analysisFamilies": [
+              "mergeability",
+              "movement_action",
+              "win_relevance"
+            ],
+            "prepareMs": 20,
+            "nativePassthrough": true
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 4.800000071525574,
+              "expanded": 299,
+              "length": 20
+            },
+            {
+              "index": 1,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 17.5,
+              "expanded": 1160,
+              "length": 17
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 4.600000023841858,
+              "expanded": 299,
+              "length": 20
+            },
+            {
+              "index": 1,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 18.799999952316284,
+              "expanded": 1160,
+              "length": 17
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 4.600000023841858,
+              "expanded": 299,
+              "length": 20
+            },
+            {
+              "index": 1,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 16.699999928474426,
+              "expanded": 1160,
+              "length": 17
+            }
+          ]
+        },
+        {
+          "optimize": false,
+          "preparation": {
+            "enabled": false,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "reason": "disabled",
+            "prepareMs": 0.20000004768371582,
+            "nativePassthrough": false
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 5,
+              "expanded": 299,
+              "length": 20
+            },
+            {
+              "index": 1,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 17.199999928474426,
+              "expanded": 1160,
+              "length": 17
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 4.5,
+              "expanded": 299,
+              "length": 20
+            },
+            {
+              "index": 1,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 18,
+              "expanded": 1160,
+              "length": 17
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 4.5,
+              "expanded": 299,
+              "length": 20
+            },
+            {
+              "index": 1,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 16.799999952316284,
+              "expanded": 1160,
+              "length": 17
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "tests/good_games/ALL GREEN TO BLUE.txt",
+      "backend": "js",
+      "results": [
+        {
+          "optimize": false,
+          "preparation": {
+            "enabled": false,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "reason": "disabled",
+            "prepareMs": 0.30000007152557373,
+            "nativePassthrough": false
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 15.100000023841858,
+              "expanded": 351,
+              "length": 16
+            },
+            {
+              "index": 1,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 926.6000000238419,
+              "expanded": 29855,
+              "length": 92
+            },
+            {
+              "index": 2,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 8.700000047683716,
+              "expanded": 341,
+              "length": 16
+            },
+            {
+              "index": 3,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 5.100000023841858,
+              "expanded": 177,
+              "length": 16
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 7.899999976158142,
+              "expanded": 351,
+              "length": 16
+            },
+            {
+              "index": 1,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 929.5,
+              "expanded": 29855,
+              "length": 92
+            },
+            {
+              "index": 2,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 8.299999952316284,
+              "expanded": 341,
+              "length": 16
+            },
+            {
+              "index": 3,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 4.5,
+              "expanded": 177,
+              "length": 16
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 8,
+              "expanded": 351,
+              "length": 16
+            },
+            {
+              "index": 1,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 932,
+              "expanded": 29855,
+              "length": 92
+            },
+            {
+              "index": 2,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 8.799999952316284,
+              "expanded": 341,
+              "length": 16
+            },
+            {
+              "index": 3,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 3.899999976158142,
+              "expanded": 177,
+              "length": 16
+            }
+          ]
+        },
+        {
+          "optimize": true,
+          "preparation": {
+            "enabled": false,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "reason": "source has compile errors",
+            "prepareMs": 0.5,
+            "nativePassthrough": false
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 17.40000009536743,
+              "expanded": 351,
+              "length": 16
+            },
+            {
+              "index": 1,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 925.8999999761581,
+              "expanded": 29855,
+              "length": 92
+            },
+            {
+              "index": 2,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 8.600000023841858,
+              "expanded": 341,
+              "length": 16
+            },
+            {
+              "index": 3,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 4.300000071525574,
+              "expanded": 177,
+              "length": 16
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 7.899999976158142,
+              "expanded": 351,
+              "length": 16
+            },
+            {
+              "index": 1,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 932.6000000238419,
+              "expanded": 29855,
+              "length": 92
+            },
+            {
+              "index": 2,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 17.5,
+              "expanded": 341,
+              "length": 16
+            },
+            {
+              "index": 3,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 17.699999928474426,
+              "expanded": 177,
+              "length": 16
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 11.699999928474426,
+              "expanded": 351,
+              "length": 16
+            },
+            {
+              "index": 1,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 939.2999999523163,
+              "expanded": 29855,
+              "length": 92
+            },
+            {
+              "index": 2,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 8.300000071525574,
+              "expanded": 341,
+              "length": 16
+            },
+            {
+              "index": 3,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 3.6999999284744263,
+              "expanded": 177,
+              "length": 16
+            }
+          ]
+        },
+        {
+          "optimize": true,
+          "preparation": {
+            "enabled": false,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "reason": "source has compile errors",
+            "prepareMs": 0.30000007152557373,
+            "nativePassthrough": false
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 16.100000023841858,
+              "expanded": 351,
+              "length": 16
+            },
+            {
+              "index": 1,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 941.3999999761581,
+              "expanded": 29855,
+              "length": 92
+            },
+            {
+              "index": 2,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 8.399999976158142,
+              "expanded": 341,
+              "length": 16
+            },
+            {
+              "index": 3,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 4.200000047683716,
+              "expanded": 177,
+              "length": 16
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 8,
+              "expanded": 351,
+              "length": 16
+            },
+            {
+              "index": 1,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 909.7000000476837,
+              "expanded": 29855,
+              "length": 92
+            },
+            {
+              "index": 2,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 8.900000095367432,
+              "expanded": 341,
+              "length": 16
+            },
+            {
+              "index": 3,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 5.199999928474426,
+              "expanded": 177,
+              "length": 16
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 9.100000023841858,
+              "expanded": 351,
+              "length": 16
+            },
+            {
+              "index": 1,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 938,
+              "expanded": 29855,
+              "length": 92
+            },
+            {
+              "index": 2,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 7.799999952316284,
+              "expanded": 341,
+              "length": 16
+            },
+            {
+              "index": 3,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 3.6999999284744263,
+              "expanded": 177,
+              "length": 16
+            }
+          ]
+        },
+        {
+          "optimize": false,
+          "preparation": {
+            "enabled": false,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "reason": "disabled",
+            "prepareMs": 0.2999999523162842,
+            "nativePassthrough": false
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 15.299999952316284,
+              "expanded": 351,
+              "length": 16
+            },
+            {
+              "index": 1,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 926.8000000715256,
+              "expanded": 29855,
+              "length": 92
+            },
+            {
+              "index": 2,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 9,
+              "expanded": 341,
+              "length": 16
+            },
+            {
+              "index": 3,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 4.400000095367432,
+              "expanded": 177,
+              "length": 16
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 7.5,
+              "expanded": 351,
+              "length": 16
+            },
+            {
+              "index": 1,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 921.5,
+              "expanded": 29855,
+              "length": 92
+            },
+            {
+              "index": 2,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 10.799999952316284,
+              "expanded": 341,
+              "length": 16
+            },
+            {
+              "index": 3,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 5.300000071525574,
+              "expanded": 177,
+              "length": 16
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 9.5,
+              "expanded": 351,
+              "length": 16
+            },
+            {
+              "index": 1,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 934.6000000238419,
+              "expanded": 29855,
+              "length": 92
+            },
+            {
+              "index": 2,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 7.599999904632568,
+              "expanded": 341,
+              "length": 16
+            },
+            {
+              "index": 3,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 4,
+              "expanded": 177,
+              "length": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "tests/good_games/ALL GREEN TO BLUE.txt",
+      "backend": "native",
+      "results": [
+        {
+          "optimize": false,
+          "preparation": {
+            "enabled": false,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "reason": "disabled",
+            "prepareMs": 0.10000002384185791,
+            "nativePassthrough": false
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 1.100000023841858,
+              "expanded": 36,
+              "length": 16
+            },
+            {
+              "index": 1,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 156.79999995231628,
+              "expanded": 8191,
+              "length": 96
+            },
+            {
+              "index": 2,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 0.7999999523162842,
+              "expanded": 35,
+              "length": 16
+            },
+            {
+              "index": 3,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 33.60000002384186,
+              "expanded": 2267,
+              "length": 16
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 0.7999999523162842,
+              "expanded": 36,
+              "length": 16
+            },
+            {
+              "index": 1,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 155.89999997615814,
+              "expanded": 8191,
+              "length": 96
+            },
+            {
+              "index": 2,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 0.7000000476837158,
+              "expanded": 35,
+              "length": 16
+            },
+            {
+              "index": 3,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 34.59999990463257,
+              "expanded": 2267,
+              "length": 16
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 0.6999999284744263,
+              "expanded": 36,
+              "length": 16
+            },
+            {
+              "index": 1,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 157.60000002384186,
+              "expanded": 8191,
+              "length": 96
+            },
+            {
+              "index": 2,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 0.7000000476837158,
+              "expanded": 35,
+              "length": 16
+            },
+            {
+              "index": 3,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 34.200000047683716,
+              "expanded": 2267,
+              "length": 16
+            }
+          ]
+        },
+        {
+          "optimize": true,
+          "preparation": {
+            "enabled": false,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "reason": "source has compile errors",
+            "prepareMs": 0.19999992847442627,
+            "nativePassthrough": false
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 1.100000023841858,
+              "expanded": 36,
+              "length": 16
+            },
+            {
+              "index": 1,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 158.40000009536743,
+              "expanded": 8191,
+              "length": 96
+            },
+            {
+              "index": 2,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 0.7000000476837158,
+              "expanded": 35,
+              "length": 16
+            },
+            {
+              "index": 3,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 34.700000047683716,
+              "expanded": 2267,
+              "length": 16
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 0.6000000238418579,
+              "expanded": 36,
+              "length": 16
+            },
+            {
+              "index": 1,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 154.29999995231628,
+              "expanded": 8191,
+              "length": 96
+            },
+            {
+              "index": 2,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 0.7999999523162842,
+              "expanded": 35,
+              "length": 16
+            },
+            {
+              "index": 3,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 33.799999952316284,
+              "expanded": 2267,
+              "length": 16
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 0.8000000715255737,
+              "expanded": 36,
+              "length": 16
+            },
+            {
+              "index": 1,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 159.40000009536743,
+              "expanded": 8191,
+              "length": 96
+            },
+            {
+              "index": 2,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 0.7000000476837158,
+              "expanded": 35,
+              "length": 16
+            },
+            {
+              "index": 3,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 34.5,
+              "expanded": 2267,
+              "length": 16
+            }
+          ]
+        },
+        {
+          "optimize": true,
+          "preparation": {
+            "enabled": false,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "reason": "source has compile errors",
+            "prepareMs": 0.30000007152557373,
+            "nativePassthrough": false
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 1,
+              "expanded": 36,
+              "length": 16
+            },
+            {
+              "index": 1,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 159.5,
+              "expanded": 8191,
+              "length": 96
+            },
+            {
+              "index": 2,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 0.6999999284744263,
+              "expanded": 35,
+              "length": 16
+            },
+            {
+              "index": 3,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 33.699999928474426,
+              "expanded": 2267,
+              "length": 16
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 0.7999999523162842,
+              "expanded": 36,
+              "length": 16
+            },
+            {
+              "index": 1,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 155.89999997615814,
+              "expanded": 8191,
+              "length": 96
+            },
+            {
+              "index": 2,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 0.8000000715255737,
+              "expanded": 35,
+              "length": 16
+            },
+            {
+              "index": 3,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 33.60000002384186,
+              "expanded": 2267,
+              "length": 16
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 0.7000000476837158,
+              "expanded": 36,
+              "length": 16
+            },
+            {
+              "index": 1,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 157.29999995231628,
+              "expanded": 8191,
+              "length": 96
+            },
+            {
+              "index": 2,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 0.8999999761581421,
+              "expanded": 35,
+              "length": 16
+            },
+            {
+              "index": 3,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 34.300000071525574,
+              "expanded": 2267,
+              "length": 16
+            }
+          ]
+        },
+        {
+          "optimize": false,
+          "preparation": {
+            "enabled": false,
+            "scope": "arbitrary_boards",
+            "replayChecks": 0,
+            "replayRejected": 0,
+            "reason": "disabled",
+            "prepareMs": 0.30000007152557373,
+            "nativePassthrough": false
+          },
+          "samples": [
+            {
+              "index": 0,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 1,
+              "expanded": 36,
+              "length": 16
+            },
+            {
+              "index": 1,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 158,
+              "expanded": 8191,
+              "length": 96
+            },
+            {
+              "index": 2,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 0.6000000238418579,
+              "expanded": 35,
+              "length": 16
+            },
+            {
+              "index": 3,
+              "repeat": 0,
+              "status": "solved",
+              "ms": 34.300000071525574,
+              "expanded": 2267,
+              "length": 16
+            },
+            {
+              "index": 0,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 1.100000023841858,
+              "expanded": 36,
+              "length": 16
+            },
+            {
+              "index": 1,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 156.10000002384186,
+              "expanded": 8191,
+              "length": 96
+            },
+            {
+              "index": 2,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 0.6000000238418579,
+              "expanded": 35,
+              "length": 16
+            },
+            {
+              "index": 3,
+              "repeat": 1,
+              "status": "solved",
+              "ms": 34,
+              "expanded": 2267,
+              "length": 16
+            },
+            {
+              "index": 0,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 0.7999999523162842,
+              "expanded": 36,
+              "length": 16
+            },
+            {
+              "index": 1,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 156.19999992847443,
+              "expanded": 8191,
+              "length": 96
+            },
+            {
+              "index": 2,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 0.7000000476837158,
+              "expanded": 35,
+              "length": 16
+            },
+            {
+              "index": 3,
+              "repeat": 2,
+              "status": "solved",
+              "ms": 33.799999952316284,
+              "expanded": 2267,
+              "length": 16
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": []
+}

@@ -4163,8 +4163,10 @@ Result solveSeededLevel(
     SearchControl control = {}
 ) {
     const TimePoint searchStart = Clock::now();
-    const int64_t effectiveTimeoutMs = std::max<int64_t>(1, timeoutMs);
-    const TimePoint deadline = searchStart + std::chrono::milliseconds(effectiveTimeoutMs);
+    const int64_t effectiveTimeoutMs = timeoutMs < 0 ? -1 : std::max<int64_t>(1, timeoutMs);
+    const TimePoint deadline = timeoutMs < 0
+        ? TimePoint::max()
+        : searchStart + std::chrono::milliseconds(effectiveTimeoutMs);
     const bool effectiveCompactNodeStorage =
         compactNodeStorage
         || (strategy == Strategy::Portfolio && !fullNodeStorage);
@@ -5331,7 +5333,7 @@ extern "C" bool ps_solve_level_layer_cell_object_ids(
     }
 
     ps_solve_options effective = options ? *options : ps_solve_default_options();
-    if (effective.timeout_ms <= 0) {
+    if (effective.timeout_ms == 0) {
         effective.timeout_ms = 1;
     }
     if (effective.portfolio_jobs == 0) {

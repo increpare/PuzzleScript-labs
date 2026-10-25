@@ -1,0 +1,26 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "human_verified": false,
+  "ruleTag": [
+    {
+      "line": 64,
+      "text": "[ stage no mark ] -> [ stage stationary mark ]",
+      "tags": {
+        "self_disabling": true,
+        "persistent_guard": true,
+        "idempotent_effect": true,
+        "setup_only": true
+      }
+    },
+    {
+      "line": 65,
+      "text": "[ floor ] -> [ floor stationary stage ]",
+      "tags": {
+        "self_disabling": false,
+        "persistent_guard": true,
+        "idempotent_effect": true,
+        "setup_only": true
+      }
+    }
+  ]
+}

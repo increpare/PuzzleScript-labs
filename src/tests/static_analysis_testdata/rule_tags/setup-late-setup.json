@@ -1,0 +1,16 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "human_verified": false,
+  "ruleTag": [
+    {
+      "line": 64,
+      "text": "late [ floor no mark ] -> [ floor mark ]",
+      "tags": {
+        "self_disabling": true,
+        "persistent_guard": true,
+        "idempotent_effect": true,
+        "setup_only": true
+      }
+    }
+  ]
+}

@@ -1701,26 +1701,58 @@ function replayInputSpecializationTrace(testName, source, inputs, options = {}) 
     }
     const enabled = options.enabled === true;
     const targetLevel = options.targetLevel === undefined ? 0 : options.targetLevel;
-    const randomSeed = options.randomSeed === undefined ? null : options.randomSeed;
+    // Unseeded fixtures still need the same RNG stream in both parity runs.
+    const randomSeed = options.randomSeed == null
+        ? `input-specialization:${testName}` : options.randomSeed;
     const label = enabled ? 'input specialization on' : 'input specialization off';
     const previousSwitch = getInputSpecializationActive();
     const previousUnitTesting = unitTesting;
     const previousLazyFunctionGeneration = lazyFunctionGeneration;
+    const previousApplyRules = applyRules;
+    const previousLoadLevel = loadLevelFromLevelDat;
     const trace = [];
+    let boundary = 'initial';
+    let rulePhase = 0;
+    let unseededLevelLoads = 0;
+    const snapshotBoundary = () => ({
+        ...replayBoundarySnapshot(boundary),
+        randomState: cloneRandomGenerator(RandomGen),
+    });
     try {
         setInputSpecializationActive(enabled);
         unitTesting = true;
         lazyFunctionGeneration = false;
+        // Level transitions otherwise reseed from wall-clock time and Math.random.
+        loadLevelFromLevelDat = function(state, leveldat, seed, clearinputhistory) {
+            return previousLoadLevel(state, leveldat,
+                seed || `${randomSeed}:level-load:${unseededLevelLoads++}`, clearinputhistory);
+        };
+        // Commands may be consumed or discarded before the input boundary.
+        // Capture them after both main and late rule phases, including probes.
+        applyRules = function(rules, loopPoint, bannedGroup) {
+            const changed = previousApplyRules(rules, loopPoint, bannedGroup);
+            trace.push({
+                boundary,
+                rulePhase: rulePhase++,
+                phase: rules === state.lateRules ? 'late' : 'main',
+                commandQueue: level.commandQueue.slice(),
+                randomState: cloneRandomGenerator(RandomGen),
+            });
+            return changed;
+        };
         compileSimulationSource(`${testName}: ${label}`, source, targetLevel, randomSeed);
-        trace.push(replayBoundarySnapshot('initial'));
+        trace.push(snapshotBoundary());
         for (let inputIndex = 0; inputIndex < inputs.length; inputIndex++) {
             const inputToken = inputs[inputIndex];
+            boundary = `input ${inputIndex} ${tokenLabel(inputToken)}`;
             executeInputToken(inputToken);
             drainAgain(`${testName}: ${label} input ${inputIndex} ${tokenLabel(inputToken)}`);
-            trace.push(replayBoundarySnapshot(`input ${inputIndex} ${tokenLabel(inputToken)}`));
+            trace.push(snapshotBoundary());
         }
         return trace;
     } finally {
+        applyRules = previousApplyRules;
+        loadLevelFromLevelDat = previousLoadLevel;
         setInputSpecializationActive(previousSwitch);
         unitTesting = previousUnitTesting;
         lazyFunctionGeneration = previousLazyFunctionGeneration;
