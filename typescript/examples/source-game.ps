@@ -1,0 +1,42 @@
+title Mouse mail
+author TypeScript reference example
+( Newly written tiny pushing game: help a mouse carry a parcel along the hall. )
+( The unnamed collision layers and single pushing rule need no AGAIN runner. )
+
+objects
+Background .
+black
+
+Player P
+white pink black
+.0.0.
+00000
+01010
+00200
+.000.
+
+Crate C
+orange white
+11111
+10001
+11111
+10001
+11111
+
+Wall #
+gray
+
+legend
+sounds
+collisionlayers
+Background
+Player, Crate, Wall
+
+rules
+[ > Player | Crate ] -> [ > Player | > Crate ]
+
+winconditions
+levels
+#######
+#PC...#
+#######

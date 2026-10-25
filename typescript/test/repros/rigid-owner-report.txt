@@ -1,0 +1,52 @@
+Title: Rigid rollback can disable a rule group that never matched
+
+Repository: https://github.com/increpare/PuzzleScript
+Upstream issue: https://github.com/increpare/PuzzleScript/issues/1206
+Verified revision: 5a94bde1a5127a3a45306ea28598eba2874d446d
+Origin of discovery: constructed edge-case test during a TypeScript port;
+not a failure first found in an existing game.
+
+Reproduction:
+1. Open rigid-owner.puzzlescript in the vanilla editor and compile it.
+2. Press X (action) once.
+3. Observe the rigid rollback diagnostic referring to line 31, the Wall rule.
+   There is no Wall in the level, so that rule cannot have matched.
+
+The relevant rules are:
+  29: rigid right [ Player ] -> [ > Player ]
+  30: rigid down [ Player Crate ] -> [ > Player > Crate ]
+  31: rigid right [ Wall ] -> [ > Wall ]
+
+Player and Crate occupy separate collision layers in the same starting cell.
+The first rule affects Player. The second affects Player and Crate. The third
+tests an absent Wall.
+
+Expected:
+Rigid ownership and rollback should refer to a group that actually contributed
+to the attempted move. The absent Wall rule must not become the owner.
+This report does not prescribe which of the two contributing groups should win.
+
+Actual on the first movement attempt:
+  Player layer owner: group index 2, source line 31 (the unmatched Wall rule).
+  Crate layer owner: group index 1, source line 30.
+  Movement fails and bans group index 2, then retries once.
+
+Independent Node reproduction from this checkout:
+  node typescript/test/repros/rigid-owner.cjs 4
+Omit the final 4 to reproduce with a no-input tick instead of action.
+The runner loads the unmodified pinned vanilla JS and prints owners and bans.
+
+Cause:
+Rigid group identifiers are stored as one-based numeric codes. Overlapping
+replacements can combine ownership codes using bitwise OR. Codes 1 and 2
+combine into 3, which is then interpreted as the third group. A cell-wide
+guard permits this when the later replacement also affects a new layer.
+
+Compatibility decision for the reference port:
+The user has requested preserving this existing behaviour for now (issue #1206);
+the readable runtime uses transitions between actual groups, not packed codes.
+
+Separate finding:
+The randomdir/input-specialization sound bug was observed in PuzzleScript-labs.
+This vanilla revision has no input-specialization implementation, so that finding
+must not be reported as a vanilla PuzzleScript regression.

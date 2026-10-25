@@ -1,0 +1,20 @@
+{
+  "name": "puzzlescript-typescript-reference",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "test:corpus": "npm run build && node test/corpus.cjs",
+    "example": "npm run build && node examples/movement.mjs",
+    "example:matching": "npm run build && node examples/matching.mjs",
+    "example:turn": "npm run build && node examples/turn.mjs",
+    "example:session": "npm run build && node examples/session.mjs",
+    "trace": "node --enable-source-maps bin/trace.mjs",
+    "example:source": "node --enable-source-maps examples/source.mjs"
+  },
+  "devDependencies": {
+    "typescript": "6.0.2"
+  }
+}

@@ -1,0 +1,75 @@
+FIXED: Whole-line Unicode lexing for legend, object and collision-layer names
+
+Oracle: increpare/PuzzleScript, revision 5a94bde1a5127a3a45306ea28598eba2874d446d.
+Reproduction: legend-unicode-expansion.puzzlescript.
+
+Native lowercases the whole physical line before tokenization. In
+"X = İ or Crate", U+0130 becomes "i" plus U+0307. Native captures the RHS
+name "i", stops at the generated combining mark, and registers X as a synonym
+of I. Its X map cell therefore contains I and the background.
+
+Before the fix, TypeScript captured the authored İ as a whole lexical name and
+continued through OR and Crate. It recovered a property instead of the native
+synonym, producing incorrect named-object/sound-target lookups and empty cells.
+
+Legend definition tokens now carry a native lexical value and an authored
+SourceWord separately. The reader lowercases the complete physical line before
+comment masking, then maps normalized UTF-16 units back to complete authored
+code points. The token value for this RHS is "i", while its SourceWord still
+has spelling İ, normalized value "i" plus U+0307, and its original one-unit span.
+The raw authored legend words, comments, and provenance identities are retained.
+
+Reusable API: SourceLexicalToken in src/source-model.ts contains value: string
+and word: SourceWord. lowercaseSourceView(line, view) in src/source-text.ts
+returns the lowercased comment-masked value plus authoredRanges, one original
+code-point range per normalized UTF-16 unit. src/source-reader.ts uses those
+ranges to reuse a complete authored SourceWord or create an exact prefix slice.
+src/source-legend.ts recovers token references; src/declarations.ts uses their
+values for language identity and their words for source evidence.
+
+test/unicode-legend.test.mjs runs this reproduction through the pinned native
+game-data comparison and explicitly verifies that X resolves to the canonical I
+object and that its map cell contains I and the background. The comparison was
+observed failing before the implementation and passing afterward. Related
+checks cover contextual Greek sigma, comment resumption, astral spans, Unicode
+aliases, frozen authored inputs, and diagnostics for expanded source words.
+
+FIXED (2026-10-24): Object and collision-layer lexical names now use the same
+whole-physical-line lowercase view and authored offset mapping. Their explicit
+definitionNames tokens leave the raw primaryName, aliases, names, words, comments
+and spans unchanged. The first object token is its concrete name; later tokens
+are aliases. An object named İ creates concrete i and a generated U+0307 alias.
+Both tokens retain the exact authored primary SourceWord, whose normalized value
+is still "i" plus U+0307. An authored object name ΟΣ'Α creates primary οσ using
+whole-line casing context, while its raw authored prefix ΟΣ still normalizes
+independently to ος. An authored İ alias after another primary remains the full
+"i" plus U+0307 lexical alias. Collision layers accept Unicode letter/number/_
+runs, consuming an invalid combining mark and continuing to the next name.
+
+Additional syntax-stage evidence (2026-10-24): start with movementSource from
+test/scenarios.mjs, use the rule below, then rename every Player to İ, Crate to
+𐐀, and Wall to ΟΣ throughout the source:
+
+    [ > İ | ^ 𐐀 | v ΟΣ ] -> [ İ | 𐐀 | ΟΣ ]
+
+Native's final names do not contain the rule token "i" plus U+0307. Before the
+object-name fix, declarations.firstDeclarationWords incorrectly contained it.
+The corrected registrations omit that full token, so independent syntax recovery
+now agrees with native: ignore the unknown token without clearing the pending
+Forward qualifier, reject the following pipe, and diagnose the next relative
+qualifier as a second qualifier. The RHS retains an empty first cell, making
+native state.invalid true because recovered LHS and RHS cell counts differ.
+
+test/unicode-object-names.test.mjs compares source, declarations, game data and
+the actual native rule-syntax tuples for these cases. The dotted-I and contextual
+Greek primary failures were observed RED before implementation. Coverage includes
+stable astral names, leading/trailing comments, punctuation context, ASCII aliases,
+authored versus generated combining aliases, duplicate-name recovery, final layer
+ownership, expanded layer-name runs, literal İ map width, frozen source inputs,
+canonical object identity, exact lexical/source provenance and producer guards.
+The existing 478-source comparisons and 312 malformed-source span checks remain.
+
+Scope boundary: this fixes the confirmed object/layer lexical-name mismatches.
+It does not establish complete Unicode grammar compatibility or change malformed
+object-header comment-continuation grammar, native diagnostics, production JS,
+or the preserved vanilla behavior documented in issue #1206.

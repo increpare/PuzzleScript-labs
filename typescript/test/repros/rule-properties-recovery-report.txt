@@ -1,0 +1,62 @@
+Vanilla property/spawn inference recovery evidence
+================================================
+
+Native base: 5a94bde1a5127a3a45306ea28598eba2874d446d.
+No native sources, pinned hashes, parser recovery types or earlier boundaries changed.
+
+An isolated invalid stage-input boundary
+---------------------------------------
+Use movementSource with this added legend and rule:
+
+    Pair = Crate and Wall
+    Empty = Pair or Pair
+    right [ no Empty ] -> [ Player ]
+
+The parser does not register Empty: generateExtraMembers produces propertiesDict {}.
+processRuleString produces lhs [[]] and rhs [[["", "player"]]].
+The earlier syntax-invalid flag is already true. If the later property function
+is invoked directly anyway, its RHS transport scan calls getPropertiesFromCell
+with an undefined corresponding LHS cell and throws:
+
+    TypeError: Cannot read properties of undefined (reading 'length')
+      at getPropertiesFromCell
+      at concretizePropertyRule
+
+The typed isolated stage path throws TypeError too. This is evidence about an
+invalid direct stage input, not a claim that complete native compilation reaches
+this stage: the compiler has an earlier syntax-invalid checkpoint.
+
+A genuine empty final property
+------------------------------
+Omit P = Player and add:
+
+    Choices = Player or Player
+    Player = Choices
+
+Two fixed-3000-ms native child probes (Player and equivalent Crate forms) exited
+normally and produced propertiesDict {choices: [], player: []} / {choices: [], crate: []}.
+Unlike the rejected declaration above, native syntax retains the actual
+[[["no", "choices"]]] cell. The ordinary original-source oracle then confirms:
+
+    right [ no Choices ] -> [ Wall ]
+      has an empty LHS cell after the early negative pass and retains one rule;
+    right [ Wall ] -> [ no Choices ]
+      reaches property inference with the RHS No Choices term intact, erases it
+      to an empty RHS cell, and retains one rule;
+    right [ Choices ] -> [ Wall ]
+      has no property choices and produces no variants or property diagnostics.
+
+Unknown members and actual unlayered objects
+-------------------------------------------
+Both member orders of Things = Missing or Wall were tested from original source,
+with Wall layered and Crate unlayered:
+
+    right [ random Things ] -> [ Crate ]
+
+The unknown member supplies no object or layer, so Crate becomes stationary.
+By contrast, a known unlayered LHS Crate supplies the actual undefined layer:
+
+    right [ Crate ] -> [ Wall ]
+
+When both are unlayered, Wall remains unspecified. No fallback layer, unavailable
+object sentinel, new inferred binding, or widened name type is introduced.
