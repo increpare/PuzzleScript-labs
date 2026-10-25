@@ -1,6 +1,7 @@
 # MIS95
 
-This variant is called **MIS95**. PuzzleScript+MIS was created by
+This variant is called **MIS95** and is published at
+<https://www.puzzlescript.net/mis95/>. PuzzleScript+MIS was created by
 **Kevin De Keyser**; MIS95 is a redesign built on his original tool and
 research (<https://dekeyser.ch/puzzlescriptmis/>).
 

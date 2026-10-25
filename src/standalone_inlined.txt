@@ -18561,7 +18561,15 @@ function computeInputSpecWriteMovementsSet(state, ruleTuple, oldrule) {
             const replacement = cell.replacement;
             if (!replacement) continue;
             if (replacement.movementsSet) result.ior(replacement.movementsSet);
-            if (replacement.randomDirMask) result.ior(replacement.randomDirMask);
+            if (replacement.randomDirMask) {
+                // randomDirMask marks affected layers; its 0b00101 marker is
+                // not a movement set. Random selection can write any cardinal.
+                for (let layer = 0; layer < state.collisionLayers.length; layer++) {
+                    if (replacement.randomDirMask.get(5 * layer)) {
+                        result.ishiftor(0x0f, 5 * layer);
+                    }
+                }
+            }
             const coupled = replacement.layerCoupledMovementReplacements;
             if (coupled) {
                 for (let ci = 0; ci < coupled.length; ci++) {
