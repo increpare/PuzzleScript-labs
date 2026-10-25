@@ -74,6 +74,9 @@ exports Microban and plays the file on its own.
 Both the game source and transform panels use CodeMirror 6, sharing the main
 PuzzleScript editor's pinned runtime, parser, token styling, completion source,
 search and editing commands. MIS no longer loads a CodeMirror 5 editor.
+Colour codes such as `#ffffff` are drawn in their own colour, darkened where
+needed to stay readable on MIS95's white editor (ported from vanilla
+PuzzleScript's fix for issue 1210; the dark labs editor is unchanged).
 
 Object/property suggestions appear as you type. Ctrl+Space opens completions
 manually; arrows select, Enter or Tab accepts, and Escape dismisses the list.
