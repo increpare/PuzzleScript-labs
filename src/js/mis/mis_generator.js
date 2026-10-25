@@ -116,7 +116,10 @@ const MISGenerator = (function () {
 			return n;
 		}
 
-		const stats = { generated: 0, duplicates: 0, unchanged: 0, otherShard: 0, solved: 0, unsolvable: 0, timeout: 0, budgetMs: budget };
+		const stats = { generated: 0, duplicates: 0, unchanged: 0, otherShard: 0, solved: 0, unsolvable: 0, timeout: 0, offGoal: 0, budgetMs: budget };
+		// Optional filter (the app's rule goals): solved candidates it rejects
+		// never reach the shortlist or the caller.
+		const accept = opts.accept || null;
 		// Profile: milliseconds and counts per phase.
 		const prof = {
 			transformMs: 0, keyMs: 0, primarySolvedMs: 0, primaryUnsolvableMs: 0, primaryTimeoutMs: 0,
@@ -266,6 +269,7 @@ const MISGenerator = (function () {
 			if (r.status !== 'solved') return recordUnsolved(r, ms, board, retried);
 			stats.solved++;
 			if (retried) stats.timeout--;
+			if (accept && !accept(board, r)) { stats.offGoal++; return null; }
 			if (r.refined) { prof.refineMs += ms; prof.refines++; } else prof.primarySolvedMs += ms;
 			prof.primaryExpandedSolved += r.expanded || 0;
 			if (eliteParents) addElite(r.effort, board);
@@ -299,6 +303,7 @@ const MISGenerator = (function () {
 			prof.primaryExpandedSolved += primary.expanded || 0;
 			stats.solved++;
 			if (retried) stats.timeout--;
+			if (accept && !accept(board, primary)) { stats.offGoal++; return null; }
 			const couldPlace = topEfforts.length < keepCount || primary.effort >= floor();
 			let result = primary;
 			if (couldPlace) {

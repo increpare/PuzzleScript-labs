@@ -19,6 +19,7 @@ importScripts('mis_generator.js');
 importScripts('../semantic_compile.js', 'mis_optimizer_bundle.js');
 
 let model = null;
+let gameSource = '';
 // Solver backend: the WebAssembly build of the native solver when available
 // (native/wasm/build_mis_wasm.sh), otherwise the JS engine solver in MISCore.
 let native = null;
@@ -66,13 +67,15 @@ self.onmessage = function (e) {
 	try {
 		if (msg.type === 'init') {
 			const res = misCompile(msg.source);
+			gameSource = msg.source;
+			variants.clear();
 			model = res.ok ? MISCore.extractModel(msg.source) : null;
 			native = null;
 			preparation = model ? MISOptimizer.prepare(msg.source, model, { enabled: msg.optimize !== false, hasErrors: res.hasErrors }) : null;
 			solverBackend = preparation ? MISOptimizer.createBackend(preparation) : null;
 			if (!model || msg.backend === 'js') {
 				backendNote = msg.backend === 'js' ? 'JS solver (chosen)' : '';
-				reply({ type: 'ready', ok: !!model, errors: res.errors, backend: 'js', note: backendNote, optimization: preparation && preparation.telemetry });
+				reply({ type: 'ready', ok: !!model, errors: res.errors, backend: 'js', note: backendNote, optimization: preparation && preparation.telemetry, ruleTags: preparation && preparation.ruleTags });
 				return;
 			}
 			loadNative().then(function (M) {
@@ -93,7 +96,7 @@ self.onmessage = function (e) {
 					else backendNote = attached.reason + ' — using JS';
 				}
 				solverBackend = MISOptimizer.createBackend(preparation, native, { originalNative });
-				reply({ type: 'ready', ok: true, errors: res.errors, backend: native ? 'native' : 'js', note: backendNote, optimization: preparation.telemetry });
+				reply({ type: 'ready', ok: true, errors: res.errors, backend: native ? 'native' : 'js', note: backendNote, optimization: preparation.telemetry, ruleTags: preparation.ruleTags });
 			});
 		} else if (msg.type === 'assess') {
 			const r = backend.assess(boardFrom(msg.board), Object.assign({ verifyOriginalJS: true }, msg.opts));
@@ -109,6 +112,8 @@ self.onmessage = function (e) {
 			// to whoever shows the candidate).
 			const r = backend.solve(boardFrom(msg.board), Object.assign({ strategy: 'bfs', verifyOriginalJS: true }, msg.opts));
 			reply({ type: 'proved', id: msg.id, result: { status: r.status, solution: r.status === 'solved' ? r.solution : null } });
+		} else if (msg.type === 'ruleCheck') {
+			ruleCheck(msg);
 		} else if (msg.type === 'generate') {
 			generate(msg);
 		}
@@ -116,6 +121,113 @@ self.onmessage = function (e) {
 		reply({ type: 'error', id: msg.id, message: String(err && err.message || err), stack: err && err.stack });
 	}
 };
+
+/////////////////////////////////////////////////////////////////////
+// Rule goals: solving the level with rules removed
+/////////////////////////////////////////////////////////////////////
+
+// The game with some rule lines removed, prepared once and kept. Each holds
+// its own compiled engine state; the backend switches to it per solve.
+const variants = new Map();
+function variantFor(lines) {
+	const key = lines.slice().sort(function (a, b) { return a - b; }).join(',');
+	if (variants.has(key)) return variants.get(key);
+	let v = null;
+	try {
+		const source = MISCore.withoutRuleLines(gameSource, lines);
+		const res = misCompile(source);
+		if (res.ok && !res.hasErrors) {
+			const m = MISCore.extractModel(source);
+			// Removing rules never changes objects or layers; refuse if it did.
+			if (m && m.objectCount === model.objectCount && m.stride === model.stride && m.layerCount === model.layerCount) {
+				const prep = MISOptimizer.prepare(source, m, { enabled: true });
+				v = { backend: MISOptimizer.createBackend(prep) };
+			}
+		}
+	} catch (e) {
+		v = null;
+	} finally {
+		restoreGame();
+	}
+	variants.set(key, v);
+	return v;
+}
+
+function restoreGame() {
+	if (preparation) preparation.activateOriginal();
+}
+
+function variantSolve(lines, board, limits) {
+	const v = variantFor(lines);
+	if (!v) return { status: 'error' };
+	try { return v.backend.solve(board, Object.assign({ strategy: 'bfs' }, limits)); }
+	finally { restoreGame(); }
+}
+
+// The level's shortest solution in the real game: { solution } or null.
+function shortestSolution(board, solution, optimal, limits) {
+	if (optimal && solution) return solution;
+	const r = backend.solve(board, Object.assign({ strategy: 'bfs' }, limits));
+	return r.status === 'solved' ? r.solution : null;
+}
+
+function firedLines(board, solution) {
+	restoreGame();
+	const fired = new Set();
+	MISCore.traceRules(model, board, solution).forEach(function (step) { step.forEach(function (line) { fired.add(line); }); });
+	return fired;
+}
+
+// What one rule line means for this level:
+//   required  - unsolvable without it
+//   shortcut  - solvable without it, but only in more moves
+//   optional  - solvable without it in the same number of moves
+//   unknown   - the search ran out of budget
+// `shortest` is the real game's shortest solution (null if unknown).
+function ruleStatus(line, board, shortest, fired, limits) {
+	if (shortest && !fired.has(line)) return { status: 'optional' };
+	const r = variantSolve([line], board, limits);
+	if (r.status === 'unsolvable') return { status: 'required' };
+	if (r.status !== 'solved') return { status: 'unknown' };
+	if (!shortest) return { status: 'optional', length: r.solution.length };
+	return { status: r.solution.length > shortest.length ? 'shortcut' : 'optional', length: r.solution.length };
+}
+
+function ruleCheck(msg) {
+	const board = boardFrom(msg.board);
+	const limits = { timeMs: msg.timeMs || 3000, maxExpanded: msg.maxExpanded || 300000 };
+	const shortest = shortestSolution(board, msg.solution, msg.optimal, limits);
+	const fired = firedLines(board, shortest || msg.solution);
+	const out = {};
+	msg.lines.forEach(function (line) {
+		out[line] = ruleStatus(line, board, shortest, fired, limits);
+		reply({ type: 'progress', id: msg.id, line: line, result: out[line] });
+	});
+	reply({ type: 'ruleChecked', id: msg.id, result: out, shortest: shortest ? shortest.length : null });
+}
+
+// Generator filter for rule goals { need: [lines], ban: [lines] }. A needed
+// rule must be required; a banned rule must give no shortcut.
+function goalFilter(goals, limits) {
+	return function (board, r) {
+		const fired = firedLines(board, r.solution);
+		// Every solution of a level that needs a rule fires it: a cheap first test.
+		for (let i = 0; i < goals.need.length; i++) if (!fired.has(goals.need[i])) return false;
+		if (goals.ban.length) {
+			const shortest = shortestSolution(board, r.solution, r.optimal, limits);
+			if (!shortest) return false;
+			const firedShortest = r.optimal ? fired : firedLines(board, shortest);
+			for (let i = 0; i < goals.ban.length; i++) {
+				const s = ruleStatus(goals.ban[i], board, shortest, firedShortest, limits);
+				if (s.status !== 'optional') return false;
+			}
+		}
+		for (let i = 0; i < goals.need.length; i++) {
+			if (variantSolve([goals.need[i]], board, limits).status !== 'unsolvable') return false;
+		}
+		return true;
+	};
+}
 
 /////////////////////////////////////////////////////////////////////
 // Generation loop (logic in mis_generator.js)
@@ -155,6 +267,8 @@ function generate(msg) {
 		optimalCap: msg.optimalCap, initialBudgetMs: msg.initialBudgetMs, maxBudgetMs: msg.maxBudgetMs,
 		shard: msg.shardCount > 1 ? { index: msg.shardIndex, count: msg.shardCount } : null,
 		pipeline: msg.pipeline,
+		accept: msg.goals && (msg.goals.need.length || msg.goals.ban.length)
+			? goalFilter(msg.goals, { timeMs: 2000, maxExpanded: 200000 }) : null,
 	});
 	let lastStats = 0;
 	function flushStats(force) {

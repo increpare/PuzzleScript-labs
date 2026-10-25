@@ -34,7 +34,7 @@ function prepare(source, originalModel, options = {}) {
         // Cosmetic/merge projection is only replay-validated for deterministic
         // forward search. Preserve the existing random-game backend unchanged.
         if (report.ps_tagged.game.tags.has_random) throw new Error('random mechanics');
-        ruleTags = ruleLineTags(report.ps_tagged);
+        ruleTags = ruleLineTags(report);
         const passes = optimizer.effectiveSolverPassesForHook(report, optimizer.parseSolverOptPassList('all'));
         const optimized = psCompileSemantic(source, true, { staticAnalysisReport: report, passes }, optimizer);
         if (optimized.errorCount || !optimized.state || optimized.state.invalid) throw new Error('optimized semantic compile failed');
@@ -105,20 +105,22 @@ function prepare(source, originalModel, options = {}) {
 }
 
 // Source lines whose rules can't affect play: { line: 'cosmetic' | 'inert' }.
-// A line is listed only when every rule compiled from it is tagged.
-function ruleLineTags(tagged) {
-    const tags = {}, mixed = new Set();
-    for (const section of tagged.rule_sections) {
+// Cosmetic lines are exactly those the solver drops (every rule on the line
+// only touches cosmetic objects, and nothing kept reads them); inert lines
+// only issue commands such as sfx, on every rule compiled from the line.
+function ruleLineTags(report) {
+    const tags = {};
+    for (const line of optimizer.cosmeticRuleSourceLines(report)) tags[line] = 'cosmetic';
+    const inert = new Map();
+    for (const section of report.ps_tagged.rule_sections) {
         for (const group of section.groups) {
             for (const rule of group.rules) {
                 const line = rule.source_line;
-                const tag = rule.tags.cosmetic ? 'cosmetic' : rule.tags.inert_command_only ? 'inert' : null;
-                if (!tag) mixed.add(line);
-                else if (!tags[line] || tag === 'inert') tags[line] = tag;
+                inert.set(line, (inert.has(line) ? inert.get(line) : true) && rule.tags.inert_command_only === true);
             }
         }
     }
-    for (const line of mixed) delete tags[line];
+    for (const [line, all] of inert) if (all) tags[line] = 'inert';
     return tags;
 }
 

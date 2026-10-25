@@ -1922,6 +1922,7 @@ mis_tests:
 	$(NODE) src/tests/portable_semantics_node.js
 	$(NODE) src/tests/aggregate_win_semantics_node.js
 	$(NODE) src/tests/mis_optimization_node.js
+	$(NODE) src/tests/mis_rule_goals_node.js
 
 mis_backend_bench:
 	$(NODE) src/tests/mis_backend_bench_node.js
