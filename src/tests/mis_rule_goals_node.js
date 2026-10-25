@@ -61,6 +61,17 @@ async function init(source) {
 	return ready;
 }
 
+// A rule that can never fire: Player and Crate share a collision layer.
+const DEAD = '[ Player Target ] [ Crate Player ] -> [ Player Target ] [ ]';
+const DEAD_GAME = demo.replace(PUSH, PUSH + '\n' + DEAD);
+const DEAD_LINE = lineOf(DEAD_GAME, DEAD);
+
+function solutionFor(source, board) {
+	misCompile(source);
+	const model = MISCore.extractModel(source);
+	return MISCore.solve(model, { w: board.w, h: board.h, cells: new Int32Array(board.cells) }, { strategy: 'bfs', maxExpanded: 0 }).solution;
+}
+
 function firstBoard(source) {
 	misCompile(source);
 	const model = MISCore.extractModel(source);
@@ -74,79 +85,57 @@ function firstBoard(source) {
 		assert.deepStrictEqual(ready.ruleTags, { [SOUND_LINE]: 'inert' });
 	});
 
-	await test('rule check: the push rule is required', async () => {
-		await init(demo);
+	await test('rule check: every solution pushes, so push is required', async () => {
 		const board = firstBoard(demo);
+		const solution = solutionFor(demo, board);
+		await init(demo);
 		const progress = [];
-		const msgs = await send({ type: 'ruleCheck', id: 1, board, lines: [DEMO_PUSH_LINE], timeMs: 20000 },
+		const msgs = await send({ type: 'ruleCheck', id: 1, board, solution, lines: [DEMO_PUSH_LINE], banLines: [DEMO_PUSH_LINE] },
 			m => { if (m.type === 'progress') progress.push(m.line); return m.type === 'ruleChecked'; });
 		assert.deepStrictEqual(progress, [DEMO_PUSH_LINE]);
-		assert.strictEqual(msgs[msgs.length - 1].result[DEMO_PUSH_LINE].status, 'required');
+		assert.deepStrictEqual(msgs[msgs.length - 1].result[DEMO_PUSH_LINE], { need: 'required', ban: 'used' });
 	});
 
-	await test('rule check: boring through walls is a shortcut', async () => {
-		await init(GAME);
+	await test('rule check: boring through walls is optional, and some solution uses it', async () => {
 		const board = firstBoard(GAME);
-		const msgs = await send({ type: 'ruleCheck', id: 2, board, lines: [BORE_LINE], timeMs: 20000, maxExpanded: 2000000 }, m => m.type === 'ruleChecked');
-		const done = msgs[msgs.length - 1];
-		assert.strictEqual(done.result[BORE_LINE].status, 'shortcut');
-		assert(done.result[BORE_LINE].length > done.shortest, 'without boring, the solution is longer');
-	});
-
-	await test('rule check: a rule that never fires in a shortest solution is optional without searching', async () => {
+		const solution = solutionFor(GAME, board);
 		await init(GAME);
-		const board = firstBoard(demo);
-		const msgs = await send({ type: 'ruleCheck', id: 3, board, lines: [SOUND_LINE], timeMs: 20000 }, m => m.type === 'ruleChecked');
-		assert.strictEqual(msgs[msgs.length - 1].result[SOUND_LINE].status, 'optional');
+		const msgs = await send({ type: 'ruleCheck', id: 2, board, solution, lines: [BORE_LINE], banLines: [BORE_LINE] }, m => m.type === 'ruleChecked');
+		assert.deepStrictEqual(msgs[msgs.length - 1].result[BORE_LINE], { need: 'optional', ban: 'used' });
 	});
 
-	await test('generator: banning the push rule rejects every solvable candidate', async () => {
-		await init(demo);
-		const board = firstBoard(demo);
-		let stats = null, candidates = 0;
-		await new Promise(resolve => {
+	await test('rule check: a rule that can never fire is optional and never used', async () => {
+		const board = firstBoard(DEAD_GAME);
+		const solution = solutionFor(DEAD_GAME, board);
+		await init(DEAD_GAME);
+		const msgs = await send({ type: 'ruleCheck', id: 3, board, solution, lines: [DEAD_LINE], banLines: [DEAD_LINE] }, m => m.type === 'ruleChecked');
+		assert.deepStrictEqual(msgs[msgs.length - 1].result[DEAD_LINE], { need: 'optional', ban: 'never' });
+	});
+
+	const TRANSFORM = 'choose 2 [ Wall ] -> [ ]\nchoose 1 [ no Wall no Crate no Player no Target ] -> [ Wall ]';
+	function generate(goals, seed, until) {
+		return new Promise(resolve => {
+			let stats = null, candidates = 0;
 			listener = m => {
 				if (m.type === 'candidate') candidates++;
-				if (m.type === 'stats') { stats = m.stats; if (stats.solved >= 5) { listener = null; resolve(); } }
+				if (m.type === 'stats') stats = m.stats;
+				if (stats && until(stats, candidates)) { listener = null; resolve({ stats, candidates }); }
 			};
-			self.onmessage({ data: {
-				type: 'generate', base: board, transform: 'choose 2 [ Wall ] -> [ ]\nchoose 1 [ no Wall no Crate no Player no Target ] -> [ Wall ]',
-				goals: { need: [], ban: [DEMO_PUSH_LINE] }, seed: 3, keep: 4,
-			} });
+			self.onmessage({ data: { type: 'generate', base: firstBoard(DEAD_GAME), transform: TRANSFORM, goals, seed, keep: 4 } });
 		});
+	}
+
+	await test('generator: banning the push rule rejects every solvable candidate', async () => {
+		await init(DEAD_GAME);
+		const { stats, candidates } = await generate({ need: [], ban: [DEMO_PUSH_LINE] }, 3, s => s.solved >= 5);
 		assert.strictEqual(candidates, 0);
 		assert.strictEqual(stats.offGoal, stats.solved);
 	});
 
-	await test('generator: needing the push rule keeps candidates', async () => {
-		await init(demo);
-		const board = firstBoard(demo);
-		const found = [];
-		await new Promise(resolve => {
-			listener = m => { if (m.type === 'candidate') { found.push(m); if (found.length >= 2) { listener = null; resolve(); } } };
-			self.onmessage({ data: {
-				type: 'generate', base: board, transform: 'choose 2 [ Wall ] -> [ ]\nchoose 1 [ no Wall no Crate no Player no Target ] -> [ Wall ]',
-				goals: { need: [DEMO_PUSH_LINE], ban: [] }, seed: 4, keep: 4,
-			} });
-		});
-		assert.strictEqual(found.length, 2);
-	});
-
-	await test('generator: banning a rule that fires but gives no shortcut keeps candidates', async () => {
-		const soundGame = demo.replace(PUSH, PUSH + '\n[ Crate Target ] -> [ Crate Target ] sfx0')
-			.replace('Crate move 36772507', 'Crate move 36772507\nsfx0 36772507');
-		const soundLine = lineOf(soundGame, '[ Crate Target ] -> [ Crate Target ] sfx0');
-		await init(soundGame);
-		const board = firstBoard(soundGame);
-		const found = [];
-		await new Promise(resolve => {
-			listener = m => { if (m.type === 'candidate') { found.push(m); if (found.length >= 2) { listener = null; resolve(); } } };
-			self.onmessage({ data: {
-				type: 'generate', base: board, transform: 'choose 2 [ Wall ] -> [ ]\nchoose 1 [ no Wall no Crate no Player no Target ] -> [ Wall ]',
-				goals: { need: [], ban: [soundLine] }, seed: 6, keep: 4,
-			} });
-		});
-		assert.strictEqual(found.length, 2);
+	await test('generator: needing push and banning a rule that never fires keeps candidates', async () => {
+		await init(DEAD_GAME);
+		const { candidates } = await generate({ need: [DEMO_PUSH_LINE], ban: [DEAD_LINE] }, 4, (s, n) => n >= 2);
+		assert(candidates >= 2);
 	});
 
 	console.log(`\n${passed} passed${process.exitCode ? ', some FAILED' : ''}`);

@@ -19,7 +19,6 @@ importScripts('mis_generator.js');
 importScripts('../semantic_compile.js', 'mis_optimizer_bundle.js');
 
 let model = null;
-let gameSource = '';
 // Solver backend: the WebAssembly build of the native solver when available
 // (native/wasm/build_mis_wasm.sh), otherwise the JS engine solver in MISCore.
 let native = null;
@@ -67,8 +66,6 @@ self.onmessage = function (e) {
 	try {
 		if (msg.type === 'init') {
 			const res = misCompile(msg.source);
-			gameSource = msg.source;
-			variants.clear();
 			model = res.ok ? MISCore.extractModel(msg.source) : null;
 			native = null;
 			preparation = model ? MISOptimizer.prepare(msg.source, model, { enabled: msg.optimize !== false, hasErrors: res.hasErrors }) : null;
@@ -123,109 +120,67 @@ self.onmessage = function (e) {
 };
 
 /////////////////////////////////////////////////////////////////////
-// Rule goals: solving the level with rules removed
+// Rule goals: does every solution fire a rule? does any?
 /////////////////////////////////////////////////////////////////////
+//
+// MISCore.ruleGoalSearch tracks which rules fire, so it runs on the JS engine
+// with the game's original rules (the solver's reduced rules renumber lines).
 
-// The game with some rule lines removed, prepared once and kept. Each holds
-// its own compiled engine state; the backend switches to it per solve.
-const variants = new Map();
-function variantFor(lines) {
-	const key = lines.slice().sort(function (a, b) { return a - b; }).join(',');
-	if (variants.has(key)) return variants.get(key);
-	let v = null;
-	try {
-		const source = MISCore.withoutRuleLines(gameSource, lines);
-		const res = misCompile(source);
-		if (res.ok && !res.hasErrors) {
-			const m = MISCore.extractModel(source);
-			// Removing rules never changes objects or layers; refuse if it did.
-			if (m && m.objectCount === model.objectCount && m.stride === model.stride && m.layerCount === model.layerCount) {
-				const prep = MISOptimizer.prepare(source, m, { enabled: true });
-				v = { backend: MISOptimizer.createBackend(prep) };
-			}
-		}
-	} catch (e) {
-		v = null;
-	} finally {
-		restoreGame();
-	}
-	variants.set(key, v);
-	return v;
-}
-
-function restoreGame() {
+function goalSearch(board, goals, limits) {
 	if (preparation) preparation.activateOriginal();
-}
-
-function variantSolve(lines, board, limits) {
-	const v = variantFor(lines);
-	if (!v) return { status: 'error' };
-	try { return v.backend.solve(board, Object.assign({ strategy: 'bfs' }, limits)); }
-	finally { restoreGame(); }
-}
-
-// The level's shortest solution in the real game: { solution } or null.
-function shortestSolution(board, solution, optimal, limits) {
-	if (optimal && solution) return solution;
-	const r = backend.solve(board, Object.assign({ strategy: 'bfs' }, limits));
-	return r.status === 'solved' ? r.solution : null;
+	return MISCore.ruleGoalSearch(model, board, goals, limits);
 }
 
 function firedLines(board, solution) {
-	restoreGame();
+	if (preparation) preparation.activateOriginal();
 	const fired = new Set();
 	MISCore.traceRules(model, board, solution).forEach(function (step) { step.forEach(function (line) { fired.add(line); }); });
 	return fired;
 }
 
-// What one rule line means for this level:
-//   required  - unsolvable without it
-//   shortcut  - solvable without it, but only in more moves
-//   optional  - solvable without it in the same number of moves
-//   unknown   - the search ran out of budget
-// `shortest` is the real game's shortest solution (null if unknown).
-function ruleStatus(line, board, shortest, fired, limits) {
-	if (shortest && !fired.has(line)) return { status: 'optional' };
-	const r = variantSolve([line], board, limits);
-	if (r.status === 'unsolvable') return { status: 'required' };
-	if (r.status !== 'solved') return { status: 'unknown' };
-	if (!shortest) return { status: 'optional', length: r.solution.length };
-	return { status: r.solution.length > shortest.length ? 'shortcut' : 'optional', length: r.solution.length };
+// What a rule line means for this level, given a solution that's known:
+//   need: 'required' (every solution fires it) | 'optional' | 'unknown'
+//   ban:  'never' (no solution fires it) | 'used' | 'unknown'   (only if asked)
+// The known solution answers some of these for free.
+function ruleStatus(line, board, fired, wantBan, limits) {
+	const out = {};
+	if (!fired.has(line)) out.need = 'optional';
+	else {
+		const r = goalSearch(board, { need: [line] }, limits);
+		out.need = r.status === 'met' ? 'required' : r.status === 'broken' ? 'optional' : 'unknown';
+	}
+	if (wantBan) {
+		if (fired.has(line)) out.ban = 'used';
+		else {
+			const r = goalSearch(board, { ban: [line] }, limits);
+			out.ban = r.status === 'met' ? 'never' : r.status === 'broken' ? 'used' : 'unknown';
+		}
+	}
+	return out;
 }
 
 function ruleCheck(msg) {
 	const board = boardFrom(msg.board);
 	const limits = { timeMs: msg.timeMs || 3000, maxExpanded: msg.maxExpanded || 300000 };
-	const shortest = shortestSolution(board, msg.solution, msg.optimal, limits);
-	const fired = firedLines(board, shortest || msg.solution);
+	const fired = firedLines(board, msg.solution);
+	const ban = new Set(msg.banLines || []);
 	const out = {};
 	msg.lines.forEach(function (line) {
-		out[line] = ruleStatus(line, board, shortest, fired, limits);
+		out[line] = ruleStatus(line, board, fired, ban.has(line), limits);
 		reply({ type: 'progress', id: msg.id, line: line, result: out[line] });
 	});
-	reply({ type: 'ruleChecked', id: msg.id, result: out, shortest: shortest ? shortest.length : null });
+	reply({ type: 'ruleChecked', id: msg.id, result: out });
 }
 
-// Generator filter for rule goals { need: [lines], ban: [lines] }. A needed
-// rule must be required; a banned rule must give no shortcut.
+// Generator filter for rule goals { need: [lines], ban: [lines] }: every
+// solution must fire each needed rule, and none may fire a banned one. The
+// candidate's own solution rejects most misses without a search.
 function goalFilter(goals, limits) {
 	return function (board, r) {
 		const fired = firedLines(board, r.solution);
-		// Every solution of a level that needs a rule fires it: a cheap first test.
 		for (let i = 0; i < goals.need.length; i++) if (!fired.has(goals.need[i])) return false;
-		if (goals.ban.length) {
-			const shortest = shortestSolution(board, r.solution, r.optimal, limits);
-			if (!shortest) return false;
-			const firedShortest = r.optimal ? fired : firedLines(board, shortest);
-			for (let i = 0; i < goals.ban.length; i++) {
-				const s = ruleStatus(goals.ban[i], board, shortest, firedShortest, limits);
-				if (s.status !== 'optional') return false;
-			}
-		}
-		for (let i = 0; i < goals.need.length; i++) {
-			if (variantSolve([goals.need[i]], board, limits).status !== 'unsolvable') return false;
-		}
-		return true;
+		for (let i = 0; i < goals.ban.length; i++) if (fired.has(goals.ban[i])) return false;
+		return goalSearch(board, goals, limits).status === 'met';
 	};
 }
 

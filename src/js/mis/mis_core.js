@@ -1214,11 +1214,15 @@ const MISCore = (function () {
 	}
 
 	/////////////////////////////////////////////////////////////////////
-	// Rule goals: which rule lines a solution uses, and games without them
+	// Rule goals: which rule lines solutions use
 	/////////////////////////////////////////////////////////////////////
+	//
+	// A goal says a rule line is needed (every solution fires it) or banned (no
+	// solution fires it). A rule "fires" when it changes the level or queues a
+	// command, on any turn including level start and again ticks.
 
-	// Source lines (1-based) of the compiled game's rules. Random rule groups
-	// make "never fired, so not needed" unsound, so callers check `random`.
+	// Source lines (1-based) of the compiled game's rules. The searches below
+	// treat each turn as deterministic, so callers skip games with `random`.
 	function compiledRuleLines() {
 		const lines = new Set();
 		let random = false;
@@ -1233,26 +1237,28 @@ const MISCore = (function () {
 		return { lines: Array.from(lines).sort(function (a, b) { return a - b; }), random: random };
 	}
 
-	// Replays a solution and records the rule lines that did something on each
-	// step: steps[0] is level start, steps[i] the turn after input i (again
-	// ticks included). A rule counts when it changed the level or queued a
-	// command. A rule that never counts could be deleted without changing this
-	// replay (deterministic games only).
-	function traceRules(model, board, solution) {
+	// Runs fn() with the engine reporting each rule line that fires to onFire.
+	function withRuleHook(onFire, fn) {
 		const proto = Rule.prototype, tryApply = proto.tryApply, queueCommands = proto.queueCommands;
-		let current = null;
 		proto.tryApply = function (lv) {
 			const changed = tryApply.call(this, lv);
-			if (changed && current) current.add(this.lineNumber);
+			if (changed) onFire(this.lineNumber);
 			return changed;
 		};
 		proto.queueCommands = function () {
-			if (current && this.commands.length) current.add(this.lineNumber);
+			if (this.commands.length) onFire(this.lineNumber);
 			return queueCommands.call(this);
 		};
+		try { return fn(); }
+		finally { proto.tryApply = tryApply; proto.queueCommands = queueCommands; }
+	}
+
+	// Replays a solution and records the rule lines that fired on each step:
+	// steps[0] is level start, steps[i] the turn after input i.
+	function traceRules(model, board, solution) {
 		const steps = [];
-		try {
-			current = new Set();
+		let current = new Set();
+		withRuleHook(function (line) { current.add(line); }, function () {
 			loadBoardIntoEngine(model, board);
 			steps.push(Array.from(current));
 			for (let i = 0; i < solution.length; i++) {
@@ -1260,11 +1266,7 @@ const MISCore = (function () {
 				engineStep(solution[i]);
 				steps.push(Array.from(current));
 			}
-		} finally {
-			proto.tryApply = tryApply;
-			proto.queueCommands = queueCommands;
-			current = null;
-		}
+		});
 		return steps;
 	}
 
@@ -1280,29 +1282,80 @@ const MISCore = (function () {
 		return lines;
 	}
 
-	// The source with the given rule lines blanked (line numbers are kept). When
-	// a group's first rule goes, the next `+` rule in that group becomes the head.
-	function withoutRuleLines(sourceText, lineNumbers) {
-		const lines = sourceText.split('\n');
-		const removed = new Set(lineNumbers);
-		const promoted = new Set();
-		const isPlus = function (text) { return /^\s*\+/.test(text); };
-		const isFiller = function (text) { return /^\s*$/.test(text) || /^\s*\(.*\)\s*$/.test(text); };
-		Array.from(removed).sort(function (a, b) { return a - b; }).forEach(function (n) {
-			const i = n - 1;
-			if (i < 0 || i >= lines.length) return;
-			const head = !isPlus(lines[i]) || promoted.has(n);
-			lines[i] = '';
-			if (!head) return;
-			for (let j = i + 1; j < lines.length; j++) {
-				if (isFiller(lines[j])) continue;
-				if (!isPlus(lines[j])) break;
-				if (removed.has(j + 1)) promoted.add(j + 1);
-				else lines[j] = lines[j].replace(/^(\s*)\+\s*/, '$1');
-				break;
+	// Do all solutions of this level meet the goals { need: [lines], ban: [lines] }?
+	// Searches the level breadth-first, tracking per path which needed rules
+	// have fired and whether a banned one has. Returns
+	//   { status: 'met' }                  no solution breaks a goal
+	//   { status: 'broken', solution }     a shortest solution that breaks one
+	//   { status: 'unknown' }              the search ran out of budget
+	// A path that has fired every needed rule (with nothing banned) can't break
+	// a goal any more, so it isn't followed further. Banned rules allow no such
+	// shortcut: proving one is never used means exploring the whole level.
+	function ruleGoalSearch(model, board, goals, opts) {
+		opts = opts || {};
+		const need = goals.need || [], ban = goals.ban || [];
+		if (need.length > 30) throw new Error('at most 30 needed rules');
+		const needBit = new Map(), banned = new Set(ban);
+		need.forEach(function (line, i) { needBit.set(line, 1 << i); });
+		const ALL = need.length ? (1 << need.length) - 1 : 0;
+		const BANNED = -1; // a banned rule fired: only "can this still win?" matters
+		const maxExpanded = opts.maxExpanded === 0 ? Infinity : opts.maxExpanded || 200000;
+		const deadline = opts.timeMs > 0 ? Date.now() + opts.timeMs : Infinity;
+		const inputs = model.noaction ? [0, 1, 2, 3] : [0, 1, 2, 3, 4];
+		let fired = 0;
+		function onFire(line) {
+			if (fired === BANNED) return;
+			if (banned.has(line)) fired = BANNED;
+			else if (needBit.has(line)) fired |= needBit.get(line);
+		}
+		const breaks = function (mask) { return mask === BANNED || (mask & ALL) !== ALL; };
+		const settled = function (mask) { return !ban.length && mask === ALL; };
+		return withRuleHook(onFire, function () {
+			const t0 = Date.now();
+			fired = 0;
+			loadBoardIntoEngine(model, board);
+			const snaps = [new Int32Array(level.objects)], masks = [fired], parent = [-1], action = [-1];
+			const done = function (status, last) {
+				const res = { status: status, expanded: expanded, ms: Date.now() - t0 };
+				if (status === 'broken') {
+					const sol = [];
+					for (let n = last; n > 0; n = parent[n]) sol.push(action[n]);
+					res.solution = sol.reverse();
+				}
+				return res;
+			};
+			let expanded = 0;
+			if (wonFlag || winconditionsNow()) return done(breaks(masks[0]) ? 'broken' : 'met', 0);
+			if (settled(masks[0])) return done('met');
+			const visited = new Set([cellsKey(snaps[0]) + '|' + masks[0]]);
+			for (let head = 0; head < snaps.length; head++) {
+				if (expanded >= maxExpanded) return done('unknown');
+				if ((expanded & 31) === 0 && Date.now() > deadline) return done('unknown');
+				expanded++;
+				for (let k = 0; k < inputs.length; k++) {
+					restoreTo(snaps[head]);
+					fired = masks[head];
+					const step = engineStep(inputs[k]);
+					const mask = fired;
+					// A turn that changes nothing still counts if it fired a goal
+					// rule (e.g. a banned `cancel` rule when bumping a wall).
+					if (!step.changed && !step.won && mask === masks[head]) continue;
+					const id = snaps.length;
+					if (step.won || winconditionsNow()) {
+						if (!breaks(mask)) continue;
+						parent.push(head); action.push(inputs[k]); snaps.push(null); masks.push(mask);
+						return done('broken', id);
+					}
+					if (settled(mask)) continue;
+					const key = cellsKey(level.objects) + '|' + mask;
+					if (visited.has(key)) continue;
+					visited.add(key);
+					snaps.push(new Int32Array(level.objects)); masks.push(mask);
+					parent.push(head); action.push(inputs[k]);
+				}
 			}
+			return done('met');
 		});
-		return lines.join('\n');
 	}
 
 	/////////////////////////////////////////////////////////////////////
@@ -1391,7 +1444,7 @@ const MISCore = (function () {
 		compiledRuleLines: compiledRuleLines,
 		traceRules: traceRules,
 		summarizeTrace: summarizeTrace,
-		withoutRuleLines: withoutRuleLines,
+		ruleGoalSearch: ruleGoalSearch,
 		derivePresets: derivePresets,
 		staticSolids: staticSolids,
 		restoreTo: restoreTo,

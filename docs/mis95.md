@@ -131,39 +131,42 @@ real native-solver results, and browser work areas/raster scales of 100%, 125%,
 The Game source editor has a gutter column beside the line numbers. For the
 current level it shows what the solution does with each rule line: a faint dot
 (never fires), a grey dot (fires; the line is tinted by how often), or a black
-dot (required: the level is unsolvable without that rule). Lines whose rules
-the solver drops as cosmetic or sound-only get a flower and can't be toggled.
-Hovering a mark explains it; **Watch solution** highlights the rules that fire
-on each step. Blind mode hides all of this except the goals.
+dot (needed: every solution fires it). Lines whose rules the solver drops as
+cosmetic or sound-only get a flower and can't be toggled. Hovering a mark
+explains it; **Watch solution** highlights the rules that fire on each step.
+Blind mode hides all of this except the goals.
 
-How it is computed:
+A rule *fires* on a turn when it changes the level or queues a command, at
+level start and in `again` ticks too. Clicking a mark cycles a goal for the
+current level:
 
-- **Fired** comes from replaying the solution on the page with the engine's
-  `Rule.prototype.tryApply` / `queueCommands` wrapped (`MISCore.traceRules`). A
-  rule counts when it changed the level or queued a command.
-- **Required / shortcut / optional** come from the worker's `ruleCheck`: the
-  level is solved again with that rule line removed (`MISCore.withoutRuleLines`
-  blanks the line and promotes the next `+` rule if it removed a group head).
-  Unsolvable means required; solvable only in more moves than the real game's
-  shortest solution means the rule is a shortcut. A rule that never fires in a
-  shortest solution is optional without any search: deleting it leaves that
-  solution unchanged. Each worker compiles a rule-removed game once and keeps
-  it. Random games get no marks (a rule that doesn't fire can still change a
-  random choice).
-- **Flowers** use the optimizer's own cosmetic-rule lines
-  (`cosmeticRuleSourceLines`) plus lines whose every rule is
-  `inert_command_only`. The analyzer's per-rule `cosmetic` tag alone is not
-  enough: it ignores collisions, so a rule that destroys walls is tagged
-  cosmetic.
+- **✓ need**: every solution fires the rule.
+- **✗ ban**: no solution fires the rule, including roundabout ones. A rule that
+  can fire on the way to a win, however pointlessly, breaks it; so the
+  mechanic must be unreachable, or make the level unwinnable once it fires.
+- then back to no goal.
 
-Clicking a mark cycles a goal for the current level: **✓ need** (generated
-levels must be unsolvable without the rule) → **✗ ban** (they must be solvable
-without it in no more moves, so it offers no shortcut) → none. The generator
-filters solved candidates through these goals before they reach its shortlist;
-the meter counts the rejects as "missed rule goals". A needed rule must also
-fire in the found solution, which rejects most candidates without a search.
-Goals are saved with the game as `(MIS rule goals <level> … MIS end)`
-comments, one `need …` / `ban …` line per rule, keyed by the rule's text.
+Both are decided by `MISCore.ruleGoalSearch`: a breadth-first search of the
+real game that tracks, per path, which needed rules have fired and whether a
+banned one has (the engine's `Rule.prototype.tryApply` / `queueCommands` are
+wrapped to report firing). A win reached with a needed rule unfired, or a
+banned rule fired, breaks the goals and is returned as a witness. A path that
+has fired every needed rule (with no bans set) is not followed further. Bans
+have no such shortcut: proving one means exploring every reachable position,
+so on large levels the search can run out of budget and answer *unknown*.
+Turns that leave the board unchanged still count when they fire a goal rule
+(bumping a wall can fire a banned `cancel` rule). The search runs on the JS
+engine with the game's original rules, since the solver's reduced rules don't
+keep source lines. Random games get no marks.
+
+The solution already found answers some questions for free: a rule it never
+fires isn't needed, and a rule it fires isn't banned. The generator applies
+those tests first and runs the search only on candidates that pass, rejecting
+any it can't prove within 2 s / 200k positions; the meter counts rejects as
+"missed rule goals". Flowers use the optimizer's own cosmetic-rule lines
+(`cosmeticRuleSourceLines`) plus lines whose every rule is `inert_command_only`.
+Goals are saved with the game as `(MIS rule goals <level> … MIS end)` comments,
+one `need …` / `ban …` line per rule, keyed by the rule's text.
 `node src/tests/mis_rule_goals_node.js` checks the worker side.
 
 ## Transform language

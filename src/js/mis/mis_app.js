@@ -1031,15 +1031,15 @@
 	//
 	// The Game source gutter shows what the current level's solution does
 	// with each rule: never fires (faint dot), fires (grey dot, and the line
-	// warms with how often), needed (black dot: unsolvable without it).
+	// warms with how often), needed (black dot: every solution fires it).
 	// Cosmetic and sound-only rules get a flower. Clicking a rule's marker
-	// cycles its goal for this level: need it (tick), ban it (cross: the level
-	// must be solvable without it in no more moves), neither. Goals filter
-	// what the generator suggests.
+	// cycles its goal for this level: need it (tick: every solution fires it),
+	// ban it (cross: no solution fires it), neither. Goals filter what the
+	// generator suggests.
 
 	let ruleWorker = null, ruleWorkerKey = null;
 	const traceCache = new Map();  // board key + solution -> { steps, summary }
-	const ruleChecks = new Map();  // board key -> { lines: {line: result}, shortest, done }
+	const ruleChecks = new Map();  // board key + banned lines -> { lines: {line: result}, done }
 
 	function normalizeRule(text) {
 		let t = text, prev;
@@ -1088,6 +1088,7 @@
 		else delete app.ruleGoals[app.levelIndex];
 		markDirty(true);
 		autosave();
+		startRuleCheck();
 		renderRuleGutter();
 		if (app.gen && app.gen.running) restartGeneration();
 	}
@@ -1115,7 +1116,8 @@
 	function startRuleCheck() {
 		const r = currentResult;
 		if (!app.rules || app.rules.random || !r || r.status !== 'solved' || !app.board) return;
-		const key = cacheKey(app.board);
+		const banLines = goalLines().ban;
+		const key = ruleCheckKey();
 		if (ruleChecks.has(key)) return;
 		ensureWorkers(false);
 		if (ruleWorkerKey && ruleWorkerKey !== key && (ruleWorker.busy || ruleWorker.queue.length)) {
@@ -1124,15 +1126,21 @@
 			ruleWorker = spawnWorker(app.source);
 		}
 		ruleWorkerKey = key;
-		const entry = { lines: {}, shortest: null, done: false };
+		// Answers about needing a rule don't depend on the bans: reuse them.
+		const entry = { lines: {}, done: false };
+		const boardKey = cacheKey(app.board) + '|';
+		ruleChecks.forEach(function (other, k) {
+			if (!other.done || k.indexOf(boardKey) !== 0) return;
+			Object.keys(other.lines).forEach(function (l) { if (other.lines[l].need !== 'unknown') entry.lines[l] = { need: other.lines[l].need }; });
+		});
 		ruleChecks.set(key, entry);
 		const sig = app.rulesSig;
-		const lines = app.rules.lines.filter(function (l) { return !app.ruleTags[l]; });
+		const lines = app.rules.lines.filter(function (l) { return !app.ruleTags[l] && (!entry.lines[l] || banLines.indexOf(l) >= 0); });
 		enqueue(ruleWorker, {
-			type: 'ruleCheck', board: packBoard(app.board), solution: r.solution, optimal: !!r.optimal,
-			lines: lines, timeMs: 3000, maxExpanded: 300000,
+			type: 'ruleCheck', board: packBoard(app.board), solution: r.solution,
+			lines: lines, banLines: banLines, timeMs: 3000, maxExpanded: 300000,
 		}, function (m) {
-			if (m.type === 'ruleChecked') { entry.lines = m.result; entry.shortest = m.shortest; }
+			if (m.type === 'ruleChecked') Object.assign(entry.lines, m.result);
 			else entry.failed = true;
 			entry.done = true;
 			if (sig === app.rulesSig) renderRuleGutter();
@@ -1142,18 +1150,26 @@
 		});
 	}
 
-	function ruleFinding(res, shortest) {
-		if (res.status === 'required') return 'Needed: without it, this level is unsolvable.';
-		if (res.status === 'shortcut') return 'A shortcut: without it the shortest solution takes ' + res.length + ' moves' + (shortest ? ' instead of ' + shortest : '') + '.';
-		if (res.status === 'optional') return 'Not needed: the level is solvable without it, in no more moves.';
-		return 'Couldn\u2019t tell whether the level needs it: the search ran out of time.';
+	// Checks depend on which rules are banned (each banned line gets a search).
+	function ruleCheckKey() { return cacheKey(app.board) + '|' + goalLines().ban.join(','); }
+
+	// What the check found, minus what the shown solution already says.
+	function ruleFinding(res, goal, fired) {
+		if (goal === 'ban') {
+			if (res.ban === 'never') return 'No solution fires it.';
+			if (res.ban === 'used') return fired ? '' : 'Some other solution fires it.';
+			return res.ban === 'unknown' ? 'Couldn\u2019t check every solution: the search ran out of time.' : '';
+		}
+		if (res.need === 'required') return 'Needed: every solution fires it.';
+		if (res.need === 'optional') return fired ? 'Not needed: some solution never fires it.' : '';
+		return res.need === 'unknown' ? 'Couldn\u2019t tell whether every solution needs it: the search ran out of time.' : '';
 	}
 
 	// 'ok' | 'bad' | 'pending' for a goal, given that rule's check result.
 	function goalState(goal, res) {
-		if (!res || res.status === 'unknown') return 'pending';
-		if (goal === 'need') return res.status === 'required' ? 'ok' : 'bad';
-		return res.status === 'optional' ? 'ok' : 'bad';
+		const answer = res && (goal === 'need' ? res.need : res.ban);
+		if (!answer || answer === 'unknown') return 'pending';
+		return goal === 'need' ? (answer === 'required' ? 'ok' : 'bad') : (answer === 'never' ? 'ok' : 'bad');
 	}
 
 	function renderRuleGutter() {
@@ -1164,7 +1180,7 @@
 		const r = currentResult, hidden = solverInfoHidden();
 		const solved = !hidden && r && r.status === 'solved';
 		const trace = solved ? currentTrace() : null;
-		const check = solved ? ruleChecks.get(cacheKey(app.board)) : null;
+		const check = solved ? ruleChecks.get(ruleCheckKey()) : null;
 		const goals = levelGoals();
 		const moves = trace ? trace.steps.length - 1 : 0;
 		let maxSteps = 0;
@@ -1191,8 +1207,10 @@
 				facts = fired
 					? 'Fires on ' + fired.steps + ' of the solution\u2019s ' + moves + ' moves' + (fired.first === 0 ? ', starting at level start.' : ', first on move ' + fired.first + '.')
 					: 'Never fires in the solution.';
-				if (res) facts += '\n' + ruleFinding(res, check.shortest);
-				else if (check && !check.done) facts += '\nChecking whether the level needs it\u2026';
+				const finding = res ? ruleFinding(res, goal, !!fired) : '';
+				const waiting = check && !check.done && (!res || (goal === 'ban' && !res.ban));
+				if (finding) facts += '\n' + finding;
+				else if (waiting) facts += goal === 'ban' ? '\nChecking every solution\u2026' : '\nChecking whether every solution needs it\u2026';
 			}
 			if (goal) {
 				it.mark = goal;
@@ -1201,12 +1219,12 @@
 				if (it.state === 'bad') summary.bad++;
 				if (it.state === 'pending') summary.pending++;
 				const head = goal === 'need'
-					? 'Required here: generated levels must be unsolvable without this rule.'
-					: 'Banned here: generated levels must be solvable without this rule, in no more moves.';
+					? 'Needed here: every solution of a generated level must fire this rule.'
+					: 'Banned here: no solution of a generated level may fire this rule.';
 				const verdict = it.state === 'ok' ? ' This level meets it.' : it.state === 'bad' ? ' This level doesn\u2019t.' : '';
 				it.tip = head + verdict + '\n' + facts + '\nClick to ' + (goal === 'need' ? 'ban it instead.' : 'clear.');
 			} else {
-				it.mark = res && res.status === 'required' ? 'required' : fired ? 'fired' : 'idle';
+				it.mark = res && res.need === 'required' ? 'required' : fired ? 'fired' : 'idle';
 				it.glyph = it.mark === 'required' ? 'bigdot' : 'dot';
 				it.tip = facts + '\nClick to require it in generated levels; click again to ban it.';
 			}

@@ -275,24 +275,59 @@ test('rule goals: command-only rules count as firing', () => {
 	misCompile(soko.text);
 });
 
-test('rule goals: removing a needed rule makes the level unsolvable', () => {
-	const without = C.withoutRuleLines(soko.text, [78]);
-	assert.strictEqual(without.split('\n').length, soko.text.split('\n').length);
-	const res = misCompile(without);
-	assert(res.ok && !res.hasErrors);
-	const model = C.extractModel(without);
-	assert.strictEqual(C.solve(model, firstLevel.board, { strategy: 'bfs' }).status, 'unsolvable');
+// Sokoban with one extra rule on line 79.
+function withRule(rule) {
+	const text = soko.text.replace('[ > Player | Crate ] -> [ > Player | > Crate ]', '[ > Player | Crate ] -> [ > Player | > Crate ]\n' + rule);
+	assert(misCompile(text).ok);
+	return C.extractModel(text);
+}
+
+test('rule goals: every solution pushes, so push is needed and can\'t be banned', () => {
+	misCompile(soko.text);
+	assert.strictEqual(C.ruleGoalSearch(soko.model, firstLevel.board, { need: [78] }).status, 'met');
+	const r = C.ruleGoalSearch(soko.model, firstLevel.board, { ban: [78] });
+	assert.strictEqual(r.status, 'broken');
+	assert(C.validateSolution(soko.model, firstLevel.board, r.solution), 'the witness is a real solution');
+	assert(C.summarizeTrace(C.traceRules(soko.model, firstLevel.board, r.solution))[78]);
+	// The witness is a shortest solution (33 moves on level 1).
+	assert.strictEqual(r.solution.length, C.solve(soko.model, firstLevel.board, { strategy: 'bfs' }).solution.length);
+});
+
+test('rule goals: an optional rule is neither needed nor banned', () => {
+	const model = withRule('[ > Player | Wall ] -> [ > Player | ]'); // bore through walls
+	const board = model.levels.find(l => l.board).board;
+	assert.strictEqual(C.ruleGoalSearch(model, board, { need: [79] }).status, 'broken');
+	assert.strictEqual(C.ruleGoalSearch(model, board, { ban: [79] }).status, 'broken');
 	misCompile(soko.text);
 });
 
-test('rule goals: removing a group head promotes the next + rule', () => {
-	const text = 'a\n[ A ] -> [ B ]\n(comment)\n+ [ B ] -> [ C ]\n+ [ C ] -> [ D ]\n[ E ] -> [ F ]';
-	assert.strictEqual(C.withoutRuleLines(text, [2]), 'a\n\n(comment)\n[ B ] -> [ C ]\n+ [ C ] -> [ D ]\n[ E ] -> [ F ]');
-	assert.strictEqual(C.withoutRuleLines(text, [2, 4]), 'a\n\n(comment)\n\n[ C ] -> [ D ]\n[ E ] -> [ F ]');
-	assert.strictEqual(C.withoutRuleLines(text, [5]), 'a\n[ A ] -> [ B ]\n(comment)\n+ [ B ] -> [ C ]\n\n[ E ] -> [ F ]');
-	assert.strictEqual(C.withoutRuleLines(ICE_GAME, [78]).split('\n')[78], '[ > Crate | Crate ] -> [ > Crate | > Crate ]');
-	assert(misCompile(C.withoutRuleLines(ICE_GAME, [78])).ok);
+test('rule goals: a rule that can never fire is banned only after searching everything', () => {
+	const model = withRule('[ Player Target ] [ Crate Player ] -> [ Player Target ] [ ]'); // Player and Crate share a layer
+	const board = model.levels.find(l => l.board).board;
+	const r = C.ruleGoalSearch(model, board, { ban: [79] }, { maxExpanded: 0 });
+	assert.strictEqual(r.status, 'met');
+	const firstSolution = C.solve(model, board, { strategy: 'bfs', maxExpanded: 0 });
+	assert(r.expanded > firstSolution.expanded, 'proving a ban explores past the first solution, to the whole level');
+	assert.strictEqual(C.ruleGoalSearch(model, board, { ban: [79] }, { maxExpanded: 50 }).status, 'unknown');
+	// Needing push and banning the dead rule together.
+	assert.strictEqual(C.ruleGoalSearch(model, board, { need: [78], ban: [79] }).status, 'met');
 	misCompile(soko.text);
+});
+
+test('rule goals: turns that change nothing still count (bumping a wall fires a cancel rule)', () => {
+	const model = withRule('[ > Player | Wall ] -> cancel');
+	const board = model.levels.find(l => l.board).board;
+	const r = C.ruleGoalSearch(model, board, { ban: [79] });
+	assert.strictEqual(r.status, 'broken');
+	assert(C.summarizeTrace(C.traceRules(model, board, r.solution))[79], 'the witness bumps a wall');
+	misCompile(soko.text);
+});
+
+test('rule goals: once every needed rule has fired, the search stops following that path', () => {
+	misCompile(soko.text);
+	const needed = C.ruleGoalSearch(soko.model, firstLevel.board, { need: [78] }, { maxExpanded: 0 });
+	const plain = C.solve(soko.model, firstLevel.board, { strategy: 'bfs', maxExpanded: 0 });
+	assert(needed.expanded < plain.expanded, needed.expanded + ' < ' + plain.expanded);
 });
 
 
