@@ -636,7 +636,15 @@ assert.deepStrictEqual(
         canonical_name: 'body',
         kind: 'property',
         members: ['BodyH', 'BodyV'],
-        tags: {},
+        tags: {
+            quantity: {
+                never_increases: true,
+                never_decreases: true,
+                exactly_zero: false,
+                exactly_one: true,
+                at_most_one: true,
+            },
+        },
     },
     'ps_tagged should distinguish multi-object properties from synonyms'
 );
@@ -726,8 +734,10 @@ const countFacts = report.facts.count_layer_invariants;
 assert.ok(countFacts.some(item => item.id === 'object_Hero_count_preserved'), 'Hero count fact should exist');
 assert.ok(countFacts.some(item => item.id === 'layer_0_static'), 'Background layer static fact should exist');
 
+// Compares only the quantity fields named in `expected`.
 function assertQuantity(tags, expected, message) {
-    assert.deepStrictEqual(tags.quantity, expected, message);
+    const actual = Object.fromEntries(Object.keys(expected).map(key => [key, tags.quantity[key]]));
+    assert.deepStrictEqual(actual, expected, message);
 }
 
 const randomGoalCount = randomObject.facts.count_layer_invariants.find(item => item.id === 'object_Goal_count_preserved');

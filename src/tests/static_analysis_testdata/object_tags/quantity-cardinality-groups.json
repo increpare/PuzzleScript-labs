@@ -1,0 +1,53 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "human_verified": false,
+  "objectTag": [
+    {
+      "object": "HeroAlive",
+      "quantity_exactly_one": false,
+      "quantity_at_most_one": true
+    },
+    {
+      "object": "HeroDead",
+      "quantity_exactly_one": false,
+      "quantity_at_most_one": false
+    }
+  ],
+  "propertyTag": [
+    {
+      "property": "Hero",
+      "quantity_never_increases": true,
+      "quantity_never_decreases": true,
+      "quantity_exactly_zero": false,
+      "quantity_exactly_one": true,
+      "quantity_at_most_one": true
+    },
+    {
+      "property": "Ghost",
+      "quantity_never_increases": true,
+      "quantity_never_decreases": false,
+      "quantity_exactly_one": false,
+      "quantity_at_most_one": true
+    },
+    {
+      "property": "Clone",
+      "quantity_never_increases": false,
+      "quantity_exactly_zero": false,
+      "quantity_exactly_one": false,
+      "quantity_at_most_one": false
+    },
+    {
+      "property": "Split",
+      "quantity_never_increases": true,
+      "quantity_never_decreases": false,
+      "quantity_exactly_one": false,
+      "quantity_at_most_one": true
+    },
+    {
+      "property": "Phantom",
+      "quantity_exactly_zero": true,
+      "quantity_exactly_one": false,
+      "quantity_at_most_one": true
+    }
+  ]
+}

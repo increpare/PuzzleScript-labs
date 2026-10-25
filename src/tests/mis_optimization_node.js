@@ -193,6 +193,24 @@ async function main() {
     assert.equal(sokoPrepared.telemetry.replayChecks, 0, 'an unchanged native ruleset retains its existing replay path');
     assert(native.attach(requiredAction, actionGame.model).ok);
     assert(!native.actionUnnecessary(), 'native reuse cannot bypass required ACTION');
-    console.log('mis_optimization_node: ok (projection, JS/WASM, injected boards, ACTION, simplify, replay fallback)');
+
+    // The rules' quantity tags reach the session certificate. Player is
+    // PlayerL or PlayerR, and rules swap one for the other: only the
+    // property's own tags prove the player count is kept in play.
+    const transformAnalysis = require('../js/mis/mis_transform_analysis.js');
+    const twoSource = fs.readFileSync(path.join(__dirname, 'fixtures/mis-optimization/two_players.txt'), 'utf8');
+    const two = load(twoSource);
+    const twoPrepared = MISOptimizer.prepare(twoSource, two.model);
+    const playerRow = twoPrepared.ruleQuantity.properties.find(p => p.members.slice().sort().join(',') === 'playerl,playerr');
+    assert(playerRow, 'the Player property has quantity tags');
+    assert.equal(playerRow.never_increases, true);
+    assert.equal(playerRow.never_decreases, true);
+    assert.deepEqual(twoPrepared.ruleQuantity.objects.playerl, [false, false], 'each member alone can change');
+    const swap = MISCore.parseTransform('choose 2 [ PlayerL | no Wall no Crate no PlayerR ] -> [ | PlayerR ]', two.model);
+    const cert = transformAnalysis.sessionCertificate(two.model, [swap], two.board, { ruleQuantity: twoPrepared.ruleQuantity });
+    const player = cert.classes.find(c => c.isPlayer);
+    assert.equal(player.candidates.exactly_one, true);
+    assert.equal(player.play.exactly_one, true, 'the rules keep one Player in play');
+    console.log('mis_optimization_node: ok (projection, JS/WASM, injected boards, ACTION, simplify, replay fallback, rule quantity)');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

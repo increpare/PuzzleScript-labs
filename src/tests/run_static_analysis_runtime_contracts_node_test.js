@@ -1007,4 +1007,45 @@ assert.strictEqual(
     'random games should skip merge replay projection checks'
 );
 
+// Cardinality and property-quantity checks must reject false claims.
+{
+    const { runtimeFailureClaims } = require('./static_analysis_dynamic_coverage');
+    const source = loadStaticAnalysisFixtureSource('runtime_contracts', 'cardinality.txt');
+    const payload = loadStaticAnalysisFixtureJson('runtime_contracts', 'cardinality.json');
+    const data = [source, payload.inputs, payload.expectedFinalLevel, 0, null, null];
+    const contract = staticContractForSource(source, 'cardinality');
+    assert.deepStrictEqual(
+        contract.cardinalityContracts.map(item => `${item.kind}:${item.name}:${item.exactlyOne}`).sort(),
+        ['object:Wall:true', 'property:player:true'],
+        'cardinality contracts should cover the Player property and the lone Wall'
+    );
+    const falseCardinality = Object.assign({}, contract, {
+        cardinalityContracts: [{ kind: 'property', name: 'PlayerOrWall', objects: ['PlayerL', 'PlayerR', 'Wall'], exactlyOne: false }],
+    });
+    assert.throws(
+        () => runSimulationWithStaticChecks('false cardinality', data, { staticContract: falseCardinality }),
+        error => /cardinality claim violated/.test(error.message)
+            && runtimeFailureClaims(error.message)[0] === 'property.quantity.at_most_one',
+        'a group holding two objects must fail its at-most-one claim'
+    );
+    const falseZero = Object.assign({}, contract, {
+        cardinalityContracts: [{ kind: 'object', name: 'Wall', objects: ['Wall'], exactlyOne: false, exactlyZero: true }],
+    });
+    assert.throws(
+        () => runSimulationWithStaticChecks('false exactly zero', data, { staticContract: falseZero }),
+        error => /cardinality claim violated/.test(error.message)
+            && runtimeFailureClaims(error.message)[0] === 'object.quantity.exactly_zero',
+        'a wall on the board must fail an exactly-zero claim'
+    );
+    const falseGroupQuantity = Object.assign({}, contract, {
+        groupQuantityContracts: [{ id: 'property LeftOnly', name: 'LeftOnly', objects: ['PlayerL'], neverIncreases: false, neverDecreases: true }],
+    });
+    assert.throws(
+        () => runSimulationWithStaticChecks('false group quantity', data, { staticContract: falseGroupQuantity }),
+        error => /property quantity monotonicity claim violated/.test(error.message)
+            && runtimeFailureClaims(error.message)[0] === 'property.quantity.never_decreases',
+        'turning right removes the only PlayerL, so never-decreases must fail'
+    );
+}
+
 console.log('run_static_analysis_runtime_contracts_node_test: ok');

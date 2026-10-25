@@ -1,0 +1,27 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "human_verified": false,
+  "objectTag": [
+    {
+      "object": "PlayerL",
+      "quantity_never_increases": false,
+      "quantity_exactly_one": false,
+      "quantity_at_most_one": false
+    },
+    {
+      "object": "PlayerR",
+      "quantity_never_increases": false,
+      "quantity_exactly_one": false,
+      "quantity_at_most_one": false
+    }
+  ],
+  "propertyTag": [
+    {
+      "property": "Player",
+      "quantity_never_increases": true,
+      "quantity_never_decreases": true,
+      "quantity_exactly_one": true,
+      "quantity_at_most_one": true
+    }
+  ]
+}

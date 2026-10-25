@@ -78,6 +78,11 @@ check('any board: no stand-in level tags', () => {
     const any = badgesFor('blockfaker.txt', true);
     assert.deepStrictEqual(any.at('........########'), []);
     assert(!has(any.at('Background'), 'present_in_all_levels'));
+    assert(!has(any.at('Player'), 'quantity.exactly_one'));
+});
+check('cardinality tags on objects', () => {
+    assert(has(source.at('Player'), 'quantity.exactly_one', 'on'));
+    assert(has(source.at('Player'), 'quantity.at_most_one', 'on'));
 });
 check('every badge has a description', () => {
     for (const file of ['blockfaker.txt', 'sokoban_basic.txt', 'atlas shrank.txt', 'cakemonsters.txt']) {

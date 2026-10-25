@@ -52,69 +52,7 @@ function loadText(text, label) {
 function load(rel) { return loadText(fs.readFileSync(path.join(srcDir, rel), 'utf8'), rel); }
 
 // Player is a property of two objects on one layer; Gem sits on its own layer.
-const TWO_PLAYERS = `title two players
-========
-OBJECTS
-========
-Background
-black
-Target
-blue
-Wall
-grey
-PlayerL
-white
-PlayerR
-yellow
-Crate
-orange
-Gem
-green
-=======
-LEGEND
-=======
-. = Background
-# = Wall
-L = PlayerL
-R = PlayerR
-* = Crate
-O = Target
-G = Gem
-Player = PlayerL or PlayerR
-=======
-SOUNDS
-=======
-================
-COLLISIONLAYERS
-================
-Background
-Target
-PlayerL, PlayerR, Wall, Crate
-Gem
-======
-RULES
-======
-[ > Player | Crate ] -> [ > Player | > Crate ]
-[ left PlayerR ] -> [ left PlayerL ]
-[ right PlayerL ] -> [ right PlayerR ]
-==============
-WINCONDITIONS
-==============
-All Target on Crate
-=======
-LEVELS
-=======
-#######
-#.L.*O#
-#..G..#
-#.*..O#
-#######
-
-#######
-#L..*O#
-#.R...#
-#######
-`;
+const TWO_PLAYERS = fs.readFileSync(path.join(__dirname, 'fixtures/mis-optimization/two_players.txt'), 'utf8');
 
 const soko = load('demo/sokoban_basic.txt');
 const sokoBoard = soko.model.levels.find(l => l.board).board;

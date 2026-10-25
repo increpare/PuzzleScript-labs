@@ -1,0 +1,62 @@
+title Static Analysis Object Tag Quantity Cardinality Runtime Cardinality
+
+(Runtime check of the Player property's exactly-one claim while the
+ player turns and moves. The win condition never holds.)
+
+========
+OBJECTS
+========
+
+Background
+black
+
+PlayerL
+white
+
+PlayerR
+white
+
+Wall
+brown
+
+========
+LEGEND
+========
+
+. = Background
+L = PlayerL
+R = PlayerR
+# = Wall
+Player = PlayerL or PlayerR
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+PlayerL, PlayerR, Wall
+
+=====
+RULES
+=====
+
+[ left Player ] -> [ left PlayerL ]
+[ right Player ] -> [ right PlayerR ]
+
+=============
+WINCONDITIONS
+=============
+
+No Wall
+
+======
+LEVELS
+======
+
+L.#
+
+#.R

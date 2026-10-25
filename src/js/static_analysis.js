@@ -166,10 +166,13 @@ function buildLevels(state) {
         }
         const objects = new Set();
         const layers = new Set();
+        const objectCounts = {};
         for (let cellIndex = 0; cellIndex < level.n_tiles; cellIndex++) {
             const cell = level.getCell(cellIndex);
             for (const name of objectInternalNamesFromMask(state, cell)) {
-                objects.add(displayName(state, name));
+                const shownName = displayName(state, name);
+                objects.add(shownName);
+                objectCounts[shownName] = (objectCounts[shownName] || 0) + 1;
                 layers.add(state.objects[name].layer);
             }
         }
@@ -179,6 +182,7 @@ function buildLevels(state) {
             width: level.width,
             height: level.height,
             objects_present: uniqueSorted(Array.from(objects)),
+            object_counts: objectCounts,
             layers_present: Array.from(layers).sort((left, right) => left - right),
             tags: {},
         };
@@ -1963,6 +1967,7 @@ function deriveCountLayerInvariantFacts(psTagged) {
     const activeRules = allRuleEntries(psTagged).map(entry => entry.rule).filter(rule => rule.tags.solver_state_active);
     const ruleIndex = buildCountLayerRuleIndex(psTagged, activeRules);
     const playerObjects = playerObjectNameSet(psTagged);
+    const levelCounts = playableLevelObjectCounts(psTagged);
     const results = [];
     for (const object of psTagged.objects) {
         const writers = rulesForObject(ruleIndex.writersByObject, object.name);
@@ -1984,6 +1989,7 @@ function deriveCountLayerInvariantFacts(psTagged) {
             never_decreases: countDecreasers.length === 0,
         };
         object.tags.static = staticBlockers.length === 0;
+        Object.assign(object.tags.quantity, cardinalityTags(levelCounts, [object.name], object.tags.quantity));
         results.push(fact('count_layer_invariants', `object_${object.name}_count_preserved`, countChangers.length === 0 ? 'proved' : 'rejected', {
             subjects: { objects: [object.name] },
             proof: countChangers.length === 0 ? ['no_solver_active_rule_changes_object_count'] : [],
@@ -1999,6 +2005,7 @@ function deriveCountLayerInvariantFacts(psTagged) {
             evidence: uniqueSorted(writers.concat(layerCreateOverwriters, movementRules).map(rule => rule.id)),
         }));
     }
+    tagGroupQuantities(psTagged, activeRules, levelCounts);
     for (const layer of psTagged.collision_layers) {
         const layerWriterIds = uniqueSorted(layer.objects.flatMap(objectName =>
             rulesForObject(ruleIndex.writersByObject, objectName).map(rule => rule.id)
@@ -2019,6 +2026,177 @@ function deriveCountLayerInvariantFacts(psTagged) {
         }));
     }
     return results;
+}
+
+// Object counts of each playable level, or null when there are none to go on
+// (no playable level, or synthetic arbitrary-board analysis).
+function playableLevelObjectCounts(psTagged) {
+    const playable = psTagged.levels.filter(level => level.kind === 'level');
+    if (playable.length === 0 || playable.some(level => !level.object_counts)) return null;
+    return playable.map(level => level.object_counts);
+}
+
+// Only rules change counts. A count that starts at zero in every level and
+// cannot rise stays at zero; one that starts at one and can neither rise nor
+// fall stays at one; at most one needs only no rise.
+function cardinalityTags(levelCounts, objectNames, quantity) {
+    if (levelCounts === null) return { exactly_zero: false, exactly_one: false, at_most_one: false };
+    const sums = levelCounts.map(counts => objectNames.reduce((sum, name) => sum + (counts[name] || 0), 0));
+    return {
+        exactly_zero: quantity.never_increases && sums.every(sum => sum === 0),
+        exactly_one: quantity.never_increases && quantity.never_decreases && sums.every(sum => sum === 1),
+        at_most_one: quantity.never_increases && sums.every(sum => sum <= 1),
+    };
+}
+
+// Bounds on how one application of the rule changes the summed count of the
+// group's members. Each member-bearing collision layer of each matched cell
+// holds at most one object, so it contributes a member-presence change in
+// [-1, 1]. Returns null when a term defeats the analysis.
+function groupRuleCountDeltaBounds(psTagged, rule, members, memberLayers) {
+    if (!rule.tags.solver_state_active || !rule.tags.object_mutating) return { min: 0, max: 0 };
+    let min = 0;
+    let max = 0;
+    const rowCount = Math.max(rule.lhs.length, rule.rhs.length);
+    for (let rowIndex = 0; rowIndex < rowCount; rowIndex++) {
+        const lhsRow = rule.lhs[rowIndex] || [];
+        const rhsRow = rule.rhs[rowIndex] || [];
+        const cellCount = maxCellsInRows(lhsRow, rhsRow);
+        for (let cellIndex = 0; cellIndex < cellCount; cellIndex++) {
+            const lhsCell = lhsRow[cellIndex] || [];
+            const rhsCell = rhsRow[cellIndex] || [];
+            if (lhsCell.concat(rhsCell).some(term => term.ref && term.ref.type === 'ellipsis')) continue;
+            for (const layer of memberLayers) {
+                const bounds = groupLayerSlotDelta(psTagged, lhsCell, rhsCell, members, layer);
+                if (bounds === null) return null;
+                min += bounds.min;
+                max += bounds.max;
+            }
+        }
+    }
+    return { min, max };
+}
+
+function groupLayerSlotDelta(psTagged, lhsCell, rhsCell, members, layer) {
+    const onLayer = objectName => layerForObject(psTagged, objectName) === layer;
+    const layerObjects = term => termObjects(term).filter(onLayer);
+    const withinLayer = term => termObjects(term).length > 0 && termObjects(term).every(onLayer);
+    const allMembers = objects => objects.every(objectName => members.has(objectName));
+    const noMembers = objects => objects.every(objectName => !members.has(objectName));
+    const layerMembers = Array.from(members).filter(onLayer);
+    const lhsProperties = lhsCell.filter(term => term.kind === 'present' && term.ref && term.ref.type === 'object_set');
+    // An RHS property naming an LHS property keeps whatever object matched.
+    const carriedProperty = rhsTerm => rhsTerm.kind === 'present' && rhsTerm.ref && rhsTerm.ref.type === 'object_set'
+        && rhsTermIsSameLhsProperty(lhsProperties, rhsTerm);
+    const lhsCarried = lhsTerm => lhsProperties.includes(lhsTerm)
+        && rhsCell.some(rhsTerm => carriedProperty(rhsTerm) && sameObjectSet(lhsTerm, rhsTerm));
+
+    let beforeMin = 0;
+    let beforeMax = 1;
+    const lhsWithin = [];
+    const lhsSpanning = [];
+    for (const term of lhsCell) {
+        if (term.kind === 'present') {
+            const objects = layerObjects(term);
+            if (objects.length === 0) continue;
+            if (!withinLayer(term)) {
+                lhsSpanning.push(term);
+                continue;
+            }
+            lhsWithin.push(term);
+            if (allMembers(objects)) beforeMin = 1;
+            else if (noMembers(objects)) beforeMax = 0;
+        } else if (term.kind === 'absent') {
+            if (layerMembers.every(objectName => termObjects(term).includes(objectName))) beforeMax = 0;
+        }
+    }
+    if (beforeMin > beforeMax) return { min: 0, max: 0 };
+
+    const writes = [];
+    for (const term of rhsCell) {
+        if (term.kind !== 'present' && term.kind !== 'random_object') continue;
+        const objects = layerObjects(term);
+        if (objects.length === 0 || carriedProperty(term)) continue;
+        if (term.kind === 'random_object' || term.ref.type !== 'object') {
+            if (!withinLayer(term)) return null;
+            if (allMembers(objects)) writes.push(1);
+            else if (noMembers(objects)) writes.push(0);
+            else return null;
+            continue;
+        }
+        writes.push(members.has(objects[0]) ? 1 : 0);
+    }
+
+    let after;
+    if (writes.length > 0) {
+        if (writes.some(value => value !== writes[0])) return null;
+        after = writes[0];
+    } else {
+        // Without a write, LHS terms the RHS drops are cleared from the cell.
+        const within = lhsWithin.map(lhsCarried);
+        const spanning = lhsSpanning.map(lhsCarried);
+        if (within.includes(true) && within.includes(false)) return null;
+        if (spanning.includes(true) && spanning.includes(false)) return null;
+        if (within.includes(false)) after = 0;
+        else if (spanning.includes(false)) after = 'at_most_before';
+        else after = 'unchanged';
+        for (const term of rhsCell) {
+            if (term.kind !== 'absent') continue;
+            const erased = termObjects(term).filter(objectName => members.has(objectName) && onLayer(objectName));
+            if (erased.length === 0) continue;
+            if (layerMembers.every(objectName => erased.includes(objectName))) after = 0;
+            else if (after === 'unchanged') after = 'at_most_before';
+        }
+    }
+    if (after === 'unchanged') return { min: 0, max: 0 };
+    if (after === 'at_most_before') return { min: -beforeMax, max: 0 };
+    return { min: after - beforeMax, max: after - beforeMin };
+}
+
+// Quantity and cardinality tags for legend OR properties, counting the sum of
+// the member objects. A rule is ruled out as an increaser when no member may
+// increase on its own, when its exact delta sums to at most zero, or when the
+// per-layer bounds say so; the same for decreasers.
+function tagGroupQuantities(psTagged, activeRules, levelCounts) {
+    const effectsByRule = new Map();
+    const exactByRule = new Map();
+    const boundsCache = new Map();
+    for (const property of psTagged.properties) {
+        if (property.kind !== 'property' || property.members.length === 0) continue;
+        const members = new Set(property.members);
+        const memberLayers = uniqueInOrder(property.members.map(objectName => layerForObject(psTagged, objectName)));
+        let neverIncreases = true;
+        let neverDecreases = true;
+        for (const rule of activeRules) {
+            if (!rule.tags.object_mutating) continue;
+            if (!effectsByRule.has(rule.id)) effectsByRule.set(rule.id, ruleCountEffectObjects(psTagged, rule));
+            const effects = effectsByRule.get(rule.id);
+            let mayIncrease = property.members.some(objectName => effects.increases.has(objectName));
+            let mayDecrease = property.members.some(objectName => effects.decreases.has(objectName));
+            if (!mayIncrease && !mayDecrease) continue;
+            if (!exactByRule.has(rule.id)) exactByRule.set(rule.id, exactRuleCountDelta(psTagged, rule));
+            const exact = exactByRule.get(rule.id);
+            if (exact !== null) {
+                const sum = property.members.reduce((total, objectName) => total + (exact.get(objectName) || 0), 0);
+                mayIncrease = mayIncrease && sum > 0;
+                mayDecrease = mayDecrease && sum < 0;
+            }
+            if (mayIncrease || mayDecrease) {
+                const key = `${property.canonical_name}\u0000${rule.id}`;
+                if (!boundsCache.has(key)) boundsCache.set(key, groupRuleCountDeltaBounds(psTagged, rule, members, memberLayers));
+                const bounds = boundsCache.get(key);
+                if (bounds !== null) {
+                    mayIncrease = mayIncrease && bounds.max > 0;
+                    mayDecrease = mayDecrease && bounds.min < 0;
+                }
+            }
+            if (mayIncrease) neverIncreases = false;
+            if (mayDecrease) neverDecreases = false;
+            if (!neverIncreases && !neverDecreases) break;
+        }
+        const quantity = { never_increases: neverIncreases, never_decreases: neverDecreases };
+        property.tags.quantity = Object.assign(quantity, cardinalityTags(levelCounts, property.members, quantity));
+    }
 }
 
 function rulesInSection(psTagged, sectionName) {

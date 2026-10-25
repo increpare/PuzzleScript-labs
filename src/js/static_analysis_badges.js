@@ -39,6 +39,9 @@ const OWN = {
     may_be_destroyed: 'A solver-active rule may write this object absent from a cell.',
     'quantity.never_increases': 'No solver-active rule increases the total board count of this object.',
     'quantity.never_decreases': 'No solver-active rule decreases the total board count of this object.',
+    'quantity.exactly_zero': 'None of this object in any playable level, at any point of play.',
+    'quantity.exactly_one': 'Exactly one of this object in every playable level, at every point of play.',
+    'quantity.at_most_one': 'At most one of this object in every playable level, at every point of play.',
     layer: 'Collision layer this object is on.',
     // layers
     'layer.inert': 'No object on this layer is the player, is mentioned by any rule, or is read by a win condition.',
@@ -49,6 +52,11 @@ const OWN = {
     property: 'Legend property: any one of its members.',
     synonym: 'Legend synonym: another name for one object.',
     aggregate: 'Legend aggregate: all of its members together in one cell.',
+    'legend.quantity.never_increases': 'No solver-active rule increases the summed board count of this property\'s members. Swaps between members are count-neutral.',
+    'legend.quantity.never_decreases': 'No solver-active rule decreases the summed board count of this property\'s members. Swaps between members are count-neutral.',
+    'legend.quantity.exactly_zero': 'No member of this property in any playable level, at any point of play.',
+    'legend.quantity.exactly_one': 'Exactly one member of this property in every playable level, at every point of play.',
+    'legend.quantity.at_most_one': 'At most one member of this property in every playable level, at every point of play.',
     // game
     has_action_input: 'Action input is enabled (no noaction metadata).',
     run_rules_on_level_start: 'The run_rules_on_level_start metadata flag is set.',
@@ -89,6 +97,9 @@ const ALIASES = {
     may_be_destroyed: 'destroyed_by_rules',
     'quantity.never_increases': 'quantity_never_increases',
     'quantity.never_decreases': 'quantity_never_decreases',
+    'quantity.exactly_zero': 'quantity_exactly_zero',
+    'quantity.exactly_one': 'quantity_exactly_one',
+    'quantity.at_most_one': 'quantity_at_most_one',
 };
 const SCHEMA_FOR = { object: 'object_tags', rule: 'rule_tags', win: 'wincondition_tags', group: 'rulegroup_flow' };
 // Families that describe the whole game rather than one line.
@@ -162,6 +173,7 @@ function tagBadges(scope, tags, skip) {
         else if (Array.isArray(raw)) out.push(list(scope, key, raw.map(String)));
         else if (raw && typeof raw === 'object') {
             for (const [sub, v] of Object.entries(raw)) {
+                if (skip && skip.has(`${key}.${sub}`)) continue;
                 if (typeof v === 'boolean') out.push(flag(scope, `${key}.${sub}`, v));
                 else if (Array.isArray(v)) out.push(list(scope, `${key}.${sub}`, v.map(String)));
             }
@@ -343,7 +355,8 @@ function buildBadges(report, info) {
     for (const property of tagged.properties) {
         propertyMembers.set(property.canonical_name, property.members.map(member => member.toLowerCase()));
     }
-    const levelPresence = new Set(info.anyBoard ? ['present_in_all_levels', 'present_in_some_levels', 'present_in_no_levels'] : []);
+    // Claims about the authored levels mean nothing on an arbitrary board.
+    const levelPresence = new Set(info.anyBoard ? ['present_in_all_levels', 'present_in_some_levels', 'present_in_no_levels', 'quantity.exactly_zero', 'quantity.exactly_one', 'quantity.at_most_one'] : []);
     for (const object of tagged.objects) {
         add(objectLine.get(object.name), [
             value('object', 'layer', String(object.layer)),
@@ -358,7 +371,7 @@ function buildBadges(report, info) {
         if (!line) continue;
         const onObjectLine = !scanned.legendLines.has(property.canonical_name) && declared && declared.line === line;
         add(line, [{ t: onObjectLine ? `${property.kind}: ${property.name}` : property.kind, k: 'val', d: tip(`${property.kind}: ${property.name}`, describe('legend', property.kind), ['Members: ' + listText(property.members)]) },
-            ...tagBadges('legend', property.tags)]);
+            ...tagBadges('legend', property.tags, levelPresence)]);
     }
     const layerLines = scanned.layerLines;
     const layerLineById = new Map();
