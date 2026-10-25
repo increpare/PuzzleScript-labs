@@ -5,8 +5,9 @@ import { build } from 'esbuild';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export async function buildMisOptimizer() {
-  // Workers use the optimizer; the page uses the smaller source-tools bundle.
-  for (const [name, globalName] of [['optimizer', 'MISOptimizer'], ['tools', 'MISTools']]) {
+  // Workers use the optimizer; the page uses the smaller source-tools bundle;
+  // the Static analysis tab's worker uses the analysis bundle.
+  for (const [name, globalName] of [['optimizer', 'MISOptimizer'], ['tools', 'MISTools'], ['analysis', 'MISAnalysis']]) {
     const result = await build({
       entryPoints: [path.join(root, `src/js/mis/mis_${name}_entry.js`)],
       bundle: true, platform: 'browser', format: 'iife', globalName,

@@ -13,6 +13,7 @@
 	// The worker sits next to this script. Resolving against the script rather
 	// than the page keeps it found in the release build, which serves js/source/.
 	const WORKER_URL = new URL('mis_worker.js', document.currentScript.src).href;
+	const ANALYSIS_WORKER_URL = new URL('mis_analysis_worker.js', document.currentScript.src).href;
 
 	const DEMOS = [
 		['Simple Block Pushing (Sokoban)', 'demo/sokoban_basic.txt'],
@@ -275,6 +276,7 @@
 			buildTighten();
 		}
 		$('game-title').textContent = (model.metadata.title || app.fileName) + (model.metadata.author ? ' — ' + model.metadata.author : '');
+		scheduleAnalysis();
 		return true;
 	}
 
@@ -2395,15 +2397,72 @@
 
 	function showTab(name) {
 		Array.from($('tabs').children).forEach(function (b) { b.classList.toggle('on', b.dataset.tab === name); });
-		['transform', 'source', 'help'].forEach(function (t) { $('tab-' + t).classList.toggle('on', t === name); });
+		['transform', 'source', 'analysis', 'help'].forEach(function (t) { $('tab-' + t).classList.toggle('on', t === name); });
 		// The panel under the board follows the code tab: the generator for
-		// Transform, the console for Game source. Help leaves it as it was.
-		if (name !== 'help') {
+		// Transform, the console for Game source. Help and Static analysis leave it as it was.
+		if (name !== 'help' && name !== 'analysis') {
 			$('suggest').hidden = name !== 'transform';
 			misConsole.setVisible(name === 'source');
 		}
 		if (name === 'source') sourceCM.refresh();
 		if (name === 'transform') transformCM.refresh();
+		if (name === 'analysis') refreshAnalysis();
+	}
+
+	/////////////////////////////////////////////////////////////////////
+	// Static analysis tab
+	/////////////////////////////////////////////////////////////////////
+
+	// The tab shows the last source that compiled, analysed in its own worker
+	// (a large game takes seconds). A newer request terminates a running one.
+	const analysis = { view: null, worker: null, busy: false, job: 0, request: null, shown: null, result: null, timer: 0 };
+	function analysisStatus(text) { $('sa-status').textContent = text; }
+	function renderAnalysisStrip() {
+		const strip = $('sa-game');
+		strip.textContent = '';
+		if (!analysis.result) return;
+		analysis.view.visible(analysis.result.game).forEach(function (badge) { strip.appendChild(analysis.view.badgeElement(badge)); });
+	}
+	function analysisSummary(result) {
+		const s = result.summary || {}, stale = app.source && app.source !== analysis.shown.text;
+		return 'Facts: ' + (s.proved || 0) + ' proved, ' + (s.candidate || 0) + ' candidate, ' + (s.rejected || 0) + ' rejected · ' + result.ms + ' ms' +
+			(analysis.shown.anyBoard ? ' · any board' : ' · source levels') + (stale ? ' · showing the last version that compiled' : '');
+	}
+	function startAnalysisWorker() {
+		analysis.worker = new Worker(ANALYSIS_WORKER_URL);
+		analysis.worker.onmessage = function (e) {
+			const m = e.data;
+			if (m.id !== analysis.job) return;
+			analysis.busy = false;
+			if (!m.result.ok) { analysisStatus('Analysis failed: ' + m.result.error); return; }
+			analysis.shown = analysis.request;
+			analysis.result = m.result;
+			analysis.view.show(analysis.shown.text, m.result);
+			renderAnalysisStrip();
+			analysisStatus(analysisSummary(m.result));
+		};
+		analysis.worker.onerror = function (e) { analysis.busy = false; analysisStatus('Analysis failed: ' + e.message); };
+	}
+	function refreshAnalysis() {
+		if (!$('tab-analysis').classList.contains('on')) return;
+		if (!analysis.view) { analysis.view = MISAnalysisView.create($('sa-editor')); analysis.view.hover($('sa-game')); }
+		analysis.view.refresh();
+		const text = app.compiledText, anyBoard = $('sa-any-board').checked;
+		const same = function (r) { return r && r.text === text && r.anyBoard === anyBoard; };
+		if (!text) { analysisStatus('No game has compiled yet.'); return; }
+		if (same(analysis.shown)) { analysisStatus(analysisSummary(analysis.result)); return; }
+		if (analysis.busy && same(analysis.request)) return;
+		if (analysis.busy) { analysis.worker.terminate(); analysis.worker = null; }
+		if (!analysis.worker) startAnalysisWorker();
+		analysis.request = { text: text, anyBoard: anyBoard };
+		analysis.busy = true;
+		analysis.worker.postMessage({ id: ++analysis.job, source: text, anyBoard: anyBoard });
+		analysisStatus('Analysing\u2026');
+	}
+	// Recompiles happen on every edit; analyse once they settle.
+	function scheduleAnalysis() {
+		clearTimeout(analysis.timer);
+		analysis.timer = setTimeout(refreshAnalysis, 300);
 	}
 
 	function initEditors() {
@@ -2492,6 +2551,12 @@
 	Array.from($('mode-seg').children).forEach(function (b) { b.onclick = function () { setMode(b.dataset.mode); }; });
 	Array.from($('tabs').children).forEach(function (b) { b.onclick = function () { showTab(b.dataset.tab); }; });
 	$('help-btn').onclick = function () { showTab('help'); };
+	$('sa-any-board').onchange = refreshAnalysis;
+	$('sa-negatives').onchange = function () {
+		if (!analysis.view) return;
+		analysis.view.setShowNegatives(this.checked);
+		renderAnalysisStrip();
+	};
 	$('undo-btn').onclick = doUndo;
 	$('redo-btn').onclick = doRedo;
 	$('gen-btn').onclick = function () { if ((app.gen && app.gen.running) || workspace().restartTransform) stopGeneration(); else startGeneration(); };

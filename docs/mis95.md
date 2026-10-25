@@ -198,6 +198,23 @@ Goals are saved with the game as `(MIS rule goals <level> … MIS end)` comments
 one `need …` / `ban …` line per rule, keyed by the rule's text.
 `node src/tests/mis_rule_goals_node.js` checks the worker side.
 
+## Static analysis tab
+
+**Static analysis** (View ▸ Static analysis) is a read-only copy of the last
+game source that compiled, with every tag and fact from `static_analysis.js` as
+a badge at the end of its line: objects, legend names, collision layers, rules
+(one source line's compiled directions merged), rule groups, win conditions and
+levels. Whole-game tags and facts sit above the source. Hovering a badge shows
+its description, from `src/tests/static_analysis_claim_descriptions.json` where
+it has one. *Show negatives* adds false, empty and rejected badges. *Any board*
+(the default) analyses with `arbitraryBoards`, as the solver and the Game source
+flowers do; off, it analyses the source's levels and adds per-level badges.
+
+The analysis runs in its own worker (`mis_analysis_worker.js`, bundle
+`mis_analysis_bundle.js`) because a large game takes seconds; a newer request
+terminates a running one. `src/js/static_analysis_badges.js` turns the report
+into badges; `node src/tests/static_analysis_badges_node.js` checks it.
+
 ## Console, trace and breakpoints
 
 The panel under the board follows the code tab: **Transform** shows the
@@ -390,6 +407,7 @@ thesis's findings.
 - `src/js/mis/mis_native.js`: adapter for the WebAssembly native solver (board ⇄ layer-cell grids).
 - `src/js/mis/wasm/`: built `mis_native.js` / `mis_native.wasm` (`native/wasm/build_mis_wasm.sh`).
 - `src/js/mis/mis_app.js`: the page controller.
+- `src/js/mis/mis_analysis_view.js`, `mis_analysis_worker.js`, `mis_analysis_entry.js`: the Static analysis tab.
 - `src/js/mis/mis_shims.js`: headless stand-ins for the graphics/input
   scripts.
 - `src/tests/mis_core_node.js`: Node checks for the core and the native adapter.

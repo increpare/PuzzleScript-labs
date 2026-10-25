@@ -105,7 +105,8 @@ import {
   keymap,
   lineNumbers,
   showPanel,
-  tooltips
+  tooltips,
+  WidgetType
 } from "@codemirror/view"
 import {Tree} from "@lezer/common"
 import {Tag} from "@lezer/highlight"
@@ -209,6 +210,7 @@ const runtime = Object.freeze({
   lineNumbers,
   showPanel,
   tooltips,
+  WidgetType,
   Tree,
   Tag
 })

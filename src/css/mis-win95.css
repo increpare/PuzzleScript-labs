@@ -317,6 +317,25 @@ body.resizing-panes, body.resizing-panes * { cursor: var(--resize-cursor) !impor
 .mis-win95 .mis-code-editor .mis-rule-flash { background: #0025b937; box-shadow: inset 3px 0 #000080; }
 .mis-win95 .mis-rule-tip { position: fixed; z-index: 1000; max-width: 300px; padding: 2px 5px 3px; background: #ffffe1; color: #000; border: 1px solid #000; font-size: 11px; line-height: 1.35; white-space: pre-line; pointer-events: none; }
 .mis-win95 #rule-goals { white-space: nowrap; }
+/* Static analysis tab: tags as badges at the end of each source line. */
+/* min-width: a grid item otherwise widens to its longest badge line. */
+.mis-win95 #tab-analysis, .mis-win95 #tab-analysis > * { min-width: 0; }
+.mis-win95 .sa-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; padding: 6px 6px 2px; font-size: 11px; }
+.mis-win95 .sa-bar #sa-status { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mis-win95 .sa-bar .toggle { color: #000; white-space: nowrap; }
+.mis-win95 .sa-game { padding: 2px 4px 0; max-height: 76px; overflow: auto; line-height: 18px; }
+.mis-win95 .sa-game:empty { display: none; }
+.mis-win95 .sa-badges { margin-left: 12px; }
+.mis-win95 .sa-badge { display: inline-block; margin: 0 3px 1px 0; padding: 0 3px; border: 1px solid #808080; background: #f0f0f0; color: #000; font: 10px/13px Tahoma,Arial,sans-serif; white-space: nowrap; vertical-align: 1px; cursor: help; max-width: 100%; box-sizing: border-box; overflow: hidden; text-overflow: ellipsis; }
+.mis-win95 .sa-badge.sa-on { background: #d6f0d0; border-color: #4f8f3f; }
+.mis-win95 .sa-badge.sa-off { background: #fff; border-color: #c0c0c0; border-style: dashed; color: #808080; }
+.mis-win95 .sa-badge.sa-list { background: #dde6fb; border-color: #6676aa; }
+.mis-win95 .sa-badge.sa-val { background: #eee; border-color: #999; color: #333; }
+.mis-win95 .sa-badge.sa-proved { background: #fff; border: 1px solid #2f7f2f; box-shadow: inset 0 0 0 1px #2f7f2f; }
+.mis-win95 .sa-badge.sa-candidate { background: #fff4c2; border-color: #b08800; }
+.mis-win95 .sa-badge.sa-rejected { background: #f8dcdc; border-color: #b05050; color: #602020; }
+.mis-win95 .sa-badge:hover { outline: 1px solid #000080; }
+.mis-win95 .mis-rule-tip.sa-tip { max-width: 460px; }
 .mis-win95 #rule-goals.bad { color: var(--bad); }
 .mis-win95 .mis-code-editor .cm-tooltip-autocomplete { color: #000; background: #fff; border-radius: 0; border: 1px solid #808080; box-shadow: 1px 1px #000; font: 13px/1.45 Consolas,monospace; }
 .mis-win95 .mis-code-editor .cm-tooltip-autocomplete ul li { color: #000; border-radius: 0; }

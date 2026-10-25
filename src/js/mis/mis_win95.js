@@ -18,7 +18,7 @@
       ['New level…', '#new-level'], ['Duplicate level', '#dup-level'], ['Unlock all tiles', '#lock-none'], ['Invert tile locks', '#lock-invert'],
     ]],
     ['View', [
-      ['Transform code', '[data-tab="transform"]'], ['Game source', '[data-tab="source"]'],
+      ['Transform code', '[data-tab="transform"]'], ['Game source', '[data-tab="source"]'], ['Static analysis', '[data-tab="analysis"]'],
       ['Blind mode', () => $('blind-toggle').click()],
     ]],
     ['Run', [

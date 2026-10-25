@@ -139,6 +139,7 @@
 		<div class="tabs" id="tabs">
 			<button data-tab="transform" class="on">Transform</button>
 			<button data-tab="source">Game source</button>
+			<button data-tab="analysis">Static analysis</button>
 			<button data-tab="help">Help</button>
 		</div>
 		<div class="tab on" id="tab-transform">
@@ -156,6 +157,16 @@
 		<div class="tab" id="tab-source">
 			<div class="editor-box"><textarea id="source-text"></textarea></div>
 			<div class="diag" id="source-diag"></div>
+		</div>
+		<div class="tab" id="tab-analysis">
+			<div class="sa-bar">
+				<span id="sa-status" class="faint">Not analysed yet.</span>
+				<span class="spacer"></span>
+				<label class="toggle" title="Also show tags that are false, empty or rejected"><input type="checkbox" id="sa-negatives"> Show negatives</label>
+				<label class="toggle" title="Analyse for any board the editor could make, as the solver and the Game source marks do. Off: analyse the levels written in the source, which adds per-level tags."><input type="checkbox" id="sa-any-board" checked> Any board</label>
+			</div>
+			<div class="sa-game" id="sa-game" aria-label="Whole-game tags"></div>
+			<div class="editor-box" id="sa-editor"></div>
 		</div>
 		<div class="tab" id="tab-help">
 			<div class="help">
@@ -176,6 +187,8 @@
 				<h3>Rules in the Game source gutter</h3>
 				<p>Next to each rule, a mark says what the current level's solution does with it: a faint dot if it never fires, a grey dot if it fires (the line warms the more it fires), a black dot if every solution fires it. A flower marks rules that only change decoration or play sounds. Hover a mark for details; <b>Watch solution</b> lights up each rule as it fires.</p>
 				<p>Click a mark to set a goal for this level: <b>✓</b> every solution of a generated level must fire the rule; click again for <b>✗</b>: no solution may fire it, not even a roundabout one; click again to clear. A red mark means the current level misses that goal. Checking ✗ means exploring the whole level, so it can be slow on big levels.</p>
+				<h3>Static analysis</h3>
+				<p>The <b>Static analysis</b> tab is a read-only copy of the game source with every tag the static analyser derives, as badges at the end of each line: objects, legend names, collision layers, rules, win conditions and levels. Whole-game tags sit above the source. Hover a badge for what it means. Green badges are true flags, blue ones lists, and proved / candidate / rejected facts are green-bordered / yellow / red. <i>Show negatives</i> adds the false, empty and rejected ones. <i>Any board</i> analyses for every board you could draw (what the solver uses); turn it off to analyse the levels in the source.</p>
 				<h3>Console and breakpoints</h3>
 				<p>With Game source open, the panel under the board is the console: <b>Output</b> (compile messages, then the playtest's messages and sounds), <b>Compiled</b> (what each rule line compiles to) and <b>Trace</b> (every rule each playtest move fires). Hover or arrow through Trace rows to see the board at that moment; click or press <kbd>Enter</kbd> to keep it there (<kbd>Esc</kbd> returns).</p>
 				<p>Click the margin left of a rule's line number, or press <kbd>F9</kbd> on its line, to set a breakpoint. A move that fires the rule stops and the designer shows <b>[Break]</b>: <kbd>N</kbd> next step · <kbd>B</kbd> back · <kbd>C</kbd> continue to the next breakpoint · <kbd>Esc</kbd> finish the move. The Trace page's toolbar has the same commands, with <i>Stop at breakpoints</i> and <i>Clear</i>; so does the <b>Run</b> menu. Double-click a row to open its line. Breakpoints are saved with the game.</p>
@@ -249,6 +262,7 @@ choose 9 horizontal [Player | no Wall] -> [ | Player]</pre>
 <script src="js/puzzlescript-autocomplete.js"></script>
 <script src="js/mis/mis_sprite_painting.js"></script>
 <script src="js/mis/mis_editor.js"></script>
+<script src="js/mis/mis_analysis_view.js"></script>
 <script src="js/mis/mis_board.js"></script>
 <script src="js/mis/mis_generation_pool.js"></script>
 <script src="js/mis/mis_recovery.js"></script>
