@@ -515,8 +515,9 @@
 			}
 			if (row.classList.contains('c-line')) {
 				const line = +row.dataset.line;
-				if (compiledOpen.has(line)) compiledOpen.delete(line); else compiledOpen.add(line);
 				opts.revealLine(line, true);
+				if (row.classList.contains('leaf')) return;
+				if (compiledOpen.has(line)) compiledOpen.delete(line); else compiledOpen.add(line);
 				renderCompiled();
 				return;
 			}
@@ -572,18 +573,25 @@
 					return;
 				}
 				const list = compiledView.lines.get(line), open = compiledOpen.has(line);
-				const count = list.length + (list.length === 1 ? ' compiled rule' : ' compiled rules');
-				html += '<div class="c-line' + (open ? ' open' : '') + (compiledFocus === line ? ' focus' : '') + '" style="--depth:' + depth + '" role="treeitem" aria-level="' + level + '" aria-expanded="' + open + '" tabindex="-1" data-key="c' + line + '" data-line="' + line + '"' +
+				// A line that compiles to one rule is just that rule: nothing to expand.
+				if (list.length === 1) {
+					html += '<div class="c-line leaf' + (compiledFocus === line ? ' at-cursor' : '') + '" role="treeitem" aria-level="' + level + '" tabindex="-1" data-key="c' + line + '" data-line="' + line + '"' +
+						' title="' + escapeHtml(list[0]) + '" aria-label="' + escapeHtml('line ' + line + ': ' + list[0]) + '">' +
+						indent(depth) + '<span class="tv-gap" aria-hidden="true"></span>' + lineCol(line) + text(escapeHtml(list[0])) + '</div>';
+					return;
+				}
+				const count = list.length + ' compiled rules';
+				html += '<div class="c-line' + (open ? ' open' : '') + (compiledFocus === line ? ' at-cursor' : '') + '" style="--depth:' + depth + '" role="treeitem" aria-level="' + level + '" aria-expanded="' + open + '" tabindex="-1" data-key="c' + line + '" data-line="' + line + '"' +
 					' title="' + escapeHtml('line ' + line + ': ' + sourcePlain(line)) + '" aria-label="' + escapeHtml('line ' + line + ': ' + sourcePlain(line) + ', ' + count) + '">' +
-					indent(depth) + box(open) + lineCol(line) + text(escapeHtml(sourcePlain(line)) + '  (' + list.length + (list.length === 1 ? ' rule' : ' rules') + ')') + '</div>';
+					indent(depth) + box(open) + lineCol(line) + text(escapeHtml(sourcePlain(line)) + '  (' + list.length + ' rules)') + '</div>';
 				if (open) list.forEach(function (rule, k) {
 					html += '<div class="c-sub" role="treeitem" aria-level="' + (level + 1) + '" tabindex="-1" data-key="c' + line + ':' + k + '" data-line="' + line + '" title="' + escapeHtml(rule) + '">' +
 						indent(depth) + connector(k === list.length - 1) + text(escapeHtml(rule)) + '</div>';
 				});
 			});
 			els.compiled.innerHTML = html + '</div>';
-			settleTree('compiled', els.compiled, hadFocus, '.c-line.focus');
-			const focus = els.compiled.querySelector('.c-line.focus');
+			settleTree('compiled', els.compiled, hadFocus, '.c-line.at-cursor');
+			const focus = els.compiled.querySelector('.c-line.at-cursor');
 			if (focus && !hadFocus) scrollWithin(els.compiled, focus);
 		}
 

@@ -904,6 +904,10 @@ function emitRulesSection(canonical, ruleAliasForSet, layerIndex, memberToProper
         }
         const prefix = [];
         const continuingGroup = previousGroupNumber !== null && previousGroupNumber === rule.groupNumber;
+        // A blank line between rule groups (a group is a rule plus any `+` rules).
+        if (!continuingGroup && previousGroupNumber !== null) {
+            lines.push('');
+        }
         if (!continuingGroup && startLoopGroups.has(rule.groupNumber)) {
             for (let count = 0; count < startLoopGroups.get(rule.groupNumber); count++) {
                 lines.push('startLoop');

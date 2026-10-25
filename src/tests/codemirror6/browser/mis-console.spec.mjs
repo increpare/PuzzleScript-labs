@@ -126,6 +126,12 @@ test("Compiled lists each rule line's compiled rules and the loop markers", asyn
   await push.click()
   await expect(compiled.locator(".c-sub")).toHaveCount(4)
   await expect(compiled.locator(".c-sub .tv-line.last")).toHaveCount(1)
+  // A line that compiles to one rule is a plain row: that rule, no [+] box.
+  const single = compiled.locator(`.c-line[data-line="${MARK_LINE}"]`)
+  await expect(single).toHaveClass(/\bleaf\b/)
+  await expect(single.locator(".tv-box")).toHaveCount(0)
+  await expect(single).not.toHaveAttribute("aria-expanded", /.*/)
+  await expect(single.locator(".t-text")).toContainText("mark")
   await expect(compiled.locator("a")).toHaveCount(0)
   expect(errors).toEqual([])
 })

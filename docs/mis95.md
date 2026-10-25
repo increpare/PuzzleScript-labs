@@ -107,7 +107,8 @@ navigation. Screenshots are written to `build/mis-editor-checks/`.
 **Tools → Canonicalize** replaces the game source with valid PuzzleScript emitted
 from its semantic canonical form, retaining each surviving object's sprite and
 palette. Original object names and casing are retained where possible; merged
-objects use one representative's name and artwork. **Canonicalize (strip sprites)**
+objects use one representative's name and artwork. In RULES, a blank line
+separates rule groups (a rule and its `+` rules), loop markers included. **Canonicalize (strip sprites)**
 instead gives each object its most common pixel colour and omits its sprite grid.
 Transparent pixels are ignored; ties use palette order, and entirely transparent
 sprites use their first palette colour. Both commands omit decorative section
@@ -208,8 +209,9 @@ was. The console has three tabs, always on, with no prelude flags needed:
   (messages, sounds, commands, undo, restart, solved). The line under the
   source editor only summarises ("2 errors — show in Output").
 - **Compiled**: what `debug` prints in the editor, one row per source rule
-  line, expanding to the rules it compiles to, with `startloop`/`endloop`
-  markers and loop bodies indented. It follows the source cursor.
+  line, expanding to the rules it compiles to (a line that compiles to a single
+  rule just shows that rule), with `startloop`/`endloop` markers and loop
+  bodies indented. It scrolls to, and opens, the line under the source cursor.
 - **Trace**: what `verbose_logging` prints, one group per playtest move
   (including its `again` turns), plus the rules run at level start and on
   restart when the game has `run_rules_on_level_start`. Hover a row to see the
