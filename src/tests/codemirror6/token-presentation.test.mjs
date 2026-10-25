@@ -103,9 +103,14 @@ test("PuzzleScript style strings map to exact legacy classes and dynamic colours
   assert.deepEqual(presentationClasses("MULTICOLOR#Ff00aA"), ["cm-COLOR"])
   assert.deepEqual(presentationClasses("COLOR COLOR-#123"), ["cm-COLOR", "cm-COLOR-#123"])
   assert.equal(dynamicHexForStyle("NAME"), null)
-  assert.equal(styleFromHexCode("#000"), "color: hsl(0,0%,34%)")
-  assert.equal(styleFromHexCode("#123"), "color: hsl(210,50%,34%)")
-  assert.equal(styleFromHexCode("#Ff00aA"), "color:#Ff00aA")
+  // light-dark(on white, on the midnight background): the dark side is the
+  // original midnight adjustment; the light side darkens until readable
+  // (vanilla PuzzleScript #1210: #ffffff was invisible on a white editor).
+  assert.equal(styleFromHexCode("#000"), "color: light-dark(#000, hsl(0,0%,34%))")
+  assert.equal(styleFromHexCode("#123"), "color: light-dark(#123, hsl(210,50%,34%))")
+  assert.equal(styleFromHexCode("#Ff00aA"), "color: light-dark(#Ff00aA, #Ff00aA)")
+  assert.equal(styleFromHexCode("#ffffff"), "color: light-dark(rgb(168 168 168), #ffffff)")
+  assert.equal(styleFromHexCode("#ff0"), "color: light-dark(rgb(173 173 0), #ff0)")
 })
 
 test("token decorations refuse an approximate viewport", async () => {

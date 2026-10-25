@@ -67,6 +67,16 @@ async function main() {
         assert.deepEqual(object.colors, [expected], 'choose the dominant colour by pixel count, with palette-order ties');
         assert(object.spritematrix.flat().every(pixel => pixel === 0), 'omitted grids compile to solid blocks');
     }
+    // Rule groups (a rule plus its `+` rules) are separated by blank lines,
+    // loop markers included; `+` rules stay attached.
+    const grouped = MISTools.canonicalize(sokoban.replace(/(\nRULES\s*\n=+\s*\n)[\s\S]*?(\n=+\s*\nWINCONDITIONS)/,
+        '$1\n[ > Player | Crate ] -> [ > Player | > Crate ]\n+ [ Crate Target ] -> [ Crate Target ] again\n\nstartloop\n[ action Player ] -> [ Player ]\n'
+        + '[ Crate | Crate ] -> [ Crate | Crate ]\nendloop\nlate [ Player Target ] -> [ Player Target ]\n$2'));
+    const rulesBlock = grouped.slice(grouped.indexOf('\nRULES\n'), grouped.indexOf('\nWINCONDITIONS'));
+    assert.match(rulesBlock, /\n\+ down \[ Target Crate \] -> \[ Target Crate \] again\n\nstartLoop\ndown \[ action Player \] -> \[ Player \]\n\ndown \[ Crate \| Crate \]/, 'blank line before each new group');
+    assert.match(rulesBlock, /\nendLoop\n\nlate /, 'blank line after a loop, before the next group');
+    assert(!/\n\n\+/.test(rulesBlock), '+ rules stay with their group');
+    assert.equal(MISTools.canonicalize(grouped), grouped, 'grouped output is stable');
     const glyphCollision = fs.readFileSync(path.join(src, 'demo/sokoban_basic.txt'), 'utf8')
         .replace('P = Player', 'X = Player').replace(/Crate/g, 'P')
         .replace(/\nLEVELS([\s\S]*)/, (_, maps) => '\nLEVELS' + maps.replace(/P/g, 'X'))

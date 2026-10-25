@@ -50,8 +50,6 @@
 .mis-win95 .console-body .o-row .col-icon { margin-top: 3px; }
 .mis-win95 .console-body .o-row .t-text { white-space: normal; overflow-wrap: anywhere; }
 
-/* Compiled: the line under the editor cursor. */
-.mis-win95 .c-line.focus .t-text { background: #c0c0c0; }
 
 /* Source tab status line: links to Output */
 .mis-win95 .diag-more a { color: #000080; }
