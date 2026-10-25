@@ -929,20 +929,20 @@
               {
                 "name": "single_pass_safe",
                 "type": "boolean",
-                "description": "Whether this rule group has a conservative certificate that no rule application can enable itself or an earlier rule in the same group.",
-                "specification": "true only when the analyzer's intra-group wake graph has no self edge and no edge from a later rule to itself or an earlier rule, and when group-level blockers such as random rules, rigid rules, semantic commands, or static force-always behavior are absent. This is an analyzer certificate only; no runtime behavior changes when the field is true."
+                "description": "Whether a conservative certificate proves that the first group pass reaches its fixed point.",
+                "specification": "Requires no self/backward predicate dependencies or conflicting replacement writes. Multi-cell state writers remain conservative because different match tuples can overlap and overwrite results without changing any match predicate. Random or dynamic replacements, rigid rules, observable commands and force-always behavior block the certificate. This is an analyzer certificate only; no runtime behavior changes when the field is true."
               },
               {
                 "name": "single_pass_blockers",
                 "type": "string[]",
                 "description": "Reasons this group is not certified single-pass-safe.",
-                "specification": "Known blockers include earlier_rule_may_be_enabled, random_rule_group, rigid_rule, semantic_command, and force_always_rule. A group with single_pass_safe true must have an empty blocker list."
+                "specification": "Known blockers include earlier_rule_may_be_enabled, earlier_rule_may_be_affected, conflicting_writes, overlapping_replacements, random_replacement, dynamic_replacement, random_rule_group, rigid_rule, semantic_command, observable_command, and force_always_rule. A group with single_pass_safe true must have an empty blocker list."
               },
               {
                 "name": "group_skip_mask",
                 "type": "object",
-                "description": "Analyzer-certified read mask for deciding whether a previously evaluated group can be skipped after later writes.",
-                "specification": "skippable is true only when blockers is empty. Known blockers include random_rule_group, rigid_rule, semantic_command, and force_always_rule. semantic_command includes again. reads contains readable object/movement read sets; masks contains optional engine-shaped Int32 word masks.",
+                "description": "Analyzer-certified dependency mask for skipping a previously clean group after later writes.",
+                "specification": "skippable is true only when blockers is empty. Random/dynamic replacements, random groups, rigid rules, observable commands and force-always behavior block skipping. masks cover LHS predicates and RHS outputs that could need rewriting, including implicit movement clears and all five movement bits per written collision layer. reads retains readable predicate sets; object_wake additionally includes output resources. This does not certify that a group has converged or allow skipping its first evaluation.",
                 "fields": [
                   {
                     "name": "bitvec_format",
@@ -1041,14 +1041,14 @@
                       {
                         "name": "read_objects_wake",
                         "type": "integer[]",
-                        "description": "Object-mask words for object reads that can wake the group.",
-                        "specification": "Uses engine object id bits."
+                        "description": "Object-mask words for predicate and output resources that can wake the group.",
+                        "specification": "Uses engine object id bits, including possibly overwritten collision-layer siblings."
                       },
                       {
                         "name": "read_movements_wake",
                         "type": "integer[]",
-                        "description": "Movement-mask words for movement reads that can wake the group.",
-                        "specification": "Uses five movement bits per collision layer."
+                        "description": "Movement-mask words for predicate and output resources that can wake the group.",
+                        "specification": "Uses five movement bits per collision layer; written layers include all five bits."
                       }
                     ]
                   }
@@ -1058,45 +1058,45 @@
                 "name": "blockers",
                 "type": "string[]",
                 "description": "Reasons this rule group is not a split candidate.",
-                "specification": "Known blockers include single_component, random_rule_group, rigid_rule, and semantic_command."
+                "specification": "Known blockers include single_component, random_rule_group, rigid_rule, semantic_command, observable_command, force_always_rule, random_replacement and dynamic_replacement."
               },
               {
                 "name": "interactionEdges",
                 "type": "array",
                 "description": "Optional exact intra-group dependency edges.",
-                "specification": "Each edge means one rule in the group may enable a later or earlier rule in the same group.",
+                "specification": "Each edge means one rule may enable or invalidate another rule's predicate, or overwrite its replacement result. Write conflicts produce edges in both directions. Movement effects are conservatively compared by collision layer. The separate winflow wake graph retains its enabling-only meaning.",
                 "items": {
                   "type": "object",
                   "fields": [
                     {
                       "name": "from_line",
                       "type": "integer",
-                      "description": "1-based source line of the enabling rule.",
+                      "description": "1-based source line of the affecting rule.",
                       "specification": "Together with from_text, identifies the edge source rule."
                     },
                     {
                       "name": "from_text",
                       "type": "string",
-                      "description": "Trimmed source text of the enabling rule.",
+                      "description": "Trimmed source text of the affecting rule.",
                       "specification": "Used with from_line to identify the edge source rule."
                     },
                     {
                       "name": "to_line",
                       "type": "integer",
-                      "description": "1-based source line of the enabled rule.",
+                      "description": "1-based source line of the affected rule.",
                       "specification": "Together with to_text, identifies the edge destination rule."
                     },
                     {
                       "name": "to_text",
                       "type": "string",
-                      "description": "Trimmed source text of the enabled rule.",
+                      "description": "Trimmed source text of the affected rule.",
                       "specification": "Used with to_line to identify the edge destination rule."
                     },
                     {
                       "name": "reasons",
                       "type": "string[]",
                       "description": "Why the interaction edge exists.",
-                      "specification": "Allowed reasons are object_presence, object_absence, and movement."
+                      "specification": "Reasons are object_presence, object_absence, movement, object_read_write, movement_read_write, object_write_conflict and movement_write_conflict."
                     }
                   ]
                 }

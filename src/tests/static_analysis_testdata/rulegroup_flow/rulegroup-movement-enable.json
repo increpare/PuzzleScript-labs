@@ -18,23 +18,30 @@
         "reads": {
           "object_present": ["Alpha", "Beta"],
           "object_absent": [],
-          "object_wake": ["Alpha", "Beta"],
+          "object_wake": ["Alpha", "Beta", "MarkerY"],
           "movement": ["Alpha:right"],
           "movement_present": ["Alpha:right"],
           "movement_absent": []
         },
         "masks": {
-          "read_objects_wake": [12],
-          "read_movements_wake": [8192, 0]
+          "read_objects_wake": [44],
+          "read_movements_wake": [1040219136, 0]
         }
       },
       "interactionEdges": [
+        {
+          "from_line": 55,
+          "from_text": "[ right alpha ] -> [ alpha ]",
+          "to_line": 56,
+          "to_text": "+ [ alpha ] -> [ right alpha ]",
+          "reasons": ["movement_write_conflict"]
+        },
         {
           "from_line": 56,
           "from_text": "+ [ alpha ] -> [ right alpha ]",
           "to_line": 55,
           "to_text": "[ right alpha ] -> [ alpha ]",
-          "reasons": ["movement"]
+          "reasons": ["movement", "movement_read_write", "movement_write_conflict"]
         }
       ],
       "rerunMasks": [

@@ -11,6 +11,8 @@ export const pluginPaths = Object.freeze([
   "js/codemirror6/plugins/autocomplete.js",
   "js/codemirror6/plugins/commands.js",
   "js/codemirror6/plugins/interactions.js",
+  "js/codemirror6/plugins/symbol-info.js",
+  "js/codemirror6/plugins/symbol-inspector.js",
   "js/codemirror6/plugins/search.js",
   "js/codemirror6/plugins/editor-adapter.js",
   "js/codemirror6/plugins/index.js"

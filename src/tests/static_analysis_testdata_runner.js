@@ -473,6 +473,9 @@ function runCertifiedWakeMasksDir(dirPath, claimDescriptions, log = process.stdo
 }
 
 const REASON_VALUES = ['object_presence', 'object_absence', 'movement'];
+const GROUP_INTERACTION_REASON_VALUES = REASON_VALUES.concat([
+    'object_read_write', 'movement_read_write', 'object_write_conflict', 'movement_write_conflict',
+]);
 
 const GROUP_SKIP_READ_FIELDS = [
     'object_present',
@@ -1096,7 +1099,7 @@ function validateRulegroupFlowExpectationShape(filePath, payload) {
                 assert.ok(typeof edge.to_text === 'string' && edge.to_text.length > 0, `${filePath}: rulegroupFlow[${index}].interactionEdges[${edgeIndex}] missing to_text`);
                 assert.ok(Array.isArray(edge.reasons) && edge.reasons.length > 0, `${filePath}: rulegroupFlow[${index}].interactionEdges[${edgeIndex}].reasons must be a non-empty array`);
                 for (const reason of edge.reasons) {
-                    assert.ok(REASON_VALUES.includes(reason), `${filePath}: rulegroupFlow[${index}].interactionEdges[${edgeIndex}].reasons contains unknown reason ${JSON.stringify(reason)}`);
+                    assert.ok(GROUP_INTERACTION_REASON_VALUES.includes(reason), `${filePath}: rulegroupFlow[${index}].interactionEdges[${edgeIndex}].reasons contains unknown reason ${JSON.stringify(reason)}`);
                 }
             }
         }

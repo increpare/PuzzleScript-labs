@@ -33,7 +33,9 @@ test("checked-in CM6 runtime links its discoverable matching source map", async 
   assert.equal(map.sourcesContent.length, map.sources.length)
 })
 
-test("release-equivalent runtime plus plugins is below 100 KiB at Brotli text quality 11", async () => {
+// Symbol inspection adds the native hover-tooltip machinery and its source
+// index/card UI. Bound the complete feature-bearing editor surface at 110 KiB.
+test("release-equivalent runtime plus plugins is below 110 KiB at Brotli text quality 11", async () => {
   const files = Object.create(null)
   for (const relative of [runtimePath, ...pluginPaths]) {
     files[`source/${relative}`] = await readFile(sourceURL(relative), "utf8")
@@ -47,5 +49,5 @@ test("release-equivalent runtime plus plugins is below 100 KiB at Brotli text qu
     }
   })
 
-  assert.ok(brotli.length < 100 * 1024, `${brotli.length} bytes is not below 100 KiB`)
+  assert.ok(brotli.length < 110 * 1024, `${brotli.length} bytes is not below 110 KiB`)
 })

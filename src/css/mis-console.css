@@ -1,0 +1,67 @@
+/* MIS95 console under the board (Game source tab) and the breakpoint debugger.
+   See js/mis/mis_console.js. */
+
+.mis-win95 #console { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.mis-win95 .console-tabs { display: flex; align-items: flex-end; gap: 2px; padding: 4px 2px 0; border-bottom: 1px solid #fff; flex: none; }
+.mis-win95 .console-tabs [data-ctab] { min-height: 20px; padding: 3px 10px; font-size: 12px; background: #c0c0c0; box-shadow: inset 1px 1px #fff, inset -1px 0 #000; border: 1px solid #808080; border-bottom: 0; position: relative; }
+.mis-win95 .console-tabs [data-ctab].on { top: 1px; padding-top: 2px; border-bottom: 1px solid #c0c0c0; }
+.mis-win95 .console-tabs [data-ctab].bad { color: var(--bad); }
+.mis-win95 .console-tabs .toggle { align-self: center; font-size: 11px; color: #000; margin-right: 4px; }
+.mis-win95 .console-tabs #console-clear { align-self: center; min-height: 20px; padding: 2px 8px; margin-bottom: 3px; }
+.mis-win95 .console-tabs .spacer { flex: 1; }
+
+.mis-win95 .console-body { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; margin: 3px 2px 2px; padding: 3px 0; background: #fff; box-shadow: var(--sunken); font: 12px/1.5 Consolas, "Courier New", monospace; }
+.mis-win95 .console-body > div { padding: 0 6px 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mis-win95 .console-body .c-empty { white-space: normal; padding: 6px 8px; color: #444; font: 11px/1.5 var(--sans); }
+.mis-win95 .console-body a.ln { color: #000080; text-decoration: underline; cursor: pointer; }
+.mis-win95 .console-body .src { color: #000; }
+.mis-win95 .console-body .faint { color: #707070; }
+
+/* Trace */
+.mis-win95 .t-turn { cursor: pointer; color: #000; }
+.mis-win95 .t-turn.open { font-weight: bold; }
+.mis-win95 .t-turn .faint { font-weight: normal; }
+.mis-win95 .t-turn .tw, .mis-win95 .c-line .tw { display: inline-block; width: 12px; color: #444; }
+.mis-win95 .t-row { padding-left: 18px !important; cursor: default; color: #444; }
+.mis-win95 .t-row.k-rule { color: #000; }
+.mis-win95 .t-row.k-rule .dir { color: #006000; }
+.mis-win95 .t-row.k-command .cmd { color: #800080; font-weight: bold; }
+.mis-win95 .t-row.k-start, .mis-win95 .t-row.k-begin, .mis-win95 .t-row.k-end, .mis-win95 .t-row.k-phase { color: #707070; font-style: italic; }
+.mis-win95 .t-row:not(.nosnap):hover { background: #000080; color: #fff; }
+.mis-win95 .t-row:not(.nosnap):hover :is(.src, .dir, .cmd, a.ln) { color: #fff; }
+.mis-win95 .t-row.pin { outline: 1px dotted #000; outline-offset: -1px; }
+.mis-win95 .t-row.cur { background: #ffffe1; color: #000; box-shadow: inset 3px 0 #a00000; }
+.mis-win95 .bp-dot, .mis-win95 .bp-gap { display: inline-block; width: 8px; height: 8px; margin-right: 5px; vertical-align: -1px; }
+.mis-win95 .bp-dot { border-radius: 50%; background: #c00000; box-shadow: inset -1px -1px #600000; }
+
+/* Output */
+.mis-win95 .o-row.k-error { color: var(--bad); }
+.mis-win95 .o-row.k-warn { color: var(--warn); }
+.mis-win95 .o-row.k-ok { color: var(--good); }
+.mis-win95 .o-row.k-message { color: #000080; }
+.mis-win95 .o-row.k-sound { color: #800080; }
+.mis-win95 .o-sep { margin-top: 4px; border-top: 1px solid #c0c0c0; color: #707070; font: 11px var(--sans); padding-top: 2px !important; }
+
+/* Compiled */
+.mis-win95 .c-head { color: #707070; font: 11px var(--sans); padding-bottom: 2px !important; }
+.mis-win95 .c-line { cursor: pointer; }
+.mis-win95 .c-line.focus { background: #e8ecf8; }
+.mis-win95 .c-sub { padding-left: 30px !important; color: #404040; }
+
+/* Debug bar (paused move) */
+.mis-win95 .debug-bar { order: 7; width: 100%; display: flex; align-items: center; gap: 4px; padding: 3px 4px; background: #ffffe1; border: 1px solid #000; }
+.mis-win95 .debug-bar .debug-state { font-weight: bold; color: #a00000; }
+.mis-win95 .debug-bar #debug-where { font-size: 11px; margin-left: 4px; }
+.mis-win95 .debug-bar .spacer { flex: 1; }
+.mis-win95 .debug-bar button { min-height: 20px; padding: 2px 8px; }
+.mis-win95 .debug-bar.nudge { animation: mis-debug-nudge .3s; }
+@keyframes mis-debug-nudge { 0%, 100% { transform: none; } 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+@media (prefers-reduced-motion: reduce) { .mis-win95 .debug-bar.nudge { animation: none; } }
+
+/* Breakpoint gutter and paused line in the source editor */
+.mis-win95 .mis-bp-gutter { cursor: pointer; }
+.mis-win95 .mis-bp-gutter .cm-gutterElement { display: flex; align-items: center; justify-content: center; }
+.mis-win95 .mis-bp, .mis-win95 .mis-bp-space { display: block; width: 10px; height: 10px; }
+.mis-win95 .mis-bp { border-radius: 50%; background: #c00000; box-shadow: inset -1px -1px #600000, inset 1px 1px #ff8080; }
+.mis-win95 .mis-bp-gutter .cm-gutterElement:hover .mis-bp-space { border-radius: 50%; background: rgba(192,0,0,.25); }
+.mis-win95 .mis-code-editor .mis-paused-line { background: #ffffe1; box-shadow: inset 3px 0 #a00000; }

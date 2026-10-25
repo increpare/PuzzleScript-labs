@@ -4,12 +4,13 @@
 	'use strict';
 	const R = PuzzleScriptCM6Runtime, P = PuzzleScriptCM6Plugins;
 	const { createPuzzleScriptLanguage, wrapPuzzleScriptParser } = P.require('stream-language');
-	const { exactPrefixExtensions } = P.require('exact-prefix');
+	const { exactPrefixExtensions, ensureExactPrefix } = P.require('exact-prefix');
 	const { tokenPresentation } = P.require('token-presentation');
 	const { puzzleScriptCompletionSource, puzzleScriptCompletionKeymap } = P.require('autocomplete');
 	const { puzzleScriptCommandExtensions, puzzleScriptCoreKeymap, puzzleScriptKeymap } = P.require('commands');
 	const { puzzleScriptSearch, puzzleScriptSearchKeymap } = P.require('search');
-	const { puzzleScriptDefinitionLinks } = P.require('interactions');
+	const { puzzleScriptDefinitionLinks, puzzleScriptTokenAtPosition } = P.require('interactions');
+	const { puzzleScriptSymbolInspector } = P.require('symbol-inspector');
 
 	function transformParser(source) {
 		const parser = codeMirrorFn(), wrapped = wrapPuzzleScriptParser(parser), parsed = wrapped.startState();
@@ -113,6 +114,11 @@
 	}
 	const spacer = new (class extends R.GutterMarker { toDOM() { const el = document.createElement('span'); el.className = 'mis-rule-mark'; return el; } })();
 
+	// Breakpoint gutter (game source only): markers ride along with edits.
+	// mis_console.js reads them when a playtest move fires a rule.
+	const breakpointMarker = new (class extends R.GutterMarker { toDOM() { const el = document.createElement('span'); el.className = 'mis-bp'; return el; } })();
+	const breakpointSpacer = new (class extends R.GutterMarker { toDOM() { const el = document.createElement('span'); el.className = 'mis-bp-space'; return el; } })();
+
 	function create(textarea, { transform = false, lineWrapping = false, ruleGutter = false, getDefinitionTarget } = {}) {
 		const listeners = new Map(), markedLines = new Set();
 		let source = '', view, language;
@@ -183,6 +189,45 @@
 				mouseleave() { hideTip(); return false; }
 			}
 		});
+		const toggleBreakpoint = R.StateEffect.define(), setPaused = R.StateEffect.define();
+		const breakpoints = R.StateField.define({
+			create: () => R.RangeSet.empty,
+			update(value, tr) {
+				value = value.map(tr.changes);
+				for (const effect of tr.effects) if (effect.is(toggleBreakpoint)) {
+					const pos = effect.value;
+					let has = false;
+					value.between(pos, pos, from => { if (from === pos) has = true; });
+					value = has ? value.update({ filter: from => from !== pos }) : value.update({ add: [breakpointMarker.range(pos)] });
+				}
+				return value;
+			}
+		});
+		const pausedLine = R.StateField.define({
+			create: () => R.Decoration.none,
+			update(value, tr) {
+				value = value.map(tr.changes);
+				for (const effect of tr.effects) if (effect.is(setPaused)) {
+					const line = effect.value;
+					value = line >= 1 && line <= tr.state.doc.lines ? R.Decoration.set([R.Decoration.line({ class: 'mis-paused-line' }).range(tr.state.doc.line(line).from)]) : R.Decoration.none;
+				}
+				return value;
+			},
+			provide: field => R.EditorView.decorations.from(field)
+		});
+		const breakpointGutter = R.gutter({
+			class: 'mis-bp-gutter',
+			markers: v => v.state.field(breakpoints),
+			initialSpacer: () => breakpointSpacer,
+			domEventHandlers: {
+				mousedown(v, block, event) {
+					if (event.button !== 0) return false;
+					event.preventDefault();
+					(listeners.get('breakpointClick') || []).forEach(fn => fn(lineOfBlock(block)));
+					return true;
+				}
+			}
+		});
 		const setMarks = R.StateEffect.define();
 		const marks = R.StateField.define({
 			create: () => R.Decoration.none,
@@ -201,17 +246,37 @@
 			if (update.docChanged) emit('change');
 			if (update.docChanged || update.selectionSet) emit('cursorActivity');
 		});
+		const levelLinks = R.EditorView.domEventHandlers({
+			mousedown(event, editor) {
+				const modified = /^Mac/.test(navigator.platform) ? event.metaKey : event.ctrlKey;
+				if (event.button !== 0 || !modified) return false;
+				const element = event.target.closest && event.target.closest('.cm-LEVEL');
+				if (!element || !editor.contentDOM.contains(element)) return false;
+				const position = editor.posAtDOM(element);
+				if (!ensureExactPrefix(editor, editor.state.doc.lineAt(position).to)) return false;
+				const token = puzzleScriptTokenAtPosition(editor.state, position);
+				if (!token || !token.style.split(/\s+/).includes('LEVEL')) return false;
+				event.preventDefault(); event.stopPropagation();
+				R.closeCompletion(editor); editor.contentDOM.blur();
+				(listeners.get('levelClick') || []).forEach(fn => fn(token.line));
+				return true;
+			}
+		});
 		function extensions() {
 			language = createPuzzleScriptLanguage(transform ? transformParser(source) : codeMirrorFn());
 			const completionSource = puzzleScriptCompletionSource({ language, complete: transform ? transformCompletions : PuzzleScriptAutocomplete.complete });
 			return [
 				R.EditorView.editorAttributes.of({ class: 'puzzlescript-editor mis-code-editor' }),
 				R.EditorView.contentAttributes.of({ 'aria-label': transform ? 'Transform code' : 'Game source code' }),
+				...(ruleGutter ? [breakpoints, pausedLine, breakpointGutter] : []),
 				R.lineNumbers(), ...(ruleGutter ? [rules, ruleGutterExtension] : []),
 				R.highlightActiveLine(), R.highlightActiveLineGutter(), R.drawSelection(), R.dropCursor(),
-				R.history(), R.EditorState.tabSize.of(4), ...(lineWrapping ? [R.EditorView.lineWrapping] : []),
+				R.history(MISSpritePainting.historyConfig), R.EditorState.tabSize.of(4), ...(lineWrapping ? [R.EditorView.lineWrapping] : []),
 				language.extension, ...exactPrefixExtensions, tokenPresentation({ language }), marks, updates,
+				...(transform ? [] : MISSpritePainting.extension),
+				...(transform ? [] : [levelLinks]),
 				puzzleScriptDefinitionLinks({ language, getDefinitionTarget }),
+				puzzleScriptSymbolInspector({ getDefinitionTarget }),
 				R.autocompletion({
 					activateOnTyping: true, activateOnTypingDelay: 0, defaultKeymap: false, interactionDelay: 0,
 					icons: false, override: [completionSource],
@@ -237,6 +302,7 @@
 			documentState: () => view.state,
 			restoreDocument(state) { R.closeCompletion(view); markedLines.clear(); view.setState(state); view.dispatch({ effects: setMarks.of([]) }); },
 			newDocument(text) { R.closeCompletion(view); markedLines.clear(); view.setState(R.EditorState.create({ doc: String(text), extensions: extensions() })); },
+			resetSpriteBrushes() { if (!transform) view.dispatch({ effects: MISSpritePainting.resetBrushes.of(true) }); },
 			setValue(text) {
 				R.closeCompletion(view);
 				markedLines.clear();
@@ -256,6 +322,15 @@
 			// Map line -> { mark, glyph?, state?, heat? (1-4), tip?, toggle? }
 			setRuleInfo(info) { if (ruleGutter) view.dispatch({ effects: setRules.of(info) }); },
 			setFlashLines(lines) { if (ruleGutter) view.dispatch({ effects: setFlash.of(lines || []) }); },
+			// Breakpoints and the paused line, by 1-based line.
+			toggleBreakpoint(line) { if (ruleGutter && line >= 1 && line <= view.state.doc.lines) view.dispatch({ effects: toggleBreakpoint.of(view.state.doc.line(line).from) }); },
+			getBreakpoints() {
+				if (!ruleGutter) return [];
+				const out = [], doc = view.state.doc;
+				for (let it = view.state.field(breakpoints).iter(); it.value; it.next()) out.push(doc.lineAt(it.from).number);
+				return out;
+			},
+			setPausedLine(line) { if (ruleGutter) view.dispatch({ effects: setPaused.of(line || 0) }); },
 			scrollLineIntoView(line) {
 				if (line >= 1 && line <= view.state.doc.lines) view.dispatch({ effects: R.EditorView.scrollIntoView(view.state.doc.line(line).from, { y: 'nearest' }) });
 			},

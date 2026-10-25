@@ -275,6 +275,17 @@ body.resizing-panes, body.resizing-panes * { cursor: var(--resize-cursor) !impor
 .mis-win95 .mis-code-editor span:is(.cm-HEADER,.cm-COMMAND,.cm-METADATA,.cm-LOGICWORD,.cm-DIRECTION,.cm-BRACKET,.cm-ARROW) { color: #000080; font-weight: normal; }
 .mis-win95 .mis-code-editor span:is(.cm-HEADER,.cm-METADATA,.cm-LOGICWORD) { font-weight: bold; }
 .mis-win95 .mis-code-editor span:is(.cm-NAME,.cm-IDENTIFIER) { color: #006060; }
+.mis-win95 .mis-code-editor .mis-sprite-brush {
+  text-decoration: underline;
+  text-decoration-color: #999;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+.mis-win95 .mis-code-editor.mis-sprite-modifier .mis-sprite-colour {
+  cursor: url('../images/mis-eyedropper.svg') 3 21, crosshair;
+}
+.mis-win95 .mis-code-editor.mis-sprite-modifier .mis-sprite-pixel { cursor: crosshair; }
+.mis-win95 .mis-code-editor.puzzlescript-definition-links .cm-LEVEL { cursor: pointer; }
 .mis-win95 .mis-code-editor span.cm-DIRECTION { color: #800080; }
 .mis-win95 .mis-code-editor span.cm-ARROW { color: #a00000; }
 .mis-win95 .mis-code-editor span.cm-EQUALSBIT { color: #808080; }

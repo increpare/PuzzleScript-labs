@@ -3789,6 +3789,8 @@ function ruleMatchInteractionMetadata(state, rule) {
 }
 
 function ruleHasFixedReplacements(rule) {
+    const objectSet = new BitVec(STRIDE_OBJ), objectClear = new BitVec(STRIDE_OBJ);
+    const movementSet = new BitVec(STRIDE_MOV), movementClear = new BitVec(STRIDE_MOV);
     for (const row of rule[1]) for (const cell of row) {
         if (cell === ellipsisPattern || !cell.replacement) continue;
         const replacement = cell.replacement;
@@ -3800,6 +3802,22 @@ function ruleHasFixedReplacements(rule) {
                 replacement.inferredAggregateBindings.length > 0 ||
                 replacement.inferredPropertyBindings.length > 0 ||
                 replacement.inferredPropertySources.length > 0) return false;
+        // Different match tuples can place different pattern cells on the same
+        // board cell. Constant assignments only converge in one scan if those
+        // assignments agree: [ A | A ] -> [ right A | left A ] does not.
+        const clearObjectsHere = replacement.objectsClear.clone();
+        clearObjectsHere.iclear(replacement.objectsSet);
+        const clearMovementsHere = replacement.movementsClear.clone();
+        clearMovementsHere.ior(replacement.movementsLayerMask);
+        clearMovementsHere.iclear(replacement.movementsSet);
+        if (objectSet.anyBitsInCommon(clearObjectsHere) ||
+                objectClear.anyBitsInCommon(replacement.objectsSet) ||
+                movementSet.anyBitsInCommon(clearMovementsHere) ||
+                movementClear.anyBitsInCommon(replacement.movementsSet)) return false;
+        objectSet.ior(replacement.objectsSet);
+        objectClear.ior(clearObjectsHere);
+        movementSet.ior(replacement.movementsSet);
+        movementClear.ior(clearMovementsHere);
     }
     return true;
 }

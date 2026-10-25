@@ -248,6 +248,8 @@ async function main() {
         "./src/js/codemirror6/plugins/autocomplete.js",
         "./src/js/codemirror6/plugins/commands.js",
         "./src/js/codemirror6/plugins/interactions.js",
+        "./src/js/codemirror6/plugins/symbol-info.js",
+        "./src/js/codemirror6/plugins/symbol-inspector.js",
         "./src/js/codemirror6/plugins/search.js",
         "./src/js/codemirror6/plugins/editor-adapter.js",
         "./src/js/codemirror6/plugins/index.js",

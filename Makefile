@@ -1444,6 +1444,7 @@ tests_js:
 
 static_analysis_tests:
 	$(NODE) src/tests/ps_static_analysis_node.js
+	$(NODE) src/tests/static_analysis_rulegroup_node.js
 	$(NODE) src/tests/action_noop_candidates_node.js
 	$(NODE) src/tests/static_analysis_testdata_runner.js
 	$(NODE) src/tests/static_analysis_testdata_runner_node.js
@@ -1939,6 +1940,7 @@ mis_tests:
 	$(NODE) src/tests/portable_semantics_node.js
 	$(NODE) src/tests/aggregate_win_semantics_node.js
 	$(NODE) src/tests/mis_optimization_node.js
+	$(NODE) src/tests/mis_tools_node.js
 	$(NODE) src/tests/mis_rule_goals_node.js
 
 mis_backend_bench:

@@ -1914,14 +1914,12 @@ function assertActionUnnecessaryDiagnosticsExposeHypotheses() {
 function assertPushRulegroupFlowReplay() {
     const source = solverTestSource('push.txt');
     const analysis = analyzeSource(source, { sourcePath: 'push.txt' });
-    const splitFlow = analysis.facts.rulegroup_flow.find(item =>
-        item.status === 'candidate'
-        && item.subjects.groups[0] === 'early_group_1'
-    );
-    assert.ok(splitFlow, 'push should expose the pusher-style split candidate group');
-    assert.deepStrictEqual(splitFlow.value.components.map(component => component.length), [1, 1, 1, 1]);
-    assert.deepStrictEqual(splitFlow.value.interaction_edges, []);
-    assert.deepStrictEqual(Object.values(splitFlow.value.rerun_masks), [[], [], [], []]);
+    const splitFlow = analysis.facts.rulegroup_flow.find(item => item.subjects.groups[0] === 'early_group_1');
+    assert.ok(splitFlow, 'push should expose its group-flow analysis');
+    assert.strictEqual(splitFlow.value.split_candidate, false, 'opposing pushes may overwrite a shared crate movement');
+    assert.strictEqual(splitFlow.value.single_pass_safe, false);
+    assert.deepStrictEqual(splitFlow.value.components.map(component => component.length), [4]);
+    assert.ok(splitFlow.value.interaction_edges.some(edge => edge.reasons.includes('movement_write_conflict')));
 
     withRuntimeSource(source, () => {
         processRuntimeInputs(inputsForTokens(['up', 'up', 'right', 'up']));
@@ -1929,7 +1927,7 @@ function assertPushRulegroupFlowReplay() {
     }, { levelIndex: 1 });
 }
 
-function assertSplittableRulegroupTransformReplay() {
+function assertOnePusherReplayDoesNotProveIndependence() {
     const source = `
 title Splittable Rulegroup Runtime
 ========
@@ -1977,11 +1975,10 @@ LEVELS
 ======
 PCG
 `;
-    const analysis = analyzeSource(source, { sourcePath: 'splittable_rulegroup_runtime.txt' });
-    const splitFlow = analysis.facts.rulegroup_flow.find(item => item.status === 'candidate');
-    assert.ok(splitFlow, 'runtime pusher fixture should expose a split candidate');
-    assert.deepStrictEqual(splitFlow.value.components.map(component => component.length), [1, 1, 1, 1]);
-    assert.deepStrictEqual(splitFlow.value.interaction_edges, []);
+    const analysis = analyzeSource(source, { sourcePath: 'pusher_rulegroup_runtime.txt' });
+    const splitFlow = analysis.facts.rulegroup_flow[0];
+    assert.strictEqual(splitFlow.value.split_candidate, false, 'one successful replay is not a proof that opposing pushes are impossible');
+    assert.strictEqual(splitFlow.value.single_pass_safe, false);
 
     const solution = inputsForTokens(['right']);
     const originalSnapshot = replayRuntimeSnapshot(source, solution);
@@ -2010,7 +2007,7 @@ assertCastleClosetActionUnnecessaryRejected();
 assertKnownActionUnnecessaryClassifications();
 assertActionUnnecessaryDiagnosticsExposeHypotheses();
 assertPushRulegroupFlowReplay();
-assertSplittableRulegroupTransformReplay();
+assertOnePusherReplayDoesNotProveIndependence();
 
 function assertMatchInteractionCertificates() {
     const fixture = fs.readFileSync(path.join(__dirname,

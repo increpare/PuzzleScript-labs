@@ -133,13 +133,15 @@ test('execution clones own every mutable state container while sharing canonical
   assert.deepEqual(before, snapshot);
 });
 
-test('a no-op tuple returns an independent snapshot and empty diagnostics', () => {
+// Rule execution never modifies its input. Unchanged state is returned as is and
+// results share unchanged parts; public session operations copy at their boundary.
+test('a no-op tuple returns the unchanged state and empty diagnostics', () => {
   const before = state();
+  const snapshot = structuredClone(before);
   const result = applyRuleAt(game, rule(), before, [match()], true);
   assert.equal(result.changed, false);
-  assert.deepEqual(result.state, before);
-  assert.notEqual(result.state, before);
-  assert.notEqual(result.state.random.permutation, before.random.permutation);
+  assert.deepEqual(result.state, snapshot);
+  assert.deepEqual(before, snapshot);
   assert.deepEqual(result.diagnostics, []);
 });
 
@@ -151,8 +153,7 @@ test('all rows revalidate before any writes or random draws', () => {
   ]);
   const result = applyRuleAt(game, incoming, before, [match(), match(1)], true);
   assert.equal(result.changed, false);
-  assert.deepEqual(result.state, before);
-  assert.notEqual(result.state.board.rows[0][0].objects, before.board.rows[0][0].objects);
+  assert.equal(result.state, before);
 });
 
 test('row revalidation includes movement requirements and recorded ellipsis gaps', () => {
@@ -384,14 +385,13 @@ test('tryApplyRule enumerates tuples with the first row varying fastest', () => 
   assert.deepEqual(result.state.random, expectedRandom);
 });
 
-test('unmatched rules return independent unchanged state and do not queue commands', () => {
+test('unmatched rules return the unchanged state and do not queue commands', () => {
   const before = state();
   const incoming = rule([[pattern([B])]], undefined, { commands: [{ kind: CommandKind.Win }] });
   const result = tryApplyRule(game, incoming, before);
   assert.equal(result.changed, false);
-  assert.deepEqual(result.state, before);
-  assert.notEqual(result.state.commands.entries, before.commands.entries);
-  assert.notEqual(result.state.random.permutation, before.random.permutation);
+  assert.equal(result.state, before);
+  assert.deepEqual(result.state.commands.entries, []);
   assert.deepEqual(result.diagnostics, []);
 });
 
@@ -446,7 +446,7 @@ test('successive rules can consume earlier objects and movement intentions', () 
   assert.deepEqual(second.state.destroyedObjects, new Set([A, B]));
 });
 
-test('execution preserves inputs and repeated results own independent mutable state', () => {
+test('execution preserves inputs and repeats deterministically', () => {
   const before = state([[[A, C], [B]]], {
     pendingMovements: [request(0, 0, 0, [Movement.Up])],
     rigidMarks: [{ ...request(1, 0, 1, allMovements), group: null }],
@@ -462,15 +462,7 @@ test('execution preserves inputs and repeated results own independent mutable st
   const second = tryApplyRule(game, incoming, before);
   assert.deepEqual({ before, incoming, game }, snapshot);
   assert.deepEqual(first, second);
-  const secondSnapshot = structuredClone(second);
-  first.state.board.rows[0][0].objects.clear();
-  first.state.pendingMovements[0].movements.clear();
-  first.state.pendingMovements[0].position.x = 9;
-  first.state.rigidMarks[0].movements.clear();
-  first.state.random.permutation.reverse();
-  first.state.commands.entries[0].source = rule();
-  first.state.createdObjects.clear();
-  first.state.destroyedObjects.clear();
-  assert.deepEqual(second, secondSnapshot);
+  // A later step from the first result still leaves the input untouched.
+  tryApplyRule(game, incoming, first.state);
   assert.deepEqual({ before, incoming, game }, snapshot);
 });

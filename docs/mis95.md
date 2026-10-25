@@ -75,6 +75,16 @@ Transform completion starts in RULES context using the loaded game's actual
 objects and legend; it refreshes when game definitions change, and also offers
 `choose`, `option`, and `or` outside cell patterns.
 
+Ctrl-click (Cmd-click on Mac) a level grid in **Game source** to select that
+level in the main board and level list. Clicking any row of the grid works.
+
+Draw directly in sprite grids in **Game source**. A faint underline marks each
+sprite's brush colour (initially its first colour). Hold Ctrl (Cmd on Mac) and
+click a colour in that sprite's palette to select it; the pointer becomes an
+eyedropper. Ctrl/Cmd-left-drag paints pixels, and right-drag clears them to `.`.
+Each sprite remembers its own brush, and each drag is one undo step. Ordinary
+left-clicks and typing still edit the source text.
+
 Browser regression check, with MIS already served:
 
 ```sh
@@ -86,6 +96,17 @@ independent undo/redo, search, renamed game objects, comments and diagnostic
 navigation. Screenshots are written to `build/mis-editor-checks/`.
 
 ## Workspace controls
+
+**Tools → Canonicalize** replaces the game source with valid PuzzleScript emitted
+from its semantic canonical form, retaining each surviving object's sprite and
+palette. Original object names and casing are retained where possible; merged
+objects use one representative's name and artwork. **Canonicalize (strip sprites)**
+instead gives each object its most common pixel colour and omits its sprite grid.
+Transparent pixels are ignored; ties use palette order, and entirely transparent
+sprites use their first palette colour. Both commands omit decorative section
+separators, sounds, descriptive metadata, comments and message text, and validate
+the result before applying it. Undo/Redo in the source editor or the workbench
+restores the whole replacement.
 
 The code pane and suggestions area have draggable dividers. Focus a divider
 with Tab, then use its arrow keys to resize, Shift+arrow for larger steps,
@@ -169,6 +190,33 @@ any it can't prove within 2 s / 200k positions; the meter counts rejects as
 Goals are saved with the game as `(MIS rule goals <level> … MIS end)` comments,
 one `need …` / `ban …` line per rule, keyed by the rule's text.
 `node src/tests/mis_rule_goals_node.js` checks the worker side.
+
+## Console, trace and breakpoints
+
+The panel under the board follows the code tab: **Transform** shows the
+generator (Suggestions), **Game source** shows the console. Help leaves it as it
+was. The console has three tabs, always on, with no prelude flags needed:
+
+- **Output**: compile errors and warnings, then the playtest's events
+  (messages, sounds, commands, undo, restart, solved).
+- **Compiled**: what `debug` prints in the editor, one row per source rule
+  line, expanding to the rules it compiles to. It follows the source cursor.
+- **Trace**: what `verbose_logging` prints, one group per playtest move
+  (including its `again` turns). Hover a row to see the board at that moment,
+  with pending movements drawn as arrows; click a row to pin it (Esc returns).
+
+Click the margin left of a rule's line number to set a breakpoint. A playtest
+move that fires that rule stops there: the board shows the state just after the
+rule applied, the line is highlighted, and the bar above the board steps through
+the move (**N** step, **B** back, **C** continue to the next breakpoint in the
+move, **Esc** finish). The move runs to completion before anything is shown, and
+pausing is a cursor into its recorded snapshots, so stepping back is free; the
+move is committed when the cursor leaves it. "Stop at breakpoints" turns them all
+off without clearing them.
+
+The page switches the engine's `verbose_logging` on only around playtest moves
+and redirects its logging hooks (`src/js/mis/mis_console.js`); workers never load
+that file. The trace keeps the last 200 moves, with board snapshots for the last 40.
 
 ## Generating several levels
 

@@ -7,15 +7,25 @@
       "split_candidate": true,
       "components_count": 2,
       "group_skip_mask": {
+        "bitvec_format": {
+          "object_words": 1,
+          "movement_words": 2,
+          "movement_bits_per_layer": 5,
+          "movement_bit_names": ["up", "down", "left", "right", "action"]
+        },
         "skippable": true,
         "blockers": [],
         "reads": {
           "object_present": ["Alpha", "Beta"],
           "object_absent": [],
-          "object_wake": ["Alpha", "Beta"],
+          "object_wake": ["Alpha", "Beta", "MarkerX", "MarkerY"],
           "movement": ["Alpha:right", "Alpha:stationary"],
           "movement_present": ["Alpha:right"],
           "movement_absent": ["Alpha:stationary"]
+        },
+        "masks": {
+          "read_objects_wake": [60],
+          "read_movements_wake": [1072724992, 0]
         }
       },
       "interactionEdges": [
@@ -27,11 +37,18 @@
           "reasons": ["movement"]
         },
         {
+          "from_line": 55,
+          "from_text": "[ stationary alpha ] -> [ alpha markerx ]",
+          "to_line": 56,
+          "to_text": "+ [ right alpha ] -> [ alpha ]",
+          "reasons": ["movement_read_write", "movement_write_conflict"]
+        },
+        {
           "from_line": 56,
           "from_text": "+ [ right alpha ] -> [ alpha ]",
           "to_line": 55,
           "to_text": "[ stationary alpha ] -> [ alpha markerx ]",
-          "reasons": ["movement"]
+          "reasons": ["movement", "movement_read_write", "movement_write_conflict"]
         }
       ],
       "rerunMasks": [

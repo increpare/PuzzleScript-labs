@@ -26,6 +26,10 @@
       ['Generate / pause this level', '#gen-btn', 'G'], ['Stop all generation', '#stop-all-generation'], ['Peek a sample', '#peek-btn'],
       ['Watch solution', '#watch-btn'], ['Simplify level', '#simplify-btn'],
     ]],
+    ['Tools', [
+      ['Canonicalize', () => window.misDocument.canonicalize()],
+      ['Canonicalize (strip sprites)', () => window.misDocument.canonicalize({ stripSprites: true })],
+    ]],
     ['Help', [['Workbench help', '#help-btn', 'F1'], null, ['About MIS95…', () => $('about-dialog').showModal()]]],
   ];
   if (desktop) menus[0][1].push(null, ['(No recent files)', () => {}], null, ['Exit', () => desktop.close(), desktop.platform === 'darwin' ? 'Cmd+Q' : 'Alt+F4']);

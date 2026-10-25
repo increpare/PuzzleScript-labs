@@ -7,15 +7,25 @@
       "split_candidate": false,
       "components_count": 1,
       "group_skip_mask": {
+        "bitvec_format": {
+          "object_words": 1,
+          "movement_words": 2,
+          "movement_bits_per_layer": 5,
+          "movement_bit_names": ["up", "down", "left", "right", "action"]
+        },
         "skippable": true,
         "blockers": [],
         "reads": {
           "object_present": ["Alpha", "MarkerX"],
           "object_absent": ["MarkerX"],
-          "object_wake": ["Alpha", "MarkerX"],
+          "object_wake": ["Alpha", "MarkerX", "MarkerY"],
           "movement": [],
           "movement_present": [],
           "movement_absent": []
+        },
+        "masks": {
+          "read_objects_wake": [52],
+          "read_movements_wake": [1072693248, 0]
         }
       },
       "interactionEdges": [
@@ -24,7 +34,7 @@
           "from_text": "+ [ markerx ] -> [ ]",
           "to_line": 55,
           "to_text": "[ no markerx alpha ] -> [ alpha stationary markery ]",
-          "reasons": ["object_absence"]
+          "reasons": ["object_absence", "object_read_write"]
         }
       ],
       "rerunMasks": [

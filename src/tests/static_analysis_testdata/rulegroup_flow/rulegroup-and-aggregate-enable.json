@@ -12,7 +12,7 @@
           "from_text": "+ [ alpha ] -> [ alpha markerx ]",
           "to_line": 56,
           "to_text": "[ pair ] -> [ pair player ]",
-          "reasons": ["object_presence"]
+          "reasons": ["object_presence", "object_read_write"]
         }
       ],
       "rerunMasks": [

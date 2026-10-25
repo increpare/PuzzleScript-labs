@@ -7,24 +7,41 @@
       "split_candidate": false,
       "components_count": 1,
       "group_skip_mask": {
-        "skippable": true,
-        "blockers": [],
+        "bitvec_format": {
+          "object_words": 1,
+          "movement_words": 2,
+          "movement_bits_per_layer": 5,
+          "movement_bit_names": ["up", "down", "left", "right", "action"]
+        },
+        "skippable": false,
+        "blockers": ["dynamic_replacement"],
         "reads": {
           "object_present": ["Alpha", "MarkerX", "MarkerY"],
           "object_absent": [],
-          "object_wake": ["Alpha", "MarkerX", "MarkerY"],
+          "object_wake": ["Alpha", "MarkerX", "MarkerY", "Player"],
           "movement": [],
           "movement_present": [],
           "movement_absent": []
+        },
+        "masks": {
+          "read_objects_wake": [54],
+          "read_movements_wake": [1072694240, 0]
         }
       },
       "interactionEdges": [
+        {
+          "from_line": 56,
+          "from_text": "[ thing ] -> [ thing player ]",
+          "to_line": 57,
+          "to_text": "+ [ alpha ] -> [ alpha markerx ]",
+          "reasons": ["movement_write_conflict", "object_write_conflict"]
+        },
         {
           "from_line": 57,
           "from_text": "+ [ alpha ] -> [ alpha markerx ]",
           "to_line": 56,
           "to_text": "[ thing ] -> [ thing player ]",
-          "reasons": ["object_presence"]
+          "reasons": ["movement_write_conflict", "object_presence", "object_read_write", "object_write_conflict"]
         }
       ],
       "rerunMasks": [
@@ -44,7 +61,7 @@
           ]
         }
       ],
-      "blockers": ["single_component"]
+      "blockers": ["dynamic_replacement", "single_component"]
     }
   ]
 }

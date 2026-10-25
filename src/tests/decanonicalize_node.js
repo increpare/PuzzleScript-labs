@@ -763,4 +763,33 @@ assert.ok(
     'gapfiller should not emit background-only plain ALL win text'
 );
 
+// Editor output may retain names without changing semantic canonical identity.
+const { canonicalizeSemanticWithObjectMap } = require('../canonicalize');
+const namedSource = fs.readFileSync('src/demo/sokoban_basic.txt', 'utf8');
+const namedResult = canonicalizeSemanticWithObjectMap(namedSource);
+const objectNames = new Map();
+for (const [original, canonicalName] of namedResult.objectMap) {
+    if (canonicalName && !objectNames.has(canonicalName)) objectNames.set(canonicalName, namedResult.displayNames.get(original));
+}
+const namedOutput = decanonicalizeSemantic(namedResult.canonical, { objectNames, sectionSeparators: false });
+assert.ok(/^Background$/m.test(namedOutput), 'retain original object names and casing');
+assert.ok(/^Player$/m.test(namedOutput));
+assert.ok(/^Crate$/m.test(namedOutput));
+assert.ok(!/^=+$/m.test(namedOutput), 'omit decorative heading separators');
+assert.ok(!/^background = background$/im.test(namedOutput), 'avoid self-referencing role aliases');
+assert.ok(!/^player = player$/im.test(namedOutput));
+assert.deepStrictEqual(canonicalizeSource(namedOutput, 'semantic'), namedResult.canonical);
+
+const aliasOutput = decanonicalizeSemantic(namedResult.canonical);
+const occupiedAlias = /^(cell_\d+|set_\d+) = /m.exec(aliasOutput)[1];
+const conflictingNames = new Map(objectNames);
+conflictingNames.set(namedResult.objectMap.get('crate'), occupiedAlias);
+const collisionOutput = decanonicalizeSemantic(namedResult.canonical, { objectNames: conflictingNames, sectionSeparators: false });
+assert.deepStrictEqual(canonicalizeSource(collisionOutput, 'semantic'), namedResult.canonical, 'generated aliases cannot collide with preserved names');
+// Names that are legal one-character level glyphs must be reserved before encoding maps.
+const glyphNames = new Map(objectNames);
+glyphNames.set(namedResult.objectMap.get('crate'), '0');
+const glyphOutput = decanonicalizeSemantic(namedResult.canonical, { objectNames: glyphNames, sectionSeparators: false });
+assert.deepStrictEqual(canonicalizeSource(glyphOutput, 'semantic'), namedResult.canonical);
+
 console.log('decanonicalize_node: ok');

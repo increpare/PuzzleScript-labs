@@ -248,6 +248,7 @@
 	// Recompile `text`. Returns true if it compiled.
 	function compileSource(text) {
 		const res = misCompile(text);
+		if (misConsole) misConsole.onCompile(res);
 		document.title = 'MIS95';
 		showSourceDiagnostics(res.errors, res.ok, res.hasErrors);
 		if (!res.ok) return false;
@@ -322,6 +323,22 @@
 		markDirty(!opts.clean);
 		autosave();
 		return ok;
+	}
+
+	function canonicalizeSource(options) {
+		const input = sourceCM.getValue();
+		let output;
+		try { output = MISTools.canonicalize(input, options); }
+		catch (error) { toast(error.message || String(error), true); return; }
+		clearTimeout(initEditors.t);
+		// Flush any typing still waiting on the compile debounce, so both undo
+		// histories restore exactly the text the author saw before the command.
+		if (input !== app.source) setSource(input, { fromEditor: true });
+		setMode('edit');
+		showTab('source');
+		if (output !== input) setSource(output);
+		sourceCM.focus();
+		toast(output === input ? 'Already canonical.' : 'Canonicalized — undo with Ctrl+Z.');
 	}
 
 	function nearestPlayable(from) {
@@ -605,6 +622,8 @@
 
 	function displayedBoard() {
 		if (app.watching) return app.watching.frames[app.watching.i];
+		const traced = misConsole && misConsole.viewBoard(); // a trace row hovered, pinned or paused at
+		if (traced) return traced;
 		if (app.mode === 'play' && app.play) return app.play.board;
 		if (app.preview) return app.preview.board;
 		return app.board;
@@ -655,6 +674,7 @@
 			ctx.lineWidth = 1.5;
 			ctx.strokeRect(x * cell + 0.75, y * cell + 0.75, cell - 1.5, cell - 1.5);
 		}
+		if (misConsole) misConsole.decorateBoard(ctx, b, cell);
 		updateBanner(); updateResizeHandles();
 	}
 
@@ -662,6 +682,7 @@
 		const el = $('board-banner');
 		let html = '';
 		if (app.watching) html = 'Watching solution · move <b>' + app.watching.i + '</b> / ' + (app.watching.frames.length - 1) + ' · click to stop';
+		else if (misConsole && misConsole.bannerHTML()) html = misConsole.bannerHTML();
 		else if (app.preview) html = 'Preview: <b>' + escapeHtml(app.preview.label || '') + '</b> · changed tiles outlined';
 		el.innerHTML = html;
 		el.classList.toggle('on', !!html);
@@ -947,6 +968,7 @@
 	function enterPlay() {
 		if (!app.board) return;
 		setPreview(null);
+		misConsole.startSession('playtest started on level ' + (countPlayableBefore(app.levelIndex) + 1));
 		C.loadBoardIntoEngine(app.model, app.board, 'play');
 		app.play = { history: [], moves: 0, board: engineBoard() };
 		updatePlayMoves();
@@ -954,6 +976,7 @@
 	}
 	function exitPlay() {
 		app.play = null;
+		misConsole.abort();
 		renderRuleGutter();
 	}
 	function engineBoard() { return { w: level.width, h: level.height, cells: new Int32Array(level.objects) }; }
@@ -966,19 +989,33 @@
 			if (!p.history.length) return;
 			C.restoreTo(p.history.pop());
 			p.moves = Math.max(0, p.moves - 1);
+			misConsole.log('undo');
 		} else if (input === 'restart') {
 			C.loadBoardIntoEngine(app.model, app.board, 'play');
 			p.history.length = 0; p.moves = 0;
+			misConsole.log('restart');
 		} else {
+			// The console records the move and may pause it at a breakpoint;
+			// the move is committed once it isn't paused any more.
 			const before = new Int32Array(level.objects);
-			const r = C.engineStep(input);
-			if (!r.changed && !r.won) return;
+			misConsole.step(input, function () { return C.engineStep(input); }, function (r) { commitMove(p, before, r); });
+			return;
+		}
+		p.board = engineBoard();
+		updatePlayMoves();
+		renderBoard();
+	}
+
+	function commitMove(p, before, r) {
+		if (app.play !== p) return;
+		if (r.changed || r.won) {
 			p.history.push(before);
 			p.moves++;
 			if (r.won || C.winconditionsNow()) {
 				p.board = engineBoard();
 				renderBoard();
 				toast('Solved in ' + p.moves + ' moves!');
+				misConsole.log('solved in ' + p.moves + ' moves');
 				setTimeout(function () { if (app.play === p) { C.loadBoardIntoEngine(app.model, app.board, 'play'); p.history.length = 0; p.moves = 0; p.board = engineBoard(); updatePlayMoves(); renderBoard(); } }, 1200);
 				updatePlayMoves();
 				return;
@@ -1205,6 +1242,18 @@
 		syncWorkspaceEditor();
 		refreshLevelStrip();
 		renderCards();
+	}
+
+	function selectSourceLevel(line) {
+		const text = sourceCM.getValue();
+		clearTimeout(initEditors.t);
+		// A click can arrive before the source editor's compile debounce. Use
+		// the current document, including message screens in the level order.
+		if ((text !== app.source || text !== app.compiledText) && !setSource(text, { fromEditor: true })) return;
+		if (!app.model || !app.model.levelMapOK || app.compiledText !== text) return;
+		const index = C.findLevelBlocks(text.split('\n')).findIndex(block =>
+			block.kind === 'level' && line >= block.start && line <= block.end);
+		if (index >= 0) selectLevel(index);
 	}
 
 	function stepLevel(d) {
@@ -2098,6 +2147,7 @@
 		transformCM.setValue(app.transform);
 		suppressTransformChange = false;
 		const ok = setSource(stripMeta(text), { noUndo: true, clean: true });
+		sourceCM.resetSpriteBrushes();
 		updateUndoButtons();
 		if (!ok) {
 			toast('The game has compile errors — see the Game source tab.', true);
@@ -2227,7 +2277,7 @@
 	// Source editor
 	/////////////////////////////////////////////////////////////////////
 
-	let sourceCM = null, transformCM = null;
+	let sourceCM = null, transformCM = null, misConsole = null;
 	let suppressSourceChange = false;
 	let sourceMarks = [];
 
@@ -2250,6 +2300,12 @@
 	function showTab(name) {
 		Array.from($('tabs').children).forEach(function (b) { b.classList.toggle('on', b.dataset.tab === name); });
 		['transform', 'source', 'help'].forEach(function (t) { $('tab-' + t).classList.toggle('on', t === name); });
+		// The panel under the board follows the code tab: the generator for
+		// Transform, the console for Game source. Help leaves it as it was.
+		if (name !== 'help') {
+			$('suggest').hidden = name !== 'transform';
+			misConsole.setVisible(name === 'source');
+		}
 		if (name === 'source') sourceCM.refresh();
 		if (name === 'transform') transformCM.refresh();
 	}
@@ -2257,10 +2313,37 @@
 	function initEditors() {
 		sourceCM = MISCodeEditor.create($('source-text'), { ruleGutter: true });
 		sourceCM.on('ruleToggle', function (line) { toggleRuleGoal(line); });
+		sourceCM.on('levelClick', selectSourceLevel);
 		transformCM = MISCodeEditor.create($('transform-text'), {
 			transform: true, lineWrapping: true,
 			getDefinitionTarget: () => ({ view: sourceCM.view, reveal: () => showTab('source') })
 		});
+
+		let compiledLines = { text: null, lines: [] };
+		misConsole = MISConsole.create({
+			getBreakpoints: function () { return sourceCM.getBreakpoints(); },
+			sourceLine: function (n) {
+				const text = app.compiledText || app.source || '';
+				if (compiledLines.text !== text) compiledLines = { text: text, lines: text.split('\n') };
+				return compiledLines.lines[n - 1] || '';
+			},
+			// Scroll only while paused, so the debugger keys keep working.
+			revealLine: function (n, passive) {
+				showTab('source');
+				if (passive || misConsole.isPaused()) sourceCM.scrollLineIntoView(n);
+				else { sourceCM.setCursor(n - 1, 0); sourceCM.scrollIntoView({ line: n - 1, ch: 0 }); }
+			},
+			setPausedLine: function (n) { sourceCM.setPausedLine(n); },
+			showSource: function () { showTab('source'); },
+			render: function () { renderBoard(); }
+		});
+		sourceCM.on('breakpointClick', function (line) {
+			if ((app.rules && app.rules.lines.indexOf(line) >= 0) || sourceCM.getBreakpoints().indexOf(line) >= 0) {
+				sourceCM.toggleBreakpoint(line);
+				misConsole.renderTrace();
+			} else toast('Breakpoints go on rule lines.');
+		});
+		sourceCM.on('cursorActivity', function () { misConsole.followCursor(sourceCM.getCursor().line + 1); });
 
 		sourceCM.on('change', function () {
 			if (suppressSourceChange) return;
@@ -2296,6 +2379,7 @@
 		if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) doRedo(); else doUndo(); return; }
 		if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); doRedo(); return; }
 		if (mod || e.altKey) return;
+		if (misConsole.handleKey(e)) return; // paused at a breakpoint, or a trace row pinned
 		if (app.mode === 'play') {
 			const map = { ArrowUp: 0, w: 0, W: 0, ArrowLeft: 1, a: 1, A: 1, ArrowDown: 2, s: 2, S: 2, ArrowRight: 3, d: 3, D: 3, x: 4, X: 4, ' ': 4, Enter: 4, z: 'undo', Z: 'undo', u: 'undo', r: 'restart', R: 'restart' };
 			if (map[e.key] !== undefined) { e.preventDefault(); playInput(map[e.key]); return; }
@@ -2418,7 +2502,7 @@
 	window.addEventListener('pagehide', function () { checkpoint(); });
 	document.addEventListener('visibilitychange', function () { if (document.hidden) checkpoint(); });
 
-	window.misDocument = { save: saveFile, open: openNative };
+	window.misDocument = { save: saveFile, open: openNative, canonicalize: canonicalizeSource };
 	if (desktop) {
 		desktop.onOpen(async function (file) { try { await openNative(file); } finally { desktop.opened(); } });
 		let confirmingClose = false;

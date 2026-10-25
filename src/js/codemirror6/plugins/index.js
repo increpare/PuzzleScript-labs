@@ -39,6 +39,7 @@ const {
 } = host.require("editor-adapter")
 const {exactPrefixExtensions} = host.require("exact-prefix")
 const {puzzleScriptInteractions} = host.require("interactions")
+const {puzzleScriptSymbolInspector} = host.require("symbol-inspector")
 const {
   puzzleScriptSearch,
   puzzleScriptSearchKeymap
@@ -78,6 +79,7 @@ function createEditor(options) {
       excludedKeyCodes: options.autocomplete.excludedKeyCodes
     }),
     puzzleScriptSearch(),
+    puzzleScriptSymbolInspector(),
     puzzleScriptInteractions({
       language,
       callbacks: options.callbacks,

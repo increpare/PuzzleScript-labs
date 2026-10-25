@@ -9,6 +9,12 @@
       "single_pass_safe": false,
       "single_pass_blockers": ["semantic_command"],
       "group_skip_mask": {
+        "bitvec_format": {
+          "object_words": 1,
+          "movement_words": 1,
+          "movement_bits_per_layer": 5,
+          "movement_bit_names": ["up", "down", "left", "right", "action"]
+        },
         "skippable": false,
         "blockers": ["semantic_command"],
         "reads": {
@@ -18,6 +24,10 @@
           "movement": [],
           "movement_present": [],
           "movement_absent": []
+        },
+        "masks": {
+          "read_objects_wake": [24],
+          "read_movements_wake": [1047552]
         }
       },
       "blockers": ["semantic_command"]

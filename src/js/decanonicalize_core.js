@@ -268,14 +268,41 @@ function choosePattern(layerIndex, nameIndex, layerCount) {
     return shifted;
 }
 
-function emitObjectsSection(objectNames, layerIndex) {
+function mostCommonSpriteColor(colors, sprite) {
+    const normalized = colors.map(color => color.toLowerCase()
+        .replace(/^#([0-9a-f])([0-9a-f])([0-9a-f])$/, '#$1$1$2$2$3$3'));
+    const counts = new Map();
+    for (const row of sprite || []) {
+        for (const pixel of row) {
+            const color = normalized[pixel];
+            if (color !== undefined && color !== 'transparent') counts.set(color, (counts.get(color) || 0) + 1);
+        }
+    }
+    // Iterating the palette also makes ties and fully transparent sprites
+    // deterministic. Combine equal colours and ignore transparent pixels.
+    let best = normalized[0];
+    for (const color of normalized) {
+        if ((counts.get(color) || 0) > (counts.get(best) || 0)) best = color;
+    }
+    return best;
+}
+
+function emitObjectsSection(objectNames, layerIndex, options = {}, backgroundObjects = []) {
     const layerCount = Math.max(1, ...objectNames.map(name => (layerIndex.get(name) || 0) + 1));
     const lines = ['========', 'OBJECTS', '========', ''];
     objectNames.forEach((name, index) => {
+        const visual = (options.objectVisuals && options.objectVisuals.get(name)) ||
+            (backgroundObjects.includes(name) && options.backgroundVisual);
+        const colors = visual ? visual.colors : [chooseColor(name, index)];
         lines.push(name);
-        lines.push(chooseColor(name, index));
-        const sprite = choosePattern(layerIndex.get(name) || 0, index, layerCount);
-        lines.push(...sprite);
+        if (options.stripSprites) {
+            lines.push(mostCommonSpriteColor(colors, visual && visual.sprite));
+        } else {
+            lines.push(colors.join(' '));
+            const sprite = visual ? visual.sprite.map(row => row.map(pixel => pixel < 0 ? '.' : String(pixel)).join(''))
+                : choosePattern(layerIndex.get(name) || 0, index, layerCount);
+            lines.push(...sprite);
+        }
         lines.push('');
     });
     return lines;
@@ -497,7 +524,7 @@ function buildLevelGlyphs(canonical, cellAliasForSet, forbiddenNames) {
             return glyphMap.get(key);
         }
         let glyph = null;
-        if (preferred && !usedGlyphNames.has(preferred.toLowerCase())) {
+        if (preferred && !usedGlyphNames.has(preferred.toLowerCase()) && !forbiddenNames.has(preferred.toLowerCase())) {
             glyph = preferred;
         } else {
             for (const candidate of glyphPool) {
@@ -1050,7 +1077,30 @@ function withEmittableObjects(canonical) {
     });
 }
 
-function decanonicalizeSemantic(canonical) {
+// Keep the canonical IDs internally: ordering and simplification must not depend
+// on presentation names. Reserve aliases and glyphs before rendering names.
+function buildEmissionNames(canonical, objectNames, aliasLines, preferredNames) {
+    if (!preferredNames) return new Map();
+    const occupied = new Set(objectNames.map(name => name.toLowerCase()));
+    const aliases = new Set(aliasLines.map(line => line.split(' = ')[0].toLowerCase()));
+    const names = new Map();
+    for (const name of objectNames) {
+        // A mechanically irrelevant background may have been removed. The
+        // emitter supplies a new one; give that synthetic role a readable name.
+        const preferred = preferredNames.get(name) ||
+            (canonical.backgroundObjects.length === 1 && canonical.backgroundObjects[0] === name ? 'Background' : null);
+        if (!preferred) continue;
+        const lower = preferred.toLowerCase();
+        const ownRole = ['background', 'player'].some(role => lower === role &&
+            canonical[role + 'Objects'].length === 1 && canonical[role + 'Objects'][0] === name);
+        if ((occupied.has(lower) && lower !== name) || (aliases.has(lower) && !ownRole)) continue;
+        names.set(name, preferred);
+        occupied.add(lower);
+    }
+    return names;
+}
+
+function decanonicalizeSemantic(canonical, options = {}) {
     if (canonical.format !== 'puzzlescript-semantic-canonical-v1') {
         throw new Error(`Unsupported canonical format: ${canonical.format}`);
     }
@@ -1062,11 +1112,12 @@ function decanonicalizeSemantic(canonical) {
     const objectNames = canonicalObjectNames(emissionCanonical);
     const layerIndex = buildLayerIndex(emissionCanonical);
     const { lines: aliasLines, cellAliasForSet, winAliasForSet, ruleAliasForSet, memberToPropertyAlias } = buildAliasDefinitions(emissionCanonical, objectNames, layerIndex);
+    const names = buildEmissionNames(emissionCanonical, objectNames, aliasLines, options.objectNames);
 
     const output = [];
-    output.push(...emitMetadata(emissionCanonical));
-    output.push(...emitObjectsSection(objectNames, layerIndex));
+    output.push(...emitObjectsSection(objectNames, layerIndex, options, emissionCanonical.backgroundObjects));
     const forbiddenGlyphNames = new Set(objectNames.map(name => name.toLowerCase()));
+    for (const name of names.values()) forbiddenGlyphNames.add(name.toLowerCase());
     forbiddenGlyphNames.add('background');
     forbiddenGlyphNames.add('player');
     forbiddenGlyphNames.add('cell');
@@ -1083,8 +1134,17 @@ function decanonicalizeSemantic(canonical) {
     output.push('');
     output.push(...emitRulesSection(emissionCanonical, ruleAliasForSet, layerIndex, memberToPropertyAlias));
     output.push(...emitWinConditionsSection(emissionCanonical, objectNames, winAliasForSet));
-    output.push(...emitLevelsSection(emissionCanonical, glyphMap));
-    return `${output.join('\n').replace(/\n{3,}/g, '\n\n').trim()}\n`;
+    // Only these generated definition/rule sections contain object identifiers.
+    // Never rewrite metadata, message text, or glyph sequences in level maps.
+    const rendered = output.map(line => line.replace(/\bobj_\d+\b/g, name => names.get(name) || name))
+        .filter(line => !/^(background|player) = \1$/i.test(line));
+    const levels = emitLevelsSection(emissionCanonical, glyphMap);
+    const headings = options.sectionSeparators === false
+        ? lines => lines.filter(line => !/^=+$/.test(line)) : lines => lines;
+    return `${[
+        ...emitMetadata(emissionCanonical), ...headings(rendered),
+        ...headings(levels.slice(0, 4)), ...levels.slice(4),
+    ].join('\n').replace(/\n{3,}/g, '\n\n').trim()}\n`;
 }
 
 module.exports = { decanonicalizeSemantic };

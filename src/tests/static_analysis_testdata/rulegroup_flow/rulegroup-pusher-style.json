@@ -4,9 +4,94 @@
   "rulegroupFlow": [
     {
       "line": 41,
-      "split_candidate": true,
-      "components_count": 4,
-      "interactionEdges": [],
+      "split_candidate": false,
+      "components_count": 1,
+      "interactionEdges": [
+        {
+          "from_line": 41,
+          "from_text": "down [ pushable | up pusher ] -> [ up pushable | up pusher ]",
+          "to_line": 42,
+          "to_text": "+ down [ down pusher | pushable ] -> [ down pusher | down pushable ]",
+          "reasons": ["movement_read_write", "movement_write_conflict"]
+        },
+        {
+          "from_line": 41,
+          "from_text": "down [ pushable | up pusher ] -> [ up pushable | up pusher ]",
+          "to_line": 43,
+          "to_text": "+ right [ pushable | left pusher ] -> [ left pushable | left pusher ]",
+          "reasons": ["movement_read_write", "movement_write_conflict"]
+        },
+        {
+          "from_line": 41,
+          "from_text": "down [ pushable | up pusher ] -> [ up pushable | up pusher ]",
+          "to_line": 44,
+          "to_text": "+ right [ right pusher | pushable ] -> [ right pusher | right pushable ]",
+          "reasons": ["movement_read_write", "movement_write_conflict"]
+        },
+        {
+          "from_line": 42,
+          "from_text": "+ down [ down pusher | pushable ] -> [ down pusher | down pushable ]",
+          "to_line": 41,
+          "to_text": "down [ pushable | up pusher ] -> [ up pushable | up pusher ]",
+          "reasons": ["movement_read_write", "movement_write_conflict"]
+        },
+        {
+          "from_line": 42,
+          "from_text": "+ down [ down pusher | pushable ] -> [ down pusher | down pushable ]",
+          "to_line": 43,
+          "to_text": "+ right [ pushable | left pusher ] -> [ left pushable | left pusher ]",
+          "reasons": ["movement_read_write", "movement_write_conflict"]
+        },
+        {
+          "from_line": 42,
+          "from_text": "+ down [ down pusher | pushable ] -> [ down pusher | down pushable ]",
+          "to_line": 44,
+          "to_text": "+ right [ right pusher | pushable ] -> [ right pusher | right pushable ]",
+          "reasons": ["movement_read_write", "movement_write_conflict"]
+        },
+        {
+          "from_line": 43,
+          "from_text": "+ right [ pushable | left pusher ] -> [ left pushable | left pusher ]",
+          "to_line": 41,
+          "to_text": "down [ pushable | up pusher ] -> [ up pushable | up pusher ]",
+          "reasons": ["movement_read_write", "movement_write_conflict"]
+        },
+        {
+          "from_line": 43,
+          "from_text": "+ right [ pushable | left pusher ] -> [ left pushable | left pusher ]",
+          "to_line": 42,
+          "to_text": "+ down [ down pusher | pushable ] -> [ down pusher | down pushable ]",
+          "reasons": ["movement_read_write", "movement_write_conflict"]
+        },
+        {
+          "from_line": 43,
+          "from_text": "+ right [ pushable | left pusher ] -> [ left pushable | left pusher ]",
+          "to_line": 44,
+          "to_text": "+ right [ right pusher | pushable ] -> [ right pusher | right pushable ]",
+          "reasons": ["movement_read_write", "movement_write_conflict"]
+        },
+        {
+          "from_line": 44,
+          "from_text": "+ right [ right pusher | pushable ] -> [ right pusher | right pushable ]",
+          "to_line": 41,
+          "to_text": "down [ pushable | up pusher ] -> [ up pushable | up pusher ]",
+          "reasons": ["movement_read_write", "movement_write_conflict"]
+        },
+        {
+          "from_line": 44,
+          "from_text": "+ right [ right pusher | pushable ] -> [ right pusher | right pushable ]",
+          "to_line": 42,
+          "to_text": "+ down [ down pusher | pushable ] -> [ down pusher | down pushable ]",
+          "reasons": ["movement_read_write", "movement_write_conflict"]
+        },
+        {
+          "from_line": 44,
+          "from_text": "+ right [ right pusher | pushable ] -> [ right pusher | right pushable ]",
+          "to_line": 43,
+          "to_text": "+ right [ pushable | left pusher ] -> [ left pushable | left pusher ]",
+          "reasons": ["movement_read_write", "movement_write_conflict"]
+        }
+      ],
       "rerunMasks": [
         {
           "line": 41,
@@ -16,20 +101,49 @@
         {
           "line": 42,
           "text": "+ down [ down pusher | pushable ] -> [ down pusher | down pushable ]",
-          "rerun": []
+          "rerun": [
+            {
+              "line": 41,
+              "text": "down [ pushable | up pusher ] -> [ up pushable | up pusher ]"
+            }
+          ]
         },
         {
           "line": 43,
           "text": "+ right [ pushable | left pusher ] -> [ left pushable | left pusher ]",
-          "rerun": []
+          "rerun": [
+            {
+              "line": 41,
+              "text": "down [ pushable | up pusher ] -> [ up pushable | up pusher ]"
+            },
+            {
+              "line": 42,
+              "text": "+ down [ down pusher | pushable ] -> [ down pusher | down pushable ]"
+            }
+          ]
         },
         {
           "line": 44,
           "text": "+ right [ right pusher | pushable ] -> [ right pusher | right pushable ]",
-          "rerun": []
+          "rerun": [
+            {
+              "line": 41,
+              "text": "down [ pushable | up pusher ] -> [ up pushable | up pusher ]"
+            },
+            {
+              "line": 42,
+              "text": "+ down [ down pusher | pushable ] -> [ down pusher | down pushable ]"
+            },
+            {
+              "line": 43,
+              "text": "+ right [ pushable | left pusher ] -> [ left pushable | left pusher ]"
+            }
+          ]
         }
       ],
-      "blockers": []
+      "blockers": ["single_component"],
+      "single_pass_safe": false,
+      "single_pass_blockers": ["conflicting_writes", "earlier_rule_may_be_affected", "overlapping_replacements"]
     }
   ]
 }

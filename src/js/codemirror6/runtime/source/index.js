@@ -93,6 +93,7 @@ import {
 import {
   Decoration,
   EditorView,
+  closeHoverTooltips,
   GutterMarker,
   ViewPlugin,
   drawSelection,
@@ -100,8 +101,11 @@ import {
   dropCursor,
   highlightActiveLine,
   highlightActiveLineGutter,
+  hoverTooltip,
   keymap,
-  lineNumbers
+  lineNumbers,
+  showPanel,
+  tooltips
 } from "@codemirror/view"
 import {Tree} from "@lezer/common"
 import {Tag} from "@lezer/highlight"
@@ -192,6 +196,7 @@ const runtime = Object.freeze({
   Transaction,
   Decoration,
   EditorView,
+  closeHoverTooltips,
   GutterMarker,
   ViewPlugin,
   drawSelection,
@@ -199,8 +204,11 @@ const runtime = Object.freeze({
   dropCursor,
   highlightActiveLine,
   highlightActiveLineGutter,
+  hoverTooltip,
   keymap,
   lineNumbers,
+  showPanel,
+  tooltips,
   Tree,
   Tag
 })

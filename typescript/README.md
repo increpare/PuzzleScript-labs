@@ -157,7 +157,7 @@ npm --prefix typescript test
 npm --prefix typescript run test:corpus -- --session
 ```
 
-The strict suite passes **1,590 tests**. Complete compilation comparison passes
+The strict suite passes **1,599 tests**. Complete compilation comparison passes
 all **312 compiler fixtures** and **478 simulation sources**, including exact
 diagnostic order, recovery, acceptance, canonical identities and 99,076 final
 rules. The compiler, session adapter and trace command have passed independent

@@ -9,6 +9,7 @@
 <link rel="shortcut icon" type="image/x-icon" href="Documentation/ico/favicon.ico" />
 <link rel="stylesheet" href="css/mis-workbench.css">
 <link rel="stylesheet" href="css/mis-win95.css">
+<link rel="stylesheet" href="css/mis-console.css">
 </head>
 <body class="mis-win95 light-theme">
 <div class="app-caption"><span class="app-icon" aria-hidden="true"></span><strong>MIS95</strong><span class="caption-divider">–</span><span id="caption-document">Level Designer</span></div>
@@ -55,6 +56,13 @@
 			<div class="play-tools" id="play-tools">
 				<span><kbd>←↑→↓</kbd>/<kbd>WASD</kbd> move · <kbd>X</kbd> action · <kbd>Z</kbd> undo · <kbd>R</kbd> restart</span>
 				<span id="play-moves" class="mono"></span>
+			</div>
+			<div class="debug-bar" id="debug-bar" role="toolbar" aria-label="Paused at a breakpoint" hidden>
+				<span class="debug-state">Paused</span><span id="debug-where" class="mono"></span><span class="spacer"></span>
+				<button id="dbg-back" title="Step back (B)">◀ Back</button>
+				<button id="dbg-step" title="Step to the next snapshot (N)">Step ▶</button>
+				<button id="dbg-continue" title="Run to the next breakpoint in this move (C)">Continue</button>
+				<button id="dbg-finish" title="Finish this move (Esc)">Finish move</button>
 			</div>
 			<div class="spacer"></div>
 			<button aria-label="Undo" id="undo-btn" class="ghost" title="Undo (Ctrl+Z)">↶</button>
@@ -106,6 +114,19 @@
 			<div class="meter" id="meter"><span class="faint">Pick a transform on the right (or write one), then press Generate. Suggestions are ranked by how hard the solver finds them.</span></div>
 			<div id="cards"></div>
 		</div>
+		<div id="console" hidden>
+			<div class="console-tabs" id="console-tabs" role="tablist">
+				<button data-ctab="output" role="tab">Output</button>
+				<button data-ctab="compiled" role="tab">Compiled</button>
+				<button data-ctab="trace" role="tab">Trace</button>
+				<span class="spacer"></span>
+				<label class="toggle" title="Stop a playtest move when it fires a rule with a breakpoint"><input type="checkbox" id="break-toggle" checked> Stop at breakpoints</label>
+				<button class="ghost" id="console-clear" title="Clear the playtest trace and output">Clear</button>
+			</div>
+			<div class="console-body" id="console-output" role="tabpanel" hidden></div>
+			<div class="console-body" id="console-compiled" role="tabpanel" hidden></div>
+			<div class="console-body" id="console-trace" role="tabpanel" hidden></div>
+		</div>
 	</section>
 
 	<aside id="side" aria-label="Code and properties">
@@ -143,6 +164,10 @@
 					<li><b>Simplify</b> strips objects the solution doesn't need (window dressing) without changing the shortest solution.</li>
 				</ol>
 				<p>Each sample applies the transform once to the starting level, with the counts you wrote. Hovering only previews a result; it does not change the starting level.</p>
+				<h3>Game source navigation</h3>
+				<p><kbd>Ctrl</kbd>-click (<kbd>Cmd</kbd>-click on Mac) a level grid to select it in the main board. Any row of the grid works.</p>
+				<h3>Drawing sprites in Game source</h3>
+				<p>A faint underline marks each sprite's brush colour. Hold <kbd>Ctrl</kbd> (<kbd>Cmd</kbd> on Mac) and click a palette colour to pick it, then Ctrl/Cmd-left-drag over the sprite pixels to paint. Right-drag clears pixels. Each drag is one undo step; ordinary left-clicks still edit the text.</p>
 				<h3>Rules in the Game source gutter</h3>
 				<p>Next to each rule, a mark says what the current level's solution does with it: a faint dot if it never fires, a grey dot if it fires (the line warms the more it fires), a black dot if every solution fires it. A flower marks rules that only change decoration or play sounds. Hover a mark for details; <b>Watch solution</b> lights up each rule as it fires.</p>
 				<p>Click a mark to set a goal for this level: <b>✓</b> every solution of a generated level must fire the rule; click again for <b>✗</b>: no solution may fire it, not even a roundabout one; click again to clear. A red mark means the current level misses that goal. Checking ✗ means exploring the whole level, so it can be slow on big levels.</p>
@@ -193,6 +218,8 @@ choose 9 horizontal [Player | no Wall] -> [ | Player]</pre>
 <script src="js/parser.js"></script>
 <script src="js/compiler.js"></script>
 <script src="js/soundbar.js"></script>
+<script src="js/semantic_compile.js"></script>
+<script src="js/mis/mis_tools_bundle.js"></script>
 <script>misAfterEngineLoaded();</script>
 <script src="js/mis/mis_core.js"></script>
 <script src="js/codemirror6/runtime/dist/codemirror6-runtime.js"></script>
@@ -206,13 +233,17 @@ choose 9 horizontal [Player | no Wall] -> [ | Player]</pre>
 <script src="js/codemirror6/plugins/autocomplete.js"></script>
 <script src="js/codemirror6/plugins/commands.js"></script>
 <script src="js/codemirror6/plugins/interactions.js"></script>
+<script src="js/codemirror6/plugins/symbol-info.js"></script>
+<script src="js/codemirror6/plugins/symbol-inspector.js"></script>
 <script src="js/codemirror6/plugins/search.js"></script>
 <script src="js/codemirror/rule-transform.js"></script>
 <script src="js/puzzlescript-autocomplete.js"></script>
+<script src="js/mis/mis_sprite_painting.js"></script>
 <script src="js/mis/mis_editor.js"></script>
 <script src="js/mis/mis_board.js"></script>
 <script src="js/mis/mis_generation_pool.js"></script>
 <script src="js/mis/mis_recovery.js"></script>
+<script src="js/mis/mis_console.js"></script>
 <script src="js/mis/mis_app.js"></script>
 <script src="js/mis/mis_win95.js"></script>
 </body>

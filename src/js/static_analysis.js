@@ -3284,39 +3284,122 @@ function connectedComponents(ruleIds, edges) {
     );
 }
 
-function rulegroupSinglePassBlockers(group, interactionEdges, indexById) {
-    const blockers = [];
-    if (interactionEdges.some(edge => indexById.get(edge.to) <= indexById.get(edge.from))) {
-        blockers.push('earlier_rule_may_be_enabled');
+// Group convergence depends on replacement results as well as match predicates.
+// Keep this cover separate from the directional wake graph used by winflow.
+function rulegroupResources(psTagged, rule) {
+    const reads = ruleFlowReads(rule);
+    const writes = ruleFlowWrites(psTagged, rule);
+    const writeObjects = new Set([...writes.object_present, ...writes.object_absent]);
+    if (rule.tags.object_mutating) {
+        // Cover provisional writes before movement resolution too. The general
+        // flow summary may exclude property members that cannot be delivered.
+        for (let row = 0; row < Math.max(rule.lhs.length, rule.rhs.length); row++) {
+            const lhsRow = rule.lhs[row] || [], rhsRow = rule.rhs[row] || [];
+            for (let cell = 0; cell < Math.max(lhsRow.length, rhsRow.length); cell++) {
+                const lhs = lhsRow[cell] || [], rhs = rhsRow[cell] || [];
+                const lhsConcrete = requiredPresentObjectSet(lhs), rhsConcrete = requiredPresentObjectSet(rhs);
+                for (const [terms, preserved] of [[lhs, rhsConcrete], [rhs, lhsConcrete]]) {
+                    for (const term of terms) {
+                        if (term.kind === 'present' && term.ref.type === 'object' && preserved.has(term.ref.name)) continue;
+                        if (term.kind === 'present' || term.kind === 'random_object' || (terms === rhs && term.kind === 'absent')) {
+                            for (const name of termObjects(term)) {
+                                for (const sibling of layerObjectsForObject(psTagged, name)) writeObjects.add(sibling);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
+    const writeMovementLayers = new Set(Array.from(writeObjects, name => layerForObject(psTagged, name)));
+    for (const key of [...rule.tags.movements_written, ...rule.tags.movements_removed]) {
+        writeMovementLayers.add(layerForObject(psTagged, movementKeyObjectName(key)));
+    }
+    // Explicit RHS movement also clears competing bits on its collision layer,
+    // even when the named direction was already required on the LHS.
+    for (const term of rule.summary.rhs_movement) {
+        for (const name of termObjects(term)) writeMovementLayers.add(layerForObject(psTagged, name));
+    }
+    return {
+        readObjects: new Set([...reads.object_present, ...reads.object_absent]),
+        readMovementLayers: new Set(reads.movement.map(read => layerForObject(psTagged, read.object))),
+        writeObjects, writeMovementLayers,
+    };
+}
+
+function rulegroupInteractionEdges(psTagged, rules) {
+    const resources = new Map(rules.map(rule => [rule.id, rulegroupResources(psTagged, rule)]));
+    const edges = new Map(wakeEdgesForRules(psTagged, rules).map(edge => [edge.from + ':' + edge.to, edge]));
+    for (const from of rules) for (const to of rules) {
+        if (from === to) continue; // Self-overlapping replacements have their own convergence blocker.
+        const a = resources.get(from.id), b = resources.get(to.id);
+        const reasons = [];
+        if (setIntersects(a.writeObjects, b.readObjects)) reasons.push('object_read_write');
+        if (setIntersects(a.writeMovementLayers, b.readMovementLayers)) reasons.push('movement_read_write');
+        if (setIntersects(a.writeObjects, b.writeObjects)) reasons.push('object_write_conflict');
+        if (setIntersects(a.writeMovementLayers, b.writeMovementLayers)) reasons.push('movement_write_conflict');
+        if (!reasons.length) continue;
+        const key = from.id + ':' + to.id;
+        const previous = edges.get(key);
+        edges.set(key, { from: from.id, to: to.id, reasons: uniqueSorted([...(previous ? previous.reasons : []), ...reasons]) });
+    }
+    return Array.from(edges.values());
+}
+
+function rulegroupEffectBlockers(group) {
+    const blockers = [];
     if (group.random) blockers.push('random_rule_group');
     if (group.rules.some(rule => rule.rigid)) blockers.push('rigid_rule');
     if (group.rules.some(rule => rule.summary.semantic_commands.length > 0)) blockers.push('semantic_command');
+    if (group.rules.some(rule => rule.summary.inert_commands.length > 0)) blockers.push('observable_command');
     if (group.rules.some(rule => rule.tags && rule.tags.force_always_run)) blockers.push('force_always_rule');
+    if (group.rules.some(rule => rule.summary.rhs_random_objects.length ||
+        rule.summary.rhs_movement.some(term => term.movement === 'randomdir'))) blockers.push('random_replacement');
+    if (group.rules.some(rule => rule.summary.rhs_terms.some(term =>
+        (term.ref.type !== 'object' && term.ref.type !== 'ellipsis') ||
+        (term.movement !== null && term.movement !== 'stationary' && !POSITIVE_MOVEMENT_STATES.includes(term.movement) && term.movement !== 'randomdir')
+    ))) blockers.push('dynamic_replacement');
+    return uniqueSorted(blockers);
+}
+
+function rulegroupSinglePassBlockers(group, interactionEdges, indexById) {
+    const blockers = rulegroupEffectBlockers(group);
+    const backward = interactionEdges.filter(edge => indexById.get(edge.to) <= indexById.get(edge.from));
+    const enablesMatch = edge => edge.reasons.some(reason => ['object_presence', 'object_absence', 'movement'].includes(reason));
+    if (backward.some(enablesMatch)) {
+        blockers.push('earlier_rule_may_be_enabled');
+    }
+    if (backward.some(edge => !enablesMatch(edge))) blockers.push('earlier_rule_may_be_affected');
+    if (interactionEdges.some(edge => edge.reasons.some(reason => reason.endsWith('_write_conflict')))) blockers.push('conflicting_writes');
+    if (group.rules.some(rule => (rule.tags.object_mutating || rule.tags.writes_movement) &&
+        (rule.lhs.length !== 1 || rule.lhs[0].length !== 1 || rule.summary.lhs_terms.some(term => term.ref.type === 'ellipsis')))) {
+        blockers.push('overlapping_replacements');
+    }
     return uniqueSorted(blockers);
 }
 
 function rulegroupSkipMaskBlockers(group) {
-    const blockers = [];
-    if (group.random) blockers.push('random_rule_group');
-    if (group.rules.some(rule => rule.rigid)) blockers.push('rigid_rule');
-    if (group.rules.some(rule => rule.summary.semantic_commands.length > 0)) blockers.push('semantic_command');
-    if (group.rules.some(rule => rule.tags && rule.tags.force_always_run)) blockers.push('force_always_rule');
-    return uniqueSorted(blockers);
+    return rulegroupEffectBlockers(group);
 }
 
 function groupSkipMaskForRules(psTagged, group, blockers) {
     const objectPresent = new Set();
     const objectAbsent = new Set();
     const movement = [];
+    const writeObjects = new Set(), writeMovementLayers = new Set();
     for (const rule of group.rules || []) {
         const reads = ruleFlowReads(rule);
         addValues(objectPresent, reads.object_present || []);
         addValues(objectAbsent, reads.object_absent || []);
         movement.push(...(reads.movement || []));
+        const resources = rulegroupResources(psTagged, rule);
+        addValues(writeObjects, resources.writeObjects);
+        addValues(writeMovementLayers, resources.writeMovementLayers);
     }
-    const objectWake = uniqueSorted(new Set([...objectPresent, ...objectAbsent]));
+    const objectWake = uniqueSorted(new Set([...objectPresent, ...objectAbsent, ...writeObjects]));
     const readMovements = splitReadMovements({ movement });
+    const movementWake = movementMaskForEntries(psTagged, movement);
+    for (const layer of writeMovementLayers) orMovementLayerBits(movementWake, layer, 0x1f);
     return {
         bitvec_format: {
             object_words: objectMaskWordCount(psTagged),
@@ -3336,7 +3419,7 @@ function groupSkipMaskForRules(psTagged, group, blockers) {
         },
         masks: {
             read_objects_wake: objectMaskForNames(psTagged, objectWake),
-            read_movements_wake: movementMaskForEntries(psTagged, movement),
+            read_movements_wake: movementWake,
         },
     };
 }
@@ -3348,7 +3431,7 @@ function deriveRulegroupFlowFacts(psTagged) {
             if (group.rules.length <= 1) continue;
             const ruleIds = group.rules.map(rule => rule.id);
             const indexById = new Map(group.rules.map((rule, index) => [rule.id, index]));
-            const interactionEdges = wakeEdgesForRules(psTagged, group.rules);
+            const interactionEdges = rulegroupInteractionEdges(psTagged, group.rules);
             const rerunMasks = Object.fromEntries(ruleIds.map(id => [id, []]));
             for (const edge of interactionEdges) {
                 if (indexById.get(edge.to) <= indexById.get(edge.from)) {
@@ -3359,13 +3442,10 @@ function deriveRulegroupFlowFacts(psTagged) {
                 rerunMasks[ruleId] = uniqueSorted(rerunMasks[ruleId]);
             }
             const components = connectedComponents(ruleIds, interactionEdges);
-            const blockers = [];
+            const blockers = rulegroupEffectBlockers(group);
             const singlePassBlockers = rulegroupSinglePassBlockers(group, interactionEdges, indexById);
             const groupSkipBlockers = rulegroupSkipMaskBlockers(group);
             if (components.length <= 1) blockers.push('single_component');
-            if (group.random) blockers.push('random_rule_group');
-            if (group.rules.some(rule => rule.rigid)) blockers.push('rigid_rule');
-            if (group.rules.some(rule => rule.summary.semantic_commands.length > 0)) blockers.push('semantic_command');
             const status = blockers.length === 0 ? 'candidate' : 'rejected';
             results.push(fact('rulegroup_flow', `${group.id}_flow`, status, {
                 subjects: { groups: [group.id] },

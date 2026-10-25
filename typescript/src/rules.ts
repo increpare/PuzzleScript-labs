@@ -117,23 +117,24 @@ export function applyRuleAt(
   tuple: readonly RowMatch[], recheck: boolean,
 ): RuleExecutionResult {
   if (recheck) {
-    if (tuple.length !== rule.rows.length) return { state: cloneExecutionState(before), changed: false, diagnostics: [] };
+    if (tuple.length !== rule.rows.length) return { state: before, changed: false, diagnostics: [] };
     for (let row = 0; row < rule.rows.length; row++) {
       const match = tuple[row];
       if (match === undefined || !matchesRow(rule, row, before, match)) {
-        return { state: cloneExecutionState(before), changed: false, diagnostics: [] };
+        return { state: before, changed: false, diagnostics: [] };
       }
     }
   }
   if (tuple.length !== rule.rows.length) throw new Error('Rule tuple must contain one match per rule row');
-  const initial = cloneExecutionState(before);
+  // States are never modified in place, so the result shares unchanged parts with
+  // before: new row arrays, new cells for written positions, new collections.
   const rows: Cell[][] = [];
-  for (const row of initial.board.rows) rows.push([...row]);
-  let pendingMovements = [...initial.pendingMovements];
-  const rigidMarks = [...initial.rigidMarks];
-  const createdObjects = new Set(initial.createdObjects);
-  const destroyedObjects = new Set(initial.destroyedObjects);
-  let random = initial.random;
+  for (const row of before.board.rows) rows.push([...row]);
+  let pendingMovements = [...before.pendingMovements];
+  const rigidMarks = [...before.rigidMarks];
+  const createdObjects = new Set(before.createdObjects);
+  const destroyedObjects = new Set(before.destroyedObjects);
+  let random = before.random;
   let changed = false;
   const step = directionStep(rule.direction);
 
@@ -171,7 +172,7 @@ export function applyRuleAt(
   }
   return {
     state: {
-      ...initial, board: { width: initial.board.width, height: initial.board.height, rows },
+      ...before, board: { width: before.board.width, height: before.board.height, rows },
       pendingMovements, rigidMarks, random, createdObjects, destroyedObjects,
     }, changed, diagnostics: [],
   };
@@ -180,9 +181,9 @@ export function applyRuleAt(
 /** Match once, apply surviving tuples in order, then queue this rule's commands. */
 export function tryApplyRule(game: RuleGame, rule: ExecutableRule, before: RuleExecutionState): RuleExecutionResult {
   const matches = findMatches(rule, before);
-  let state = cloneExecutionState(before);
+  if (matches.length === 0) return { state: before, changed: false, diagnostics: [] };
+  let state = before;
   let changed = false;
-  if (matches.length === 0) return { state, changed, diagnostics: [] };
   if (rule.hasReplacements) {
     const tuples = matchTuples(matches);
     for (let index = 0; index < tuples.length; index++) {

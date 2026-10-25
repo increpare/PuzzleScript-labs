@@ -25,6 +25,132 @@
   text-underline-offset: 2px;
 }
 
+/* The compact hover and docked inspector share the same symbol presentation. */
+.puzzlescript-editor .ps-symbol-card {
+  box-sizing: border-box;
+  padding: 10px 12px;
+  color: light-dark(#263238, #d1edff);
+  background: light-dark(#fff, #152336);
+  font: 12px/1.45 system-ui, sans-serif;
+  text-align: left;
+  white-space: normal;
+}
+
+.puzzlescript-editor .ps-symbol-hover {
+  width: min(350px, calc(100vw - 28px));
+  max-height: min(380px, 65vh);
+  overflow: auto;
+  border: 1px solid light-dark(#a8b3bb, #526779);
+  border-radius: 3px;
+  box-shadow: 0 3px 12px #0003;
+}
+
+.puzzlescript-editor .ps-symbol-inspector {
+  margin: 0;
+  padding: 0;
+  max-height: min(320px, 40vh);
+  overflow: auto;
+  border-top: 1px solid light-dark(#a8b3bb, #526779);
+  overscroll-behavior: contain;
+}
+
+.puzzlescript-editor .ps-symbol-heading {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.puzzlescript-editor .ps-symbol-title { flex: 1; min-width: 0; }
+.puzzlescript-editor .ps-symbol-card h3 {
+  display: block;
+  margin: 0;
+  color: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.puzzlescript-editor .ps-symbol-card h4 { margin: 9px 0 3px; font-size: 12px; }
+.puzzlescript-editor .ps-symbol-kind { color: light-dark(#536774, #9db5c9); font-size: 11px; }
+.puzzlescript-editor .ps-symbol-definition { display: block; margin: 6px 0; overflow-wrap: anywhere; }
+.puzzlescript-editor .ps-symbol-sprite {
+  flex: none;
+  image-rendering: pixelated;
+  border: 1px solid light-dark(#bcc7cb, #526779);
+  background: repeating-conic-gradient(#aaa3 0% 25%, transparent 0% 50%) 0 0 / 10px 10px;
+}
+
+.puzzlescript-editor .ps-symbol-card button {
+  display: inline;
+  width: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: light-dark(#126398, #89c9ff);
+  background: transparent;
+  box-shadow: none;
+  font: inherit;
+  text-align: left;
+  text-transform: none;
+  cursor: pointer;
+}
+
+.puzzlescript-editor .ps-symbol-card button:hover { text-decoration: underline; }
+.puzzlescript-editor .ps-symbol-card .ps-symbol-layer {
+  display: block;
+  max-width: 100%;
+  margin: 3px 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.puzzlescript-editor .ps-symbol-layer-indirect { color: light-dark(#8b5200, #ffd07b); }
+.mis-win95 .puzzlescript-editor .ps-symbol-layer-indirect { color: #8b5200; }
+.puzzlescript-editor .ps-symbol-card button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.puzzlescript-editor .ps-symbol-card .ps-symbol-pin,
+.puzzlescript-editor .ps-symbol-card .ps-symbol-close {
+  padding: 3px 7px;
+  border: 1px solid light-dark(#a8b3bb, #526779);
+  border-radius: 2px;
+  align-self: flex-start;
+}
+.puzzlescript-editor .ps-symbol-card .ps-symbol-close { font-size: 16px; line-height: 1; }
+.puzzlescript-editor .ps-symbol-members { display: flex; flex-wrap: wrap; gap: 8px 12px; margin-top: 7px; }
+.puzzlescript-editor .ps-symbol-member { display: inline-flex; align-items: center; gap: 5px; }
+.puzzlescript-editor .ps-symbol-alternatives { display: inline-flex; align-items: center; gap: 3px; }
+.puzzlescript-editor .ps-symbol-membership { line-height: 1.65; }
+.puzzlescript-editor .ps-symbol-via { opacity: .8; }
+.puzzlescript-editor .ps-symbol-card .ps-symbol-rule-count { display: block; margin-top: 9px; }
+.puzzlescript-editor .ps-symbol-card .ps-symbol-more { display: block; margin-top: 5px; }
+.puzzlescript-editor .ps-symbol-card .ps-symbol-rule {
+  display: block;
+  width: 100%;
+  margin: 2px 0;
+  padding: 3px 5px;
+  border-left: 2px solid light-dark(#d4e1e8, #344b60);
+  font-family: 'Consolas', 'Lucida Console', monospace;
+  overflow-wrap: anywhere;
+}
+.puzzlescript-editor .ps-symbol-indirect { margin-top: 9px; }
+.puzzlescript-editor .ps-symbol-indirect summary { cursor: pointer; }
+.puzzlescript-editor .ps-symbol-empty { margin: 4px 0; opacity: .8; }
+
+.mis-win95 .puzzlescript-editor .ps-symbol-card { color: #000; background: #fff; font-family: Tahoma, sans-serif; }
+.mis-win95 .puzzlescript-editor .ps-symbol-hover { border: 1px solid #000; border-radius: 0; box-shadow: 2px 2px #0005; }
+.mis-win95 .puzzlescript-editor .ps-symbol-kind { color: #555; }
+.mis-win95 .puzzlescript-editor .ps-symbol-card button { color: #000080; }
+.mis-win95 .puzzlescript-editor .ps-symbol-card .ps-symbol-pin,
+.mis-win95 .puzzlescript-editor .ps-symbol-card .ps-symbol-close {
+  color: #000;
+  background: #c0c0c0;
+  border-radius: 0;
+  border: 1px solid;
+  border-color: #fff #404040 #404040 #fff;
+  box-shadow: 1px 1px #000;
+}
+
 .puzzlescript-editor .cm-scroller {
   overflow: auto;
   font-family: inherit;

@@ -203,7 +203,11 @@ replacement is fixed and either the rule has one isolated match cell or it
 also cannot invalidate other matches. The isolated-cell case cannot affect
 another tuple. In the multi-cell case neither certificate permits a change
 to any match predicate, so the fixed replacements reach a fixed point after
-one scan. Other rules in a group may enable one another, so their group still
+one scan only if overlapping tuples also have compatible replacement writes.
+Fixed constants alone do not suffice: `right [ A | A ] -> [ right A | left A ]`
+on `AAA` repeatedly changes the middle cell. The lowered compiler checks for
+conflicting set/clear assignments between pattern cells before certifying the
+singleton rescan fast path. Other rules in a group may affect one another, so their group still
 iterates. Collecting all matches first means new matches are not visited
 within the same scan.
 
@@ -222,3 +226,30 @@ Single-cell rules can still re-enable each other when grouped together, and a
 randomized replacement can still change again at the same cell; those cases
 retain the existing group loop.
 `rulegroup_flow.single_pass_safe` is a separate certificate.
+
+## 5. Rule-group independence includes replacement conflicts
+
+The group graph covers both predicate interference and write/write interference.
+`[ > Player | Crate ] -> [ > Player | > Crate ]` expands to directional rules
+that need not enable one another's LHS, yet opposing players can overwrite the
+same crate movement until the group hits its 200-pass guard. Such rules belong
+to one component and cannot receive a single-pass certificate.
+
+Object effects include provisional writes before movement resolution, expanded
+properties and collision-layer siblings. Movement effects include assignments,
+implicit clears and all five bits on affected collision layers. A write that
+can invalidate a predicate also connects components. The winflow/program-flow
+wake graphs keep their separate enabling-only interpretation.
+
+Single-pass safety additionally requires a proof against conflicting writes
+from overlapping tuples of each rule. The semantic analyzer conservatively
+rejects multi-cell state writers. This does not by itself prevent splitting
+independent components: a component may still require internal repetition.
+Random/dynamic replacements, observable commands, rigid rules and force-always
+rules retain conservative blockers. Single successful replays are not proof
+of independence on arbitrary boards or after other rules assign movement.
+
+Group-skip masks apply only to an already clean group. They cover replacement
+outputs as well as LHS reads: changing a RHS-only movement can require a rule
+to rewrite it even though its match predicate never changed. These masks do
+not establish convergence and do not permit skipping a first evaluation.
