@@ -16,12 +16,15 @@ misAfterEngineLoaded();
 importScripts('mis_core.js');
 importScripts('mis_native.js');
 importScripts('mis_generator.js');
+importScripts('../semantic_compile.js', 'mis_optimizer_bundle.js');
 
 let model = null;
 // Solver backend: the WebAssembly build of the native solver when available
 // (native/wasm/build_mis_wasm.sh), otherwise the JS engine solver in MISCore.
 let native = null;
 let backendNote = '';
+let solverBackend = null;
+let preparation = null;
 
 function loadNative() {
 	if (loadNative.promise) return loadNative.promise;
@@ -39,16 +42,9 @@ function loadNative() {
 }
 
 const backend = {
-	assess: function (board, opts) { return native ? native.assess(board, opts) : MISCore.assess(model, board, opts); },
-	solve: function (board, opts) { return native ? native.solve(board, opts) : MISCore.solve(model, board, opts); },
-	simplify: function (board, opts) {
-		// The native simplifier only removes; Tighten stays on the JS path.
-		if (native && (opts.mode || 'simplify') === 'simplify') {
-			const r = native.simplify(board, opts);
-			if (r.ok || !/time budget|in time/.test(r.reason || '')) return r;
-		}
-		return MISCore.simplify(model, board, opts);
-	},
+	assess: function (board, opts) { return solverBackend.assess(board, opts); },
+	solve: function (board, opts) { return solverBackend.solve(board, opts); },
+	simplify: function (board, opts) { return solverBackend.simplify(board, opts); },
 };
 
 function reply(msg) { self.postMessage(msg); }
@@ -61,6 +57,7 @@ function packResult(r) {
 	return {
 		status: r.status, effort: r.effort, length: r.length, lanes: r.lanes,
 		solution: r.solution, optimal: r.optimal, ms: r.ms, expanded: r.expanded, error: r.error,
+		optimization: preparation && preparation.telemetry,
 	};
 }
 
@@ -71,23 +68,35 @@ self.onmessage = function (e) {
 			const res = misCompile(msg.source);
 			model = res.ok ? MISCore.extractModel(msg.source) : null;
 			native = null;
+			preparation = model ? MISOptimizer.prepare(msg.source, model, { enabled: msg.optimize !== false, hasErrors: res.hasErrors }) : null;
+			solverBackend = preparation ? MISOptimizer.createBackend(preparation) : null;
 			if (!model || msg.backend === 'js') {
 				backendNote = msg.backend === 'js' ? 'JS solver (chosen)' : '';
-				reply({ type: 'ready', ok: !!model, errors: res.errors, backend: 'js', note: backendNote });
+				reply({ type: 'ready', ok: !!model, errors: res.errors, backend: 'js', note: backendNote, optimization: preparation && preparation.telemetry });
 				return;
 			}
 			loadNative().then(function (M) {
+				let originalNative = false;
 				if (!M) { backendNote = 'native solver not built — using JS'; }
 				else {
 					const n = MISNative.create(M);
-					const attached = n.attach(msg.source, model);
-					if (attached.ok) { native = n; backendNote = 'native solver (WebAssembly)'; }
+					let attached;
+					if (preparation.telemetry.enabled && !MISOptimizer.hasRuleReductions(preparation)) {
+						attached = n.attach(msg.source, model);
+						originalNative = attached.ok && (model.noaction || n.actionUnnecessary());
+					}
+					if (!originalNative) attached = n.attach(preparation.source, preparation.model);
+					if (attached.ok) {
+						native = n; backendNote = 'native solver (WebAssembly)';
+						if (preparation.telemetry.enabled && !originalNative) n.attachOriginal(msg.source, model);
+					}
 					else backendNote = attached.reason + ' — using JS';
 				}
-				reply({ type: 'ready', ok: true, errors: res.errors, backend: native ? 'native' : 'js', note: backendNote });
+				solverBackend = MISOptimizer.createBackend(preparation, native, { originalNative });
+				reply({ type: 'ready', ok: true, errors: res.errors, backend: native ? 'native' : 'js', note: backendNote, optimization: preparation.telemetry });
 			});
 		} else if (msg.type === 'assess') {
-			const r = backend.assess(boardFrom(msg.board), msg.opts || {});
+			const r = backend.assess(boardFrom(msg.board), Object.assign({ verifyOriginalJS: true }, msg.opts));
 			reply({ type: 'assessed', id: msg.id, result: packResult(r) });
 		} else if (msg.type === 'simplify') {
 			const r = backend.simplify(boardFrom(msg.board), Object.assign({}, msg.opts, {
@@ -98,7 +107,7 @@ self.onmessage = function (e) {
 		} else if (msg.type === 'prove') {
 			// Shortest solution for a suggestion card (the generator leaves proofs
 			// to whoever shows the candidate).
-			const r = backend.solve(boardFrom(msg.board), Object.assign({ strategy: 'bfs' }, msg.opts));
+			const r = backend.solve(boardFrom(msg.board), Object.assign({ strategy: 'bfs', verifyOriginalJS: true }, msg.opts));
 			reply({ type: 'proved', id: msg.id, result: { status: r.status, solution: r.status === 'solved' ? r.solution : null } });
 		} else if (msg.type === 'generate') {
 			generate(msg);

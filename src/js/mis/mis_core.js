@@ -963,6 +963,7 @@ const MISCore = (function () {
 
 	function loadBoardIntoEngine(model, board, seed) {
 		installEngineHooks();
+		wonFlag = false;
 		const lv = new Level(0, board.w, board.h, model.layerCount, new Int32Array(board.cells));
 		loadLevelFromLevelDat(state, lv, seed || 'mis');
 		curlevel = 0;
@@ -1095,7 +1096,7 @@ const MISCore = (function () {
 		const t0 = Date.now();
 		loadBoardIntoEngine(model, board, opts.seed);
 		const root = new Int32Array(level.objects);
-		if (winconditionsNow()) return { status: 'solved', solution: [], expanded: 0, strategy: strategy, ms: 0 };
+		if (wonFlag || winconditionsNow()) return { status: 'solved', solution: [], expanded: 0, strategy: strategy, ms: 0 };
 		const snaps = [root], parent = [-1], action = [-1], depth = [0];
 		const visited = new Set([cellsKey(root)]);
 		let expanded = 0;
@@ -1126,7 +1127,7 @@ const MISCore = (function () {
 				const step = engineStep(inputs[k]);
 				if (!step.changed && !step.won) continue;
 				const key = cellsKey(level.objects);
-				if (visited.has(key)) continue;
+				if (!step.won && visited.has(key)) continue;
 				visited.add(key);
 				const id = snaps.length;
 				snaps.push(new Int32Array(level.objects));
@@ -1184,6 +1185,19 @@ const MISCore = (function () {
 		return frames;
 	}
 
+	// Check a worker's solution with the original rules, including explicit WIN
+	// commands and wins during run_rules_on_level_start.
+	function validateSolution(model, board, solution) {
+		if (!Array.isArray(solution)) return false;
+		loadBoardIntoEngine(model, board);
+		if (wonFlag || winconditionsNow()) return true;
+		for (const input of solution) {
+			if (!Number.isInteger(input) || input < 0 || input > 4) return false;
+			if (engineStep(input).won || winconditionsNow()) return true;
+		}
+		return false;
+	}
+
 	/////////////////////////////////////////////////////////////////////
 	// Simplify ("window dressing") and Tighten
 	/////////////////////////////////////////////////////////////////////
@@ -1193,14 +1207,15 @@ const MISCore = (function () {
 	// same criterion as native/src/search/simplify.cpp. Tighten does the
 	// reverse for a chosen static object (e.g. Wall).
 
-	function optimalLength(model, board, cap, timeMs) {
-		const r = solve(model, board, { strategy: 'bfs', maxExpanded: cap, timeMs: timeMs });
+	function optimalLength(model, board, cap, timeMs, solver) {
+		const r = solver ? solver(board, { strategy: 'bfs', maxExpanded: cap, timeMs: timeMs })
+			: solve(model, board, { strategy: 'bfs', maxExpanded: cap, timeMs: timeMs });
 		return r.status === 'solved' ? { length: r.solution.length, expanded: r.expanded } : { length: -1, status: r.status, expanded: r.expanded };
 	}
 
 	function simplify(model, board, opts) {
 		opts = opts || {};
-		const base = optimalLength(model, board, opts.cap || 400000, opts.timeMs || 20000);
+		const base = optimalLength(model, board, opts.cap || 400000, opts.timeMs || 20000, opts.solve);
 		if (base.length < 0) return { ok: false, reason: base.status === 'unsolvable' ? 'The level is unsolvable.' : "Couldn't find the shortest solution in time (level too big for exhaustive search)." };
 		const trialCap = Math.max(256, base.expanded * 2);
 		const work = cloneBoard(board);
@@ -1235,7 +1250,7 @@ const MISCore = (function () {
 			if (mode === 'simplify') { if (!hasBit(work.cells, t, id, model.stride)) continue; clearBit(work.cells, t, id, model.stride); ensureBackground(model, work.cells, t); }
 			else placeObject(model, work.cells, t, id);
 			tried++;
-			const r = optimalLength(model, work, trialCap, 4000);
+			const r = optimalLength(model, work, trialCap, 4000, opts.solve);
 			if (r.length === base.length) changed++;
 			else work.cells.set(saved, t * model.stride);
 			if (opts.onProgress && (c & 3) === 0) opts.onProgress(c + 1, candidates.length);
@@ -1275,6 +1290,7 @@ const MISCore = (function () {
 		solve: solve,
 		assess: assess,
 		replayFrames: replayFrames,
+		validateSolution: validateSolution,
 		simplify: simplify,
 	};
 })();

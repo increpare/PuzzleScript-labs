@@ -11,6 +11,40 @@ generating run in Web Workers, by default on the **native C++ compiler and
 solver compiled to WebAssembly**, with the JS engine solver as a fallback
 (**Solver** menu, or `?backend=js|native`).
 
+## Solver preparation
+
+Each worker prepares a private solver ruleset once at initialization. The shared
+static analyzer considers every declared object potentially present, including
+objects introduced by painting or transforms. Its game-wide tags drive inert
+command and cosmetic rule removal, cosmetic object removal, equivalent immutable
+object merging, ACTION elimination, and win-relevance pruning. The shared semantic
+canonicalizer and source emitter then produce the source compiled by both the JS
+and WebAssembly solvers. Editor source, palette, playtesting and transforms keep
+their original objects; an explicit provenance map projects candidate boards into
+the reduced solver representation, including merges and changes of bitset stride.
+When ACTION elimination is the only reduction and the native solver independently
+proves it unnecessary, native workers reuse their existing original-game solver
+and replay path. This avoids extra projection and validation work for an already
+optimized native ruleset.
+
+No authored-level reachability, count, transient-boundary or setup-retirement
+facts are consumed. Random games, games with compile errors, and failed solver
+preparation retain their original rules. An optimized path is checked in the original
+JS game before its result reaches the generator's shortlist or the UI. Native
+workers also retain an unoptimized native game for ordinary-runtime validation.
+A rejected replay disables that worker's optimized profile and retries with the
+original JS rules. Simplify and Tighten edit original object IDs and validate their
+trial solves through the same adapter.
+
+`scripts/build-mis-optimizer.mjs` bundles the shared helpers into the checked-in
+`src/js/mis/mis_optimizer_bundle.js`; rebuild it after changing those helpers.
+The web, full-site and desktop builds run this bundler automatically. The bundle
+has no Node or network dependencies and is included in the offline desktop app.
+`make mis_tests` covers portable parity, aggregate WIN semantics, board projection,
+both backends, required ACTION, editing and fallback. Run
+`node src/tests/mis_optimization_browser.cjs` for paired real-worker measurements
+and independent original-game replay, including deterministic transformed boards.
+
 ## Running it
 
 Workers can't start from `file://`, so serve `src/` over HTTP:

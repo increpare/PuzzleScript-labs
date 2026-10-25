@@ -1919,6 +1919,9 @@ mis_web_serve:
 
 mis_tests:
 	$(NODE) src/tests/mis_core_node.js
+	$(NODE) src/tests/portable_semantics_node.js
+	$(NODE) src/tests/aggregate_win_semantics_node.js
+	$(NODE) src/tests/mis_optimization_node.js
 
 mis_backend_bench:
 	$(NODE) src/tests/mis_backend_bench_node.js

@@ -3,8 +3,10 @@
 import { cp, mkdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { buildMisOptimizer } from './build-mis-optimizer.mjs';
 export const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export async function buildWeb(destination = path.join(root, 'build/mis-web')) {
+  await buildMisOptimizer();
   // Only the known generated web folders may be replaced.
   const allowed = ['build/mis-web', 'desktop/mis/web'].map(p => path.join(root, p));
   if (!allowed.includes(destination)) throw new Error('Unexpected MIS web output path');

@@ -435,6 +435,13 @@ function pruneLegendRowsWithUnresolvedRefs(state) {
 
 function applyRenameMap(state, rename) {
     if (rename.size === 0) return 0;
+    // Generated-board callers must project editor IDs through every structural
+    // edit, including many-to-one merges and cosmetic deletion.
+    if (state.solverOptimizationObjectMap) {
+        for (const [original, current] of state.solverOptimizationObjectMap) {
+            if (rename.has(current)) state.solverOptimizationObjectMap.set(original, rename.get(current));
+        }
+    }
     rewriteRulesByRename(state.rules, rename);
     rewriteRulesByRename(state.lateRules, rename);
     rewriteWinconditionsByRename(state, rename);
@@ -877,9 +884,14 @@ function winRelevanceIrrelevantRuleSourceLines(report) {
         return lines;
     }
     const byId = ruleSourceLinesByStaticRuleId(report);
+    const irrelevant = new Set(value.irrelevant_rule_ids);
     for (const ruleId of value.irrelevant_rule_ids) {
         const line = byId.get(ruleId);
-        if (Number.isFinite(line)) lines.add(line);
+        if (!Number.isFinite(line)) return new Set();
+        lines.add(line);
+    }
+    for (const [ruleId, line] of byId) {
+        if (!irrelevant.has(ruleId)) lines.delete(line);
     }
     return lines;
 }
@@ -1132,6 +1144,9 @@ function createSolverOptimizationHook(staticAnalysisReport, passes, options = {}
             if (compiledState) compiledState.solverOptimizationTelemetry = telemetry;
             return;
         }
+        compiledState.solverOptimizationObjectMap = new Map(
+            Object.keys(compiledState.objects || {}).map(name => [name, name])
+        );
         if (p.inert) {
             const t0 = nowFn();
             const lines = inertCommandOnlyRuleSourceLines(staticAnalysisReport);

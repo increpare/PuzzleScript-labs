@@ -1,0 +1,1090 @@
+'use strict';
+
+const QUANTIFIER_TEXT = {
+    '-1': 'no',
+    '0': 'some',
+    '1': 'all',
+};
+
+const COLOR_NAMES = [
+    'black', 'white', 'gray', 'darkgray', 'lightgray',
+    'red', 'darkred', 'lightred', 'brown', 'orange',
+    'yellow', 'green', 'darkgreen', 'lightgreen', 'blue',
+    'darkblue', 'lightblue', 'purple', 'pink',
+];
+
+const GLYPH_POOL = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!$%&*+,-/:;<=>?@[]^_{|}~';
+const EXTRA_GLYPHS = '¡¢£¤¥¦§¨©«¬®¯°±²³´µ¶·¸¹»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿĀĂĄĆĈĊČĎĐĒĔĖĘĚĜĞĠĢĤĦĨĪĬĮİĲĴĶĹĻĽĿŁŃŅŇŌŎŐŒŔŖŘŚŜŞŠŢŤŦŨŪŬŮŰŲŴŶŸŹŻŽƀƁƂƄƆƇƉƊƋƌƎƏƐƑƓƔƖƗƘƜƝƟƠƢƤƧƩƬƮƯƱƲƳƵƷƸƼǍǏǑǓǕǗǙǛǞǠǤǦǨǪǬǮǰǴǶǸǺǼǾȀȂȄȆȈȊȌȎ';
+
+function buildSupplementalGlyphPool() {
+    const ranges = [
+        [0x0100, 0x017F],
+        [0x0180, 0x024F],
+        [0x0370, 0x03FF],
+        [0x0400, 0x04FF],
+        [0x0500, 0x052F],
+        [0x1E00, 0x1EFF],
+        [0x20A0, 0x20CF],
+        [0x2150, 0x218F],
+        [0x2190, 0x21FF],
+        [0x2500, 0x257F],
+        [0x2580, 0x259F],
+        [0x25A0, 0x25FF],
+    ];
+    let glyphs = '';
+    for (const [start, end] of ranges) {
+        for (let codePoint = start; codePoint <= end; codePoint++) {
+            const ch = String.fromCharCode(codePoint);
+            if (isSafeLevelGlyph(ch)) {
+                glyphs += ch;
+            }
+        }
+    }
+    return glyphs;
+}
+
+function isSafeLevelGlyph(ch) {
+    if (!ch || ch.length !== 1) {
+        return false;
+    }
+    if (ch.normalize('NFD').length !== 1) {
+        return false;
+    }
+    const codePoint = ch.charCodeAt(0);
+    if (codePoint < 0x21 || codePoint === 0x7f) {
+        return false;
+    }
+    if (codePoint >= 0x300 && codePoint <= 0x36f) {
+        return false;
+    }
+    if (codePoint >= 0x200b && codePoint <= 0x200f) {
+        return false;
+    }
+    return true;
+}
+
+const SUPPLEMENTAL_GLYPHS = buildSupplementalGlyphPool();
+const RESERVED_GLYPHS = new Set([
+    'up', 'down', 'left', 'right', 'late', 'rigid', 'random', 'no', 'v', '^', '<', '>', '[', ']', '|', '=', '+', 'and', 'or', 'message'
+]);
+
+// Mirrors metadata_no_value_set in src/js/parser.js.
+const METADATA_NO_VALUE_KEYS = new Set([
+    'run_rules_on_level_start',
+    'norepeat_action',
+    'require_player_movement',
+    'debug',
+    'verbose_logging',
+    'throttle_movement',
+    'noundo',
+    'noaction',
+    'norestart',
+    'scanline',
+]);
+
+const DENSITY_PATTERNS = [
+    [
+        '00000',
+        '00000',
+        '00000',
+        '00000',
+        '00000',
+    ],
+    [
+        '00000',
+        '0...0',
+        '0...0',
+        '0...0',
+        '00000',
+    ],
+    [
+        '..0..',
+        '.000.',
+        '00000',
+        '.000.',
+        '..0..',
+    ],
+    [
+        '0...0',
+        '.0.0.',
+        '..0..',
+        '.0.0.',
+        '0...0',
+    ],
+    [
+        '0....',
+        '.0...',
+        '..0..',
+        '...0.',
+        '....0',
+    ],
+];
+
+function canonicalObjectNames(canonical) {
+    const names = new Set();
+    const addIfConcrete = name => {
+        if (/^obj_\d+$/.test(name)) {
+            names.add(name);
+        }
+    };
+    for (const layer of canonical.collisionLayers || []) {
+        for (const name of layer) {
+            addIfConcrete(name);
+        }
+    }
+    for (const name of canonical.playerObjects || []) {
+        addIfConcrete(name);
+    }
+    for (const name of canonical.backgroundObjects || []) {
+        addIfConcrete(name);
+    }
+    for (const rule of canonical.rules || []) {
+        for (const side of [rule.lhs || [], rule.rhs || []]) {
+            for (const row of side) {
+                for (const cell of row) {
+                    if (cell.ellipsis) {
+                        continue;
+                    }
+                    for (const entry of cell) {
+                        if (entry.obj) {
+                            addIfConcrete(entry.obj);
+                        }
+                        for (const name of entry.objs || []) {
+                            addIfConcrete(name);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    for (const condition of canonical.winConditions || []) {
+        for (const name of condition.a || []) {
+            addIfConcrete(name);
+        }
+        for (const name of condition.b || []) {
+            addIfConcrete(name);
+        }
+    }
+    for (const level of canonical.levels || []) {
+        if (level.type !== 'map') {
+            continue;
+        }
+        for (const row of level.rows) {
+            for (const cell of row) {
+                for (const name of cell) {
+                    addIfConcrete(name);
+                }
+            }
+        }
+    }
+    return Array.from(names).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+}
+
+function buildLayerIndex(canonical) {
+    const index = new Map();
+    (canonical.collisionLayers || []).forEach((layer, layerIndex) => {
+        layer.forEach(name => index.set(name, layerIndex));
+    });
+    return index;
+}
+
+function chooseBackgroundEmissionLayer(layerIndex, backgroundSet) {
+    const counts = new Map();
+    for (const name of backgroundSet) {
+        if (!layerIndex.has(name)) {
+            continue;
+        }
+        const layer = layerIndex.get(name);
+        counts.set(layer, (counts.get(layer) || 0) + 1);
+    }
+    if (counts.size === 0) {
+        return 0;
+    }
+    let bestLayer = 0;
+    let bestCount = -1;
+    for (const [layer, count] of counts) {
+        if (count > bestCount || (count === bestCount && layer > bestLayer)) {
+            bestCount = count;
+            bestLayer = layer;
+        }
+    }
+    return bestLayer;
+}
+
+// Canonical collision layers may list the same object on multiple rows (mirroring
+// expanded legend membership in the compiler). The engine keeps the last row as
+// the authoritative layer assignment. Rebuild one row per object before emission.
+function buildEmissionCollisionLayers(canonical) {
+    const layerIndex = buildLayerIndex(canonical);
+    const backgroundSet = new Set(canonical.backgroundObjects || []);
+
+    if (backgroundSet.size > 0) {
+        const backgroundLayer = chooseBackgroundEmissionLayer(layerIndex, backgroundSet);
+        for (const name of backgroundSet) {
+            layerIndex.set(name, backgroundLayer);
+        }
+    }
+
+    for (const name of canonicalObjectNames(canonical)) {
+        if (!layerIndex.has(name)) {
+            const nextLayer = layerIndex.size > 0 ? Math.max(...layerIndex.values()) + 1 : 0;
+            layerIndex.set(name, nextLayer);
+        }
+    }
+
+    if (layerIndex.size === 0) {
+        return [];
+    }
+
+    const maxLayer = Math.max(...layerIndex.values());
+    const layers = Array.from({ length: maxLayer + 1 }, () => []);
+    for (const [name, layer] of layerIndex) {
+        layers[layer].push(name);
+    }
+    return layers
+        .map(layer => normalizeSet(layer))
+        .filter(layer => layer.length > 0);
+}
+
+function chooseColor(name, index) {
+    if (/^obj_0$/.test(name)) {
+        return 'black';
+    }
+    return COLOR_NAMES[index % COLOR_NAMES.length];
+}
+
+function choosePattern(layerIndex, nameIndex, layerCount) {
+    const densityBand = Math.min(
+        DENSITY_PATTERNS.length - 1,
+        Math.floor((layerIndex / Math.max(1, layerCount)) * DENSITY_PATTERNS.length)
+    );
+    const template = DENSITY_PATTERNS[densityBand];
+    const shifted = [];
+    const offset = nameIndex % 5;
+    for (let rowIndex = 0; rowIndex < template.length; rowIndex++) {
+        const row = template[rowIndex];
+        shifted.push(row.slice(offset) + row.slice(0, offset));
+    }
+    return shifted;
+}
+
+function emitObjectsSection(objectNames, layerIndex) {
+    const layerCount = Math.max(1, ...objectNames.map(name => (layerIndex.get(name) || 0) + 1));
+    const lines = ['========', 'OBJECTS', '========', ''];
+    objectNames.forEach((name, index) => {
+        lines.push(name);
+        lines.push(chooseColor(name, index));
+        const sprite = choosePattern(layerIndex.get(name) || 0, index, layerCount);
+        lines.push(...sprite);
+        lines.push('');
+    });
+    return lines;
+}
+
+function normalizeSet(names) {
+    return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+}
+
+function isEmittedPlainWinB(normalizedB, objectNames, backgroundObjects, quantifier) {
+    const normalized = normalizeSet(normalizedB || []);
+    const all = normalizeSet(objectNames);
+    if (JSON.stringify(normalized) === JSON.stringify(all)) {
+        return true;
+    }
+    if (quantifier === 1) {
+        return false;
+    }
+    const background = new Set(normalizeSet(backgroundObjects || []));
+    const nonBackground = normalizeSet(all.filter(name => !background.has(name)));
+    return JSON.stringify(normalized) === JSON.stringify(nonBackground);
+}
+
+function collectAliasNeeds(canonical, objectNames) {
+    const allObjectsKey = JSON.stringify(normalizeSet(objectNames));
+    const roleAliases = [];
+    const propertySets = [];
+    const cellSets = [];
+
+    function addPropertySet(names, options = {}) {
+        const normalized = normalizeSet(names);
+        if (normalized.length <= 1) {
+            return;
+        }
+        if (JSON.stringify(normalized) === allObjectsKey) {
+            return;
+        }
+        if (options.allowPlainWin && isEmittedPlainWinB(normalized, objectNames, canonical.backgroundObjects, options.quantifier)) {
+            return;
+        }
+        propertySets.push(normalized);
+    }
+
+    function addCellSet(names) {
+        const normalized = normalizeSet(names);
+        if (normalized.length <= 1) {
+            return;
+        }
+        cellSets.push(normalized);
+    }
+
+    addPropertySet(canonical.backgroundObjects || []);
+    addPropertySet(canonical.playerObjects || []);
+
+    for (const rule of canonical.rules || []) {
+        for (const side of [rule.lhs || [], rule.rhs || []]) {
+            for (const row of side) {
+                for (const cell of row) {
+                    if (cell.ellipsis) {
+                        continue;
+                    }
+                    for (const entry of cell) {
+                        if (entry.objs) {
+                            addPropertySet(entry.objs);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    for (const condition of canonical.winConditions || []) {
+        if (condition.aAggregate) addCellSet(condition.a || []);
+        else addPropertySet(condition.a || []);
+        if (condition.bAggregate) addCellSet(condition.b || []);
+        else addPropertySet(condition.b || [], { allowPlainWin: true, quantifier: condition.quantifier });
+    }
+
+    for (const level of canonical.levels || []) {
+        if (level.type !== 'map') {
+            continue;
+        }
+        for (const row of level.rows) {
+            for (const cell of row) {
+                addCellSet(cell);
+            }
+        }
+    }
+
+    return { propertySets, cellSets };
+}
+
+function registerPrunedRulePropertyAliases(canonical, propertyAliasForSet, layerIndex) {
+    const rules = (canonical.rules || []).filter(rule => !ruleHasImpossibleLhs(rule, layerIndex));
+    for (const rule of rules) {
+        if ((!rule.rhs || rule.rhs.length === 0) && (!rule.commands || rule.commands.length === 0)) {
+            continue;
+        }
+        for (const side of [rule.lhs || [], rule.rhs || []]) {
+            for (const row of side) {
+                for (const cell of row) {
+                    if (cell.ellipsis || cell.length === 0) {
+                        continue;
+                    }
+                    const simplifiedCell = pruneRedundantNoEntries(
+                        pruneRedundantPositiveSetEntries(cell, layerIndex),
+                        layerIndex
+                    );
+                    for (const entry of simplifiedCell) {
+                        if (entry.objs) {
+                            propertyAliasForSet(entry.objs);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+function buildAliasDefinitions(canonical, objectNames, layerIndex) {
+    const allObjectsKey = JSON.stringify(normalizeSet(objectNames));
+    const lines = [];
+    const propertyAliasBySet = new Map();
+    const cellAliasBySet = new Map();
+    let propertyAliasIndex = 0;
+    let cellAliasIndex = 0;
+
+    function propertyAliasForSet(names, options = {}) {
+        const normalized = normalizeSet(names);
+        if (normalized.length === 0) {
+            return null;
+        }
+        if (options.allowPlainWin && isEmittedPlainWinB(normalized, objectNames, canonical.backgroundObjects, options.quantifier)) {
+            return null;
+        }
+        if (normalized.length === 1) {
+            return normalized[0];
+        }
+
+        const key = normalized.join('|');
+        if (!propertyAliasBySet.has(key)) {
+            const aliasName = `set_${propertyAliasIndex++}`;
+            propertyAliasBySet.set(key, aliasName);
+        }
+        return propertyAliasBySet.get(key);
+    }
+
+    function cellAliasForSet(names) {
+        const normalized = normalizeSet(names);
+        if (normalized.length === 0) {
+            return null;
+        }
+        if (normalized.length === 1) {
+            return normalized[0];
+        }
+        const key = normalized.join('|');
+        if (!cellAliasBySet.has(key)) {
+            const aliasName = `cell_${cellAliasIndex++}`;
+            cellAliasBySet.set(key, aliasName);
+        }
+        return cellAliasBySet.get(key);
+    }
+
+    const { propertySets, cellSets } = collectAliasNeeds(canonical, objectNames);
+    propertySets.forEach(set => propertyAliasForSet(set));
+    cellSets.forEach(set => cellAliasForSet(set));
+    registerPrunedRulePropertyAliases(canonical, propertyAliasForSet, layerIndex);
+
+    // Role aliases may introduce property sets skipped by collectAliasNeeds (e.g.
+    // background spanning every object). Register them before emitting set lines.
+    const backgroundAlias = propertyAliasForSet(canonical.backgroundObjects || []);
+    const playerAlias = propertyAliasForSet(canonical.playerObjects || []);
+
+    for (const [key, aliasName] of Array.from(propertyAliasBySet.entries()).sort((a, b) => a[1].localeCompare(b[1], undefined, { numeric: true }))) {
+        lines.push(`${aliasName} = ${key.split('|').join(' or ')}`);
+    }
+    for (const [key, aliasName] of Array.from(cellAliasBySet.entries()).sort((a, b) => a[1].localeCompare(b[1], undefined, { numeric: true }))) {
+        lines.push(`${aliasName} = ${key.split('|').join(' and ')}`);
+    }
+
+    if (backgroundAlias) {
+        lines.push(`background = ${backgroundAlias}`);
+    }
+    if (playerAlias) {
+        lines.push(`player = ${playerAlias}`);
+    }
+
+    return {
+        lines,
+        cellAliasForSet,
+        winAliasForSet: (names, options = {}) => options.aggregate
+            ? cellAliasForSet(names)
+            : propertyAliasForSet(names, options),
+        ruleAliasForSet: propertyAliasForSet,
+        memberToPropertyAlias: memberToPropertyAliasMap(propertyAliasBySet),
+    };
+}
+
+function memberToPropertyAliasMap(propertyAliasBySet) {
+    const map = new Map();
+    for (const [key, alias] of propertyAliasBySet) {
+        for (const name of key.split('|')) {
+            map.set(name, alias);
+        }
+    }
+    return map;
+}
+
+function buildLevelGlyphs(canonical, cellAliasForSet, forbiddenNames) {
+    const glyphMap = new Map();
+    const usedGlyphs = new Set();
+    const usedGlyphNames = new Set();
+    const glyphPool = GLYPH_POOL + EXTRA_GLYPHS + SUPPLEMENTAL_GLYPHS;
+
+    function assign(setNames, preferred) {
+        const normalized = Array.from(new Set(setNames)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+        const key = normalized.join('|');
+        if (glyphMap.has(key)) {
+            return glyphMap.get(key);
+        }
+        let glyph = null;
+        if (preferred && !usedGlyphNames.has(preferred.toLowerCase())) {
+            glyph = preferred;
+        } else {
+            for (const candidate of glyphPool) {
+                const lowered = candidate.toLowerCase();
+                if (!isSafeLevelGlyph(candidate)) {
+                    continue;
+                }
+                if (!usedGlyphNames.has(lowered) && !forbiddenNames.has(lowered) && !RESERVED_GLYPHS.has(lowered)) {
+                    glyph = candidate;
+                    break;
+                }
+            }
+        }
+        if (glyph === null) {
+            throw new Error('Too many unique cell types for single-character level glyphs.');
+        }
+        usedGlyphs.add(glyph);
+        usedGlyphNames.add(glyph.toLowerCase());
+        glyphMap.set(key, glyph);
+        return glyph;
+    }
+
+    const backgroundKey = JSON.stringify((canonical.backgroundObjects || []).slice().sort());
+    const playerOnlyCandidates = (canonical.playerObjects || []).map(name =>
+        JSON.stringify(Array.from(new Set([...(canonical.backgroundObjects || []), name])).sort())
+    );
+
+    const legendLines = [];
+    for (const level of canonical.levels || []) {
+        if (level.type !== 'map') {
+            continue;
+        }
+        for (const row of level.rows) {
+            for (const cell of row) {
+                const sortedCell = Array.from(new Set(cell)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+                const cellJson = JSON.stringify(sortedCell);
+                const preferred = cellJson === backgroundKey ? '.' : (playerOnlyCandidates.includes(cellJson) ? 'P' : null);
+                const glyph = assign(sortedCell, preferred);
+                const alias = cellAliasForSet(sortedCell);
+                legendLines.push(`${glyph} = ${alias || sortedCell[0]}`);
+            }
+        }
+    }
+
+    const dedupedLegendLines = Array.from(new Set(legendLines));
+    return { glyphMap, legendLines: dedupedLegendLines };
+}
+
+function emitLegendSection(aliasLines, glyphLegendLines) {
+    const lines = ['=======', 'LEGEND', '=======', ''];
+    if (aliasLines.length > 0) {
+        lines.push(...aliasLines, '');
+    }
+    if (glyphLegendLines.length > 0) {
+        lines.push(...glyphLegendLines, '');
+    }
+    return lines;
+}
+
+function normalizeRuleCellEntries(cell) {
+    const usedObjects = new Set();
+    const result = [];
+    for (const entry of cell) {
+        if (entry.ellipsis) {
+            result.push(entry);
+            continue;
+        }
+        if (entry.alias) {
+            const dedupeKey = `alias:${entry.alias}`;
+            if (!usedObjects.has(dedupeKey)) {
+                usedObjects.add(dedupeKey);
+                result.push(entry);
+            }
+            continue;
+        }
+        if (entry.obj) {
+            if (!usedObjects.has(entry.obj)) {
+                usedObjects.add(entry.obj);
+                result.push(entry);
+            }
+            continue;
+        }
+        if (entry.objs) {
+            const remaining = entry.objs.filter(name => !usedObjects.has(name));
+            remaining.forEach(name => usedObjects.add(name));
+            if (remaining.length === 1) {
+                result.push({ dir: entry.dir, obj: remaining[0] });
+            } else if (remaining.length > 1) {
+                result.push({ dir: entry.dir, objs: remaining });
+            }
+        }
+    }
+    return result;
+}
+
+function ruleEntryObjects(entry) {
+    if (entry.obj) {
+        return [entry.obj];
+    }
+    if (entry.objs) {
+        return entry.objs.slice();
+    }
+    return [];
+}
+
+function definiteRuleEntryLayer(entry, layerIndex) {
+    const objects = ruleEntryObjects(entry);
+    if (objects.length === 0) {
+        return null;
+    }
+    const layers = new Set();
+    for (const objectName of objects) {
+        if (!layerIndex.has(objectName)) {
+            return null;
+        }
+        layers.add(layerIndex.get(objectName));
+    }
+    if (layers.size !== 1) {
+        return null;
+    }
+    return Array.from(layers)[0];
+}
+
+function pruneRedundantNoEntries(cell, layerIndex) {
+    if (cell.ellipsis) {
+        return cell;
+    }
+
+    const occupiedLayers = new Set();
+    for (const entry of cell) {
+        if (entry.dir === 'no') {
+            continue;
+        }
+        const layer = definiteRuleEntryLayer(entry, layerIndex);
+        if (layer !== null) {
+            occupiedLayers.add(layer);
+        }
+    }
+    if (occupiedLayers.size === 0) {
+        return cell;
+    }
+
+    const pruned = [];
+    for (const entry of cell) {
+        if (entry.dir !== 'no') {
+            pruned.push(entry);
+            continue;
+        }
+        if (entry.obj) {
+            const layer = layerIndex.get(entry.obj);
+            if (!occupiedLayers.has(layer)) {
+                pruned.push(entry);
+            }
+            continue;
+        }
+        if (entry.objs) {
+            const remaining = entry.objs.filter(name => !occupiedLayers.has(layerIndex.get(name)));
+            if (remaining.length === 1) {
+                pruned.push({ dir: entry.dir, obj: remaining[0] });
+            } else if (remaining.length > 1) {
+                pruned.push({ dir: entry.dir, objs: remaining });
+            }
+            continue;
+        }
+        pruned.push(entry);
+    }
+    return pruned;
+}
+
+function concretePositiveObjectsByLayer(cell, layerIndex) {
+    const byLayer = new Map();
+    for (const entry of cell) {
+        if (entry.dir === 'no' || !entry.obj || !layerIndex.has(entry.obj)) {
+            continue;
+        }
+        const layer = layerIndex.get(entry.obj);
+        if (!byLayer.has(layer)) {
+            byLayer.set(layer, new Set());
+        }
+        byLayer.get(layer).add(entry.obj);
+    }
+    return byLayer;
+}
+
+function pruneRedundantPositiveSetEntries(cell, layerIndex) {
+    if (cell.ellipsis) {
+        return cell;
+    }
+
+    const concreteByLayer = concretePositiveObjectsByLayer(cell, layerIndex);
+    if (concreteByLayer.size === 0) {
+        return cell;
+    }
+
+    return cell.filter(entry => {
+        if (entry.dir === 'no' || !entry.objs) {
+            return true;
+        }
+        const layer = definiteRuleEntryLayer(entry, layerIndex);
+        if (layer === null || !concreteByLayer.has(layer)) {
+            return true;
+        }
+        const concreteObjects = concreteByLayer.get(layer);
+        return !entry.objs.some(name => concreteObjects.has(name));
+    });
+}
+
+function cellHasImpossiblePositiveRequirements(cell, layerIndex) {
+    if (cell.ellipsis) {
+        return false;
+    }
+
+    const concreteByLayer = new Map();
+    for (const entry of cell) {
+        if (entry.dir === 'no') {
+            continue;
+        }
+        if (entry.obj && layerIndex.has(entry.obj)) {
+            const layer = layerIndex.get(entry.obj);
+            if (!concreteByLayer.has(layer)) {
+                concreteByLayer.set(layer, new Set());
+            }
+            const concreteObjects = concreteByLayer.get(layer);
+            if (concreteObjects.size > 0 && !concreteObjects.has(entry.obj)) {
+                return true;
+            }
+            concreteObjects.add(entry.obj);
+        }
+    }
+
+    for (const entry of cell) {
+        if (entry.dir === 'no' || !entry.objs) {
+            continue;
+        }
+        const layer = definiteRuleEntryLayer(entry, layerIndex);
+        if (layer !== null && concreteByLayer.has(layer)) {
+            const concreteObjects = concreteByLayer.get(layer);
+            if (!entry.objs.some(name => concreteObjects.has(name))) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+function ruleHasImpossibleLhs(rule, layerIndex) {
+    for (const row of rule.lhs || []) {
+        for (const cell of row) {
+            if (cellHasImpossiblePositiveRequirements(cell, layerIndex)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+function sourceRuleEntryDirection(direction) {
+    if (direction === 'horizontal_par' || direction === 'vertical_par') {
+        return 'parallel';
+    }
+    if (direction === 'horizontal_perp' || direction === 'vertical_perp') {
+        return 'perpendicular';
+    }
+    return direction;
+}
+
+function formatRuleCell(cell) {
+    if (cell.ellipsis) {
+        return '...';
+    }
+    if (cell.length === 0) {
+        return '';
+    }
+    return cell.map(entry => {
+        const name = entry.obj || entry.alias || (entry.objs && entry.objs[0]) || '';
+        const direction = sourceRuleEntryDirection(entry.dir);
+        return direction ? `${direction} ${name}` : name;
+    }).join(' ');
+}
+
+function formatRuleRow(row) {
+    return `[ ${row.map(formatRuleCell).join(' | ')} ]`;
+}
+
+function rewriteRuleCell(entry, ruleAliasForSet) {
+    if (entry.objs) {
+        return {
+            dir: entry.dir,
+            alias: ruleAliasForSet(entry.objs)
+        };
+    }
+    return entry;
+}
+
+function unifyRulePropertyAliases(lhsRows, rhsRows, memberToPropertyAlias) {
+    if (memberToPropertyAlias.size === 0) {
+        return { lhsRows, rhsRows };
+    }
+
+    function upgradeRows(rows, counterpartRows) {
+        return rows.map((row, rowIndex) => row.map((cell, cellIndex) => {
+            if (cell.ellipsis || cell.length === 0) {
+                return cell;
+            }
+            const counterpart = counterpartRows[rowIndex] && counterpartRows[rowIndex][cellIndex];
+            if (!counterpart || counterpart.ellipsis || counterpart.length === 0) {
+                return cell;
+            }
+            const counterpartAliases = new Set(
+                counterpart
+                    .filter(entry => entry.alias && entry.dir !== 'no')
+                    .map(entry => entry.alias)
+            );
+            if (counterpartAliases.size === 0) {
+                return cell;
+            }
+            const counterpartObjects = new Set(
+                counterpart
+                    .filter(entry => entry.obj && entry.dir !== 'no')
+                    .map(entry => entry.obj)
+            );
+            const negatedAliases = new Set(
+                cell.filter(entry => entry.alias && entry.dir === 'no').map(entry => entry.alias)
+            );
+            const negatedObjects = new Set(
+                cell.filter(entry => entry.obj && entry.dir === 'no').map(entry => entry.obj)
+            );
+            const positiveAliases = new Set(
+                cell.filter(entry => entry.alias && entry.dir !== 'no').map(entry => entry.alias)
+            );
+            const assignedAliases = new Set(positiveAliases);
+            return cell.map(entry => {
+                if (!entry.obj || entry.dir === 'no' || !memberToPropertyAlias.has(entry.obj)) {
+                    return entry;
+                }
+                const alias = memberToPropertyAlias.get(entry.obj);
+                if (!counterpartAliases.has(alias) || negatedAliases.has(alias) || negatedObjects.has(entry.obj)) {
+                    return entry;
+                }
+                // Keep concrete transformation targets when the counterpart only
+                // references the aggregate alias (e.g. Candy -> Candy0).
+                if (!counterpartObjects.has(entry.obj)) {
+                    return entry;
+                }
+                if (assignedAliases.has(alias)) {
+                    return entry;
+                }
+                assignedAliases.add(alias);
+                return { dir: entry.dir, alias };
+            });
+        }));
+    }
+
+    return {
+        lhsRows: upgradeRows(lhsRows, rhsRows),
+        rhsRows: upgradeRows(rhsRows, lhsRows),
+    };
+}
+
+function emitRulesSection(canonical, ruleAliasForSet, layerIndex, memberToPropertyAlias) {
+    const lines = ['======', 'RULES', '======', ''];
+    let previousGroupNumber = null;
+    const startLoopGroups = new Map();
+    const endLoopGroups = new Map();
+    for (const loop of canonical.loops || []) {
+        if (!Number.isInteger(loop.startGroup) || !Number.isInteger(loop.endGroup)) {
+            continue;
+        }
+        startLoopGroups.set(loop.startGroup, (startLoopGroups.get(loop.startGroup) || 0) + 1);
+        endLoopGroups.set(loop.endGroup, (endLoopGroups.get(loop.endGroup) || 0) + 1);
+    }
+    const rules = (canonical.rules || []).filter(rule => !ruleHasImpossibleLhs(rule, layerIndex));
+    for (let ruleIndex = 0; ruleIndex < rules.length; ruleIndex++) {
+        const rule = rules[ruleIndex];
+        if ((!rule.rhs || rule.rhs.length === 0) && (!rule.commands || rule.commands.length === 0)) {
+            continue;
+        }
+        const prefix = [];
+        const continuingGroup = previousGroupNumber !== null && previousGroupNumber === rule.groupNumber;
+        if (!continuingGroup && startLoopGroups.has(rule.groupNumber)) {
+            for (let count = 0; count < startLoopGroups.get(rule.groupNumber); count++) {
+                lines.push('startLoop');
+            }
+        }
+        if (continuingGroup) {
+            prefix.push('+');
+        }
+        if (rule.late) {
+            prefix.push('late');
+        }
+        if (rule.rigid) {
+            prefix.push('rigid');
+        }
+        if (rule.randomRule && !continuingGroup) {
+            prefix.push('random');
+        }
+        prefix.push(rule.direction);
+
+        const rewriteRow = row => row.map(cell => {
+            if (cell.ellipsis || cell.length === 0) {
+                return cell;
+            }
+            const simplifiedCell = pruneRedundantNoEntries(
+                pruneRedundantPositiveSetEntries(cell, layerIndex),
+                layerIndex
+            );
+            return normalizeRuleCellEntries(simplifiedCell.map(entry =>
+                rewriteRuleCell(entry, ruleAliasForSet)
+            ));
+        });
+
+        const lhsRows = (rule.lhs || []).map(row => rewriteRow(row));
+        const rhsRows = (rule.rhs || []).map(row => rewriteRow(row));
+        const unified = unifyRulePropertyAliases(lhsRows, rhsRows, memberToPropertyAlias);
+        const lhs = unified.lhsRows.map(row => formatRuleRow(row)).join(' ');
+        const rhs = unified.rhsRows.map(row => formatRuleRow(row)).join(' ');
+        const commands = (rule.commands || [])
+            .map(command => command.length > 1 ? `${command[0]} ${command[1]}` : command[0])
+            .join(' ');
+        const base = `${prefix.join(' ')} ${lhs}`;
+        if (rule.rhs && rule.rhs.length > 0) {
+            lines.push(commands ? `${base} -> ${rhs} ${commands}` : `${base} -> ${rhs}`);
+        } else if (commands) {
+            lines.push(`${base} -> ${commands}`);
+        }
+        const nextRule = rules[ruleIndex + 1];
+        const groupEnds = !nextRule || nextRule.groupNumber !== rule.groupNumber;
+        if (groupEnds && endLoopGroups.has(rule.groupNumber)) {
+            for (let count = 0; count < endLoopGroups.get(rule.groupNumber); count++) {
+                lines.push('endLoop');
+            }
+        }
+        previousGroupNumber = rule.groupNumber;
+    }
+    lines.push('');
+    return lines;
+}
+
+function emitWinConditionsSection(canonical, objectNames, winAliasForSet) {
+    const lines = ['==============', 'WINCONDITIONS', '==============', ''];
+    for (const condition of canonical.winConditions || []) {
+        const quantifier = QUANTIFIER_TEXT[String(condition.quantifier)];
+        const left = winAliasForSet(condition.a, { aggregate: condition.aAggregate }) || condition.a[0];
+        const normalizedB = normalizeSet(condition.b || []);
+        // Only omit the "on" clause when b is the full object universe. Treating
+        // b === all non-background objects as plain would emit e.g. "all background"
+        // which compiles as All background on \nall\n, not All background on obstacle.
+        const plainWin = !condition.bAggregate && isEmittedPlainWinB(normalizedB, objectNames, canonical.backgroundObjects, condition.quantifier);
+        if (plainWin) {
+            lines.push(`${quantifier} ${left}`);
+        } else {
+            const right = winAliasForSet(normalizedB, { aggregate: condition.bAggregate }) || normalizedB[0];
+            lines.push(`${quantifier} ${left} on ${right}`);
+        }
+    }
+    lines.push('');
+    return lines;
+}
+
+function emitLevelsSection(canonical, glyphMap) {
+    const lines = ['======', 'LEVELS', '======', ''];
+    for (const level of canonical.levels || []) {
+        if (level.type === 'message') {
+            lines.push('message');
+            lines.push('');
+            continue;
+        }
+        for (const row of level.rows) {
+            const encoded = row.map(cell => {
+                const key = Array.from(new Set(cell)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).join('|');
+                const glyph = glyphMap.get(key);
+                if (!glyph) {
+                    throw new Error(`No legend glyph defined for cell ${key}.`);
+                }
+                return glyph;
+            }).join('');
+            lines.push(encoded);
+        }
+        lines.push('');
+    }
+    return lines;
+}
+
+function emitMetadata(canonical) {
+    const lines = [];
+    for (const entry of canonical.metadata || []) {
+        if (entry.value === 'true' && METADATA_NO_VALUE_KEYS.has(entry.key)) {
+            lines.push(entry.key);
+        } else {
+            lines.push(`${entry.key} ${entry.value}`);
+        }
+    }
+    if (lines.length > 0) {
+        lines.push('');
+    }
+    return lines;
+}
+
+function withEmittableObjects(canonical) {
+    let emissionCanonical = canonical;
+    let collisionLayers = (canonical.collisionLayers || []).map(layer => layer.slice());
+
+    if ((canonical.backgroundObjects || []).length === 0) {
+        const existingNames = new Set(canonicalObjectNames(canonical));
+        let nextObjectIndex = 0;
+        for (const name of existingNames) {
+            const match = /^obj_(\d+)$/.exec(name);
+            if (match) {
+                nextObjectIndex = Math.max(nextObjectIndex, Number(match[1]) + 1);
+            }
+        }
+
+        let syntheticBackground = `obj_${nextObjectIndex}`;
+        while (existingNames.has(syntheticBackground)) {
+            nextObjectIndex++;
+            syntheticBackground = `obj_${nextObjectIndex}`;
+        }
+
+        const levels = (canonical.levels || []).map(level => {
+            if (level.type !== 'map') {
+                return level;
+            }
+            return Object.assign({}, level, {
+                rows: level.rows.map(row => row.map(cell => (
+                    cell.length === 0 ? [syntheticBackground] : cell.slice()
+                ))),
+            });
+        });
+
+        collisionLayers = [[syntheticBackground], ...collisionLayers];
+        emissionCanonical = Object.assign({}, canonical, {
+            backgroundObjects: [syntheticBackground],
+            collisionLayers,
+            levels,
+        });
+    }
+
+    const layeredNames = new Set(collisionLayers.flat());
+    const missingLayerObjects = canonicalObjectNames(emissionCanonical)
+        .filter(name => !layeredNames.has(name));
+    if (missingLayerObjects.length === 0) {
+        return emissionCanonical;
+    }
+
+    return Object.assign({}, emissionCanonical, {
+        collisionLayers: [
+            ...collisionLayers,
+            ...missingLayerObjects.map(name => [name]),
+        ],
+    });
+}
+
+function decanonicalizeSemantic(canonical) {
+    if (canonical.format !== 'puzzlescript-semantic-canonical-v1') {
+        throw new Error(`Unsupported canonical format: ${canonical.format}`);
+    }
+
+    const preparedCanonical = withEmittableObjects(canonical);
+    const emissionCanonical = Object.assign({}, preparedCanonical, {
+        collisionLayers: buildEmissionCollisionLayers(preparedCanonical),
+    });
+    const objectNames = canonicalObjectNames(emissionCanonical);
+    const layerIndex = buildLayerIndex(emissionCanonical);
+    const { lines: aliasLines, cellAliasForSet, winAliasForSet, ruleAliasForSet, memberToPropertyAlias } = buildAliasDefinitions(emissionCanonical, objectNames, layerIndex);
+
+    const output = [];
+    output.push(...emitMetadata(emissionCanonical));
+    output.push(...emitObjectsSection(objectNames, layerIndex));
+    const forbiddenGlyphNames = new Set(objectNames.map(name => name.toLowerCase()));
+    forbiddenGlyphNames.add('background');
+    forbiddenGlyphNames.add('player');
+    forbiddenGlyphNames.add('cell');
+    forbiddenGlyphNames.add('set');
+    const { glyphMap, legendLines } = buildLevelGlyphs(emissionCanonical, cellAliasForSet, forbiddenGlyphNames);
+    output.push(...emitLegendSection(aliasLines, legendLines));
+    output.push('=======', 'SOUNDS', '=======', '');
+    output.push('================', 'COLLISIONLAYERS', '================', '');
+    for (const layer of emissionCanonical.collisionLayers || []) {
+        if (layer.length > 0) {
+            output.push(layer.join(', '));
+        }
+    }
+    output.push('');
+    output.push(...emitRulesSection(emissionCanonical, ruleAliasForSet, layerIndex, memberToPropertyAlias));
+    output.push(...emitWinConditionsSection(emissionCanonical, objectNames, winAliasForSet));
+    output.push(...emitLevelsSection(emissionCanonical, glyphMap));
+    return `${output.join('\n').replace(/\n{3,}/g, '\n\n').trim()}\n`;
+}
+
+module.exports = { decanonicalizeSemantic };
