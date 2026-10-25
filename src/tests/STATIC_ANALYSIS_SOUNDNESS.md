@@ -64,11 +64,51 @@ consumer to reconsider retirement from the restored board. A global mutable
 "this rule already ran" flag would be unsound for solver branches too.
 
 The analyzer is designed to **never over-claim**: a `proved` fact / a positive
-tag is meant to hold for every reachable runtime state. The runtime-contract
-suite (`run_static_analysis_runtime_contracts_node.js`) is the dynamic oracle —
-it runs the real engine over recorded traces and checks each claim at every turn
-boundary. The notes below document the exact scope in which two classes of claim
-are sound, and why two coverage exclusions are intentional rather than bugs.
+certificate is meant to hold throughout its documented scope. Possibility tags
+such as `may_enable_other_matches` instead certify absence when **false**.
+The runtime-contract suite (`run_static_analysis_runtime_contracts_node.js`)
+runs the real engine over recorded traces and checks a subset of the claims.
+Passing these finite traces is evidence against counterexamples, not proof for
+every playthrough.
+
+### Dynamic coverage audit (2026-10-25)
+
+The general replay oracle currently checks static objects/layers, inert layers,
+quantity bounds and linear count invariants, temporary and unreachable objects,
+per-level object universes, selected cosmetic/rule-suppression/merge projections,
+action and tick no-ops, no-again/no-random claims, winflow cache validity, and
+certified wake-mask coverage. Most invariant checks run at stable turn
+boundaries; some checks compare counterfactual replays or inspect compiled masks.
+They do not all observe intermediate rule-group states.
+
+The following claims have focused tests but **no general playthrough oracle**:
+
+- Rule-group splitting, `single_pass_safe`, and clean-group skip certificates.
+- `may_invalidate_other_matches` and `may_enable_other_matches`.
+- `self_disabling`, `persistent_guard`, `idempotent_effect`, and `setup_only`.
+
+For example, `static_analysis_setup_node.js` enumerates 34,560 small boards for
+ten rule forms and checks selected setup-retirement replays. This is useful
+adversarial coverage, not a check of every tagged rule in the gallery. Fixture
+assertions that a tag has an expected value are also distinct from independent
+engine checks of the property it claims.
+
+Corpus scope must be reported separately from claim coverage:
+
+- The recorded replay suite currently contains 473 cases, each with its own
+  specified level and input trace; it does not enumerate every gallery level.
+- `fuzz_static_contracts.js` uses the same subset of runtime checks. Its defaults
+  are the first two playable levels per game, two seeded traces per level, and
+  at most 40 inputs per trace.
+- `fuzz_corpus_batch.js` defaults to one playable level, one trace, and at most
+  30 inputs. Repeating an unchanged configuration repeats deterministic seeds.
+- The corpus consistency/canonical-parity audit is analyze-only. The gallery
+  setup coverage scan counts certificates without running playthroughs.
+
+Cosmetic and merge projection replays additionally exclude traces containing
+undo and games without a no-random certificate, as detailed below. Analysis
+failures and other skips must remain visible in run totals. Neither a broad
+source inventory nor a passing run implies that every certificate was exercised.
 
 ## 1. Cosmetic claims are solver-scoped (unsound under undo)
 
