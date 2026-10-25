@@ -156,6 +156,23 @@ test('solver: BFS optimum, unsolvable detection, MIS effort', () => {
 	assert.strictEqual(C.solve(m, b, { strategy: 'astar' }).status, 'unsolvable');
 });
 
+test('games with no win conditions and no win command are reported unwinnable without searching', () => {
+	assert.strictEqual(soko.model.canWin, true);
+	const noWin = soko.text.replace(/(WINCONDITIONS\s*=+\s*\n)[\s\S]*?(\n=+\s*\nLEVELS)/i, '$1\n$2');
+	assert(misCompile(noWin).ok);
+	const m = C.extractModel(noWin);
+	assert.strictEqual(m.canWin, false);
+	const r = C.solve(m, m.levels.find(l => l.board).board, { strategy: 'bfs' });
+	assert.strictEqual(r.status, 'unsolvable');
+	assert.strictEqual(r.reason, 'nowin');
+	assert.strictEqual(r.expanded, 0);
+	// A rule with the win command is enough.
+	const winCmd = noWin.replace(/(RULES\s*=+\s*\n)/i, '$1\nlate [ Player ] -> [ Player ] win\n');
+	assert(misCompile(winCmd).ok);
+	assert.strictEqual(C.extractModel(winCmd).canWin, true);
+	assert(misCompile(soko.text).ok); // later tests share the engine's compiled game
+});
+
 test('replayed solution frames end in a win', () => {
 	const m = soko.model;
 	const r = C.solve(m, firstLevel.board, { strategy: 'astar' });

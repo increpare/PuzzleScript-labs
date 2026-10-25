@@ -1,5 +1,6 @@
 'use strict';
 
+const { tagSetupRules, deriveRuleSetupFacts } = require('./static_analysis_setup');
 
 const SCHEMA = 'ps-static-analysis-v1';
 const INERT_COMMANDS = new Set(['message', 'sfx0', 'sfx1', 'sfx2', 'sfx3', 'sfx4', 'sfx5', 'sfx6', 'sfx7', 'sfx8', 'sfx9', 'sfx10']);
@@ -480,6 +481,10 @@ function tagGame(psTagged, metadata = {}) {
     psTagged.game.tags.has_action_input = !metadataHas(metadata, 'noaction');
     psTagged.game.tags.run_rules_on_level_start = metadataHas(metadata, 'run_rules_on_level_start');
     psTagged.game.tags.has_again = rules.some(rule => rule.tags.has_again);
+    // Only WINCONDITIONS or a `win` command can end a level in a win; false
+    // means no level of this game can be won.
+    psTagged.game.tags.can_win = psTagged.winconditions.length > 0
+        || rules.some(rule => rule.summary.semantic_commands.includes('win'));
     psTagged.game.tags.has_random = rules.some(rule => rule.random_rule
         || rule.summary.rhs_random_objects.length > 0
         || rule.summary.rhs_movement.some(term => term.movement === 'randomdir'));
@@ -571,6 +576,7 @@ function buildPsTagged(state, options = {}) {
     psTagged.objects_originating_movement = computeObjectsOriginatingMovement(psTagged);
     tagRuleObjectTags(psTagged);
     tagRuleMatchInteractions(psTagged);
+    tagSetupRules(psTagged);
     tagInertCollisionLayers(psTagged);
     tagCosmeticRules(psTagged);
     tagCosmeticObjects(psTagged);
@@ -592,6 +598,7 @@ function emptyFacts() {
         program_flow: [],
         winflow: [],
         win_relevance: [],
+        rule_setup: [],
     };
 }
 
@@ -3555,6 +3562,7 @@ function factDerivers() {
         program_flow: deriveProgramFlowFacts,
         winflow: deriveWinflowFacts,
         win_relevance: deriveWinRelevanceFacts,
+        rule_setup: deriveRuleSetupFacts,
     };
 }
 

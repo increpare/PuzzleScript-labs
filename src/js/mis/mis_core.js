@@ -222,6 +222,19 @@ const MISCore = (function () {
 	// Game model (extracted from the compiled engine `state`)
 	/////////////////////////////////////////////////////////////////////
 
+	// A level can only be won through WINCONDITIONS or a rule's `win` command.
+	function gameCanWin() {
+		if (state.winconditions && state.winconditions.length) return true;
+		const groups = (state.rules || []).concat(state.lateRules || []);
+		for (let g = 0; g < groups.length; g++) {
+			for (let r = 0; r < groups[g].length; r++) {
+				const cmds = groups[g][r].commands || [];
+				for (let c = 0; c < cmds.length; c++) if (cmds[c][0] === 'win') return true;
+			}
+		}
+		return false;
+	}
+
 	function extractModel(sourceText) {
 		if (typeof state === 'undefined' || !state || !state.objects || !state.collisionLayers) return null;
 		const stride = STRIDE_OBJ;
@@ -331,6 +344,7 @@ const MISCore = (function () {
 			bgcolor: state.bgcolor,
 			fgcolor: state.fgcolor,
 			noaction: !!(state.metadata && state.metadata.noaction !== undefined),
+			canWin: gameCanWin(),
 			winText: parseWinconditionText(lines),
 			movers: parseMovingNames(lines),
 			usesRandom: /\brandom(dir)?\b/i.test(sourceText),
@@ -1088,6 +1102,7 @@ const MISCore = (function () {
 	function solve(model, board, opts) {
 		opts = opts || {};
 		const strategy = opts.strategy || 'astar';
+		if (model.canWin === false) return { status: 'unsolvable', reason: 'nowin', expanded: 0, strategy: strategy, ms: 0 };
 		// Explicit zero states / negative time remove the interactive solver's
 		// limits. Omitted options retain the generator and quick-check defaults.
 		const maxExpanded = opts.maxExpanded === 0 ? Infinity : opts.maxExpanded || 200000;

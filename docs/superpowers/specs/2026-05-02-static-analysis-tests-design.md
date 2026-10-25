@@ -599,6 +599,22 @@ Runtime/metamorphic tests:
 Notes:
 - `randomdir` is a movement qualifier and is tested under movement/action facts.
 
+### `can_win` [current]
+
+Description: the game has at least one win condition or a rule with the `win`
+command. False means no level can ever be won, so a solver can stop at once.
+
+Static tests:
+- The win-condition fixture sets the tag.
+- Removing the win conditions clears it.
+- A rule with the `win` command and no win conditions sets it.
+
+Runtime/metamorphic tests:
+- None directly.
+
+Notes:
+- True does not mean any level is winnable; only false is a proof.
+
 ### `has_rigid` [current]
 
 Description: at least one rule is rigid.

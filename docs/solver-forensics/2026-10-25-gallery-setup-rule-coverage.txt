@@ -1,0 +1,64 @@
+Gallery setup-rule scan - 2026-10-25
+
+Corpus: 142 cached gallery sources; 140 verified, 2 provisionally attributed.
+Analyzed: 141 sources (139 verified + both provisional).
+Skipped: Cyber-Lasso, rejected by the existing static analyzer compile gate.
+The two provisional sources add no setup_only matches.
+
+Strict setup coverage: 18 source rules in 12 games (25 compiled variants in 13 games including partial source coverage).
+ParaLands adds one certified variant of a five-variant source rule; its whole source rule cannot be retired.
+Two of the 18 whole source rules are already unreachable: Broken Abacus lines 419 and 487 require auxPush, absent from all levels and never created.
+Excluding those leaves 16 source rules in 11 games, not ruled out by this simple reachability check.
+10 of the 18 whole setup rules in 9 games are non-cosmetic for solver purposes.
+
+Tag                           Source rules*     Games     Compiled variants
+self_disabling                   1890         123              4224
+persistent_guard                  160          50               315
+idempotent_effect                1881         119              3214
+setup_only                         18          12                25
+
+* Source-rule counts require every emitted compiled variant of that source line to have the tag.
+  The tags overlap; counts should not be added together.
+
+Games with fully covered setup source rules:
+  SwapBot: 1
+  Rock, Paper, Scissors: 1
+  JAM3 Game: 1
+  Dharma Dojo demake: 1
+  i herd u liek water templs: 1
+  Easy Enigma: 1
+  Maera Public Works: 4
+  Broken Abacus: 2 (both already unreachable)
+  Indigestion: 1
+  Caramelban: 3
+  Billy Bob's Uphill Climb: 1
+  A CLEAR VIEW OF THE SKY: 1
+
+Method and limitations:
+- Every source SHA-256 was checked against the gallery corpus manifest.
+- Counts deduplicate compiler rotations and property expansions by source line, within each game.
+- These are cached source versions, not newly fetched gallery revisions.
+- The manifest gallery metadata hash differs from this labs checkout; the named gallery corpus is the inventory used.
+- Static proof is conservative: undetected rules may also be setup rules.
+- setup_only retirement still requires committed setup quiescence; this is not a runtime speedup measurement.
+- No game source or analyzer implementation was changed for this measurement.
+
+The adjacent .json snapshot records aggregate counts, source hashes, per-game coverage, setup source lines, and canonicalizer overlap.
+
+Setup-rule overlap with existing cosmetic/canonical optimization - 2026-10-25
+
+Scope: the 18 fully-covered setup source rules in 12 games from the gallery scan.
+Already tagged cosmetic: 8 rules in 4 games (44.4%).
+Removed by cosmetic-rules,cosmetic: 1 rule (Caramelban line 336).
+Removed with all existing passes: 3 rules: Caramelban line 336 and Broken Abacus lines 419, 487.
+The Broken Abacus rules are removed by win-relevance (checked independently), and were already identified as unreachable.
+Remaining beyond existing all-pass culling: 15 source rules across 11 games.
+Of those, 10 rules in 9 games are non-cosmetic; 5 rules in 2 games are tagged cosmetic but retained.
+The five retained cosmetic rules are Maera Public Works lines 1719-1722 and Indigestion line 542.
+Those games use again, and cosmeticRuleSourceLines deliberately disables cosmetic-rule removal for games with again.
+
+Flagged cosmetic is not equivalent to removal. Baseline canonicalization and opt-in staticOptimizations modes are distinct.
+Checks used compileSemanticSource/canonicalizeSource with default, cosmetic-rules,cosmetic, and all, while preserving source-line provenance at the optimization stage.
+The new setup tags themselves are not consumed by any culling pass; potential retirement still requires setup quiescence.
+
+Per-rule overlap results are preserved in the adjacent .json snapshot.

@@ -209,6 +209,30 @@
                     "specification": "false certifies that cell replacements cannot create a match at another location tuple during this rule invocation. The proof covers one-cell rules, rules without RHS replacements, and concrete-object rules whose possible object and movement writes cannot satisfy any previously false match read, even when match locations overlap. Property, aggregate and dynamic RHS forms remain conservative unless the one-cell proof applies. true means possible or unproved. The applied tuple itself is excluded. Combining scanning and application additionally requires may_invalidate_other_matches false and preservation of match order, random selection, RNG draws, bindings, commands and scan bookkeeping. This is separate from rulegroup_flow.single_pass_safe and does not certify idempotence or permit skipping later group passes."
                   },
                   {
+                    "name": "self_disabling",
+                    "type": "boolean",
+                    "description": "A successful replacement falsifies its own match at the applied cells.",
+                    "specification": "Proved for fixed-width, single-row concrete-object replacements without LHS movement gates or positive RHS movement. At least one same-cell required object is removed or forbidden object is created. This is a local replacement property, including when the rule has commands or belongs to a random or rigid group; it does not promise that the replacement commits or cannot be reversed. false means unproved."
+                  },
+                  {
+                    "name": "persistent_guard",
+                    "type": "boolean",
+                    "description": "The replacement establishes at least one irreversible object-presence or absence condition.",
+                    "specification": "At least one concrete cell effect cannot be reversed by any rule or object movement during forward play. Includes implicit collision-layer overwrites, late rules, cosmetic rules and player input in the interference analysis. A persistent effect need not disable the match: unguarded creation can have this tag. This tag alone does not prove setup_only. Scope excludes undo, restart, level reload and snapshot restoration; it describes committed forward states, not speculative replacements discarded by cancel or rigid rollback."
+                  },
+                  {
+                    "name": "idempotent_effect",
+                    "type": "boolean",
+                    "description": "An exhaustive deterministic invocation reaches this rule's fixed point without outside interference.",
+                    "specification": "Proved for fixed-width, single-row concrete-object replacements with no commands, random group selection, rigid group behavior, LHS movement gates or positive RHS movement, when replacements cannot enable other match tuples. Repeating the invocation immediately cannot change board objects or movement. Inferred or explicit RHS stationary assignments are permitted. Other rules, input and movement resolution can still make the rule useful later; this tag does not permit changing group scheduling. false means unproved."
+                  },
+                  {
+                    "name": "setup_only",
+                    "type": "boolean",
+                    "description": "The rule stops changing the board after its certified setup closure reaches quiescence.",
+                    "specification": "Requires deterministic command-free, non-rigid execution and either permanent same-cell disabling conditions or idempotent effects that are all permanent, including stationary effects that cannot be rewritten by external movement or action. Remaining eligibility reads must be immobile and written only by already-proved setup dependencies. Dependencies are proved by a least fixed point; cycles remain unproved. A rule_setup fact records guards, dependencies, blockers and retirement=after_setup_quiescence. This does not assert that setup has run at level load or in one pass; run_rules_on_level_start and existing scheduling remain authoritative. Consumers must establish committed quiescence and reconsider retirement after undo, restart, level reload or snapshot restoration. false means unproved."
+                  },
+                  {
                     "name": "cosmetic",
                     "type": "boolean",
                     "description": "Rule has no reachable effect on win conditions or non-cosmetic rules.",
