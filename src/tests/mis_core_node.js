@@ -225,6 +225,59 @@ test('generator: choose counts stay literal by default', () => checkConstruction
 test('generator: samples use the starting board by default', () => checkConstructionSamples({ adaptive: false }));
 test('generator: construction transform keeps exactly two feet', () => checkConstructionSamples({}));
 
+// Rule goals: sokoban_basic's only rule (line 78) pushes crates.
+const ICE_GAME = soko.text.replace('[ > Player | Crate ] -> [ > Player | > Crate ]',
+	'[ > Player | Crate ] -> [ > Player | > Crate ]\n+ [ > Crate | Crate ] -> [ > Crate | > Crate ]\n[ Target Crate ] -> [ Target Crate ] sfx0');
+
+test('rule goals: compiled rule lines', () => {
+	misCompile(soko.text);
+	assert.deepStrictEqual(C.compiledRuleLines(), { lines: [78], random: false });
+});
+
+test('rule goals: a solution trace names the rules that fired, per step', () => {
+	misCompile(soko.text);
+	const r = C.solve(soko.model, firstLevel.board, { strategy: 'bfs' });
+	const steps = C.traceRules(soko.model, firstLevel.board, r.solution);
+	assert.strictEqual(steps.length, r.solution.length + 1);
+	assert.deepStrictEqual(steps[0], []);
+	const summary = C.summarizeTrace(steps);
+	assert.deepStrictEqual(Object.keys(summary), ['78']);
+	assert(summary[78].steps > 0 && summary[78].steps <= r.solution.length);
+	assert(summary[78].first >= 1);
+	// The engine's own hooks are restored afterwards.
+	assert(!Rule.prototype.tryApply.toString().includes('current.add'));
+});
+
+test('rule goals: command-only rules count as firing', () => {
+	misCompile(ICE_GAME);
+	const model = C.extractModel(ICE_GAME);
+	const board = model.levels.find(l => l.board).board;
+	const r = C.solve(model, board, { strategy: 'bfs' });
+	const summary = C.summarizeTrace(C.traceRules(model, board, r.solution));
+	assert(summary[80], 'the sfx-only rule fires when a crate sits on a target');
+	misCompile(soko.text);
+});
+
+test('rule goals: removing a needed rule makes the level unsolvable', () => {
+	const without = C.withoutRuleLines(soko.text, [78]);
+	assert.strictEqual(without.split('\n').length, soko.text.split('\n').length);
+	const res = misCompile(without);
+	assert(res.ok && !res.hasErrors);
+	const model = C.extractModel(without);
+	assert.strictEqual(C.solve(model, firstLevel.board, { strategy: 'bfs' }).status, 'unsolvable');
+	misCompile(soko.text);
+});
+
+test('rule goals: removing a group head promotes the next + rule', () => {
+	const text = 'a\n[ A ] -> [ B ]\n(comment)\n+ [ B ] -> [ C ]\n+ [ C ] -> [ D ]\n[ E ] -> [ F ]';
+	assert.strictEqual(C.withoutRuleLines(text, [2]), 'a\n\n(comment)\n[ B ] -> [ C ]\n+ [ C ] -> [ D ]\n[ E ] -> [ F ]');
+	assert.strictEqual(C.withoutRuleLines(text, [2, 4]), 'a\n\n(comment)\n\n[ C ] -> [ D ]\n[ E ] -> [ F ]');
+	assert.strictEqual(C.withoutRuleLines(text, [5]), 'a\n[ A ] -> [ B ]\n(comment)\n+ [ B ] -> [ C ]\n\n[ E ] -> [ F ]');
+	assert.strictEqual(C.withoutRuleLines(ICE_GAME, [78]).split('\n')[78], '[ > Crate | Crate ] -> [ > Crate | > Crate ]');
+	assert(misCompile(C.withoutRuleLines(ICE_GAME, [78])).ok);
+	misCompile(soko.text);
+});
+
 
 // ---- Native (WebAssembly) backend, when built (native/wasm/build_mis_wasm.sh) ----
 const wasmJs = path.join(srcDir, 'js/mis/wasm/mis_native.js');

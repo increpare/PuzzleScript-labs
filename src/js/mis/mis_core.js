@@ -1199,6 +1199,98 @@ const MISCore = (function () {
 	}
 
 	/////////////////////////////////////////////////////////////////////
+	// Rule goals: which rule lines a solution uses, and games without them
+	/////////////////////////////////////////////////////////////////////
+
+	// Source lines (1-based) of the compiled game's rules. Random rule groups
+	// make "never fired, so not needed" unsound, so callers check `random`.
+	function compiledRuleLines() {
+		const lines = new Set();
+		let random = false;
+		[state.rules || [], state.lateRules || []].forEach(function (groups) {
+			groups.forEach(function (group) {
+				group.forEach(function (rule) {
+					lines.add(rule.lineNumber);
+					if (rule.isRandom) random = true;
+				});
+			});
+		});
+		return { lines: Array.from(lines).sort(function (a, b) { return a - b; }), random: random };
+	}
+
+	// Replays a solution and records the rule lines that did something on each
+	// step: steps[0] is level start, steps[i] the turn after input i (again
+	// ticks included). A rule counts when it changed the level or queued a
+	// command. A rule that never counts could be deleted without changing this
+	// replay (deterministic games only).
+	function traceRules(model, board, solution) {
+		const proto = Rule.prototype, tryApply = proto.tryApply, queueCommands = proto.queueCommands;
+		let current = null;
+		proto.tryApply = function (lv) {
+			const changed = tryApply.call(this, lv);
+			if (changed && current) current.add(this.lineNumber);
+			return changed;
+		};
+		proto.queueCommands = function () {
+			if (current && this.commands.length) current.add(this.lineNumber);
+			return queueCommands.call(this);
+		};
+		const steps = [];
+		try {
+			current = new Set();
+			loadBoardIntoEngine(model, board);
+			steps.push(Array.from(current));
+			for (let i = 0; i < solution.length; i++) {
+				current = new Set();
+				engineStep(solution[i]);
+				steps.push(Array.from(current));
+			}
+		} finally {
+			proto.tryApply = tryApply;
+			proto.queueCommands = queueCommands;
+			current = null;
+		}
+		return steps;
+	}
+
+	// Per line: how many steps it fired on, and the first such step.
+	function summarizeTrace(steps) {
+		const lines = {};
+		steps.forEach(function (fired, step) {
+			fired.forEach(function (line) {
+				const s = lines[line] || (lines[line] = { steps: 0, first: step });
+				s.steps++;
+			});
+		});
+		return lines;
+	}
+
+	// The source with the given rule lines blanked (line numbers are kept). When
+	// a group's first rule goes, the next `+` rule in that group becomes the head.
+	function withoutRuleLines(sourceText, lineNumbers) {
+		const lines = sourceText.split('\n');
+		const removed = new Set(lineNumbers);
+		const promoted = new Set();
+		const isPlus = function (text) { return /^\s*\+/.test(text); };
+		const isFiller = function (text) { return /^\s*$/.test(text) || /^\s*\(.*\)\s*$/.test(text); };
+		Array.from(removed).sort(function (a, b) { return a - b; }).forEach(function (n) {
+			const i = n - 1;
+			if (i < 0 || i >= lines.length) return;
+			const head = !isPlus(lines[i]) || promoted.has(n);
+			lines[i] = '';
+			if (!head) return;
+			for (let j = i + 1; j < lines.length; j++) {
+				if (isFiller(lines[j])) continue;
+				if (!isPlus(lines[j])) break;
+				if (removed.has(j + 1)) promoted.add(j + 1);
+				else lines[j] = lines[j].replace(/^(\s*)\+\s*/, '$1');
+				break;
+			}
+		});
+		return lines.join('\n');
+	}
+
+	/////////////////////////////////////////////////////////////////////
 	// Simplify ("window dressing") and Tighten
 	/////////////////////////////////////////////////////////////////////
 	//
@@ -1281,6 +1373,10 @@ const MISCore = (function () {
 		insertLevelInSource: insertLevelInSource,
 		parseTransform: parseTransform,
 		runTransform: runTransform,
+		compiledRuleLines: compiledRuleLines,
+		traceRules: traceRules,
+		summarizeTrace: summarizeTrace,
+		withoutRuleLines: withoutRuleLines,
 		derivePresets: derivePresets,
 		staticSolids: staticSolids,
 		restoreTo: restoreTo,

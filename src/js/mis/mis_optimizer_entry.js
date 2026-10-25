@@ -20,6 +20,7 @@ function prepare(source, originalModel, options = {}) {
     let solverState = originalState, solverModel = originalModel, solverSource = source;
     let idMap = Int32Array.from({ length: originalModel.objectCount }, (_, id) => id);
     const telemetry = { enabled: false, scope: 'arbitrary_boards', replayChecks: 0, replayRejected: 0 };
+    let ruleTags = null;
     try {
         if (options.enabled === false) throw new Error('disabled');
         if (options.hasErrors) throw new Error('source has compile errors');
@@ -33,6 +34,7 @@ function prepare(source, originalModel, options = {}) {
         // Cosmetic/merge projection is only replay-validated for deterministic
         // forward search. Preserve the existing random-game backend unchanged.
         if (report.ps_tagged.game.tags.has_random) throw new Error('random mechanics');
+        ruleTags = ruleLineTags(report.ps_tagged);
         const passes = optimizer.effectiveSolverPassesForHook(report, optimizer.parseSolverOptPassList('all'));
         const optimized = psCompileSemantic(source, true, { staticAnalysisReport: report, passes }, optimizer);
         if (optimized.errorCount || !optimized.state || optimized.state.invalid) throw new Error('optimized semantic compile failed');
@@ -96,10 +98,28 @@ function prepare(source, originalModel, options = {}) {
     }
 
     return {
-        source: solverSource, model: solverModel, originalModel, idMap, telemetry, project,
+        source: solverSource, model: solverModel, originalModel, idMap, telemetry, project, ruleTags,
         activateOriginal() { activate(originalState); },
         activateSolver() { activate(solverState); },
     };
+}
+
+// Source lines whose rules can't affect play: { line: 'cosmetic' | 'inert' }.
+// A line is listed only when every rule compiled from it is tagged.
+function ruleLineTags(tagged) {
+    const tags = {}, mixed = new Set();
+    for (const section of tagged.rule_sections) {
+        for (const group of section.groups) {
+            for (const rule of group.rules) {
+                const line = rule.source_line;
+                const tag = rule.tags.cosmetic ? 'cosmetic' : rule.tags.inert_command_only ? 'inert' : null;
+                if (!tag) mixed.add(line);
+                else if (!tags[line] || tag === 'inert') tags[line] = tag;
+            }
+        }
+    }
+    for (const line of mixed) delete tags[line];
+    return tags;
 }
 
 function hasRuleReductions(prepared) {
