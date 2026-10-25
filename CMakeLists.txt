@@ -44,4 +44,9 @@ if(PUZZLESCRIPT_BUILD_NATIVE)
   target_include_directories(puzzlescriptmis_generation_random PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/tools/puzzlescriptmis-app/src)
   add_test(NAME puzzlescriptmis_generation_random COMMAND puzzlescriptmis_generation_random)
+  foreach(test_target IN ITEMS puzzlescriptmis_native_bridge_smoke puzzlescriptmis_generation_random)
+    target_compile_options(${test_target} PRIVATE
+      $<$<CXX_COMPILER_ID:MSVC>:/UNDEBUG>
+      $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-UNDEBUG>)
+  endforeach()
 endif()

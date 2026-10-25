@@ -430,7 +430,7 @@ if (failures.length > 0) {
 let auxiliaryExit = 0;
 if (!simOnly && !compilationOnly && !process.argv.includes('--profile')
     && process.env.PUZZLESCRIPT_SKIP_AUXILIARY_TESTS !== '1') {
-    for (const script of ['solver_random_replay_node.js', 'engine_sparse_paths_node.js']) {
+    for (const script of ['solver_random_replay_node.js', 'solver_stale_frontier_node.js', 'engine_sparse_paths_node.js']) {
         const auxiliaryResult = spawnSync(process.execPath, [path.join(__dirname, script)], {
             cwd: srcDir,
             stdio: 'inherit',

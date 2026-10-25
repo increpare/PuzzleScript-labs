@@ -12,6 +12,47 @@ Directory map:
 
 Common commands:
 
+A fresh checkout can build and run the registered checks without Make:
+
+```sh
+cmake -S . -B build/native-clean
+cmake --build build/native-clean --config Release --parallel 4
+ctest --test-dir build/native-clean -C Release --output-on-failure --parallel 4
+```
+
+Install Node.js, Python 3 and a C/C++20 toolchain first. On Windows, use the
+CMake bundled with Visual Studio if CMake is not on PATH. If Python resolves
+to a Windows Store alias, configure with `-DPython3_EXECUTABLE=/path/to/python.exe`.
+Executables are under `build/native-clean/native/Release` with Visual Studio,
+or `build/native-clean/native` with a single-configuration generator.
+
+CTest builds its generated replay fixture with the current compiler, tests the
+ordinary player and solver profile separately, and checks diagnostic sources in
+an isolated directory containing poisoned expected answers. Release test
+assertions remain enabled. Solution-cache checks receive the current executable
+path and regenerate exports, rather than discovering an unrelated old build.
+
+The registered diagnostic corpus passes all 321 fixtures. Its independent
+regression test repeats every case with source comments, poisoned expected
+answers in the working directory, and renamed object/property identifiers.
+The initial 196/321 audit exposed missing compiler validation; those checks now
+run from the parsed source. Run `puzzlescript_cpp test diagnostics-corpus
+src/tests/resources/errormessage_testdata.js` directly, or use CTest. See the
+[diagnostic parity report](../docs/benchmarks/2026-10-24-native-diagnostic-parity.md)
+for scope and validation.
+
+Validate benchmark solutions in a separate process using the ordinary,
+unpruned interpreter:
+
+```sh
+build/native-clean/native/solver_solution_replay src/tests/solver_tests results.json
+```
+
+With Visual Studio, add `Release/` before the executable and its `.exe`
+extension. Multiple result files can be supplied; duplicate paths are replayed
+once. This validator refuses generated backends, so a solver profile cannot
+validate its own removed rules.
+
 ```bash
 make build
 make run src/demo/sokoban_basic.txt

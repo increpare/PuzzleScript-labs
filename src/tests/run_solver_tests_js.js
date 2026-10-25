@@ -40,6 +40,8 @@ const {
     runNaiveSolver,
 } = require('./solver_naive');
 
+// Set to 0 for paired measurements of dominated frontier entries.
+const SKIP_STALE_FRONTIER = process.env.PUZZLESCRIPT_SOLVER_SKIP_STALE !== '0';
 const DEFAULT_STRATEGY = 'weighted-astar';
 const DEFAULT_SOLVER_HEURISTIC = 'auto';
 const WAKE_PRUNE_COUNTER_FIELDS = [
@@ -3688,8 +3690,10 @@ class VisitedStateBuckets {
     }
 
     addInitial(key, nodeIndex) {
-        this.buckets.set(key, { depth: 0, index: nodeIndex });
+        const entry = { depth: 0, index: nodeIndex };
+        this.buckets.set(key, entry);
         this.size = 1;
+        return entry;
     }
 
     find(key, depth) {
@@ -3714,7 +3718,7 @@ class VisitedStateBuckets {
         if (existingEntry) {
             existingEntry.depth = depth;
             existingEntry.index = nodeIndex;
-            return;
+            return existingEntry;
         }
         const entry = { depth, index: nodeIndex };
         const bucket = this.buckets.get(key);
@@ -3729,7 +3733,26 @@ class VisitedStateBuckets {
         if (collided) {
             this.collisions++;
         }
+        return entry;
     }
+}
+
+// Keep one mutable visited record per exact state. Older nodes retain their
+// snapshots and parent chains, while record.index identifies the current path.
+function recordVisitedDepth(map, key, depth, index) {
+    let entry = map.get(key);
+    if (entry) { entry.depth = depth; entry.index = index; }
+    else { entry = { depth, index }; map.set(key, entry); }
+    return entry;
+}
+
+function skipStaleFrontierNode(node, index, result) {
+    result.frontier_pops++;
+    if (node.visitedEntry.index === index) return false;
+    result.stale_frontier_entries++;
+    if (!SKIP_STALE_FRONTIER) return false;
+    result.stale_pops++;
+    return true;
 }
 
 function reconstruct(nodes, index, finalToken) {
@@ -3883,6 +3906,9 @@ function createSolverResult(game, levelIndex, timeoutMs, compileMs) {
         step_no_op: 0,
         step_changed: 0,
         hash_collisions: 0,
+        frontier_pops: 0,
+        stale_frontier_entries: 0,
+        stale_pops: 0,
         replay_rejected: 0,
         max_frontier: 0,
         timeout_ms: timeoutMs,
@@ -4034,9 +4060,9 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
         timeBlock(modeResult, 'hash_ms', () => {
             const initialHash = solverOps.hash();
             if (useHashBuckets) {
-                visited.addInitial(initialHash, 0);
+                nodes[0].visitedEntry = visited.addInitial(initialHash, 0);
             } else {
-                bestDepth.set(initialHash, 0);
+                nodes[0].visitedEntry = recordVisitedDepth(bestDepth, initialHash, 0, 0);
             }
         });
         modeResult.unique_states = useHashBuckets ? visited.size : bestDepth.size;
@@ -4064,6 +4090,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                 ? timeBlock(modeResult, 'queue_ms', () => frontier.pop())
                 : frontier.pop();
             const node = nodes[entry.index];
+            if (skipStaleFrontierNode(node, entry.index, modeResult)) continue;
             modeResult.expanded++;
 
             for (const action of actions) {
@@ -4112,11 +4139,11 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                         continue;
                     }
                 } else {
-                    if (bestDepth.has(key) && bestDepth.get(key) <= childDepth) {
+                    if (bestDepth.has(key) && bestDepth.get(key).depth <= childDepth) {
                         modeResult.duplicates++;
                         continue;
                     }
-                    bestDepth.set(key, childDepth);
+                    // Attach the stable record after the snapshot has been captured.
                 }
                 const snapshot = SOLVER_DETAIL_TIMING
                     ? timeBlock(modeResult, 'snapshot_ms', () => solverOps.capture())
@@ -4129,10 +4156,11 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                 });
                 const childIndex = nodes.length - 1;
                 if (useHashBuckets) {
-                    visited.record(key, childDepth, childIndex, visitedMatch.entry, visitedMatch.collided);
+                    nodes[childIndex].visitedEntry = visited.record(key, childDepth, childIndex, visitedMatch.entry, visitedMatch.collided);
                     modeResult.unique_states = visited.size;
                     modeResult.hash_collisions = visited.collisions;
                 } else {
+                    nodes[childIndex].visitedEntry = recordVisitedDepth(bestDepth, key, childDepth, childIndex);
                     modeResult.unique_states = bestDepth.size;
                 }
                 const novelty = noveltyTracker
@@ -4209,9 +4237,9 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
         timeBlock(modeResult, 'hash_ms', () => {
             const initialHash = solverOps.hash();
             if (useHashBuckets) {
-                visited.addInitial(initialHash, 0);
+                nodes[0].visitedEntry = visited.addInitial(initialHash, 0);
             } else {
-                bestDepth.set(initialHash, 0);
+                nodes[0].visitedEntry = recordVisitedDepth(bestDepth, initialHash, 0, 0);
             }
         });
         modeResult.unique_states = useHashBuckets ? visited.size : bestDepth.size;
@@ -4230,6 +4258,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                 ? timeBlock(modeResult, 'queue_ms', () => frontier.pop())
                 : frontier.pop();
             const node = nodes[entry.index];
+            if (skipStaleFrontierNode(node, entry.index, modeResult)) continue;
             if (SOLVER_DETAIL_TIMING) {
                 timeBlock(modeResult, 'clone_ms', () => {
                     solverOps.restore(node.snapshot);
@@ -4330,11 +4359,11 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                             continue;
                         }
                     } else {
-                        if (bestDepth.has(key) && bestDepth.get(key) <= childDepth) {
+                        if (bestDepth.has(key) && bestDepth.get(key).depth <= childDepth) {
                             modeResult.duplicates++;
                             continue;
                         }
-                        bestDepth.set(key, childDepth);
+                        // Attach the stable record after the snapshot has been captured.
                     }
                     const snapshot = SOLVER_DETAIL_TIMING
                         ? timeBlock(modeResult, 'snapshot_ms', () => solverOps.capture())
@@ -4347,10 +4376,11 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                     });
                     const childIndex = nodes.length - 1;
                     if (useHashBuckets) {
-                        visited.record(key, childDepth, childIndex, visitedMatch.entry, visitedMatch.collided);
+                        nodes[childIndex].visitedEntry = visited.record(key, childDepth, childIndex, visitedMatch.entry, visitedMatch.collided);
                         modeResult.unique_states = visited.size;
                         modeResult.hash_collisions = visited.collisions;
                     } else {
+                        nodes[childIndex].visitedEntry = recordVisitedDepth(bestDepth, key, childDepth, childIndex);
                         modeResult.unique_states = bestDepth.size;
                     }
                     if (SOLVER_DETAIL_TIMING) {
@@ -4413,9 +4443,9 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
         timeBlock(modeResult, 'hash_ms', () => {
             const initialHash = primarySpec.hash();
             if (useHashBuckets) {
-                visited.addInitial(initialHash, 0);
+                nodes[0].visitedEntry = visited.addInitial(initialHash, 0);
             } else {
-                bestDepth.set(initialHash, 0);
+                nodes[0].visitedEntry = recordVisitedDepth(bestDepth, initialHash, 0, 0);
             }
         });
         modeResult.unique_states = useHashBuckets ? visited.size : bestDepth.size;
@@ -4505,6 +4535,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
             }
             totalFrontier--;
             const node = nodes[entry.index];
+            if (skipStaleFrontierNode(node, entry.index, modeResult)) continue;
             if (node.expanded) {
                 continue;
             }
@@ -4572,11 +4603,11 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                         continue;
                     }
                 } else {
-                    if (bestDepth.has(key) && bestDepth.get(key) <= childDepth) {
+                    if (bestDepth.has(key) && bestDepth.get(key).depth <= childDepth) {
                         modeResult.duplicates++;
                         continue;
                     }
-                    bestDepth.set(key, childDepth);
+                    // Attach the stable record after the snapshot has been captured.
                 }
                 // Determine which heuristics we still need to compute. When locked to
                 // weighted-astar we only need the heuristic for the locked entry; otherwise
@@ -4607,10 +4638,11 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                 });
                 const childIndex = nodes.length - 1;
                 if (useHashBuckets) {
-                    visited.record(key, childDepth, childIndex, visitedMatch.entry, visitedMatch.collided);
+                    nodes[childIndex].visitedEntry = visited.record(key, childDepth, childIndex, visitedMatch.entry, visitedMatch.collided);
                     modeResult.unique_states = visited.size;
                     modeResult.hash_collisions = visited.collisions;
                 } else {
+                    nodes[childIndex].visitedEntry = recordVisitedDepth(bestDepth, key, childDepth, childIndex);
                     modeResult.unique_states = bestDepth.size;
                 }
                 const novelty = noveltyTracker
@@ -4689,6 +4721,9 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                 phaseResult.heuristic_ms += lastResult.heuristic_ms;
                 phaseResult.heuristic_classify_ms += lastResult.heuristic_classify_ms || 0;
                 phaseResult.heuristic_score_ms += lastResult.heuristic_score_ms || 0;
+                phaseResult.frontier_pops += lastResult.frontier_pops || 0;
+                phaseResult.stale_frontier_entries += lastResult.stale_frontier_entries || 0;
+                phaseResult.stale_pops += lastResult.stale_pops || 0;
                 phaseResult.step_ms += lastResult.step_ms;
                 phaseResult.hash_ms += lastResult.hash_ms;
                 phaseResult.queue_ms += lastResult.queue_ms;
@@ -4745,6 +4780,9 @@ function levelErrorResult(game, levelIndex, timeoutMs, compileMs, error) {
         step_no_op: 0,
         step_changed: 0,
         hash_collisions: 0,
+        frontier_pops: 0,
+        stale_frontier_entries: 0,
+        stale_pops: 0,
         max_frontier: 0,
         timeout_ms: timeoutMs,
         compile_ms: compileMs,
@@ -4913,6 +4951,9 @@ function runGame(root, file, options = {}) {
             unique_states: 0,
             duplicates: 0,
             hash_collisions: 0,
+        frontier_pops: 0,
+        stale_frontier_entries: 0,
+        stale_pops: 0,
             max_frontier: 0,
             timeout_ms: 0,
             compile_ms: compileMs,
@@ -5434,6 +5475,9 @@ function totals(results) {
         step_no_op: 0,
         step_changed: 0,
         hash_collisions: 0,
+        frontier_pops: 0,
+        stale_frontier_entries: 0,
+        stale_pops: 0,
         compile_ms: 0,
         static_analysis_ms: 0,
         static_optimization_removed_rules: 0,
@@ -5495,6 +5539,9 @@ function totals(results) {
         out.step_no_op += result.step_no_op || 0;
         out.step_changed += result.step_changed || 0;
         out.hash_collisions += result.hash_collisions || 0;
+        out.frontier_pops += result.frontier_pops || 0;
+        out.stale_frontier_entries += result.stale_frontier_entries || 0;
+        out.stale_pops += result.stale_pops || 0;
         out.compile_ms += result.compile_ms || 0;
         out.static_analysis_ms += result.static_analysis_ms || 0;
         out.static_optimization_removed_rules += result.static_optimization_removed_rules || 0;
@@ -5665,6 +5712,7 @@ function benchStoreConfig(options) {
         solver_opt_parity: options.solverOptParity,
         force_noaction: options.forceNoaction,
         adaptive_step_cost: options.adaptiveStepCost,
+        skip_stale_frontier: SKIP_STALE_FRONTIER,
         jobs: options.jobs,
         filters: {
             game: options.gameFilter,
@@ -5759,6 +5807,10 @@ module.exports = {
     replaySolutionOnCurrentCompiledState,
     replaySolutionOnGameFile,
     __solverSearchInternals: {
+        VisitedStateBuckets,
+        recordVisitedDepth,
+        skipStaleFrontierNode,
+        reconstruct,
         compareSolverQueueItems,
         createObjectNoveltyTracker,
         createPushSpaceBlockingWords,

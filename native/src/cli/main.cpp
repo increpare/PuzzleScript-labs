@@ -3565,7 +3565,9 @@ int compilationTestdataCommand(const std::filesystem::path& testdataPath, int ar
         for (size_t diagnosticIndex = 0; diagnosticIndex < diagnosticCount; ++diagnosticIndex) {
             const ps_diagnostic* diagnostic = ps_compiler_result_diagnostic(result.get(), diagnosticIndex);
             if (diagnostic != nullptr && diagnostic->message != nullptr) {
-                if (diagnostic->severity == PS_DIAG_ERROR) {
+                // JS logWarningNoLine also increments errorCount. Preserve its
+                // count while retaining the warning severity in the C API.
+                if (diagnostic->severity == PS_DIAG_ERROR || (diagnostic->severity == PS_DIAG_WARNING && diagnostic->line < 0)) {
                     ++actualErrorCount;
                 }
                 actual.emplace_back(diagnostic->message);
@@ -3577,7 +3579,7 @@ int compilationTestdataCommand(const std::filesystem::path& testdataPath, int ar
         if (!countOk || !messagesOk) {
             std::cerr << name << ": diagnostics mismatch\n";
             std::cerr << "expected_count=" << expectedCount << " actual_count=" << actualErrorCount << "\n";
-            if (!messagesOk) {
+            if (!messagesOk || !countOk) {
                 std::cerr << "expected_messages=[";
                 for (size_t index = 0; index < expected.size(); ++index) {
                     if (index > 0) std::cerr << ",";

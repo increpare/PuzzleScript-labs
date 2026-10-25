@@ -326,8 +326,37 @@ def compile_host_benches(
     repository: Path,
     generated_dir: Path,
     work_dir: Path,
+    cmake: Path | None = None,
 ) -> tuple[Path, Path]:
     """Compile interpreter and specialized host bench binaries for one export."""
+    if cmake is not None:
+        # CMake discovers MSVC's SDK and runtime libraries on Windows; invoking
+        # cl.exe directly from CTest would require a developer-shell environment.
+        quote = lambda value: '[==[' + Path(value).as_posix() + ']==]'
+        common = [repository / 'native/tests/gbc_solution_replay_bench.cpp',
+                  repository / 'native/src/gbc/core.c',
+                  repository / 'native/src/gbc/compact_facade.c',
+                  repository / 'native/src/gbc/facade_rules.c',
+                  generated_dir / 'generated_game.c']
+        extras = sorted(generated_dir.glob('generated_specialized_turn*.c'))
+        if not extras:
+            raise RuntimeError('missing generated_specialized_turn*.c')
+        lines = ['cmake_minimum_required(VERSION 3.20)', 'project(HostReplay LANGUAGES C CXX)',
+                 'set(CMAKE_CXX_STANDARD 17)', 'set(CMAKE_C_STANDARD 11)']
+        for name, specialized in [('host_bench_baseline', False), ('host_bench_specialized', True)]:
+            lines += [f'add_executable({name} ' + ' '.join(quote(p) for p in common + (extras if specialized else [])) + ')',
+                      f'target_include_directories({name} PRIVATE ' + ' '.join(quote(p) for p in [generated_dir, repository / 'native/include', repository / 'native/src/gbc']) + ')',
+                      f'target_compile_definitions({name} PRIVATE PS_GBC_GENERATED_BUILD=1 PS_REPO_ROOT="{repository.as_posix()}"' + (' PS_GBC_HAS_SPECIALIZED_TURN=1' if specialized else '') + ')',
+                      f'set_target_properties({name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ' + quote(work_dir) + ' RUNTIME_OUTPUT_DIRECTORY_RELEASE ' + quote(work_dir) + ')']
+        (work_dir / 'CMakeLists.txt').write_text('\n'.join(lines) + '\n', encoding='utf-8')
+        build = work_dir / 'build'
+        for command in [[str(cmake), '-S', str(work_dir), '-B', str(build), '-DCMAKE_BUILD_TYPE=Release'],
+                        [str(cmake), '--build', str(build), '--config', 'Release', '--parallel', '2']]:
+            process = subprocess.run(command, capture_output=True, text=True)
+            if process.returncode:
+                raise RuntimeError(f'host replay build failed:\n{process.stdout}\n{process.stderr}')
+        suffix = '.exe' if sys.platform == 'win32' else ''
+        return work_dir / ('host_bench_baseline' + suffix), work_dir / ('host_bench_specialized' + suffix)
     cxx = shutil.which("c++") or shutil.which("clang++") or shutil.which("g++")
     cc = shutil.which("cc") or shutil.which("clang") or shutil.which("gcc")
     if cxx is None or cc is None:

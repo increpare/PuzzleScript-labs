@@ -48,7 +48,7 @@ int main() {
         assert(countSeverity(diagnostics, puzzlescript::compiler::Severity::Error) == 0);
         assert(hasMessageContaining(
             diagnostics,
-            "You're specifying \"no strap\" more than once in a single cell. That's redundant (but harmless) - you can remove one."));
+            "I notice that you have NO STRAP more than once in a single cell. That's redundant innit."));
     }
     {
         puzzlescript::compiler::DiagnosticSink diagnostics;
@@ -56,7 +56,7 @@ int main() {
         assert(countSeverity(diagnostics, puzzlescript::compiler::Severity::Error) >= 1);
         assert(hasMessageContaining(
             diagnostics,
-            "You cannot specify the same object more than once in a single cell (in this case strap occurs multiple times)."));
+            "You cannot specify the same object more than once in a single cell (in this case STRAP occurs multiple times)."));
     }
     {
         puzzlescript::compiler::DiagnosticSink diagnostics;
@@ -64,7 +64,7 @@ int main() {
         assert(countSeverity(diagnostics, puzzlescript::compiler::Severity::Error) >= 1);
         assert(hasMessageContaining(
             diagnostics,
-            "You cannot specify the same object more than once in a single cell (in this case player occurs multiple times)."));
+            "You cannot specify the same object more than once in a single cell (in this case PLAYER occurs multiple times)."));
     }
     return 0;
 }
