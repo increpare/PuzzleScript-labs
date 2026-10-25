@@ -86,6 +86,12 @@ async function clickBreakpointMargin(page, editor, line) {
   await page.mouse.click(point.x, point.y)
 }
 
+// Picks a Run menu item by its label.
+async function runMenu(page, label) {
+  await page.locator('#menubar .menu-trigger[aria-label="Run"]').click()
+  await page.locator("#menu-run [role^=menuitem]").filter({hasText: label}).click()
+}
+
 async function play(page) {
   await page.locator('#mode-seg [data-mode="play"]').click()
   await page.locator("#board").click()
@@ -111,11 +117,16 @@ test("Compiled lists each rule line's compiled rules and the loop markers", asyn
   await page.locator('#tabs [data-tab="source"]').click()
   await page.locator('#console-tabs [data-ctab="compiled"]').click()
   const compiled = page.locator("#console-compiled")
-  await expect(compiled.locator(".c-loop")).toHaveText([`${PUSH_LINE - 1} startloop`, `${PUSH_LINE + 1} endloop`])
+  await expect(compiled.locator(".c-loop .col-ln")).toHaveText([String(PUSH_LINE - 1), String(PUSH_LINE + 1)])
+  await expect(compiled.locator(".c-loop .t-text")).toHaveText(["startloop", "endloop"])
+  // Win95 tree: a [+] box on a closed line, connectors on its compiled rules.
+  await expect(compiled.locator(`.c-line[data-line="${PUSH_LINE}"] .tv-box:not(.open)`)).toHaveCount(1)
   const push = compiled.locator(`.c-line[data-line="${PUSH_LINE}"]`)
-  await expect(push).toContainText("→ 4 rules")
+  await expect(push).toContainText("(4 rules)")
   await push.click()
   await expect(compiled.locator(".c-sub")).toHaveCount(4)
+  await expect(compiled.locator(".c-sub .tv-line.last")).toHaveCount(1)
+  await expect(compiled.locator("a")).toHaveCount(0)
   expect(errors).toEqual([])
 })
 
@@ -126,14 +137,17 @@ test("Trace records level-start rules and moves; hovering a row previews the boa
   await play(page)
   const trace = page.locator("#console-trace")
   await expect(trace.locator(".t-turn").first()).toContainText("level start")
-  await expect(trace.locator(`.t-row.k-rule a.ln[data-line="${MARK_LINE}"]`)).toHaveCount(1)
+  await expect(trace.locator(`.t-row.k-rule[data-line="${MARK_LINE}"] .col-ln`)).toHaveText(String(MARK_LINE))
   await page.keyboard.press("ArrowRight")
   await expect(page.locator("#play-moves")).toHaveText("1 moves")
-  await expect(trace.locator(".t-turn").last()).toContainText("right · 1 rule")
+  await expect(trace.locator(".t-turn").last()).toContainText("right (1 rule)")
   await trace.locator(".t-row.k-begin").last().hover()
   await expect(page.locator("#board-banner")).toContainText("before the move")
   await page.mouse.move(0, 0)
   await expect(page.locator("#board-banner")).not.toContainText("Trace")
+  // Double-click opens the row's line in the source.
+  await trace.locator(".t-row.k-rule").last().dblclick()
+  await expect.poll(() => page.evaluate(() => document.querySelector("#tab-source .cm-editor").misEditor.getCursor().line + 1)).toBe(PUSH_LINE)
   expect(errors).toEqual([])
 })
 
@@ -155,6 +169,11 @@ test("a breakpoint pauses a move, steps through it and commits it at the end", a
   await expect(editor.locator(".mis-paused-line")).toContainText("> Player | Crate")
   await expect(page.locator("#board-banner")).toContainText(`after line ${PUSH_LINE}`)
   await expect(page.locator("#play-moves")).toHaveText("0 moves")
+  await expect(page.locator("#designer-mode")).toHaveText("[Break]")
+  await page.locator('#menubar .menu-trigger[aria-label="Run"]').click()
+  await expect(page.locator("#menu-run [role=menuitem]").filter({hasText: "Next step"})).toBeEnabled()
+  await page.keyboard.press("Escape") // closes the menu only
+  await expect(bar).toBeVisible()
 
   await page.keyboard.press("b")
   await expect(page.locator("#board-banner")).toContainText("movement applied")
@@ -166,10 +185,14 @@ test("a breakpoint pauses a move, steps through it and commits it at the end", a
   await page.keyboard.press("c")
   await expect(bar).toBeHidden()
   await expect(page.locator("#play-moves")).toHaveText("1 moves")
+  await expect(page.locator("#designer-mode")).toHaveText("[Play]")
+  await page.locator('#menubar .menu-trigger[aria-label="Run"]').click()
+  await expect(page.locator("#menu-run [role=menuitem]").filter({hasText: "Next step"})).toBeDisabled()
+  await page.keyboard.press("Escape")
   await expect(editor.locator(".mis-paused-line")).toHaveCount(0)
 
-  await page.locator("#break-toggle").uncheck()
-  await page.locator("#board").click() // keys typed into the checkbox don't play
+  await runMenu(page, "Stop at breakpoints")
+  await page.locator("#board").click()
   await page.keyboard.press("ArrowRight")
   await expect(page.locator("#play-moves")).toHaveText("2 moves")
   await expect(bar).toBeHidden()
@@ -224,7 +247,7 @@ test("the console works from the keyboard and tells screen readers what happened
   await editor.evaluate((root, line) => root.misEditor.setCursor(line - 1, 0), PUSH_LINE)
   await page.keyboard.press("F9")
   expect(await editor.evaluate(root => root.misEditor.getBreakpoints())).toEqual([PUSH_LINE])
-  await page.locator("#break-toggle").uncheck()
+  await runMenu(page, "Stop at breakpoints")
 
   // Trace rows are a tree: arrows preview the board without moving the player.
   await play(page)
@@ -246,7 +269,7 @@ test("the console works from the keyboard and tells screen readers what happened
   await expect(page.locator(":focus")).toHaveAttribute("aria-expanded", "true")
 
   // A pause is announced, and focus returns from the debug bar when it closes.
-  await page.locator("#break-toggle").check()
+  await runMenu(page, "Stop at breakpoints")
   await play(page)
   await page.keyboard.press("ArrowRight")
   await expect(page.locator("#debug-bar")).toBeVisible()

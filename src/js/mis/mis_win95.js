@@ -24,7 +24,12 @@
       ['Edit level', '[data-mode="edit"]', 'E'], ['Lock tiles', '[data-mode="lock"]', 'L'],
       ['Playtest', '[data-mode="play"]', 'P'], null,
       ['Generate / pause this level', '#gen-btn', 'G'], ['Stop all generation', '#stop-all-generation'], ['Peek a sample', '#peek-btn'],
-      ['Watch solution', '#watch-btn'], ['Simplify level', '#simplify-btn'],
+      ['Watch solution', '#watch-btn'], ['Simplify level', '#simplify-btn'], null,
+      // Debugger commands (mis_console.js); enabled while a move is paused.
+      ['Next step', '#dbg-step', 'N'], ['Step back', '#dbg-back', 'B'], ['Continue', '#dbg-continue', 'C'], ['Finish move', '#dbg-finish', 'Esc'], null,
+      ['Toggle breakpoint', () => window.misDocument.toggleBreakpoint(), 'F9'],
+      ['Stop at breakpoints', '#break-toggle', null, { check: '#break-toggle' }],
+      ['Clear trace', '#console-clear'],
     ]],
     ['Tools', [
       ['Canonicalize', () => window.misDocument.canonicalize()],
@@ -53,8 +58,9 @@
       button.disabled = control.disabled || (control.id === 'watch-btn' && control.style.display === 'none');
       if (control.dataset.mode) button.setAttribute('aria-checked', String(control.classList.contains('on')));
     });
-    const blind = popup.querySelector('[role=menuitemcheckbox]');
+    const blind = popup.querySelector('[role=menuitemcheckbox]:not([data-check])');
     if (blind) blind.setAttribute('aria-checked', String($('blind-toggle').checked));
+    popup.querySelectorAll('[data-check]').forEach(button => button.setAttribute('aria-checked', String(target(button.dataset.check).checked)));
     popup.hidden = false;
     popup.style.left = '0px';
     popup.style.maxHeight = Math.max(100, window.innerHeight - popup.getBoundingClientRect().top - 8) + 'px';
@@ -74,7 +80,7 @@
     popup.id = 'menu-' + name.toLowerCase(); popup.setAttribute('role', 'menu'); popup.setAttribute('aria-label', name);
     entries.forEach(entry => {
       if (!entry) { const hr = document.createElement('hr'); hr.setAttribute('role', 'separator'); popup.append(hr); return; }
-      const [label, action, shortcut] = entry;
+      const [label, action, shortcut, extra] = entry;
       const button = document.createElement('button'); button.setAttribute('role', 'menuitem'); button.tabIndex = -1;
       const text = document.createElement('span'); text.textContent = label; button.append(text);
       if (shortcut) { const key = document.createElement('span'); key.className = 'menu-shortcut'; key.textContent = desktop && desktop.platform === 'darwin' ? shortcut.replace(/Ctrl/g, 'Cmd') : shortcut; button.append(key); }
@@ -82,6 +88,7 @@
       if (typeof action === 'string') button.dataset.command = action;
       if (typeof action === 'string' && action.startsWith('[data-mode=')) button.setAttribute('role', 'menuitemradio');
       if (label === 'Blind mode') button.setAttribute('role', 'menuitemcheckbox');
+      if (extra && extra.check) { button.setAttribute('role', 'menuitemcheckbox'); button.dataset.check = extra.check; }
       button.addEventListener('click', () => { close(); (typeof action === 'string' ? click(action) : action)(); });
       button.addEventListener('pointermove', event => {
         if (!button.disabled && (event.movementX || event.movementY)) button.focus({ preventScroll: true });

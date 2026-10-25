@@ -211,21 +211,30 @@ was. The console has three tabs, always on, with no prelude flags needed:
 
 Click the margin left of a rule's line number to set a breakpoint. A playtest
 move that fires that rule stops there: the board shows the state just after the
-rule applied, the line is highlighted, and the bar above the board steps through
-the move (**N** step, **B** back, **C** continue to the next breakpoint in the
-move, **Esc** finish). The move runs to completion before anything is shown, and
-pausing is a cursor into its recorded snapshots, so stepping back is free; the
-move is committed when the cursor leaves it. "Stop at breakpoints" turns them all
-off without clearing them.
+rule applied, the designer caption reads **[Break]** (as Visual C++ put
+`[break]` in its title), the line is highlighted, and a grey toolbar above the
+board steps through the move (**N** next, **B** back, **C** continue to the next
+breakpoint in the move, **Esc** finish). The move runs to completion before
+anything is shown, and pausing is a cursor into its recorded snapshots, so
+stepping back is free; the move is committed when the cursor leaves it.
+
+The **Run** menu holds the same commands (enabled while paused), **Toggle
+breakpoint** (F9), **Stop at breakpoints** (a checked item; turns them all off
+without clearing them) and **Clear trace**.
+
+The console's rows look like a Windows 95 tree view: [+]/[−] boxes, dotted
+connector lines, an icon column (breakpoint, current step, error, warning), a
+plain Line column and plain text, with no links, italics or colour coding.
+Click a row to select it; double-click it to open its line in the source.
 
 Keyboard: the console tabs take arrows and Home/End like the code tabs. Trace and
 Compiled are trees with one tab stop each: Up/Down move, Left/Right collapse and
 expand, Enter pins a Trace row (or expands a Compiled line) and scrolls the
-source to its line. A focused Trace row previews the board, as hovering does.
+source to its line; Enter on an Output row opens its line. A focused Trace row previews the board, as hovering does.
 <kbd>F9</kbd> in Game source toggles a breakpoint on the cursor's line. Pauses
-and steps are announced through a polite live region (`#console-live`). The row
-whose board is on show is drawn as selected (navy); the paused step uses the
-debugger's yellow and arrow, in the trace and in the breakpoint margin.
+and steps are announced through a polite live region (`#console-live`). The label
+of the row whose board is on show is drawn as selected (navy); the paused step
+uses the debugger's yellow and arrow, in the trace and in the breakpoint margin.
 
 Breakpoints go only on rule lines. They are kept by rule text, like rule goals,
 so they survive level edits and undo, and move with the rule while you type.

@@ -2541,7 +2541,9 @@
 	window.addEventListener('pagehide', function () { checkpoint(); });
 	document.addEventListener('visibilitychange', function () { if (document.hidden) checkpoint(); });
 
-	window.misDocument = { save: saveFile, open: openNative, canonicalize: canonicalizeSource };
+	window.misDocument = { save: saveFile, open: openNative, canonicalize: canonicalizeSource,
+		// Run ▸ Toggle breakpoint: the rule on the Game source cursor's line.
+		toggleBreakpoint: function () { showTab('source'); toggleBreakpoint(sourceCM.getCursor().line + 1); } };
 	if (desktop) {
 		desktop.onOpen(async function (file) { try { await openNative(file); } finally { desktop.opened(); } });
 		let confirmingClose = false;

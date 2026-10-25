@@ -271,6 +271,11 @@
 			// The bar replaces the movement-key hint, which doesn't apply while paused.
 			const hint = $('play-tools');
 			if (hint) hint.hidden = !!paused;
+			// The Run menu mirrors these buttons' disabled state.
+			['dbg-back', 'dbg-step', 'dbg-continue', 'dbg-finish'].forEach(function (id) { $(id).disabled = !paused; });
+			// As Visual C++ put [break] in its title: the designer caption says [Break].
+			const caption = $('designer-mode'), mode = document.querySelector('#mode-seg .on');
+			if (caption) caption.textContent = paused ? '[Break]' : '[' + (mode ? mode.textContent.trim() : 'Play') + ']';
 			if (paused) {
 				const t = paused.turn, e = t.entries[paused.entry];
 				const list = snapEntries(t);
@@ -348,15 +353,17 @@
 		/////////////////////////////////////////////////////////////////
 		// Rendering
 
-		// Links inside the Trace and Compiled trees are for the mouse; the rows
-		// themselves are the keyboard stops (Enter reveals the line).
-		function lineLink(line, inTree) { return line ? '<a class="ln" href="#" data-line="' + line + '"' + (inTree ? ' tabindex="-1"' : '') + '>' + line + '</a>' : ''; }
-
+		// Rows are laid out like a Windows 95 tree view: [+]/[−] boxes and dotted
+		// connectors, an icon column (breakpoint, current step, error, warning), a
+		// plain Line column, then the text. Click a row to select it; double-click
+		// (or Enter on an Output row) opens the line in the source.
 		function sourcePlain(line) { return (opts.sourceLine(line) || '').trim(); }
-		function ruleText(line) {
-			const s = sourcePlain(line);
-			return s ? '<span class="src">' + escapeHtml(s) + '</span>' : '';
-		}
+		function lineCol(line) { return '<span class="col-ln">' + (line || '') + '</span>'; }
+		function box(open) { return '<span class="tv-box' + (open ? ' open' : '') + '" aria-hidden="true"></span>'; }
+		function connector(last) { return '<span class="tv-line' + (last ? ' last' : '') + '" aria-hidden="true"></span>'; }
+		function indent(depth) { return depth ? '<span class="tv-indent" style="width:' + (depth * 16) + 'px" aria-hidden="true"></span>' : ''; }
+		function icon(kind) { return '<span class="col-icon' + (kind ? ' ic-' + kind : '') + '" aria-hidden="true"></span>'; }
+		function text(html) { return '<span class="t-text">' + html + '</span>'; }
 
 		function hasSnap(t, e) { return !!t.snaps && e.snap !== null && e.snap !== undefined; }
 
@@ -369,34 +376,37 @@
 			return (e.line ? 'line ' + e.line + ': ' : '') + (e.kind === 'note' ? e.full || e.text : e.text);
 		}
 
-		function entryHTML(t, e, i, bps) {
+		// The row text without its line number (that has its own column).
+		function entryLabel(t, e) {
+			if (e.kind === 'rule') return sourcePlain(e.line);
+			if (e.kind === 'command') return 'command: ' + e.cmd;
+			if (e.kind === 'start') return e.again ? 'again: new turn' : e.input ? 'movement applied (' + e.input + ')' : 'rules run with no input';
+			return e.text;
+		}
+
+		function entryHTML(t, e, i, bps, last) {
 			const cls = ['t-row', 'k-' + e.kind];
 			const cur = paused && paused.turn === t && paused.entry === i;
 			if (cur) cls.push('cur');
 			if (!hasSnap(t, e)) cls.push('nosnap');
 			const bp = e.kind === 'rule' && bps.has(e.line);
-			const mark = (cur ? '<span class="cur-arrow" aria-hidden="true"></span>' : '') + (bp ? '<span class="bp-dot" aria-hidden="true"></span>' : '<span class="bp-gap"></span>');
-			let body;
-			if (e.kind === 'rule') body = lineLink(e.line, true) + ' ' + ruleText(e.line);
-			else if (e.kind === 'command') body = lineLink(e.line, true) + ' <span class="cmd">' + escapeHtml(e.cmd) + '</span>';
-			else if (e.kind === 'start') body = e.again ? '<b>again</b> · new turn' : escapeHtml(entryText(t, e));
-			else body = (e.line ? lineLink(e.line, true) + ' ' : '') + escapeHtml(e.text);
 			const tip = entryText(t, e);
 			const label = (cur ? 'Paused here. ' : '') + (bp ? 'Breakpoint. ' : '') + tip;
 			return '<div class="' + cls.join(' ') + '" role="treeitem" aria-level="2" tabindex="-1" data-key="t' + t.n + ':' + i + '" data-turn="' + t.n + '" data-entry="' + i + '"' +
-				' title="' + escapeHtml(tip) + '" aria-label="' + escapeHtml(label) + '"' + (cur ? ' aria-current="step"' : '') + '>' + mark + body + '</div>';
+				(e.line ? ' data-line="' + e.line + '"' : '') + ' title="' + escapeHtml(tip) + '" aria-label="' + escapeHtml(label) + '"' + (cur ? ' aria-current="step"' : '') + '>' +
+				connector(last) + icon(cur ? 'cur' : bp ? 'bp' : '') + lineCol(e.line) + text(escapeHtml(entryLabel(t, e))) + '</div>';
 		}
 
 		function turnSummary(t) {
 			const parts = [t.rules ? t.rules + (t.rules === 1 ? ' rule' : ' rules') : 'no rules fired'];
 			if (t.agains) parts.push(t.agains + ' again');
-			return parts.join(' · ');
+			return parts.join(', ');
 		}
 
 		function renderTrace() {
 			if (tab !== 'trace' || els.panel.hidden) return;
 			if (!turns.length) {
-				els.trace.innerHTML = '<div class="c-empty">Play the level and every move is traced here: which rules fired and in what order. Hover a row to see the board at that moment.<br><br>Click the margin left of a rule line in Game source to set a breakpoint; play stops when that rule fires.</div>';
+				els.trace.innerHTML = '<div class="c-empty">Play the level and every move is traced here: which rules fired and in what order. Point at a row, or move to it with the arrow keys, to see the board at that moment.<br><br>To stop a move when a rule fires, click the margin left of the rule’s line number in Game source, or press F9 on its line.</div>';
 				return;
 			}
 			const stick = els.trace.scrollTop + els.trace.clientHeight >= els.trace.scrollHeight - 4;
@@ -408,8 +418,8 @@
 				const open = t.open === null ? t === last : t.open;
 				const summary = turnSummary(t);
 				html += '<div class="t-turn' + (open ? ' open' : '') + '" role="treeitem" aria-level="1" aria-expanded="' + open + '" tabindex="-1" data-key="t' + t.n + '" data-turn="' + t.n + '"' +
-					' aria-label="Turn ' + t.n + ', ' + escapeHtml(t.label) + ', ' + summary + '"><span class="tw" aria-hidden="true">' + (open ? '▾' : '▸') + '</span> Turn ' + t.n + ' · ' + escapeHtml(t.label) + ' <span class="faint">· ' + summary + '</span></div>';
-				if (open) t.entries.forEach(function (e, i) { html += entryHTML(t, e, i, bps); });
+					' aria-label="Turn ' + t.n + ', ' + escapeHtml(t.label) + ', ' + summary + '">' + box(open) + text('Turn ' + t.n + ': ' + escapeHtml(t.label) + ' (' + summary + ')') + '</div>';
+				if (open) t.entries.forEach(function (e, i) { html += entryHTML(t, e, i, bps, i === t.entries.length - 1); });
 			});
 			els.trace.innerHTML = html + '</div>';
 			settleTree('trace', els.trace, hadFocus, '.t-row.cur');
@@ -427,9 +437,9 @@
 			else if (r.bottom > c.bottom) container.scrollTop += r.bottom - c.bottom + 4;
 		}
 
-		// Trace and Compiled are trees with one tab stop each. The stop is kept
-		// by row key across re-renders, as is keyboard focus.
-		const treeKey = { trace: null, compiled: null };
+		// Output, Compiled and Trace each have one tab stop. The stop is kept by
+		// row key across re-renders, as is keyboard focus.
+		const treeKey = { trace: null, compiled: null, output: null };
 		function settleTree(which, container, hadFocus, preferred) {
 			const rows = Array.from(container.querySelectorAll('[role=treeitem]'));
 			if (!rows.length) return;
@@ -474,7 +484,7 @@
 			if (target) moveTreeFocus(which, target);
 		}
 
-		// Click or Enter on a row.
+		// Click, Enter or Space on a row.
 		function activateRow(which, row) {
 			treeKey[which] = row.dataset.key;
 			if (row.classList.contains('t-turn')) {
@@ -499,24 +509,35 @@
 				if (compiledOpen.has(line)) compiledOpen.delete(line); else compiledOpen.add(line);
 				opts.revealLine(line, true);
 				renderCompiled();
+				return;
 			}
+			// Output: go and fix it.
+			if (row.dataset.line) opts.revealLine(+row.dataset.line);
 		}
 
 		function renderOutput() {
 			if (tab !== 'output' || els.panel.hidden) return;
+			const hadFocus = els.output.contains(document.activeElement);
 			const KIND = { error: 'Error', warn: 'Warning' };
-			let html = compileOut.map(function (o) {
-				return '<div class="o-row k-' + o.kind + '">' + (KIND[o.kind] ? '<span class="o-kind">' + KIND[o.kind] + '</span> ' : '') +
-					(o.line ? 'line ' + lineLink(o.line) + ': ' : '') + escapeHtml(o.text) + '</div>';
+			let key = 0;
+			function row(o, body, label) {
+				return '<div class="o-row k-' + o.kind + '" role="treeitem" aria-level="1" tabindex="-1" data-key="o' + (key++) + '"' + (o.line ? ' data-line="' + o.line + '"' : '') +
+					' aria-label="' + escapeHtml(label) + '">' + icon(o.kind === 'error' || o.kind === 'warn' ? o.kind : '') + lineCol(o.line) + text(body) + '</div>';
+			}
+			let html = '<div class="tree" role="tree" aria-label="Output">';
+			html += compileOut.map(function (o) {
+				const label = (KIND[o.kind] ? KIND[o.kind] + ', ' : '') + (o.line ? 'line ' + o.line + ': ' : '') + o.text;
+				return row(o, escapeHtml(o.text), label);
 			}).join('');
-			if (sessionOut.length) html += '<div class="o-sep">Playtest</div>';
+			if (sessionOut.length) html += '<div class="o-sep" role="presentation">Playtest</div>';
 			html += sessionOut.map(function (o) {
-				const what = o.kind === 'message' ? 'message: “' + escapeHtml(o.text) + '”' : o.kind === 'sound' ? 'sound ' + escapeHtml(o.text) : escapeHtml(o.text);
-				return '<div class="o-row k-' + o.kind + '">' + (o.turn ? '<span class="faint">turn ' + o.turn + ' ·</span> ' : '') + what +
-					(o.line ? ' <span class="faint">(line</span> ' + lineLink(o.line) + '<span class="faint">)</span>' : '') + '</div>';
+				const what = o.kind === 'message' ? 'message: “' + o.text + '”' : o.kind === 'sound' ? 'sound: ' + o.text : o.text;
+				const full = (o.turn ? 'turn ' + o.turn + ': ' : '') + what;
+				return row(o, escapeHtml(full), full + (o.line ? ', line ' + o.line : ''));
 			}).join('');
-			els.output.innerHTML = html;
-			els.output.scrollTop = els.output.scrollHeight;
+			els.output.innerHTML = html + '</div>';
+			settleTree('output', els.output, hadFocus, '.o-row.k-error');
+			if (!hadFocus) els.output.scrollTop = els.output.scrollHeight;
 		}
 
 		function renderCompiled() {
@@ -525,7 +546,7 @@
 			const hadFocus = els.compiled.contains(document.activeElement);
 			const lines = Array.from(compiledView.lines.keys()).sort(function (a, b) { return a - b; });
 			let html = '<div class="c-head">' + compiledView.total + ' compiled rules from ' + lines.length + ' source lines' +
-				(compiledView.removed ? ' · ' + compiledView.removed + ' duplicates removed' : '') + '</div><div class="tree" role="tree" aria-label="Compiled rules by source line">';
+				(compiledView.removed ? ', ' + compiledView.removed + ' duplicates removed' : '') + '</div><div class="tree" role="tree" aria-label="Compiled rules by source line">';
 			// Rule lines and loop markers in source order; loop bodies indented.
 			const items = lines.map(function (line) { return { line: line }; })
 				.concat(compiledView.loops.map(function (l) { return { line: l.line, loop: l.start ? 'startloop' : 'endloop' }; }))
@@ -534,19 +555,22 @@
 			items.forEach(function (item) {
 				const line = item.line;
 				if (item.loop === 'endloop') depth = Math.max(0, depth - 1);
-				const indent = '<span class="c-indent" style="width:' + (depth * 14) + 'px"></span>';
 				const level = depth + 1;
 				if (item.loop) {
-					html += '<div class="c-loop" role="treeitem" aria-level="' + level + '" tabindex="-1" data-key="l' + line + '" aria-label="line ' + line + ': ' + item.loop + '">' + indent + '<span class="tw"></span>' + lineLink(line, true) + ' <b>' + item.loop + '</b></div>';
+					html += '<div class="c-loop" role="treeitem" aria-level="' + level + '" tabindex="-1" data-key="l' + line + '" data-line="' + line + '" aria-label="line ' + line + ': ' + item.loop + '">' +
+						indent(depth) + '<span class="tv-gap" aria-hidden="true"></span>' + lineCol(line) + text(item.loop) + '</div>';
 					if (item.loop === 'startloop') depth++;
 					return;
 				}
 				const list = compiledView.lines.get(line), open = compiledOpen.has(line);
 				const count = list.length + (list.length === 1 ? ' compiled rule' : ' compiled rules');
-				html += '<div class="c-line' + (open ? ' open' : '') + (compiledFocus === line ? ' focus' : '') + '" role="treeitem" aria-level="' + level + '" aria-expanded="' + open + '" tabindex="-1" data-key="c' + line + '" data-line="' + line + '"' +
-					' title="' + escapeHtml('line ' + line + ': ' + sourcePlain(line)) + '" aria-label="' + escapeHtml('line ' + line + ': ' + sourcePlain(line) + ', ' + count) + '">' + indent + '<span class="tw" aria-hidden="true">' + (open ? '▾' : '▸') + '</span>' +
-					lineLink(line, true) + ' ' + ruleText(line) + ' <span class="faint">→ ' + list.length + (list.length === 1 ? ' rule' : ' rules') + '</span></div>';
-				if (open) list.forEach(function (text, k) { html += '<div class="c-sub" role="treeitem" aria-level="' + (level + 1) + '" tabindex="-1" data-key="c' + line + ':' + k + '" title="' + escapeHtml(text) + '">' + indent + escapeHtml(text) + '</div>'; });
+				html += '<div class="c-line' + (open ? ' open' : '') + (compiledFocus === line ? ' focus' : '') + '" style="--depth:' + depth + '" role="treeitem" aria-level="' + level + '" aria-expanded="' + open + '" tabindex="-1" data-key="c' + line + '" data-line="' + line + '"' +
+					' title="' + escapeHtml('line ' + line + ': ' + sourcePlain(line)) + '" aria-label="' + escapeHtml('line ' + line + ': ' + sourcePlain(line) + ', ' + count) + '">' +
+					indent(depth) + box(open) + lineCol(line) + text(escapeHtml(sourcePlain(line)) + '  (' + list.length + (list.length === 1 ? ' rule' : ' rules') + ')') + '</div>';
+				if (open) list.forEach(function (rule, k) {
+					html += '<div class="c-sub" role="treeitem" aria-level="' + (level + 1) + '" tabindex="-1" data-key="c' + line + ':' + k + '" data-line="' + line + '" title="' + escapeHtml(rule) + '">' +
+						indent(depth) + connector(k === list.length - 1) + text(escapeHtml(rule)) + '</div>';
+				});
 			});
 			els.compiled.innerHTML = html + '</div>';
 			settleTree('compiled', els.compiled, hadFocus, '.c-line.focus');
@@ -599,22 +623,31 @@
 			turns = []; sessionOut = []; hover = null; pinned = null; focused = null;
 			renderAll(); opts.render();
 		};
-		els.breakToggle.onchange = function () { renderTrace(); };
+		try { els.breakToggle.checked = localStorage.getItem('mis-break-enabled') !== 'false'; } catch (e) { /* storage blocked */ }
+		els.breakToggle.onchange = function () {
+			try { localStorage.setItem('mis-break-enabled', String(els.breakToggle.checked)); } catch (e) { /* storage blocked */ }
+			renderTrace();
+		};
 		$('dbg-back').onclick = function () { stepBy(-1); announceStep(); };
 		$('dbg-step').onclick = function () { stepBy(1); announceStep(); };
 		$('dbg-continue').onclick = function () { cont(); announceStep(); };
 		$('dbg-finish').onclick = finish;
 
+		function paneOf(row) { return els.trace.contains(row) ? 'trace' : els.compiled.contains(row) ? 'compiled' : 'output'; }
 		els.panel.addEventListener('click', function (ev) {
-			const ln = ev.target.closest('a.ln');
-			if (ln) { ev.preventDefault(); opts.revealLine(+ln.dataset.line); return; }
 			const row = ev.target.closest('[role=treeitem]');
 			if (!row) return;
-			const which = els.trace.contains(row) ? 'trace' : 'compiled';
-			if (row.matches('.t-turn, .t-row, .c-line')) activateRow(which, row);
+			// A click on a [+]/[−] box, or anywhere on a header, opens or closes it.
+			if (row.matches('.t-turn, .t-row, .c-line')) activateRow(paneOf(row), row);
 		});
-		els.trace.addEventListener('keydown', function (ev) { treeKeydown('trace', ev); });
-		els.compiled.addEventListener('keydown', function (ev) { treeKeydown('compiled', ev); });
+		// Double-click opens the row's line in the source, like a Win95 list.
+		els.panel.addEventListener('dblclick', function (ev) {
+			const row = ev.target.closest('[role=treeitem][data-line]');
+			if (row) { ev.preventDefault(); opts.revealLine(+row.dataset.line); }
+		});
+		['trace', 'compiled', 'output'].forEach(function (which) {
+			els[which].addEventListener('keydown', function (ev) { treeKeydown(which, ev); });
+		});
 
 		function refFor(row) {
 			const t = row && row.classList.contains('t-row') && turns.find(function (x) { return x.n === +row.dataset.turn; });
@@ -643,9 +676,11 @@
 			focused = null;
 			refreshView();
 		});
-		els.compiled.addEventListener('focusin', function (ev) {
-			const row = ev.target.closest('[role=treeitem]');
-			if (row) treeKey.compiled = row.dataset.key;
+		['compiled', 'output'].forEach(function (which) {
+			els[which].addEventListener('focusin', function (ev) {
+				const row = ev.target.closest('[role=treeitem]');
+				if (row) treeKey[which] = row.dataset.key;
+			});
 		});
 
 		// The row whose board is on show is drawn as selected (navy).
@@ -719,6 +754,9 @@
 		}
 
 		function setVisible(on) {
+			// Re-rendering an already visible panel would replace the row under
+			// the pointer between the two clicks of a double-click.
+			if (els.panel.hidden === !on) return;
 			els.panel.hidden = !on;
 			if (on) renderAll();
 		}
