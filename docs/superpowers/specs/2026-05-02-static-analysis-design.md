@@ -132,7 +132,7 @@ Tags attach at multiple levels:
 - group tags: `movement_only`, `object_mutating`, `command_only`, `may_churn_objects`, `has_again`
 - object tags: `present_in_all_levels`, `present_in_some_levels`, `present_in_no_levels`, `appears_in_wincondition`, `may_be_created`, `may_be_destroyed`, `static`, `count_invariant`
 - collision-layer tags: `movement_possible`, `object_mutating`, `static`, `cosmetic_candidate`, `inert_candidate`
-- game tags: `has_again`, `has_random`, `has_rigid`, `has_action_rules`, `has_autonomous_tick_rules`
+- game tags: `has_again`, `can_win`, `has_random`, `has_rigid`, `has_action_rules`, `has_autonomous_tick_rules`
 
 Rule tags follow these implications:
 

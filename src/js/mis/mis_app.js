@@ -780,6 +780,9 @@
 		el.title = note || '';
 	}
 
+	// Result for every level of a game with no WINCONDITIONS and no `win` command.
+	const NO_WIN = { status: 'unsolvable', reason: 'nowin', deep: true };
+
 	function analyzeCurrent() {
 		const job = ++focusJob;
 		solving = false;
@@ -793,6 +796,7 @@
 		currentResult = null;
 		provisional = null;
 		if (!app.board || !app.model) { renderStatus(); return; }
+		if (!app.model.canWin) { currentResult = NO_WIN; renderStatus(); onCurrentResult(); return; }
 		const key = cacheKey(app.board);
 		const cached = app.assessCache.get(key);
 		if (cached && cached.deep && (cached.status === 'solved' || cached.status === 'unsolvable')) { currentResult = cached; renderStatus(); onCurrentResult(); return; }
@@ -871,6 +875,10 @@
 			eff.innerHTML = 'effort <span class="effort-bar"><i style="width:' + Math.min(100, effortScore(r.effort) / 18 * 100).toFixed(0) + '%"></i></span> <span class="mono">' + effortLabel(r.effort) + '</span>';
 			eff.title = 'States the solver explored (lower of: ' + Object.keys(r.lanes).map(function (k) { return k + ' ' + r.lanes[k]; }).join(', ') + ')' + (r.optimal ? '' : '\nShortest length not proven (BFS ran out of budget).');
 			$('watch-btn').style.display = '';
+		} else if (r.reason === 'nowin') {
+			dot.className = 'dot bad';
+			text.textContent = 'Can’t be won';
+			eff.innerHTML = '<span class="faint">The game has no WINCONDITIONS and no rule with the win command.</span>';
 		} else if (r.status === 'unsolvable') {
 			dot.className = 'dot bad';
 			text.textContent = 'Unsolvable';
@@ -910,10 +918,11 @@
 			item.appendChild(cv);
 			const meta = document.createElement('div');
 			meta.className = 'level-meta';
-			const r = app.assessCache.get(cacheKey(board));
+			const r = app.model.canWin ? app.assessCache.get(cacheKey(board)) : NO_WIN;
 			let chip = '<span class="chip busy">…</span>';
 			if (r) {
-				if (r.status === 'solved') { solved++; chip = '<span class="chip good" title="effort ' + r.effort + '">' + (r.optimal ? '' : '≈') + r.length + ' mv</span>'; }
+				if (r.reason === 'nowin') { bad++; chip = '<span class="chip bad">can’t win</span>'; }
+				else if (r.status === 'solved') { solved++; chip = '<span class="chip good" title="effort ' + r.effort + '">' + (r.optimal ? '' : '≈') + r.length + ' mv</span>'; }
 				else if (r.status === 'unsolvable') { bad++; chip = '<span class="chip bad">unsolvable</span>'; }
 				else chip = '<span class="chip warn">?</span>';
 			}
@@ -1128,6 +1137,7 @@
 	function startGeneration() {
 		const prog = validateTransform();
 		if (!prog || !prog.statements.length || !app.board) return;
+		if (!app.model.canWin) { toast('This game can’t be won: add WINCONDITIONS or a rule with the win command.', true); return; }
 		stopGeneration(true);
 		const session = {
 			running: true, workers: [], stats: [], started: Date.now(),
@@ -1438,6 +1448,7 @@
 	function runSimplify(mode, objectId) {
 		if (!app.board || simplifyRunning) return;
 		if (app.model.usesRandom) { toast("This game uses randomness, so 'same shortest solution' can't be checked.", true); return; }
+		if (!app.model.canWin) { toast('This game can’t be won, so there is no solution to keep.', true); return; }
 		simplifyRunning = true;
 		ensureWorkers(false);
 		const btn = mode === 'simplify' ? $('simplify-btn') : null;
