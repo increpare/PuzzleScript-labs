@@ -13,9 +13,14 @@ const {chromium}=require('playwright');
   await page.addInitScript(()=>{const Native=Worker;window.holdSimplify=false;window.assignments=[];window.Worker=class extends Native{postMessage(m,...args){if(m.type==='generationJobs')window.assignments.push(structuredClone(m));if(m.type==='simplify'&&window.holdSimplify){window.releaseSimplify=()=>super.postMessage(m,...args);return;}return super.postMessage(m,...args);}}});
   await page.goto(`http://127.0.0.1:${server.address().port}/mis.html?genWorkers=1`);
   await page.waitForFunction(()=>window.misApp?.recoveryReady&&document.querySelector('#status-text').textContent.includes('Solvable'));
-  // Starting an unvisited thumbnail uses the same Auto preset as selecting it.
-  await page.locator('.level-item').nth(1).locator('.generation-badge').click({force:true});
+  // Starting another level (select it, Generate) uses its Auto preset; the
+  // thumbnail's badge only shows that it is generating and can't start it.
+  await page.locator('.level-item').nth(1).click();
+  await page.locator('#gen-btn').click();
+  await page.locator('.level-item').first().click();
   assert.equal(await page.evaluate(()=>misApp.levelIndex),0);
+  assert.equal(await page.locator('.level-item button.generation-badge').count(),0,'badge is not a button');
+  await page.waitForFunction(()=>document.querySelectorAll('.level-item')[1].querySelector('.generation-badge.running'));
   await page.waitForFunction(()=>assignments.some(a=>a.jobs.some(j=>j.jobId===misApp.workspaces[1].id&&j.transforms?.length>1)));
   await page.evaluate(()=>document.querySelector('#stop-all-generation').click());
   // Simplify belongs to the source workspace even when the response arrives elsewhere.

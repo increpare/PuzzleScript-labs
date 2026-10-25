@@ -62,6 +62,13 @@ site to `bin/`, `mis.html` included; `make mis_web_serve` serves it locally.
 The page opens with the last autosaved session, or the Sokoban demo. Use
 **Open…** or drag and drop to load your own `.txt` file.
 
+**File → Export as HTML…** writes a single-file playable game, like the
+PuzzleScript editor's Export: it fills `standalone_inlined.txt` (built by
+`compile.js`, and copied into the MIS web and desktop builds) with the last
+source that compiled, without MIS comments. The desktop app asks where to save
+it and leaves the recent-files list alone. `src/tests/codemirror6/browser/mis-export.spec.mjs`
+exports Microban and plays the file on its own.
+
 ## Code editors
 
 Both the game source and transform panels use CodeMirror 6, sharing the main
@@ -254,8 +261,10 @@ that file. The trace keeps the last 200 moves, with board snapshots for the last
 ## Generating several levels
 
 Generation belongs to each level. Press **Generate** on a starting board, select
-another thumbnail, and start that level too. The corner gear identifies a running
-level; click it to pause without changing selection. The board, transform code,
+another thumbnail, and start that level too. A small navy gear in a thumbnail's
+corner shows that level is generating; it is only an indicator (an earlier
+clickable ▶ there read as "play this level"). To pause a level, select it and
+press **Pause**. The board, transform code,
 locks, rule goals, pins and suggestions follow the selected level. **Run → Stop
 all generation** pauses every level. All active levels share one bounded worker
 pool; changing selection does not restart their searches.
@@ -275,8 +284,8 @@ For overnight exploration, create several sizes, reuse a construction transform
 such as `choose 1-3 …`, and start each level. Candidate memory and dedupe storage
 are bounded. IndexedDB checkpoints retain up to 64 suggestions and 64 pins per
 level, per-level transforms and the latest authored source (including an unfinished
-draft). After reopening, collections are restored **paused**; use the thumbnail
-button or Generate to continue with fresh samples. Search queues and RNG positions
+draft). After reopening, collections are restored **paused**; select a level and press
+Generate to continue with fresh samples. Search queues and RNG positions
 are not restored. Normal game files retain the per-level transforms, locks and
 rule goals in MIS comments; add desired suggestions as levels to include them in
 the exported game.

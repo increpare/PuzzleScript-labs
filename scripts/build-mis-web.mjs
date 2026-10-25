@@ -12,7 +12,8 @@ export async function buildWeb(destination = path.join(root, 'build/mis-web')) {
   if (!allowed.includes(destination)) throw new Error('Unexpected MIS web output path');
   await rm(destination, { recursive: true, force: true });
   await mkdir(destination, { recursive: true });
-  for (const name of ['mis.html', 'css', 'js', 'demo', 'fonts', 'images',
+  // standalone_inlined.txt is File ▸ Export's template (built by compile.js).
+  for (const name of ['mis.html', 'standalone_inlined.txt', 'css', 'js', 'demo', 'fonts', 'images',
     'Documentation/ico/favicon.ico', 'tests/good_games/ALL GREEN TO BLUE.txt']) {
     const target = path.join(destination, name);
     await mkdir(path.dirname(target), { recursive: true });

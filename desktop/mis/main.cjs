@@ -93,6 +93,17 @@ app.whenReady().then(async () => {
     }
     return files.save(file, options.text);
   });
+  // File ▸ Export as HTML: always asks where, and doesn't change the document
+  // or the recent-files list.
+  handle('mis:export-html', async options => {
+    if (!options || typeof options.name !== 'string' || typeof options.text !== 'string') throw new Error('Missing export');
+    if (Buffer.byteLength(options.text, 'utf8') > 64 * 1024 * 1024) throw new Error('This export is too large.');
+    const result = await dialog.showSaveDialog(win, { title: 'Export as HTML', defaultPath: files.saveLocation(path.basename(options.name)),
+      filters: [{ name: 'Web pages', extensions: ['html', 'htm'] }, { name: 'All files', extensions: ['*'] }] });
+    if (result.canceled || !result.filePath) return null;
+    await fs.writeFile(result.filePath, options.text, 'utf8');
+    return { path: result.filePath, name: path.basename(result.filePath) };
+  });
   handle('mis:confirm-save', async () => (await dialog.showMessageBox(win, { type: 'question', message: 'Save changes to this game?', buttons: ['Save', 'Discard', 'Cancel'], defaultId: 0, cancelId: 2 })).response);
   ipcMain.on('mis:ready', event => { if (trusted(event)) { ready = true; win.show(); dispatchNext(); } });
   ipcMain.on('mis:opened', event => { if (trusted(event)) { opening = false; dispatchNext(); } });

@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('misDesktop', {
   platform: process.platform,
   open: recent => invoke('mis:open', recent),
   save: options => invoke('mis:save', options),
+  exportHtml: options => invoke('mis:export-html', options),
   recentFiles: () => invoke('mis:recents'),
   confirmSave: () => invoke('mis:confirm-save'),
   ready: () => ipcRenderer.send('mis:ready'),

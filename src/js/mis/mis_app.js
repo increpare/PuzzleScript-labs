@@ -1198,8 +1198,10 @@
 			const cv = document.createElement('canvas');
 			renderThumbInto(cv, board, 150, 90);
 			const thumbnail = document.createElement('div'); thumbnail.className = 'level-thumbnail'; thumbnail.appendChild(cv);
-			const badge = document.createElement('button'); badge.type = 'button'; badge.className = 'generation-badge';
-			badge.onclick = function (e) { e.stopPropagation(); const ws = workspace(i); if ((ws.gen && ws.gen.running) || ws.restartTransform) stopGeneration(false, i); else startGeneration(i); };
+			// An indicator only: it shows that this level is generating. Starting
+			// and pausing are the Generate button's job (a clickable ▶ here read
+			// as "play this level").
+			const badge = document.createElement('span'); badge.className = 'generation-badge';
 			thumbnail.appendChild(badge); item.appendChild(thumbnail);
 			const meta = document.createElement('div');
 			meta.className = 'level-meta';
@@ -1790,11 +1792,13 @@
 		$('level-list').querySelectorAll('.level-item').forEach(function (item) {
 			const index = +item.dataset.levelIndex, ws = app.workspaces[index];
 			const badge = item.querySelector('.generation-badge'); if (!badge) return;
-			const running = !!(ws && ((ws.gen && ws.gen.running) || ws.restartTransform)), hasResults = !!(ws && (ws.gen || ws.cards.length));
-			badge.classList.toggle('running', running); badge.classList.toggle('paused', !running && hasResults);
-			badge.innerHTML = running ? '<span aria-hidden="true">⚙</span>' : '<span aria-hidden="true">▶</span>';
-			badge.title = (running ? 'Generating — click to pause' : hasResults ? 'Paused — click to resume generation' : 'Generate this level') + ' · Level ' + (countPlayableBefore(index) + 1) + (ws && ws.cards.length ? ' · ' + ws.cards.length + ' suggestions' : '');
-			badge.setAttribute('aria-label', badge.title); badge.setAttribute('aria-pressed', String(running));
+			const running = !!(ws && ((ws.gen && ws.gen.running) || ws.restartTransform));
+			if (badge.classList.contains('running') === running && (!running || badge.dataset.count === String(ws.cards.length))) return;
+			badge.classList.toggle('running', running);
+			badge.dataset.count = running ? String(ws.cards.length) : '';
+			// The hidden word reaches screen readers through the level tile's label.
+			badge.innerHTML = running ? '<span class="gear" aria-hidden="true"></span><span class="mis-sr-only"> generating, </span>' : '';
+			badge.title = running ? 'Generating suggestions for this level' + (ws.cards.length ? ' · ' + ws.cards.length + ' so far' : '') : '';
 		});
 		const active = Object.values(app.workspaces).filter(function (ws) { return (ws.gen && ws.gen.running) || ws.restartTransform; }).length;
 		$('generation-summary').textContent = active ? active + (active === 1 ? ' level generating' : ' levels generating') : '';
@@ -2241,6 +2245,54 @@
 		return true;
 	}
 
+	// File ▸ Export: a single-file playable HTML game, like the editor's Export.
+	// The template (standalone_inlined.txt) is built by compile.js; this fills
+	// it in the same way as js/buildStandalone.js.
+	function escapeTemplateText(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;'); }
+	function standaloneHTML(template, source, model) {
+		const meta = model.metadata || {};
+		const title = meta.title !== undefined ? String(meta.title) : 'PuzzleScript Game';
+		let homepage = meta.homepage !== undefined ? String(meta.homepage) : 'https://www.puzzlescript.net';
+		if (!/^https?:\/\//.test(homepage)) homepage = 'https://' + homepage;
+		const html = template
+			.replace(/___BGCOLOR___/g, 'background_color' in meta ? model.bgcolor : 'black')
+			.replace(/___TEXTCOLOR___/g, 'text_color' in meta ? model.fgcolor : 'lightblue')
+			.replace(/__GAMETITLE__/g, escapeTemplateText(title))
+			.replace(/__HOMEPAGE__/g, homepage)
+			.replace(/__HOMEPAGE_STRIPPED_PROTOCOL__/g, escapeTemplateText(homepage.replace(/^https?:\/\//, '')));
+		// A function replacement, so '$' in the game source is taken literally.
+		const data = JSON.stringify(source);
+		return { title: title, html: html.replace(/"__GAMEDAT__"/g, function () { return data; }) };
+	}
+	let exportingGame = false;
+	async function exportGame() {
+		if (exportingGame) return;
+		if (!app.model || !app.compiledText) { toast('The game needs to compile before it can be exported.', true); return; }
+		exportingGame = true;
+		try {
+			let template;
+			try {
+				const response = await fetch('standalone_inlined.txt');
+				if (!response.ok) throw new Error(response.status + ' ' + response.statusText);
+				template = await response.text();
+			} catch (e) { toast('Could not load the export template (' + e.message + ').', true); return; }
+			const game = standaloneHTML(template, app.compiledText, app.model);
+			const name = game.title.replace(/[\\/:*?"<>|]+/g, '_').trim() + '.html';
+			if (desktop) {
+				try { const saved = await desktop.exportHtml({ name: name, text: game.html }); if (saved) toast('Exported ' + saved.name + '.'); }
+				catch (error) { toast(error.message, true); }
+			} else {
+				const a = document.createElement('a');
+				a.href = URL.createObjectURL(new Blob([game.html], { type: 'text/html;charset=utf-8' }));
+				a.download = name;
+				document.body.appendChild(a);
+				a.click();
+				setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+			}
+			if (app.source !== app.compiledText) toast('Exported the last version that compiled; the current source has errors.', true);
+		} finally { exportingGame = false; }
+	}
+
 	async function canReplace() {
 		if (!app.dirty) return true;
 		if (!desktop) return confirm('Discard unsaved changes to ' + app.fileName + '?');
@@ -2541,7 +2593,7 @@
 	window.addEventListener('pagehide', function () { checkpoint(); });
 	document.addEventListener('visibilitychange', function () { if (document.hidden) checkpoint(); });
 
-	window.misDocument = { save: saveFile, open: openNative, canonicalize: canonicalizeSource,
+	window.misDocument = { save: saveFile, open: openNative, canonicalize: canonicalizeSource, exportHtml: exportGame,
 		// Run ▸ Toggle breakpoint: the rule on the Game source cursor's line.
 		toggleBreakpoint: function () { showTab('source'); toggleBreakpoint(sourceCM.getCursor().line + 1); } };
 	if (desktop) {

@@ -56,8 +56,12 @@ const { chromium } = require('playwright');
   assert.equal(await page.evaluate(()=>misApp.model.levels.length),2);
   assert.equal(await page.evaluate(()=>misApp.workspaces[1].gen.running),true);
   assert(await page.evaluate(()=>misApp.workspaces[1].cards.length>0));
-  await page.locator('.level-item').nth(1).locator('.generation-badge').click();
-  assert.equal(await page.evaluate(()=>misApp.levelIndex),0,'badge does not select');
+  // Pausing another level: select it and press the Generate button (now Pause).
+  await page.locator('.level-item').nth(1).click();
+  await page.locator('#gen-btn').click();
+  await page.locator('.level-item').first().click();
+  assert.equal(await page.evaluate(()=>misApp.levelIndex),0);
+  assert.equal(await page.locator('.level-item').nth(1).locator('.generation-badge.running').count(),0,'paused level shows no badge');
   assert.equal(await page.evaluate(()=>misApp.generationPool.activeCount()),1);
   assert.equal(await page.evaluate(()=>misApp.gen.running),true);
   // A changed transform invalidates a paused shortlist, including pins.

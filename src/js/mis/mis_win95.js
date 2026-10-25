@@ -9,7 +9,8 @@
   const menus = [
     ['File', [
       ['Open game…', '#open-btn', 'Ctrl+O'], ['Save game', '#save-btn', 'Ctrl+S'],
-      ['Save game as…', () => window.misDocument.save(true), 'Ctrl+Shift+S'], null,
+      ['Save game as…', () => window.misDocument.save(true), 'Ctrl+Shift+S'],
+      ['Export as HTML…', () => window.misDocument.exportHtml()], null,
       ['Choose demo…', () => $('demo-select').focus()],
     ]],
     ['Edit', [
