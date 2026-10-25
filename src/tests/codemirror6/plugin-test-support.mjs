@@ -106,6 +106,7 @@ export const {
   classifyPuzzleScriptToken,
   dispatchPuzzleScriptInteraction,
   notifyPuzzleScriptChange,
+  puzzleScriptDefinitionAtPosition,
   puzzleScriptInteractions,
   puzzleScriptTokenAtPosition
 } = interactions

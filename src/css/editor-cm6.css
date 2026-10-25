@@ -19,6 +19,12 @@
   outline: none;
 }
 
+.puzzlescript-editor.puzzlescript-definition-links .cm-content .cm-NAME {
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .puzzlescript-editor .cm-scroller {
   overflow: auto;
   font-family: inherit;

@@ -47,6 +47,7 @@ mis_web_bundle:
 
 mis_web_tests:
 	$(NODE) src/tests/mis_web_browser.cjs
+	$(NODE) src/tests/mis_highlighting_browser.cjs
 
 mis_scrollbar_tests:
 	$(NODE) src/tests/mis_scrollbars_browser.cjs

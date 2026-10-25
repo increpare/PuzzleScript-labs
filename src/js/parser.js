@@ -480,13 +480,19 @@ let codeMirrorFn = function () {
             let rulesCopy = [];
 
             for (let i = 0; i < state.legend_synonyms.length; i++) {
-                legend_synonymsCopy.push(state.legend_synonyms[i].slice());
+                legend_synonymsCopy.push(Object.assign(state.legend_synonyms[i].slice(), {
+                    lineNumber: state.legend_synonyms[i].lineNumber
+                }));
             }
             for (let i = 0; i < state.legend_aggregates.length; i++) {
-                legend_aggregatesCopy.push(state.legend_aggregates[i].slice());
+                legend_aggregatesCopy.push(Object.assign(state.legend_aggregates[i].slice(), {
+                    lineNumber: state.legend_aggregates[i].lineNumber
+                }));
             }
             for (let i = 0; i < state.legend_properties.length; i++) {
-                legend_propertiesCopy.push(state.legend_properties[i].slice());
+                legend_propertiesCopy.push(Object.assign(state.legend_properties[i].slice(), {
+                    lineNumber: state.legend_properties[i].lineNumber
+                }));
             }
             for (let i = 0; i < state.sounds.length; i++) {
                 soundsCopy.push(state.sounds[i].slice());

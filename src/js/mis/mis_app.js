@@ -2257,7 +2257,10 @@
 	function initEditors() {
 		sourceCM = MISCodeEditor.create($('source-text'), { ruleGutter: true });
 		sourceCM.on('ruleToggle', function (line) { toggleRuleGoal(line); });
-		transformCM = MISCodeEditor.create($('transform-text'), { transform: true, lineWrapping: true });
+		transformCM = MISCodeEditor.create($('transform-text'), {
+			transform: true, lineWrapping: true,
+			getDefinitionTarget: () => ({ view: sourceCM.view, reveal: () => showTab('source') })
+		});
 
 		sourceCM.on('change', function () {
 			if (suppressSourceChange) return;

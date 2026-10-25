@@ -3,40 +3,71 @@
 (function () {
 	'use strict';
 	const R = PuzzleScriptCM6Runtime, P = PuzzleScriptCM6Plugins;
-	const { createPuzzleScriptLanguage } = P.require('stream-language');
+	const { createPuzzleScriptLanguage, wrapPuzzleScriptParser } = P.require('stream-language');
 	const { exactPrefixExtensions } = P.require('exact-prefix');
 	const { tokenPresentation } = P.require('token-presentation');
 	const { puzzleScriptCompletionSource, puzzleScriptCompletionKeymap } = P.require('autocomplete');
 	const { puzzleScriptCommandExtensions, puzzleScriptCoreKeymap, puzzleScriptKeymap } = P.require('commands');
 	const { puzzleScriptSearch, puzzleScriptSearchKeymap } = P.require('search');
+	const { puzzleScriptDefinitionLinks } = P.require('interactions');
 
 	function transformParser(source) {
-		const parser = codeMirrorFn(), seed = parser.startState();
+		const parser = codeMirrorFn(), wrapped = wrapPuzzleScriptParser(parser), parsed = wrapped.startState();
 		// Parse the game's real definitions with the same parser used by the main
 		// editor, stopping at RULES. Transform names and properties come from here.
 		for (const line of source.split(/\r\n?|\n/)) {
 			const stream = new R.StringStream(line, 4);
-			if (stream.eol()) parser.blankLine(seed);
-			while (!stream.eol()) { stream.start = stream.pos; parser.token(stream, seed); }
-			if (seed.section === 'rules') break;
+			if (stream.eol()) wrapped.blankLine(parsed);
+			while (!stream.eol()) { stream.start = stream.pos; wrapped.token(stream, parsed); }
+			if (parsed.inner.section === 'rules') break;
 		}
-		seed.section = 'rules'; seed.lineNumber = 0;
+		const seed = parsed.inner;
+		seed.section = 'rules'; seed.lineNumber = 0; seed.commentLevel = 0;
 		return {
-			...parser,
 			startState() { return parser.copyState(seed); },
-			copyState(state) { return Object.assign(parser.copyState(state), { misLineStart: state.misLineStart }); },
+			copyState: parser.copyState,
+			blankLine() {}, // A blank line does not end a nested comment.
 			token(stream, state) {
-				if (stream.sol()) state.misLineStart = true;
-				if (!state.commentLevel && !state.inside_cell) {
-					if (stream.eatSpace()) return null;
-					if (stream.match(/^(?:choose|option|or)\b/i)) return 'LOGICWORD';
-					if (stream.match(/^\d+(?:-\d+|\.\d+)?\b/)) return 'number';
+				// Transform rules are independent lines. An unfinished cell must
+				// not swallow the next line's MIS prefix while the author types.
+				if (stream.sol()) {
+					state.lineNumber++;
+					state.inside_cell = false; state.arrow_passed = false;
+					state.bracket_balance = 0; state.rule_prelude = true; state.tokenIndex = 0;
 				}
-				// Let the original parser initialize the rule after MIS's prefix.
-				const sol = stream.sol, ruleStart = stream.pos;
-				if (state.misLineStart) stream.sol = () => stream.pos === ruleStart;
-				try { return parser.token(stream, state); }
-				finally { stream.sol = sol; state.misLineStart = false; }
+				if (stream.eatSpace()) return null;
+				if (state.commentLevel || stream.peek() === '(') {
+					do {
+						const ch = stream.next();
+						if (ch === '(') state.commentLevel++;
+						else if (ch === ')') state.commentLevel--;
+					} while (!stream.eol() && state.commentLevel > 0);
+					return 'comment';
+				}
+				// These optional headings are accepted by MISCore.parseTransform.
+				if (state.tokenIndex === 0 && stream.match(/^(?:transform|generation)(?=\s*(?:\(|$))/i)) return 'HEADER';
+				if (state.tokenIndex === 0 && stream.match(/^=+(?=\s*(?:\(|$))/)) return 'EQUALSBIT';
+				state.tokenIndex++;
+				if (stream.match('->')) { state.arrow_passed = true; return 'ARROW'; }
+				const ch = stream.peek();
+				if (ch === '[') {
+					stream.next(); state.inside_cell = true; state.rule_prelude = false; state.bracket_balance++;
+					return 'BRACKET';
+				}
+				if (ch === ']') {
+					stream.next(); state.inside_cell = false; state.bracket_balance = Math.max(0, state.bracket_balance - 1);
+					return 'BRACKET';
+				}
+				if (ch === '|') { stream.next(); return 'BRACKET'; }
+				if (!state.inside_cell) {
+					if (stream.match(/^(?:choose|option|or)(?=\s|[()[\]|]|$)/i)) return 'LOGICWORD';
+					if (stream.match(/^(?:\d+-\d+|(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?)(?=\s|[()[\]|]|$)/i)) return 'number';
+					if (stream.match(/^(?:up|down|left|right|horizontal|vertical)(?=\s|[()[\]|]|$)/i)) return 'DIRECTION';
+				} else if (stream.match(/^no(?=\s|[()[\]|]|$)/i)) return 'DIRECTION';
+				const name = stream.match(/^(?:(?!->)[^\s()[\]|])+/);
+				if (name) return state.inside_cell && state.names.has(name[0].toLowerCase()) ? 'NAME' : 'ERROR';
+				stream.next();
+				return 'ERROR';
 			}
 		};
 	}
@@ -82,7 +113,7 @@
 	}
 	const spacer = new (class extends R.GutterMarker { toDOM() { const el = document.createElement('span'); el.className = 'mis-rule-mark'; return el; } })();
 
-	function create(textarea, { transform = false, lineWrapping = false, ruleGutter = false } = {}) {
+	function create(textarea, { transform = false, lineWrapping = false, ruleGutter = false, getDefinitionTarget } = {}) {
 		const listeners = new Map(), markedLines = new Set();
 		let source = '', view, language;
 		const setRules = R.StateEffect.define(), setFlash = R.StateEffect.define();
@@ -180,6 +211,7 @@
 				R.highlightActiveLine(), R.highlightActiveLineGutter(), R.drawSelection(), R.dropCursor(),
 				R.history(), R.EditorState.tabSize.of(4), ...(lineWrapping ? [R.EditorView.lineWrapping] : []),
 				language.extension, ...exactPrefixExtensions, tokenPresentation({ language }), marks, updates,
+				puzzleScriptDefinitionLinks({ language, getDefinitionTarget }),
 				R.autocompletion({
 					activateOnTyping: true, activateOnTypingDelay: 0, defaultKeymap: false, interactionDelay: 0,
 					icons: false, override: [completionSource],

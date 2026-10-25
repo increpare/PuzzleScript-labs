@@ -273,7 +273,12 @@ body.resizing-panes, body.resizing-panes * { cursor: var(--resize-cursor) !impor
 .mis-win95 .mis-code-editor.cm-focused .cm-selectionBackground { background: #c2c2e4 !important; }
 .mis-win95 .mis-code-editor .cm-cursor { border-left-color: #000; height: 1.4em !important; transform: none; }
 .mis-win95 .mis-code-editor span:is(.cm-HEADER,.cm-COMMAND,.cm-METADATA,.cm-LOGICWORD,.cm-DIRECTION,.cm-BRACKET,.cm-ARROW) { color: #000080; font-weight: normal; }
-.mis-win95 .mis-code-editor span:is(.cm-NAME,.cm-IDENTIFIER) { color: #000; }
+.mis-win95 .mis-code-editor span:is(.cm-HEADER,.cm-METADATA,.cm-LOGICWORD) { font-weight: bold; }
+.mis-win95 .mis-code-editor span:is(.cm-NAME,.cm-IDENTIFIER) { color: #006060; }
+.mis-win95 .mis-code-editor span.cm-DIRECTION { color: #800080; }
+.mis-win95 .mis-code-editor span.cm-ARROW { color: #a00000; }
+.mis-win95 .mis-code-editor span.cm-EQUALSBIT { color: #808080; }
+.mis-win95 .mis-code-editor span.cm-ERROR { color: #c00000; text-decoration: underline wavy; }
 .mis-win95 .mis-code-editor span:is(.cm-comment,.cm-COMMENT) { color: #008000; font-style: normal; }
 .mis-win95 .mis-code-editor span:is(.cm-METADATATEXT,.cm-MESSAGE,.cm-LEVEL,.cm-number) { color: #800000; }
 .mis-win95 .mis-code-editor span:is(.cm-SPRITEMATRIX,.cm-MATRIX,.cm-ASSIGNMENT,.cm-SOUNDVERB,.cm-SOUNDEVENT) { color: #805000; }
