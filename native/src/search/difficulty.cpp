@@ -62,11 +62,13 @@ SolveAttempt runStrategy(
         return attempt;
     }
     ps_solve_options solveOptions = ps_solve_default_options();
-    solveOptions.timeout_ms = std::max<int64_t>(1, options.timeoutMs);
+    solveOptions.timeout_ms = options.timeoutMs < 0 ? -1 : std::max<int64_t>(1, options.timeoutMs);
     if (options.deadline) {
         const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(
             *options.deadline - std::chrono::steady_clock::now()).count();
-        solveOptions.timeout_ms = std::min(solveOptions.timeout_ms, std::max<int64_t>(1, remaining));
+        solveOptions.timeout_ms = options.timeoutMs < 0
+            ? std::max<int64_t>(1, remaining)
+            : std::min(solveOptions.timeout_ms, std::max<int64_t>(1, remaining));
     }
     if (options.deadline || options.shouldCancel) {
         solveOptions.should_cancel = [](void* context) {

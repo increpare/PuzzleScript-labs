@@ -67,6 +67,14 @@ int main() {
     auto gated = puzzlescript::search::assessGeneratedLevelDifficulty(loaded, level, options);
     assert(gated.solved && !gated.supplementalRan && calls == 1);
 
+    calls = 0; budgets.clear();
+    options.timeoutMs = -1;
+    options.supplementalGate = {};
+    auto unlimited = puzzlescript::search::assessGeneratedLevelDifficulty(loaded, level, options);
+    assert(unlimited.solved && calls == 4);
+    assert(budgets[0] == -1); // Selected-level primary has no deadline.
+    for (size_t i = 1; i < budgets.size(); ++i) assert(budgets[i] == options.supplementalTimeoutMs);
+
     options.supplementalGate = {};
     options.shouldCancel = [] { return stop; };
     calls = 0; stop = true;

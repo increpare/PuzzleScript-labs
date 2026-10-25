@@ -98,7 +98,16 @@
 			}
 			if (handle.onMessage) handle.onMessage(m);
 		};
-		w.onerror = function (e) { console.error('MIS worker error', e.message); };
+		w.onerror = function (e) {
+			console.error('MIS worker error', e.message);
+			const job = handle.current;
+			kill(handle);
+			if (job && handle.handlers[job.msg.id]) {
+				delete handle.handlers[job.msg.id];
+				handle.busy = false;
+				job.done({ type: 'error', message: e.message || 'Solver worker failed.' });
+			} else if (handle.onMessage) handle.onMessage({ type: 'genError', message: e.message || 'Solver worker failed.' });
+		};
 		w.postMessage({ type: 'init', source: source, backend: app.backendPref });
 		return handle;
 	}
@@ -759,6 +768,7 @@
 	let currentResult = null;
 	let provisional = null; // quick result (e.g. from a suggestion) shown while the deep solve runs
 	let analyzeStarted = 0;
+	let solving = false;
 
 	// Backends measure effort differently, so results are cached per backend.
 	function cacheKey(board) { return app.backendPref + '|' + app.rulesSig + '|' + C.cellsKey(board.cells); }
@@ -771,32 +781,52 @@
 	}
 
 	function analyzeCurrent() {
+		const job = ++focusJob;
+		solving = false;
+		clearTimeout(renderStatus.t);
+		// Cancel before consulting the cache: switching to an already-solved
+		// level must also stop an unlimited search on the previous board.
+		if (focusWorker && (focusWorker.busy || focusWorker.queue.length || focusWorker.dead)) {
+			kill(focusWorker);
+			focusWorker = spawnWorker(app.source);
+		}
 		currentResult = null;
 		provisional = null;
 		if (!app.board || !app.model) { renderStatus(); return; }
 		const key = cacheKey(app.board);
 		const cached = app.assessCache.get(key);
-		if (cached && cached.deep) { currentResult = cached; renderStatus(); onCurrentResult(); return; }
-		provisional = cached || null;
-		// Restart the focus worker if it's chewing on a stale board.
-		if (focusWorker && focusWorker.busy) {
-			kill(focusWorker);
-			focusWorker = spawnWorker(app.source);
-		}
+		if (cached && cached.deep && (cached.status === 'solved' || cached.status === 'unsolvable')) { currentResult = cached; renderStatus(); onCurrentResult(); return; }
+		provisional = cached && cached.status === 'solved' ? cached : null;
 		ensureWorkers(false);
-		const job = ++focusJob;
 		analyzeStarted = Date.now();
+		solving = true;
 		renderStatus();
-		enqueue(focusWorker, { type: 'assess', board: packBoard(app.board), opts: { timeMs: 6000, maxExpanded: 600000, bfsFloor: 250000, bfsTimeMs: 8000 } }, function (m) {
-			const r = m.type === 'assessed' ? m.result : { status: 'timeout', error: m.message };
-			r.deep = true;
-			app.assessCache.set(key, r);
+		// This is the selected-level solver, not a generator candidate. Search
+		// until a result or explicit cancellation; only optional refinement is bounded.
+		enqueue(focusWorker, { type: 'assess', board: packBoard(app.board), opts: { timeMs: -1, maxExpanded: 0, bfsFloor: 250000, bfsTimeMs: 8000, refineTimeMs: 1500 } }, function (m) {
 			if (job !== focusJob) return;
+			solving = false;
+			const r = m.type === 'assessed' ? m.result : { status: 'error', error: m.message };
+			r.deep = r.status === 'solved' || r.status === 'unsolvable';
+			app.assessCache.set(key, r);
 			currentResult = r;
 			renderStatus();
 			onCurrentResult();
 			refreshLevelStrip();
 		});
+	}
+
+	function stopCurrentSolve() {
+		if (!solving) return;
+		++focusJob;
+		kill(focusWorker);
+		focusWorker = spawnWorker(app.source);
+		solving = false;
+		currentResult = provisional || { status: 'stopped', deep: false };
+		app.assessCache.set(cacheKey(app.board), currentResult);
+		renderStatus();
+		onCurrentResult();
+		refreshLevelStrip();
 	}
 
 	function onCurrentResult() {
@@ -812,6 +842,10 @@
 
 	function renderStatus() {
 		const dot = $('status-dot'), text = $('status-text'), eff = $('status-effort');
+		clearTimeout(renderStatus.t);
+		const solveButton = $('solve-btn');
+		solveButton.hidden = !app.board || (!solving && (!currentResult || currentResult.status === 'solved' || currentResult.status === 'unsolvable'));
+		solveButton.textContent = solving ? 'Stop solver' : 'Retry solve';
 		$('watch-btn').style.display = 'none';
 		eff.innerHTML = '';
 		dot.className = 'dot';
@@ -824,21 +858,11 @@
 			return;
 		}
 		const r = currentResult;
-		if (!r && provisional) {
-			dot.className = 'dot busy';
-			text.textContent = (provisional.status === 'solved' ? 'Solvable · ≈' + provisional.length + ' moves' : 'Checking…') + ' (refining)';
-			return;
-		}
 		if (!r) {
 			dot.className = 'dot busy';
-			text.textContent = 'Solving…';
-			clearTimeout(renderStatus.t);
-			const tick = function () {
-				if (currentResult || !app.board) return;
-				text.textContent = 'Solving… ' + ((Date.now() - analyzeStarted) / 1000).toFixed(0) + 's';
-				renderStatus.t = setTimeout(tick, 1000);
-			};
-			renderStatus.t = setTimeout(tick, 1000);
+			const elapsed = ((Date.now() - analyzeStarted) / 1000).toFixed(0) + 's';
+			text.textContent = provisional ? 'Solvable · ≈' + provisional.length + ' moves (refining · ' + elapsed + ')' : 'Solving… ' + elapsed;
+			if (solving) renderStatus.t = setTimeout(renderStatus, 1000);
 			return;
 		}
 		if (r.status === 'solved') {
@@ -851,10 +875,15 @@
 			dot.className = 'dot bad';
 			text.textContent = 'Unsolvable';
 			eff.innerHTML = '<span class="faint">Tip: lock what you like and let the transformer find a working version.</span>';
+		} else if (r.status === 'error') {
+			dot.className = 'dot warn';
+			text.textContent = 'Solver error';
+			eff.textContent = r.error || 'The solver could not complete this search.';
+		} else if (r.status === 'stopped') {
+			text.textContent = 'Solver stopped';
 		} else {
 			dot.className = 'dot warn';
-			text.textContent = 'Unknown — solver gave up';
-			eff.innerHTML = '<span class="faint">Too big for a quick proof; smaller levels work best.</span>';
+			text.textContent = 'No solution found yet';
 		}
 	}
 
@@ -1674,6 +1703,7 @@
 	$('clear-cards').onclick = function () { app.cards = []; if (app.gen) app.gen.seen.clear(); renderCards(); };
 	$('peek-btn').onclick = peekSample;
 	$('watch-btn').onclick = function () { if (currentResult && currentResult.solution) watch(app.board, currentResult.solution); };
+	$('solve-btn').onclick = function () { if (solving) stopCurrentSolve(); else analyzeCurrent(); };
 	$('simplify-btn').onclick = function () { runSimplify('simplify'); };
 	$('tighten-select').onchange = function (e) {
 		const v = e.target.value;

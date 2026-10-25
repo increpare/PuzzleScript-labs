@@ -1087,8 +1087,10 @@ const MISCore = (function () {
 	function solve(model, board, opts) {
 		opts = opts || {};
 		const strategy = opts.strategy || 'astar';
-		const maxExpanded = opts.maxExpanded || 200000;
-		const deadline = opts.timeMs ? Date.now() + opts.timeMs : Infinity;
+		// Explicit zero states / negative time remove the interactive solver's
+		// limits. Omitted options retain the generator and quick-check defaults.
+		const maxExpanded = opts.maxExpanded === 0 ? Infinity : opts.maxExpanded || 200000;
+		const deadline = opts.timeMs > 0 ? Date.now() + opts.timeMs : Infinity;
 		const inputs = model.noaction ? [0, 1, 2, 3] : [0, 1, 2, 3, 4];
 		const t0 = Date.now();
 		loadBoardIntoEngine(model, board, opts.seed);
@@ -1145,7 +1147,7 @@ const MISCore = (function () {
 	// yields the true shortest solution when it finishes inside the cap.
 	function assess(model, board, opts) {
 		opts = opts || {};
-		const primary = solve(model, board, { strategy: 'astar', timeMs: opts.timeMs || 1500, maxExpanded: opts.maxExpanded || 150000, shouldStop: opts.shouldStop });
+		const primary = solve(model, board, { strategy: 'astar', timeMs: opts.timeMs || 1500, maxExpanded: opts.maxExpanded === undefined ? 150000 : opts.maxExpanded, shouldStop: opts.shouldStop });
 		const out = { status: primary.status, expanded: primary.expanded, lanes: { astar: primary.expanded }, solution: primary.solution || null, optimal: false, ms: primary.ms };
 		if (primary.status !== 'solved') return out;
 		out.effort = Math.max(1, primary.expanded);
@@ -1156,10 +1158,11 @@ const MISCore = (function () {
 		// final min from above, so skip refinement below the shortlist floor.
 		if (opts.refineGate !== undefined && opts.refineGate >= 0 && primary.expanded < opts.refineGate) return out;
 		const cap = primary.expanded + 6;
-		const greedy = solve(model, board, { strategy: 'greedy', maxExpanded: cap, timeMs: opts.timeMs || 1500 });
+		const refineTimeMs = opts.timeMs < 0 ? opts.refineTimeMs || 1500 : opts.timeMs || 1500;
+		const greedy = solve(model, board, { strategy: 'greedy', maxExpanded: cap, timeMs: refineTimeMs });
 		if (greedy.status === 'solved') { out.lanes.greedy = greedy.expanded; out.effort = Math.min(out.effort, Math.max(1, greedy.expanded)); }
 		const bfsCap = Math.max(cap, opts.bfsFloor || 0);
-		const bfs = solve(model, board, { strategy: 'bfs', maxExpanded: bfsCap, timeMs: opts.bfsTimeMs || opts.timeMs || 1500 });
+		const bfs = solve(model, board, { strategy: 'bfs', maxExpanded: bfsCap, timeMs: opts.bfsTimeMs || refineTimeMs });
 		if (bfs.status === 'solved') {
 			if (bfs.expanded <= cap) { out.lanes.bfs = bfs.expanded; out.effort = Math.min(out.effort, Math.max(1, bfs.expanded)); }
 			out.solution = bfs.solution;

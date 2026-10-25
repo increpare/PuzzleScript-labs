@@ -51,6 +51,17 @@ const C = MISCore;
 const soko = load('demo/sokoban_basic.txt');
 const firstLevel = soko.model.levels.find(l => l.board);
 
+test('selected-level search can disable both the clock and expansion limits', () => {
+	const now = Date.now;
+	let clock = 0;
+	try {
+		Date.now = () => (clock += 100000);
+		const r = C.assess(soko.model, firstLevel.board, { timeMs: -1, maxExpanded: 0, refine: false });
+		assert.strictEqual(r.status, 'solved');
+		assert(r.solution.length > 0);
+	} finally { Date.now = now; }
+});
+
 test('model: names, glyphs and levels', () => {
 	const m = soko.model;
 	assert.strictEqual(m.levels.length, 2);

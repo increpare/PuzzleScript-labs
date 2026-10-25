@@ -60,7 +60,7 @@ function boardFrom(msg) {
 function packResult(r) {
 	return {
 		status: r.status, effort: r.effort, length: r.length, lanes: r.lanes,
-		solution: r.solution, optimal: r.optimal, ms: r.ms,
+		solution: r.solution, optimal: r.optimal, ms: r.ms, expanded: r.expanded, error: r.error,
 	};
 }
 

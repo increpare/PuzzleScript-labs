@@ -58,6 +58,8 @@ typedef enum ps_solve_strategy {
 } ps_solve_strategy;
 
 typedef struct ps_solve_options {
+    /* Negative: no deadline. Zero retains the minimum 1 ms timeout.
+       max_expanded and should_cancel still apply without a deadline. */
     int64_t timeout_ms;
     ps_solve_strategy strategy;
     uint32_t portfolio_jobs;
