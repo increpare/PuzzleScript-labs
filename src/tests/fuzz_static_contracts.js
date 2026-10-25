@@ -68,7 +68,7 @@ function drainAgainLocal(context) {
 
 // Generate an input sequence by actually playing it, so we never send
 // input on a non-playable board.
-function generateSafeInputs(label, source, targetLevel, engineSeed, rand, maxLength) {
+function generateSafeInputs(label, source, targetLevel, engineSeed, rand, maxLength, options = {}) {
     const previousUnitTesting = unitTesting;
     const previousLazy = lazyFunctionGeneration;
     unitTesting = true;
@@ -82,7 +82,8 @@ function generateSafeInputs(label, source, targetLevel, engineSeed, rand, maxLen
             if (!boardIsPlayable()) break;
             const roll = rand();
             let token;
-            if (roll < 0.82) token = Math.floor(rand() * 5);
+            if (options.inputMode === 'forward') token = roll < 0.9 ? Math.floor(rand() * 5) : 'tick';
+            else if (roll < 0.82) token = Math.floor(rand() * 5);
             else if (roll < 0.90) token = 'tick';
             else if (roll < 0.97) token = 'undo';
             else token = 'restart';

@@ -1445,6 +1445,9 @@ tests_js:
 static_analysis_tests:
 	$(NODE) src/tests/ps_static_analysis_node.js
 	$(NODE) src/tests/static_analysis_rulegroup_node.js
+	$(NODE) src/tests/static_analysis_intra_turn_node.js
+	$(NODE) src/tests/static_analysis_dynamic_coverage_node.js
+	$(NODE) src/tests/run_static_analysis_gallery_audit_node.js
 	$(NODE) src/tests/action_noop_candidates_node.js
 	$(NODE) src/tests/static_analysis_testdata_runner.js
 	$(NODE) src/tests/static_analysis_testdata_runner_node.js
@@ -1463,6 +1466,14 @@ static_analysis_tests:
 
 static_analysis_fuzz:
 	$(NODE) src/tests/fuzz_static_contracts.js $(STATIC_ANALYSIS_FUZZ_ARGS)
+
+# Cached gallery manifest, all playable levels; writes hashes, coverage and repros.
+.PHONY: static_analysis_gallery_audit static_analysis_synthetic_audit
+static_analysis_gallery_audit:
+	$(NODE) src/tests/run_static_analysis_gallery_audit.js $(STATIC_ANALYSIS_GALLERY_AUDIT_ARGS)
+
+static_analysis_synthetic_audit:
+	$(NODE) src/tests/static_analysis_synthetic_node.js
 
 static_analysis_consistency_giant:
 	@$(MAKE) static_analysis_corpus_audit_giant CHECKS=consistency

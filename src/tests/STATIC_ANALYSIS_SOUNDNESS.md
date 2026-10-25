@@ -81,11 +81,54 @@ certified wake-mask coverage. Most invariant checks run at stable turn
 boundaries; some checks compare counterfactual replays or inspect compiled masks.
 They do not all observe intermediate rule-group states.
 
-The following claims have focused tests but **no general playthrough oracle**:
+The optional intra-turn oracle (`lib/static_analysis_intra_turn_oracle.js`)
+adds general playthrough checks for the former gaps:
 
-- Rule-group splitting, `single_pass_safe`, and clean-group skip certificates.
-- `may_invalidate_other_matches` and `may_enable_other_matches`.
-- `self_disabling`, `persistent_guard`, `idempotent_effect`, and `setup_only`.
+- Rule-group splitting compares whole-group and component fixed points,
+  including movement, commands, RNG, sound masks and convergence. Single-pass
+  checks require a second pass to make no changes, even transiently. Clean-group
+  skip checks require a previously verified fixed point and compare object and
+  movement changes against the claimed wake mask.
+- Match-interaction checks enumerate tuples before and after a replacement,
+  excluding the tuple just applied. Self-disabling checks that tuple itself.
+  Idempotence checks a second isolated exhaustive invocation.
+- Negative object creation/destruction claims observe individual cell
+  replacements, including effects cancelled by another row of the same tuple.
+- Persistent guards are checked at committed engine-turn boundaries, including
+  every AGAIN step. Setup retirement begins only after observed quiescence and
+  settled dependencies; subsequent effects are violations. Restorations reset
+  lifetime state. Rigid games currently skip these lifetime checks because
+  speculative rollback needs its own transaction-aware observer.
+
+The reference path uses real lowered match/replacement primitives, always
+rechecks tuples, and bypasses group wake pruning, input specialization and the
+singleton rescan shortcut. It also compares optimized rule invocations with
+the reference. It is an independent scheduling oracle, not a second language
+interpreter. Shadow probes restore board arrays, movement, RNG, commands,
+messages, sound masks and captured bindings. Counterfactual action/tick and
+projection replays are excluded from lifetime observations.
+
+These checks are bounded: defaults are 128 tuples per enumeration and 2,000
+probes per recorded replay (1,000 per gallery trace). Random-group direct
+applications and groups that cannot be mapped exactly after compiler duplicate
+removal are reported as skips. A mismatched group does not disable other groups
+in the same phase. Match-free invocations do not consume probe budget. A passing
+trace with budget skips is not complete coverage of that trace.
+
+`static_analysis_dynamic_coverage.js` inventories every emitted tag path and fact
+family. Its registry distinguishes runtime checks, partial checks, descriptive
+classifications and unchecked claims; unknown names stay unchecked. It reports
+certificate counts separately from observed checks and failures, including
+partial counts from failing traces. Counters shared by tag paths/fact families
+are aggregate evidence, not proof that every subject instance was exercised.
+`program_flow` and `win_relevance` still lack general independent runtime
+oracles. Descriptive syntax/role tags are not advertised as runtime invariants.
+
+`make static_analysis_synthetic_audit` checks all 625 ordered pairs of 25 rule
+templates on 11 authored small boards (6,875 cases, seed 19, 32 probes/64 tuples
+per case). It includes overlapping rows, movement conflicts, properties,
+random RHS writes and observable commands. It prints both checks and skips;
+one group invocation per board does not replace longer lifetime replays.
 
 For example, `static_analysis_setup_node.js` enumerates 34,560 small boards for
 ten rule forms and checks selected setup-retirement replays. This is useful
@@ -97,6 +140,7 @@ Corpus scope must be reported separately from claim coverage:
 
 - The recorded replay suite currently contains 473 cases, each with its own
   specified level and input trace; it does not enumerate every gallery level.
+  Add `--intra-turn` to enable the new within-turn probes and print their counts.
 - `fuzz_static_contracts.js` uses the same subset of runtime checks. Its defaults
   are the first two playable levels per game, two seeded traces per level, and
   at most 40 inputs per trace.
@@ -104,6 +148,30 @@ Corpus scope must be reported separately from claim coverage:
   30 inputs. Repeating an unchanged configuration repeats deterministic seeds.
 - The corpus consistency/canonical-parity audit is analyze-only. The gallery
   setup coverage scan counts certificates without running playthroughs.
+- `run_static_analysis_gallery_audit.js` verifies a cached source manifest and
+  exercises **all** playable levels. Defaults are two seeds per level in each
+  of forward-only and mixed undo/restart modes, with at most 80 inputs per trace.
+  Message levels are excluded. Explicitly seeded deterministic traces also
+  receive alternate-seed no-random checks.
+
+Run a gallery audit with:
+
+```
+make static_analysis_gallery_audit STATIC_ANALYSIS_GALLERY_AUDIT_ARGS='--manifest /path/to/gallery/manifest.json --out build/gallery-audit'
+```
+
+The runner writes `summary.json`, per-game results/logs, source hashes and failing
+inputs/seeds, plus copies of failing sources. `--seed`, `--game` and `--level`
+support new runs or focused reproductions. `--resume` requires unchanged source
+manifest, options, executed JS dependencies, Node version and relevant runtime
+environment. Workers verify the harness digest at start and finish.
+
+A parent watchdog interrupts an individual trace after 30 seconds and resumes
+the remaining traces/levels in a fresh worker. A separate ten-minute per-game
+deadline bounds repeated interruptions. Both limits are configurable. Timed-out
+traces and analysis-unavailable games remain explicit incomplete coverage;
+neither is silently converted into a pass. User-facing preview servers are not
+involved.
 
 Cosmetic and merge projection replays additionally exclude traces containing
 undo and games without a no-random certificate, as detailed below. Analysis
@@ -131,8 +199,8 @@ tags. Solver search never issues undo, so the tags are sound for it.
 **How this is enforced in the oracle:**
 `run_static_analysis_runtime_contracts_node.js` gates all cosmetic/merge
 projection replays on
-`checkSolverProjectionReplays = !hasUndoInput && noRandomProved` (around line
-1609). Undo-bearing traces skip cosmetic-object projection, cosmetic-rule
+`checkSolverProjectionReplays = !hasUndoInput && noRandomProved`.
+Undo-bearing traces skip cosmetic-object projection, cosmetic-rule
 suppression, cosmetic-rule optimizer, and merge projection parity checks.
 `static_analysis_adversarial_node.js` (the `cosmetic_undo_solver_scope` fixture)
 asserts that an undo-bearing trace produces `cosmeticRuleProjectionChecks === 0`,

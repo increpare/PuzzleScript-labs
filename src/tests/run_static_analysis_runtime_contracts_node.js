@@ -59,6 +59,10 @@ function parseArgs(argv) {
         const arg = argv[index];
         if (arg === '--help' || arg === '-h') {
             options.help = true;
+        } else if (arg === '--intra-turn') {
+            options.intraTurn = true;
+        } else if (arg === '--progress') {
+            options.progress = true;
         } else if (arg === '--filter') {
             assert.ok(index + 1 < argv.length, '--filter requires a value');
             options.filter = argv[++index];
@@ -73,7 +77,7 @@ function parseArgs(argv) {
 
 function usage() {
     return [
-        'Usage: node src/tests/run_static_analysis_runtime_contracts_node.js [--filter NAME]',
+        'Usage: node src/tests/run_static_analysis_runtime_contracts_node.js [--filter NAME] [--intra-turn] [--progress]',
         '',
         'Replays src/tests/resources/testdata.js and checks static-analysis runtime contracts.',
     ].join('\n');
@@ -377,11 +381,11 @@ function inertCommandRuleSourceLines(psTagged) {
         .sort((left, right) => left - right);
 }
 
-function staticContractForSource(source, testName) {
+function staticContractForSource(source, testName, options = {}) {
     const sourcePath = `testdata:${testName}`;
-    const report = analyzeSource(source, {
+    const report = options.report || analyzeSource(source, {
         sourcePath,
-        familyFilter: ['count_layer_invariants', 'linear_count_invariants', 'transient_boundary', 'movement_action', 'per_level_object_universe', 'mergeability', 'winflow', 'certified_wake_masks'],
+        familyFilter: options.allFacts ? undefined : ['count_layer_invariants', 'linear_count_invariants', 'transient_boundary', 'movement_action', 'per_level_object_universe', 'mergeability', 'winflow', 'certified_wake_masks'],
     });
     const unavailableReason = expectedAnalysisUnavailable(report, testName, sourcePath);
     if (unavailableReason) {
@@ -1016,7 +1020,9 @@ function firstTemporaryPresence(objectNames) {
 
 function perLevelObjectUniverseNames(perLevelObjectUniverseByLevel) {
     const identity = boardIdentity();
-    if (!identity.available || !Number.isInteger(identity.curlevel)) return [];
+    // End-of-game returns curlevel to zero but retains the previous board.
+    // Messages likewise need not have a board matching their current index.
+    if (!identity.available || identity.textMode || identity.titleScreen || !Number.isInteger(identity.curlevel)) return [];
     return perLevelObjectUniverseByLevel.get(identity.curlevel) || [];
 }
 
@@ -1188,6 +1194,14 @@ function wrapRuleApplyAtForWinflow(rule, ruleId, appliedRuleIds) {
     rule.__staticAnalysisWinflowWrapped = true;
     rule.applyAt = function (...args) {
         const modified = originalApplyAt.apply(this, args);
+        if (modified) appliedRuleIds.add(ruleId);
+        return modified;
+    };
+    // Isolated-cell tryApply replaces cells directly, bypassing applyAt.
+    // Keep applyAt recording too: random groups call it without tryApply.
+    const originalTryApply = rule.tryApply;
+    rule.tryApply = function (...args) {
+        const modified = originalTryApply.apply(this, args);
         if (modified) appliedRuleIds.add(ruleId);
         return modified;
     };
@@ -1873,7 +1887,7 @@ function throwProbeError(testName, kind, inputIndex, inputToken, diff) {
     ].join('\n'));
 }
 
-function runSimulationWithStaticChecks(testName, dataarray) {
+function runSimulationWithStaticChecks(testName, dataarray, options = {}) {
     ensureRuntimeLoaded();
     const source = dataarray[0];
     const inputs = dataarray[1];
@@ -1881,7 +1895,13 @@ function runSimulationWithStaticChecks(testName, dataarray) {
     const targetLevel = dataarray[3] === undefined ? 0 : dataarray[3];
     const randomSeed = dataarray[4] === undefined ? null : dataarray[4];
     const expectedSounds = dataarray[5] === undefined ? null : dataarray[5];
-    const staticContract = staticContractForSource(source, testName);
+    const staticContract = options.staticContract || staticContractForSource(source, testName, { allFacts: Boolean(options.intraTurn) });
+    const intraTurn = options.intraTurn && staticContract.staticAnalysisReport
+        ? require('./lib/static_analysis_intra_turn_oracle').createIntraTurnOracle(
+            staticContract.staticAnalysisReport, options.intraTurn === true ? {} : options.intraTurn)
+        : null;
+    let restoreIntraTurn = null;
+    const probe = fn => intraTurn ? intraTurn.suspend(fn) : fn();
     const staticObjects = staticContract.objectNames;
     const staticLayers = staticContract.staticLayerIds;
     const inertLayers = staticContract.inertLayerIds;
@@ -1911,7 +1931,7 @@ function runSimulationWithStaticChecks(testName, dataarray) {
     const tickNoopProved = staticContract.tickNoopProved;
     const noAgainProved = staticContract.noAgainProved;
     const noRandomProved = staticContract.noRandomProved;
-    const checkNoRandomReplay = noRandomProved && randomSeed === null;
+    const checkNoRandomReplay = noRandomProved && (randomSeed === null || options.checkExplicitSeed === true);
     const hasUndoInput = inputs.some(inputToken => normalizeRuntimeInputToken(inputToken) === 'undo');
     // Cosmetic object projection, cosmetic rule suppression, and object merging
     // are solver optimizations. Solver search never issues undo, and undo-stack
@@ -1952,7 +1972,9 @@ function runSimulationWithStaticChecks(testName, dataarray) {
         };
     }
     try {
+        if (intraTurn) restoreIntraTurn = intraTurn.install();
         const initialAgainSteps = compileSimulationSource(testName, source, targetLevel, randomSeed);
+        if (intraTurn) intraTurn.boundary();
         cosmeticRuleProjectionObjects = cosmeticRuleProjectionObjectNames(cosmeticObjects);
         cosmeticObjects = projectableCosmeticObjectNames(cosmeticObjects, staticContract.referencedObjectNames);
         const mergeAliases = buildMergeAliasMap(mergeCandidatePairs, new Set(staticContract.cosmeticObjectNames), state, {
@@ -2028,11 +2050,11 @@ function runSimulationWithStaticChecks(testName, dataarray) {
         const initialBoundaryIsTerminalWin = currentBoundaryIsTerminalWin();
         if (!initialBoundaryIsTerminalWin && actionUnnecessaryProved) {
             const restartBoundaryBeforeProbe = restartBoundaryTriggered;
-            const actionDiff = firstActionUnnecessaryProbeDifference(
+            const actionDiff = probe(() => firstActionUnnecessaryProbeDifference(
                 testName,
                 'initial',
                 cosmeticRuleProjectionObjects
-            );
+            ));
             restartBoundaryTriggered = restartBoundaryBeforeProbe;
             if (actionDiff) {
                 throwProbeError(testName, 'action-unnecessary', null, 'initial', actionDiff);
@@ -2041,7 +2063,7 @@ function runSimulationWithStaticChecks(testName, dataarray) {
         }
         if (!initialBoundaryIsTerminalWin && tickNoopProved) {
             const restartBoundaryBeforeProbe = restartBoundaryTriggered;
-            const tickDiff = firstTickNoopProbeDifference(testName, 'initial');
+            const tickDiff = probe(() => firstTickNoopProbeDifference(testName, 'initial'));
             restartBoundaryTriggered = restartBoundaryBeforeProbe;
             if (tickDiff) {
                 throwProbeError(testName, 'tick-noop', null, 'initial', tickDiff);
@@ -2213,11 +2235,11 @@ function runSimulationWithStaticChecks(testName, dataarray) {
             const boundaryIsTerminalWin = currentBoundaryIsTerminalWin();
             if (!boundaryIsTerminalWin && actionUnnecessaryProved) {
                 const restartBoundaryBeforeProbe = restartBoundaryTriggered;
-                const actionDiff = firstActionUnnecessaryProbeDifference(
+                const actionDiff = probe(() => firstActionUnnecessaryProbeDifference(
                     testName,
                     `input ${inputIndex} ${tokenLabel(inputToken)}`,
                     cosmeticRuleProjectionObjects
-                );
+                ));
                 restartBoundaryTriggered = restartBoundaryBeforeProbe;
                 if (actionDiff) {
                     throwProbeError(testName, 'action-unnecessary', inputIndex, inputToken, actionDiff);
@@ -2226,7 +2248,7 @@ function runSimulationWithStaticChecks(testName, dataarray) {
             }
             if (!boundaryIsTerminalWin && tickNoopProved) {
                 const restartBoundaryBeforeProbe = restartBoundaryTriggered;
-                const tickDiff = firstTickNoopProbeDifference(testName, `input ${inputIndex} ${tokenLabel(inputToken)}`);
+                const tickDiff = probe(() => firstTickNoopProbeDifference(testName, `input ${inputIndex} ${tokenLabel(inputToken)}`));
                 restartBoundaryTriggered = restartBoundaryBeforeProbe;
                 if (tickDiff) {
                     throwProbeError(testName, 'tick-noop', inputIndex, inputToken, tickDiff);
@@ -2238,6 +2260,9 @@ function runSimulationWithStaticChecks(testName, dataarray) {
             currentIdentity = nextIdentity;
         }
 
+        // The remaining replays deliberately mutate/remove rules. They are
+        // separate counterfactual contracts, not observations of this program.
+        if (restoreIntraTurn) { restoreIntraTurn(); restoreIntraTurn = null; }
         if (noRandomProved) {
             assertFinalReplayParity(testName, expectedSerializedLevel, expectedSounds);
         }
@@ -2433,8 +2458,24 @@ function runSimulationWithStaticChecks(testName, dataarray) {
             certifiedWakeMaskChecks,
             certifiedWakeMaskRecorderComplete,
             analysisUnavailableReason: staticContract.unavailableReason,
+            intraTurn: intraTurn ? intraTurn.stats() : null,
         };
+    } catch (error) {
+        const failureClaims = require('./static_analysis_dynamic_coverage').runtimeFailureClaims(error.message);
+        if (!error.certificate && failureClaims.length) error.certificate = failureClaims[0];
+        error.runtimeCoverage = {
+            objectBoundaryChecks, staticLayerBoundaryChecks, inertLayerBoundaryChecks,
+            quantityBoundaryChecks, linearCountInvariantChecks, temporaryBoundaryChecks,
+            neverAppearsBoundaryChecks, perLevelObjectUniverseChecks, cosmeticProjectionChecks,
+            cosmeticRuleProjectionChecks, inertCommandRuleSuppressionChecks, mergeProjectionChecks,
+            actionUnnecessaryBoundaryChecks, tickNoopBoundaryChecks, noAgainBoundaryChecks,
+            noRandomReplayChecks, winflowCleanWinconditionChecks, certifiedWakeMaskChecks,
+            intraTurn: intraTurn ? intraTurn.stats() : null,
+            failureClaims,
+        };
+        throw error;
     } finally {
+        if (restoreIntraTurn) restoreIntraTurn();
         if (typeof previousDoRestart === 'function') {
             global.DoRestart = previousDoRestart;
         }
@@ -2458,6 +2499,12 @@ function runAll(options = {}) {
     assert.ok(Array.isArray(global.testdata), 'global.testdata should be loaded');
 
     const failures = [];
+    const intraTurn = { checks: {}, failures: {}, skipped: {} };
+    function collectIntraTurn(stats) {
+        for (const kind of ['checks', 'failures', 'skipped']) {
+            for (const [key, value] of Object.entries((stats && stats[kind]) || {})) intraTurn[kind][key] = (intraTurn[kind][key] || 0) + value;
+        }
+    }
     let caseCount = 0;
     let casesWithStaticObjects = 0;
     let casesWithStaticLayers = 0;
@@ -2515,7 +2562,8 @@ function runAll(options = {}) {
         caseCount++;
         progressLog(options, `static_analysis_runtime_contracts: [${entryIndex + 1}/${entries.length}] ${testName}`);
         try {
-            const result = runSimulationWithStaticChecks(testName, dataarray);
+            const result = runSimulationWithStaticChecks(testName, dataarray, { intraTurn: options.intraTurn });
+            collectIntraTurn(result.intraTurn);
             if (result.staticObjectCount > 0) {
                 casesWithStaticObjects++;
             }
@@ -2595,6 +2643,7 @@ function runAll(options = {}) {
                 progressLog(options, `static_analysis_runtime_contracts:   static analysis unavailable: ${result.analysisUnavailableReason}`);
             }
         } catch (error) {
+            collectIntraTurn(error.runtimeCoverage && error.runtimeCoverage.intraTurn);
             failures.push(`ERROR: ${testName}: ${error.message}`);
         }
     }
@@ -2620,6 +2669,7 @@ function runAll(options = {}) {
         casesWithNoRandomReplayChecks,
         casesWithWinflowCleanChecks,
         casesWithCertifiedWakeMasks,
+        intraTurn: options.intraTurn ? intraTurn : null,
         objectBoundaryChecks,
         staticLayerBoundaryChecks,
         layerBoundaryChecks: staticLayerBoundaryChecks,
@@ -2654,6 +2704,7 @@ function main() {
     }
 
     const result = runAll({ ...options, progress: true });
+    if (result.intraTurn) console.log(`static_analysis_intra_turn: ${JSON.stringify(result.intraTurn)}`);
     if (!result.ok) {
         console.error('static_analysis_runtime_contracts: failed');
         for (const failure of result.failures) {

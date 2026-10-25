@@ -1,0 +1,6379 @@
+{
+  "date": "2026-10-25",
+  "generatedAt": "2026-10-25T20:40:26.225Z",
+  "conclusion": "No new static-analysis counterexample found in these bounded tests; two pre-existing runtime-harness bugs were reproduced and fixed.",
+  "corpus": {
+    "manifestPath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/manifest.json",
+    "manifestSha256": "14ea19b290217fd6d90ade918daf91b32421e880759e504bb0695bcc29cc5937",
+    "manifestGallerySha256": "7066db2ed14063e110f979b892234b9ff6ba6dc2508231210baaed1efbcfdc60",
+    "checkoutGallerySha256": "db34326a93364d566a9f357faf6178dab0e096704769c5e8fa00b9be79d94c15",
+    "sourceCount": 142,
+    "verifiedSourceCount": 140,
+    "provisionalSourceCount": 2,
+    "note": "Cached source versions, not a fresh fetch of the live gallery. Manifest gallery inventory differs from this checkout."
+  },
+  "execution": {
+    "harnessDigest": "17d6abc89ff6d4f683d6c4704c56b3b3ed51293d87b8ac5eabea34f1dd41d1cf",
+    "directories": {
+      "primary": "build/static-analysis-gallery-audit-2026-10-25/complete",
+      "Vertebrae": "build/static-analysis-gallery-audit-2026-10-25/vertebrae-all-levels",
+      "Rose": "build/static-analysis-gallery-audit-2026-10-25/rose-all-levels"
+    },
+    "primaryOutcome": {
+      "completed": 140,
+      "analysisUnavailable": 1,
+      "interrupted": 1,
+      "timeoutCases": 1
+    },
+    "overrides": [
+      {
+        "title": "Vertebrae",
+        "maxProbes": 100,
+        "tracesPassed": 216,
+        "reason": "The 1000-probe attempt reached its ten-minute game deadline. The complete 100-probe run is selected."
+      },
+      {
+        "title": "Rose",
+        "maxProbes": 1000,
+        "caseTimeoutMs": 120000,
+        "tracesPassed": 8,
+        "reason": "One 30-second case timeout was rerun with a longer deadline; the probe budget is unchanged."
+      }
+    ],
+    "selection": "One complete per-game result per source; same harness/source hashes and seeds. No duplicated source inventories or traces are counted.",
+    "policies": {
+      "primary": {
+        "manifest": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/manifest.json",
+        "out": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/build/static-analysis-gallery-audit-2026-10-25/complete",
+        "jobs": 4,
+        "iterations": 2,
+        "inputLength": 80,
+        "timeoutMs": 600000,
+        "caseTimeoutMs": 30000,
+        "maxProbes": 1000,
+        "maxTuples": 128,
+        "seed": "static-soundness-2026-10-25",
+        "game": null,
+        "level": null,
+        "resume": false
+      },
+      "Vertebrae": {
+        "manifest": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/manifest.json",
+        "out": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/build/static-analysis-gallery-audit-2026-10-25/vertebrae-all-levels",
+        "jobs": 1,
+        "iterations": 2,
+        "inputLength": 80,
+        "timeoutMs": 600000,
+        "caseTimeoutMs": 30000,
+        "maxProbes": 100,
+        "maxTuples": 128,
+        "seed": "static-soundness-2026-10-25",
+        "game": "Vertebrae",
+        "level": null,
+        "resume": false
+      },
+      "Rose": {
+        "manifest": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/manifest.json",
+        "out": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/build/static-analysis-gallery-audit-2026-10-25/rose-all-levels",
+        "jobs": 1,
+        "iterations": 2,
+        "inputLength": 80,
+        "timeoutMs": 600000,
+        "caseTimeoutMs": 120000,
+        "maxProbes": 1000,
+        "maxTuples": 128,
+        "seed": "static-soundness-2026-10-25",
+        "game": "Rose",
+        "level": null,
+        "resume": false
+      }
+    }
+  },
+  "summary": {
+    "signature": "9eb64147c4944f9958fc3f38d03779988e1e38911ba4c6f064381b6f74194e1f",
+    "options": {
+      "primary": {
+        "manifest": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/manifest.json",
+        "out": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/build/static-analysis-gallery-audit-2026-10-25/complete",
+        "jobs": 4,
+        "iterations": 2,
+        "inputLength": 80,
+        "timeoutMs": 600000,
+        "caseTimeoutMs": 30000,
+        "maxProbes": 1000,
+        "maxTuples": 128,
+        "seed": "static-soundness-2026-10-25",
+        "game": null,
+        "level": null,
+        "resume": false
+      },
+      "Vertebrae": {
+        "manifest": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/manifest.json",
+        "out": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/build/static-analysis-gallery-audit-2026-10-25/vertebrae-all-levels",
+        "jobs": 1,
+        "iterations": 2,
+        "inputLength": 80,
+        "timeoutMs": 600000,
+        "caseTimeoutMs": 30000,
+        "maxProbes": 100,
+        "maxTuples": 128,
+        "seed": "static-soundness-2026-10-25",
+        "game": "Vertebrae",
+        "level": null,
+        "resume": false
+      },
+      "Rose": {
+        "manifest": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/manifest.json",
+        "out": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/build/static-analysis-gallery-audit-2026-10-25/rose-all-levels",
+        "jobs": 1,
+        "iterations": 2,
+        "inputLength": 80,
+        "timeoutMs": 600000,
+        "caseTimeoutMs": 120000,
+        "maxProbes": 1000,
+        "maxTuples": 128,
+        "seed": "static-soundness-2026-10-25",
+        "game": "Rose",
+        "level": null,
+        "resume": false
+      }
+    },
+    "updatedAt": "2026-10-25T20:40:26.211Z",
+    "gamesTotal": 142,
+    "gamesCompleted": 141,
+    "analysisUnavailable": 1,
+    "interruptedGames": 0,
+    "playableLevels": 1571,
+    "casesAttempted": 6284,
+    "casesPassed": 6284,
+    "inputCount": 470066,
+    "failures": 0,
+    "timeoutCases": 0,
+    "skips": {
+      "no_matches": 150394568,
+      "probe_budget": 13473361,
+      "no_replacement": 1491579,
+      "tuple_budget": 22861,
+      "unmapped_early_groups": 6280,
+      "random_group_direct_application": 496410,
+      "rigid_lifetime_scope": 17011,
+      "zero_input_trace": 64,
+      "unmapped_late_groups": 1232
+    },
+    "intraTurnChecks": {
+      "group.single_pass_safe": 43235,
+      "group.split_candidate": 71000,
+      "object.may_be_created": 13303342,
+      "object.may_be_destroyed": 13093798,
+      "runtime.rule_reference_parity": 1523746,
+      "rule.may_invalidate_other_matches": 5733612,
+      "rule.may_enable_other_matches": 5815230,
+      "rule.self_disabling": 2621553,
+      "rule.idempotent_effect": 542688,
+      "group.group_skip_mask": 425465,
+      "rule.persistent_guard": 1273898,
+      "rule.setup_only.quiescence": 4930,
+      "rule.setup_only": 8635
+    },
+    "coverage": [
+      {
+        "id": "fact.certified_wake_masks",
+        "status": "runtime",
+        "checker": "certifiedWakeMaskChecks",
+        "note": "Lowered mask coverage, not an independent observed-write audit.",
+        "emitted": 33891,
+        "certificates": 33891,
+        "checks": 8080128,
+        "failures": 0
+      },
+      {
+        "id": "fact.count_layer_invariants",
+        "status": "runtime",
+        "checker": "quantityBoundaryChecks",
+        "note": "Also static object/layer boundary checks.",
+        "emitted": 13579,
+        "certificates": 2005,
+        "checks": 9370165,
+        "failures": 0
+      },
+      {
+        "id": "fact.linear_count_invariants",
+        "status": "runtime",
+        "checker": "linearCountInvariantChecks",
+        "note": "",
+        "emitted": 310,
+        "certificates": 20,
+        "checks": 56399,
+        "failures": 0
+      },
+      {
+        "id": "fact.mechanic_profile",
+        "status": "descriptive",
+        "checker": null,
+        "note": "Heuristic classification.",
+        "emitted": 141,
+        "certificates": 0,
+        "checks": 0,
+        "failures": 0
+      },
+      {
+        "id": "fact.mergeability",
+        "status": "partial",
+        "checker": "mergeProjectionChecks",
+        "note": "Forward deterministic projection only.",
+        "emitted": 50508,
+        "certificates": 0,
+        "checks": 155,
+        "failures": 0
+      },
+      {
+        "id": "fact.movement_action",
+        "status": "partial",
+        "checker": "actionUnnecessaryBoundaryChecks",
+        "note": "Action-unnecessary probe, not every movement reachability fact.",
+        "emitted": 423,
+        "certificates": 243,
+        "checks": 116619,
+        "failures": 0
+      },
+      {
+        "id": "fact.per_level_object_universe",
+        "status": "runtime",
+        "checker": "perLevelObjectUniverseChecks",
+        "note": "",
+        "emitted": 1571,
+        "certificates": 1571,
+        "checks": 7202444,
+        "failures": 0
+      },
+      {
+        "id": "fact.program_flow",
+        "status": "unchecked",
+        "checker": null,
+        "note": "No general independent playthrough oracle yet.",
+        "emitted": 141,
+        "certificates": 141,
+        "checks": 0,
+        "failures": 0
+      },
+      {
+        "id": "fact.rule_setup",
+        "status": "partial",
+        "checker": null,
+        "note": "Four rule tags checked separately; dependency graph itself not independently checked.",
+        "emitted": 33891,
+        "certificates": 25,
+        "checks": 0,
+        "failures": 0
+      },
+      {
+        "id": "fact.rulegroup_flow",
+        "status": "partial",
+        "checker": null,
+        "note": "Split, single-pass and skip certificates checked separately; individual graph edges not checked.",
+        "emitted": 2766,
+        "certificates": 0,
+        "checks": 0,
+        "failures": 0
+      },
+      {
+        "id": "fact.solver_hash_projection",
+        "status": "partial",
+        "checker": "cosmeticProjectionChecks",
+        "note": "Cosmetic component only.",
+        "emitted": 141,
+        "certificates": 0,
+        "checks": 429,
+        "failures": 0
+      },
+      {
+        "id": "fact.transient_boundary",
+        "status": "runtime",
+        "checker": "temporaryBoundaryChecks",
+        "note": "",
+        "emitted": 5884,
+        "certificates": 123,
+        "checks": 645841,
+        "failures": 0
+      },
+      {
+        "id": "fact.win_relevance",
+        "status": "unchecked",
+        "checker": null,
+        "note": "No general independent playthrough oracle yet.",
+        "emitted": 141,
+        "certificates": 141,
+        "checks": 0,
+        "failures": 0
+      },
+      {
+        "id": "fact.winflow",
+        "status": "runtime",
+        "checker": "winflowCleanWinconditionChecks",
+        "note": "Truth of cached clean winconditions after observed rule applications.",
+        "emitted": 141,
+        "certificates": 141,
+        "checks": 40644,
+        "failures": 0
+      },
+      {
+        "id": "game.can_win",
+        "status": "descriptive",
+        "checker": null,
+        "note": "Syntax/role classification; can_win is not a reachability proof.",
+        "emitted": 141,
+        "certificates": 138,
+        "checks": 0,
+        "failures": 0
+      },
+      {
+        "id": "game.has_action_input",
+        "status": "descriptive",
+        "checker": null,
+        "note": "Syntax/role classification; can_win is not a reachability proof.",
+        "emitted": 141,
+        "certificates": 95,
+        "checks": 0,
+        "failures": 0
+      },
+      {
+        "id": "game.has_action_rules",
+        "status": "descriptive",
+        "checker": null,
+        "note": "Syntax/role classification; can_win is not a reachability proof.",
+        "emitted": 141,
+        "certificates": 65,
+        "checks": 0,
+        "failures": 0
+      },
+      {
+        "id": "game.has_again",
+        "status": "runtime",
+        "checker": "noAgainBoundaryChecks",
+        "note": "",
+        "emitted": 141,
+        "certificates": 71,
+        "checks": 259634,
+        "failures": 0
+      },
+      {
+        "id": "game.has_autonomous_tick_rules",
+        "status": "runtime",
+        "checker": "tickNoopBoundaryChecks",
+        "note": "",
+        "emitted": 141,
+        "certificates": 5,
+        "checks": 19546,
+        "failures": 0
+      },
+      {
+        "id": "game.has_random",
+        "status": "partial",
+        "checker": "noRandomReplayChecks",
+        "note": "Alternate-seed replay; explicit seeds currently excluded.",
+        "emitted": 141,
+        "certificates": 101,
+        "checks": 350198,
+        "failures": 0
+      },
+      {
+        "id": "game.has_rigid",
+        "status": "descriptive",
+        "checker": null,
+        "note": "Syntax/role classification; can_win is not a reachability proof.",
+        "emitted": 141,
+        "certificates": 4,
+        "checks": 0,
+        "failures": 0
+      },
+      {
+        "id": "game.mechanic_profile.blockers",
+        "status": "descriptive",
+        "checker": null,
+        "note": "Heuristic schema classification.",
+        "emitted": 141,
+        "certificates": 140,
+        "checks": 0,
+        "failures": 0
+      },
+      {
+        "id": "game.mechanic_profile.rule_schema_counts.pusher",
+        "status": "descriptive",
+        "checker": null,
+        "note": "Counts by heuristic schema name.",
+        "emitted": 88,
+        "certificates": 0,
+        "checks": 0,
+        "failures": 0
+      },
+      {
+        "id": "game.mechanic_profile.rule_schema_counts.spawner",
+        "status": "descriptive",
+        "checker": null,
+        "note": "Counts by heuristic schema name.",
+        "emitted": 133,
+        "certificates": 0,
+        "checks": 0,
+        "failures": 0
+      },
+      {
+        "id": "game.mechanic_profile.rule_schema_counts.transformer",
+        "status": "descriptive",
+        "checker": null,
+        "note": "Counts by heuristic schema name.",
+        "emitted": 82,
+        "certificates": 0,
+        "checks": 0,
+        "failures": 0
+      },
+      {
+        "id": "game.mechanic_profile.schemas",
+        "status": "descriptive",
+        "checker": null,
+        "note": "Heuristic schema classification.",
+        "emitted": 141,
+        "certificates": 140,
+        "checks": 0,
+        "failures": 0
+      },
+      {
+        "id": "game.run_rules_on_level_start",
+        "status": "descriptive",
+        "checker": null,
+        "note": "Syntax/role classification; can_win is not a reachability proof.",
+        "emitted": 141,
+        "certificates": 76,
+        "checks": 0,
+        "failures": 0
+      },
+      {
+        "id": "group.command_only",
+        "status": "descriptive",
+        "checker": null,
+        "note": "Rollup of rule classifications.",
+        "emitted": 9080,
+        "certificates": 301,
+        "checks": 0,
+        "failures": 0
+      },
+      {
+        "id": "group.group_skip_mask",
+        "status": "runtime",
+        "checker": "intra",
+        "note": "Actual group-entry states before movement resolution; bounded probes.",
+        "emitted": 2766,
+        "certificates": 1308,
+        "checks": 425465,
+        "failures": 0
+      },
+      {
+        "id": "group.has_again",
+        "status": "descriptive",
+        "checker": null,
+        "note": "Rollup of rule classifications.",
+        "emitted": 9080,
+        "certificates": 654,
+        "checks": 0,
+        "failures": 0
+      },
+      {
+        "id": "group.movement_only",
+        "status": "descriptive",
+        "checker": null,
+        "note": "Rollup of rule classifications.",
+        "emitted": 9080,
+        "certificates": 1110,
+        "checks": 0,
+        "failures": 0
+      },
+      {
+        "id": "group.object_mutating",
+        "status": "descriptive",
+        "checker": null,
+        "note": "Rollup of rule classifications.",
+        "emitted": 9080,
+        "certificates": 7584,
+        "checks": 0,
+        "failures": 0
+      },
+      {
+        "id": "group.single_pass_safe",
+        "status": "runtime",
+        "checker": "intra",
+        "note": "Actual group-entry states before movement resolution; bounded probes.",
+        "emitted": 2766,
+        "certificates": 40,
+        "checks": 43235,
+        "failures": 0
+      },
+      {
+        "id": "group.solver_state_active",
+        "status": "descriptive",
+        "checker": null,
+        "note": "Rollup of rule classifications.",
+        "emitted": 9080,
+        "certificates": 8986,
+        "checks": 0,
+        "failures": 0
+      },
+      {
+        "id": "group.split_candidate",
+        "status": "runtime",
+        "checker": "intra",
+        "note": "Actual group-entry states before movement resolution; bounded probes.",
+        "emitted": 2766,
+        "certificates": 64,
+        "checks": 71000,
+        "failures": 0
+      },
+      {
+        "id": "layer.inert",
+        "status": "runtime",
+        "checker": "inertLayerBoundaryChecks",
+        "note": "",
+        "emitted": 1811,
+        "certificates": 164,
+        "checks": 583737,
+        "failures": 0
+      },
+      {
+        "id": "layer.static",
+        "status": "runtime",
+        "checker": "staticLayerBoundaryChecks",
+        "note": "",
+        "emitted": 1811,
+        "certificates": 382,
+        "checks": 1075919,
+        "failures": 0
+      },
+      {
+        "id": "level.reachable_objects",
+        "status": "descriptive",
+        "checker": null,
+        "note": "Over-approximation; unreachable complement is checked.",
+        "emitted": 1571,
+        "certificates": 1571,
+        "checks": 0,
+        "failures": 0
+      },
+      {
+        "id": "level.unreachable_objects",
+        "status": "runtime",
+        "checker": "perLevelObjectUniverseChecks",
+        "note": "",
+        "emitted": 1571,
+        "certificates": 1299,
+        "checks": 7202444,
+        "failures": 0
+      },
+      {
+        "id": "object.cosmetic",
+        "status": "partial",
+        "checker": "cosmeticProjectionChecks",
+        "note": "Forward, deterministic solver projection only.",
+        "emitted": 5884,
+        "certificates": 830,
+        "checks": 429,
+        "failures": 0
+      },
+      {
+        "id": "object.may_be_created",
+        "status": "runtime",
+        "checker": "intra",
+        "note": "Cell-local rule replacements before movement resolution.",
+        "emitted": 5884,
+        "certificates": 1775,
+        "checks": 13303342,
+        "failures": 0
+      },
+      {
+        "id": "object.may_be_destroyed",
+        "status": "runtime",
+        "checker": "intra",
+        "note": "Cell-local rule replacements before movement resolution.",
+        "emitted": 5884,
+        "certificates": 1104,
+        "checks": 13093798,
+        "failures": 0
+      },
+      {
+        "id": "object.present_in_all_levels",
+        "status": "descriptive",
+        "checker": null,
+        "note": "Authored-level inventory.",
+        "emitted": 5884,
+        "certificates": 1257,
+        "checks": 0,
+        "failures": 0
+      },
+      {
+        "id": "object.present_in_no_levels",
+        "status": "descriptive",
+        "checker": null,
+        "note": "Authored-level inventory.",
+        "emitted": 5884,
+        "certificates": 3468,
+        "checks": 0,
+        "failures": 0
+      },
+      {
+        "id": "object.present_in_some_levels",
+        "status": "descriptive",
+        "checker": null,
+        "note": "Authored-level inventory.",
+        "emitted": 5884,
+        "certificates": 1159,
+        "checks": 0,
+        "failures": 0
+      },
+      {
+        "id": "object.quantity.never_decreases",
+        "status": "runtime",
+        "checker": "quantityBoundaryChecks",
+        "note": "",
+        "emitted": 5884,
+        "certificates": 1111,
+        "checks": 9370165,
+        "failures": 0
+      },
+      {
+        "id": "object.quantity.never_increases",
+        "status": "runtime",
+        "checker": "quantityBoundaryChecks",
+        "note": "",
+        "emitted": 5884,
+        "certificates": 1810,
+        "checks": 9370165,
+        "failures": 0
+      },
+      {
+        "id": "object.static",
+        "status": "runtime",
+        "checker": "objectBoundaryChecks",
+        "note": "",
+        "emitted": 5884,
+        "certificates": 745,
+        "checks": 2372123,
+        "failures": 0
+      },
+      {
+        "id": "object.temporary",
+        "status": "runtime",
+        "checker": "temporaryBoundaryChecks",
+        "note": "",
+        "emitted": 5884,
+        "certificates": 123,
+        "checks": 645841,
+        "failures": 0
+      },
+      {
+        "id": "rule.command_only",
+        "status": "descriptive",
+        "checker": null,
+        "note": "Compiled rule classification.",
+        "emitted": 33891,
+        "certificates": 912,
+        "checks": 0,
+        "failures": 0
+      },
+      {
+        "id": "rule.cosmetic",
+        "status": "partial",
+        "checker": "cosmeticRuleProjectionChecks",
+        "note": "Forward, deterministic solver suppression only.",
+        "emitted": 33891,
+        "certificates": 1688,
+        "checks": 611,
+        "failures": 0
+      },
+      {
+        "id": "rule.force_always_run",
+        "status": "descriptive",
+        "checker": null,
+        "note": "Compiled rule classification.",
+        "emitted": 33891,
+        "certificates": 14,
+        "checks": 0,
+        "failures": 0
+      },
+      {
+        "id": "rule.has_again",
+        "status": "descriptive",
+        "checker": null,
+        "note": "Compiled rule classification.",
+        "emitted": 33891,
+        "certificates": 1007,
+        "checks": 0,
+        "failures": 0
+      },
+      {
+        "id": "rule.idempotent_effect",
+        "status": "runtime",
+        "checker": "intra",
+        "note": "Isolated replacement/invocation; bounded tuple enumeration.",
+        "emitted": 33891,
+        "certificates": 3214,
+        "checks": 542688,
+        "failures": 0
+      },
+      {
+        "id": "rule.inert_command_only",
+        "status": "partial",
+        "checker": "inertCommandRuleSuppressionChecks",
+        "note": "Solver-state suppression, not UI/audio parity.",
+        "emitted": 33891,
+        "certificates": 436,
+        "checks": 641,
+        "failures": 0
+      },
+      {
+        "id": "rule.may_enable_other_matches",
+        "status": "runtime",
+        "checker": "intra",
+        "note": "Other tuples only; bounded tuple enumeration.",
+        "emitted": 33891,
+        "certificates": 14462,
+        "checks": 5815230,
+        "failures": 0
+      },
+      {
+        "id": "rule.may_invalidate_other_matches",
+        "status": "runtime",
+        "checker": "intra",
+        "note": "Other tuples only; bounded tuple enumeration.",
+        "emitted": 33891,
+        "certificates": 7154,
+        "checks": 5733612,
+        "failures": 0
+      },
+      {
+        "id": "rule.movement_only",
+        "status": "descriptive",
+        "checker": null,
+        "note": "Compiled rule classification.",
+        "emitted": 33891,
+        "certificates": 4731,
+        "checks": 0,
+        "failures": 0
+      },
+      {
+        "id": "rule.movements_matched",
+        "status": "partial",
+        "checker": "certifiedWakeMaskChecks",
+        "note": "Lowered wake-mask coverage checks related resources, not each individual list.",
+        "emitted": 33891,
+        "certificates": 18995,
+        "checks": 8080128,
+        "failures": 0
+      },
+      {
+        "id": "rule.movements_removed",
+        "status": "partial",
+        "checker": "certifiedWakeMaskChecks",
+        "note": "Lowered wake-mask coverage checks related resources, not each individual list.",
+        "emitted": 33891,
+        "certificates": 15406,
+        "checks": 8080128,
+        "failures": 0
+      },
+      {
+        "id": "rule.movements_required",
+        "status": "partial",
+        "checker": "certifiedWakeMaskChecks",
+        "note": "Lowered wake-mask coverage checks related resources, not each individual list.",
+        "emitted": 33891,
+        "certificates": 15492,
+        "checks": 8080128,
+        "failures": 0
+      },
+      {
+        "id": "rule.movements_written",
+        "status": "partial",
+        "checker": "certifiedWakeMaskChecks",
+        "note": "Lowered wake-mask coverage checks related resources, not each individual list.",
+        "emitted": 33891,
+        "certificates": 17783,
+        "checks": 8080128,
+        "failures": 0
+      },
+      {
+        "id": "rule.object_absences_matched",
+        "status": "partial",
+        "checker": "certifiedWakeMaskChecks",
+        "note": "Lowered wake-mask coverage checks related resources, not each individual list.",
+        "emitted": 33891,
+        "certificates": 11067,
+        "checks": 8080128,
+        "failures": 0
+      },
+      {
+        "id": "rule.object_mutating",
+        "status": "descriptive",
+        "checker": null,
+        "note": "Compiled rule classification.",
+        "emitted": 33891,
+        "certificates": 28112,
+        "checks": 0,
+        "failures": 0
+      },
+      {
+        "id": "rule.objects_erased",
+        "status": "partial",
+        "checker": "certifiedWakeMaskChecks",
+        "note": "Lowered wake-mask coverage checks related resources, not each individual list.",
+        "emitted": 33891,
+        "certificates": 23691,
+        "checks": 8080128,
+        "failures": 0
+      },
+      {
+        "id": "rule.objects_matched",
+        "status": "partial",
+        "checker": "certifiedWakeMaskChecks",
+        "note": "Lowered wake-mask coverage checks related resources, not each individual list.",
+        "emitted": 33891,
+        "certificates": 33856,
+        "checks": 8080128,
+        "failures": 0
+      },
+      {
+        "id": "rule.objects_required",
+        "status": "partial",
+        "checker": "certifiedWakeMaskChecks",
+        "note": "Lowered wake-mask coverage checks related resources, not each individual list.",
+        "emitted": 33891,
+        "certificates": 32459,
+        "checks": 8080128,
+        "failures": 0
+      },
+      {
+        "id": "rule.objects_written",
+        "status": "partial",
+        "checker": "certifiedWakeMaskChecks",
+        "note": "Lowered wake-mask coverage checks related resources, not each individual list.",
+        "emitted": 33891,
+        "certificates": 21917,
+        "checks": 8080128,
+        "failures": 0
+      },
+      {
+        "id": "rule.persistent_guard",
+        "status": "partial",
+        "checker": "intra",
+        "note": "Committed forward boundaries between restorations; rigid games excluded.",
+        "emitted": 33891,
+        "certificates": 315,
+        "checks": 1273898,
+        "failures": 0
+      },
+      {
+        "id": "rule.reads_action",
+        "status": "descriptive",
+        "checker": null,
+        "note": "Compiled rule classification.",
+        "emitted": 33891,
+        "certificates": 2938,
+        "checks": 0,
+        "failures": 0
+      },
+      {
+        "id": "rule.rigid_active",
+        "status": "descriptive",
+        "checker": null,
+        "note": "Compiled rule classification.",
+        "emitted": 156,
+        "certificates": 156,
+        "checks": 0,
+        "failures": 0
+      },
+      {
+        "id": "rule.self_disabling",
+        "status": "runtime",
+        "checker": "intra",
+        "note": "Isolated replacement/invocation; bounded tuple enumeration.",
+        "emitted": 33891,
+        "certificates": 4224,
+        "checks": 2621553,
+        "failures": 0
+      },
+      {
+        "id": "rule.setup_only",
+        "status": "partial",
+        "checker": "intra",
+        "note": "Committed forward boundaries between restorations; rigid games excluded.",
+        "emitted": 33891,
+        "certificates": 25,
+        "checks": 8635,
+        "failures": 0
+      },
+      {
+        "id": "rule.solver_state_active",
+        "status": "descriptive",
+        "checker": null,
+        "note": "Compiled rule classification.",
+        "emitted": 33891,
+        "certificates": 33431,
+        "checks": 0,
+        "failures": 0
+      },
+      {
+        "id": "rule.writes_movement",
+        "status": "descriptive",
+        "checker": null,
+        "note": "Compiled rule classification.",
+        "emitted": 33891,
+        "certificates": 20526,
+        "checks": 0,
+        "failures": 0
+      },
+      {
+        "id": "win.object_absences_matched",
+        "status": "descriptive",
+        "checker": null,
+        "note": "Compiled win-condition reads.",
+        "emitted": 194,
+        "certificates": 62,
+        "checks": 0,
+        "failures": 0
+      },
+      {
+        "id": "win.objects_matched",
+        "status": "descriptive",
+        "checker": null,
+        "note": "Compiled win-condition reads.",
+        "emitted": 194,
+        "certificates": 135,
+        "checks": 0,
+        "failures": 0
+      },
+      {
+        "id": "win.plain",
+        "status": "descriptive",
+        "checker": null,
+        "note": "Compiled win-condition reads.",
+        "emitted": 194,
+        "certificates": 79,
+        "checks": 0,
+        "failures": 0
+      },
+      {
+        "id": "win.subjects_matched",
+        "status": "descriptive",
+        "checker": null,
+        "note": "Compiled win-condition reads.",
+        "emitted": 194,
+        "certificates": 132,
+        "checks": 0,
+        "failures": 0
+      },
+      {
+        "id": "win.targets_matched",
+        "status": "descriptive",
+        "checker": null,
+        "note": "Compiled win-condition reads.",
+        "emitted": 194,
+        "certificates": 115,
+        "checks": 0,
+        "failures": 0
+      }
+    ],
+    "uncheckedClaims": [
+      "fact.program_flow",
+      "fact.win_relevance"
+    ],
+    "unexercisedClaims": []
+  },
+  "verification": {
+    "engineSimulationAndCompilerTests": 794,
+    "engineFailures": 0,
+    "recordedCases": 473,
+    "recordedAnalysisUnavailable": 15,
+    "oracleRegressionCases": 18,
+    "analysisSuite": "make static_analysis_tests passed",
+    "recordedIntraTurnSuite": "node src/tests/run_static_analysis_runtime_contracts_node.js --intra-turn passed",
+    "oracleVariants": "18 cases passed with incremental pruning disabled and with match-interaction optimizations disabled",
+    "galleryRunnerTests": "Manifest hashes, all-level enumeration, seeded no-random checks, resume rejection, watchdog interruption/continuation/finalization passed"
+  },
+  "synthetic": {
+    "command": "make static_analysis_synthetic_audit",
+    "uniquePrograms": 625,
+    "authoredBoards": 6875,
+    "seed": 19,
+    "maxProbes": 32,
+    "maxTuples": 64,
+    "checks": {
+      "object.may_be_created": 180888,
+      "object.may_be_destroyed": 180888,
+      "rule.may_invalidate_other_matches": 119135,
+      "rule.may_enable_other_matches": 119954,
+      "rule.self_disabling": 13488,
+      "rule.idempotent_effect": 11012,
+      "runtime.rule_reference_parity": 38155,
+      "group.single_pass_safe": 880,
+      "group.split_candidate": 1914,
+      "rule.persistent_guard": 13391,
+      "rule.setup_only.quiescence": 1290
+    },
+    "skipped": {
+      "no_matches": 47565,
+      "probe_budget": 262202
+    },
+    "failures": []
+  },
+  "knownGaps": [
+    "program_flow and win_relevance have no general independent runtime oracle.",
+    "Rigid lifetime checks and direct random-group applications are skipped.",
+    "Groups differing after compiler duplicate removal are skipped individually.",
+    "Tuple/probe budgets limit within-turn coverage; shared counters do not establish coverage of every subject instance.",
+    "Cosmetic/merge parity excludes random games and undo traces.",
+    "Reference execution shares lowered engine primitives; it independently checks scheduling, not parser/compiler lowering."
+  ],
+  "sources": [
+    {
+      "index": 0,
+      "title": "2D Whale World",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/6841165.txt",
+      "sha256": "d341f7c681d41677f9f85d9cc5196db0b7a3f29408c7d8c8f7bb48f563d1d297",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        5,
+        7,
+        9,
+        11,
+        13,
+        15
+      ],
+      "tracesPassed": 32,
+      "inputs": 2560,
+      "intraTurnChecks": {
+        "group.single_pass_safe": 1417,
+        "group.split_candidate": 1417,
+        "object.may_be_created": 364835,
+        "object.may_be_destroyed": 364835,
+        "runtime.rule_reference_parity": 15023,
+        "rule.may_invalidate_other_matches": 58423,
+        "rule.may_enable_other_matches": 58423,
+        "rule.self_disabling": 57937,
+        "rule.idempotent_effect": 2733,
+        "group.group_skip_mask": 46
+      },
+      "skips": {
+        "no_matches": 13856,
+        "probe_budget": 24791
+      }
+    },
+    {
+      "index": 1,
+      "title": "Microban",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/6841219.txt",
+      "sha256": "f3b2815e76d4192a325f069e50dc5bd1d5aa336e72b79b606320cf30a0b0cc13",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        5,
+        7,
+        9,
+        11,
+        13,
+        15,
+        17,
+        19
+      ],
+      "tracesPassed": 40,
+      "inputs": 3200,
+      "intraTurnChecks": {
+        "group.group_skip_mask": 261,
+        "object.may_be_created": 1112,
+        "object.may_be_destroyed": 1112,
+        "runtime.rule_reference_parity": 556
+      },
+      "skips": {
+        "no_matches": 1909
+      }
+    },
+    {
+      "index": 2,
+      "title": "Lime Rick",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/6841210.txt",
+      "sha256": "e8625400924fe39cbe93687fcc3427059c819980fb707b8afc8899ab5ed22901",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        5,
+        7,
+        9,
+        11,
+        13,
+        15,
+        17,
+        19,
+        21
+      ],
+      "tracesPassed": 44,
+      "inputs": 3520,
+      "intraTurnChecks": {
+        "object.may_be_created": 3738,
+        "object.may_be_destroyed": 3738,
+        "runtime.rule_reference_parity": 2701,
+        "rule.may_invalidate_other_matches": 1668,
+        "rule.may_enable_other_matches": 1668
+      },
+      "skips": {
+        "no_matches": 18873
+      }
+    },
+    {
+      "index": 3,
+      "title": "Multi-word Dictionary Game",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/6845074.txt",
+      "sha256": "ec595bf18ea4c3f7493a571a01e96f310b2d57dea701e4676fc12cc28b55794b",
+      "status": "complete",
+      "levels": [
+        0
+      ],
+      "tracesPassed": 4,
+      "inputs": 320,
+      "intraTurnChecks": {
+        "object.may_be_created": 240,
+        "object.may_be_destroyed": 240,
+        "runtime.rule_reference_parity": 120
+      },
+      "skips": {
+        "no_matches": 1020
+      }
+    },
+    {
+      "index": 4,
+      "title": "Midas",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/6878337.txt",
+      "sha256": "1375abffab652e1cacfefa2f151d3d57bb028bca3c0eb3bac522519d9f2ee091",
+      "status": "complete",
+      "levels": [
+        0,
+        2,
+        4,
+        6,
+        8,
+        11,
+        13,
+        15,
+        17,
+        19,
+        21,
+        23,
+        25,
+        27,
+        29
+      ],
+      "tracesPassed": 60,
+      "inputs": 4769,
+      "intraTurnChecks": {
+        "object.may_be_created": 38611,
+        "object.may_be_destroyed": 38611,
+        "rule.may_invalidate_other_matches": 30519,
+        "rule.may_enable_other_matches": 31157,
+        "runtime.rule_reference_parity": 9665,
+        "rule.self_disabling": 1293,
+        "rule.idempotent_effect": 549,
+        "group.group_skip_mask": 785
+      },
+      "skips": {
+        "no_matches": 102311
+      }
+    },
+    {
+      "index": 5,
+      "title": "It Dies In The Light",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/6847423.txt",
+      "sha256": "d0360b9db069d1dcf1772a60d896be3fb81ada0961f24a9fc5a584924eeeaa87",
+      "status": "complete",
+      "levels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "tracesPassed": 16,
+      "inputs": 1280,
+      "intraTurnChecks": {
+        "object.may_be_created": 80587,
+        "object.may_be_destroyed": 80587,
+        "runtime.rule_reference_parity": 11017,
+        "rule.may_invalidate_other_matches": 64932,
+        "rule.may_enable_other_matches": 64932,
+        "rule.idempotent_effect": 1407,
+        "group.group_skip_mask": 307,
+        "rule.self_disabling": 181
+      },
+      "skips": {
+        "no_replacement": 5764,
+        "no_matches": 73227,
+        "probe_budget": 19356,
+        "tuple_budget": 341
+      }
+    },
+    {
+      "index": 6,
+      "title": "Love and Pieces",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/6846450.txt",
+      "sha256": "f4a145c90a6867521c0923ab379b53fa282c88127902773f2a0ca91e2e44331b",
+      "status": "complete",
+      "levels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "tracesPassed": 36,
+      "inputs": 2880,
+      "intraTurnChecks": {
+        "group.group_skip_mask": 726,
+        "object.may_be_created": 470,
+        "object.may_be_destroyed": 470,
+        "rule.self_disabling": 235,
+        "runtime.rule_reference_parity": 216
+      },
+      "skips": {
+        "no_replacement": 10992,
+        "no_matches": 11552
+      }
+    },
+    {
+      "index": 7,
+      "title": "Heroes of Sokoban",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/6860122.txt",
+      "sha256": "81a1d27115fc40c04f27bb39d0ef12ebffbea513e3fe9f550b5173bb683728a3",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        5,
+        7,
+        9,
+        10,
+        11,
+        13,
+        14,
+        15,
+        17,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29
+      ],
+      "tracesPassed": 88,
+      "inputs": 7040,
+      "intraTurnChecks": {
+        "group.group_skip_mask": 4276,
+        "object.may_be_created": 13599,
+        "object.may_be_destroyed": 13599,
+        "runtime.rule_reference_parity": 7203,
+        "rule.may_invalidate_other_matches": 1700,
+        "rule.may_enable_other_matches": 1700,
+        "rule.self_disabling": 36
+      },
+      "skips": {
+        "no_matches": 115104,
+        "tuple_budget": 30
+      }
+    },
+    {
+      "index": 8,
+      "title": "MC Escher's Equestrian Armageddon",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/6851495.txt",
+      "sha256": "4b78e1872e8b25b5986fc3a59d899e64c3c05be6ece0cfe1fb1f5c7653d54dc1",
+      "status": "complete",
+      "levels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "tracesPassed": 16,
+      "inputs": 1280,
+      "intraTurnChecks": {
+        "object.may_be_created": 2060,
+        "object.may_be_destroyed": 2060,
+        "rule.may_invalidate_other_matches": 900,
+        "rule.may_enable_other_matches": 900,
+        "runtime.rule_reference_parity": 1480
+      },
+      "skips": {
+        "no_matches": 51461
+      }
+    },
+    {
+      "index": 9,
+      "title": "IceCrates",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/6877049.txt",
+      "sha256": "ac6d396fe7688649fb59e06b42282ca2d0de1b53f17c7647e6f35c129d57f53b",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        5,
+        7,
+        9,
+        11
+      ],
+      "tracesPassed": 24,
+      "inputs": 1806,
+      "intraTurnChecks": {
+        "object.may_be_created": 15196,
+        "object.may_be_destroyed": 15196,
+        "runtime.rule_reference_parity": 9062,
+        "rule.may_invalidate_other_matches": 10341,
+        "rule.may_enable_other_matches": 10341,
+        "rule.self_disabling": 6032,
+        "rule.idempotent_effect": 2790
+      },
+      "skips": {
+        "no_matches": 222865
+      }
+    },
+    {
+      "index": 10,
+      "title": "Dungeon Janitor",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/6866423.txt",
+      "sha256": "3a28955fd5386f144aad5f41bc3934e4694c83b15075d8c6a6d4b80e6dbea37e",
+      "status": "complete",
+      "levels": [
+        2,
+        4,
+        6,
+        9
+      ],
+      "tracesPassed": 16,
+      "inputs": 1137,
+      "intraTurnChecks": {
+        "object.may_be_created": 43700,
+        "object.may_be_destroyed": 43700,
+        "rule.may_invalidate_other_matches": 24610,
+        "rule.may_enable_other_matches": 27651,
+        "rule.self_disabling": 5117,
+        "rule.idempotent_effect": 9483,
+        "runtime.rule_reference_parity": 11857,
+        "group.group_skip_mask": 23
+      },
+      "skips": {
+        "unmapped_early_groups": 64,
+        "random_group_direct_application": 1075,
+        "no_matches": 18309,
+        "probe_budget": 3812
+      }
+    },
+    {
+      "index": 11,
+      "title": "Collapse",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/11358856.txt",
+      "sha256": "07d0cb245ff1822ed0be6a8e9cc5ee4415222182171c44a4f79062afc7df53d2",
+      "status": "complete",
+      "levels": [
+        2,
+        3
+      ],
+      "tracesPassed": 8,
+      "inputs": 640,
+      "intraTurnChecks": {
+        "object.may_be_created": 43181,
+        "object.may_be_destroyed": 43181,
+        "rule.may_invalidate_other_matches": 23457,
+        "rule.may_enable_other_matches": 24181,
+        "runtime.rule_reference_parity": 1373,
+        "rule.self_disabling": 1045,
+        "rule.idempotent_effect": 299,
+        "group.group_skip_mask": 1226
+      },
+      "skips": {
+        "no_matches": 26126,
+        "random_group_direct_application": 2010,
+        "tuple_budget": 1312,
+        "probe_budget": 4896
+      }
+    },
+    {
+      "index": 12,
+      "title": "Explod",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/6877929.txt",
+      "sha256": "d8dc7ad911d91accc9e6543cd6b8a8081218b3a0316219ee8d1f7e989f88b74a",
+      "status": "complete",
+      "levels": [
+        1,
+        2,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12
+      ],
+      "tracesPassed": 40,
+      "inputs": 3200,
+      "intraTurnChecks": {
+        "object.may_be_created": 43838,
+        "object.may_be_destroyed": 43838,
+        "rule.may_invalidate_other_matches": 14062,
+        "rule.may_enable_other_matches": 16117,
+        "runtime.rule_reference_parity": 11997,
+        "rule.self_disabling": 11623,
+        "rule.idempotent_effect": 4077,
+        "group.group_skip_mask": 1431
+      },
+      "skips": {
+        "no_matches": 123880,
+        "no_replacement": 3169,
+        "tuple_budget": 6
+      }
+    },
+    {
+      "index": 13,
+      "title": "Cake Monsters",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/fcf4b43ee6c679ef9389.txt",
+      "sha256": "2dc20187b2be5d387f36dc9ff25bacbc1a87f8c98acd55e2b3c4ea90470803d2",
+      "status": "complete",
+      "levels": [
+        2,
+        4,
+        7,
+        9,
+        11,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        20,
+        21,
+        22,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        31,
+        32,
+        33,
+        34,
+        35,
+        37,
+        38,
+        39,
+        40,
+        41,
+        43,
+        44,
+        46,
+        47,
+        49,
+        52
+      ],
+      "tracesPassed": 144,
+      "inputs": 11415,
+      "intraTurnChecks": {
+        "object.may_be_created": 29241,
+        "object.may_be_destroyed": 29241,
+        "rule.may_invalidate_other_matches": 16792,
+        "rule.may_enable_other_matches": 16792,
+        "runtime.rule_reference_parity": 12682
+      },
+      "skips": {
+        "no_matches": 259771
+      }
+    },
+    {
+      "index": 14,
+      "title": "Kettle",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/6878681.txt",
+      "sha256": "df99ad2980afbe2e8b71c11272b54a43cbf7e7f2c9907a7e706e8b9c85ae18ef",
+      "status": "complete",
+      "levels": [
+        1,
+        4,
+        7,
+        10,
+        13,
+        16,
+        19,
+        22,
+        25,
+        28,
+        31
+      ],
+      "tracesPassed": 44,
+      "inputs": 3451,
+      "intraTurnChecks": {
+        "object.may_be_created": 257115,
+        "object.may_be_destroyed": 257115,
+        "rule.may_invalidate_other_matches": 48281,
+        "rule.may_enable_other_matches": 48281,
+        "runtime.rule_reference_parity": 21305,
+        "group.group_skip_mask": 141
+      },
+      "skips": {
+        "no_matches": 129
+      }
+    },
+    {
+      "index": 15,
+      "title": "Ebony & Ivory",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/6879013.txt",
+      "sha256": "81f31d61883fcb26c2c37dfdb49c2a29bbfac0794d5604425b6a3a08a6190c2d",
+      "status": "complete",
+      "levels": [
+        0
+      ],
+      "tracesPassed": 4,
+      "inputs": 320,
+      "intraTurnChecks": {
+        "object.may_be_created": 686,
+        "object.may_be_destroyed": 686,
+        "runtime.rule_reference_parity": 332
+      },
+      "skips": {
+        "no_matches": 3078
+      }
+    },
+    {
+      "index": 16,
+      "title": "Bouncers",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/9675709.txt",
+      "sha256": "3b555da89430147a3e1bce70c8a98da9256024c05a8d2d237ab52a521578bd11",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        5,
+        7,
+        9
+      ],
+      "tracesPassed": 20,
+      "inputs": 1600,
+      "intraTurnChecks": {
+        "group.group_skip_mask": 1340,
+        "object.may_be_created": 1619,
+        "object.may_be_destroyed": 1619,
+        "runtime.rule_reference_parity": 726,
+        "rule.self_disabling": 275,
+        "rule.may_invalidate_other_matches": 416,
+        "rule.may_enable_other_matches": 416
+      },
+      "skips": {
+        "no_matches": 38940
+      }
+    },
+    {
+      "index": 17,
+      "title": "The Legend of Zokoban",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/6880313.txt",
+      "sha256": "73fc0b03c92e6b1cbd48ef4151c29553a08b9ac47a762fddde3dfc8ba4ace17f",
+      "status": "complete",
+      "levels": [
+        0
+      ],
+      "tracesPassed": 4,
+      "inputs": 320,
+      "intraTurnChecks": {
+        "object.may_be_created": 3032,
+        "object.may_be_destroyed": 3032,
+        "rule.may_invalidate_other_matches": 3020,
+        "rule.may_enable_other_matches": 3020,
+        "runtime.rule_reference_parity": 308
+      },
+      "skips": {
+        "no_matches": 6650,
+        "no_replacement": 1208,
+        "random_group_direct_application": 906
+      }
+    },
+    {
+      "index": 18,
+      "title": "Dang I'm Huge",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/9a76ddbe9e8f687c2a75.txt",
+      "sha256": "03a3c3058316d5d88433b6f8cf0f2211ce07da9c49ccfcf95f662875f6155386",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        5,
+        7,
+        9,
+        11,
+        13,
+        15
+      ],
+      "tracesPassed": 32,
+      "inputs": 2560,
+      "intraTurnChecks": {
+        "object.may_be_created": 2670,
+        "object.may_be_destroyed": 2670,
+        "rule.may_enable_other_matches": 334,
+        "rule.self_disabling": 333,
+        "rule.idempotent_effect": 333,
+        "runtime.rule_reference_parity": 1518
+      },
+      "skips": {
+        "no_matches": 191702,
+        "rigid_lifetime_scope": 2520
+      }
+    },
+    {
+      "index": 19,
+      "title": "tiny treasure hunt",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/7072266.txt",
+      "sha256": "98388cead0e79611b2ff44abb13eacb91abd93cbac4be4998ed5698869e4a730",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        5,
+        7,
+        9,
+        11,
+        13
+      ],
+      "tracesPassed": 28,
+      "inputs": 2240,
+      "intraTurnChecks": {
+        "object.may_be_created": 159358,
+        "object.may_be_destroyed": 159358,
+        "rule.may_invalidate_other_matches": 158772,
+        "rule.may_enable_other_matches": 158772,
+        "runtime.rule_reference_parity": 5289,
+        "group.group_skip_mask": 6014,
+        "rule.self_disabling": 69,
+        "rule.idempotent_effect": 69
+      },
+      "skips": {
+        "no_matches": 106509,
+        "tuple_budget": 20,
+        "probe_budget": 94
+      }
+    },
+    {
+      "index": 20,
+      "title": "Heroes of Sokoban II: Monsters",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/6910207.txt",
+      "sha256": "1cfdaca0f27c8a3cb7c8168a497ba88833077d0820420c91100a8087486fa890",
+      "status": "complete",
+      "levels": [
+        3,
+        5,
+        6,
+        8,
+        10,
+        12,
+        13,
+        15,
+        17,
+        19,
+        20,
+        21,
+        23,
+        24,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        34
+      ],
+      "tracesPassed": 88,
+      "inputs": 7040,
+      "intraTurnChecks": {
+        "object.may_be_created": 78622,
+        "object.may_be_destroyed": 78622,
+        "rule.may_invalidate_other_matches": 24617,
+        "rule.may_enable_other_matches": 24796,
+        "runtime.rule_reference_parity": 42609,
+        "rule.self_disabling": 7628,
+        "rule.idempotent_effect": 12034,
+        "group.group_skip_mask": 1759
+      },
+      "skips": {
+        "no_matches": 301994,
+        "no_replacement": 13318,
+        "tuple_budget": 111,
+        "probe_budget": 8067
+      }
+    },
+    {
+      "index": 21,
+      "title": "Sok7",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/6906326.txt",
+      "sha256": "2182c2ff4b4f86ecd271e5a3e67743d5b52274fafea8dad89f9207c1383605ed",
+      "status": "complete",
+      "levels": [
+        0
+      ],
+      "tracesPassed": 4,
+      "inputs": 320,
+      "intraTurnChecks": {
+        "object.may_be_created": 43927,
+        "object.may_be_destroyed": 43927,
+        "rule.may_invalidate_other_matches": 43427,
+        "rule.may_enable_other_matches": 43427,
+        "rule.idempotent_effect": 2491,
+        "runtime.rule_reference_parity": 2885,
+        "rule.self_disabling": 7712,
+        "group.group_skip_mask": 31
+      },
+      "skips": {
+        "unmapped_early_groups": 16,
+        "no_matches": 33306,
+        "probe_budget": 406
+      }
+    },
+    {
+      "index": 22,
+      "title": "Take Heart Lass",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/6902186.txt",
+      "sha256": "acfdc7fde4c15511b8a2e82cc65a8c368c0dffb96423b93b8391ad6a88991032",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        5,
+        7,
+        9,
+        11,
+        13,
+        15,
+        17,
+        19,
+        21,
+        23
+      ],
+      "tracesPassed": 48,
+      "inputs": 3743,
+      "intraTurnChecks": {
+        "object.may_be_created": 53576,
+        "object.may_be_destroyed": 53576,
+        "runtime.rule_reference_parity": 17516,
+        "rule.may_enable_other_matches": 9014,
+        "rule.self_disabling": 8820,
+        "rule.idempotent_effect": 4732,
+        "rule.may_invalidate_other_matches": 4538,
+        "group.group_skip_mask": 3555,
+        "rule.persistent_guard": 15101
+      },
+      "skips": {
+        "no_matches": 175289,
+        "probe_budget": 45442
+      }
+    },
+    {
+      "index": 23,
+      "title": "Ponies Jumping Synchronously",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/6872613.txt",
+      "sha256": "8b82f3605c73dcb1fac05746777d052c3b2f8a0aefdd6f258d90d4963bcfcff5",
+      "status": "complete",
+      "levels": [
+        0,
+        2,
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        17,
+        19,
+        21,
+        23
+      ],
+      "tracesPassed": 48,
+      "inputs": 3803,
+      "intraTurnChecks": {
+        "group.group_skip_mask": 5660,
+        "object.may_be_created": 3865,
+        "object.may_be_destroyed": 3865,
+        "rule.may_invalidate_other_matches": 1007,
+        "rule.may_enable_other_matches": 1007,
+        "runtime.rule_reference_parity": 2403,
+        "rule.self_disabling": 11,
+        "rule.idempotent_effect": 11
+      },
+      "skips": {
+        "unmapped_early_groups": 48,
+        "no_replacement": 14476,
+        "no_matches": 174548,
+        "probe_budget": 13030
+      }
+    },
+    {
+      "index": 24,
+      "title": "Closure Demake",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/9675998.txt",
+      "sha256": "7f293a08e76ff8b75d4437aa8e4a2583151e427ac9284cb6d432a739eb610ed0",
+      "status": "complete",
+      "levels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "tracesPassed": 24,
+      "inputs": 1920,
+      "intraTurnChecks": {
+        "object.may_be_created": 151255,
+        "object.may_be_destroyed": 151255,
+        "rule.may_invalidate_other_matches": 84566,
+        "rule.may_enable_other_matches": 84586,
+        "runtime.rule_reference_parity": 14499,
+        "rule.self_disabling": 38035,
+        "rule.idempotent_effect": 3293,
+        "group.group_skip_mask": 660
+      },
+      "skips": {
+        "no_matches": 89430,
+        "tuple_budget": 742,
+        "probe_budget": 48061
+      }
+    },
+    {
+      "index": 25,
+      "title": "Memories Of Castlemouse",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/6976592.txt",
+      "sha256": "6c355c0a116cbb400aafcff82a9aa6a72f921e70c9a2bc569efe779043b3e83e",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        5,
+        7,
+        9,
+        11,
+        13,
+        15,
+        17,
+        19
+      ],
+      "tracesPassed": 40,
+      "inputs": 2949,
+      "intraTurnChecks": {
+        "object.may_be_created": 2854,
+        "object.may_be_destroyed": 2854,
+        "rule.may_invalidate_other_matches": 2124,
+        "rule.may_enable_other_matches": 2290,
+        "runtime.rule_reference_parity": 2491,
+        "group.group_skip_mask": 11884
+      },
+      "skips": {
+        "no_matches": 1043379,
+        "probe_budget": 48149
+      }
+    },
+    {
+      "index": 26,
+      "title": "Atlas Shrank",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/6994394.txt",
+      "sha256": "5e3b8e9b0e01911742632dfda598b7818383e4e09a6f44940aa72a1188752eb3",
+      "status": "complete",
+      "levels": [
+        1,
+        4,
+        5,
+        6,
+        8,
+        10,
+        11,
+        12,
+        14,
+        15,
+        16,
+        17
+      ],
+      "tracesPassed": 48,
+      "inputs": 3774,
+      "intraTurnChecks": {
+        "object.may_be_created": 147229,
+        "object.may_be_destroyed": 147229,
+        "runtime.rule_reference_parity": 24032,
+        "rule.may_invalidate_other_matches": 103461,
+        "rule.may_enable_other_matches": 103817,
+        "rule.self_disabling": 21727,
+        "rule.idempotent_effect": 4500
+      },
+      "skips": {
+        "unmapped_early_groups": 192,
+        "no_matches": 136896,
+        "no_replacement": 7788
+      }
+    },
+    {
+      "index": 27,
+      "title": "Colour Chained",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/6990366.txt",
+      "sha256": "82c30587f3ea98e9e082868d81c54a421fd3dbea0c3e8cb573ea9a62cd61132a",
+      "status": "complete",
+      "levels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        14
+      ],
+      "tracesPassed": 48,
+      "inputs": 3840,
+      "intraTurnChecks": {
+        "object.may_be_created": 150005,
+        "object.may_be_destroyed": 150005,
+        "rule.may_invalidate_other_matches": 116242,
+        "rule.may_enable_other_matches": 114384,
+        "rule.idempotent_effect": 3513,
+        "runtime.rule_reference_parity": 20257,
+        "rule.self_disabling": 22927,
+        "group.group_skip_mask": 5180
+      },
+      "skips": {
+        "unmapped_early_groups": 192,
+        "no_matches": 918732,
+        "random_group_direct_application": 4304,
+        "no_replacement": 21520,
+        "probe_budget": 139410
+      }
+    },
+    {
+      "index": 28,
+      "title": "Sokobond: The Demake",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/7005648.txt",
+      "sha256": "901503220447f50c22af82126ca1aa26ddfc6017c886af342a80ebb828df9845",
+      "status": "complete",
+      "levels": [
+        2,
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        26,
+        28,
+        30
+      ],
+      "tracesPassed": 60,
+      "inputs": 4739,
+      "intraTurnChecks": {
+        "object.may_be_created": 29679,
+        "object.may_be_destroyed": 29679,
+        "rule.may_invalidate_other_matches": 22613,
+        "rule.may_enable_other_matches": 22613,
+        "runtime.rule_reference_parity": 16354,
+        "rule.self_disabling": 537,
+        "rule.idempotent_effect": 473
+      },
+      "skips": {
+        "no_matches": 368929,
+        "no_replacement": 18456
+      }
+    },
+    {
+      "index": 29,
+      "title": "Tunnel Rat",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/7047165.txt",
+      "sha256": "4d463f5be75cb6672c2883a7d2127865794fa45f2b312cbdf3abe326f4d045a7",
+      "status": "complete",
+      "levels": [
+        1,
+        3
+      ],
+      "tracesPassed": 8,
+      "inputs": 640,
+      "intraTurnChecks": {
+        "group.split_candidate": 677,
+        "object.may_be_created": 33468,
+        "object.may_be_destroyed": 33468,
+        "runtime.rule_reference_parity": 2734,
+        "group.group_skip_mask": 705,
+        "rule.may_enable_other_matches": 25265,
+        "rule.may_invalidate_other_matches": 24520,
+        "rule.self_disabling": 172,
+        "rule.idempotent_effect": 67
+      },
+      "skips": {
+        "unmapped_early_groups": 16,
+        "no_replacement": 847,
+        "no_matches": 73071,
+        "random_group_direct_application": 22885,
+        "tuple_budget": 109,
+        "probe_budget": 1774
+      }
+    },
+    {
+      "index": 30,
+      "title": "cute train",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/9121824.txt",
+      "sha256": "e15ec9fcf093e6ef16573a0650577944329ace16214082008b62c674cab280bd",
+      "status": "complete",
+      "levels": [
+        1
+      ],
+      "tracesPassed": 4,
+      "inputs": 320,
+      "intraTurnChecks": {},
+      "skips": {
+        "tuple_budget": 618,
+        "no_matches": 19158
+      }
+    },
+    {
+      "index": 31,
+      "title": "Manic Ammo",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/7057244.txt",
+      "sha256": "66a18f3c19d27587faa98bbaa7bce6dab7fce81751bd26ba21bb6b3b5deda79b",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        5,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        26,
+        28,
+        30
+      ],
+      "tracesPassed": 60,
+      "inputs": 4657,
+      "intraTurnChecks": {
+        "group.group_skip_mask": 1968,
+        "object.may_be_created": 102577,
+        "object.may_be_destroyed": 102577,
+        "runtime.rule_reference_parity": 2994,
+        "rule.self_disabling": 36,
+        "rule.may_invalidate_other_matches": 49262,
+        "rule.may_enable_other_matches": 315,
+        "rule.idempotent_effect": 11,
+        "rule.persistent_guard": 470
+      },
+      "skips": {
+        "no_matches": 120551,
+        "no_replacement": 4416,
+        "probe_budget": 52651
+      }
+    },
+    {
+      "index": 32,
+      "title": "Heroes of Sokoban III: The Bard and The Druid",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/7072276.txt",
+      "sha256": "f66ceb8f8a2c23a3cb270bad62cdf194e47479772cab94f154ed26f0ff7c20e0",
+      "status": "complete",
+      "levels": [
+        3,
+        5,
+        6,
+        8,
+        10,
+        11,
+        12,
+        13,
+        14,
+        16,
+        17,
+        18,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        30,
+        31
+      ],
+      "tracesPassed": 88,
+      "inputs": 7040,
+      "intraTurnChecks": {
+        "group.group_skip_mask": 17412,
+        "object.may_be_created": 73965,
+        "object.may_be_destroyed": 73965,
+        "runtime.rule_reference_parity": 15969,
+        "rule.may_invalidate_other_matches": 21455,
+        "rule.may_enable_other_matches": 26481,
+        "rule.self_disabling": 2510,
+        "rule.idempotent_effect": 1393
+      },
+      "skips": {
+        "no_matches": 838880,
+        "no_replacement": 13922,
+        "probe_budget": 87406
+      }
+    },
+    {
+      "index": 33,
+      "title": "Cratopia",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/7114130.txt",
+      "sha256": "93c0d50befa084b5a5c6e0c569a53d7a0b99414e76512b5627c1a0720c72dfee",
+      "status": "complete",
+      "levels": [
+        2,
+        3,
+        5,
+        9,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23
+      ],
+      "tracesPassed": 68,
+      "inputs": 4480,
+      "intraTurnChecks": {
+        "object.may_be_created": 157112,
+        "object.may_be_destroyed": 157112,
+        "rule.may_invalidate_other_matches": 72686,
+        "rule.may_enable_other_matches": 103554,
+        "runtime.rule_reference_parity": 17317,
+        "group.group_skip_mask": 9029,
+        "rule.self_disabling": 24614,
+        "rule.idempotent_effect": 2531,
+        "rule.persistent_guard": 320140
+      },
+      "skips": {
+        "no_matches": 399204,
+        "probe_budget": 10302,
+        "zero_input_trace": 12,
+        "tuple_budget": 128
+      }
+    },
+    {
+      "index": 34,
+      "title": "Flying Kick",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/7324598.txt",
+      "sha256": "baee22210423022607c176d15c78e25d807c603c24c31d3fca01dace58282ac2",
+      "status": "complete",
+      "levels": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16
+      ],
+      "tracesPassed": 64,
+      "inputs": 5120,
+      "intraTurnChecks": {
+        "object.may_be_created": 17476,
+        "object.may_be_destroyed": 17476,
+        "runtime.rule_reference_parity": 5254,
+        "group.group_skip_mask": 8034,
+        "rule.may_invalidate_other_matches": 1874,
+        "rule.may_enable_other_matches": 5294,
+        "rule.self_disabling": 1393,
+        "rule.idempotent_effect": 427
+      },
+      "skips": {
+        "no_replacement": 8644,
+        "no_matches": 356181,
+        "random_group_direct_application": 77796
+      }
+    },
+    {
+      "index": 35,
+      "title": "Drop Swap",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/c784daec18555b9d48f3.txt",
+      "sha256": "5eba25c603674f2b9889a5939bd1c538d41f384a46e483cad406dba3e9593ca9",
+      "status": "complete",
+      "levels": [
+        3,
+        5,
+        8,
+        12,
+        14
+      ],
+      "tracesPassed": 20,
+      "inputs": 1600,
+      "intraTurnChecks": {
+        "object.may_be_created": 101467,
+        "object.may_be_destroyed": 101467,
+        "runtime.rule_reference_parity": 5995,
+        "rule.may_invalidate_other_matches": 92548,
+        "rule.may_enable_other_matches": 92575,
+        "rule.self_disabling": 46721,
+        "rule.idempotent_effect": 1941,
+        "group.group_skip_mask": 1117
+      },
+      "skips": {
+        "unmapped_early_groups": 160,
+        "no_matches": 188674,
+        "no_replacement": 6258,
+        "random_group_direct_application": 2086,
+        "probe_budget": 5470,
+        "tuple_budget": 39
+      }
+    },
+    {
+      "index": 36,
+      "title": "chaos wizard",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/provided-chaos_wizard.txt",
+      "sha256": "3877d40a3f626e35008dc94e56e380f7aba4faaca262e065890b146f69609bd5",
+      "status": "complete",
+      "levels": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        22,
+        24,
+        27
+      ],
+      "tracesPassed": 88,
+      "inputs": 7040,
+      "intraTurnChecks": {
+        "object.may_be_created": 18939,
+        "object.may_be_destroyed": 18939,
+        "runtime.rule_reference_parity": 7598,
+        "rule.may_invalidate_other_matches": 2735,
+        "rule.may_enable_other_matches": 2735,
+        "rule.self_disabling": 500,
+        "rule.idempotent_effect": 344,
+        "group.group_skip_mask": 14839
+      },
+      "skips": {
+        "no_matches": 613489,
+        "no_replacement": 6690
+      }
+    },
+    {
+      "index": 37,
+      "title": "Slidings",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/8931824.txt",
+      "sha256": "d0f5ea631f1b45d122b1dde700a23e2db1c40ee18b1c9c5ee8b4c0cecb069267",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        5,
+        7,
+        9,
+        11,
+        13,
+        15,
+        17,
+        19,
+        21
+      ],
+      "tracesPassed": 44,
+      "inputs": 3520,
+      "intraTurnChecks": {
+        "object.may_be_created": 14657,
+        "object.may_be_destroyed": 14657,
+        "runtime.rule_reference_parity": 7225,
+        "rule.may_invalidate_other_matches": 1126,
+        "rule.may_enable_other_matches": 1126,
+        "group.group_skip_mask": 2586
+      },
+      "skips": {
+        "unmapped_early_groups": 44,
+        "no_matches": 83013,
+        "no_replacement": 3370
+      }
+    },
+    {
+      "index": 38,
+      "title": "Threes: The Demake",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/9123086.txt",
+      "sha256": "bad8e1ab3b07050ab7e766b631c96b080a6d51ed4fb9315b0729a010d5a45cfb",
+      "status": "complete",
+      "levels": [
+        0
+      ],
+      "tracesPassed": 4,
+      "inputs": 320,
+      "intraTurnChecks": {
+        "object.may_be_created": 11797,
+        "object.may_be_destroyed": 11797,
+        "rule.may_invalidate_other_matches": 4106,
+        "rule.may_enable_other_matches": 4417,
+        "rule.idempotent_effect": 457,
+        "runtime.rule_reference_parity": 2145,
+        "rule.self_disabling": 2398,
+        "rule.persistent_guard": 4432,
+        "group.group_skip_mask": 209
+      },
+      "skips": {
+        "no_matches": 110823,
+        "random_group_direct_application": 6327,
+        "probe_budget": 10978
+      }
+    },
+    {
+      "index": 39,
+      "title": "Gobble Rush!",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/9582263.txt",
+      "sha256": "2cbe7b21cd9211a8f9c56f477506f53def086d9227b3f2e2aa2fe2c645166555",
+      "status": "complete",
+      "levels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20
+      ],
+      "tracesPassed": 84,
+      "inputs": 6592,
+      "intraTurnChecks": {
+        "object.may_be_created": 57742,
+        "object.may_be_destroyed": 57742,
+        "rule.may_invalidate_other_matches": 21316,
+        "rule.may_enable_other_matches": 21340,
+        "runtime.rule_reference_parity": 22186,
+        "rule.self_disabling": 23747,
+        "rule.idempotent_effect": 4207,
+        "group.group_skip_mask": 16987
+      },
+      "skips": {
+        "no_replacement": 28768,
+        "no_matches": 398291,
+        "random_group_direct_application": 11314,
+        "probe_budget": 32027
+      }
+    },
+    {
+      "index": 40,
+      "title": "Smother",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/6decdfe5107e7f2beee586e01680e850.txt",
+      "sha256": "1cb8ab1caf6a507640fa5c739c4c7d0a073479a176aeb1c056a78d8935dae89b",
+      "status": "complete",
+      "levels": [
+        2,
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        26,
+        28,
+        30,
+        32,
+        34,
+        37
+      ],
+      "tracesPassed": 64,
+      "inputs": 5012,
+      "intraTurnChecks": {
+        "object.may_be_created": 337363,
+        "object.may_be_destroyed": 337363,
+        "runtime.rule_reference_parity": 28428,
+        "rule.may_invalidate_other_matches": 33281,
+        "rule.may_enable_other_matches": 33281,
+        "group.group_skip_mask": 1438
+      },
+      "skips": {
+        "no_matches": 79888,
+        "probe_budget": 12818
+      }
+    },
+    {
+      "index": 41,
+      "title": "The Saga of the Candy Scroll",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/8565753.txt",
+      "sha256": "63bc46493b7ea834c5d4b5c8ae3ca709bd16f0c7a3bac28fc713f73212ea8190",
+      "status": "complete",
+      "levels": [
+        6,
+        10,
+        14,
+        18,
+        20,
+        22,
+        26,
+        28,
+        31,
+        35,
+        46,
+        50,
+        53,
+        55,
+        58,
+        61,
+        64,
+        66,
+        68,
+        70,
+        78,
+        80,
+        82,
+        85,
+        89,
+        98,
+        102,
+        106,
+        112,
+        116
+      ],
+      "tracesPassed": 120,
+      "inputs": 9533,
+      "intraTurnChecks": {
+        "group.group_skip_mask": 16808,
+        "object.may_be_created": 5653,
+        "object.may_be_destroyed": 5653,
+        "runtime.rule_reference_parity": 1931,
+        "rule.may_invalidate_other_matches": 952,
+        "rule.may_enable_other_matches": 952,
+        "rule.self_disabling": 816
+      },
+      "skips": {
+        "unmapped_early_groups": 480,
+        "no_matches": 654475
+      }
+    },
+    {
+      "index": 42,
+      "title": "Pants, Shirt, Cap",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/9440559.txt",
+      "sha256": "3fc32d9084b98f4bc796015cf99672d7a0f0df7a179213f026412b2020db66f4",
+      "status": "complete",
+      "levels": [
+        2,
+        6,
+        10,
+        13,
+        16,
+        19,
+        22,
+        25,
+        28
+      ],
+      "tracesPassed": 36,
+      "inputs": 2880,
+      "intraTurnChecks": {
+        "group.group_skip_mask": 3501,
+        "object.may_be_created": 1870,
+        "object.may_be_destroyed": 1870,
+        "runtime.rule_reference_parity": 1431,
+        "rule.may_enable_other_matches": 57,
+        "rule.self_disabling": 57,
+        "rule.idempotent_effect": 57
+      },
+      "skips": {
+        "no_matches": 88837
+      }
+    },
+    {
+      "index": 43,
+      "title": "Sticky Candy Puzzle Saga",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/8569268.txt",
+      "sha256": "2de99450a991ea64b826c067599c62323787ff5d0e8c43a565263614352d4bff",
+      "status": "complete",
+      "levels": [
+        1,
+        2,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21
+      ],
+      "tracesPassed": 80,
+      "inputs": 6400,
+      "intraTurnChecks": {
+        "object.may_be_created": 61160,
+        "object.may_be_destroyed": 61160,
+        "runtime.rule_reference_parity": 33129,
+        "rule.may_enable_other_matches": 19525,
+        "rule.self_disabling": 19525,
+        "rule.idempotent_effect": 12374,
+        "group.split_candidate": 6154,
+        "group.group_skip_mask": 2137,
+        "rule.may_invalidate_other_matches": 18842
+      },
+      "skips": {
+        "no_replacement": 68984,
+        "no_matches": 291442,
+        "probe_budget": 1404
+      }
+    },
+    {
+      "index": 44,
+      "title": "MazezaM",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/7718522.txt",
+      "sha256": "8cd2879b16a865b37049b46b15e100d8e44e659e39f0daf6d0e67a3a100f69f8",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        5,
+        7,
+        9,
+        11,
+        13,
+        15,
+        17,
+        19,
+        21,
+        23,
+        25,
+        27,
+        29,
+        31,
+        33,
+        35,
+        37,
+        39,
+        41,
+        43,
+        45,
+        47,
+        49,
+        51,
+        53,
+        55,
+        57,
+        59
+      ],
+      "tracesPassed": 120,
+      "inputs": 9600,
+      "intraTurnChecks": {
+        "object.may_be_created": 20841,
+        "object.may_be_destroyed": 20841,
+        "rule.may_invalidate_other_matches": 6613,
+        "rule.may_enable_other_matches": 6613,
+        "runtime.rule_reference_parity": 12001,
+        "group.group_skip_mask": 1998
+      },
+      "skips": {
+        "no_matches": 19619
+      }
+    },
+    {
+      "index": 45,
+      "title": "Modality",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/6888061.txt",
+      "sha256": "924a27515c6169a07800e79b1c32872773bbe17db60bc40a8794bc59a0d1aad8",
+      "status": "complete",
+      "levels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "tracesPassed": 16,
+      "inputs": 1280,
+      "intraTurnChecks": {
+        "group.group_skip_mask": 87,
+        "object.may_be_created": 96,
+        "object.may_be_destroyed": 96,
+        "runtime.rule_reference_parity": 48
+      },
+      "skips": {
+        "no_matches": 1698,
+        "no_replacement": 9704
+      }
+    },
+    {
+      "index": 46,
+      "title": "PUSH",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/9867759.txt",
+      "sha256": "c90f61e41cef4ba5abfefd1a759eaa690d8dafcbc12e8d01857eb7c9f7ecf0e3",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        5,
+        7,
+        9,
+        11,
+        13,
+        15,
+        17,
+        19,
+        21,
+        23,
+        25,
+        27,
+        29,
+        31,
+        33,
+        35,
+        37,
+        39,
+        40
+      ],
+      "tracesPassed": 84,
+      "inputs": 6720,
+      "intraTurnChecks": {
+        "object.may_be_created": 2076,
+        "object.may_be_destroyed": 2076,
+        "runtime.rule_reference_parity": 1163,
+        "rule.may_invalidate_other_matches": 747,
+        "rule.may_enable_other_matches": 747,
+        "rule.self_disabling": 20,
+        "rule.idempotent_effect": 20
+      },
+      "skips": {
+        "no_matches": 330916,
+        "no_replacement": 13134
+      }
+    },
+    {
+      "index": 47,
+      "title": "You're Pulleying My Leg",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/11345687.txt",
+      "sha256": "e621b887e773a5a4745ae0224810826aaf5d427a3be8c6e3bbdd842bb2c6e399",
+      "status": "complete",
+      "levels": [
+        0
+      ],
+      "tracesPassed": 4,
+      "inputs": 320,
+      "intraTurnChecks": {
+        "object.may_be_created": 60417,
+        "object.may_be_destroyed": 60417,
+        "runtime.rule_reference_parity": 3610,
+        "rule.may_invalidate_other_matches": 32917,
+        "rule.may_enable_other_matches": 10069,
+        "rule.idempotent_effect": 569,
+        "rule.self_disabling": 7144,
+        "group.group_skip_mask": 157
+      },
+      "skips": {
+        "no_matches": 57146,
+        "no_replacement": 13026,
+        "probe_budget": 2959
+      }
+    },
+    {
+      "index": 48,
+      "title": "Beam Islands",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/11359118.txt",
+      "sha256": "eaf927aec9579f830e704e69370dda786b675d730e0c0b26a9443fc5c465f940",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        5,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "tracesPassed": 32,
+      "inputs": 2516,
+      "intraTurnChecks": {
+        "object.may_be_created": 156426,
+        "object.may_be_destroyed": 156426,
+        "rule.may_enable_other_matches": 87100,
+        "rule.self_disabling": 54134,
+        "rule.idempotent_effect": 16097,
+        "runtime.rule_reference_parity": 22376,
+        "rule.may_invalidate_other_matches": 86200,
+        "group.split_candidate": 1204,
+        "group.group_skip_mask": 1331
+      },
+      "skips": {
+        "no_matches": 287136,
+        "probe_budget": 103021,
+        "tuple_budget": 144
+      }
+    },
+    {
+      "index": 49,
+      "title": "Singleton Traffic",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/eb0f9102f85b5ea536b1.txt",
+      "sha256": "0eb5a411bd0d16e36d6a8532485eda33398183d48401ed6ad108cdc1b73a8438",
+      "status": "complete",
+      "levels": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14
+      ],
+      "tracesPassed": 24,
+      "inputs": 1920,
+      "intraTurnChecks": {
+        "object.may_be_created": 302765,
+        "object.may_be_destroyed": 302765,
+        "rule.may_invalidate_other_matches": 118371,
+        "rule.may_enable_other_matches": 184104,
+        "runtime.rule_reference_parity": 11538,
+        "group.single_pass_safe": 1245,
+        "group.split_candidate": 1245,
+        "rule.self_disabling": 129433,
+        "rule.idempotent_effect": 7359,
+        "group.group_skip_mask": 47
+      },
+      "skips": {
+        "unmapped_early_groups": 48,
+        "tuple_budget": 2496,
+        "no_replacement": 1877,
+        "no_matches": 15228,
+        "probe_budget": 12250
+      }
+    },
+    {
+      "index": 50,
+      "title": "Aaaah! I'm Being Attacked by a Giant Tentacle!",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/cffeb1b80f76458b742a.txt",
+      "sha256": "dccab7c105bf1165b86e961c7cd61e4559593b4339e3ed2c5be98fa395b257ec",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        5,
+        7,
+        9,
+        11,
+        13,
+        15,
+        17,
+        19
+      ],
+      "tracesPassed": 40,
+      "inputs": 3200,
+      "intraTurnChecks": {
+        "object.may_be_created": 60355,
+        "object.may_be_destroyed": 60355,
+        "rule.may_invalidate_other_matches": 33935,
+        "rule.may_enable_other_matches": 34082,
+        "runtime.rule_reference_parity": 18735,
+        "rule.idempotent_effect": 4880,
+        "rule.self_disabling": 2419,
+        "group.group_skip_mask": 712
+      },
+      "skips": {
+        "no_matches": 257185,
+        "no_replacement": 12508,
+        "probe_budget": 43817
+      }
+    },
+    {
+      "index": 51,
+      "title": "Pornography for Beginners",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/6ec59e0b3f1f306acdc1.txt",
+      "sha256": "0f500461551a9df3286fc0ce526a519e6e876d299398a91f2440f5567cde6e50",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        5,
+        7,
+        9,
+        11
+      ],
+      "tracesPassed": 24,
+      "inputs": 1920,
+      "intraTurnChecks": {
+        "group.group_skip_mask": 1487,
+        "object.may_be_created": 65,
+        "object.may_be_destroyed": 65,
+        "runtime.rule_reference_parity": 30,
+        "rule.may_enable_other_matches": 11
+      },
+      "skips": {
+        "unmapped_early_groups": 120,
+        "no_matches": 4271286,
+        "no_replacement": 7348,
+        "probe_budget": 145201
+      }
+    },
+    {
+      "index": 52,
+      "title": "SwapBot",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/0590a6662f9e8e6afe4a.txt",
+      "sha256": "45524c02bbf9e2343f90eee45a73c9ceb68ed0ee316b27b12f2c5bf6f327ea59",
+      "status": "complete",
+      "levels": [
+        1,
+        4,
+        6,
+        7,
+        9,
+        10,
+        12,
+        13,
+        15,
+        16,
+        17,
+        18
+      ],
+      "tracesPassed": 48,
+      "inputs": 3840,
+      "intraTurnChecks": {
+        "object.may_be_created": 35640,
+        "object.may_be_destroyed": 35640,
+        "rule.may_invalidate_other_matches": 18701,
+        "rule.may_enable_other_matches": 24041,
+        "runtime.rule_reference_parity": 26164,
+        "rule.self_disabling": 9562,
+        "rule.idempotent_effect": 8766,
+        "group.split_candidate": 10823,
+        "rule.persistent_guard": 5856,
+        "rule.setup_only.quiescence": 205,
+        "group.group_skip_mask": 1994
+      },
+      "skips": {
+        "no_matches": 619617,
+        "no_replacement": 4272,
+        "probe_budget": 8829
+      }
+    },
+    {
+      "index": 53,
+      "title": "Spacekoban",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/6a6c07f71d7039e4155e.txt",
+      "sha256": "9fbf6435443823f6d384448871c56ad2cc05368bdbc284a9af334477bce3e419",
+      "status": "complete",
+      "levels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19
+      ],
+      "tracesPassed": 80,
+      "inputs": 6400,
+      "intraTurnChecks": {
+        "object.may_be_created": 22594,
+        "object.may_be_destroyed": 22594,
+        "runtime.rule_reference_parity": 17413,
+        "rule.may_invalidate_other_matches": 10941,
+        "rule.may_enable_other_matches": 10941,
+        "group.group_skip_mask": 1092
+      },
+      "skips": {
+        "no_matches": 351420,
+        "probe_budget": 56
+      }
+    },
+    {
+      "index": 54,
+      "title": "pretender to the crown",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/09d9778d0e69116c5406.txt",
+      "sha256": "11839f324547c89d1d28766998094a47af4a761c90fefe9f53520e8fd9b7ad4c",
+      "status": "complete",
+      "levels": [
+        2,
+        5,
+        8,
+        11,
+        13,
+        16,
+        18,
+        20,
+        23,
+        25,
+        27,
+        30,
+        33,
+        36,
+        38,
+        41
+      ],
+      "tracesPassed": 64,
+      "inputs": 5120,
+      "intraTurnChecks": {
+        "object.may_be_created": 126300,
+        "object.may_be_destroyed": 126300,
+        "rule.may_invalidate_other_matches": 94739,
+        "rule.may_enable_other_matches": 109849,
+        "rule.self_disabling": 106324,
+        "rule.idempotent_effect": 29340,
+        "runtime.rule_reference_parity": 33382
+      },
+      "skips": {
+        "random_group_direct_application": 5020,
+        "no_matches": 45357
+      }
+    },
+    {
+      "index": 55,
+      "title": "Boxes & Balloons",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/ac003a3b7e159dd54eb8.txt",
+      "sha256": "a8e5b34d474a57b4ce8b3e0202acbe4a4821aa3a78f2abfc3300a5f04351a0c5",
+      "status": "complete",
+      "levels": [
+        2,
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        26,
+        28,
+        30,
+        32,
+        34,
+        36,
+        38,
+        40,
+        42,
+        44
+      ],
+      "tracesPassed": 88,
+      "inputs": 7040,
+      "intraTurnChecks": {
+        "object.may_be_created": 54041,
+        "object.may_be_destroyed": 54041,
+        "rule.may_invalidate_other_matches": 25436,
+        "rule.may_enable_other_matches": 27753,
+        "rule.self_disabling": 24530,
+        "rule.idempotent_effect": 18596,
+        "runtime.rule_reference_parity": 29378
+      },
+      "skips": {
+        "no_replacement": 13384,
+        "no_matches": 328300
+      }
+    },
+    {
+      "index": 56,
+      "title": "Pushcat Jr",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/a8f4e5aed01de7c9ef50.txt",
+      "sha256": "44c2d497b85a39714066b52417934e88d33b0c53421fe54ed1f84f56ce2199c2",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        5,
+        7,
+        9,
+        11,
+        13,
+        15
+      ],
+      "tracesPassed": 32,
+      "inputs": 2560,
+      "intraTurnChecks": {
+        "group.group_skip_mask": 294,
+        "object.may_be_created": 7616,
+        "object.may_be_destroyed": 7616,
+        "runtime.rule_reference_parity": 1164,
+        "rule.may_invalidate_other_matches": 42,
+        "rule.may_enable_other_matches": 42,
+        "rule.self_disabling": 38,
+        "rule.idempotent_effect": 22
+      },
+      "skips": {
+        "unmapped_early_groups": 32,
+        "unmapped_late_groups": 96,
+        "no_matches": 56129,
+        "no_replacement": 2441
+      }
+    },
+    {
+      "index": 57,
+      "title": "Sokoboros",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/d210a5248fa713153950.txt",
+      "sha256": "83ced3c8c7b3eb12be79e505ce90a6f5b397a6176ebab5ff84c6c9cde1bd2651",
+      "status": "complete",
+      "levels": [
+        1
+      ],
+      "tracesPassed": 4,
+      "inputs": 320,
+      "intraTurnChecks": {
+        "object.may_be_created": 653,
+        "object.may_be_destroyed": 653,
+        "rule.may_invalidate_other_matches": 305,
+        "rule.may_enable_other_matches": 305,
+        "runtime.rule_reference_parity": 479
+      },
+      "skips": {
+        "no_matches": 22879
+      }
+    },
+    {
+      "index": 58,
+      "title": "Marble Shoot",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/81b9430a6c09b355f6379c0f63beb04c.txt",
+      "sha256": "7be2d55fbfd63846954dfdc57cbf61d4a9c5c8bb55a788c54ac81bc247fd1bf8",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        5,
+        7,
+        9,
+        11,
+        13,
+        15,
+        17,
+        19,
+        21,
+        23,
+        25,
+        27,
+        29,
+        31
+      ],
+      "tracesPassed": 64,
+      "inputs": 5094,
+      "intraTurnChecks": {
+        "object.may_be_created": 9175,
+        "object.may_be_destroyed": 9175,
+        "rule.may_invalidate_other_matches": 8522,
+        "rule.may_enable_other_matches": 8625,
+        "runtime.rule_reference_parity": 8864,
+        "rule.self_disabling": 111,
+        "rule.idempotent_effect": 6
+      },
+      "skips": {
+        "no_replacement": 5007,
+        "no_matches": 577831,
+        "random_group_direct_application": 40056
+      }
+    },
+    {
+      "index": 59,
+      "title": "Cyber-Lasso",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/e3e444f7c63fb21b6ec0.txt",
+      "sha256": "4d16153c8213989b004a678e87ca0b6c413872b18a7c95565c6f3bde435ff5f5",
+      "status": "analysis-unavailable",
+      "levels": [],
+      "tracesPassed": 0,
+      "inputs": 0,
+      "intraTurnChecks": {},
+      "skips": {},
+      "analysisErrors": [
+        "<a onclick=\"jumpToLine(895);\"  href=\"javascript:void(0);\"><span class=\"errorTextLineNumber\"> line 895</span></a> : <span class=\"warningText\">You named an object \"|\", but this is a keyword. Don't do that!</span>",
+        "<a onclick=\"jumpToLine(958);\"  href=\"javascript:void(0);\"><span class=\"errorTextLineNumber\"> line 958</span></a> : <span class=\"warningText\">Object \"WALL\" included in multiple collision layers ( layers #9, #12 ). You should fix this!</span>",
+        "<a onclick=\"jumpToLine(1210);\"  href=\"javascript:void(0);\"><span class=\"errorTextLineNumber\"> line 1210</span></a> : <span class=\"errorText\">You cannot specify the same object more than once in a single cell (in this case ELECTRICFLOOR occurs multiple times).</span>",
+        "<a onclick=\"jumpToLine(1210);\"  href=\"javascript:void(0);\"><span class=\"errorTextLineNumber\"> line 1210</span></a> : <span class=\"errorText\">You have specified that there should be NO ELECTRICFLOOR but there is also a requirement that ELECTRICFLOOR, POWERED, CLAIMED be here.  This is a mistake right?</span>",
+        "<a onclick=\"jumpToLine(1304);\"  href=\"javascript:void(0);\"><span class=\"errorTextLineNumber\"> line 1304</span></a> : <span class=\"warningText\">You have specified that there should be NO SQUASHEDPLAYER but there is also a requirement that DOORUP, PLAYER be there, which collectively occupies the same layers (Layers 9, 12), so you can leave this out.</span>"
+      ]
+    },
+    {
+      "index": 60,
+      "title": "Train Braining",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/a4195276e6979f5bdb21.txt",
+      "sha256": "839b0cc4a15d19ced58ed3d8c94ecd1a86399327720319245b79f94bff10d029",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "tracesPassed": 48,
+      "inputs": 3840,
+      "intraTurnChecks": {
+        "object.may_be_created": 4637,
+        "object.may_be_destroyed": 4637,
+        "runtime.rule_reference_parity": 3329,
+        "rule.may_invalidate_other_matches": 2445,
+        "rule.may_enable_other_matches": 2445,
+        "rule.self_disabling": 318,
+        "rule.idempotent_effect": 106
+      },
+      "skips": {
+        "no_matches": 299440,
+        "no_replacement": 97760
+      }
+    },
+    {
+      "index": 61,
+      "title": "Enqueue",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/e8ce49f2b9834e80516d.txt",
+      "sha256": "ca7ddfb348b3930fae14a44134b5e3f16f4c2e331f04f70a4168c2aa8147ca2a",
+      "status": "complete",
+      "levels": [
+        0,
+        1,
+        3,
+        4,
+        5,
+        6,
+        8,
+        9,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16
+      ],
+      "tracesPassed": 56,
+      "inputs": 4480,
+      "intraTurnChecks": {
+        "object.may_be_created": 11210,
+        "object.may_be_destroyed": 11210,
+        "runtime.rule_reference_parity": 6536,
+        "rule.may_invalidate_other_matches": 1983,
+        "rule.may_enable_other_matches": 4232,
+        "rule.self_disabling": 2952,
+        "rule.idempotent_effect": 2674,
+        "group.group_skip_mask": 11854,
+        "rule.persistent_guard": 1114
+      },
+      "skips": {
+        "no_matches": 170458,
+        "probe_budget": 23990
+      }
+    },
+    {
+      "index": 62,
+      "title": "Tidy the Cafe!",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/6faf74de7d562674e71a.txt",
+      "sha256": "d3ebc929f6a858295d75e2de1f157d9b9aae30a9843bfc73c1e83682e6ece9fe",
+      "status": "complete",
+      "levels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "tracesPassed": 24,
+      "inputs": 1920,
+      "intraTurnChecks": {
+        "object.may_be_created": 37434,
+        "object.may_be_destroyed": 37434,
+        "rule.may_invalidate_other_matches": 26759,
+        "rule.may_enable_other_matches": 26759,
+        "runtime.rule_reference_parity": 19002,
+        "rule.idempotent_effect": 2852,
+        "rule.self_disabling": 1986
+      },
+      "skips": {
+        "no_matches": 36004,
+        "probe_budget": 3121
+      }
+    },
+    {
+      "index": 63,
+      "title": "Flower Dance",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/2c9edcf6ba4a4d8720a7.txt",
+      "sha256": "6cce95591724ccdcdcfda36519fa7eee3f29e517c6f95d85e264a5d9cbd171a2",
+      "status": "complete",
+      "levels": [
+        3
+      ],
+      "tracesPassed": 4,
+      "inputs": 320,
+      "intraTurnChecks": {
+        "object.may_be_created": 465,
+        "object.may_be_destroyed": 465,
+        "runtime.rule_reference_parity": 323,
+        "rule.may_invalidate_other_matches": 217,
+        "rule.may_enable_other_matches": 217,
+        "rule.idempotent_effect": 199,
+        "rule.self_disabling": 125
+      },
+      "skips": {
+        "no_matches": 1250,
+        "no_replacement": 305
+      }
+    },
+    {
+      "index": 64,
+      "title": "Stairways",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/21e3784aaa7675dc4b08.txt",
+      "sha256": "9a196c4cd07bc778b27bf6975bb3a267b6cc07a7f05724cf04acdd0f4fe266d7",
+      "status": "complete",
+      "levels": [
+        2,
+        3,
+        4
+      ],
+      "tracesPassed": 12,
+      "inputs": 960,
+      "intraTurnChecks": {
+        "object.may_be_created": 2346,
+        "object.may_be_destroyed": 2346,
+        "runtime.rule_reference_parity": 932,
+        "group.group_skip_mask": 383
+      },
+      "skips": {
+        "no_matches": 3683,
+        "probe_budget": 328
+      }
+    },
+    {
+      "index": 65,
+      "title": "Rock, Paper, Scissors",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/62070c89dc7604de2484.txt",
+      "sha256": "a461fae9400038e5c2ed574a87cb89d6e13cd97e7cf72436ac66c813e4e18cce",
+      "status": "complete",
+      "levels": [
+        1,
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        19,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30
+      ],
+      "tracesPassed": 72,
+      "inputs": 3262,
+      "intraTurnChecks": {
+        "object.may_be_created": 192462,
+        "object.may_be_destroyed": 192462,
+        "runtime.rule_reference_parity": 19578,
+        "rule.may_enable_other_matches": 67529,
+        "rule.may_invalidate_other_matches": 67289,
+        "rule.self_disabling": 30355,
+        "rule.idempotent_effect": 11832,
+        "group.group_skip_mask": 4124,
+        "group.single_pass_safe": 1808,
+        "group.split_candidate": 1808
+      },
+      "skips": {
+        "no_matches": 471272,
+        "no_replacement": 6723,
+        "rigid_lifetime_scope": 3299,
+        "probe_budget": 60847
+      }
+    },
+    {
+      "index": 66,
+      "title": "Hazard Golf",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/ed5ba4e63cf2c92788da.txt",
+      "sha256": "5eccad8fb44e32e3f9fa8695922f98c2f1d3c4c6e31b4a0d3836131f4fe5410e",
+      "status": "complete",
+      "levels": [
+        2,
+        4,
+        6,
+        8,
+        11,
+        14,
+        16,
+        19,
+        22
+      ],
+      "tracesPassed": 36,
+      "inputs": 2880,
+      "intraTurnChecks": {
+        "object.may_be_created": 26900,
+        "object.may_be_destroyed": 26900,
+        "rule.may_enable_other_matches": 281,
+        "runtime.rule_reference_parity": 2418,
+        "rule.may_invalidate_other_matches": 92,
+        "rule.self_disabling": 63,
+        "rule.idempotent_effect": 56,
+        "group.group_skip_mask": 5024
+      },
+      "skips": {
+        "no_matches": 520630,
+        "tuple_budget": 224,
+        "no_replacement": 28450,
+        "probe_budget": 55830
+      }
+    },
+    {
+      "index": 67,
+      "title": "Collapsable Sokoban",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/fd4e3445b63068676f72.txt",
+      "sha256": "e8810a7845ce13d62d3c7418e592eb29437a12ea91bcc561c688567a7021468e",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        5
+      ],
+      "tracesPassed": 12,
+      "inputs": 960,
+      "intraTurnChecks": {
+        "object.may_be_created": 13148,
+        "object.may_be_destroyed": 13148,
+        "runtime.rule_reference_parity": 5456,
+        "group.group_skip_mask": 124
+      },
+      "skips": {
+        "no_matches": 5396
+      }
+    },
+    {
+      "index": 68,
+      "title": "Skipping Stones to Lonely Homes",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/d6fd6fcf84de185e2584.txt",
+      "sha256": "3f154da892e5f1a903d8077b46383628f170e53f10a22df4320f4574c209b964",
+      "status": "complete",
+      "levels": [
+        0
+      ],
+      "tracesPassed": 4,
+      "inputs": 320,
+      "intraTurnChecks": {
+        "object.may_be_created": 39163,
+        "object.may_be_destroyed": 39163,
+        "rule.may_enable_other_matches": 15630,
+        "rule.self_disabling": 15630,
+        "rule.idempotent_effect": 280,
+        "runtime.rule_reference_parity": 411,
+        "group.group_skip_mask": 1049
+      },
+      "skips": {
+        "unmapped_early_groups": 4,
+        "no_matches": 184167,
+        "tuple_budget": 265,
+        "no_replacement": 2448,
+        "probe_budget": 26688
+      }
+    },
+    {
+      "index": 69,
+      "title": "the undertaking",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/09b30f559f01393008af.txt",
+      "sha256": "d476e4170de2ab1fccb1cbb0a58ef095735f74b6ac941c829bc5f561d04c45f5",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        5,
+        7,
+        9,
+        11,
+        13,
+        15,
+        17,
+        19,
+        21,
+        23,
+        25,
+        27,
+        29,
+        31,
+        33,
+        35,
+        37,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        56,
+        57,
+        58
+      ],
+      "tracesPassed": 152,
+      "inputs": 8979,
+      "intraTurnChecks": {
+        "object.may_be_created": 393,
+        "object.may_be_destroyed": 393,
+        "rule.may_invalidate_other_matches": 393,
+        "rule.may_enable_other_matches": 393,
+        "rule.self_disabling": 393,
+        "rule.idempotent_effect": 393,
+        "runtime.rule_reference_parity": 393,
+        "rule.persistent_guard": 3701
+      },
+      "skips": {
+        "no_matches": 8598
+      }
+    },
+    {
+      "index": 70,
+      "title": "JAM3 Game",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/1bca2d279640ab3839c0.txt",
+      "sha256": "d44f565422fb0c766741aef73b9fd26326441a4dfd67e508507f7ea1b00a7a81",
+      "status": "complete",
+      "levels": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "tracesPassed": 28,
+      "inputs": 2240,
+      "intraTurnChecks": {
+        "group.group_skip_mask": 1295,
+        "object.may_be_created": 79530,
+        "object.may_be_destroyed": 79530,
+        "rule.may_enable_other_matches": 5843,
+        "runtime.rule_reference_parity": 12473,
+        "rule.may_invalidate_other_matches": 5615,
+        "rule.self_disabling": 1525,
+        "rule.idempotent_effect": 848,
+        "rule.persistent_guard": 2353,
+        "rule.setup_only.quiescence": 137
+      },
+      "skips": {
+        "unmapped_early_groups": 28,
+        "unmapped_late_groups": 140,
+        "tuple_budget": 58,
+        "no_matches": 251094,
+        "no_replacement": 7030,
+        "probe_budget": 3232
+      }
+    },
+    {
+      "index": 71,
+      "title": "Dharma Dojo demake",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/4e66fc851edbf42ae008.txt",
+      "sha256": "e146eee0fc1fdc4d78aece9a704b73d630d310bf07b04006fe1f8f2e7bc3e767",
+      "status": "complete",
+      "levels": [
+        3,
+        6,
+        7,
+        8,
+        9
+      ],
+      "tracesPassed": 20,
+      "inputs": 1600,
+      "intraTurnChecks": {
+        "object.may_be_created": 21718,
+        "object.may_be_destroyed": 21718,
+        "rule.may_invalidate_other_matches": 973,
+        "rule.may_enable_other_matches": 993,
+        "runtime.rule_reference_parity": 3804,
+        "group.single_pass_safe": 1126,
+        "group.split_candidate": 1126,
+        "rule.self_disabling": 1269,
+        "rule.idempotent_effect": 439,
+        "rule.persistent_guard": 5816,
+        "rule.setup_only.quiescence": 560,
+        "group.group_skip_mask": 5130
+      },
+      "skips": {
+        "random_group_direct_application": 36490,
+        "no_matches": 308189,
+        "no_replacement": 11502,
+        "probe_budget": 59099
+      }
+    },
+    {
+      "index": 72,
+      "title": "Vines",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/c7da961162348381d271.txt",
+      "sha256": "5b74dc4e77ec8c0331a347aa322f942d44aa387dcd442720102b9648eebd665c",
+      "status": "complete",
+      "levels": [
+        0
+      ],
+      "tracesPassed": 4,
+      "inputs": 320,
+      "intraTurnChecks": {
+        "object.may_be_created": 9190,
+        "object.may_be_destroyed": 9190,
+        "runtime.rule_reference_parity": 755,
+        "rule.may_invalidate_other_matches": 418,
+        "rule.may_enable_other_matches": 428,
+        "group.group_skip_mask": 47,
+        "rule.self_disabling": 10,
+        "rule.idempotent_effect": 10
+      },
+      "skips": {
+        "no_matches": 8841,
+        "no_replacement": 666
+      }
+    },
+    {
+      "index": 73,
+      "title": "Unconventional Guns",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/f4959a4150da120e6117a8c4e7c1a69d.txt",
+      "sha256": "5d90d44a538709e24661258193c25b80772b5a0825ad1e8b800aee726ddbf5e5",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        5,
+        7,
+        9,
+        11,
+        13,
+        15,
+        17,
+        19,
+        21,
+        23,
+        25,
+        27,
+        31
+      ],
+      "tracesPassed": 60,
+      "inputs": 4168,
+      "intraTurnChecks": {
+        "object.may_be_created": 15341,
+        "object.may_be_destroyed": 15341,
+        "runtime.rule_reference_parity": 13457,
+        "rule.may_invalidate_other_matches": 163901,
+        "rule.may_enable_other_matches": 163988,
+        "group.group_skip_mask": 14612,
+        "rule.self_disabling": 2627,
+        "rule.idempotent_effect": 2383
+      },
+      "skips": {
+        "no_matches": 825224,
+        "no_replacement": 9588,
+        "probe_budget": 51729,
+        "tuple_budget": 154
+      }
+    },
+    {
+      "index": 74,
+      "title": "Newton's Crates",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/9cf57ca82a0181de97e4e225bc9bf4ca.txt",
+      "sha256": "301e419c953778b586869f59ddf6542f710854a4577a802185e44288685188ef",
+      "status": "complete",
+      "levels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        16,
+        21
+      ],
+      "tracesPassed": 68,
+      "inputs": 5440,
+      "intraTurnChecks": {
+        "object.may_be_created": 29411,
+        "object.may_be_destroyed": 29411,
+        "runtime.rule_reference_parity": 7751,
+        "rule.may_invalidate_other_matches": 17813,
+        "rule.may_enable_other_matches": 17813,
+        "group.group_skip_mask": 183,
+        "rule.self_disabling": 2395,
+        "rule.idempotent_effect": 565
+      },
+      "skips": {
+        "no_matches": 613805,
+        "random_group_direct_application": 5174,
+        "no_replacement": 31044,
+        "tuple_budget": 305
+      }
+    },
+    {
+      "index": 75,
+      "title": "Count Mover",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/ed8845d930c8940bef1236cf18ca5bd2.txt",
+      "sha256": "37b008ffe3a3e3b4d70a062995d8802bddae65ac7cd7b2a7e83ea9759455d721",
+      "status": "complete",
+      "levels": [
+        1
+      ],
+      "tracesPassed": 4,
+      "inputs": 320,
+      "intraTurnChecks": {
+        "object.may_be_created": 3698,
+        "object.may_be_destroyed": 3698,
+        "rule.may_enable_other_matches": 1890,
+        "rule.idempotent_effect": 1106,
+        "runtime.rule_reference_parity": 1915,
+        "rule.may_invalidate_other_matches": 1254,
+        "rule.self_disabling": 481,
+        "group.group_skip_mask": 174
+      },
+      "skips": {
+        "no_matches": 17279
+      }
+    },
+    {
+      "index": 76,
+      "title": "Boxes Love Boxing Gloves",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/c2d717a77f9aa02ecb1b793111f3a921.txt",
+      "sha256": "45d02bc351ec8a17b510b0103b82aab99f662270641cedf5cadf5f7199c9e72f",
+      "status": "complete",
+      "levels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20
+      ],
+      "tracesPassed": 84,
+      "inputs": 6720,
+      "intraTurnChecks": {
+        "object.may_be_created": 54241,
+        "object.may_be_destroyed": 54241,
+        "rule.may_invalidate_other_matches": 30239,
+        "rule.may_enable_other_matches": 30865,
+        "runtime.rule_reference_parity": 19856,
+        "group.group_skip_mask": 14204,
+        "rule.self_disabling": 622,
+        "rule.idempotent_effect": 333,
+        "rule.persistent_guard": 18539
+      },
+      "skips": {
+        "no_matches": 5196003,
+        "random_group_direct_application": 140250,
+        "no_replacement": 63108,
+        "probe_budget": 229840
+      }
+    },
+    {
+      "index": 77,
+      "title": "Vacuum",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/b1de1cc4f616b950f59b52e703457a37.txt",
+      "sha256": "7d9cec284bf1f87633c5af357ff0cf6ccab762348717988691d62b102ecfd8c0",
+      "status": "complete",
+      "levels": [
+        4
+      ],
+      "tracesPassed": 4,
+      "inputs": 320,
+      "intraTurnChecks": {
+        "object.may_be_created": 115287,
+        "object.may_be_destroyed": 115287,
+        "runtime.rule_reference_parity": 1229,
+        "rule.may_invalidate_other_matches": 11484,
+        "rule.may_enable_other_matches": 11488,
+        "group.group_skip_mask": 152,
+        "rule.self_disabling": 22
+      },
+      "skips": {
+        "unmapped_early_groups": 16,
+        "no_replacement": 6012,
+        "no_matches": 97654,
+        "probe_budget": 816
+      }
+    },
+    {
+      "index": 78,
+      "title": "ParaLands",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/1fa8e206e54b1a66926bec98d3df63cd.txt",
+      "sha256": "2bc9707c755f34879250432847afb747e5071039d7fead73ff853679f7b25ee6",
+      "status": "complete",
+      "levels": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        26,
+        28,
+        30,
+        32,
+        34,
+        36,
+        38,
+        40,
+        42,
+        46
+      ],
+      "tracesPassed": 84,
+      "inputs": 6720,
+      "intraTurnChecks": {
+        "object.may_be_created": 240575,
+        "object.may_be_destroyed": 240575,
+        "runtime.rule_reference_parity": 33724,
+        "rule.may_invalidate_other_matches": 80065,
+        "rule.may_enable_other_matches": 50962,
+        "group.single_pass_safe": 3454,
+        "group.split_candidate": 3454,
+        "rule.self_disabling": 28894,
+        "rule.idempotent_effect": 10134,
+        "rule.persistent_guard": 100908,
+        "rule.setup_only.quiescence": 169,
+        "group.group_skip_mask": 13406
+      },
+      "skips": {
+        "no_matches": 3272685,
+        "no_replacement": 1129,
+        "probe_budget": 221902,
+        "tuple_budget": 762
+      }
+    },
+    {
+      "index": 79,
+      "title": "Some lines were meant to be crossed",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/33eee323d8edfbdc20ee2d584cee2b4b.txt",
+      "sha256": "580cfebcc04d33788be9311adf2b5b207df5d6ccf0382caccc4d738d89ac0b12",
+      "status": "complete",
+      "levels": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "tracesPassed": 28,
+      "inputs": 2240,
+      "intraTurnChecks": {
+        "object.may_be_created": 4296,
+        "object.may_be_destroyed": 4296,
+        "rule.may_invalidate_other_matches": 2256,
+        "rule.may_enable_other_matches": 2256,
+        "rule.idempotent_effect": 2256,
+        "runtime.rule_reference_parity": 3276,
+        "rule.persistent_guard": 4156,
+        "rule.self_disabling": 1201
+      },
+      "skips": {
+        "no_replacement": 17248,
+        "no_matches": 13314
+      }
+    },
+    {
+      "index": 80,
+      "title": "Stand Off",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/14a2f967a1978e28e91118126ac22d6a.txt",
+      "sha256": "45de474c63a7636e60c82d90d53bf93fea4fb3df0ff3d36af579f5ef7cda92f1",
+      "status": "complete",
+      "levels": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "tracesPassed": 40,
+      "inputs": 3200,
+      "intraTurnChecks": {
+        "object.may_be_created": 98260,
+        "object.may_be_destroyed": 98260,
+        "runtime.rule_reference_parity": 16019,
+        "rule.may_invalidate_other_matches": 8330,
+        "rule.may_enable_other_matches": 8330,
+        "rule.self_disabling": 7273,
+        "rule.idempotent_effect": 847,
+        "group.group_skip_mask": 6405
+      },
+      "skips": {
+        "no_matches": 172527,
+        "no_replacement": 39036,
+        "random_group_direct_application": 9759,
+        "probe_budget": 39457
+      }
+    },
+    {
+      "index": 81,
+      "title": "🍡 -ooo- 🍡",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/e41e523af2fba4ac36f1f635d13654e3.txt",
+      "sha256": "2d7de1a298c73e78bc7088f72187f8826d8ebd88c1b9afe451964aa35d652532",
+      "status": "complete",
+      "levels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "tracesPassed": 32,
+      "inputs": 2560,
+      "intraTurnChecks": {
+        "object.may_be_created": 65482,
+        "object.may_be_destroyed": 65482,
+        "runtime.rule_reference_parity": 2365,
+        "group.group_skip_mask": 2960,
+        "rule.may_invalidate_other_matches": 134,
+        "rule.may_enable_other_matches": 181,
+        "rule.self_disabling": 47,
+        "rule.idempotent_effect": 47
+      },
+      "skips": {
+        "no_matches": 33002,
+        "no_replacement": 51293,
+        "probe_budget": 631
+      }
+    },
+    {
+      "index": 82,
+      "title": "Rose",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/0f174b98074b628e8de5514c5839efae.txt",
+      "sha256": "9db4283bfdfcc33bffb8d61df06ec97ff24a327024dc364d855f2805d7942c90",
+      "status": "complete",
+      "levels": [
+        0,
+        1
+      ],
+      "tracesPassed": 8,
+      "inputs": 640,
+      "intraTurnChecks": {
+        "object.may_be_created": 32779,
+        "object.may_be_destroyed": 32779,
+        "rule.may_invalidate_other_matches": 7632,
+        "rule.may_enable_other_matches": 12660,
+        "runtime.rule_reference_parity": 2069,
+        "rule.self_disabling": 4459,
+        "rule.idempotent_effect": 1296,
+        "group.group_skip_mask": 1869,
+        "rule.persistent_guard": 123213
+      },
+      "skips": {
+        "tuple_budget": 8,
+        "no_matches": 854993,
+        "probe_budget": 84920
+      }
+    },
+    {
+      "index": 83,
+      "title": "Season Finale",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/d42bf2a870aab3a2deca6132ff6ebad5.txt",
+      "sha256": "c0826cb0b9bd625bcd5c1d61947c232772b9d913d211455d10fefe771931a5e8",
+      "status": "complete",
+      "levels": [
+        5,
+        12,
+        24,
+        32,
+        40,
+        48,
+        56,
+        70,
+        81,
+        98,
+        110,
+        113
+      ],
+      "tracesPassed": 48,
+      "inputs": 3840,
+      "intraTurnChecks": {
+        "group.single_pass_safe": 2975,
+        "group.split_candidate": 5278,
+        "object.may_be_created": 70800,
+        "object.may_be_destroyed": 70800,
+        "rule.may_invalidate_other_matches": 818,
+        "rule.may_enable_other_matches": 1439,
+        "rule.idempotent_effect": 494,
+        "runtime.rule_reference_parity": 5113,
+        "group.group_skip_mask": 12005
+      },
+      "skips": {
+        "no_replacement": 150908,
+        "no_matches": 4104504,
+        "probe_budget": 472549
+      }
+    },
+    {
+      "index": 84,
+      "title": "Spider's Hollow",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/fbbcdbcf3e28bc08fe953f8853446e9f.txt",
+      "sha256": "9a69734bbfa77a8716fb628df9fa27038b82a7b44c306e359d9088da0c1faaf0",
+      "status": "complete",
+      "levels": [
+        1,
+        4,
+        6,
+        8,
+        10,
+        12,
+        13,
+        14,
+        15,
+        17,
+        19
+      ],
+      "tracesPassed": 44,
+      "inputs": 3471,
+      "intraTurnChecks": {
+        "object.may_be_created": 21492,
+        "object.may_be_destroyed": 21492,
+        "rule.may_invalidate_other_matches": 2444,
+        "rule.may_enable_other_matches": 2881,
+        "runtime.rule_reference_parity": 5278,
+        "group.group_skip_mask": 9427,
+        "rule.idempotent_effect": 937,
+        "rule.self_disabling": 104
+      },
+      "skips": {
+        "no_matches": 297659,
+        "probe_budget": 99711
+      }
+    },
+    {
+      "index": 85,
+      "title": "i herd u liek water templs",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/3a614a286aff60b6b3cd4032c1eb384b.txt",
+      "sha256": "361fbd7ac5897d571eeb58cc660dac4dcef8257f5008d969cb967cb1b8cca7bd",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        5,
+        7,
+        9,
+        11,
+        13
+      ],
+      "tracesPassed": 28,
+      "inputs": 2240,
+      "intraTurnChecks": {
+        "object.may_be_created": 408324,
+        "object.may_be_destroyed": 408324,
+        "runtime.rule_reference_parity": 14011,
+        "rule.may_enable_other_matches": 164746,
+        "rule.may_invalidate_other_matches": 162902,
+        "rule.self_disabling": 63,
+        "rule.idempotent_effect": 2246,
+        "rule.persistent_guard": 2211,
+        "rule.setup_only.quiescence": 63,
+        "group.group_skip_mask": 1663
+      },
+      "skips": {
+        "no_matches": 87666,
+        "random_group_direct_application": 4366
+      }
+    },
+    {
+      "index": 86,
+      "title": "PrograMaze",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/983d3fe448e281182289826597fe5a4b.txt",
+      "sha256": "dab4f0ef1eddee6671679525e1b9844c64bc90db1495c742393f6af11aebe1b7",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        5,
+        6,
+        7,
+        8,
+        10,
+        12
+      ],
+      "tracesPassed": 32,
+      "inputs": 2505,
+      "intraTurnChecks": {
+        "object.may_be_created": 3934,
+        "object.may_be_destroyed": 3934,
+        "rule.may_invalidate_other_matches": 848,
+        "rule.may_enable_other_matches": 857,
+        "runtime.rule_reference_parity": 1339,
+        "rule.self_disabling": 254,
+        "rule.idempotent_effect": 254
+      },
+      "skips": {
+        "no_matches": 46754,
+        "no_replacement": 2402
+      }
+    },
+    {
+      "index": 87,
+      "title": "Symbolism",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/57da05bc817b904d037df40fefa78d66.txt",
+      "sha256": "083f7c830ed1b9215d99fe744ddf02a43a070aa2fb134824a8822bf43751c445",
+      "status": "complete",
+      "levels": [
+        2,
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        26,
+        28,
+        30,
+        32,
+        34,
+        36,
+        38,
+        40,
+        42,
+        44,
+        48
+      ],
+      "tracesPassed": 92,
+      "inputs": 6481,
+      "intraTurnChecks": {
+        "object.may_be_created": 70786,
+        "object.may_be_destroyed": 70786,
+        "rule.may_invalidate_other_matches": 18608,
+        "rule.may_enable_other_matches": 19188,
+        "rule.idempotent_effect": 15221,
+        "runtime.rule_reference_parity": 35194,
+        "group.group_skip_mask": 10451,
+        "rule.self_disabling": 67
+      },
+      "skips": {
+        "unmapped_early_groups": 92,
+        "no_matches": 1414843,
+        "no_replacement": 25440,
+        "probe_budget": 94932
+      }
+    },
+    {
+      "index": 88,
+      "title": "Vertebrae",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/ce2474f62432e2a703bba3fb65f5b01f.txt",
+      "sha256": "3859a1645bb54883ca68e133de0260da2c4953bda3bb241d5cf4bdfd235af423",
+      "status": "complete",
+      "levels": [
+        2,
+        3,
+        4,
+        5,
+        7,
+        8,
+        11,
+        13,
+        14,
+        16,
+        17,
+        19,
+        20,
+        21,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        49,
+        55,
+        57,
+        59,
+        60,
+        62,
+        63,
+        65,
+        67,
+        69,
+        71,
+        73,
+        75,
+        77,
+        81
+      ],
+      "tracesPassed": 216,
+      "inputs": 17280,
+      "intraTurnChecks": {
+        "object.may_be_created": 390128,
+        "object.may_be_destroyed": 390128,
+        "runtime.rule_reference_parity": 11092,
+        "rule.may_enable_other_matches": 144908,
+        "rule.may_invalidate_other_matches": 104908,
+        "rule.self_disabling": 1908,
+        "rule.idempotent_effect": 396,
+        "group.split_candidate": 652,
+        "group.single_pass_safe": 216,
+        "group.group_skip_mask": 308
+      },
+      "skips": {
+        "unmapped_early_groups": 648,
+        "unmapped_late_groups": 864,
+        "tuple_budget": 2216,
+        "no_matches": 84321246,
+        "probe_budget": 6196905,
+        "random_group_direct_application": 50796,
+        "no_replacement": 135456
+      }
+    },
+    {
+      "index": 89,
+      "title": "The Flames",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/provided-the_flames.txt",
+      "sha256": "3ee52401b21107506dc270a279189e1b692b2fff3cfd7813e17921791748dbd6",
+      "status": "complete",
+      "levels": [
+        4,
+        5,
+        6,
+        7,
+        8,
+        10,
+        11,
+        12,
+        14,
+        15,
+        16,
+        17,
+        18,
+        20,
+        21,
+        22,
+        23,
+        25,
+        26,
+        27,
+        28,
+        29,
+        31,
+        32,
+        33,
+        34,
+        36,
+        37,
+        38,
+        39,
+        40,
+        42,
+        43,
+        44,
+        45,
+        47,
+        48,
+        49,
+        50,
+        51,
+        53,
+        54,
+        55,
+        56,
+        58,
+        59,
+        60,
+        61,
+        62,
+        64,
+        65,
+        66,
+        67,
+        69,
+        70,
+        71,
+        72,
+        73,
+        75,
+        76,
+        77,
+        78,
+        80,
+        81,
+        82,
+        83,
+        84,
+        86,
+        87,
+        88,
+        89,
+        91,
+        92,
+        93,
+        94,
+        95,
+        97,
+        98,
+        99,
+        100,
+        102,
+        103,
+        104,
+        105,
+        106,
+        108,
+        109,
+        110,
+        111,
+        113,
+        114,
+        115,
+        116,
+        117,
+        118,
+        119,
+        121,
+        122,
+        123,
+        124,
+        125,
+        126,
+        127
+      ],
+      "tracesPassed": 412,
+      "inputs": 17744,
+      "intraTurnChecks": {
+        "group.group_skip_mask": 24455,
+        "object.may_be_created": 36502,
+        "object.may_be_destroyed": 36502,
+        "rule.may_invalidate_other_matches": 35846,
+        "rule.may_enable_other_matches": 36060,
+        "rule.self_disabling": 36036,
+        "rule.idempotent_effect": 12000,
+        "runtime.rule_reference_parity": 12123,
+        "rule.persistent_guard": 477
+      },
+      "skips": {
+        "no_matches": 1887714,
+        "probe_budget": 526983
+      }
+    },
+    {
+      "index": 90,
+      "title": "Watch Your Step",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/0e692c47ab0b18099c2485d644590b4e.txt",
+      "sha256": "2fb61ebada18401cd0315acbfca3e7f68b412ebf4e317e31f3cd4f2832079019",
+      "status": "complete",
+      "levels": [
+        3
+      ],
+      "tracesPassed": 4,
+      "inputs": 320,
+      "intraTurnChecks": {
+        "object.may_be_created": 1216,
+        "object.may_be_destroyed": 1216,
+        "rule.may_invalidate_other_matches": 954,
+        "rule.may_enable_other_matches": 954,
+        "runtime.rule_reference_parity": 1017,
+        "group.group_skip_mask": 4
+      },
+      "skips": {
+        "no_matches": 1954
+      }
+    },
+    {
+      "index": 91,
+      "title": "Spikes 'n' Stuff",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/dc5c4a669e362e389e994025075f7d0b.txt",
+      "sha256": "65ef4e0a8bc87c441f52760e08617ebdb73308e29f1964ae0a213f1960f4a2b9",
+      "status": "complete",
+      "levels": [
+        0
+      ],
+      "tracesPassed": 4,
+      "inputs": 320,
+      "intraTurnChecks": {
+        "object.may_be_created": 46555,
+        "object.may_be_destroyed": 46555,
+        "runtime.rule_reference_parity": 2767,
+        "rule.may_enable_other_matches": 12323,
+        "rule.self_disabling": 280,
+        "rule.idempotent_effect": 16,
+        "rule.persistent_guard": 506,
+        "rule.may_invalidate_other_matches": 12043,
+        "group.group_skip_mask": 139
+      },
+      "skips": {
+        "unmapped_early_groups": 4,
+        "no_matches": 531574,
+        "tuple_budget": 16,
+        "random_group_direct_application": 622,
+        "no_replacement": 7775,
+        "probe_budget": 20322
+      }
+    },
+    {
+      "index": 92,
+      "title": "XL-Plan",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/537878634acb9aa4cfbd5298856ea1ef.txt",
+      "sha256": "93d7c68ccfebedc10b4f0e57652e9b938000f1219441896451f96f25ec13b980",
+      "status": "complete",
+      "levels": [
+        4,
+        5,
+        6,
+        7
+      ],
+      "tracesPassed": 16,
+      "inputs": 1280,
+      "intraTurnChecks": {
+        "object.may_be_created": 31754,
+        "object.may_be_destroyed": 31754,
+        "runtime.rule_reference_parity": 9303,
+        "group.group_skip_mask": 780,
+        "rule.may_enable_other_matches": 1
+      },
+      "skips": {
+        "no_replacement": 44075,
+        "no_matches": 354496,
+        "random_group_direct_application": 5188,
+        "probe_budget": 53460
+      }
+    },
+    {
+      "index": 93,
+      "title": "Coin Counter",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/9ebe1e5ad44ac22259343de170a3b337.txt",
+      "sha256": "3e2af047f77420ea56a298c880b58dac59df9ea7199c00bdca1a43a3f5ac678f",
+      "status": "complete",
+      "levels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "tracesPassed": 44,
+      "inputs": 3182,
+      "intraTurnChecks": {
+        "object.may_be_created": 177048,
+        "object.may_be_destroyed": 177048,
+        "rule.self_disabling": 63258,
+        "runtime.rule_reference_parity": 33793,
+        "rule.may_invalidate_other_matches": 97051,
+        "rule.may_enable_other_matches": 98922,
+        "rule.idempotent_effect": 8326,
+        "rule.persistent_guard": 46859,
+        "group.group_skip_mask": 550
+      },
+      "skips": {
+        "no_replacement": 19236,
+        "no_matches": 265812,
+        "probe_budget": 6316
+      }
+    },
+    {
+      "index": 94,
+      "title": "Easy Enigma",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/a95269130d520a58adf710b692d1e52e.txt",
+      "sha256": "cd7c0ff33456fe54b5161ef9442b84c1fc15566862eb1af145f5681d6f29d0ae",
+      "status": "complete",
+      "levels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20
+      ],
+      "tracesPassed": 84,
+      "inputs": 6720,
+      "intraTurnChecks": {
+        "rule.setup_only.quiescence": 219,
+        "group.group_skip_mask": 11227,
+        "object.may_be_created": 416928,
+        "object.may_be_destroyed": 416928,
+        "runtime.rule_reference_parity": 9333,
+        "rule.may_invalidate_other_matches": 78505,
+        "rule.may_enable_other_matches": 44007,
+        "rule.self_disabling": 769,
+        "rule.idempotent_effect": 602,
+        "rule.persistent_guard": 43
+      },
+      "skips": {
+        "unmapped_early_groups": 504,
+        "no_matches": 2374061,
+        "no_replacement": 26608,
+        "probe_budget": 259023,
+        "tuple_budget": 1742
+      }
+    },
+    {
+      "index": 95,
+      "title": "the art of cloning",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/45f13378f02acf2d2583d91fac32e729.txt",
+      "sha256": "e54a4ed695ca90de633f417f1a51942d1db9daab3b135009af2e224853e4eb99",
+      "status": "complete",
+      "levels": [
+        2
+      ],
+      "tracesPassed": 4,
+      "inputs": 320,
+      "intraTurnChecks": {
+        "object.may_be_created": 10,
+        "object.may_be_destroyed": 10,
+        "rule.may_invalidate_other_matches": 10,
+        "rule.may_enable_other_matches": 10,
+        "rule.self_disabling": 10,
+        "rule.idempotent_effect": 10,
+        "runtime.rule_reference_parity": 10,
+        "group.group_skip_mask": 40
+      },
+      "skips": {
+        "no_matches": 1466
+      }
+    },
+    {
+      "index": 96,
+      "title": "interconnection",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/3acdd359dea642168ff946bfc26f0152.txt",
+      "sha256": "052c499aad780af560e37a0eccbcfa2aed0a7ea6ccec36ec3f062446ad6d5223",
+      "status": "complete",
+      "levels": [
+        2,
+        4,
+        6
+      ],
+      "tracesPassed": 12,
+      "inputs": 960,
+      "intraTurnChecks": {
+        "group.single_pass_safe": 383,
+        "group.split_candidate": 383,
+        "object.may_be_created": 55461,
+        "object.may_be_destroyed": 55461,
+        "rule.may_invalidate_other_matches": 28065,
+        "rule.may_enable_other_matches": 28102,
+        "runtime.rule_reference_parity": 5218,
+        "rule.self_disabling": 8419,
+        "rule.idempotent_effect": 3368,
+        "group.group_skip_mask": 1400
+      },
+      "skips": {
+        "no_matches": 61989,
+        "no_replacement": 981,
+        "probe_budget": 19294
+      }
+    },
+    {
+      "index": 97,
+      "title": "Path lines",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/b1c07b54e2091c40221cf48fe66d25ab.txt",
+      "sha256": "3be16629f7d7c14e8b0d52837cec3949ec735048b59a755eae070fc051a07a5a",
+      "status": "complete",
+      "levels": [
+        2,
+        4,
+        6,
+        8
+      ],
+      "tracesPassed": 16,
+      "inputs": 1280,
+      "intraTurnChecks": {
+        "group.single_pass_safe": 456,
+        "group.split_candidate": 456,
+        "object.may_be_created": 268596,
+        "object.may_be_destroyed": 268596,
+        "rule.may_invalidate_other_matches": 171507,
+        "rule.may_enable_other_matches": 82364,
+        "rule.self_disabling": 39635,
+        "rule.idempotent_effect": 3322,
+        "runtime.rule_reference_parity": 15092
+      },
+      "skips": {
+        "no_matches": 15777,
+        "probe_budget": 75579
+      }
+    },
+    {
+      "index": 98,
+      "title": "Maera Public Works",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/provided-maera_public_works.txt",
+      "sha256": "6414901cc0e4906989e6e60ad1a25bf7a640f7bd09742cdf916107336e0bccdb",
+      "status": "complete",
+      "levels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26
+      ],
+      "tracesPassed": 108,
+      "inputs": 4480,
+      "intraTurnChecks": {
+        "object.may_be_created": 56207,
+        "object.may_be_destroyed": 56207,
+        "rule.may_invalidate_other_matches": 18609,
+        "rule.may_enable_other_matches": 26260,
+        "rule.self_disabling": 4090,
+        "runtime.rule_reference_parity": 22020,
+        "rule.setup_only.quiescence": 2864,
+        "group.group_skip_mask": 6878,
+        "rule.idempotent_effect": 11419,
+        "rule.persistent_guard": 29272,
+        "rule.setup_only": 7898
+      },
+      "skips": {
+        "no_matches": 800729,
+        "no_replacement": 12024,
+        "probe_budget": 8796,
+        "zero_input_trace": 52
+      }
+    },
+    {
+      "index": 99,
+      "title": "I'm too far gone",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/a4bb2bf44284bdb9347cf3f1399d4f11.txt",
+      "sha256": "0229081deef43cc0f0622da584fffa588c6bc23f7543cefe95138e4c62ed4d20",
+      "status": "complete",
+      "levels": [
+        1
+      ],
+      "tracesPassed": 4,
+      "inputs": 320,
+      "intraTurnChecks": {
+        "object.may_be_created": 1688,
+        "object.may_be_destroyed": 1688,
+        "rule.may_enable_other_matches": 1289,
+        "rule.self_disabling": 657,
+        "runtime.rule_reference_parity": 825,
+        "rule.may_invalidate_other_matches": 1371,
+        "group.single_pass_safe": 524,
+        "group.split_candidate": 524,
+        "rule.idempotent_effect": 391,
+        "group.group_skip_mask": 1156
+      },
+      "skips": {
+        "tuple_budget": 12,
+        "no_matches": 25031,
+        "no_replacement": 2790,
+        "probe_budget": 791
+      }
+    },
+    {
+      "index": 100,
+      "title": "VEXT EDIT",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/9eb8f8f3df4efb450b798a279eeba2e0.txt",
+      "sha256": "36109ed05ffcd1c1006bcf9a1c9d143583e629b0fea32be169db0f82206281a3",
+      "status": "complete",
+      "levels": [
+        2,
+        4,
+        6,
+        8,
+        11,
+        13,
+        15,
+        17,
+        20,
+        22,
+        24,
+        26,
+        29,
+        31,
+        33,
+        35,
+        38,
+        40,
+        42,
+        44,
+        47,
+        49,
+        51,
+        53,
+        56,
+        58,
+        60,
+        62,
+        65,
+        67,
+        69,
+        71
+      ],
+      "tracesPassed": 128,
+      "inputs": 10240,
+      "intraTurnChecks": {
+        "group.single_pass_safe": 16227,
+        "group.split_candidate": 16227,
+        "object.may_be_created": 1191377,
+        "object.may_be_destroyed": 1191377,
+        "rule.may_invalidate_other_matches": 1170847,
+        "rule.may_enable_other_matches": 1169450,
+        "rule.idempotent_effect": 50639,
+        "runtime.rule_reference_parity": 59357,
+        "rule.self_disabling": 955117,
+        "group.group_skip_mask": 18991
+      },
+      "skips": {
+        "unmapped_early_groups": 2688,
+        "unmapped_late_groups": 128,
+        "no_matches": 6883125,
+        "random_group_direct_application": 30051,
+        "no_replacement": 48921,
+        "probe_budget": 531034,
+        "tuple_budget": 3641
+      }
+    },
+    {
+      "index": 101,
+      "title": "Soliquid",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/4adc7b17c2c0449c3a8b6c730e8cbfc9.txt",
+      "sha256": "12494c4bdc0cedd6583f5b3ad48cf3c9125f0981c6eeeedada5d7818eb7d6242",
+      "status": "complete",
+      "levels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "tracesPassed": 44,
+      "inputs": 3520,
+      "intraTurnChecks": {
+        "object.may_be_created": 26892,
+        "object.may_be_destroyed": 26892,
+        "rule.may_invalidate_other_matches": 13520,
+        "rule.may_enable_other_matches": 13520,
+        "runtime.rule_reference_parity": 8512,
+        "rule.self_disabling": 6081,
+        "rule.idempotent_effect": 2589,
+        "group.group_skip_mask": 198
+      },
+      "skips": {
+        "no_matches": 117572
+      }
+    },
+    {
+      "index": 102,
+      "title": "Broken Abacus",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/f7518dbe107486ab1a50e6119f4bc3f2.txt",
+      "sha256": "ec41b3d35a5017adb08008bafa045e53394ef534beed26d017c88188444e7b5b",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        5,
+        7,
+        9,
+        11,
+        13,
+        15,
+        17,
+        19,
+        21,
+        24,
+        26,
+        28,
+        30,
+        32
+      ],
+      "tracesPassed": 64,
+      "inputs": 5120,
+      "intraTurnChecks": {
+        "object.may_be_created": 12792,
+        "object.may_be_destroyed": 12792,
+        "rule.may_enable_other_matches": 6661,
+        "rule.self_disabling": 3769,
+        "rule.idempotent_effect": 1639,
+        "runtime.rule_reference_parity": 3909,
+        "rule.may_invalidate_other_matches": 3697,
+        "rule.persistent_guard": 46953,
+        "rule.setup_only.quiescence": 178,
+        "group.group_skip_mask": 12086
+      },
+      "skips": {
+        "no_matches": 784100,
+        "random_group_direct_application": 10120,
+        "probe_budget": 432451
+      }
+    },
+    {
+      "index": 103,
+      "title": "Mini Nomerads",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/7572972f749909993b12d84991e47ec9.txt",
+      "sha256": "16669620f14e4fcc5692cd4bc584cbeecb0d7a607e94b5d08de7a0b5b0ad631b",
+      "status": "complete",
+      "levels": [
+        3,
+        5,
+        7,
+        9,
+        11,
+        13,
+        15,
+        17,
+        19
+      ],
+      "tracesPassed": 36,
+      "inputs": 2713,
+      "intraTurnChecks": {
+        "group.group_skip_mask": 5058,
+        "object.may_be_created": 1127,
+        "object.may_be_destroyed": 1127,
+        "runtime.rule_reference_parity": 686,
+        "rule.may_invalidate_other_matches": 255,
+        "rule.may_enable_other_matches": 257,
+        "rule.self_disabling": 438,
+        "rule.idempotent_effect": 210
+      },
+      "skips": {
+        "no_matches": 101384
+      }
+    },
+    {
+      "index": 104,
+      "title": "Fall Leaves",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/58325085befa37ab497168cd803c64cb.txt",
+      "sha256": "ed9e9c5b8e0584c5648626aff6ef24c5a4f9f561ac907dc44e8944d56f75b25f",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        5,
+        7,
+        9,
+        11,
+        13
+      ],
+      "tracesPassed": 28,
+      "inputs": 2240,
+      "intraTurnChecks": {
+        "object.may_be_created": 46772,
+        "object.may_be_destroyed": 46772,
+        "rule.may_invalidate_other_matches": 44117,
+        "rule.may_enable_other_matches": 44117,
+        "rule.self_disabling": 42815,
+        "rule.idempotent_effect": 12668,
+        "runtime.rule_reference_parity": 15374
+      },
+      "skips": {
+        "no_matches": 55990,
+        "no_replacement": 2376
+      }
+    },
+    {
+      "index": 105,
+      "title": "Mad Queens",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/8ba10d6a0a5a0edd640e0b9431858259.txt",
+      "sha256": "4a0d46d004f949c172b5378be6767d65640ff95df1f0605e24f247c0a1a8aedd",
+      "status": "complete",
+      "levels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "tracesPassed": 44,
+      "inputs": 3520,
+      "intraTurnChecks": {
+        "group.split_candidate": 996,
+        "object.may_be_created": 209544,
+        "rule.may_enable_other_matches": 99595,
+        "rule.self_disabling": 43006,
+        "rule.idempotent_effect": 18205,
+        "runtime.rule_reference_parity": 27785,
+        "group.group_skip_mask": 3552,
+        "rule.may_invalidate_other_matches": 95819
+      },
+      "skips": {
+        "no_matches": 126824,
+        "no_replacement": 3630,
+        "probe_budget": 177539
+      }
+    },
+    {
+      "index": 106,
+      "title": "Indigestion",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/35861399c74d3f57f39aaf64daadde65.txt",
+      "sha256": "e783e1a53486754515d66582f5b55e41943a2606fafbafe1deb9d9637fe66f99",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        5,
+        7,
+        9,
+        11,
+        13,
+        15,
+        17,
+        19,
+        21,
+        23,
+        25,
+        27,
+        29,
+        32
+      ],
+      "tracesPassed": 64,
+      "inputs": 5120,
+      "intraTurnChecks": {
+        "object.may_be_created": 73190,
+        "object.may_be_destroyed": 73190,
+        "rule.may_invalidate_other_matches": 52080,
+        "rule.may_enable_other_matches": 49090,
+        "runtime.rule_reference_parity": 17055,
+        "rule.self_disabling": 19830,
+        "rule.idempotent_effect": 13041,
+        "group.group_skip_mask": 16492,
+        "group.single_pass_safe": 1202,
+        "group.split_candidate": 1202,
+        "rule.persistent_guard": 9846,
+        "rule.setup_only.quiescence": 110
+      },
+      "skips": {
+        "no_matches": 1887556,
+        "no_replacement": 34872,
+        "probe_budget": 339367,
+        "tuple_budget": 54
+      }
+    },
+    {
+      "index": 107,
+      "title": "Pushing It",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/2fe3172d2b9fe684977d184f1b6226d5.txt",
+      "sha256": "c7c54bd07ead0d24de38bda35d093e3daf1cb9d50ba724e997d3efdc719db3a0",
+      "status": "complete",
+      "levels": [
+        0
+      ],
+      "tracesPassed": 4,
+      "inputs": 320,
+      "intraTurnChecks": {
+        "object.may_be_created": 278296,
+        "object.may_be_destroyed": 278296,
+        "rule.may_invalidate_other_matches": 16344,
+        "rule.may_enable_other_matches": 147320,
+        "rule.idempotent_effect": 3286,
+        "runtime.rule_reference_parity": 3502,
+        "rule.self_disabling": 16750,
+        "group.group_skip_mask": 243
+      },
+      "skips": {
+        "no_matches": 885,
+        "probe_budget": 1038
+      }
+    },
+    {
+      "index": 108,
+      "title": "Shall We Golf?",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/provided-Shall We Golf.txt",
+      "sha256": "1e18d6b7a70f86ff7ed9fa629617565ad929edb76db0682c1b299855c5617659",
+      "status": "complete",
+      "levels": [
+        2,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        23,
+        25,
+        27,
+        29,
+        31,
+        33
+      ],
+      "tracesPassed": 60,
+      "inputs": 4800,
+      "intraTurnChecks": {
+        "object.may_be_created": 296594,
+        "object.may_be_destroyed": 296594,
+        "rule.may_enable_other_matches": 153139,
+        "rule.self_disabling": 81287,
+        "rule.idempotent_effect": 35725,
+        "runtime.rule_reference_parity": 48911,
+        "rule.may_invalidate_other_matches": 71841,
+        "rule.persistent_guard": 240027,
+        "group.group_skip_mask": 3767
+      },
+      "skips": {
+        "no_matches": 1339921,
+        "probe_budget": 145193
+      }
+    },
+    {
+      "index": 109,
+      "title": "At the Hedges of Time",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/provided-at-the-hedges-of-time.txt",
+      "sha256": "d4f32899d902626cef86419700b1a41a28c0a924bd26ac3d7f48952d9d9d45c5",
+      "status": "complete",
+      "levels": [
+        8
+      ],
+      "tracesPassed": 4,
+      "inputs": 320,
+      "intraTurnChecks": {
+        "object.may_be_created": 19436,
+        "object.may_be_destroyed": 19436,
+        "runtime.rule_reference_parity": 536,
+        "rule.may_invalidate_other_matches": 9798,
+        "rule.may_enable_other_matches": 2854,
+        "group.single_pass_safe": 8,
+        "group.split_candidate": 12,
+        "rule.idempotent_effect": 300,
+        "rule.self_disabling": 1436,
+        "group.group_skip_mask": 336
+      },
+      "skips": {
+        "unmapped_late_groups": 4,
+        "no_matches": 801916,
+        "no_replacement": 3732,
+        "tuple_budget": 88,
+        "probe_budget": 141298
+      }
+    },
+    {
+      "index": 110,
+      "title": "Sokodig",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/3754910c54ef200ac105b4152654bbea.txt",
+      "sha256": "c48a585920ffbebebc812df607e5c73513f7db71933e72f2e3366ba038f37875",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        5,
+        7,
+        9,
+        11,
+        13,
+        15,
+        17,
+        18,
+        19,
+        20,
+        22,
+        24,
+        25,
+        26,
+        27,
+        29
+      ],
+      "tracesPassed": 72,
+      "inputs": 5250,
+      "intraTurnChecks": {
+        "object.may_be_created": 502989,
+        "object.may_be_destroyed": 502989,
+        "rule.may_invalidate_other_matches": 339435,
+        "rule.may_enable_other_matches": 339435,
+        "runtime.rule_reference_parity": 6521,
+        "rule.self_disabling": 179714,
+        "rule.idempotent_effect": 2666,
+        "group.group_skip_mask": 461
+      },
+      "skips": {
+        "no_matches": 32337,
+        "random_group_direct_application": 5006,
+        "tuple_budget": 1934
+      }
+    },
+    {
+      "index": 111,
+      "title": "Two Worlds",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/provided-two-worlds.txt",
+      "sha256": "58404384d8aa020d598dc32de91617d0b7119e3239012656e609a09c1cddf547",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        5,
+        7,
+        9,
+        11,
+        13,
+        15,
+        17,
+        19,
+        21,
+        23,
+        25,
+        27,
+        29,
+        31,
+        33
+      ],
+      "tracesPassed": 68,
+      "inputs": 5440,
+      "intraTurnChecks": {
+        "object.may_be_created": 421993,
+        "object.may_be_destroyed": 421993,
+        "rule.may_invalidate_other_matches": 112361,
+        "rule.may_enable_other_matches": 213241,
+        "rule.idempotent_effect": 36139,
+        "runtime.rule_reference_parity": 49129,
+        "group.split_candidate": 1069,
+        "rule.self_disabling": 129399,
+        "group.group_skip_mask": 3174
+      },
+      "skips": {
+        "unmapped_early_groups": 68,
+        "no_replacement": 95860,
+        "no_matches": 3458858,
+        "tuple_budget": 4017,
+        "rigid_lifetime_scope": 9650,
+        "probe_budget": 577926
+      }
+    },
+    {
+      "index": 112,
+      "title": "I Need To Stop My Teleport Gun",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/74aa33ccefeb1255f90227bca5ea4076.txt",
+      "sha256": "21de478183f18e98bebb6f4d9342522f9c487bd2b8d89f667e033f7b758857b8",
+      "status": "complete",
+      "levels": [
+        1
+      ],
+      "tracesPassed": 4,
+      "inputs": 320,
+      "intraTurnChecks": {
+        "object.may_be_created": 1709,
+        "object.may_be_destroyed": 1709,
+        "rule.may_invalidate_other_matches": 723,
+        "rule.may_enable_other_matches": 743,
+        "runtime.rule_reference_parity": 1411,
+        "rule.self_disabling": 422,
+        "rule.idempotent_effect": 413,
+        "group.group_skip_mask": 26
+      },
+      "skips": {
+        "no_matches": 18407
+      }
+    },
+    {
+      "index": 113,
+      "title": "Lightdown",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/361283c1cef6837b6563d25e8f01e444.txt",
+      "sha256": "a2b15c20f19905309c8dead0d363e6c1606bf0e0db534ebe30cd37dbe83bc124",
+      "status": "complete",
+      "levels": [
+        3,
+        5,
+        7,
+        9,
+        11,
+        13,
+        15,
+        17
+      ],
+      "tracesPassed": 32,
+      "inputs": 2560,
+      "intraTurnChecks": {
+        "object.may_be_created": 199623,
+        "object.may_be_destroyed": 199623,
+        "rule.may_invalidate_other_matches": 94872,
+        "rule.may_enable_other_matches": 94872,
+        "rule.idempotent_effect": 6365,
+        "runtime.rule_reference_parity": 27829,
+        "rule.self_disabling": 240
+      },
+      "skips": {
+        "no_matches": 47634,
+        "probe_budget": 6706
+      }
+    },
+    {
+      "index": 114,
+      "title": "Every Star Needs a Tree",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/7fe2230e6d59af738b85826dd62b6e1d.txt",
+      "sha256": "73bc65cd550f129046c7fabb7ea9af44709dce2547b72b3cacd1e0f7e5d59bb2",
+      "status": "complete",
+      "levels": [
+        0
+      ],
+      "tracesPassed": 4,
+      "inputs": 320,
+      "intraTurnChecks": {
+        "object.may_be_created": 14799,
+        "object.may_be_destroyed": 14799,
+        "runtime.rule_reference_parity": 3600,
+        "rule.may_invalidate_other_matches": 8176,
+        "rule.may_enable_other_matches": 6376,
+        "rule.idempotent_effect": 787,
+        "rule.self_disabling": 3920,
+        "group.group_skip_mask": 192
+      },
+      "skips": {
+        "no_matches": 6218,
+        "probe_budget": 2382
+      }
+    },
+    {
+      "index": 115,
+      "title": "Long Haul Space Flight",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/44a295d7a2ab17a2048f555d72781a29.txt",
+      "sha256": "410e2786d68ecd65604bc6e86d62d2fcf800f6fcdfd12997ba32d6d7537b3d22",
+      "status": "complete",
+      "levels": [
+        2,
+        5,
+        8,
+        11,
+        14,
+        17,
+        20,
+        23,
+        26,
+        29,
+        32,
+        35,
+        37
+      ],
+      "tracesPassed": 52,
+      "inputs": 4160,
+      "intraTurnChecks": {
+        "object.may_be_created": 1457,
+        "object.may_be_destroyed": 1457,
+        "runtime.rule_reference_parity": 723,
+        "group.group_skip_mask": 666,
+        "rule.may_invalidate_other_matches": 61,
+        "rule.may_enable_other_matches": 61,
+        "rule.self_disabling": 61,
+        "rule.idempotent_effect": 61,
+        "rule.persistent_guard": 1387
+      },
+      "skips": {
+        "no_matches": 10314
+      }
+    },
+    {
+      "index": 116,
+      "title": "Caramelban",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/bc59f54ac76fd119991b250979de70e0.txt",
+      "sha256": "adf6b7a95ed3eef1cdc607d2a591581997d2d435babc096feb07c2d77ec6629e",
+      "status": "complete",
+      "levels": [
+        1
+      ],
+      "tracesPassed": 4,
+      "inputs": 320,
+      "intraTurnChecks": {
+        "object.may_be_created": 42616,
+        "object.may_be_destroyed": 42616,
+        "rule.may_invalidate_other_matches": 38571,
+        "rule.may_enable_other_matches": 39811,
+        "rule.idempotent_effect": 1158,
+        "runtime.rule_reference_parity": 1916,
+        "rule.self_disabling": 21944,
+        "group.single_pass_safe": 204,
+        "group.split_candidate": 204,
+        "rule.persistent_guard": 31372,
+        "rule.setup_only.quiescence": 42,
+        "group.group_skip_mask": 855
+      },
+      "skips": {
+        "no_matches": 15795,
+        "probe_budget": 2210
+      }
+    },
+    {
+      "index": 117,
+      "title": "Clearing Space",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/fe33549f62cd7666ea14eedcfc3863a3.txt",
+      "sha256": "0d8064ceb15740879586620e0d6eab47dc4ee50b67f9075de94e1e8a9dc15201",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        5,
+        7,
+        9,
+        11,
+        13,
+        15,
+        17,
+        19,
+        21
+      ],
+      "tracesPassed": 44,
+      "inputs": 3520,
+      "intraTurnChecks": {
+        "object.may_be_created": 20737,
+        "object.may_be_destroyed": 20737,
+        "runtime.rule_reference_parity": 10562,
+        "rule.may_invalidate_other_matches": 16909,
+        "rule.may_enable_other_matches": 16999,
+        "rule.self_disabling": 8441,
+        "rule.idempotent_effect": 9140,
+        "group.group_skip_mask": 2143
+      },
+      "skips": {
+        "no_matches": 42539
+      }
+    },
+    {
+      "index": 118,
+      "title": "Crate Assembler",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/bc8f853dae0cf7a2ad336a75ab24ba09.txt",
+      "sha256": "e61e21098487fe93838f50f2d076afc05a5c8df4e7514697dd4f81fc9cd1488a",
+      "status": "complete",
+      "levels": [
+        1,
+        5,
+        8,
+        11,
+        14,
+        17,
+        20,
+        23,
+        26,
+        29,
+        32,
+        35,
+        38,
+        41,
+        44,
+        46
+      ],
+      "tracesPassed": 64,
+      "inputs": 5031,
+      "intraTurnChecks": {
+        "object.may_be_created": 5336,
+        "object.may_be_destroyed": 5336,
+        "runtime.rule_reference_parity": 1676,
+        "rule.may_invalidate_other_matches": 42,
+        "rule.may_enable_other_matches": 42,
+        "rule.self_disabling": 42,
+        "rule.idempotent_effect": 42
+      },
+      "skips": {
+        "unmapped_early_groups": 512,
+        "no_matches": 162028,
+        "no_replacement": 38112
+      }
+    },
+    {
+      "index": 119,
+      "title": "Single Screen Scream",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/provided-single-screen-scream.txt",
+      "sha256": "1b8c89638622c68b582ad5c2190a3d160ec7bc9720bcaac2df3b9d8ea507f6b4",
+      "status": "complete",
+      "levels": [
+        0
+      ],
+      "tracesPassed": 4,
+      "inputs": 320,
+      "intraTurnChecks": {
+        "object.may_be_created": 3212,
+        "object.may_be_destroyed": 3212,
+        "runtime.rule_reference_parity": 55,
+        "rule.may_invalidate_other_matches": 144,
+        "rule.may_enable_other_matches": 144,
+        "rule.idempotent_effect": 12,
+        "group.group_skip_mask": 766
+      },
+      "skips": {
+        "no_matches": 348247,
+        "probe_budget": 100436
+      }
+    },
+    {
+      "index": 120,
+      "title": "Sokoban... in 3D!",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/fce521be3852cca725e85154d122e53f.txt",
+      "sha256": "611e04cd2f032769d750e9c06bc035fde253786fd59e3809e0ea708499cce212",
+      "status": "complete",
+      "levels": [
+        2,
+        4
+      ],
+      "tracesPassed": 8,
+      "inputs": 640,
+      "intraTurnChecks": {
+        "group.single_pass_safe": 498,
+        "group.split_candidate": 498,
+        "group.group_skip_mask": 973,
+        "object.may_be_created": 40249,
+        "object.may_be_destroyed": 40249,
+        "runtime.rule_reference_parity": 2511,
+        "rule.may_invalidate_other_matches": 20087,
+        "rule.may_enable_other_matches": 30085,
+        "rule.idempotent_effect": 2381,
+        "rule.self_disabling": 20029
+      },
+      "skips": {
+        "no_replacement": 10897,
+        "no_matches": 64002,
+        "probe_budget": 3057
+      }
+    },
+    {
+      "index": 121,
+      "title": "Pipe Bend",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/8627569e70bdd911680d458ba6d0826a.txt",
+      "sha256": "4c2b90dbaac6243cc44f77e1b50f52a1460ecc41330593f9c50be9ca0577c2b6",
+      "status": "complete",
+      "levels": [
+        0
+      ],
+      "tracesPassed": 4,
+      "inputs": 320,
+      "intraTurnChecks": {
+        "object.may_be_created": 53124,
+        "object.may_be_destroyed": 53124,
+        "runtime.rule_reference_parity": 4000,
+        "rule.may_enable_other_matches": 6793,
+        "rule.self_disabling": 3591,
+        "rule.idempotent_effect": 387,
+        "rule.may_invalidate_other_matches": 6758,
+        "rule.persistent_guard": 139
+      },
+      "skips": {
+        "no_matches": 26503,
+        "random_group_direct_application": 309,
+        "probe_budget": 2836
+      }
+    },
+    {
+      "index": 122,
+      "title": "Raking Sokoban",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/ea5982c0e23eb7f892325d003423f65f.txt",
+      "sha256": "a624235f1d2e1c32fc466bca738a1b4ad07f05bce0161bb76083dd10d50997eb",
+      "status": "complete",
+      "levels": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "tracesPassed": 20,
+      "inputs": 1600,
+      "intraTurnChecks": {
+        "object.may_be_created": 7357,
+        "object.may_be_destroyed": 7357,
+        "runtime.rule_reference_parity": 4605,
+        "rule.may_invalidate_other_matches": 12,
+        "rule.may_enable_other_matches": 12
+      },
+      "skips": {
+        "rigid_lifetime_scope": 1542,
+        "no_matches": 66046,
+        "no_replacement": 7416
+      }
+    },
+    {
+      "index": 123,
+      "title": "The observer's paradox",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/42a7e74f578b9d0bdc9c66469d97b262.txt",
+      "sha256": "45bca76d6df5a45b4cc2d304e45e5da23672033c7aa4207559cde0b8937e89b1",
+      "status": "complete",
+      "levels": [
+        0,
+        1,
+        3,
+        5,
+        7,
+        11
+      ],
+      "tracesPassed": 24,
+      "inputs": 1920,
+      "intraTurnChecks": {
+        "object.may_be_created": 176910,
+        "object.may_be_destroyed": 176910,
+        "rule.may_invalidate_other_matches": 122330,
+        "rule.may_enable_other_matches": 122330,
+        "runtime.rule_reference_parity": 17687,
+        "rule.idempotent_effect": 17617,
+        "rule.self_disabling": 31624,
+        "group.group_skip_mask": 337
+      },
+      "skips": {
+        "no_matches": 9059,
+        "tuple_budget": 311,
+        "probe_budget": 51442
+      }
+    },
+    {
+      "index": 124,
+      "title": "IBurnedDownBigBenBecauseRishiSunakF**kingRobbedMyFish",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/e2b7b25668f077084a5c31f0fa84973a.txt",
+      "sha256": "7e9bbaf76d098be3d78309fd2b80a574b977b21962ce232fad7e784c8f2d8cb1",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        5,
+        7,
+        9,
+        11,
+        13,
+        15,
+        17,
+        19,
+        21,
+        23,
+        25,
+        27,
+        29,
+        31
+      ],
+      "tracesPassed": 64,
+      "inputs": 5120,
+      "intraTurnChecks": {
+        "group.single_pass_safe": 3198,
+        "group.split_candidate": 3198,
+        "object.may_be_created": 26800,
+        "object.may_be_destroyed": 26800,
+        "rule.may_invalidate_other_matches": 19022,
+        "rule.may_enable_other_matches": 22564,
+        "rule.self_disabling": 15435,
+        "rule.idempotent_effect": 9579,
+        "runtime.rule_reference_parity": 13143,
+        "group.group_skip_mask": 6818,
+        "rule.persistent_guard": 2285
+      },
+      "skips": {
+        "no_matches": 388366,
+        "probe_budget": 34747
+      }
+    },
+    {
+      "index": 125,
+      "title": "Quantum Rails",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/e614e414e570294e45533109426245d4.txt",
+      "sha256": "0db549259cb3e5c06491b99552c7de2acdac05542b8b95e9f152cf0ff6018f92",
+      "status": "complete",
+      "levels": [
+        2,
+        4,
+        6,
+        9,
+        11,
+        13,
+        16,
+        18,
+        21,
+        23,
+        25,
+        28,
+        30,
+        32,
+        34
+      ],
+      "tracesPassed": 60,
+      "inputs": 4800,
+      "intraTurnChecks": {
+        "group.single_pass_safe": 5404,
+        "group.split_candidate": 5404,
+        "object.may_be_created": 36987,
+        "object.may_be_destroyed": 36987,
+        "rule.may_invalidate_other_matches": 22985,
+        "rule.may_enable_other_matches": 22985,
+        "runtime.rule_reference_parity": 16850,
+        "rule.self_disabling": 5523,
+        "rule.idempotent_effect": 4749,
+        "group.group_skip_mask": 11872
+      },
+      "skips": {
+        "unmapped_early_groups": 240,
+        "no_matches": 1220740,
+        "no_replacement": 38700,
+        "probe_budget": 202347
+      }
+    },
+    {
+      "index": 126,
+      "title": "Billy Bob's Uphill Climb",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/3bcc0608540276e7b190caf9d2583a1f.txt",
+      "sha256": "fc323f2c77d80c40c56d439df934e338afb07993f2c522b39faac6615960fbea",
+      "status": "complete",
+      "levels": [
+        5,
+        7,
+        9,
+        11,
+        13,
+        15,
+        17,
+        19
+      ],
+      "tracesPassed": 32,
+      "inputs": 2560,
+      "intraTurnChecks": {
+        "object.may_be_created": 32489,
+        "object.may_be_destroyed": 32489,
+        "rule.may_invalidate_other_matches": 19179,
+        "rule.may_enable_other_matches": 19664,
+        "rule.idempotent_effect": 1656,
+        "runtime.rule_reference_parity": 4476,
+        "rule.self_disabling": 4437,
+        "group.group_skip_mask": 2676,
+        "group.split_candidate": 182,
+        "rule.persistent_guard": 27383,
+        "rule.setup_only.quiescence": 62,
+        "rule.setup_only": 137
+      },
+      "skips": {
+        "unmapped_early_groups": 64,
+        "no_matches": 1114777,
+        "no_replacement": 5024,
+        "random_group_direct_application": 24500,
+        "probe_budget": 452142,
+        "tuple_budget": 32
+      }
+    },
+    {
+      "index": 127,
+      "title": "I am two",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/25ee2f1c9000620aa7b6f429c958d095.txt",
+      "sha256": "89e1a7935a533c27b72a6a49500f54d7f585f944f30647ce544b88120c5f57f4",
+      "status": "complete",
+      "levels": [
+        3,
+        5,
+        7,
+        9,
+        11,
+        13,
+        15,
+        17
+      ],
+      "tracesPassed": 32,
+      "inputs": 2560,
+      "intraTurnChecks": {
+        "object.may_be_created": 192047,
+        "object.may_be_destroyed": 192047,
+        "rule.may_invalidate_other_matches": 98315,
+        "rule.may_enable_other_matches": 111561,
+        "rule.self_disabling": 14533,
+        "rule.idempotent_effect": 10548,
+        "runtime.rule_reference_parity": 14195,
+        "rule.persistent_guard": 108352,
+        "group.group_skip_mask": 839
+      },
+      "skips": {
+        "no_matches": 270378,
+        "probe_budget": 22036
+      }
+    },
+    {
+      "index": 128,
+      "title": "Transition",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/95dc770efe45854e528fa80a48eeca0a.txt",
+      "sha256": "26fc96112258f81eddeb10837ccc3573f6a91e415af51eb39987bb705629fcc4",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        5,
+        7,
+        9,
+        11,
+        13,
+        15,
+        17,
+        19,
+        21,
+        23,
+        25,
+        27,
+        29,
+        31,
+        33,
+        35,
+        37,
+        39,
+        41
+      ],
+      "tracesPassed": 84,
+      "inputs": 6663,
+      "intraTurnChecks": {
+        "object.may_be_created": 1109901,
+        "object.may_be_destroyed": 1109901,
+        "runtime.rule_reference_parity": 10944,
+        "group.group_skip_mask": 1090,
+        "rule.may_invalidate_other_matches": 8,
+        "rule.may_enable_other_matches": 9
+      },
+      "skips": {
+        "no_matches": 419088,
+        "no_replacement": 6512,
+        "probe_budget": 22681,
+        "tuple_budget": 822
+      }
+    },
+    {
+      "index": 129,
+      "title": "YukiAsobi",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/be5d4f8a38062b1ac9d795c85979e4b6.txt",
+      "sha256": "0940bdfcc9af4b66800740671764338a82b081c09da34e319851fac355664eb2",
+      "status": "complete",
+      "levels": [
+        2
+      ],
+      "tracesPassed": 4,
+      "inputs": 320,
+      "intraTurnChecks": {
+        "object.may_be_created": 83892,
+        "object.may_be_destroyed": 83892,
+        "runtime.rule_reference_parity": 3280,
+        "rule.may_invalidate_other_matches": 3208,
+        "rule.may_enable_other_matches": 3232,
+        "rule.idempotent_effect": 905,
+        "rule.self_disabling": 3011,
+        "group.split_candidate": 104,
+        "group.group_skip_mask": 192
+      },
+      "skips": {
+        "no_matches": 93727,
+        "tuple_budget": 104,
+        "probe_budget": 8072
+      }
+    },
+    {
+      "index": 130,
+      "title": "paint everything everywhere!",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/6a412035f6f1999cc773ddcb071de6e6.txt",
+      "sha256": "5c224df2c7c8495b11e9962a757827698685039d0977fa6163f33f9044d7972a",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        5,
+        7,
+        9,
+        11,
+        13,
+        15,
+        17,
+        19,
+        21,
+        23,
+        25,
+        27,
+        29,
+        31,
+        33,
+        35,
+        37,
+        39
+      ],
+      "tracesPassed": 80,
+      "inputs": 6400,
+      "intraTurnChecks": {
+        "object.may_be_created": 288724,
+        "object.may_be_destroyed": 288724,
+        "rule.may_invalidate_other_matches": 18100,
+        "rule.may_enable_other_matches": 23427,
+        "rule.self_disabling": 1654,
+        "rule.idempotent_effect": 7967,
+        "runtime.rule_reference_parity": 50533,
+        "group.group_skip_mask": 5208
+      },
+      "skips": {
+        "no_matches": 3137172,
+        "probe_budget": 122376
+      }
+    },
+    {
+      "index": 131,
+      "title": "A CLEAR VIEW OF THE SKY",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/b6020a515c32a33ad309fbd5a63f3588.txt",
+      "sha256": "cff3f7958f4a51d93ce108a990dc41dc60b3fb14d8aa26ef710996f8458f2918",
+      "status": "complete",
+      "levels": [
+        3,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        26,
+        28,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35
+      ],
+      "tracesPassed": 76,
+      "inputs": 4248,
+      "intraTurnChecks": {
+        "object.may_be_created": 587365,
+        "object.may_be_destroyed": 587365,
+        "rule.may_invalidate_other_matches": 312069,
+        "rule.may_enable_other_matches": 68002,
+        "rule.idempotent_effect": 5367,
+        "runtime.rule_reference_parity": 41452,
+        "group.split_candidate": 837,
+        "rule.self_disabling": 28271,
+        "rule.persistent_guard": 56494,
+        "rule.setup_only.quiescence": 321,
+        "rule.setup_only": 600,
+        "group.group_skip_mask": 2411
+      },
+      "skips": {
+        "no_matches": 218580,
+        "no_replacement": 4600,
+        "probe_budget": 307373
+      }
+    },
+    {
+      "index": 132,
+      "title": "WITCH LIFTER",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/9b405f4c165349eb617779b5547cdf52.txt",
+      "sha256": "69792c13f27ac42414c711ac39eae4ac9aee8dbbd3a00c56d3e12f858bd9733e",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        5,
+        7,
+        9,
+        11,
+        13,
+        15
+      ],
+      "tracesPassed": 32,
+      "inputs": 2560,
+      "intraTurnChecks": {
+        "object.may_be_created": 104082,
+        "object.may_be_destroyed": 104082,
+        "rule.may_invalidate_other_matches": 59212,
+        "rule.may_enable_other_matches": 59348,
+        "runtime.rule_reference_parity": 21667,
+        "rule.self_disabling": 28126,
+        "rule.idempotent_effect": 4615
+      },
+      "skips": {
+        "no_replacement": 18340,
+        "no_matches": 284819,
+        "probe_budget": 45
+      }
+    },
+    {
+      "index": 133,
+      "title": "The sponge what lights up the seafloor",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/33d42cc9f33cd58f74fa2ee31b494314.txt",
+      "sha256": "b47ac6e31aa5d1ccdb488e95a47f1c41c76b1ba4bed0569d54bb437a2f0eb4f9",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        5,
+        7,
+        9,
+        11,
+        13,
+        15,
+        17,
+        19
+      ],
+      "tracesPassed": 40,
+      "inputs": 3200,
+      "intraTurnChecks": {
+        "group.split_candidate": 2150,
+        "object.may_be_created": 57868,
+        "object.may_be_destroyed": 57868,
+        "rule.may_invalidate_other_matches": 40146,
+        "rule.may_enable_other_matches": 40146,
+        "rule.idempotent_effect": 15119,
+        "runtime.rule_reference_parity": 31402,
+        "rule.self_disabling": 13943,
+        "group.group_skip_mask": 150
+      },
+      "skips": {
+        "no_replacement": 12580,
+        "no_matches": 354013,
+        "probe_budget": 19311
+      }
+    },
+    {
+      "index": 134,
+      "title": "Put the logs in the water, elephant!",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/c75c21d481107aa5cb78dc91378f8d9b.txt",
+      "sha256": "c4e5d94a3f915f5360775cb72d0ab9c1766d1a2d625da5f3395589d3dde9a85c",
+      "status": "complete",
+      "levels": [
+        1,
+        4,
+        7,
+        10,
+        13,
+        16,
+        19,
+        22
+      ],
+      "tracesPassed": 32,
+      "inputs": 2560,
+      "intraTurnChecks": {
+        "group.group_skip_mask": 1679,
+        "object.may_be_created": 1795,
+        "object.may_be_destroyed": 1795,
+        "runtime.rule_reference_parity": 667
+      },
+      "skips": {
+        "no_matches": 5472,
+        "no_replacement": 26719
+      }
+    },
+    {
+      "index": 135,
+      "title": "Karamell",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/1f22424c2178d3e64c33c2e25203365b.txt",
+      "sha256": "270ac4ef504214b776f1829af407477c69e37fb4554410cc73edc2490c5d2a9a",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        5,
+        7
+      ],
+      "tracesPassed": 16,
+      "inputs": 964,
+      "intraTurnChecks": {
+        "object.may_be_created": 105848,
+        "object.may_be_destroyed": 105848,
+        "runtime.rule_reference_parity": 10279,
+        "rule.may_invalidate_other_matches": 34972,
+        "rule.may_enable_other_matches": 24865,
+        "rule.idempotent_effect": 1105,
+        "rule.self_disabling": 8372,
+        "group.single_pass_safe": 306,
+        "group.split_candidate": 306,
+        "group.group_skip_mask": 274
+      },
+      "skips": {
+        "no_matches": 89918,
+        "probe_budget": 25436
+      }
+    },
+    {
+      "index": 136,
+      "title": "Omniban",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/96608bd07725a3a105bb0027a7b73da3.txt",
+      "sha256": "130d49aa2b62fd02f31eabc53067ffcfd1a3c8fbb0976a3abc2053640f8c475f",
+      "status": "complete",
+      "levels": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        20
+      ],
+      "tracesPassed": 76,
+      "inputs": 6080,
+      "intraTurnChecks": {
+        "object.may_be_created": 3882,
+        "object.may_be_destroyed": 3882,
+        "rule.may_invalidate_other_matches": 2047,
+        "rule.may_enable_other_matches": 2047,
+        "runtime.rule_reference_parity": 2357,
+        "group.group_skip_mask": 4618,
+        "rule.self_disabling": 4
+      },
+      "skips": {
+        "no_matches": 94516,
+        "probe_budget": 138654
+      }
+    },
+    {
+      "index": 137,
+      "title": "Bring the ice cube to the goal without exposing it to heat.",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/bf3272fd7b73c43acb4f835478fb25ee.txt",
+      "sha256": "c4c16314508e64a0bdf17d26d965c310042c9a0f415e4f6c48c23de77273f6a2",
+      "status": "complete",
+      "levels": [
+        1
+      ],
+      "tracesPassed": 4,
+      "inputs": 320,
+      "intraTurnChecks": {
+        "object.may_be_created": 114610,
+        "object.may_be_destroyed": 114610,
+        "rule.may_invalidate_other_matches": 22956,
+        "rule.may_enable_other_matches": 22956,
+        "runtime.rule_reference_parity": 3692,
+        "rule.idempotent_effect": 453,
+        "rule.self_disabling": 11100,
+        "rule.persistent_guard": 73
+      },
+      "skips": {
+        "no_matches": 559,
+        "no_replacement": 313,
+        "probe_budget": 5300
+      }
+    },
+    {
+      "index": 138,
+      "title": "Un-Lock",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/0bde9b6117e2c7aebb4f226b47cbdc47.txt",
+      "sha256": "c86879451a0fbcf74a019e8f08be9acf17f4af73e776d276cd20b0cef4b28330",
+      "status": "complete",
+      "levels": [
+        0
+      ],
+      "tracesPassed": 4,
+      "inputs": 320,
+      "intraTurnChecks": {
+        "object.may_be_created": 82215,
+        "object.may_be_destroyed": 82215,
+        "rule.may_invalidate_other_matches": 25751,
+        "rule.may_enable_other_matches": 25763,
+        "runtime.rule_reference_parity": 2826,
+        "rule.self_disabling": 3936,
+        "rule.idempotent_effect": 566,
+        "rule.persistent_guard": 64420,
+        "group.group_skip_mask": 154
+      },
+      "skips": {
+        "no_matches": 13206,
+        "no_replacement": 311,
+        "probe_budget": 8832
+      }
+    },
+    {
+      "index": 139,
+      "title": "Seven-Layer Dip",
+      "sourceStatus": "provisional",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/f34d1ea5b2636c253edf725bd2679976.txt",
+      "sha256": "d4b2ef5988a2eef15c8dd7fb9abe8e81bd3e264d9e593b3c395860dc06e046c1",
+      "status": "complete",
+      "levels": [
+        0
+      ],
+      "tracesPassed": 4,
+      "inputs": 320,
+      "intraTurnChecks": {
+        "group.group_skip_mask": 108,
+        "object.may_be_created": 26,
+        "object.may_be_destroyed": 26,
+        "runtime.rule_reference_parity": 13
+      },
+      "skips": {
+        "no_matches": 9492,
+        "probe_budget": 1495
+      }
+    },
+    {
+      "index": 140,
+      "title": "Being Alan Hazelden",
+      "sourceStatus": "ready",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/dbb32000738925f19cd89453e64b54c0.txt",
+      "sha256": "0aeb26ed27180128d3a5472c81daf50f3365d43ac54628b1e85581610fab2e2a",
+      "status": "complete",
+      "levels": [
+        1,
+        3,
+        5,
+        7
+      ],
+      "tracesPassed": 16,
+      "inputs": 1055,
+      "intraTurnChecks": {
+        "group.split_candidate": 826,
+        "object.may_be_created": 25199,
+        "object.may_be_destroyed": 25199,
+        "runtime.rule_reference_parity": 8088,
+        "rule.may_invalidate_other_matches": 9858,
+        "rule.may_enable_other_matches": 9858,
+        "rule.self_disabling": 7115,
+        "rule.idempotent_effect": 4532,
+        "group.group_skip_mask": 66
+      },
+      "skips": {
+        "no_matches": 16179,
+        "probe_budget": 4031
+      }
+    },
+    {
+      "index": 141,
+      "title": "Lock & Pin",
+      "sourceStatus": "provisional",
+      "sourcePath": "/Users/stephenlavelle/Documents/google_gist_scraper/gallery_profiling/sources/11118b5d6e0d22b5bfc26f3043c888db.txt",
+      "sha256": "3935704b0b91343fa47acc700a359ad7d2dc3a9e80f5a12a322a0ebd63ae0427",
+      "status": "complete",
+      "levels": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "tracesPassed": 32,
+      "inputs": 2560,
+      "intraTurnChecks": {
+        "group.single_pass_safe": 2584,
+        "group.split_candidate": 2584,
+        "group.group_skip_mask": 2242,
+        "object.may_be_created": 25880,
+        "object.may_be_destroyed": 25880,
+        "runtime.rule_reference_parity": 1274,
+        "rule.may_invalidate_other_matches": 544,
+        "rule.may_enable_other_matches": 544,
+        "rule.self_disabling": 163,
+        "rule.idempotent_effect": 148
+      },
+      "skips": {
+        "no_matches": 110024,
+        "no_replacement": 10336
+      }
+    }
+  ]
+}
