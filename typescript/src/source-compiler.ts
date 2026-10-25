@@ -10,6 +10,7 @@ import { SourceDiagnosticSeverity, SourceDiagnosticPhase, type SourceDocument, t
 import { parseSource, SourceParserOutcomeKind, SourceParserStopReason } from './source-parser.js';
 import { expandSourceRules, lowerSourceRules } from './source-rule-compiler.js';
 import { compileRuleGroups, compileRuleLoops } from './source-rule-schedules.js';
+import { vanillaQuirks, type Quirks } from './compatibility-vanilla-5a94bde1.js';
 
 export enum SourceCompilationKind { Accepted, Declined, Invalid, Stopped }
 export enum SourceCompilationStopReason { ParserErrors, IssueLimit }
@@ -31,8 +32,14 @@ export interface SourceCompilationResult extends SourceIssueCollection {
   readonly outcome: SourceCompilationOutcome;
 }
 
+export interface CompileSourceOptions {
+  /** Defaults to vanillaQuirks; the compiled game records the choice. */
+  readonly quirks?: Quirks;
+}
+
 /** Compile in language order; a formed game and the installation decision are distinct. */
-export function compileSource(source: string): SourceCompilationResult {
+export function compileSource(source: string, options: CompileSourceOptions = {}): SourceCompilationResult {
+  const quirks = options.quirks ?? vanillaQuirks;
   const parsed = parseSource(source);
   const { document, outcome: parserOutcome, ...issues } = parsed;
   if (parserOutcome.kind === SourceParserOutcomeKind.Stopped) return { document, ...issues,
@@ -65,7 +72,7 @@ export function compileSource(source: string): SourceCompilationResult {
     const levels = compileLevels(document, declarations, dataReport);
     const expanded = expandSourceRules(document, declarations, report);
     if (expanded.rules === null) return invalid();
-    const lowered = lowerSourceRules(expanded.rules, declarations, report);
+    const lowered = lowerSourceRules(expanded.rules, declarations, report, quirks);
     const groups = compileRuleGroups(lowered.rules, report);
     const winConditions = compileWinConditions(document, declarations, dataReport);
     reportUnlayeredObjects(declarations, report);
@@ -77,7 +84,7 @@ export function compileSource(source: string): SourceCompilationResult {
     const game: SessionGame = { collisionLayers: declarations.collisionLayers, player: declarations.player,
       levels, winConditions, metadata: metadata.session, ...sounds,
       earlyRules: schedules.early, lateRules: schedules.late, rigid: groups.rigid, rigidMerges: groups.rigidMerges,
-      restorePolicies: compileRestorePolicies(levels, declarations.collisionLayers.length) };
+      restorePolicies: compileRestorePolicies(levels, declarations.collisionLayers.length), quirks };
     if (levels.length === 0) error('missing-levels', 'No levels found.  Add some levels!', true, SourceDiagnosticPhase.GameData);
     return { document, ...issues, outcome: { kind: issues.errorCount > 5 ? SourceCompilationKind.Declined : SourceCompilationKind.Accepted,
       game, declarations, sprites: assets.sprites, palette: assets.palette,

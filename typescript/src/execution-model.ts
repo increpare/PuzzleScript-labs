@@ -1,5 +1,5 @@
 import type { Command, CommandState } from './commands.js';
-import type { VanillaRigidCompatibility } from './compatibility-vanilla-5a94bde1.js';
+import type { QuirkSettings, VanillaRigidCompatibility } from './compatibility-vanilla-5a94bde1.js';
 import type { CollisionLayer, GameObject, MovementState } from './model.js';
 import type { RandomState } from './random.js';
 import type { CellEdits } from './replacement.js';
@@ -19,7 +19,7 @@ export interface ExecutableRule extends RulePattern {
   readonly rigidGroup: number | null;
 }
 
-export interface RuleGame extends VanillaRigidCompatibility {
+export interface RuleGame extends VanillaRigidCompatibility, QuirkSettings {
   readonly collisionLayers: readonly CollisionLayer[];
 }
 

@@ -3,6 +3,7 @@ import type { SourceLoopMarker } from './source-model.js';
 import type { ResolvedDeclarations } from './declaration-model.js';
 import { normalizeRuleDuplicates } from './rule-duplicates.js';
 import { lowerRules } from './rule-lowering.js';
+import type { Quirks } from './compatibility-vanilla-5a94bde1.js';
 import { expandRuleMovements } from './rule-movements.js';
 import { expandRuleAggregates, substituteRuleSynonyms } from './rule-names.js';
 import { checkEarlyNegativeTerms } from './rule-negatives.js';
@@ -45,8 +46,10 @@ export function expandSourceRules(document: SourceDocument, declarations: Resolv
   return { rules: spawned, loops: syntax.loops, diagnostics };
 }
 
-export function lowerSourceRules(rules: readonly OrientedRule[], declarations: ResolvedDeclarations, report?: SourceIssueReporter) {
-  return lowerRules(normalizeRuleDuplicates(rules), declarations, report);
+export function lowerSourceRules(
+  rules: readonly OrientedRule[], declarations: ResolvedDeclarations, report?: SourceIssueReporter, quirks?: Quirks,
+) {
+  return lowerRules(normalizeRuleDuplicates(rules), declarations, report, quirks);
 }
 
 /** Convenience composition of expansion, lowering, groups and loops. */

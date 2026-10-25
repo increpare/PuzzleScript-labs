@@ -176,7 +176,9 @@ function createCompiledGameComparator(types) {
   }
   function checkDataFields(game) {
     fields(game, ['collisionLayers', 'player', 'levels', 'winConditions', 'metadata', 'sounds', 'movementSounds',
-      'failureSounds', 'earlyRules', 'lateRules', 'rigid', 'rigidMerges', 'restorePolicies']);
+      'failureSounds', 'earlyRules', 'lateRules', 'rigid', 'rigidMerges', 'restorePolicies', 'quirks']);
+    // The native oracle is vanilla, so the candidate must compile with every quirk on.
+    assert.ok(Object.values(game.quirks).every(value => value === true), 'source oracle compiles with vanilla quirks');
     fields(game.player, ['kind', 'objects']);
     assertVanillaFields('session metadata', game.metadata, ['requirePlayerMovement', 'runRulesOnLevelStart', 'noUndo', 'noRestart', 'flickscreen', 'zoomscreen']);
     for (const level of game.levels) {

@@ -5,6 +5,61 @@
  */
 import { Movement, type Board, type LayerMovements } from './model.js';
 
+/** Switches for behaviour that comes from vanilla's implementation rather than
+ * from the language. All on (vanillaQuirks) reproduces vanilla exactly and is the
+ * default. All off (noQuirks) is the clean model. Each switch says what "off" does;
+ * where vanilla gives no meaning, "off" reports an error rather than inventing one.
+ */
+export interface Quirks {
+  /** Undo and restart keep some pending movements: same-size restore cleared one
+   * storage word per tile. Off: restoring a board clears every pending movement. */
+  readonly restoreKeepsMovements: boolean;
+  /** Issue #1206: overlapping rigid writes combine group ordinals bitwise, so a
+   * failed rigid move can ban a group that never matched. Off: a rigid mark keeps
+   * the group that first marked that layer. */
+  readonly rigidOwnerOrdinalMerge: boolean;
+  /** LHS randomdir decodes as the conjunction Up AND Left. Off: compile error. */
+  readonly lhsRandomDirIsUpAndLeft: boolean;
+  /** Up+Down (or all four directions) on one layer is a zero-offset move that
+   * collides with its own cell. Off: such a combination is a runtime error. */
+  readonly combinedMovementsStayPut: boolean;
+  /** A uniform draw of exactly 1 indexes one past the last choice (Action for
+   * randomdir). Off: it selects the last choice. */
+  readonly uniformCanReachOne: boolean;
+  /** Movement resolution and player input visit cells column by column, the
+   * storage order x*height+y. Off: row by row, in reading order. */
+  readonly columnMajorMovementOrder: boolean;
+  /** Movements written by late rules (only randomdir is allowed there) stay
+   * pending into the next turn. Off: they are discarded when the turn ends. */
+  readonly lateMovementsCarryOver: boolean;
+}
+
+export const vanillaQuirks: Quirks = Object.freeze({
+  restoreKeepsMovements: true, rigidOwnerOrdinalMerge: true, lhsRandomDirIsUpAndLeft: true,
+  combinedMovementsStayPut: true, uniformCanReachOne: true, columnMajorMovementOrder: true,
+  lateMovementsCarryOver: true,
+});
+
+export const noQuirks: Quirks = Object.freeze(Object.fromEntries(
+  Object.keys(vanillaQuirks).map(name => [name, false])) as unknown as Quirks);
+
+export type QuirkName = keyof Quirks;
+export const quirkNames = Object.keys(vanillaQuirks) as QuirkName[];
+
+/** Games built without explicit quirks behave as vanilla. */
+export interface QuirkSettings {
+  readonly quirks?: Quirks;
+}
+export function quirksOf(game: QuirkSettings): Quirks {
+  return game.quirks ?? vanillaQuirks;
+}
+
+/** Index of a uniform draw among count choices. */
+export function choiceIndex(quirks: Quirks, value: number, count: number): number {
+  const index = Math.floor(value * count);
+  return quirks.uniformCanReachOne ? index : Math.min(index, count - 1);
+}
+
 /** null means that the historical rigid-owner combination names no source group. */
 export type RigidOwner = number | null;
 export interface VanillaRigidCompatibility {
@@ -71,9 +126,9 @@ export function rigidOwnershipTransitions(groups: readonly number[]): VanillaRig
 }
 
 export function combineRigidOwners(
-  transitions: VanillaRigidCompatibility['rigidMerges'], previous: RigidOwner, incoming: number,
+  quirks: Quirks, transitions: VanillaRigidCompatibility['rigidMerges'], previous: RigidOwner, incoming: number,
 ): RigidOwner {
-  if (previous === null || previous === incoming) return previous;
+  if (previous === null || previous === incoming || !quirks.rigidOwnerOrdinalMerge) return previous;
   const merged = transitions.get(previous)?.get(incoming);
   if (merged === undefined) throw new Error(`Missing rigid provenance transition from group ${previous} to ${incoming}`);
   return merged;

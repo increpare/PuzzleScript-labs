@@ -3,7 +3,8 @@ import { getObjectIntentLayer, type GameObject, type LayerMovements, type Moveme
 import { cloneExecutionState } from './rules.js';
 import { resolveMovements } from './movement.js';
 import { applyRules } from './scheduling.js';
-import { positionsByColumn } from './scan-order.js';
+import { movementPositions } from './scan-order.js';
+import { quirksOf } from './compatibility-vanilla-5a94bde1.js';
 
 export enum PlayerMatchKind { Any, All, Never }
 export interface PlayerDefinition {
@@ -27,7 +28,7 @@ export interface TurnRulesResult extends PlayerMovementResult {
 }
 /** Add input only to actual player objects, in the engine's column-first order. */
 export function startPlayerMovement(
-  game: Pick<TurnRulesGame, 'collisionLayers' | 'player'>,
+  game: Pick<TurnRulesGame, 'collisionLayers' | 'player' | 'quirks'>,
   before: RuleExecutionState, input: Movement | null,
 ): PlayerMovementResult {
   const state = cloneExecutionState(before);
@@ -35,7 +36,7 @@ export function startPlayerMovement(
   if (input === null || game.player.kind === PlayerMatchKind.Never) return { state, playerPositions };
 
   const pendingMovements: LayerMovements[] = [...state.pendingMovements];
-  for (const { x, y } of positionsByColumn(state.board)) {
+  for (const { x, y } of movementPositions(state.board, quirksOf(game).columnMajorMovementOrder)) {
     const cell = state.board.rows[y]?.[x];
     if (cell === undefined) throw new Error('Board cells must form a rectangle');
     let selected = game.player.kind === PlayerMatchKind.All;
@@ -98,6 +99,8 @@ export function applyTurnRules(
       const bannedGroups = state.bannedGroups;
       const late = applyRules(game, game.lateRules, { ...state, bannedGroups: new Set() });
       state = { ...late.state, bannedGroups };
+      // Movement has already resolved; only late randomdir can have written these.
+      if (!quirksOf(game).lateMovementsCarryOver) state = { ...state, pendingMovements: [] };
       diagnostics.push(...late.diagnostics);
       break;
     }

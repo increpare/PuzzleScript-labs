@@ -5,6 +5,7 @@ import {
 } from './execution-model.js';
 import { findMatches, matchTuples } from './matching.js';
 import { nextRandom } from './random.js';
+import { choiceIndex, quirksOf } from './compatibility-vanilla-5a94bde1.js';
 import type { RowMatch } from './rule-model.js';
 import { applyRuleAt, cloneExecutionState, tryApplyRule } from './rules.js';
 
@@ -26,7 +27,7 @@ export function applyRuleGroup(game: RuleGame, group: RuleGroup, before: RuleExe
     if (candidates.length === 0) return { state, changed: false, diagnostics };
 
     const draw = nextRandom(state.random);
-    const candidateIndex = Math.floor(draw.value * candidates.length);
+    const candidateIndex = choiceIndex(quirksOf(game), draw.value, candidates.length);
     const selected = candidates[candidateIndex];
     if (selected === undefined) {
       // Legacy uniform arithmetic can round to one; do not silently select a different tuple.

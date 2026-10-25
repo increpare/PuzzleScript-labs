@@ -81,9 +81,9 @@ function addHistory(work: Machine, before: BoardSnapshot): void {
 /** Restore the board, reset turn bookkeeping and apply the explicit vanilla exception. */
 function restore(work: Machine, target: BoardSnapshot): void {
   const current = work.state.execution;
-  const pendingMovements = vanilla.movementsSurvivingRestore(
+  const pendingMovements = vanilla.quirksOf(work.game).restoreKeepsMovements ? vanilla.movementsSurvivingRestore(
     current.board, target.board, current.pendingMovements, work.game.restorePolicies ?? [],
-  );
+  ) : [];
   work.state.viewport = copyViewport(target.viewport);
   work.state.execution = {
     ...current, board: cloneBoard(target.board), pendingMovements, rigidMarks: [],

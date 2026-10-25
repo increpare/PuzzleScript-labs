@@ -1,4 +1,4 @@
-import type { RigidOwner } from './compatibility-vanilla-5a94bde1.js';
+import type { QuirkSettings, RigidOwner } from './compatibility-vanilla-5a94bde1.js';
 
 export enum Direction {
   Up,
@@ -68,7 +68,7 @@ export interface MovementSound {
   readonly seed: string;
 }
 
-export interface MovementGame {
+export interface MovementGame extends QuirkSettings {
   readonly collisionLayers: readonly CollisionLayer[];
   readonly rigid: boolean;
   readonly movementSounds: readonly (readonly MovementSound[])[];

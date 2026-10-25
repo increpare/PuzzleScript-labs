@@ -31,11 +31,11 @@ test('restoration retains only the declared old intents and clears shape changes
 test('issue 1206 names actual groups or an unattributable owner, never encoded ordinals', async () => {
   const vanilla = await compatibility();
   const transitions = vanilla.rigidOwnershipTransitions([10, 20, 30]);
-  assert.equal(vanilla.combineRigidOwners(transitions, 10, 20), 30);
-  assert.equal(vanilla.combineRigidOwners(transitions, 10, 10), 10);
-  assert.equal(vanilla.combineRigidOwners(transitions, null, 20), null);
-  assert.equal(vanilla.combineRigidOwners(vanilla.rigidOwnershipTransitions([10, 20]), 10, 20), null);
-  assert.throws(() => vanilla.combineRigidOwners(new Map(), 10, 20), /Missing rigid provenance/);
+  assert.equal(vanilla.combineRigidOwners(vanilla.vanillaQuirks, transitions, 10, 20), 30);
+  assert.equal(vanilla.combineRigidOwners(vanilla.vanillaQuirks, transitions, 10, 10), 10);
+  assert.equal(vanilla.combineRigidOwners(vanilla.vanillaQuirks, transitions, null, 20), null);
+  assert.equal(vanilla.combineRigidOwners(vanilla.vanillaQuirks, vanilla.rigidOwnershipTransitions([10, 20]), 10, 20), null);
+  assert.throws(() => vanilla.combineRigidOwners(vanilla.vanillaQuirks, new Map(), 10, 20), /Missing rigid provenance/);
 });
 
 test('historical movement exceptions do not imply a general opposite-direction cancellation rule', async () => {

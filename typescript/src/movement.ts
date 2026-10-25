@@ -1,6 +1,6 @@
 import { Direction, Movement } from './model.js';
 import * as vanilla from './compatibility-vanilla-5a94bde1.js';
-import { positionsByColumn } from './scan-order.js';
+import { movementPositions } from './scan-order.js';
 import type {
   CollisionLayer, GameObject, LayerMovements, MovementGame, MovementResolution,
   MovementSound, MovementState, Position,
@@ -21,7 +21,7 @@ function directionStep(direction: Exclude<Direction, Direction.InPlace>): Step {
   }
 }
 
-function movementStep(movements: ReadonlySet<Movement>): Step {
+function movementStep(movements: ReadonlySet<Movement>, quirks: vanilla.Quirks): Step {
   if (movements.size === 1) {
     for (const movement of movements) {
       switch (movement) {
@@ -34,7 +34,7 @@ function movementStep(movements: ReadonlySet<Movement>): Step {
     }
   }
 
-  if (vanilla.isSelfCollidingMovement(movements)) {
+  if (vanilla.isSelfCollidingMovement(movements) && quirks.combinedMovementsStayPut) {
     return { dx: 0, dy: 0, bypassCollision: false };
   }
   throw new Error(`Unsupported movement combination: ${[...movements].map(movement => Movement[movement]).join(', ')}`);
@@ -88,6 +88,7 @@ function addSounds(
 }
 
 export function resolveMovements(game: MovementGame, before: MovementState): MovementResolution {
+  const quirks = vanilla.quirksOf(game);
   const rows = before.board.rows.map(row => row.map(cell => ({ objects: new Set(cell.objects) })));
   const board = { width: before.board.width, height: before.board.height, rows };
   const pending = before.pendingMovements.map(entry => ({
@@ -100,7 +101,7 @@ export function resolveMovements(game: MovementGame, before: MovementState): Mov
   let succeeded = true;
   while (succeeded) {
     succeeded = false;
-    for (const position of positionsByColumn(board)) {
+    for (const position of movementPositions(board, quirks.columnMajorMovementOrder)) {
       const { x, y } = position;
       const requests = atPosition(pending, position);
       // JS writes consumed intents back after processing all layers at a cell.
@@ -108,7 +109,7 @@ export function resolveMovements(game: MovementGame, before: MovementState): Mov
       for (let layerIndex = 0; layerIndex < game.collisionLayers.length; layerIndex++) {
         const movements = movementsInLayer(requests, layerIndex);
         if (movements.size === 0) continue;
-        const step = movementStep(movements);
+        const step = movementStep(movements, quirks);
         const target = { x: x + step.dx, y: y + step.dy };
         if (target.x < 0 || target.x >= board.width || target.y < 0 || target.y >= board.height) continue;
         const sourceCell = rows[y]?.[x];
@@ -133,7 +134,7 @@ export function resolveMovements(game: MovementGame, before: MovementState): Mov
   }
 
   let retry = false;
-  for (const position of positionsByColumn(board)) {
+  for (const position of movementPositions(board, quirks.columnMajorMovementOrder)) {
     const { x, y } = position;
     let remaining: readonly LayerMovements[] = atPosition(pending, position);
     if (!remaining.some(request => request.movements.size > 0)) continue;

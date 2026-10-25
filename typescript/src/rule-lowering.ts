@@ -38,7 +38,10 @@ function orderedMovements(entries: LayerMovement[]): readonly LayerMovement[] {
 }
 
 /** Lower ordered names into static predicates and explicit cell transactions. */
-export function lowerRules(rules: readonly OrientedRule[], declarations: ResolvedDeclarations, report?: SourceIssueReporter): {
+export function lowerRules(
+  rules: readonly OrientedRule[], declarations: ResolvedDeclarations, report?: SourceIssueReporter,
+  quirks: vanilla.Quirks = vanilla.vanillaQuirks,
+): {
   readonly rules: readonly LoweredRule[];
   readonly diagnostics: readonly SourceDiagnostic[];
 } {
@@ -105,7 +108,9 @@ export function lowerRules(rules: readonly OrientedRule[], declarations: Resolve
             leftConcreteLayers.add(layer);
           } else anyObjects.push(new Set(namedObjects(name)));
           if (qualifier === Q.Stationary) addMovements(forbiddenMovements, layer, allMovements);
-          else addMovements(requiredMovements, layer, qualifierMovements(qualifier));
+          else if (qualifier === Q.RandomDirection && !quirks.lhsRandomDirIsUpAndLeft) {
+            issue('random-direction-on-left', 'RANDOMDIR cannot be matched on the left-hand side, it can only appear on the right');
+          } else addMovements(requiredMovements, layer, qualifierMovements(qualifier));
         }
         if (isEllipsis) { patternRow.push(Ellipsis); replacementRow.push(null); continue; }
         const pattern: CellPattern = { requiredObjects, forbiddenObjects, anyObjects,

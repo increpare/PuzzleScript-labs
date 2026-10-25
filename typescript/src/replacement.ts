@@ -23,6 +23,7 @@ export interface CellState {
 /** Apply one cell transaction. Rigid provenance and commands belong to the caller. */
 export function applyCellEdits(
   layers: readonly CollisionLayer[], edits: CellEdits, before: CellState, random: RandomState,
+  quirks: vanilla.Quirks = vanilla.vanillaQuirks,
 ): {
   readonly cell: CellState;
   readonly random: RandomState;
@@ -40,7 +41,7 @@ export function applyCellEdits(
   if (edits.randomObjects.length > 0) {
     const draw = nextRandom(afterRandom);
     afterRandom = draw.state;
-    const chosen = edits.randomObjects[Math.floor(draw.value * edits.randomObjects.length)]!;
+    const chosen = edits.randomObjects[vanilla.choiceIndex(quirks, draw.value, edits.randomObjects.length)]!;
     addObjects.add(chosen.object);
     vacateLayers.add(chosen.layer);
     resetMovementLayers.add(chosen.layer);
@@ -49,7 +50,7 @@ export function applyCellEdits(
   for (const layer of [...edits.randomDirectionLayers].sort((a, b) => a - b)) {
     const draw = nextRandom(afterRandom);
     afterRandom = draw.state;
-    const directionIndex = Math.floor(draw.value * 4);
+    const directionIndex = vanilla.choiceIndex(quirks, draw.value, 4);
     const movement = directions[directionIndex] ?? vanilla.randomDirectionOutsideCardinals(directionIndex);
     addMovements.push({ layer, movement });
   }

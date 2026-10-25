@@ -15,6 +15,11 @@ export function* positionsByRow(board: BoardShape): IterableIterator<Position> {
   }
 }
 
+/** Movement and player-input order: vanilla's storage order, or reading order. */
+export function movementPositions(board: BoardShape, columnMajor: boolean): IterableIterator<Position> {
+  return columnMajor ? positionsByColumn(board) : positionsByRow(board);
+}
+
 /** Match enumeration affects overlapping writes, random choices and sounds. */
 export function matchingPositions(board: BoardShape, direction: Direction): IterableIterator<Position> {
   return direction === Direction.Up || direction === Direction.Down

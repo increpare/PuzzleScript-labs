@@ -12,8 +12,11 @@ precedence over performance.
 
 Exact compatibility still includes historical behavior derived from vanilla's
 storage layout. Those exceptions are explicit in
-[compatibility-vanilla-5a94bde1.ts](src/compatibility-vanilla-5a94bde1.ts); moving
-them there does not make that dependency disappear.
+[compatibility-vanilla-5a94bde1.ts](src/compatibility-vanilla-5a94bde1.ts), and each
+one that changes how valid games play is a switch in its `Quirks` object.
+`compileSource(source)` uses `vanillaQuirks` (all on, exact parity);
+`compileSource(source, { quirks: noQuirks })` gives the clean model. See
+[Quirk switches](#quirk-switches).
 
 ## Try the source example
 
@@ -114,9 +117,26 @@ rigid issue #1206's ownership transitions and their nullable owner type. It also
 names LHS `randomdir`'s Up-and-Left interpretation, the specific self-colliding
 movement combinations, and the random-direction draw that rounds to Action.
 Compiler and runtime call sites use explicit `vanilla.*` names. Game interfaces
-extend compatibility-owned field declarations; existing game field shapes remain
-unchanged. This is one pinned behavior, with no selectable corrected-semantics
-mode or generic engine policy framework.
+extend compatibility-owned field declarations.
+
+### Quirk switches
+
+| Switch | On (vanilla) | Off (clean) |
+| --- | --- | --- |
+| `restoreKeepsMovements` | Undo/restart keep movements outside the first storage word per tile | Restoring clears every pending movement |
+| `rigidOwnerOrdinalMerge` | Issue #1206: overlapping rigid writes can blame a group that never matched | A rigid mark keeps the group that first marked it |
+| `lhsRandomDirIsUpAndLeft` | LHS `randomdir` requires Up and Left together | Compile error |
+| `combinedMovementsStayPut` | Up+Down (or all four) is a zero-offset move that collides | Runtime error |
+| `uniformCanReachOne` | A draw of exactly 1 indexes past the last choice (Action for `randomdir`) | Selects the last choice |
+| `columnMajorMovementOrder` | Movement and input visit cells column by column | Row by row |
+| `lateMovementsCarryOver` | Late `randomdir` movements stay pending into the next turn | Discarded when the turn ends |
+
+Where vanilla gives a combination no meaning, "off" reports an error instead of
+inventing one. Error-recovery behavior for malformed source is not switchable.
+The compiled game records its `quirks`; hand-built games without the field use
+vanilla. `npm --prefix typescript run quirk-impact` replays the recorded corpus with
+each switch off and lists the games that play differently; the latest results are
+in [QUIRKS.md](QUIRKS.md).
 
 A `Cell` records the objects actually present. One object per collision layer is
 not an unconditional runtime invariant: accepted source with diagnosed conflicting

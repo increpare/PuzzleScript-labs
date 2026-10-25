@@ -101,7 +101,7 @@ function markRigidLayers(
   for (const layer of layers) {
     const index = rigidMarkIndex(marks, position, layer);
     const previous = marks[index];
-    const group = vanilla.combineRigidOwners(game.rigidMerges, previous === undefined ? incoming : previous.group, incoming);
+    const group = vanilla.combineRigidOwners(vanilla.quirksOf(game), game.rigidMerges, previous === undefined ? incoming : previous.group, incoming);
     const movements = new Set(previous?.movements);
     for (const movement of allMovements) movements.add(movement);
     const mark = { position: { ...position }, layer, movements, group };
@@ -157,7 +157,7 @@ export function applyRuleAt(
         if (current === undefined || currentRow === undefined) throw new Error(`Rule replacement cell (${position.x}, ${position.y}) is out of bounds`);
         const result = applyCellEdits(game.collisionLayers, replacement.edits, {
           objects: current.objects, movements: cellMovements(pendingMovements, position),
-        }, random);
+        }, random, vanilla.quirksOf(game));
         random = result.random;
         currentRow[position.x] = { objects: result.cell.objects };
         pendingMovements = replaceMovements(pendingMovements, position, result.cell.movements);
