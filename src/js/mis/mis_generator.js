@@ -123,7 +123,24 @@ const MISGenerator = (function () {
 			return n;
 		}
 
-		const stats = { generated: 0, duplicates: 0, unchanged: 0, otherShard: 0, solved: 0, unsolvable: 0, timeout: 0, offGoal: 0, budgetMs: budget };
+		const stats = { generated: 0, duplicates: 0, unchanged: 0, otherShard: 0, solved: 0, unsolvable: 0, timeout: 0, offGoal: 0, budgetMs: budget,
+			gateChecked: 0, gatePassed: 0, gateFailed: 0 };
+		// Session gate (mis_transform_analysis.js): { facts, check(board) }.
+		// Facts the session's certificate proves for every candidate reach the
+		// solver (assess/solve opts.facts) only for boards that pass the check.
+		// A failure means the certificate was wrong: withdraw it for the rest
+		// of the session.
+		let gate = opts.gate || null;
+		const boardFacts = new WeakMap();
+		function checkGate(board) {
+			if (!gate) return;
+			stats.gateChecked++;
+			if (gate.check(board)) { stats.gatePassed++; boardFacts.set(board, gate.facts); }
+			else { stats.gateFailed++; gate = null; }
+		}
+		function factsFor(board) {
+			return gate ? boardFacts.get(board) : undefined;
+		}
 		// Optional filter (the app's rule goals): solved candidates it rejects
 		// never reach the shortlist or the caller.
 		const accept = opts.accept || null;
@@ -235,6 +252,7 @@ const MISGenerator = (function () {
 				prof.keyMs += now() - t;
 				if (skip) { stats[skip]++; streak++; return null; }
 				stats.generated++;
+				checkGate(board);
 			}
 			streak = 0;
 			return legacy ? assessLegacy(board, retried) : assessLazy(board, retried);
@@ -265,11 +283,11 @@ const MISGenerator = (function () {
 		// for admitted candidates. Budget follows the primary's time, as in MIS.
 		function assessLazy(board, retried) {
 			let t = now();
-			const gate = floor();
+			const shortlistFloor = floor();
 			const r = workClock
 				? backend.assess(board, { timeMs: WORK_TIME_LIMIT_MS, primaryMaxExpanded: Math.round(budget * WORK_STATES_PER_MS), deterministic: true,
-					maxExpanded: 400000, refineGate: gate, refineTimeMs: WORK_TIME_LIMIT_MS })
-				: backend.assess(board, { timeMs: budget, maxExpanded: 400000, refineGate: gate, refineTimeMs: Math.max(budget, 1500) });
+					maxExpanded: 400000, refineGate: shortlistFloor, refineTimeMs: WORK_TIME_LIMIT_MS, facts: factsFor(board) })
+				: backend.assess(board, { timeMs: budget, maxExpanded: 400000, refineGate: shortlistFloor, refineTimeMs: Math.max(budget, 1500), facts: factsFor(board) });
 			const ms = now() - t;
 			const states = assessStates(r);
 			workStates += states;
@@ -280,7 +298,7 @@ const MISGenerator = (function () {
 			if (r.refined) { prof.refineMs += ms; prof.refines++; } else prof.primarySolvedMs += ms;
 			prof.primaryExpandedSolved += r.expanded || 0;
 			if (eliteParents) addElite(r.effort, board);
-			if (r.effort >= gate || topEfforts.length < keepCount) {
+			if (r.effort >= shortlistFloor || topEfforts.length < keepCount) {
 				admit(r.effort, board);
 				prof.refineAdmitted++;
 				const primaryCost = workClock ? (r.expanded || 0) / WORK_STATES_PER_MS : (r.primaryMs || r.ms || ms);
@@ -288,8 +306,8 @@ const MISGenerator = (function () {
 				if (eagerProofs && !r.optimal && optimalCap > 0 && backend.solve) {
 					t = now();
 					const bfs = workClock
-						? backend.solve(board, { strategy: 'bfs', maxExpanded: optimalCap, timeMs: WORK_TIME_LIMIT_MS, deterministic: true })
-						: backend.solve(board, { strategy: 'bfs', maxExpanded: optimalCap, timeMs: Math.max(budget, 1500) });
+						? backend.solve(board, { strategy: 'bfs', maxExpanded: optimalCap, timeMs: WORK_TIME_LIMIT_MS, deterministic: true, facts: factsFor(board) })
+						: backend.solve(board, { strategy: 'bfs', maxExpanded: optimalCap, timeMs: Math.max(budget, 1500), facts: factsFor(board) });
 					workStates += bfs.expanded || 0;
 					prof.proofMs += now() - t;
 					prof.proofs++;
@@ -303,7 +321,7 @@ const MISGenerator = (function () {
 		// lanes, BFS proof) for every candidate that might place.
 		function assessLegacy(board, retried) {
 			let t = now();
-			const primary = backend.assess(board, { timeMs: budget, maxExpanded: 400000, refine: false });
+			const primary = backend.assess(board, { timeMs: budget, maxExpanded: 400000, refine: false, facts: factsFor(board) });
 			const primaryMs = now() - t;
 			if (primary.status !== 'solved') return recordUnsolved(primary, primaryMs, board, retried);
 			prof.primarySolvedMs += primaryMs;
@@ -315,7 +333,7 @@ const MISGenerator = (function () {
 			let result = primary;
 			if (couldPlace) {
 				t = now();
-				result = backend.assess(board, { timeMs: Math.max(budget, 1500), maxExpanded: 400000, bfsFloor: optimalCap });
+				result = backend.assess(board, { timeMs: Math.max(budget, 1500), maxExpanded: 400000, bfsFloor: optimalCap, facts: factsFor(board) });
 				prof.refineMs += now() - t;
 				prof.refines++;
 				if (result.status !== 'solved') result = primary;

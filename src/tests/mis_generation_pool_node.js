@@ -177,6 +177,7 @@ function workerFixture() {
 	const sandbox = { console, Int32Array, Uint8Array, Set, Map, Date: { now() { time += 5; return time; } },
 		importScripts() {}, misAfterEngineLoaded() {}, misCompile() { return { ok: true, errors: [] }; },
 		MISCore: core, MISOptimizer: { prepare() { return { telemetry: {} }; }, createBackend() { return { assess() { return { status: 'solved', effort: 10, primaryMs: 1 }; } }; } },
+		MISTransformAnalysis: { sessionCertificate() { return {}; }, gate() { return null; } },
 		MISGenerator: { create(opts) {
 			const id = opts.base.cells[0]; created.push(id); let count = 0;
 			return { step() { steps.push(id); count++; if (id === 13) throw new Error('candidate failed'); return { board: opts.base, result: { effort: count, solution: [] } }; },

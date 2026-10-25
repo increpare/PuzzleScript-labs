@@ -1948,6 +1948,7 @@ mis_tests:
 	$(NODE) src/tests/mis_generation_pool_node.js
 	$(NODE) --test src/tests/mis_recovery_node.cjs
 	$(NODE) src/tests/mis_core_node.js
+	$(NODE) src/tests/mis_transform_analysis_node.js
 	$(NODE) src/tests/portable_semantics_node.js
 	$(NODE) src/tests/aggregate_win_semantics_node.js
 	$(NODE) src/tests/mis_optimization_node.js

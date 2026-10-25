@@ -71,6 +71,7 @@
 		gen: null,               // current level’s generation session
 		rules: null,             // compiled rule lines: { lines, random, keyOf, lineOf }
 		ruleTags: {},            // line -> 'cosmetic' | 'inert' (from the workers' analysis)
+		ruleQuantity: null,      // rules' count tags per object/property (from the workers' analysis)
 		ruleGoals: {},           // levelIndex -> { rule key: 'need' | 'ban' }
 		breakpoints: new Set(),  // rule keys with a breakpoint (whole game)
 	};
@@ -155,7 +156,7 @@
 				handle.ready = true;
 				handle.backend = m.backend;
 				if (m.ok) showBackend(m.backend, m.note);
-				if (m.ok && (handle === focusWorker || handle === ruleWorker)) { app.ruleTags = m.ruleTags || {}; renderRuleGutter(); }
+				if (m.ok && (handle === focusWorker || handle === ruleWorker)) { app.ruleTags = m.ruleTags || {}; app.ruleQuantity = m.ruleQuantity || null; renderRuleGutter(); }
 				if (handle.onReady) handle.onReady(m);
 				pump(handle);
 				return;
@@ -269,6 +270,7 @@
 			app.editorWorkspace = null; Object.values(app.workspaces).forEach(function (ws) { delete ws.editorState; });
 			if (oldModel) invalidateAllWorkspaces();
 			app.ruleTags = {};
+			app.ruleQuantity = null;
 			transformCM.setGameSource(text);
 			ensureWorkers(true);
 			buildPalette();
@@ -1651,8 +1653,8 @@
 		transformMarks = [];
 		if (!app.model) { diag.innerHTML = ''; return null; }
 		if (isAuto()) {
-			const n = autoPrograms().length;
-			diag.innerHTML = n ? '<div class="ok">✓ Auto: ' + n + ' transforms</div>' : '<div class="faint">No usable transforms.</div>';
+			const all = autoPrograms(), n = all.length;
+			diag.innerHTML = n ? '<div class="ok">✓ Auto: ' + n + ' transforms</div>' + playerCountLine(all.map(function (p) { return p.program; }), true) : '<div class="faint">No usable transforms.</div>';
 			$('gen-btn').disabled = !n;
 			$('peek-btn').disabled = !n;
 			return n ? autoPrograms()[0].program : { errors: [], statements: [] };
@@ -1663,13 +1665,36 @@
 			prog.errors.forEach(function (e) { transformMarks.push(transformCM.addLineClass(e.line, 'background', 'err-line')); });
 			Array.from(diag.children).forEach(function (d) { d.onclick = function () { transformCM.setCursor(+d.dataset.line, 0); transformCM.focus(); }; });
 		} else if (prog.statements.length) {
-			diag.innerHTML = '<div class="ok">✓ ' + prog.statements.length + ' transform rule' + (prog.statements.length === 1 ? '' : 's') + ' ready</div>';
+			diag.innerHTML = '<div class="ok">✓ ' + prog.statements.length + ' transform rule' + (prog.statements.length === 1 ? '' : 's') + ' ready</div>' + playerCountLine([prog], false);
+			Array.from(diag.querySelectorAll('[data-line]')).forEach(function (d) { d.onclick = function () { transformCM.setCursor(+d.dataset.line, 0); transformCM.focus(); }; });
 		} else {
 			diag.innerHTML = '<div class="faint">Empty transform.</div>';
 		}
 		$('gen-btn').disabled = !!prog.errors.length || !prog.statements.length;
 		$('peek-btn').disabled = $('gen-btn').disabled;
 		return prog;
+	}
+
+	// Whether a level with one Player still has one after these transforms
+	// (mis_transform_analysis.js). Independent of the board: the generation
+	// meter reports what the session's start board makes of it.
+	function playerCountLine(programs, auto) {
+		const m = app.model;
+		if (!m || !m.playerIds.length || typeof MISTransformAnalysis === 'undefined') return '';
+		const key = m.playerIds.slice().sort(function (x, y) { return x - y; }).join(',');
+		const lines = [];
+		programs.forEach(function (prog) {
+			const c = MISTransformAnalysis.analyzeTransform(m, prog).classes[key];
+			if (c) c.blockers.keeps_one.forEach(function (l) { if (lines.indexOf(l) < 0) lines.push(l); });
+		});
+		if (!lines.length) {
+			return '<div class="ok" title="Every rule here, applied to a level with exactly one Player, leaves exactly one. Generation checks each suggestion against this and tells the solver.">✓ A level with one Player keeps one Player</div>';
+		}
+		if (auto) return '<div class="warn" title="At least one Auto transform can add or remove a Player">⚠ Some of these transforms can change how many Players there are</div>';
+		lines.sort(function (x, y) { return x - y; });
+		return lines.map(function (l) {
+			return '<div class="warn" data-line="' + l + '" title="This rule can add or remove a Player, even in a level that has exactly one">⚠ line ' + (l + 1) + ' can change how many Players there are</div>';
+		}).join('');
 	}
 
 	function autoPrograms() {
@@ -1741,6 +1766,9 @@
 			id: ws.id, running: true, workers: [], stats: [], statKeys: [], started: Date.now(),
 			base: C.cloneBoard(base), baseKey: baseKey, levelIndex: index,
 			exhausted: [], arms: [], transforms: [], interesting: 0, seen: new Set(),
+			// Same certificate the workers build; shown in the meter.
+			certificate: typeof MISTransformAnalysis === 'undefined' ? null
+				: MISTransformAnalysis.sessionCertificate(app.model, programs ? programs.map(function (p) { return p.program; }) : [prog], base, { ruleQuantity: app.ruleQuantity }),
 		};
 		ws.gen = session; ws.boardKey = baseKey;
 		ws.cards = ws.cards.filter(function (c) { return c.baseKey === baseKey; });
@@ -1843,7 +1871,7 @@
 	}
 
 	function totals(session) {
-		const t = { generated: 0, duplicates: 0, unchanged: 0, solved: 0, unsolvable: 0, timeout: 0, offGoal: 0, budgetMs: 0 };
+		const t = { generated: 0, duplicates: 0, unchanged: 0, solved: 0, unsolvable: 0, timeout: 0, offGoal: 0, budgetMs: 0, gateChecked: 0, gatePassed: 0, gateFailed: 0 };
 		session.stats.forEach(function (s) {
 			if (!s) return;
 			Object.keys(t).forEach(function (k) { t[k] = k === 'budgetMs' ? Math.max(t[k], s[k]) : t[k] + (s[k] || 0); });
@@ -1873,12 +1901,33 @@
 			'<span title="Samples that repeated one already seen, or changed nothing">repeats ' + (100 * repeatFrac).toFixed(0) + '%</span>' +
 			'<span class="interesting" title="Suggestions the solver rates harder than your current level, per minute (the MIS thesis\'s usefulness measure)"><b>' + s.interesting + '</b> harder than current · <b>' + perMin.toFixed(1) + '</b>/min</span>' +
 			'<span title="Per-candidate solver time budget; grows as harder levels turn up">budget ' + (t.budgetMs / 1000).toFixed(1) + 's</span>' +
-			stepSizeLabel(s) + favouredTransformLabel(s) +
+			stepSizeLabel(s) + favouredTransformLabel(s) + certificateLabel(s, t) +
 			(dry ? '<span class="dry">⚠ running dry — thousands of repeats in a row; this transform has shown you most of what it can do here. Unlock tiles or loosen it.</span>' : '') +
 			(running && tried > 40 && t.solved === 0 ? '<span class="dry">⚠ nothing solvable yet — try a gentler transform or a smaller level.</span>' : '') +
 			(!running ? '<span class="faint">stopped</span>' : '');
 	}
 	setInterval(function () { if (app.gen && app.gen.running) updateMeter(); }, 1000);
+
+	// What the session's certificate proves for every suggestion.
+	function certificateLabel(session, t) {
+		const cert = session.certificate;
+		if (t.gateFailed) {
+			return '<span class="dry" title="A suggestion broke a fact the transform analysis proved (mis_transform_analysis.js): a bug. The solver no longer gets those facts in this session.">⚠ ' + t.gateFailed + ' suggestion' + (t.gateFailed === 1 ? '' : 's') + ' broke the transform certificate</span>';
+		}
+		if (!cert || !cert.ok) return '';
+		const names = function (scope, tag) { return cert.classes.filter(function (c) { return c[scope] && c[scope][tag]; }).map(function (c) { return c.name; }); };
+		const one = names('candidates', 'exactly_one');
+		if (!one.length) return '';
+		const player = cert.classes.find(function (c) { return c.isPlayer; });
+		const playOne = names('play', 'exactly_one');
+		const tip = ['Every suggestion has exactly one of: ' + one.join(', ') + '.',
+			cert.rulesKnown ? (playOne.length ? 'The rules keep it so in play too, for: ' + playOne.join(', ') + '.' : 'The rules may change these counts in play.') : 'The rules\u2019 count tags aren\u2019t known yet.',
+			'At most one: ' + (names('candidates', 'at_most_one').join(', ') || 'none') + '.',
+			'Objects that can appear: ' + cert.objectsMayAppear.map(function (id) { return app.model.objects[id].display; }).join(', ') + '.',
+			t.gateChecked ? 'Checked ' + t.gatePassed.toLocaleString() + ' suggestions against this.' : ''].filter(Boolean).join('\n');
+		const label = player && player.candidates.exactly_one ? 'one Player' : one.length + ' singleton' + (one.length === 1 ? '' : 's');
+		return '<span title="' + escapeHtml(tip) + '">' + label + ' ✓</span>';
+	}
 
 	// Auto mode: which transform the workers currently favour (by time spent).
 	function favouredTransformLabel(session) {

@@ -20,7 +20,7 @@ function prepare(source, originalModel, options = {}) {
     let solverState = originalState, solverModel = originalModel, solverSource = source;
     let idMap = Int32Array.from({ length: originalModel.objectCount }, (_, id) => id);
     const telemetry = { enabled: false, scope: 'arbitrary_boards', replayChecks: 0, replayRejected: 0 };
-    let ruleTags = null;
+    let ruleTags = null, ruleQuantity = null;
     try {
         if (options.enabled === false) throw new Error('disabled');
         if (options.hasErrors) throw new Error('source has compile errors');
@@ -28,9 +28,12 @@ function prepare(source, originalModel, options = {}) {
         if (semantic.errorCount || !semantic.state || semantic.state.invalid) throw new Error('semantic compile failed');
         const report = analyzeCompiledState(semantic.state, {
             arbitraryBoards: true,
-            familyFilter: ['mergeability', 'movement_action', 'win_relevance'],
+            // count_layer_invariants last: it only adds tags the optimizer passes
+            // don't read, for the generator's session certificate.
+            familyFilter: ['mergeability', 'movement_action', 'win_relevance', 'count_layer_invariants'],
         });
         if (report.status !== 'ok') throw new Error('static analysis failed');
+        ruleQuantity = ruleQuantityTable(report);
         // Cosmetic/merge projection is only replay-validated for deterministic
         // forward search. Preserve the existing random-game backend unchanged.
         if (report.ps_tagged.game.tags.has_random) throw new Error('random mechanics');
@@ -98,7 +101,7 @@ function prepare(source, originalModel, options = {}) {
     }
 
     return {
-        source: solverSource, model: solverModel, originalModel, idMap, telemetry, project, ruleTags,
+        source: solverSource, model: solverModel, originalModel, idMap, telemetry, project, ruleTags, ruleQuantity,
         activateOriginal() { activate(originalState); },
         activateSolver() { activate(solverState); },
     };
@@ -122,6 +125,26 @@ function ruleLineTags(report) {
     }
     for (const [line, all] of inert) if (all) tags[line] = 'inert';
     return tags;
+}
+
+// Whether the game's rules may raise or lower each object's count, and each
+// legend property's summed count when the analyzer tags it, for
+// MISTransformAnalysis.ruleQuantityFor. Names are lower case.
+function ruleQuantityTable(report) {
+    const objects = {}, properties = [];
+    for (const object of report.ps_tagged.objects) {
+        const q = object.tags.quantity;
+        if (q) objects[String(object.canonical_name || object.name).toLowerCase()] = [q.never_increases === true, q.never_decreases === true];
+    }
+    for (const property of report.ps_tagged.properties) {
+        const q = property.tags && property.tags.quantity;
+        if (property.kind !== 'property' || !q) continue;
+        properties.push({
+            members: property.members.map(name => String(name).toLowerCase()),
+            never_increases: q.never_increases === true, never_decreases: q.never_decreases === true,
+        });
+    }
+    return { objects, properties };
 }
 
 function hasRuleReductions(prepared) {

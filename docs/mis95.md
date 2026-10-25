@@ -29,7 +29,8 @@ and replay path. This avoids extra projection and validation work for an already
 optimized native ruleset.
 
 No authored-level reachability, count, transient-boundary or setup-retirement
-facts are consumed. Random games, games with compile errors, and failed solver
+facts are consumed. Board-dependent facts come instead from the generation
+session's certificate (see *Transform analysis* under Generator). Random games, games with compile errors, and failed solver
 preparation retain their original rules. An optimized path is checked in the original
 JS game before its result reaches the generator's shortlist or the UI. Native
 workers also retain an unoptimized native game for ordinary-runtime validation.
@@ -396,6 +397,42 @@ and scaling `choose` counts respectively; the web application enables neither.
 The app runs `hardwareConcurrency − 1` generator workers (`?genWorkers=N`)
 and pauses level-health checks while generating.
 
+### Transform analysis
+
+`src/js/mis/mis_transform_analysis.js` reads transform rules statically.
+Every match of an alternative is applied all at once or not at all, so a
+transform keeps a property of the board if each single application keeps it.
+For each object class (each object, each legend property, the player) it bounds
+how one application changes the class's count three ways: with no assumption,
+on a board with none of the class, and on a board with exactly one. The last
+case is what proves `[ Player | no Wall ] -> [ | Player ]` keeps a single
+player: the left cell holds it, so the right cell can't. It also lists the
+objects a transform may create or erase, counting objects erased when a placed
+object takes over their collision layer. Tags per class: `never_increases`,
+`never_decreases`, `keeps_zero`, `keeps_one`, `keeps_at_most_one`, each with the
+transform lines that block it.
+
+Each generation context builds a session certificate from its start board,
+every transform it may apply (all of them in Auto) and the game rules'
+`quantity` tags (from the workers' static analysis, `count_layer_invariants`):
+
+- `candidates`: `exactly_zero` / `exactly_one` / `at_most_one` classes that hold
+  on every board the generator produces;
+- `play`: those that also hold on every state reached by playing one, when the
+  rules can't change the count;
+- `objectsMayAppear`: objects on the start board plus those a transform creates.
+
+The generator re-checks each new candidate against the certificate
+(`checkBoard`, a count over the board) and passes `opts.facts` to the solver's
+`assess` / `solve` only for boards that pass. A failed check withdraws the
+certificate for the rest of the session and shows a warning in the meter.
+No solver path reads `opts.facts` yet; it is the hook for single-player and
+object-universe specializations. The transform panel says whether the
+transform keeps a one-Player level at one Player, linking any line that
+doesn't; the meter shows the session's result. Checks:
+`node src/tests/mis_transform_analysis_node.js`, which includes a fuzz test
+holding every claim against real transform runs.
+
 ## Difficulty
 
 MIS effort is the number of states the solver explored: the minimum over
@@ -417,6 +454,7 @@ thesis's findings.
   scripts.
 - `src/tests/mis_core_node.js`: Node checks for the core and the native adapter.
 - `src/js/mis/mis_generator.js`: instrumented generation loop (adaptive step size).
+- `src/js/mis/mis_transform_analysis.js`: transform analysis and the session certificate; checks in `src/tests/mis_transform_analysis_node.js`.
 - `src/tests/mis_backend_bench_node.js`: JS vs wasm solver benchmark (`--dump-grids` feeds `native/wasm/mis_wasm_bench_native.cpp` for x86).
 - `src/tests/mis_generator_profile_node.js`: per-phase / per-state / harder-per-minute generator profile (`make mis_generator_profile`).
 - `src/tests/mis_generator_seed_survey_node.js`: builds the generator benchmark set and runs the generators over it (see below).

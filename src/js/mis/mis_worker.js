@@ -16,6 +16,7 @@ misAfterEngineLoaded();
 importScripts('mis_core.js');
 importScripts('mis_native.js');
 importScripts('mis_generator.js');
+importScripts('mis_transform_analysis.js');
 importScripts('../semantic_compile.js', 'mis_optimizer_bundle.js');
 
 let model = null;
@@ -73,7 +74,7 @@ self.onmessage = function (e) {
 			solverBackend = preparation ? MISOptimizer.createBackend(preparation) : null;
 			if (!model || msg.backend === 'js') {
 				backendNote = msg.backend === 'js' ? 'JS solver (chosen)' : '';
-				reply({ type: 'ready', ok: !!model, errors: res.errors, backend: 'js', note: backendNote, optimization: preparation && preparation.telemetry, ruleTags: preparation && preparation.ruleTags });
+				reply({ type: 'ready', ok: !!model, errors: res.errors, backend: 'js', note: backendNote, optimization: preparation && preparation.telemetry, ruleTags: preparation && preparation.ruleTags, ruleQuantity: preparation && preparation.ruleQuantity });
 				return;
 			}
 			loadNative().then(function (M) {
@@ -94,7 +95,7 @@ self.onmessage = function (e) {
 					else backendNote = attached.reason + ' — using JS';
 				}
 				solverBackend = MISOptimizer.createBackend(preparation, native, { originalNative });
-				reply({ type: 'ready', ok: true, errors: res.errors, backend: native ? 'native' : 'js', note: backendNote, optimization: preparation.telemetry, ruleTags: preparation.ruleTags });
+				reply({ type: 'ready', ok: true, errors: res.errors, backend: native ? 'native' : 'js', note: backendNote, optimization: preparation.telemetry, ruleTags: preparation.ruleTags, ruleQuantity: preparation.ruleQuantity });
 			});
 		} else if (msg.type === 'assess') {
 			const r = backend.assess(boardFrom(msg.board), Object.assign({ verifyOriginalJS: true }, msg.opts));
@@ -273,7 +274,13 @@ function createGeneration(msg) {
 		const r = backend.assess(base, { timeMs: 3000, maxExpanded: 400000, refine: false });
 		if (r.status === 'solved') seedPrimaryMs = r.primaryMs;
 	}
+	// What every candidate (and, with the rules' tags, every state played from
+	// one) is proved to keep: the generator re-checks each candidate and hands
+	// these facts to the solver only for boards that pass.
+	const certificate = MISTransformAnalysis.sessionCertificate(model, programs ? programs.map(function (p) { return p.program; }) : [program], base,
+		{ ruleQuantity: preparation && preparation.ruleQuantity });
 	return MISGenerator.create({
+		gate: MISTransformAnalysis.gate(model, certificate),
 		model: model, backend: backend, program: program, programs: programs && programs.length > 1 ? programs : null, base: base, baseEffort: baseEffort, seedPrimaryMs: seedPrimaryMs, adaptive: msg.adaptive === true, parents: msg.parents,
 		frozen: msg.frozen ? new Uint8Array(msg.frozen) : null, seed: msg.seed, keep: msg.keep || 8,
 		optimalCap: msg.optimalCap, initialBudgetMs: msg.initialBudgetMs, maxBudgetMs: msg.maxBudgetMs,

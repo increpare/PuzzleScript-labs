@@ -57,7 +57,8 @@ async function main() {
     assert(prepared.model.objectCount < model.objectCount);
     assert.equal(prepared.idMap[model.names.walla.ids[0]], prepared.idMap[model.names.wallb.ids[0]]);
     assert.equal(prepared.idMap[model.names.decoration.ids[0]], -1);
-    assert.deepEqual(Array.from(prepared.telemetry.analysisFamilies).sort(), ['mergeability', 'movement_action', 'win_relevance']);
+    assert.deepEqual(Array.from(prepared.telemetry.analysisFamilies).sort(), ['count_layer_invariants', 'mergeability', 'movement_action', 'win_relevance']);
+    assert.deepEqual(prepared.ruleQuantity.objects.player, [true, true], 'rules keep the player count');
 
     // The generator can introduce objects never present in an authored board.
     const injected = MISCore.cloneBoard(board);
