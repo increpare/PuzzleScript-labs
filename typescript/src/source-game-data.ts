@@ -1,8 +1,10 @@
 import { appendSourceIssue, type SourceIssueReporter } from './source-diagnostics.js';
 import { ResolvedNameKind, type ResolvedDeclarations } from './declaration-model.js';
 import type { SoundIndex } from './commands.js';
-import { Movement, type GameObject, type LayerMovements, type MovementSound } from './model.js';
-import { LevelKind, SimpleSound, type Dimensions, type ObjectSound, type RestorePolicy, type SessionGame, type SessionLevel, type SessionMetadata, type SessionSounds } from './session-model.js';
+import * as vanilla from './compatibility-vanilla-5a94bde1.js';
+import { Movement, type GameObject, type MovementSound } from './model.js';
+import { positionsByColumn } from './scan-order.js';
+import { LevelKind, SimpleSound, type Dimensions, type ObjectSound, type SessionGame, type SessionLevel, type SessionMetadata, type SessionSounds } from './session-model.js';
 import { SourceDiagnosticPhase, SourceDiagnosticSeverity, SourceLevelKind,
   type SourceDiagnostic, type SourceDocument, type SourceGridLevel, type SourceSpan, type SourceWord } from './source-model.js';
 import { ObjectMatchKind, WinQuantifier, type ObjectCondition, type WinCondition } from './win-conditions.js';
@@ -25,7 +27,7 @@ function compileGrid(level: SourceGridLevel, declarations: ResolvedDeclarations,
   const rows = text.map(() => Array.from({ length: width }, () => ({ objects: new Set<GameObject>() })));
   const result = { kind: LevelKind.Grid as const, board: { width, height, rows },
     sourceLine: level.rows[0]?.span.start.line ?? level.span.start.line };
-  for (let x = 0; x < width; x++) for (let y = 0; y < height; y++) {
+  for (const { x, y } of positionsByColumn(result.board)) {
     const row = text[y]!;
     const glyph = row[x] ?? row[row.length - 1];
     const objects = glyph === undefined ? undefined : declarations.glyphs.get(glyph);
@@ -45,10 +47,9 @@ function compileGrid(level: SourceGridLevel, declarations: ResolvedDeclarations,
     return result;
   }
   let fill: readonly GameObject[] = [background.object];
-  let found = false;
-  for (let x = 0; x < width && !found; x++) for (let y = 0; y < height && !found; y++) {
+  for (const { x, y } of positionsByColumn(result.board)) {
     const intersection = [...rows[y]![x]!.objects].filter(object => declarations.objectLayers.get(object) === background.layer);
-    if (intersection.length > 0) { fill = intersection; found = true; }
+    if (intersection.length > 0) { fill = intersection; break; }
   }
   for (const row of rows) for (const cell of row) {
     if (![...cell.objects].some(object => declarations.objectLayers.get(object) === background.layer)) {
@@ -243,28 +244,6 @@ export function compileSounds(document: SourceDocument, declarations: ResolvedDe
   return { sounds: { simple, sfx, creation, destruction }, movementSounds, failureSounds };
 }
 
-/** Describe a legacy restore bug as ordinary coordinate/layer/movement data.
- * Allocation used ceil(layers / 5) words per tile, whereas addressing packed
- * five movement slots per layer into 32-slot words. Same-shape restore cleared
- * only one word per tile across the whole array. Later addresses therefore
- * retained their old intents. Runtime boards never need this packed layout.
- */
-function legacyRestorePolicy(width: number, height: number, layerCount: number): RestorePolicy {
-  const tileCount = width * height;
-  const allocatedWordsPerTile = Math.ceil(layerCount / 5);
-  const movementOrder = [Movement.Up, Movement.Down, Movement.Left, Movement.Right, Movement.Action];
-  const retain: LayerMovements[] = [];
-  for (let x = 0; x < width; x++) for (let y = 0; y < height; y++) {
-    const tile = x * height + y;
-    for (let layer = 0; layer < layerCount; layer++) {
-      const movements = new Set(movementOrder.filter((_movement, slot) =>
-        tile * allocatedWordsPerTile + Math.floor((layer * 5 + slot) / 32) >= tileCount));
-      if (movements.size > 0) retain.push({ position: { x, y }, layer, movements });
-    }
-  }
-  return { width, height, retain };
-}
-
 export function gameDataReporter(diagnostics: SourceDiagnostic[], reporter?: SourceIssueReporter): GameDataReporter {
   return (code, message, span, warning = false) => {
     appendSourceIssue(diagnostics, { code, message, span,
@@ -284,12 +263,12 @@ export function compileLevels(document: SourceDocument, declarations: ResolvedDe
   });
 }
 
-export function compileRestorePolicies(levels: readonly SessionLevel[], layerCount: number): readonly RestorePolicy[] {
-  const policies: RestorePolicy[] = [];
+export function compileRestorePolicies(levels: readonly SessionLevel[], layerCount: number): readonly vanilla.VanillaRestorePolicy[] {
+  const policies: vanilla.VanillaRestorePolicy[] = [];
   for (const level of levels) {
     if (level.kind !== LevelKind.Grid) continue;
     const { width, height } = level.board;
-    if (!policies.some(policy => policy.width === width && policy.height === height)) policies.push(legacyRestorePolicy(width, height, layerCount));
+    if (!policies.some(policy => policy.width === width && policy.height === height)) policies.push(vanilla.restorePolicyFor(width, height, layerCount));
   }
   return policies;
 }

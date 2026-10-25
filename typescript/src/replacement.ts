@@ -1,4 +1,5 @@
 import { Movement, type CollisionLayer, type GameObject } from './model.js';
+import * as vanilla from './compatibility-vanilla-5a94bde1.js';
 import { nextRandom, type RandomState } from './random.js';
 import type { LayerMovement } from './rule-model.js';
 
@@ -49,13 +50,7 @@ export function applyCellEdits(
     const draw = nextRandom(afterRandom);
     afterRandom = draw.state;
     const directionIndex = Math.floor(draw.value * 4);
-    let movement: Movement;
-    // Legacy uniform can round to 1; index 4 then addresses the Action slot.
-    if (directionIndex === 4) {
-      movement = Movement.Action;
-    } else {
-      movement = directions[directionIndex]!;
-    }
+    const movement = directions[directionIndex] ?? vanilla.randomDirectionOutsideCardinals(directionIndex);
     addMovements.push({ layer, movement });
   }
 
@@ -64,8 +59,9 @@ export function applyCellEdits(
   for (const layer of vacateLayers) {
     for (const object of layers[layer] ?? []) objects.delete(object);
   }
-  // Additions win all removals and vacancies, including other writes on the
-  // same collision layer. The legacy cell can contain those conflicting writes.
+  // Apply additions as one batch. Accepted source can request conflicting
+  // occupants; compilation reports those conflicts rather than this transaction
+  // silently discarding an authored addition.
   for (const object of addObjects) objects.add(object);
 
   const movements: LayerMovement[] = [];

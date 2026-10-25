@@ -1,4 +1,5 @@
 import { appendSourceIssue, type SourceIssueReporter } from './source-diagnostics.js';
+import * as vanilla from './compatibility-vanilla-5a94bde1.js';
 import type { ExecutableRule } from './execution-model.js';
 import type { SourcePatternRule } from './source-model.js';
 import type { RuleGame, RuleGroup, RuleSchedule } from './execution-model.js';
@@ -88,18 +89,6 @@ function validateEllipses(groups: readonly (readonly LoweredRule[])[], diagnosti
   }
 }
 
-/**
- * Isolated issue #1206 compatibility calculation. Vanilla combined positive,
- * one-based rigid ordinals before looking up an actual early group. This binary
- * arithmetic builds an explicit transition table; runtime ownership stays an
- * ordinary early group identity (or null), never an encoded ordinal.
- */
-function combineLegacyOrdinals(first: number, second: number): number {
-  if (first === 0 && second === 0) return 0;
-  return Math.max(first % 2, second % 2)
-    + 2 * combineLegacyOrdinals(Math.floor(first / 2), Math.floor(second / 2));
-}
-
 function executableGroups(groups: readonly (readonly LoweredRule[])[], rigidBySource: ReadonlyMap<number, number>, sources: Map<ExecutableRule, SourcePatternRule>): RuleGroup[] {
   return groups.map(group => ({ random: group[0]!.namedRule.random,
     rules: group.map(rule => {
@@ -179,14 +168,7 @@ export function compileRuleGroups(rules: readonly LoweredRule[], reporter?: Sour
   if (rigidGroups.length > 30) {
     report(diagnostics, 'too-many-rigid-groups', "There can't be more than 30 rigid groups (rule groups containing rigid members).", early[rigidGroups[30]!]![0]!.namedRule.source.originalLine.span, SourceDiagnosticSeverity.Error, reporter);
   }
-  const rigidMerges = new Map<number, ReadonlyMap<number, number | null>>();
-  rigidGroups.forEach((group, first) => {
-    const transitions = new Map<number, number | null>();
-    rigidGroups.forEach((incoming, second) => {
-      transitions.set(incoming, rigidGroups[combineLegacyOrdinals(first + 1, second + 1) - 1] ?? null);
-    });
-    rigidMerges.set(group, transitions);
-  });
+  const rigidMerges = vanilla.rigidOwnershipTransitions(rigidGroups);
   const ruleSources = new Map<ExecutableRule, SourcePatternRule>();
   const earlyGroups = executableGroups(early, rigidBySource, ruleSources), lateGroups = executableGroups(late, rigidBySource, ruleSources);
   return { early: { groups: earlyGroups, loops: new Map() }, late: { groups: lateGroups, loops: new Map() },

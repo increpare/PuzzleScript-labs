@@ -1,4 +1,5 @@
 import type { Command, CommandState } from './commands.js';
+import type { VanillaRigidCompatibility } from './compatibility-vanilla-5a94bde1.js';
 import type { CollisionLayer, GameObject, MovementState } from './model.js';
 import type { RandomState } from './random.js';
 import type { CellEdits } from './replacement.js';
@@ -18,10 +19,8 @@ export interface ExecutableRule extends RulePattern {
   readonly rigidGroup: number | null;
 }
 
-export interface RuleGame {
+export interface RuleGame extends VanillaRigidCompatibility {
   readonly collisionLayers: readonly CollisionLayer[];
-  /** Preserve https://github.com/increpare/PuzzleScript/issues/1206 using actual source groups. */
-  readonly rigidMerges: ReadonlyMap<number, ReadonlyMap<number, number | null>>;
 }
 
 export interface RuleExecutionState extends MovementState {

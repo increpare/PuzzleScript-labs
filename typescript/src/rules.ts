@@ -1,5 +1,6 @@
 import { cloneBoard } from './board.js';
 import { queueCommands } from './commands.js';
+import * as vanilla from './compatibility-vanilla-5a94bde1.js';
 import type { ExecutableRule, RuleExecutionResult, RuleExecutionState, RuleGame } from './execution-model.js';
 import { findMatches, matchesRow, matchTuples } from './matching.js';
 import { Direction, Movement, type Cell, type LayerMovements, type Position, type RigidMark } from './model.js';
@@ -100,12 +101,7 @@ function markRigidLayers(
   for (const layer of layers) {
     const index = rigidMarkIndex(marks, position, layer);
     const previous = marks[index];
-    let group = previous === undefined ? incoming : previous.group;
-    if (group !== null && group !== incoming) {
-      const merged = game.rigidMerges.get(group)?.get(incoming);
-      if (merged === undefined) throw new Error(`Missing rigid provenance transition from group ${group} to ${incoming}`);
-      group = merged;
-    }
+    const group = vanilla.combineRigidOwners(game.rigidMerges, previous === undefined ? incoming : previous.group, incoming);
     const movements = new Set(previous?.movements);
     for (const movement of allMovements) movements.add(movement);
     const mark = { position: { ...position }, layer, movements, group };

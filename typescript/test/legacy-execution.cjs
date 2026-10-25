@@ -4,8 +4,9 @@ const assert = require('node:assert/strict');
 const { createPatternDecoder } = require('./legacy-patterns.cjs');
 const { assertVanillaFields } = require('./vanilla-fields.cjs');
 
-// All knowledge of old encodings is test-only. The new runtime receives plain
-// edits, commands and a declared rigid responsibility transition table.
+// Native mask decoding is test-only. The candidate's versioned compatibility
+// module separately describes storage-dependent exceptions; runtime values are
+// plain edits, commands and source-group ownership transitions.
 function decodeExecution(legacy, context) {
   const { CommandKind, layerCount, legacyEllipsis } = context;
   const decoder = createPatternDecoder(context);

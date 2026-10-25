@@ -1,4 +1,6 @@
 import { Direction, Movement } from './model.js';
+import * as vanilla from './compatibility-vanilla-5a94bde1.js';
+import { positionsByColumn } from './scan-order.js';
 import type {
   CollisionLayer, GameObject, LayerMovements, MovementGame, MovementResolution,
   MovementSound, MovementState, Position,
@@ -32,11 +34,7 @@ function movementStep(movements: ReadonlySet<Movement>): Step {
     }
   }
 
-  // The JS engine defines these two combinations as zero-offset requests.
-  // Unlike Action, they still collide with objects in their own source cell.
-  const vertical = movements.has(Movement.Up) && movements.has(Movement.Down);
-  if ((movements.size === 2 && vertical)
-    || (movements.size === 4 && vertical && movements.has(Movement.Left) && movements.has(Movement.Right))) {
+  if (vanilla.isSelfCollidingMovement(movements)) {
     return { dx: 0, dy: 0, bypassCollision: false };
   }
   throw new Error(`Unsupported movement combination: ${[...movements].map(movement => Movement[movement]).join(', ')}`);
@@ -102,77 +100,73 @@ export function resolveMovements(game: MovementGame, before: MovementState): Mov
   let succeeded = true;
   while (succeeded) {
     succeeded = false;
-    for (let x = 0; x < board.width; x++) {
-      for (let y = 0; y < board.height; y++) {
-        const position = { x, y };
-        const requests = atPosition(pending, position);
-        // JS writes consumed intents back after processing all layers at a cell.
-        const soundMovements = requests.map(entry => ({ ...entry, movements: new Set(entry.movements) }));
-        for (let layerIndex = 0; layerIndex < game.collisionLayers.length; layerIndex++) {
-          const movements = movementsInLayer(requests, layerIndex);
-          if (movements.size === 0) continue;
-          const step = movementStep(movements);
-          const target = { x: x + step.dx, y: y + step.dy };
-          if (target.x < 0 || target.x >= board.width || target.y < 0 || target.y >= board.height) continue;
-          const sourceCell = rows[y]?.[x];
-          const targetCell = rows[target.y]?.[target.x];
-          const layer = game.collisionLayers[layerIndex];
-          if (!sourceCell || !targetCell || !layer) throw new Error('Board cells must form a rectangle');
-          if (!step.bypassCollision && occupiesLayer(targetCell.objects, layer)) continue;
+    for (const position of positionsByColumn(board)) {
+      const { x, y } = position;
+      const requests = atPosition(pending, position);
+      // JS writes consumed intents back after processing all layers at a cell.
+      const soundMovements = requests.map(entry => ({ ...entry, movements: new Set(entry.movements) }));
+      for (let layerIndex = 0; layerIndex < game.collisionLayers.length; layerIndex++) {
+        const movements = movementsInLayer(requests, layerIndex);
+        if (movements.size === 0) continue;
+        const step = movementStep(movements);
+        const target = { x: x + step.dx, y: y + step.dy };
+        if (target.x < 0 || target.x >= board.width || target.y < 0 || target.y >= board.height) continue;
+        const sourceCell = rows[y]?.[x];
+        const targetCell = rows[target.y]?.[target.x];
+        const layer = game.collisionLayers[layerIndex];
+        if (!sourceCell || !targetCell || !layer) throw new Error('Board cells must form a rectangle');
+        if (!step.bypassCollision && occupiesLayer(targetCell.objects, layer)) continue;
 
-          addSounds(game.movementSounds[layerIndex] ?? [], sourceCell.objects, soundMovements, canMoveSounds);
-          for (const object of layer) {
-            if (sourceCell.objects.has(object)) {
-              sourceCell.objects.delete(object);
-              targetCell.objects.add(object);
-            }
+        addSounds(game.movementSounds[layerIndex] ?? [], sourceCell.objects, soundMovements, canMoveSounds);
+        for (const object of layer) {
+          if (sourceCell.objects.has(object)) {
+            sourceCell.objects.delete(object);
+            targetCell.objects.add(object);
           }
-          for (const request of requests) {
-            if (request.layer === layerIndex) request.movements.clear();
-          }
-          succeeded = true;
         }
+        for (const request of requests) {
+          if (request.layer === layerIndex) request.movements.clear();
+        }
+        succeeded = true;
       }
     }
   }
 
   let retry = false;
-  for (let x = 0; x < board.width; x++) {
-    for (let y = 0; y < board.height; y++) {
-      const position = { x, y };
-      let remaining: readonly LayerMovements[] = atPosition(pending, position);
-      if (!remaining.some(request => request.movements.size > 0)) continue;
-      const marks = atPosition(before.rigidMarks, position);
-      if (game.rigid && marks.some(mark => mark.movements.size > 0)) {
-        // This intersection also filters failure sounds in the original engine.
-        remaining = remaining.map(request => {
-          const marked = movementsInLayer(marks, request.layer);
-          const movements = new Set<Movement>();
-          for (const movement of request.movements) {
-            if (marked.has(movement)) movements.add(movement);
-          }
-          return { ...request, movements };
-        });
-        for (let layer = 0; layer < game.collisionLayers.length; layer++) {
-          const movements = movementsInLayer(remaining, layer);
-          if (movements.size === 0) continue;
-          for (const mark of marks) {
-            if (mark.layer === layer && intersects(mark.movements, movements)) {
-              if (!bannedGroups.has(mark.group)) {
-                bannedGroups.add(mark.group);
-                retry = true;
-              }
-              break;
-            }
-          }
-          // Even an already banned first layer prevents later layers being banned.
-          break;
+  for (const position of positionsByColumn(board)) {
+    const { x, y } = position;
+    let remaining: readonly LayerMovements[] = atPosition(pending, position);
+    if (!remaining.some(request => request.movements.size > 0)) continue;
+    const marks = atPosition(before.rigidMarks, position);
+    if (game.rigid && marks.some(mark => mark.movements.size > 0)) {
+      // This intersection also filters failure sounds in the original engine.
+      remaining = remaining.map(request => {
+        const marked = movementsInLayer(marks, request.layer);
+        const movements = new Set<Movement>();
+        for (const movement of request.movements) {
+          if (marked.has(movement)) movements.add(movement);
         }
+        return { ...request, movements };
+      });
+      for (let layer = 0; layer < game.collisionLayers.length; layer++) {
+        const movements = movementsInLayer(remaining, layer);
+        if (movements.size === 0) continue;
+        for (const mark of marks) {
+          if (mark.layer === layer && intersects(mark.movements, movements)) {
+            if (!bannedGroups.has(mark.group)) {
+              bannedGroups.add(mark.group);
+              retry = true;
+            }
+            break;
+          }
+        }
+        // Even an already banned first layer prevents later layers being banned.
+        break;
       }
-      const cell = rows[y]?.[x];
-      if (!cell) throw new Error('Board cells must form a rectangle');
-      addSounds(game.failureSounds, cell.objects, remaining, cantMoveSounds);
     }
+    const cell = rows[y]?.[x];
+    if (!cell) throw new Error('Board cells must form a rectangle');
+    addSounds(game.failureSounds, cell.objects, remaining, cantMoveSounds);
   }
 
   return { board, pendingMovements: [], rigidMarks: [], bannedGroups, canMoveSounds, cantMoveSounds, retry };

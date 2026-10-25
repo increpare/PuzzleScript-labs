@@ -1,5 +1,6 @@
 import { Direction, type GameObject, type Position } from './model.js';
 import { Ellipsis, type CellPattern, type LayerMovement, type MatchingState, type RowMatch, type RulePattern } from './rule-model.js';
+import { matchingPositions } from './scan-order.js';
 
 export function matchesCell(pattern: CellPattern, objects: ReadonlySet<GameObject>, movements: readonly LayerMovement[]): boolean {
   for (const object of pattern.requiredObjects) {
@@ -81,16 +82,7 @@ export function findMatches(rule: RulePattern, before: MatchingState): RowMatch[
       }
       visit(0, start, []);
     }
-    // Horizontal and in-place scans visit rows first; vertical scans visit columns first.
-    if (step.x !== 0 || rule.direction === Direction.InPlace) {
-      for (let y = 0; y < before.board.height; y++) {
-        for (let x = 0; x < before.board.width; x++) scanFrom({ x, y });
-      }
-    } else {
-      for (let x = 0; x < before.board.width; x++) {
-        for (let y = 0; y < before.board.height; y++) scanFrom({ x, y });
-      }
-    }
+    for (const start of matchingPositions(before.board, rule.direction)) scanFrom(start);
     if (rowMatches.length === 0) return [];
     matches.push(rowMatches);
   }

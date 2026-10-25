@@ -4,8 +4,9 @@ const assert = require('node:assert/strict');
 const { decodeExecution } = require('./legacy-execution.cjs');
 const { decodeNativeObjects } = require('./legacy-source-objects.cjs');
 
-// Legacy encodings are confined to this test adapter. The session receives
-// actual objects, boards, commands, predicates and explicit restore policies.
+// Decode native storage into domain observations. The candidate computes its
+// own restore compatibility data in its versioned module; this adapter remains
+// independent and supplies actual objects, boards, commands and predicates.
 function decodeSessionGame(legacy, types) {
   const { Direction, Movement, Ellipsis, CommandKind,
     PlayerMatchKind, ObjectMatchKind, WinQuantifier, LevelKind, SimpleSound } = types;

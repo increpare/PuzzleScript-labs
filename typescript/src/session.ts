@@ -1,7 +1,8 @@
 import { cloneBoard, createBoard } from './board.js';
 import { CommandKind } from './commands.js';
+import * as vanilla from './compatibility-vanilla-5a94bde1.js';
 import type { RuleExecutionState } from './execution-model.js';
-import type { Board, LayerMovements, Movement } from './model.js';
+import type { Board, Movement } from './model.js';
 import { createRandom } from './random.js';
 import { cloneExecutionState } from './rules.js';
 import {
@@ -77,24 +78,12 @@ function addHistory(work: Machine, before: BoardSnapshot): void {
   work.state.history = [...work.state.history, copySnapshot(before)];
 }
 
-/** Restore ordinary board data, retaining only movement values named by explicit compatibility data. */
+/** Restore the board, reset turn bookkeeping and apply the explicit vanilla exception. */
 function restore(work: Machine, target: BoardSnapshot): void {
   const current = work.state.execution;
-  const pendingMovements: LayerMovements[] = [];
-  if (current.board.width === target.board.width && current.board.height === target.board.height) {
-    const policies = work.game.restorePolicies ?? [];
-    for (const entry of current.pendingMovements) {
-      const movements = new Set<Movement>();
-      for (const policy of policies) {
-        if (policy.width !== current.board.width || policy.height !== current.board.height) continue;
-        for (const retained of policy.retain) {
-          if (retained.layer !== entry.layer || retained.position.x !== entry.position.x || retained.position.y !== entry.position.y) continue;
-          for (const movement of entry.movements) if (retained.movements.has(movement)) movements.add(movement);
-        }
-      }
-      if (movements.size > 0) pendingMovements.push({ position: { ...entry.position }, layer: entry.layer, movements });
-    }
-  }
+  const pendingMovements = vanilla.movementsSurvivingRestore(
+    current.board, target.board, current.pendingMovements, work.game.restorePolicies ?? [],
+  );
   work.state.viewport = copyViewport(target.viewport);
   work.state.execution = {
     ...current, board: cloneBoard(target.board), pendingMovements, rigidMarks: [],

@@ -22,6 +22,24 @@ const oracle = createSessionOracle({
   ObjectMatchKind, WinQuantifier, ...sessionTypes, ...session,
 });
 
+test('accepted conflicting random writes remain present after their source warnings', () => {
+  const source = movementSource({ rules: 'right [ Player ] -> [ Player random Thing ]', level: 'P.' })
+    .replace('# = Wall', '# = Wall\nThing = Crate or Wall');
+  const compilation = compileSource(source);
+  assert.equal(compilation.outcome.kind, SourceCompilationKind.Accepted);
+  assert.equal(compilation.errorCount, 0);
+  assert.ok(compilation.rawDiagnostics.some(issue => issue.message.includes('same layer')));
+  const game = compilation.outcome.game;
+  const environment = { nextLevelSeed() { throw new Error('Unexpected level change'); } };
+  const initial = session.createSession(game, { seed: 'layer-conflict' }, environment).state;
+  const moved = session.stepSession(game, initial, Movement.Action, environment).state;
+  const occupants = [...moved.execution.board.rows[0][0].objects].map(object => object.name);
+  assert.ok(occupants.includes('player'));
+  assert.equal(occupants.filter(name => name === 'crate' || name === 'wall').length, 1);
+  assert.equal(oracle.compareFixture({ name: 'diagnosed conflicting writes', source,
+    inputs: [4, 'undo', 'restart', 4], seed: 'layer-conflict' }).snapshots, 5);
+});
+
 test('standalone sessions distinguish orphan creation, final-object destruction and skipped unlayered movement sounds', () => {
   const source = movementSource({ rules: '[ Crate ] -> [ random Player ]', level: 'C.',
     sounds: 'Player create 100\nBackground create 200\nBackground destroy 300\nPlayer destroy 400\nPlayer move 500\nPlayer cantmove 600\nBackground move 700\nBackground cantmove 800' })

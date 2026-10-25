@@ -46,7 +46,6 @@ export function applyRuleGroup(game: RuleGame, group: RuleGroup, before: RuleExe
   // The postincrement also counts a rejected 201st pass, while a quiet 200th pass still diagnoses.
   while (changedThisPass && passes++ < MAX_ITERATIONS) {
     changedThisPass = false;
-    let consecutiveFailures = 0;
     for (const rule of group.rules) {
       const result = tryApplyRule(game, rule, state);
       state = result.state;
@@ -54,10 +53,6 @@ export function applyRuleGroup(game: RuleGame, group: RuleGroup, before: RuleExe
       if (result.changed) {
         changedThisPass = true;
         changed = true;
-        consecutiveFailures = 0;
-      } else {
-        consecutiveFailures++;
-        if (consecutiveFailures === group.rules.length) break;
       }
     }
   }

@@ -1,6 +1,7 @@
 import type { SoundIndex } from './commands.js';
+import type { VanillaRestoreCompatibility } from './compatibility-vanilla-5a94bde1.js';
 import type { ExecutionDiagnostic, RuleExecutionState } from './execution-model.js';
-import type { Board, GameObject, LayerMovements } from './model.js';
+import type { Board, GameObject } from './model.js';
 import type { TurnRulesGame } from './turn-rules.js';
 import type { WinCondition } from './win-conditions.js';
 
@@ -29,14 +30,11 @@ export interface SessionSounds {
   readonly creation: readonly ObjectSound[];
   readonly destruction: readonly ObjectSound[];
 }
-export interface RestorePolicy extends Dimensions { readonly retain: readonly LayerMovements[] }
-export interface SessionGame extends TurnRulesGame {
+export interface SessionGame extends TurnRulesGame, VanillaRestoreCompatibility {
   readonly levels: readonly SessionLevel[];
   readonly winConditions: readonly WinCondition[];
   readonly metadata: SessionMetadata;
   readonly sounds: SessionSounds;
-  /** Explicit compatibility data for movement values surviving same-shape restores. */
-  readonly restorePolicies?: readonly RestorePolicy[];
 }
 export type SessionScreen =
   | { readonly kind: ScreenKind.Board | ScreenKind.Title }

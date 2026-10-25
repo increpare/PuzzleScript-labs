@@ -1,4 +1,5 @@
 import { appendSourceIssue, type SourceIssueReporter } from './source-diagnostics.js';
+import * as vanilla from './compatibility-vanilla-5a94bde1.js';
 import type { ResolvedDeclarations } from './declaration-model.js';
 import type { CellReplacement, ExecutableRule } from './execution-model.js';
 import { getObjectIntentLayer, Movement, type GameObject } from './model.js';
@@ -21,8 +22,7 @@ function qualifierMovements(qualifier: Q): readonly Movement[] {
     case Q.Left: return [Movement.Left];
     case Q.Right: return [Movement.Right];
     case Q.Action: return [Movement.Action];
-    // This recovered LHS spelling has the historical conjunction Up AND Left.
-    case Q.RandomDirection: return [Movement.Up, Movement.Left];
+    case Q.RandomDirection: return vanilla.lhsRandomDirection;
     default: return [];
   }
 }

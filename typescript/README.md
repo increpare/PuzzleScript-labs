@@ -10,6 +10,11 @@ There are no bitmasks, packed cells or generated matchers in the production
 engine, and runtime matching uses no candidate pruning or caches. Clarity takes
 precedence over performance.
 
+Exact compatibility still includes historical behavior derived from vanilla's
+storage layout. Those exceptions are explicit in
+[compatibility-vanilla-5a94bde1.ts](src/compatibility-vanilla-5a94bde1.ts); moving
+them there does not make that dependency disappear.
+
 ## Try the source example
 
 From the repository root:
@@ -80,6 +85,8 @@ npm --prefix typescript run example:session
 | [scheduling.ts](src/scheduling.ts), [turn-rules.ts](src/turn-rules.ts) | Groups, loops, rigid retries and the turn sequence |
 | [session-model.ts](src/session-model.ts), [session.ts](src/session.ts) | Input, history, restart, messages, levels, effects and wins |
 | [random.ts](src/random.ts) | Explicit seeded random state and draws |
+| [scan-order.ts](src/scan-order.ts) | Observable coordinate order, independent of board storage |
+| [compatibility-vanilla-5a94bde1.ts](src/compatibility-vanilla-5a94bde1.ts) | Version-specific restore, rigid ownership and movement exceptions |
 | [source-compiler.ts](src/source-compiler.ts) | The complete compiler's explicit pass order |
 | [source-model.ts](src/source-model.ts), [source-reader.ts](src/source-reader.ts), [declarations.ts](src/declarations.ts) | Authored source evidence and canonical names/objects/layers |
 | [source-rule-compiler.ts](src/source-rule-compiler.ts) and `rule-*.ts` | Syntax, ordered movement/property inference, lowering and schedules |
@@ -90,6 +97,33 @@ There are two source maps. TypeScript's generated `.js.map` files point back to
 `ruleSources` Map links each executable rule identity to its actual authored
 PuzzleScript rule, including cases where one source rule expands into many.
 The trace uses that Map when projecting queued commands.
+
+## Execution order and historical exceptions
+
+Movement resolution, player input and level compilation explicitly visit columns
+first. Horizontal and InPlace rule matching visits rows first; vertical matching
+visits columns first. These orders can affect overlapping writes, random choices,
+diagnostics and sounds. `scan-order.ts` expresses them using coordinates rather
+than a cell index or memory layout.
+
+Ordinary rule groups apply each rule in order and repeat while a rule changes
+state, subject to the iteration limit. There is no failure-counter shortcut.
+
+The versioned compatibility module owns the layout-derived restore calculation,
+rigid issue #1206's ownership transitions and their nullable owner type. It also
+names LHS `randomdir`'s Up-and-Left interpretation, the specific self-colliding
+movement combinations, and the random-direction draw that rounds to Action.
+Compiler and runtime call sites use explicit `vanilla.*` names. Game interfaces
+extend compatibility-owned field declarations; existing game field shapes remain
+unchanged. This is one pinned behavior, with no selectable corrected-semantics
+mode or generic engine policy framework.
+
+A `Cell` records the objects actually present. One object per collision layer is
+not an unconditional runtime invariant: accepted source with diagnosed conflicting
+writes can produce multiple occupants. The compiler reports those conflicts;
+cell transactions apply their additions together. Collision layers still govern
+movement blocking. A source-compiled oracle regression preserves this recovery
+behavior through undo and restart.
 
 ## Verification and compatibility
 
@@ -103,15 +137,21 @@ npm --prefix typescript test
 npm --prefix typescript run test:corpus -- --session
 ```
 
-The strict suite passes **1,583 tests**. Complete compilation comparison passes
+The strict suite passes **1,590 tests**. Complete compilation comparison passes
 all **312 compiler fixtures** and **478 simulation sources**, including exact
 diagnostic order, recovery, acceptance, canonical identities and 99,076 final
 rules. The compiler, session adapter and trace command have passed independent
-spec and quality reviews. The complete source-compiled replay also passes all
+spec and quality reviews. At the original completion checkpoint, the complete
+source-compiled replay passed all
 **478 games**, **20,034 session observations/operations** and **525 level loads**,
 including every recorded input and AGAIN step, with exit status zero.
 The final whole-port review found no outstanding issues. Evidence is recorded in the
 [completion audit](../docs/superpowers/plans/2026-10-25-typescript-completion-audit.md).
+The subsequent compatibility cleanup passes the current 1,590-test suite and
+targeted source-compiled replays of seven games, with 336 per-move observations
+and nine level loads. Its independent review found no actionable issues; the
+[cleanup plan](../docs/superpowers/plans/2026-10-25-typescript-compatibility-boundary.md)
+records that verification separately from the earlier complete corpus run.
 
 The default session oracle independently compiles the same source and runs that
 exact returned game, with native producers disabled. Native decoding supplies

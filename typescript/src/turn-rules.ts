@@ -3,6 +3,7 @@ import { getObjectIntentLayer, type GameObject, type LayerMovements, type Moveme
 import { cloneExecutionState } from './rules.js';
 import { resolveMovements } from './movement.js';
 import { applyRules } from './scheduling.js';
+import { positionsByColumn } from './scan-order.js';
 
 export enum PlayerMatchKind { Any, All, Never }
 export interface PlayerDefinition {
@@ -34,33 +35,31 @@ export function startPlayerMovement(
   if (input === null || game.player.kind === PlayerMatchKind.Never) return { state, playerPositions };
 
   const pendingMovements: LayerMovements[] = [...state.pendingMovements];
-  for (let x = 0; x < state.board.width; x++) {
-    for (let y = 0; y < state.board.height; y++) {
-      const cell = state.board.rows[y]?.[x];
-      if (cell === undefined) throw new Error('Board cells must form a rectangle');
-      let selected = game.player.kind === PlayerMatchKind.All;
-      for (const object of game.player.objects) {
-        if (game.player.kind === PlayerMatchKind.Any && cell.objects.has(object)) selected = true;
-        if (game.player.kind === PlayerMatchKind.All && !cell.objects.has(object)) selected = false;
-      }
-      if (!selected) continue;
-      playerPositions.push({ x, y });
+  for (const { x, y } of positionsByColumn(state.board)) {
+    const cell = state.board.rows[y]?.[x];
+    if (cell === undefined) throw new Error('Board cells must form a rectangle');
+    let selected = game.player.kind === PlayerMatchKind.All;
+    for (const object of game.player.objects) {
+      if (game.player.kind === PlayerMatchKind.Any && cell.objects.has(object)) selected = true;
+      if (game.player.kind === PlayerMatchKind.All && !cell.objects.has(object)) selected = false;
+    }
+    if (!selected) continue;
+    playerPositions.push({ x, y });
 
-      const playerLayers = new Set<number>();
-      for (const object of game.player.objects) {
-        if (!cell.objects.has(object)) continue;
-        const layer = getObjectIntentLayer(game.collisionLayers, object);
-        if (layer !== undefined) playerLayers.add(layer);
-      }
-      for (const layer of [...playerLayers].sort((a, b) => a - b)) {
-        const index = pendingMovements.findIndex(entry =>
-          entry.position.x === x && entry.position.y === y && entry.layer === layer);
-        const movements = new Set(index < 0 ? [] : pendingMovements[index]!.movements);
-        movements.add(input);
-        const request = { position: { x, y }, layer, movements };
-        if (index < 0) pendingMovements.push(request);
-        else pendingMovements[index] = request;
-      }
+    const playerLayers = new Set<number>();
+    for (const object of game.player.objects) {
+      if (!cell.objects.has(object)) continue;
+      const layer = getObjectIntentLayer(game.collisionLayers, object);
+      if (layer !== undefined) playerLayers.add(layer);
+    }
+    for (const layer of [...playerLayers].sort((a, b) => a - b)) {
+      const index = pendingMovements.findIndex(entry =>
+        entry.position.x === x && entry.position.y === y && entry.layer === layer);
+      const movements = new Set(index < 0 ? [] : pendingMovements[index]!.movements);
+      movements.add(input);
+      const request = { position: { x, y }, layer, movements };
+      if (index < 0) pendingMovements.push(request);
+      else pendingMovements[index] = request;
     }
   }
   return { state: { ...state, pendingMovements }, playerPositions };

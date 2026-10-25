@@ -1,3 +1,5 @@
+import type { RigidOwner } from './compatibility-vanilla-5a94bde1.js';
+
 export enum Direction {
   Up,
   Down,
@@ -36,6 +38,9 @@ export function getObjectIntentLayer(collisionLayers: readonly CollisionLayer[],
 }
 
 export interface Cell {
+  /** Objects actually present. Accepted conflicting source writes can coexist;
+   * collision layers specify blocking, not an unconditional occupancy invariant.
+   */
   readonly objects: ReadonlySet<GameObject>;
 }
 
@@ -52,8 +57,8 @@ export interface LayerMovements {
 }
 
 export interface RigidMark extends LayerMovements {
-  /** null is the legacy case where overlapping writes name no existing group. */
-  readonly group: number | null;
+  /** Blamed source group, including the historical unattributable-owner case. */
+  readonly group: RigidOwner;
 }
 
 export interface MovementSound {
@@ -74,7 +79,7 @@ export interface MovementState {
   readonly board: Board;
   readonly pendingMovements: readonly LayerMovements[];
   readonly rigidMarks: readonly RigidMark[];
-  readonly bannedGroups: ReadonlySet<number | null>;
+  readonly bannedGroups: ReadonlySet<RigidOwner>;
   readonly canMoveSounds: readonly string[];
   readonly cantMoveSounds: readonly string[];
 }
