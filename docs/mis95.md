@@ -126,6 +126,46 @@ real native-solver results, and browser work areas/raster scales of 100%, 125%,
 | History | Each level has a branching history: go back to any step, and new edits branch from there. |
 | Simplify / Tighten | Remove every object the puzzle doesn't need, or add a wall-like object wherever it's harmless. Both keep the BFS shortest solution length exactly the same, like `native/src/search/simplify.cpp`. |
 
+## Rule gutter and rule goals
+
+The Game source editor has a gutter column beside the line numbers. For the
+current level it shows what the solution does with each rule line: a faint dot
+(never fires), a grey dot (fires; the line is tinted by how often), or a black
+dot (required: the level is unsolvable without that rule). Lines whose rules
+the solver drops as cosmetic or sound-only get a flower and can't be toggled.
+Hovering a mark explains it; **Watch solution** highlights the rules that fire
+on each step. Blind mode hides all of this except the goals.
+
+How it is computed:
+
+- **Fired** comes from replaying the solution on the page with the engine's
+  `Rule.prototype.tryApply` / `queueCommands` wrapped (`MISCore.traceRules`). A
+  rule counts when it changed the level or queued a command.
+- **Required / shortcut / optional** come from the worker's `ruleCheck`: the
+  level is solved again with that rule line removed (`MISCore.withoutRuleLines`
+  blanks the line and promotes the next `+` rule if it removed a group head).
+  Unsolvable means required; solvable only in more moves than the real game's
+  shortest solution means the rule is a shortcut. A rule that never fires in a
+  shortest solution is optional without any search: deleting it leaves that
+  solution unchanged. Each worker compiles a rule-removed game once and keeps
+  it. Random games get no marks (a rule that doesn't fire can still change a
+  random choice).
+- **Flowers** use the optimizer's own cosmetic-rule lines
+  (`cosmeticRuleSourceLines`) plus lines whose every rule is
+  `inert_command_only`. The analyzer's per-rule `cosmetic` tag alone is not
+  enough: it ignores collisions, so a rule that destroys walls is tagged
+  cosmetic.
+
+Clicking a mark cycles a goal for the current level: **✓ need** (generated
+levels must be unsolvable without the rule) → **✗ ban** (they must be solvable
+without it in no more moves, so it offers no shortcut) → none. The generator
+filters solved candidates through these goals before they reach its shortlist;
+the meter counts the rejects as "missed rule goals". A needed rule must also
+fire in the found solution, which rejects most candidates without a search.
+Goals are saved with the game as `(MIS rule goals <level> … MIS end)`
+comments, one `need …` / `ban …` line per rule, keyed by the rule's text.
+`node src/tests/mis_rule_goals_node.js` checks the worker side.
+
 ## Transform language
 
 PuzzleScript rewrite rules plus the MIS `choose` / `option` / `or`

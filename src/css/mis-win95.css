@@ -278,6 +278,28 @@ body.resizing-panes, body.resizing-panes * { cursor: var(--resize-cursor) !impor
 .mis-win95 .mis-code-editor span:is(.cm-METADATATEXT,.cm-MESSAGE,.cm-LEVEL,.cm-number) { color: #800000; }
 .mis-win95 .mis-code-editor span:is(.cm-SPRITEMATRIX,.cm-MATRIX,.cm-ASSIGNMENT,.cm-SOUNDVERB,.cm-SOUNDEVENT) { color: #805000; }
 .mis-win95 .mis-code-editor .err-line { background: #ffe5e5; }
+
+/* Rule gutter: what the current level's solution does with each rule, and
+   the designer's rule goals (click: need -> ban -> neither). */
+.mis-win95 .mis-code-editor .mis-rule-gutter { background: #eee; }
+.mis-win95 .mis-rule-mark { display: flex; align-items: center; justify-content: center; width: 13px; height: 100%; min-height: 14px; color: #c8c8c8; }
+.mis-win95 .mis-rule-mark svg { display: block; }
+.mis-win95 .mis-rule-mark.toggle { cursor: pointer; }
+.mis-win95 .mis-rule-mark.toggle:hover { color: #000080; }
+.mis-win95 .mis-rule-mark.fired { color: #808080; }
+.mis-win95 .mis-rule-mark.required { color: #000; }
+.mis-win95 .mis-rule-mark.need, .mis-win95 .mis-rule-mark.ban { color: #000; }
+.mis-win95 .mis-rule-mark.need.pending, .mis-win95 .mis-rule-mark.ban.pending { color: #808080; }
+.mis-win95 .mis-rule-mark.need.bad, .mis-win95 .mis-rule-mark.ban.bad { color: var(--bad); }
+.mis-win95 .mis-rule-mark.flower { color: #808000; cursor: default; }
+.mis-win95 .mis-code-editor .mis-rule-heat-1 { background: #fffbea; }
+.mis-win95 .mis-code-editor .mis-rule-heat-2 { background: #fff5d0; }
+.mis-win95 .mis-code-editor .mis-rule-heat-3 { background: #ffecb0; }
+.mis-win95 .mis-code-editor .mis-rule-heat-4 { background: #ffe08c; }
+.mis-win95 .mis-code-editor .mis-rule-flash { background: #c8d0f0; box-shadow: inset 3px 0 #000080; }
+.mis-win95 .mis-rule-tip { position: fixed; z-index: 1000; max-width: 300px; padding: 2px 5px 3px; background: #ffffe1; color: #000; border: 1px solid #000; font-size: 11px; line-height: 1.35; white-space: pre-line; pointer-events: none; }
+.mis-win95 #rule-goals { white-space: nowrap; }
+.mis-win95 #rule-goals.bad { color: var(--bad); }
 .mis-win95 .mis-code-editor .cm-tooltip-autocomplete { color: #000; background: #fff; border-radius: 0; border: 1px solid #808080; box-shadow: 1px 1px #000; font: 13px/1.45 Consolas,monospace; }
 .mis-win95 .mis-code-editor .cm-tooltip-autocomplete ul li { color: #000; border-radius: 0; }
 .mis-win95 .mis-code-editor .cm-tooltip-autocomplete ul li[aria-selected] { background: #000080; color: #fff; }

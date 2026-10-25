@@ -70,6 +70,7 @@
 		<div class="statusbar">
 			<div class="status-main"><span class="dot" id="status-dot"></span><span id="status-text">—</span></div>
 			<span class="effort" id="status-effort"></span>
+			<span id="rule-goals"></span>
 			<button id="solve-btn" class="ghost" type="button" hidden>Stop solver</button>
 			<button id="watch-btn" class="ghost" title="Animate the solver's solution on the board">▶ Watch solution</button>
 			<div id="lineage" title="This level's history. Click any step to go back to it — new edits branch from there."></div>
@@ -130,6 +131,9 @@
 					<li><b>Simplify</b> strips objects the solution doesn't need (window dressing) without changing the shortest solution.</li>
 				</ol>
 				<p>Each sample applies the transform once to the starting level, with the counts you wrote. Hovering only previews a result; it does not change the starting level.</p>
+				<h3>Rules in the Game source gutter</h3>
+				<p>Next to each rule, a mark says what the current level's solution does with it: a faint dot if it never fires, a grey dot if it fires (the line warms the more it fires), a black dot if the level can't be solved without it. A flower marks rules that only change decoration or play sounds. Hover a mark for details; <b>Watch solution</b> lights up each rule as it fires.</p>
+				<p>Click a mark to set a goal for this level: <b>✓</b> generated levels must need the rule (unsolvable without it); click again for <b>✗</b>: they must be solvable without it, in no more moves; click again to clear. A red mark means the current level misses that goal.</p>
 				<h3>Transform language</h3>
 				<p>PuzzleScript rewrite rules plus <code>choose</code>, <code>option</code> and <code>or</code>:</p>
 <pre>[Target no Crate] -> [Target Crate]     (everywhere)
