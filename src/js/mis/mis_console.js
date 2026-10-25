@@ -58,13 +58,31 @@
 		else if ((m = /^Turn starts with (?:input of (\w+)|no input)/.exec(plain))) rec.entries.push({ kind: 'start', input: m[1] || null, snap: snap });
 		else if (plain === 'Applying rules' || plain === 'Turn complete' || /^--- (undoing|restarting) ---$/.test(plain)) return;
 		else if (plain === 'Applying late rules') rec.entries.push({ kind: 'phase', text: 'late rules', snap: null });
-		else rec.entries.push({ kind: 'note', text: plain.replace(/^line \d+ : /, ''), line: lineNumber || null, snap: snap });
+		else if (plain === 'Processed movements.') rec.entries.push({ kind: 'phase', text: 'movements resolved', full: plain, snap: snap });
+		else rec.entries.push({ kind: 'note', text: shortNote(plain.replace(/^line \d+ : /, '')), full: plain, line: lineNumber || null, snap: snap });
 	};
 
 	window.consolePrintFromRule = function (text, rule) {
 		if (!rec) return;
-		rec.entries.push({ kind: 'note', text: plainText(text), line: rule ? rule.lineNumber : null, snap: null });
+		const plain = plainText(text);
+		rec.entries.push({ kind: 'note', text: shortNote(plain), full: plain, line: rule ? rule.lineNumber : null, snap: null });
 	};
+
+	// The engine's verbose_logging sentences, shortened to fit a trace row.
+	// The full sentence stays in the row's tooltip.
+	const SHORT_NOTES = [
+		[/^AGAIN command executed, with changes detected/, 'again: another turn follows'],
+		[/^AGAIN command not executed/, 'again skipped: it would change nothing'],
+		[/^CANCEL command executed/, 'cancel: the turn is undone'],
+		[/^RESTART command executed/, 'restart: back to the restart state'],
+		[/^CHECKPOINT command executed/, 'checkpoint: restart state saved'],
+		[/^Relooping through rules because of rigid/, 'rigid: rules run again'],
+		[/^require_player_movement set, but no player movement/, 'player didn’t move: turn cancelled (require_player_movement)'],
+	];
+	function shortNote(text) {
+		for (const [re, short] of SHORT_NOTES) if (re.test(text)) return short;
+		return text;
+	}
 
 	// The compiler prints its rule assembly only under `debug`. Capture it for
 	// every compile instead, as data rather than console text.
@@ -110,6 +128,8 @@
 		let compiledView = null, compiledOpen = new Set(), compiledFocus = null;
 		let turns = [], turnCount = 0;
 		let hover = null;       // { turn, entry } under the mouse
+		let focused = null;     // { turn, entry } with keyboard focus
+		let focusBeforePause = null;
 		let pinned = null;      // { turn, entry } clicked
 		let paused = null;      // { turn, entry, commit }
 
@@ -171,7 +191,7 @@
 		function step(input, run, commit, stepOpts) {
 			stepOpts = stepOpts || {};
 			if (paused) finish();
-			hover = null; pinned = null;
+			hover = null; pinned = null; focused = null;
 			const label = typeof input === 'number' ? INPUT_NAMES[input] || 'tick' : String(input);
 			const r = record(run, stepOpts.before ? boardSnapshot(stepOpts.before) : null);
 			if (stepOpts.optional && !r.captured.entries.length) { renderAll(); commit(r.result); return; }
@@ -180,11 +200,14 @@
 			const at = els.breakToggle && els.breakToggle.checked ? nextBreak(t, 0) : -1;
 			if (at < 0) { renderAll(); commit(r.result); return; }
 			paused = { turn: t, entry: at, commit: function () { commit(r.result); } };
+			focusBeforePause = document.activeElement;
 			t.open = true;
 			opts.showSource();
 			showTab('trace');
 			renderAll();
 			syncPaused();
+			const e = t.entries[at];
+			announce('Paused at the breakpoint on line ' + e.line + ', turn ' + t.n + '. ' + stepText() + ' N steps, B steps back, C continues, Escape finishes the move.');
 		}
 
 		function nextBreak(t, from) {
@@ -223,18 +246,31 @@
 			if (!paused) return;
 			const p = paused;
 			paused = null;
-			syncPaused();
+			leavePause();
+			announce('Move finished.');
 			p.commit();
 		}
 
 		// Leaving play mode: drop the paused move without committing it.
 		function abort() {
-			paused = null; hover = null; pinned = null;
+			if (!paused) { hover = null; pinned = null; focused = null; return; }
+			paused = null; hover = null; pinned = null; focused = null;
+			leavePause();
+		}
+
+		// Hides the debug bar; focus inside it goes back where it was before.
+		function leavePause() {
+			const hadBarFocus = els.bar.contains(document.activeElement);
 			syncPaused();
+			if (hadBarFocus && focusBeforePause && focusBeforePause.isConnected && !focusBeforePause.closest('[hidden]')) focusBeforePause.focus();
+			focusBeforePause = null;
 		}
 
 		function syncPaused() {
 			els.bar.hidden = !paused;
+			// The bar replaces the movement-key hint, which doesn't apply while paused.
+			const hint = $('play-tools');
+			if (hint) hint.hidden = !!paused;
 			if (paused) {
 				const t = paused.turn, e = t.entries[paused.entry];
 				const list = snapEntries(t);
@@ -251,7 +287,7 @@
 		/////////////////////////////////////////////////////////////////
 		// What the board shows
 
-		function viewRef() { return hover || pinned || (paused ? { turn: paused.turn, entry: paused.entry } : null); }
+		function viewRef() { return hover || focused || pinned || (paused ? { turn: paused.turn, entry: paused.entry } : null); }
 		function viewSnap() {
 			const v = viewRef();
 			if (!v || !v.turn.snaps) return null;
@@ -274,7 +310,7 @@
 			const v = viewRef();
 			if (!v || !viewSnap()) return '';
 			const e = v.turn.entries[v.entry];
-			const head = paused && !hover && !pinned ? 'Paused' : 'Trace';
+			const head = paused && !hover && !focused && !pinned ? 'Paused' : 'Trace';
 			return head + ' · turn <b>' + v.turn.n + '</b> (' + escapeHtml(v.turn.label) + ') · ' + escapeHtml(describe(v.turn, e)) +
 				(pinned && !hover ? ' · <span class="faint">Esc to return</span>' : '');
 		}
@@ -312,28 +348,43 @@
 		/////////////////////////////////////////////////////////////////
 		// Rendering
 
-		function lineLink(line) { return line ? '<a class="ln" href="#" data-line="' + line + '">' + line + '</a>' : ''; }
+		// Links inside the Trace and Compiled trees are for the mouse; the rows
+		// themselves are the keyboard stops (Enter reveals the line).
+		function lineLink(line, inTree) { return line ? '<a class="ln" href="#" data-line="' + line + '"' + (inTree ? ' tabindex="-1"' : '') + '>' + line + '</a>' : ''; }
 
+		function sourcePlain(line) { return (opts.sourceLine(line) || '').trim(); }
 		function ruleText(line) {
-			const s = opts.sourceLine(line);
-			return s ? '<span class="src">' + escapeHtml(s.trim()) + '</span>' : '';
+			const s = sourcePlain(line);
+			return s ? '<span class="src">' + escapeHtml(s) + '</span>' : '';
+		}
+
+		function hasSnap(t, e) { return !!t.snaps && e.snap !== null && e.snap !== undefined; }
+
+		function entryText(t, e) {
+			// No direction: the engine stores left/up rules as reversed right/down
+			// ones, so the direction it reports would often look wrong.
+			if (e.kind === 'rule') return 'line ' + e.line + ': ' + sourcePlain(e.line);
+			if (e.kind === 'command') return 'line ' + e.line + ' runs the ' + e.cmd + ' command';
+			if (e.kind === 'start') return e.again ? 'again: a new turn starts' : e.input ? 'movement applied (' + e.input + ')' : 'rules run with no input';
+			return (e.line ? 'line ' + e.line + ': ' : '') + (e.kind === 'note' ? e.full || e.text : e.text);
 		}
 
 		function entryHTML(t, e, i, bps) {
 			const cls = ['t-row', 'k-' + e.kind];
 			const cur = paused && paused.turn === t && paused.entry === i;
 			if (cur) cls.push('cur');
-			if (pinned && pinned.turn === t && pinned.entry === i) cls.push('pin');
-			if (e.snap === null || e.snap === undefined || !t.snaps) cls.push('nosnap');
+			if (!hasSnap(t, e)) cls.push('nosnap');
+			const bp = e.kind === 'rule' && bps.has(e.line);
+			const mark = (cur ? '<span class="cur-arrow" aria-hidden="true"></span>' : '') + (bp ? '<span class="bp-dot" aria-hidden="true"></span>' : '<span class="bp-gap"></span>');
 			let body;
-			const mark = e.kind === 'rule' && bps.has(e.line) ? '<span class="bp-dot" title="Breakpoint"></span>' : '<span class="bp-gap"></span>';
-			// No direction: the engine stores left/up rules as reversed right/down
-			// ones, so the direction it reports would often look wrong.
-			if (e.kind === 'rule') body = mark + lineLink(e.line) + ' ' + ruleText(e.line);
-			else if (e.kind === 'command') body = mark + lineLink(e.line) + ' <span class="cmd">' + escapeHtml(e.cmd) + '</span>';
-			else if (e.kind === 'start') body = mark + (e.again ? '<b>again</b> · new turn' : e.input ? 'movement applied (' + escapeHtml(e.input) + ')' : 'rules run with no input');
-			else body = mark + (e.line ? lineLink(e.line) + ' ' : '') + escapeHtml(e.text);
-			return '<div class="' + cls.join(' ') + '" data-turn="' + t.n + '" data-entry="' + i + '">' + (cur ? '▶ ' : '') + body + '</div>';
+			if (e.kind === 'rule') body = lineLink(e.line, true) + ' ' + ruleText(e.line);
+			else if (e.kind === 'command') body = lineLink(e.line, true) + ' <span class="cmd">' + escapeHtml(e.cmd) + '</span>';
+			else if (e.kind === 'start') body = e.again ? '<b>again</b> · new turn' : escapeHtml(entryText(t, e));
+			else body = (e.line ? lineLink(e.line, true) + ' ' : '') + escapeHtml(e.text);
+			const tip = entryText(t, e);
+			const label = (cur ? 'Paused here. ' : '') + (bp ? 'Breakpoint. ' : '') + tip;
+			return '<div class="' + cls.join(' ') + '" role="treeitem" aria-level="2" tabindex="-1" data-key="t' + t.n + ':' + i + '" data-turn="' + t.n + '" data-entry="' + i + '"' +
+				' title="' + escapeHtml(tip) + '" aria-label="' + escapeHtml(label) + '"' + (cur ? ' aria-current="step"' : '') + '>' + mark + body + '</div>';
 		}
 
 		function turnSummary(t) {
@@ -349,29 +400,120 @@
 				return;
 			}
 			const stick = els.trace.scrollTop + els.trace.clientHeight >= els.trace.scrollHeight - 4;
+			const hadFocus = els.trace.contains(document.activeElement);
 			const bps = new Set(opts.getBreakpoints());
 			const last = turns[turns.length - 1];
-			let html = '';
+			let html = '<div class="tree" role="tree" aria-label="Trace of playtest moves">';
 			turns.forEach(function (t) {
 				const open = t.open === null ? t === last : t.open;
-				html += '<div class="t-turn' + (open ? ' open' : '') + '" data-turn="' + t.n + '"><span class="tw">' + (open ? '▾' : '▸') + '</span> Turn ' + t.n + ' · ' + escapeHtml(t.label) + ' <span class="faint">· ' + turnSummary(t) + '</span></div>';
+				const summary = turnSummary(t);
+				html += '<div class="t-turn' + (open ? ' open' : '') + '" role="treeitem" aria-level="1" aria-expanded="' + open + '" tabindex="-1" data-key="t' + t.n + '" data-turn="' + t.n + '"' +
+					' aria-label="Turn ' + t.n + ', ' + escapeHtml(t.label) + ', ' + summary + '"><span class="tw" aria-hidden="true">' + (open ? '▾' : '▸') + '</span> Turn ' + t.n + ' · ' + escapeHtml(t.label) + ' <span class="faint">· ' + summary + '</span></div>';
 				if (open) t.entries.forEach(function (e, i) { html += entryHTML(t, e, i, bps); });
 			});
-			els.trace.innerHTML = html;
+			els.trace.innerHTML = html + '</div>';
+			settleTree('trace', els.trace, hadFocus, '.t-row.cur');
+			markShown();
 			const cur = els.trace.querySelector('.t-row.cur');
-			if (cur) cur.scrollIntoView({ block: 'nearest' });
-			else if (stick) els.trace.scrollTop = els.trace.scrollHeight;
+			if (cur) scrollWithin(els.trace, cur);
+			else if (stick && !hadFocus) els.trace.scrollTop = els.trace.scrollHeight;
+		}
+
+		// Scrolls a row into view inside its pane only. scrollIntoView would also
+		// scroll the page, which in the stacked narrow layout hides the board.
+		function scrollWithin(container, el) {
+			const c = container.getBoundingClientRect(), r = el.getBoundingClientRect();
+			if (r.top < c.top) container.scrollTop -= c.top - r.top + 4;
+			else if (r.bottom > c.bottom) container.scrollTop += r.bottom - c.bottom + 4;
+		}
+
+		// Trace and Compiled are trees with one tab stop each. The stop is kept
+		// by row key across re-renders, as is keyboard focus.
+		const treeKey = { trace: null, compiled: null };
+		function settleTree(which, container, hadFocus, preferred) {
+			const rows = Array.from(container.querySelectorAll('[role=treeitem]'));
+			if (!rows.length) return;
+			let el = treeKey[which] ? rows.find(function (r) { return r.dataset.key === treeKey[which]; }) : null;
+			if (!el) el = container.querySelector(preferred) || (which === 'trace' ? rows.filter(function (r) { return r.classList.contains('t-turn'); }).pop() : rows[0]);
+			el.tabIndex = 0;
+			if (hadFocus) el.focus({ preventScroll: true });
+		}
+		function moveTreeFocus(which, row) {
+			const container = els[which];
+			container.querySelectorAll('[role=treeitem][tabindex="0"]').forEach(function (r) { r.tabIndex = -1; });
+			row.tabIndex = 0;
+			treeKey[which] = row.dataset.key;
+			row.focus({ preventScroll: true });
+			scrollWithin(container, row);
+		}
+		function treeKeydown(which, ev) {
+			const container = els[which];
+			const rows = Array.from(container.querySelectorAll('[role=treeitem]'));
+			const at = rows.indexOf(ev.target);
+			if (at < 0) return;
+			const row = rows[at], expanded = row.getAttribute('aria-expanded'), level = +row.getAttribute('aria-level');
+			let target = null;
+			switch (ev.key) {
+				case 'ArrowDown': target = rows[at + 1]; break;
+				case 'ArrowUp': target = rows[at - 1]; break;
+				case 'Home': target = rows[0]; break;
+				case 'End': target = rows[rows.length - 1]; break;
+				case 'ArrowRight':
+					if (expanded === 'false') activateRow(which, row);
+					else if (expanded === 'true') target = rows[at + 1];
+					break;
+				case 'ArrowLeft':
+					if (expanded === 'true') activateRow(which, row);
+					else for (let k = at - 1; k >= 0; k--) if (+rows[k].getAttribute('aria-level') < level) { target = rows[k]; break; }
+					break;
+				case 'Enter': case ' ': activateRow(which, row); break;
+				default: return;
+			}
+			// Arrow keys would otherwise also move the player.
+			ev.preventDefault(); ev.stopPropagation();
+			if (target) moveTreeFocus(which, target);
+		}
+
+		// Click or Enter on a row.
+		function activateRow(which, row) {
+			treeKey[which] = row.dataset.key;
+			if (row.classList.contains('t-turn')) {
+				const t = turns.find(function (x) { return x.n === +row.dataset.turn; });
+				if (t) { t.open = row.getAttribute('aria-expanded') !== 'true'; renderTrace(); }
+				return;
+			}
+			if (row.classList.contains('t-row')) {
+				const t = turns.find(function (x) { return x.n === +row.dataset.turn; });
+				const i = +row.dataset.entry;
+				if (!t) return;
+				const e = t.entries[i];
+				if (e.line) opts.revealLine(e.line, true);
+				if (paused && paused.turn === t && hasSnap(t, e)) { paused.entry = i; hover = null; focused = null; syncPaused(); announceStep(); return; }
+				if (!hasSnap(t, e)) return;
+				pinned = pinned && pinned.turn === t && pinned.entry === i ? null : { turn: t, entry: i };
+				refreshView();
+				return;
+			}
+			if (row.classList.contains('c-line')) {
+				const line = +row.dataset.line;
+				if (compiledOpen.has(line)) compiledOpen.delete(line); else compiledOpen.add(line);
+				opts.revealLine(line, true);
+				renderCompiled();
+			}
 		}
 
 		function renderOutput() {
 			if (tab !== 'output' || els.panel.hidden) return;
+			const KIND = { error: 'Error', warn: 'Warning' };
 			let html = compileOut.map(function (o) {
-				return '<div class="o-row k-' + o.kind + '">' + (o.line ? lineLink(o.line) + ' ' : '') + escapeHtml(o.text) + '</div>';
+				return '<div class="o-row k-' + o.kind + '">' + (KIND[o.kind] ? '<span class="o-kind">' + KIND[o.kind] + '</span> ' : '') +
+					(o.line ? 'line ' + lineLink(o.line) + ': ' : '') + escapeHtml(o.text) + '</div>';
 			}).join('');
 			if (sessionOut.length) html += '<div class="o-sep">Playtest</div>';
 			html += sessionOut.map(function (o) {
-				return '<div class="o-row k-' + o.kind + '"><span class="faint">' + (o.turn ? 'turn ' + o.turn : '') + '</span> ' +
-					(o.kind === 'message' ? 'message: “' + escapeHtml(o.text) + '”' : escapeHtml(o.text)) + (o.line ? ' ' + lineLink(o.line) : '') + '</div>';
+				const what = o.kind === 'message' ? 'message: “' + escapeHtml(o.text) + '”' : o.kind === 'sound' ? 'sound ' + escapeHtml(o.text) : escapeHtml(o.text);
+				return '<div class="o-row k-' + o.kind + '">' + (o.turn ? '<span class="faint">turn ' + o.turn + ' ·</span> ' : '') + what +
+					(o.line ? ' <span class="faint">(line</span> ' + lineLink(o.line) + '<span class="faint">)</span>' : '') + '</div>';
 			}).join('');
 			els.output.innerHTML = html;
 			els.output.scrollTop = els.output.scrollHeight;
@@ -380,9 +522,10 @@
 		function renderCompiled() {
 			if (tab !== 'compiled' || els.panel.hidden) return;
 			if (!compiledView) { els.compiled.innerHTML = '<div class="c-empty">No compiled rules: the game didn’t compile.</div>'; return; }
+			const hadFocus = els.compiled.contains(document.activeElement);
 			const lines = Array.from(compiledView.lines.keys()).sort(function (a, b) { return a - b; });
 			let html = '<div class="c-head">' + compiledView.total + ' compiled rules from ' + lines.length + ' source lines' +
-				(compiledView.removed ? ' · ' + compiledView.removed + ' duplicates removed' : '') + '</div>';
+				(compiledView.removed ? ' · ' + compiledView.removed + ' duplicates removed' : '') + '</div><div class="tree" role="tree" aria-label="Compiled rules by source line">';
 			// Rule lines and loop markers in source order; loop bodies indented.
 			const items = lines.map(function (line) { return { line: line }; })
 				.concat(compiledView.loops.map(function (l) { return { line: l.line, loop: l.start ? 'startloop' : 'endloop' }; }))
@@ -392,28 +535,37 @@
 				const line = item.line;
 				if (item.loop === 'endloop') depth = Math.max(0, depth - 1);
 				const indent = '<span class="c-indent" style="width:' + (depth * 14) + 'px"></span>';
+				const level = depth + 1;
 				if (item.loop) {
-					html += '<div class="c-loop">' + indent + '<span class="tw"></span>' + lineLink(line) + ' <b>' + item.loop + '</b></div>';
+					html += '<div class="c-loop" role="treeitem" aria-level="' + level + '" tabindex="-1" data-key="l' + line + '" aria-label="line ' + line + ': ' + item.loop + '">' + indent + '<span class="tw"></span>' + lineLink(line, true) + ' <b>' + item.loop + '</b></div>';
 					if (item.loop === 'startloop') depth++;
 					return;
 				}
 				const list = compiledView.lines.get(line), open = compiledOpen.has(line);
-				html += '<div class="c-line' + (open ? ' open' : '') + (compiledFocus === line ? ' focus' : '') + '" data-line="' + line + '">' + indent + '<span class="tw">' + (open ? '▾' : '▸') + '</span>' +
-					lineLink(line) + ' ' + ruleText(line) + ' <span class="faint">→ ' + list.length + (list.length === 1 ? ' rule' : ' rules') + '</span></div>';
-				if (open) list.forEach(function (text) { html += '<div class="c-sub">' + indent + escapeHtml(text) + '</div>'; });
+				const count = list.length + (list.length === 1 ? ' compiled rule' : ' compiled rules');
+				html += '<div class="c-line' + (open ? ' open' : '') + (compiledFocus === line ? ' focus' : '') + '" role="treeitem" aria-level="' + level + '" aria-expanded="' + open + '" tabindex="-1" data-key="c' + line + '" data-line="' + line + '"' +
+					' title="' + escapeHtml('line ' + line + ': ' + sourcePlain(line)) + '" aria-label="' + escapeHtml('line ' + line + ': ' + sourcePlain(line) + ', ' + count) + '">' + indent + '<span class="tw" aria-hidden="true">' + (open ? '▾' : '▸') + '</span>' +
+					lineLink(line, true) + ' ' + ruleText(line) + ' <span class="faint">→ ' + list.length + (list.length === 1 ? ' rule' : ' rules') + '</span></div>';
+				if (open) list.forEach(function (text, k) { html += '<div class="c-sub" role="treeitem" aria-level="' + (level + 1) + '" tabindex="-1" data-key="c' + line + ':' + k + '" title="' + escapeHtml(text) + '">' + indent + escapeHtml(text) + '</div>'; });
 			});
-			els.compiled.innerHTML = html;
+			els.compiled.innerHTML = html + '</div>';
+			settleTree('compiled', els.compiled, hadFocus, '.c-line.focus');
 			const focus = els.compiled.querySelector('.c-line.focus');
-			if (focus) focus.scrollIntoView({ block: 'nearest' });
+			if (focus && !hadFocus) scrollWithin(els.compiled, focus);
 		}
 
 		function renderTabs() {
 			const problems = compileOut.filter(function (o) { return o.kind === 'error' || o.kind === 'warn'; }).length;
 			els.tabs.forEach(function (b) {
-				b.classList.toggle('on', b.dataset.ctab === tab);
+				const on = b.dataset.ctab === tab;
+				b.classList.toggle('on', on);
+				b.setAttribute('aria-selected', String(on));
+				b.tabIndex = on ? 0 : -1;
 				if (b.dataset.ctab === 'output') {
+					const bad = compileOut.some(function (o) { return o.kind === 'error'; });
 					b.textContent = 'Output' + (problems ? ' (' + problems + ')' : '');
-					b.classList.toggle('bad', compileOut.some(function (o) { return o.kind === 'error'; }));
+					b.classList.toggle('bad', bad);
+					b.setAttribute('aria-label', 'Output' + (problems ? ', ' + problems + (bad ? ' with errors' : ' warnings') : ''));
 				}
 			});
 			['output', 'compiled', 'trace'].forEach(function (k) { els[k].hidden = k !== tab; });
@@ -430,62 +582,103 @@
 		/////////////////////////////////////////////////////////////////
 		// Events
 
-		els.tabs.forEach(function (b) { b.onclick = function () { showTab(b.dataset.ctab); }; });
+		els.tabs.forEach(function (b, index) {
+			b.onclick = function () { showTab(b.dataset.ctab); };
+			// Same keys as the code tabs (mis_win95.js) and GUI95 property tabs.
+			b.addEventListener('keydown', function (ev) {
+				const n = els.tabs.length;
+				const next = { ArrowRight: (index + 1) % n, ArrowLeft: (index + n - 1) % n, Home: 0, End: n - 1 }[ev.key];
+				if (next === undefined) return;
+				ev.preventDefault(); ev.stopPropagation();
+				showTab(els.tabs[next].dataset.ctab);
+				els.tabs[next].focus();
+			});
+		});
 		els.clear.onclick = function () {
 			if (paused) finish();
-			turns = []; sessionOut = []; hover = null; pinned = null;
+			turns = []; sessionOut = []; hover = null; pinned = null; focused = null;
 			renderAll(); opts.render();
 		};
 		els.breakToggle.onchange = function () { renderTrace(); };
-		$('dbg-back').onclick = function () { stepBy(-1); };
-		$('dbg-step').onclick = function () { stepBy(1); };
-		$('dbg-continue').onclick = cont;
+		$('dbg-back').onclick = function () { stepBy(-1); announceStep(); };
+		$('dbg-step').onclick = function () { stepBy(1); announceStep(); };
+		$('dbg-continue').onclick = function () { cont(); announceStep(); };
 		$('dbg-finish').onclick = finish;
 
 		els.panel.addEventListener('click', function (ev) {
 			const ln = ev.target.closest('a.ln');
 			if (ln) { ev.preventDefault(); opts.revealLine(+ln.dataset.line); return; }
-			const head = ev.target.closest('.t-turn');
-			if (head) {
-				const t = turns.find(function (x) { return x.n === +head.dataset.turn; });
-				if (t) { t.open = !head.classList.contains('open'); renderTrace(); }
-				return;
-			}
-			const row = ev.target.closest('.t-row');
-			if (row) {
-				const t = turns.find(function (x) { return x.n === +row.dataset.turn; });
-				const i = +row.dataset.entry;
-				if (!t) return;
-				if (paused && paused.turn === t && t.entries[i].snap !== null && t.entries[i].snap !== undefined) { paused.entry = i; hover = null; syncPaused(); return; }
-				pinned = pinned && pinned.turn === t && pinned.entry === i ? null : { turn: t, entry: i };
-				renderTrace(); opts.render();
-				return;
-			}
-			const cl = ev.target.closest('.c-line');
-			if (cl) {
-				const line = +cl.dataset.line;
-				if (compiledOpen.has(line)) compiledOpen.delete(line); else compiledOpen.add(line);
-				renderCompiled();
-			}
+			const row = ev.target.closest('[role=treeitem]');
+			if (!row) return;
+			const which = els.trace.contains(row) ? 'trace' : 'compiled';
+			if (row.matches('.t-turn, .t-row, .c-line')) activateRow(which, row);
 		});
+		els.trace.addEventListener('keydown', function (ev) { treeKeydown('trace', ev); });
+		els.compiled.addEventListener('keydown', function (ev) { treeKeydown('compiled', ev); });
+
+		function refFor(row) {
+			const t = row && row.classList.contains('t-row') && turns.find(function (x) { return x.n === +row.dataset.turn; });
+			return t && hasSnap(t, t.entries[+row.dataset.entry]) ? { turn: t, entry: +row.dataset.entry } : null;
+		}
+		function sameRef(a, b) { return a === b || (!!a && !!b && a.turn === b.turn && a.entry === b.entry); }
+
 		els.trace.addEventListener('mouseover', function (ev) {
-			const row = ev.target.closest('.t-row');
-			const t = row && turns.find(function (x) { return x.n === +row.dataset.turn; });
-			const next = t && t.snaps && t.entries[+row.dataset.entry].snap !== null && t.entries[+row.dataset.entry].snap !== undefined ? { turn: t, entry: +row.dataset.entry } : null;
-			if ((next && hover && next.turn === hover.turn && next.entry === hover.entry) || (!next && !hover)) return;
+			const next = refFor(ev.target.closest('.t-row'));
+			if (sameRef(next, hover)) return;
 			hover = next;
-			opts.render();
+			refreshView();
 		});
-		els.trace.addEventListener('mouseleave', function () { if (hover) { hover = null; opts.render(); } });
+		els.trace.addEventListener('mouseleave', function () { if (hover) { hover = null; refreshView(); } });
+		// Keyboard focus on a row previews it, as hovering does.
+		els.trace.addEventListener('focusin', function (ev) {
+			const row = ev.target.closest('[role=treeitem]');
+			if (row) treeKey.trace = row.dataset.key;
+			const next = row && row.matches(':focus-visible') ? refFor(row) : null;
+			if (sameRef(next, focused)) return;
+			focused = next;
+			refreshView();
+		});
+		els.trace.addEventListener('focusout', function (ev) {
+			if (els.trace.contains(ev.relatedTarget) || !focused) return;
+			focused = null;
+			refreshView();
+		});
+		els.compiled.addEventListener('focusin', function (ev) {
+			const row = ev.target.closest('[role=treeitem]');
+			if (row) treeKey.compiled = row.dataset.key;
+		});
+
+		// The row whose board is on show is drawn as selected (navy).
+		function markShown() {
+			els.trace.querySelectorAll('.t-row.shown').forEach(function (r) { r.classList.remove('shown'); });
+			const v = hover || focused || pinned;
+			if (!v) return;
+			const row = els.trace.querySelector('[data-key="t' + v.turn.n + ':' + v.entry + '"]');
+			if (row) row.classList.add('shown');
+		}
+		function refreshView() { markShown(); opts.render(); }
+
+		// Pauses and steps are announced to screen readers.
+		function announce(text) {
+			const live = $('console-live');
+			if (!live) return;
+			live.textContent = '';
+			setTimeout(function () { live.textContent = text; }, 30);
+		}
+		function stepText() {
+			const t = paused.turn, e = t.entries[paused.entry], list = snapEntries(t);
+			return 'Step ' + (list.indexOf(paused.entry) + 1) + ' of ' + list.length + ': ' + entryText(t, e).replace(/\.$/, '') + '.';
+		}
+		function announceStep() { if (paused) announce(stepText()); }
 
 		// Keys while paused or pinned; returns true when handled.
 		function handleKey(e) {
-			if (pinned && e.key === 'Escape') { pinned = null; renderTrace(); opts.render(); return true; }
+			if (pinned && e.key === 'Escape') { pinned = null; refreshView(); return true; }
 			if (!paused) return false;
 			const k = e.key;
-			if (k === 'n' || k === 'N' || k === 'F10') stepBy(1);
-			else if (k === 'b' || k === 'B') stepBy(-1);
-			else if (k === 'c' || k === 'C' || k === 'F8') cont();
+			if (k === 'n' || k === 'N' || k === 'F10') { stepBy(1); announceStep(); }
+			else if (k === 'b' || k === 'B') { stepBy(-1); announceStep(); }
+			else if (k === 'c' || k === 'C' || k === 'F8') { cont(); announceStep(); }
 			else if (k === 'Escape') finish();
 			else { els.bar.classList.remove('nudge'); void els.bar.offsetWidth; els.bar.classList.add('nudge'); }
 			e.preventDefault();
@@ -511,7 +704,7 @@
 		// A new playtest: the trace and playtest output start over.
 		function startSession(text) {
 			if (paused) abort();
-			turns = []; sessionOut = []; turnCount = 0; hover = null; pinned = null;
+			turns = []; sessionOut = []; turnCount = 0; hover = null; pinned = null; focused = null;
 			if (text) sessionOut.push({ kind: 'event', text: text, line: null, turn: 0 });
 			renderAll();
 		}

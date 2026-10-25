@@ -2374,7 +2374,7 @@
 			// Scroll only while paused, so the debugger keys keep working.
 			revealLine: function (n, passive) {
 				showTab('source');
-				if (passive || misConsole.isPaused()) sourceCM.scrollLineIntoView(n);
+				if (passive || misConsole.isPaused()) sourceCM.scrollLineQuietly(n);
 				else { sourceCM.setCursor(n - 1, 0); sourceCM.scrollIntoView({ line: n - 1, ch: 0 }); }
 			},
 			setPausedLine: function (n) { sourceCM.setPausedLine(n); },

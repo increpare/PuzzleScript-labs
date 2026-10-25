@@ -218,6 +218,15 @@ pausing is a cursor into its recorded snapshots, so stepping back is free; the
 move is committed when the cursor leaves it. "Stop at breakpoints" turns them all
 off without clearing them.
 
+Keyboard: the console tabs take arrows and Home/End like the code tabs. Trace and
+Compiled are trees with one tab stop each: Up/Down move, Left/Right collapse and
+expand, Enter pins a Trace row (or expands a Compiled line) and scrolls the
+source to its line. A focused Trace row previews the board, as hovering does.
+<kbd>F9</kbd> in Game source toggles a breakpoint on the cursor's line. Pauses
+and steps are announced through a polite live region (`#console-live`). The row
+whose board is on show is drawn as selected (navy); the paused step uses the
+debugger's yellow and arrow, in the trace and in the breakpoint margin.
+
 Breakpoints go only on rule lines. They are kept by rule text, like rule goals,
 so they survive level edits and undo, and move with the rule while you type.
 They are saved with the game as a `(MIS breakpoints … MIS end)` comment, one

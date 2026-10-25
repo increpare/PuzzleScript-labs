@@ -118,6 +118,7 @@
 	// mis_console.js reads them when a playtest move fires a rule.
 	const breakpointMarker = new (class extends R.GutterMarker { toDOM() { const el = document.createElement('span'); el.className = 'mis-bp'; return el; } })();
 	const breakpointSpacer = new (class extends R.GutterMarker { toDOM() { const el = document.createElement('span'); el.className = 'mis-bp-space'; return el; } })();
+	const pausedMarker = new (class extends R.GutterMarker { toDOM() { const el = document.createElement('span'); el.className = 'mis-paused-arrow'; return el; } })();
 
 	function create(textarea, { transform = false, lineWrapping = false, ruleGutter = false, getDefinitionTarget } = {}) {
 		const listeners = new Map(), markedLines = new Set();
@@ -205,21 +206,25 @@
 				return value;
 			}
 		});
+		// The paused line: a line tint plus a debugger arrow in the breakpoint margin.
 		const pausedLine = R.StateField.define({
-			create: () => R.Decoration.none,
+			create: () => ({ deco: R.Decoration.none, arrow: R.RangeSet.empty }),
 			update(value, tr) {
-				value = value.map(tr.changes);
+				value = { deco: value.deco.map(tr.changes), arrow: value.arrow.map(tr.changes) };
 				for (const effect of tr.effects) if (effect.is(setPaused)) {
 					const line = effect.value;
-					value = line >= 1 && line <= tr.state.doc.lines ? R.Decoration.set([R.Decoration.line({ class: 'mis-paused-line' }).range(tr.state.doc.line(line).from)]) : R.Decoration.none;
+					if (line >= 1 && line <= tr.state.doc.lines) {
+						const from = tr.state.doc.line(line).from;
+						value = { deco: R.Decoration.set([R.Decoration.line({ class: 'mis-paused-line' }).range(from)]), arrow: R.RangeSet.of([pausedMarker.range(from)]) };
+					} else value = { deco: R.Decoration.none, arrow: R.RangeSet.empty };
 				}
 				return value;
 			},
-			provide: field => R.EditorView.decorations.from(field)
+			provide: field => R.EditorView.decorations.from(field, v => v.deco)
 		});
 		const breakpointGutter = R.gutter({
 			class: 'mis-bp-gutter',
-			markers: v => v.state.field(breakpoints),
+			markers: v => R.RangeSet.join([v.state.field(breakpoints), v.state.field(pausedLine).arrow]),
 			initialSpacer: () => breakpointSpacer,
 			domEventHandlers: {
 				mousedown(v, block, event) {
@@ -227,9 +232,21 @@
 					event.preventDefault();
 					(listeners.get('breakpointClick') || []).forEach(fn => fn(lineOfBlock(block)));
 					return true;
+				},
+				// Runs before the page's status-bar help, which reads [title].
+				pointerover(v, block, event) {
+					const margin = event.target.closest && event.target.closest('.mis-bp-gutter');
+					if (margin && !margin.title) margin.title = 'Breakpoint margin: click beside a rule line, or press F9 on it';
+					return false;
 				}
 			}
 		});
+		// F9 toggles a breakpoint on the cursor's line, as in Windows debuggers.
+		const breakpointKeymap = R.keymap.of([{ key: 'F9', run: v => {
+			const line = v.state.doc.lineAt(v.state.selection.main.head).number;
+			(listeners.get('breakpointClick') || []).forEach(fn => fn(line));
+			return true;
+		} }]);
 		const setMarks = R.StateEffect.define();
 		const marks = R.StateField.define({
 			create: () => R.Decoration.none,
@@ -270,7 +287,7 @@
 			return [
 				R.EditorView.editorAttributes.of({ class: 'puzzlescript-editor mis-code-editor' }),
 				R.EditorView.contentAttributes.of({ 'aria-label': transform ? 'Transform code' : 'Game source code' }),
-				...(ruleGutter ? [breakpoints, pausedLine, breakpointGutter] : []),
+				...(ruleGutter ? [breakpoints, pausedLine, breakpointGutter, breakpointKeymap] : []),
 				R.lineNumbers(), ...(ruleGutter ? [rules, ruleGutterExtension] : []),
 				R.highlightActiveLine(), R.highlightActiveLineGutter(), R.drawSelection(), R.dropCursor(),
 				R.history(MISSpritePainting.historyConfig), R.EditorState.tabSize.of(4), ...(lineWrapping ? [R.EditorView.lineWrapping] : []),
@@ -339,6 +356,14 @@
 				view.dispatch({ effects: setBreakpoints.of(positions) });
 			},
 			setPausedLine(line) { if (ruleGutter) view.dispatch({ effects: setPaused.of(line || 0) }); },
+			// Like scrollLineIntoView, but moves only the editor's own scroller,
+			// never the page (used while stepping, so the board stays in view).
+			scrollLineQuietly(line) {
+				if (!(line >= 1 && line <= view.state.doc.lines)) return;
+				const block = view.lineBlockAt(view.state.doc.line(line).from), sd = view.scrollDOM;
+				const top = block.top + view.documentPadding.top, bottom = block.bottom + view.documentPadding.top;
+				if (top < sd.scrollTop || bottom > sd.scrollTop + sd.clientHeight) sd.scrollTop = Math.max(0, top - (sd.clientHeight - (bottom - top)) / 2);
+			},
 			scrollLineIntoView(line) {
 				if (line >= 1 && line <= view.state.doc.lines) view.dispatch({ effects: R.EditorView.scrollIntoView(view.state.doc.line(line).from, { y: 'nearest' }) });
 			},

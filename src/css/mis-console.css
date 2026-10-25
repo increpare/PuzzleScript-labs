@@ -11,7 +11,9 @@
 .mis-win95 .console-tabs .spacer { flex: 1; }
 
 .mis-win95 .console-body { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; margin: 3px 2px 2px; padding: 3px 0; background: #fff; box-shadow: var(--sunken); font: 12px/1.5 Consolas, "Courier New", monospace; }
-.mis-win95 .console-body > div { padding: 0 6px 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mis-win95 .console-body :is(.t-turn, .t-row, .o-row, .o-sep, .c-head, .c-line, .c-sub, .c-loop) { padding: 0 6px 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mis-win95 .console-body [role=treeitem]:focus { outline: none; }
+.mis-win95 .console-body [role=treeitem]:focus-visible { outline: 1px dotted #000; outline-offset: -1px; }
 .mis-win95 .console-body .c-empty { white-space: normal; padding: 6px 8px; color: #444; font: 11px/1.5 var(--sans); }
 .mis-win95 .console-body a.ln { color: #000080; text-decoration: underline; cursor: pointer; }
 .mis-win95 .console-body .src { color: #000; }
@@ -27,14 +29,21 @@
 .mis-win95 .t-row.k-rule .dir { color: #006000; }
 .mis-win95 .t-row.k-command .cmd { color: #800080; font-weight: bold; }
 .mis-win95 .t-row.k-start, .mis-win95 .t-row.k-begin, .mis-win95 .t-row.k-end, .mis-win95 .t-row.k-phase { color: #707070; font-style: italic; }
-.mis-win95 .t-row:not(.nosnap):hover { background: #000080; color: #fff; }
-.mis-win95 .t-row:not(.nosnap):hover :is(.src, .dir, .cmd, a.ln) { color: #fff; }
-.mis-win95 .t-row.pin { outline: 1px dotted #000; outline-offset: -1px; }
-.mis-win95 .t-row.cur { background: #ffffe1; color: #000; box-shadow: inset 3px 0 #a00000; }
+.mis-win95 .t-row:not(.nosnap) { cursor: pointer; }
+/* Selected = the row whose board is on show (hovered, focused or pinned). */
+.mis-win95 .t-row.shown:not(.cur) { background: #000080; color: #fff; }
+.mis-win95 .t-row.shown:not(.cur) :is(.src, .dir, .cmd, a.ln, b) { color: #fff; }
+.mis-win95 .t-row.shown:not(.cur):focus-visible { outline-color: #fff; }
+/* The paused step: the debugger's current-statement yellow and arrow. */
+.mis-win95 .t-row.cur { background: #ffff80; color: #000; font-style: normal; }
+.mis-win95 .cur-arrow { display: inline-block; width: 9px; height: 9px; margin-right: 3px; vertical-align: -1px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='9' viewBox='0 0 9 9'%3E%3Cpath d='M0.5 2.5h4v-2l4 4-4 4v-2h-4z' fill='%23ffff00' stroke='%23000' stroke-width='1' shape-rendering='crispEdges'/%3E%3C/svg%3E") no-repeat; }
 .mis-win95 .bp-dot, .mis-win95 .bp-gap { display: inline-block; width: 8px; height: 8px; margin-right: 5px; vertical-align: -1px; }
 .mis-win95 .bp-dot { border-radius: 50%; background: #c00000; box-shadow: inset -1px -1px #600000; }
 
 /* Output */
+/* Output wraps: messages are meant to be read in full. */
+.mis-win95 .console-body .o-row { white-space: normal; overflow-wrap: anywhere; padding-left: 4px; }
+.mis-win95 .o-row .o-kind { font-weight: bold; }
 .mis-win95 .o-row.k-error { color: var(--bad); }
 .mis-win95 .o-row.k-warn { color: var(--warn); }
 .mis-win95 .o-row.k-ok { color: var(--good); }
@@ -69,4 +78,10 @@
 .mis-win95 .mis-bp, .mis-win95 .mis-bp-space { display: block; width: 10px; height: 10px; }
 .mis-win95 .mis-bp { border-radius: 50%; background: #c00000; box-shadow: inset -1px -1px #600000, inset 1px 1px #ff8080; }
 .mis-win95 .mis-bp-gutter .cm-gutterElement:hover .mis-bp-space { border-radius: 50%; background: rgba(192,0,0,.25); }
-.mis-win95 .mis-code-editor .mis-paused-line { background: #ffffe1; box-shadow: inset 3px 0 #a00000; }
+.mis-win95 .mis-bp-gutter .cm-gutterElement { position: relative; }
+.mis-win95 .mis-paused-arrow { position: absolute; left: 50%; top: 50%; width: 9px; height: 9px; margin: -4px 0 0 -4px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='9' viewBox='0 0 9 9'%3E%3Cpath d='M0.5 2.5h4v-2l4 4-4 4v-2h-4z' fill='%23ffff00' stroke='%23000' stroke-width='1' shape-rendering='crispEdges'/%3E%3C/svg%3E") no-repeat; }
+/* Brighter than the rule-heat tints, with rules above and below. */
+.mis-win95 .mis-code-editor .mis-paused-line { background: #ffff80; box-shadow: inset 0 1px #000, inset 0 -1px #000; }
+
+/* Text for screen readers only (pause and step announcements). */
+.mis-sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }

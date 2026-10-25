@@ -59,10 +59,10 @@
 			</div>
 			<div class="debug-bar" id="debug-bar" role="toolbar" aria-label="Paused at a breakpoint" hidden>
 				<span class="debug-state">Paused</span><span id="debug-where" class="mono"></span><span class="spacer"></span>
-				<button id="dbg-back" title="Step back (B)">◀ Back</button>
-				<button id="dbg-step" title="Step to the next snapshot (N)">Step ▶</button>
-				<button id="dbg-continue" title="Run to the next breakpoint in this move (C)">Continue</button>
-				<button id="dbg-finish" title="Finish this move (Esc)">Finish move</button>
+				<button id="dbg-back" title="Step back (B)" aria-keyshortcuts="B">◀ <u>B</u>ack</button>
+				<button id="dbg-step" title="Step to the next snapshot (N)" aria-keyshortcuts="N"><u>N</u>ext ▶</button>
+				<button id="dbg-continue" title="Run to the next breakpoint in this move (C)" aria-keyshortcuts="C"><u>C</u>ontinue</button>
+				<button id="dbg-finish" title="Finish this move (Esc)" aria-keyshortcuts="Escape">Finish move</button>
 			</div>
 			<div class="spacer"></div>
 			<button aria-label="Undo" id="undo-btn" class="ghost" title="Undo (Ctrl+Z)">↶</button>
@@ -114,18 +114,18 @@
 			<div class="meter" id="meter"><span class="faint">Pick a transform on the right (or write one), then press Generate. Suggestions are ranked by how hard the solver finds them.</span></div>
 			<div id="cards"></div>
 		</div>
-		<div id="console" hidden>
-			<div class="console-tabs" id="console-tabs" role="tablist">
-				<button data-ctab="output" role="tab">Output</button>
-				<button data-ctab="compiled" role="tab">Compiled</button>
-				<button data-ctab="trace" role="tab">Trace</button>
+		<div id="console" role="region" aria-label="Console" hidden>
+			<div class="console-tabs" id="console-tabs" role="tablist" aria-label="Console">
+				<button data-ctab="output" role="tab" id="console-tab-output" aria-controls="console-output">Output</button>
+				<button data-ctab="compiled" role="tab" id="console-tab-compiled" aria-controls="console-compiled">Compiled</button>
+				<button data-ctab="trace" role="tab" id="console-tab-trace" aria-controls="console-trace">Trace</button>
 				<span class="spacer"></span>
 				<label class="toggle" title="Stop a playtest move when it fires a rule with a breakpoint"><input type="checkbox" id="break-toggle" checked> Stop at breakpoints</label>
 				<button class="ghost" id="console-clear" title="Clear the playtest trace and output">Clear</button>
 			</div>
-			<div class="console-body" id="console-output" role="tabpanel" hidden></div>
-			<div class="console-body" id="console-compiled" role="tabpanel" hidden></div>
-			<div class="console-body" id="console-trace" role="tabpanel" hidden></div>
+			<div class="console-body" id="console-output" role="tabpanel" aria-labelledby="console-tab-output" hidden></div>
+			<div class="console-body" id="console-compiled" role="tabpanel" aria-labelledby="console-tab-compiled" hidden></div>
+			<div class="console-body" id="console-trace" role="tabpanel" aria-labelledby="console-tab-trace" hidden></div>
 		</div>
 	</section>
 
@@ -171,6 +171,9 @@
 				<h3>Rules in the Game source gutter</h3>
 				<p>Next to each rule, a mark says what the current level's solution does with it: a faint dot if it never fires, a grey dot if it fires (the line warms the more it fires), a black dot if every solution fires it. A flower marks rules that only change decoration or play sounds. Hover a mark for details; <b>Watch solution</b> lights up each rule as it fires.</p>
 				<p>Click a mark to set a goal for this level: <b>✓</b> every solution of a generated level must fire the rule; click again for <b>✗</b>: no solution may fire it, not even a roundabout one; click again to clear. A red mark means the current level misses that goal. Checking ✗ means exploring the whole level, so it can be slow on big levels.</p>
+				<h3>Console and breakpoints</h3>
+				<p>With Game source open, the panel under the board is the console: <b>Output</b> (compile messages, then the playtest's messages and sounds), <b>Compiled</b> (what each rule line compiles to) and <b>Trace</b> (every rule each playtest move fires). Hover or arrow through Trace rows to see the board at that moment; click or press <kbd>Enter</kbd> to keep it there (<kbd>Esc</kbd> returns).</p>
+				<p>Click the margin left of a rule's line number, or press <kbd>F9</kbd> on its line, to set a breakpoint. A move that fires the rule stops: <kbd>N</kbd> next step · <kbd>B</kbd> back · <kbd>C</kbd> continue to the next breakpoint · <kbd>Esc</kbd> finish the move. Breakpoints are saved with the game.</p>
 				<h3>Transform language</h3>
 				<p>PuzzleScript rewrite rules plus <code>choose</code>, <code>option</code> and <code>or</code>:</p>
 <pre>[Target no Crate] -> [Target Crate]     (everywhere)
@@ -198,6 +201,7 @@ choose 9 horizontal [Player | no Wall] -> [ | Player]</pre>
 <dialog id="about-dialog" aria-labelledby="about-title"><div class="dialog-caption" id="about-title">About MIS95</div><div class="about-content"><span class="app-icon" aria-hidden="true"></span><div><strong>MIS95</strong><p>A mixed-initiative puzzle design environment.</p><p class="about-credit">Based on <b>PuzzleScript+MIS</b> by <b>Kevin De Keyser</b>,<br>whose original tool and research this is built on:<br><a href="https://dekeyser.ch/puzzlescriptmis/" target="_blank" rel="noopener">dekeyser.ch/puzzlescriptmis</a></p><p>Edit levels, write transforms, and explore variations<br>with the PuzzleScript engine and solver.</p><p>Interface inspired by Windows 95 development tools.</p></div></div><form method="dialog"><button autofocus>OK</button></form></dialog>
 <dialog id="new-level-dialog" aria-labelledby="new-level-title"><div class="dialog-caption" id="new-level-title">New level</div><form id="new-level-form"><div class="new-level-fields"><label>Width <input id="new-width" name="width" type="number" min="1" max="128" required></label><label>Height <input id="new-height" name="height" type="number" min="1" max="128" required></label><p>Blank level · uses the current level’s transform.<br>You can resize it afterward by dragging its edges.</p><p id="new-level-error" role="alert"></p></div><div class="dialog-actions"><button id="create-level" type="submit">Create</button><button id="cancel-new-level" type="button">Cancel</button></div></form></dialog>
 <div id="fatal"><div id="fatal-msg"></div></div>
+<div id="console-live" class="mis-sr-only" role="status" aria-live="polite"></div>
 
 <script src="js/mis/mis_shims.js"></script>
 <script src="js/storagewrapper.js"></script>

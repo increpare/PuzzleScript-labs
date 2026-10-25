@@ -205,6 +205,66 @@ test("breakpoints are saved with the game and follow their rule", async ({page})
   expect(errors).toEqual([])
 })
 
+test("the console works from the keyboard and tells screen readers what happened", async ({page}) => {
+  const {errors, editor} = await openMIS(page)
+  await page.locator('#tabs [data-tab="source"]').click()
+
+  // Tabs: one tab stop, arrows move the selection.
+  const traceTab = page.locator("#console-tab-trace")
+  await traceTab.click()
+  await expect(traceTab).toHaveAttribute("aria-selected", "true")
+  await page.keyboard.press("ArrowLeft")
+  await expect(page.locator("#console-tab-compiled")).toBeFocused()
+  await expect(page.locator("#console-tab-compiled")).toHaveAttribute("aria-selected", "true")
+  await expect(traceTab).toHaveAttribute("tabindex", "-1")
+  await page.keyboard.press("End")
+  await expect(traceTab).toBeFocused()
+
+  // F9 in the editor toggles a breakpoint on the cursor's line.
+  await editor.evaluate((root, line) => root.misEditor.setCursor(line - 1, 0), PUSH_LINE)
+  await page.keyboard.press("F9")
+  expect(await editor.evaluate(root => root.misEditor.getBreakpoints())).toEqual([PUSH_LINE])
+  await page.locator("#break-toggle").uncheck()
+
+  // Trace rows are a tree: arrows preview the board without moving the player.
+  await play(page)
+  await page.keyboard.press("ArrowRight")
+  await expect(page.locator("#play-moves")).toHaveText("1 moves")
+  const tree = page.locator('#console-trace [role="tree"]')
+  await expect(tree.locator('[role="treeitem"][tabindex="0"]')).toHaveCount(1)
+  await tree.locator('[role="treeitem"][tabindex="0"]').focus()
+  await expect(page.locator(":focus")).toHaveAttribute("aria-level", "1")
+  await page.keyboard.press("ArrowDown")
+  await expect(page.locator(":focus")).toHaveAttribute("aria-label", "before the move")
+  await expect(page.locator("#board-banner")).toContainText("before the move")
+  await expect(page.locator("#play-moves")).toHaveText("1 moves")
+  await page.keyboard.press("ArrowLeft")
+  await expect(page.locator(":focus")).toHaveAttribute("aria-expanded", "true")
+  await page.keyboard.press("ArrowLeft")
+  await expect(page.locator(":focus")).toHaveAttribute("aria-expanded", "false")
+  await page.keyboard.press("Enter")
+  await expect(page.locator(":focus")).toHaveAttribute("aria-expanded", "true")
+
+  // A pause is announced, and focus returns from the debug bar when it closes.
+  await page.locator("#break-toggle").check()
+  await play(page)
+  await page.keyboard.press("ArrowRight")
+  await expect(page.locator("#debug-bar")).toBeVisible()
+  await expect(page.locator("#play-tools")).toBeHidden()
+  await expect(page.locator("#console-live")).toContainText(`Paused at the breakpoint on line ${PUSH_LINE}`)
+  await expect(editor.locator(".mis-paused-arrow")).toHaveCount(1)
+  await page.keyboard.press("b")
+  await expect(page.locator("#console-live")).toContainText("Step")
+  await page.keyboard.press("n") // back on the breakpoint, so Continue runs to the end
+  await page.locator("#dbg-continue").focus()
+  await page.keyboard.press("Enter")
+  await expect(page.locator("#debug-bar")).toBeHidden()
+  await expect(page.locator("#play-tools")).toBeVisible()
+  await expect(page.locator("#console-live")).toHaveText("Move finished.")
+  expect(await page.evaluate(() => document.getElementById("debug-bar").contains(document.activeElement))).toBe(false)
+  expect(errors).toEqual([])
+})
+
 test("the source tab shows a one-line summary that opens Output", async ({page}) => {
   const broken = source.replace("[ Player no Mark ] -> [ Player Mark ]", "[ Player no Mark ] -> [ Player Mark ]\n[ Nonsense ] -> [ ]")
   const {errors} = await openMIS(page, broken, "broken.txt")
