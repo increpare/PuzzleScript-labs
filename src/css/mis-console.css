@@ -56,13 +56,18 @@
 /* Source tab status line: links to Output */
 .mis-win95 .diag-more a { color: #000080; }
 
-/* Debug toolbar (paused move): an ordinary grey toolbar under an etched line.
-   The designer caption shows [Break] while it is up. */
-.mis-win95 .debug-bar { order: 7; width: 100%; display: flex; align-items: center; gap: 4px; padding: 4px 2px 1px; border-top: 1px solid #808080; box-shadow: inset 0 1px #fff; }
+/* The Trace page: its debug toolbar above the trace well. The toolbar is
+   always there; its step buttons are greyed out until a move pauses. The
+   designer caption shows [Break] while paused. */
+.mis-win95 .console-page { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.mis-win95 .debug-bar { flex: none; display: flex; align-items: center; flex-wrap: wrap; gap: 3px; padding: 4px 2px 0; }
 .mis-win95 .debug-bar button { min-height: 22px; padding: 2px 8px; }
+/* A latched toggle: sunken, with the 2px white/grey checker. */
+.mis-win95 .debug-bar button[aria-pressed=true] { box-shadow: var(--sunken); background: repeating-conic-gradient(#fff 0 25%, #c0c0c0 0 50%) 0 0 / 2px 2px; }
 .mis-win95 .debug-bar .debug-sep { width: 0; height: 18px; margin: 0 3px; border-left: 1px solid #808080; border-right: 1px solid #fff; }
-.mis-win95 .debug-bar #debug-where { font-size: 11px; }
 .mis-win95 .debug-bar.nudge { animation: mis-debug-nudge .3s; }
+/* The movement-key hint while paused: a disabled (embossed) label. */
+.mis-win95 .play-tools.paused, .mis-win95 .play-tools.paused :is(kbd, span) { color: #808080; text-shadow: 1px 1px #fff; }
 @keyframes mis-debug-nudge { 0%, 100% { transform: none; } 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
 @media (prefers-reduced-motion: reduce) { .mis-win95 .debug-bar.nudge { animation: none; } }
 

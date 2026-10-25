@@ -57,13 +57,6 @@
 				<span><kbd>←↑→↓</kbd>/<kbd>WASD</kbd> move · <kbd>X</kbd> action · <kbd>Z</kbd> undo · <kbd>R</kbd> restart</span>
 				<span id="play-moves" class="mono"></span>
 			</div>
-			<div class="debug-bar" id="debug-bar" role="toolbar" aria-label="Debug" hidden>
-				<button id="dbg-back" title="Step back (B)" aria-keyshortcuts="B" disabled>◀ Back</button>
-				<button id="dbg-step" title="Next step (N)" aria-keyshortcuts="N" disabled>Next ▶</button>
-				<button id="dbg-continue" title="Continue to the next breakpoint in this move (C)" aria-keyshortcuts="C" disabled>Continue</button>
-				<button id="dbg-finish" title="Finish this move (Esc)" aria-keyshortcuts="Escape" disabled>Finish move</button>
-				<span class="debug-sep" aria-hidden="true"></span><span id="debug-where"></span>
-			</div>
 			<div class="spacer"></div>
 			<button aria-label="Undo" id="undo-btn" class="ghost" title="Undo (Ctrl+Z)">↶</button>
 			<button aria-label="Redo" id="redo-btn" class="ghost" title="Redo (Ctrl+Shift+Z)">↷</button>
@@ -118,14 +111,26 @@
 			<div class="console-tabs" id="console-tabs" role="tablist" aria-label="Console">
 				<button data-ctab="output" role="tab" id="console-tab-output" aria-controls="console-output">Output</button>
 				<button data-ctab="compiled" role="tab" id="console-tab-compiled" aria-controls="console-compiled">Compiled</button>
-				<button data-ctab="trace" role="tab" id="console-tab-trace" aria-controls="console-trace">Trace</button>
-				<!-- State for Run ▸ Stop at breakpoints / Clear trace (the menu clicks these). -->
+				<button data-ctab="trace" role="tab" id="console-tab-trace" aria-controls="console-trace-page">Trace</button>
+				<!-- State for Stop at breakpoints (the toolbar button and Run menu click it). -->
 				<input type="checkbox" id="break-toggle" checked hidden>
-				<button id="console-clear" hidden></button>
 			</div>
 			<div class="console-body" id="console-output" role="tabpanel" aria-labelledby="console-tab-output" hidden></div>
 			<div class="console-body" id="console-compiled" role="tabpanel" aria-labelledby="console-tab-compiled" hidden></div>
-			<div class="console-body" id="console-trace" role="tabpanel" aria-labelledby="console-tab-trace" hidden></div>
+			<div class="console-page" id="console-trace-page" role="tabpanel" aria-labelledby="console-tab-trace" hidden>
+				<!-- Stepping moves the trace's cursor, so its controls live on the Trace page.
+				     Always shown; greyed out until a move pauses. Run menu items mirror them. -->
+				<div class="debug-bar" id="debug-bar" role="toolbar" aria-label="Debug">
+					<button id="dbg-back" title="Step back (B)" aria-keyshortcuts="B" disabled>◀ Back</button>
+					<button id="dbg-step" title="Next step (N)" aria-keyshortcuts="N" disabled>Next ▶</button>
+					<button id="dbg-continue" title="Continue to the next breakpoint in this move (C)" aria-keyshortcuts="C" disabled>Continue</button>
+					<button id="dbg-finish" title="Finish this move (Esc)" aria-keyshortcuts="Escape" disabled>Finish move</button>
+					<span class="debug-sep" aria-hidden="true"></span>
+					<button id="break-btn" aria-pressed="true" title="Stop a playtest move when it fires a rule with a breakpoint">Stop at breakpoints</button>
+					<button id="console-clear" title="Clear the playtest trace and output">Clear</button>
+				</div>
+				<div class="console-body" id="console-trace"></div>
+			</div>
 		</div>
 	</section>
 
@@ -173,7 +178,7 @@
 				<p>Click a mark to set a goal for this level: <b>✓</b> every solution of a generated level must fire the rule; click again for <b>✗</b>: no solution may fire it, not even a roundabout one; click again to clear. A red mark means the current level misses that goal. Checking ✗ means exploring the whole level, so it can be slow on big levels.</p>
 				<h3>Console and breakpoints</h3>
 				<p>With Game source open, the panel under the board is the console: <b>Output</b> (compile messages, then the playtest's messages and sounds), <b>Compiled</b> (what each rule line compiles to) and <b>Trace</b> (every rule each playtest move fires). Hover or arrow through Trace rows to see the board at that moment; click or press <kbd>Enter</kbd> to keep it there (<kbd>Esc</kbd> returns).</p>
-				<p>Click the margin left of a rule's line number, or press <kbd>F9</kbd> on its line, to set a breakpoint. A move that fires the rule stops and the designer shows <b>[Break]</b>: <kbd>N</kbd> next step · <kbd>B</kbd> back · <kbd>C</kbd> continue to the next breakpoint · <kbd>Esc</kbd> finish the move. The same commands, plus <i>Stop at breakpoints</i> and <i>Clear trace</i>, are in the <b>Run</b> menu. Double-click a row to open its line. Breakpoints are saved with the game.</p>
+				<p>Click the margin left of a rule's line number, or press <kbd>F9</kbd> on its line, to set a breakpoint. A move that fires the rule stops and the designer shows <b>[Break]</b>: <kbd>N</kbd> next step · <kbd>B</kbd> back · <kbd>C</kbd> continue to the next breakpoint · <kbd>Esc</kbd> finish the move. The Trace page's toolbar has the same commands, with <i>Stop at breakpoints</i> and <i>Clear</i>; so does the <b>Run</b> menu. Double-click a row to open its line. Breakpoints are saved with the game.</p>
 				<h3>Transform language</h3>
 				<p>PuzzleScript rewrite rules plus <code>choose</code>, <code>option</code> and <code>or</code>:</p>
 <pre>[Target no Crate] -> [Target Crate]     (everywhere)

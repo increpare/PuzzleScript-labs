@@ -212,15 +212,20 @@ was. The console has three tabs, always on, with no prelude flags needed:
 Click the margin left of a rule's line number to set a breakpoint. A playtest
 move that fires that rule stops there: the board shows the state just after the
 rule applied, the designer caption reads **[Break]** (as Visual C++ put
-`[break]` in its title), the line is highlighted, and a grey toolbar above the
-board steps through the move (**N** next, **B** back, **C** continue to the next
-breakpoint in the move, **Esc** finish). The move runs to completion before
+`[break]` in its title), the board banner gives the step ("step 7/9"), and the
+line is highlighted. Stepping moves the trace's cursor, so its controls live on
+the Trace page: a toolbar above the trace, always there and greyed out until a
+move pauses (**N** next, **B** back, **C** continue to the next breakpoint in
+the move, **Esc** finish), with a latched **Stop at breakpoints** button and
+**Clear**. Nothing above the board appears or disappears when a move pauses;
+the movement-key hint is greyed out instead. The move runs to completion before
 anything is shown, and pausing is a cursor into its recorded snapshots, so
 stepping back is free; the move is committed when the cursor leaves it.
 
 The **Run** menu holds the same commands (enabled while paused), **Toggle
 breakpoint** (F9), **Stop at breakpoints** (a checked item; turns them all off
-without clearing them) and **Clear trace**.
+without clearing them) and **Clear trace**, so stepping also works from the
+keys or the menu when the Trace page isn't showing.
 
 The console's rows look like a Windows 95 tree view: [+]/[−] boxes, dotted
 connector lines, an icon column (breakpoint, current step, error, warning), a

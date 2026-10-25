@@ -117,7 +117,8 @@
 			panel: $('console'), tabs: Array.from(document.querySelectorAll('#console-tabs [data-ctab]')),
 			output: $('console-output'), compiled: $('console-compiled'), trace: $('console-trace'),
 			breakToggle: $('break-toggle'), clear: $('console-clear'),
-			bar: $('debug-bar'), where: $('debug-where')
+			bar: $('debug-bar'),
+			tracePage: $('console-trace-page'), breakBtn: $('break-btn')
 		};
 		let tab = 'trace';
 		try { tab = localStorage.getItem('mis-console-tab') || 'trace'; } catch (e) { /* storage blocked */ }
@@ -258,19 +259,25 @@
 			leavePause();
 		}
 
-		// Hides the debug bar; focus inside it goes back where it was before.
+		// Ends the pause; focus on a step button goes back where it was before.
 		function leavePause() {
 			const hadBarFocus = els.bar.contains(document.activeElement);
 			syncPaused();
-			if (hadBarFocus && focusBeforePause && focusBeforePause.isConnected && !focusBeforePause.closest('[hidden]')) focusBeforePause.focus();
+			// The step buttons are now disabled; focus goes back where it was, or
+			// to the trace (the thing those buttons were moving through).
+			if (hadBarFocus) {
+				const back = focusBeforePause && focusBeforePause !== document.body && focusBeforePause.isConnected && !focusBeforePause.closest('[hidden]') ? focusBeforePause
+					: els.trace.querySelector('[role=treeitem][tabindex="0"]');
+				if (back) back.focus();
+			}
 			focusBeforePause = null;
 		}
 
 		function syncPaused() {
-			els.bar.hidden = !paused;
-			// The bar replaces the movement-key hint, which doesn't apply while paused.
+			// The movement-key hint doesn't apply while paused: grey it out, as a
+			// disabled label, rather than hide it (hiding would shift the board).
 			const hint = $('play-tools');
-			if (hint) hint.hidden = !!paused;
+			if (hint) hint.classList.toggle('paused', !!paused);
 			// The Run menu mirrors these buttons' disabled state.
 			['dbg-back', 'dbg-step', 'dbg-continue', 'dbg-finish'].forEach(function (id) { $(id).disabled = !paused; });
 			// As Visual C++ put [break] in its title: the designer caption says [Break].
@@ -278,8 +285,6 @@
 			if (caption) caption.textContent = paused ? '[Break]' : '[' + (mode ? mode.textContent.trim() : 'Play') + ']';
 			if (paused) {
 				const t = paused.turn, e = t.entries[paused.entry];
-				const list = snapEntries(t);
-				els.where.textContent = 'turn ' + t.n + ' · step ' + (list.indexOf(paused.entry) + 1) + '/' + list.length;
 				opts.setPausedLine(e.line || null);
 				if (e.line) opts.revealLine(e.line, true);
 			} else {
@@ -315,8 +320,12 @@
 			const v = viewRef();
 			if (!v || !viewSnap()) return '';
 			const e = v.turn.entries[v.entry];
-			const head = paused && !hover && !focused && !pinned ? 'Paused' : 'Trace';
-			return head + ' · turn <b>' + v.turn.n + '</b> (' + escapeHtml(v.turn.label) + ') · ' + escapeHtml(describe(v.turn, e)) +
+			const atCursor = paused && !hover && !focused && !pinned;
+			// The step count lives here, not on the toolbar, so pausing doesn't
+			// change the toolbar's size.
+			const list = snapEntries(v.turn);
+			const step = atCursor ? ' · step ' + (list.indexOf(v.entry) + 1) + '/' + list.length : '';
+			return (atCursor ? 'Paused' : 'Trace') + ' · turn <b>' + v.turn.n + '</b> (' + escapeHtml(v.turn.label) + ')' + step + ' · ' + escapeHtml(describe(v.turn, e)) +
 				(pinned && !hover ? ' · <span class="faint">Esc to return</span>' : '');
 		}
 
@@ -592,7 +601,9 @@
 					b.setAttribute('aria-label', 'Output' + (problems ? ', ' + problems + (bad ? ' with errors' : ' warnings') : ''));
 				}
 			});
-			['output', 'compiled', 'trace'].forEach(function (k) { els[k].hidden = k !== tab; });
+			els.output.hidden = tab !== 'output';
+			els.compiled.hidden = tab !== 'compiled';
+			els.tracePage.hidden = tab !== 'trace';
 		}
 
 		function renderAll() { renderTabs(); renderTrace(); renderOutput(); renderCompiled(); }
@@ -624,10 +635,15 @@
 			renderAll(); opts.render();
 		};
 		try { els.breakToggle.checked = localStorage.getItem('mis-break-enabled') !== 'false'; } catch (e) { /* storage blocked */ }
+		// A latched toolbar button (and a checked Run menu item) over one checkbox.
+		function syncBreakButton() { els.breakBtn.setAttribute('aria-pressed', String(els.breakToggle.checked)); }
 		els.breakToggle.onchange = function () {
 			try { localStorage.setItem('mis-break-enabled', String(els.breakToggle.checked)); } catch (e) { /* storage blocked */ }
+			syncBreakButton();
 			renderTrace();
 		};
+		els.breakBtn.onclick = function () { els.breakToggle.click(); };
+		syncBreakButton();
 		$('dbg-back').onclick = function () { stepBy(-1); announceStep(); };
 		$('dbg-step').onclick = function () { stepBy(1); announceStep(); };
 		$('dbg-continue').onclick = function () { cont(); announceStep(); };

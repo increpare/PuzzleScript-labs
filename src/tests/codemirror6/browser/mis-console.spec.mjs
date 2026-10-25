@@ -160,11 +160,14 @@ test("a breakpoint pauses a move, steps through it and commits it at the end", a
   await play(page)
   await page.keyboard.press("ArrowRight")
 
-  // Hitting the breakpoint brings up the source and the trace.
-  const bar = page.locator("#debug-bar")
-  await expect(bar).toBeVisible()
+  // Hitting the breakpoint brings up the source and the trace, whose toolbar
+  // holds the step buttons (enabled only while paused).
+  const next = page.locator("#dbg-step")
+  await expect(next).toBeEnabled()
   await expect(page.locator("#console")).toBeVisible()
   await expect(page.locator('#console-tabs [data-ctab="trace"]')).toHaveClass(/\bon\b/)
+  await expect(page.locator("#console-trace-page #debug-bar")).toBeVisible()
+  await expect(page.locator("#board-banner")).toContainText("step ")
   await expect(page.locator("#console-trace .t-row.cur")).toContainText(String(PUSH_LINE))
   await expect(editor.locator(".mis-paused-line")).toContainText("> Player | Crate")
   await expect(page.locator("#board-banner")).toContainText(`after line ${PUSH_LINE}`)
@@ -173,7 +176,7 @@ test("a breakpoint pauses a move, steps through it and commits it at the end", a
   await page.locator('#menubar .menu-trigger[aria-label="Run"]').click()
   await expect(page.locator("#menu-run [role=menuitem]").filter({hasText: "Next step"})).toBeEnabled()
   await page.keyboard.press("Escape") // closes the menu only
-  await expect(bar).toBeVisible()
+  await expect(next).toBeEnabled()
 
   await page.keyboard.press("b")
   await expect(page.locator("#board-banner")).toContainText("movement applied")
@@ -183,7 +186,8 @@ test("a breakpoint pauses a move, steps through it and commits it at the end", a
   await expect(page.locator("#play-moves")).toHaveText("0 moves")
 
   await page.keyboard.press("c")
-  await expect(bar).toBeHidden()
+  await expect(next).toBeDisabled()
+  await expect(page.locator("#debug-bar")).toBeVisible() // stays, greyed out
   await expect(page.locator("#play-moves")).toHaveText("1 moves")
   await expect(page.locator("#designer-mode")).toHaveText("[Play]")
   await page.locator('#menubar .menu-trigger[aria-label="Run"]').click()
@@ -191,11 +195,13 @@ test("a breakpoint pauses a move, steps through it and commits it at the end", a
   await page.keyboard.press("Escape")
   await expect(editor.locator(".mis-paused-line")).toHaveCount(0)
 
+  await expect(page.locator("#break-btn")).toHaveAttribute("aria-pressed", "true")
   await runMenu(page, "Stop at breakpoints")
   await page.locator("#board").click()
   await page.keyboard.press("ArrowRight")
   await expect(page.locator("#play-moves")).toHaveText("2 moves")
-  await expect(bar).toBeHidden()
+  await expect(next).toBeDisabled()
+  await expect(page.locator("#break-btn")).toHaveAttribute("aria-pressed", "false")
   expect(errors).toEqual([])
 })
 
@@ -269,11 +275,12 @@ test("the console works from the keyboard and tells screen readers what happened
   await expect(page.locator(":focus")).toHaveAttribute("aria-expanded", "true")
 
   // A pause is announced, and focus returns from the debug bar when it closes.
-  await runMenu(page, "Stop at breakpoints")
+  await page.locator("#break-btn").click() // the toolbar toggle
+  await expect(page.locator("#break-btn")).toHaveAttribute("aria-pressed", "true")
   await play(page)
   await page.keyboard.press("ArrowRight")
-  await expect(page.locator("#debug-bar")).toBeVisible()
-  await expect(page.locator("#play-tools")).toBeHidden()
+  await expect(page.locator("#dbg-step")).toBeEnabled()
+  await expect(page.locator("#play-tools")).toHaveClass(/\bpaused\b/) // greyed, not hidden: the board stays put
   await expect(page.locator("#console-live")).toContainText(`Paused at the breakpoint on line ${PUSH_LINE}`)
   await expect(editor.locator(".mis-paused-arrow")).toHaveCount(1)
   await page.keyboard.press("b")
@@ -281,8 +288,8 @@ test("the console works from the keyboard and tells screen readers what happened
   await page.keyboard.press("n") // back on the breakpoint, so Continue runs to the end
   await page.locator("#dbg-continue").focus()
   await page.keyboard.press("Enter")
-  await expect(page.locator("#debug-bar")).toBeHidden()
-  await expect(page.locator("#play-tools")).toBeVisible()
+  await expect(page.locator("#dbg-step")).toBeDisabled()
+  await expect(page.locator("#play-tools")).not.toHaveClass(/\bpaused\b/)
   await expect(page.locator("#console-live")).toHaveText("Move finished.")
   expect(await page.evaluate(() => document.getElementById("debug-bar").contains(document.activeElement))).toBe(false)
   expect(errors).toEqual([])
