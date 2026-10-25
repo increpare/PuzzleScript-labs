@@ -189,7 +189,7 @@
 				mouseleave() { hideTip(); return false; }
 			}
 		});
-		const toggleBreakpoint = R.StateEffect.define(), setPaused = R.StateEffect.define();
+		const toggleBreakpoint = R.StateEffect.define(), setBreakpoints = R.StateEffect.define(), setPaused = R.StateEffect.define();
 		const breakpoints = R.StateField.define({
 			create: () => R.RangeSet.empty,
 			update(value, tr) {
@@ -199,6 +199,8 @@
 					let has = false;
 					value.between(pos, pos, from => { if (from === pos) has = true; });
 					value = has ? value.update({ filter: from => from !== pos }) : value.update({ add: [breakpointMarker.range(pos)] });
+				} else if (effect.is(setBreakpoints)) {
+					value = R.RangeSet.of(effect.value.map(pos => breakpointMarker.range(pos)), true);
 				}
 				return value;
 			}
@@ -329,6 +331,12 @@
 				const out = [], doc = view.state.doc;
 				for (let it = view.state.field(breakpoints).iter(); it.value; it.next()) out.push(doc.lineAt(it.from).number);
 				return out;
+			},
+			setBreakpoints(lines) {
+				if (!ruleGutter) return;
+				const doc = view.state.doc;
+				const positions = [...new Set(lines)].filter(l => l >= 1 && l <= doc.lines).sort((a, b) => a - b).map(l => doc.line(l).from);
+				view.dispatch({ effects: setBreakpoints.of(positions) });
 			},
 			setPausedLine(line) { if (ruleGutter) view.dispatch({ effects: setPaused.of(line || 0) }); },
 			scrollLineIntoView(line) {

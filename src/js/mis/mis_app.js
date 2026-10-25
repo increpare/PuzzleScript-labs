@@ -71,6 +71,7 @@
 		rules: null,             // compiled rule lines: { lines, random, keyOf, lineOf }
 		ruleTags: {},            // line -> 'cosmetic' | 'inert' (from the workers' analysis)
 		ruleGoals: {},           // levelIndex -> { rule key: 'need' | 'ban' }
+		breakpoints: new Set(),  // rule keys with a breakpoint (whole game)
 	};
 
 	// Selection changes the workspace aliases; background jobs keep their own
@@ -292,6 +293,7 @@
 		const levelEditStates = opts.levelEdit ? Object.values(app.workspaces).map(function (ws) { return { ws: ws, cards: ws.cards, pinned: ws.pinned, running: !!((ws.gen && ws.gen.running) || ws.restartTransform) }; }) : [];
 		const ok = compileSource(text);
 		if (ok) {
+			syncBreakpoints(!!opts.fromEditor);
 			if (opts.fromEditor && oldModel && (oldModel.levels.length !== app.model.levels.length || app.model.levels.some(function (lv, i) { return lv.board && oldModel.levels[i] && oldModel.levels[i].board && !C.boardsEqual(lv.board, oldModel.levels[i].board) && oldModel.levels.some(function (old, j) { return j !== i && old.board && C.boardsEqual(old.board, lv.board); }); }))) {
 				invalidateAllWorkspaces(); app.workspaces = {}; app.locks = {}; app.ruleGoals = {}; app.lineage = {};
 				toast('Level order changed — generation paused. Check each level’s settings before restarting.');
@@ -969,10 +971,14 @@
 		if (!app.board) return;
 		setPreview(null);
 		misConsole.startSession('playtest started on level ' + (countPlayableBefore(app.levelIndex) + 1));
-		C.loadBoardIntoEngine(app.model, app.board, 'play');
-		app.play = { history: [], moves: 0, board: engineBoard() };
-		updatePlayMoves();
-		layoutBoard();
+		// Traced (and breakable) when the game has run_rules_on_level_start.
+		const board = app.board;
+		misConsole.step('level start', function () { C.loadBoardIntoEngine(app.model, board, 'play'); }, function () {
+			if (app.mode !== 'play' || app.board !== board) return;
+			app.play = { history: [], moves: 0, board: engineBoard() };
+			updatePlayMoves();
+			layoutBoard();
+		}, { before: board, optional: true });
 	}
 	function exitPlay() {
 		app.play = null;
@@ -991,9 +997,15 @@
 			p.moves = Math.max(0, p.moves - 1);
 			misConsole.log('undo');
 		} else if (input === 'restart') {
-			C.loadBoardIntoEngine(app.model, app.board, 'play');
-			p.history.length = 0; p.moves = 0;
 			misConsole.log('restart');
+			misConsole.step('restart', function () { C.loadBoardIntoEngine(app.model, app.board, 'play'); }, function () {
+				if (app.play !== p) return;
+				p.history.length = 0; p.moves = 0;
+				p.board = engineBoard();
+				updatePlayMoves();
+				renderBoard();
+			}, { before: app.board, optional: true });
+			return;
 		} else {
 			// The console records the move and may pause it at a breakpoint;
 			// the move is committed once it isn't paused any more.
@@ -1333,6 +1345,33 @@
 			lineOf.set(key, line);
 		});
 		return { lines: compiled.lines, random: compiled.random, keyOf: keyOf, lineOf: lineOf };
+	}
+
+	// Breakpoints are kept as rule keys, like rule goals, so they survive the
+	// source being rewritten (level edits, undo). After typing in the editor
+	// its markers have moved with the text, which follows a rule whose text was
+	// edited; keys whose rule still exists are kept too, since a marker is lost
+	// when its whole line is replaced (select-all and paste, say).
+	function syncBreakpoints(fromEditor) {
+		if (!app.rules || !sourceCM) return;
+		if (fromEditor) {
+			const keys = new Set(sourceCM.getBreakpoints().map(function (l) { return app.rules.keyOf.get(l); }).filter(Boolean));
+			app.breakpoints.forEach(function (key) { if (app.rules.lineOf.has(key)) keys.add(key); });
+			app.breakpoints = keys;
+		}
+		const lines = [];
+		app.breakpoints.forEach(function (key) { const line = app.rules.lineOf.get(key); if (line) lines.push(line); });
+		sourceCM.setBreakpoints(lines);
+	}
+
+	function toggleBreakpoint(line) {
+		if (!app.rules || !app.rules.keyOf.has(line)) { toast('Breakpoints go on rule lines.'); return; }
+		const key = app.rules.keyOf.get(line);
+		if (app.breakpoints.has(key)) app.breakpoints.delete(key); else app.breakpoints.add(key);
+		syncBreakpoints(false);
+		misConsole.renderTrace();
+		markDirty(true);
+		autosave();
 	}
 
 	function levelGoals(i) { return app.ruleGoals[i === undefined ? app.levelIndex : i] || {}; }
@@ -2093,15 +2132,18 @@
 			if (!keys.length) return;
 			out += '(MIS rule goals ' + k + '\n' + keys.map(function (key) { return goals[key] + ' ' + key; }).join('\n') + '\nMIS end)\n';
 		});
+		if (app.breakpoints.size) out += '(MIS breakpoints\n' + Array.from(app.breakpoints).join('\n') + '\nMIS end)\n';
 		const transforms = {};
 		Object.entries(app.workspaces).forEach(function (entry) { const ws = entry[1]; transforms[entry[0]] = { transform: ws.transform, presetId: ws.presetId }; });
 		out += '(MIS level transforms\n' + JSON.stringify(transforms).replace(/\(/g, '\\u0028').replace(/\)/g, '\\u0029') + '\nMIS end)\n';
 		return out;
 	}
 	const WORKSPACE_META_RE = /\n?\(MIS level transforms\n([^\n]*)\nMIS end\)\n?/g;
-	function stripMeta(text) { return text.replace(META_RE, '\n').replace(WORKSPACE_META_RE, '\n'); }
+	const BREAKPOINT_META_RE = /\n?\(MIS breakpoints\n([\s\S]*?)\nMIS end\)\n?/g;
+	function stripMeta(text) { return text.replace(META_RE, '\n').replace(WORKSPACE_META_RE, '\n').replace(BREAKPOINT_META_RE, '\n'); }
 	function readMeta(text) {
-		const meta = { transform: null, locks: {}, ruleGoals: {}, workspaces: {} };
+		const meta = { transform: null, locks: {}, ruleGoals: {}, workspaces: {}, breakpoints: [] };
+		text.replace(BREAKPOINT_META_RE, function (all, rows) { meta.breakpoints = rows.split('\n').map(function (r) { return r.trim(); }).filter(Boolean); return ''; });
 		text.replace(WORKSPACE_META_RE, function (all, json) { try { meta.workspaces = JSON.parse(json); } catch (e) { /* ignore invalid optional metadata */ } return ''; });
 		text.replace(META_RE, function (all, tr, lvl, rows, goalLvl, goalRows) {
 			if (tr !== undefined) meta.transform = tr;
@@ -2134,6 +2176,7 @@
 		app.levelIndex = 0;
 		app.locks = meta.locks;
 		app.ruleGoals = meta.ruleGoals;
+		app.breakpoints = new Set(meta.breakpoints);
 		app.lineage = {};
 		app.cards = []; app.pinned = []; app.special = null;
 		app.undo = []; app.redo = [];
@@ -2240,7 +2283,8 @@
 	function embedRecoveredMetadata(compiled, authored) {
 		const comments = authored.match(META_RE) || [];
 		const transforms = authored.match(WORKSPACE_META_RE) || [];
-		return compiled + '\n' + comments.concat(transforms).join('\n');
+		const breakpoints = authored.match(BREAKPOINT_META_RE) || [];
+		return compiled + '\n' + comments.concat(transforms, breakpoints).join('\n');
 	}
 
 	function restoreCollections(record) {
@@ -2286,14 +2330,14 @@
 		if (!sourceCM) return;
 		sourceMarks.forEach(function (l) { sourceCM.removeLineClass(l, 'background', 'err-line'); });
 		sourceMarks = [];
-		const shown = errors.filter(function (e) { return e.isError; }).concat(errors.filter(function (e) { return !e.isError; })).slice(0, 30);
+		// One status line; the messages themselves are in the console's Output tab.
+		const nErr = errors.filter(function (e) { return e.isError; }).length, nWarn = errors.length - nErr;
+		const counts = [nErr ? nErr + (nErr === 1 ? ' error' : ' errors') : '', nWarn ? nWarn + (nWarn === 1 ? ' warning' : ' warnings') : ''].filter(Boolean).join(', ');
 		diag.innerHTML = (ok ? (hasErrors ? '<div class="warn">Compiled with errors — the game may not work correctly.</div>' : '<div class="ok">✓ Compiled</div>') : '<div class="err">Errors — the board shows the last version that compiled.</div>') +
-			shown.map(function (e) { return '<div class="' + (e.isError ? 'err' : 'warn') + '" data-line="' + (e.line || '') + '">' + (e.line ? 'line ' + e.line + ': ' : '') + escapeHtml(e.message) + '</div>'; }).join('');
-		shown.forEach(function (e) { if (e.isError && e.line) sourceMarks.push(sourceCM.addLineClass(e.line - 1, 'background', 'err-line')); });
-		Array.from(diag.children).forEach(function (d) {
-			if (!d.dataset.line) return;
-			d.onclick = function () { const ln = +d.dataset.line - 1; sourceCM.setCursor(ln, 0); sourceCM.scrollIntoView({ line: ln, ch: 0 }, 80); sourceCM.focus(); };
-		});
+			(counts ? '<div class="diag-more"><a href="#">' + counts + ' — show in Output</a></div>' : '');
+		errors.forEach(function (e) { if (e.isError && e.line) sourceMarks.push(sourceCM.addLineClass(e.line - 1, 'background', 'err-line')); });
+		const more = diag.querySelector('.diag-more a');
+		if (more) more.onclick = function (ev) { ev.preventDefault(); showTab('source'); misConsole.showTab('output'); };
 		$('tabs').children[1].style.color = ok ? (hasErrors ? 'var(--warn)' : '') : 'var(--bad)';
 	}
 
@@ -2337,12 +2381,7 @@
 			showSource: function () { showTab('source'); },
 			render: function () { renderBoard(); }
 		});
-		sourceCM.on('breakpointClick', function (line) {
-			if ((app.rules && app.rules.lines.indexOf(line) >= 0) || sourceCM.getBreakpoints().indexOf(line) >= 0) {
-				sourceCM.toggleBreakpoint(line);
-				misConsole.renderTrace();
-			} else toast('Breakpoints go on rule lines.');
-		});
+		sourceCM.on('breakpointClick', toggleBreakpoint);
 		sourceCM.on('cursorActivity', function () { misConsole.followCursor(sourceCM.getCursor().line + 1); });
 
 		sourceCM.on('change', function () {

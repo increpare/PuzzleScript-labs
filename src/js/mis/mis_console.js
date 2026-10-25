@@ -80,7 +80,8 @@
 			if (!byLine.has(r.lineNumber)) byLine.set(r.lineNumber, []);
 			byLine.get(r.lineNumber).push(text);
 		});
-		compiled = { lines: byLine, total: kept.length, removed: st.rules.length - kept.length };
+		// state.loops: [line, 1] for startloop, [line, -1] for endloop.
+		compiled = { lines: byLine, loops: (st.loops || []).map(function (l) { return { line: l[0], start: l[1] === 1 }; }), total: kept.length, removed: st.rules.length - kept.length };
 	};
 
 	/////////////////////////////////////////////////////////////////////
@@ -115,10 +116,10 @@
 		/////////////////////////////////////////////////////////////////
 		// Recording moves
 
-		function record(run) {
+		function record(run, before) {
 			rec = { entries: [], snaps: [] };
 			debug_visualisation_array = []; debugger_turnIndex = 0; // eslint-disable-line no-undef
-			const before = snapshotOf(level);
+			before = before || snapshotOf(level);
 			const oldVerbose = verbose_logging;
 			verbose_logging = true;
 			let result;
@@ -157,13 +158,23 @@
 			if (typeof messagetext === 'string' && messagetext) { sessionOut.push({ kind: 'message', text: messagetext, line: null, turn: t.n }); messagetext = ''; }
 		}
 
+		// A board as it is before a level loads: no pending movements.
+		function boardSnapshot(board) {
+			return { w: board.w, h: board.h, objects: new Int32Array(board.cells), movements: new Int32Array(board.w * board.h * STRIDE_MOV), strideMov: STRIDE_MOV, layers: LAYER_COUNT };
+		}
+
 		// Records `run()` (one move, including any again turns) and then calls
 		// commit(result) — straight away, or once the user leaves a paused turn.
-		function step(input, run, commit) {
+		// stepOpts.before: the board `run` starts from, when it loads a level.
+		// stepOpts.optional: add no turn when `run` printed nothing (a level
+		// without run_rules_on_level_start, say).
+		function step(input, run, commit, stepOpts) {
+			stepOpts = stepOpts || {};
 			if (paused) finish();
 			hover = null; pinned = null;
 			const label = typeof input === 'number' ? INPUT_NAMES[input] || 'tick' : String(input);
-			const r = record(run);
+			const r = record(run, stepOpts.before ? boardSnapshot(stepOpts.before) : null);
+			if (stepOpts.optional && !r.captured.entries.length) { renderAll(); commit(r.result); return; }
 			const t = buildTurn(label, input, r.captured, r.before);
 			addTurn(t);
 			const at = els.breakToggle && els.breakToggle.checked ? nextBreak(t, 0) : -1;
@@ -255,7 +266,7 @@
 
 		function describe(t, e) {
 			if (e.kind === 'rule') return 'after line ' + e.line;
-			if (e.kind === 'start') return e.again ? 'again turn starts' : 'movement applied';
+			if (e.kind === 'start') return e.again ? 'again turn starts' : e.input ? 'movement applied' : 'rules run with no input';
 			return e.text || e.kind;
 		}
 
@@ -320,7 +331,7 @@
 			// ones, so the direction it reports would often look wrong.
 			if (e.kind === 'rule') body = mark + lineLink(e.line) + ' ' + ruleText(e.line);
 			else if (e.kind === 'command') body = mark + lineLink(e.line) + ' <span class="cmd">' + escapeHtml(e.cmd) + '</span>';
-			else if (e.kind === 'start') body = mark + (e.again ? '<b>again</b> · new turn' : 'movement applied' + (t.label !== 'tick' ? ' (' + escapeHtml(t.label) + ')' : ''));
+			else if (e.kind === 'start') body = mark + (e.again ? '<b>again</b> · new turn' : e.input ? 'movement applied (' + escapeHtml(e.input) + ')' : 'rules run with no input');
 			else body = mark + (e.line ? lineLink(e.line) + ' ' : '') + escapeHtml(e.text);
 			return '<div class="' + cls.join(' ') + '" data-turn="' + t.n + '" data-entry="' + i + '">' + (cur ? '▶ ' : '') + body + '</div>';
 		}
@@ -372,11 +383,24 @@
 			const lines = Array.from(compiledView.lines.keys()).sort(function (a, b) { return a - b; });
 			let html = '<div class="c-head">' + compiledView.total + ' compiled rules from ' + lines.length + ' source lines' +
 				(compiledView.removed ? ' · ' + compiledView.removed + ' duplicates removed' : '') + '</div>';
-			lines.forEach(function (line) {
+			// Rule lines and loop markers in source order; loop bodies indented.
+			const items = lines.map(function (line) { return { line: line }; })
+				.concat(compiledView.loops.map(function (l) { return { line: l.line, loop: l.start ? 'startloop' : 'endloop' }; }))
+				.sort(function (a, b) { return a.line - b.line; });
+			let depth = 0;
+			items.forEach(function (item) {
+				const line = item.line;
+				if (item.loop === 'endloop') depth = Math.max(0, depth - 1);
+				const indent = '<span class="c-indent" style="width:' + (depth * 14) + 'px"></span>';
+				if (item.loop) {
+					html += '<div class="c-loop">' + indent + '<span class="tw"></span>' + lineLink(line) + ' <b>' + item.loop + '</b></div>';
+					if (item.loop === 'startloop') depth++;
+					return;
+				}
 				const list = compiledView.lines.get(line), open = compiledOpen.has(line);
-				html += '<div class="c-line' + (open ? ' open' : '') + (compiledFocus === line ? ' focus' : '') + '" data-line="' + line + '"><span class="tw">' + (open ? '▾' : '▸') + '</span>' +
+				html += '<div class="c-line' + (open ? ' open' : '') + (compiledFocus === line ? ' focus' : '') + '" data-line="' + line + '">' + indent + '<span class="tw">' + (open ? '▾' : '▸') + '</span>' +
 					lineLink(line) + ' ' + ruleText(line) + ' <span class="faint">→ ' + list.length + (list.length === 1 ? ' rule' : ' rules') + '</span></div>';
-				if (open) list.forEach(function (text) { html += '<div class="c-sub">' + escapeHtml(text) + '</div>'; });
+				if (open) list.forEach(function (text) { html += '<div class="c-sub">' + indent + escapeHtml(text) + '</div>'; });
 			});
 			els.compiled.innerHTML = html;
 			const focus = els.compiled.querySelector('.c-line.focus');
@@ -513,7 +537,7 @@
 			step: step, startSession: startSession, log: log, onCompile: onCompile, abort: abort,
 			isPaused: function () { return !!paused; }, handleKey: handleKey,
 			viewBoard: viewBoard, bannerHTML: bannerHTML, decorateBoard: decorateBoard,
-			followCursor: followCursor, setVisible: setVisible, renderTrace: renderTrace
+			followCursor: followCursor, setVisible: setVisible, renderTrace: renderTrace, showTab: showTab
 		};
 	}
 

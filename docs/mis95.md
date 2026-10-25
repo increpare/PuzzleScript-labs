@@ -198,12 +198,16 @@ generator (Suggestions), **Game source** shows the console. Help leaves it as it
 was. The console has three tabs, always on, with no prelude flags needed:
 
 - **Output**: compile errors and warnings, then the playtest's events
-  (messages, sounds, commands, undo, restart, solved).
+  (messages, sounds, commands, undo, restart, solved). The line under the
+  source editor only summarises ("2 errors — show in Output").
 - **Compiled**: what `debug` prints in the editor, one row per source rule
-  line, expanding to the rules it compiles to. It follows the source cursor.
+  line, expanding to the rules it compiles to, with `startloop`/`endloop`
+  markers and loop bodies indented. It follows the source cursor.
 - **Trace**: what `verbose_logging` prints, one group per playtest move
-  (including its `again` turns). Hover a row to see the board at that moment,
-  with pending movements drawn as arrows; click a row to pin it (Esc returns).
+  (including its `again` turns), plus the rules run at level start and on
+  restart when the game has `run_rules_on_level_start`. Hover a row to see the
+  board at that moment, with pending movements drawn as arrows; click a row to
+  pin it (Esc returns).
 
 Click the margin left of a rule's line number to set a breakpoint. A playtest
 move that fires that rule stops there: the board shows the state just after the
@@ -213,6 +217,12 @@ move, **Esc** finish). The move runs to completion before anything is shown, and
 pausing is a cursor into its recorded snapshots, so stepping back is free; the
 move is committed when the cursor leaves it. "Stop at breakpoints" turns them all
 off without clearing them.
+
+Breakpoints go only on rule lines. They are kept by rule text, like rule goals,
+so they survive level edits and undo, and move with the rule while you type.
+They are saved with the game as a `(MIS breakpoints … MIS end)` comment, one
+rule per line. `src/tests/codemirror6/browser/mis-console.spec.mjs` covers the
+console in the browser.
 
 The page switches the engine's `verbose_logging` on only around playtest moves
 and redirects its logging hooks (`src/js/mis/mis_console.js`); workers never load
