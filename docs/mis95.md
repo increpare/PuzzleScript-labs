@@ -170,6 +170,45 @@ Goals are saved with the game as `(MIS rule goals <level> … MIS end)` comments
 one `need …` / `ban …` line per rule, keyed by the rule's text.
 `node src/tests/mis_rule_goals_node.js` checks the worker side.
 
+## Generating several levels
+
+Generation belongs to each level. Press **Generate** on a starting board, select
+another thumbnail, and start that level too. The corner gear identifies a running
+level; click it to pause without changing selection. The board, transform code,
+locks, rule goals, pins and suggestions follow the selected level. **Run → Stop
+all generation** pauses every level. All active levels share one bounded worker
+pool; changing selection does not restart their searches.
+
+**New…**, beside Duplicate, asks for width and height and creates a background-filled
+level with the current transform. Duplicate also copies locks and rule goals.
+**Use for all levels** copies the current transform explicitly; afterward each
+level can be edited independently. **Add** on a suggestion inserts a new playable
+level while its original starting board continues generating.
+
+In Edit mode, drag a white edge or corner handle to resize. The outline previews
+the snapped dimensions; release commits one undoable change and Escape cancels.
+Focused handles also accept arrow keys. Added cells contain background, and locks
+move with their original cells. New/result dimensions are limited to 128 per side.
+
+For overnight exploration, create several sizes, reuse a construction transform
+such as `choose 1-3 …`, and start each level. Candidate memory and dedupe storage
+are bounded. IndexedDB checkpoints retain up to 64 suggestions and 64 pins per
+level, per-level transforms and the latest authored source (including an unfinished
+draft). After reopening, collections are restored **paused**; use the thumbnail
+button or Generate to continue with fresh samples. Search queues and RNG positions
+are not restored. Normal game files retain the per-level transforms, locks and
+rule goals in MIS comments; add desired suggestions as levels to include them in
+the exported game.
+
+The desktop build keeps generation active when minimized, while the computer is
+awake. Browser execution depends on the tab remaining available; recovery retains
+completed checkpoints if it is suspended or discarded. Rule or solver changes
+invalidate old assessments. Structural edits to LEVELS in the source pause jobs
+and reset positional settings rather than silently assign them to another level.
+
+Run `make mis_levels_tests` for real-browser checks of simultaneous generation,
+selection, pause, board sizing, undo, asynchronous ownership and recovery.
+
 ## Transform language
 
 PuzzleScript rewrite rules plus the MIS `choose` / `option` / `or`

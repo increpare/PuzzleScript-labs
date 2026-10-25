@@ -2,8 +2,8 @@
 
 // MIS95 - solver/generator worker.
 //
-// Each worker owns its own copy of the engine. The page cancels work by
-// terminating the worker, so loops here don't need to poll for stop requests.
+// Each worker owns its own copy of the engine. Generation assignments yield
+// between slices and rotate resumable jobs at normal generator step boundaries.
 
 importScripts('mis_shims.js');
 importScripts(
@@ -65,6 +65,7 @@ self.onmessage = function (e) {
 	const msg = e.data;
 	try {
 		if (msg.type === 'init') {
+			assignGeneration([]);
 			const res = misCompile(msg.source);
 			model = res.ok ? MISCore.extractModel(msg.source) : null;
 			native = null;
@@ -111,8 +112,11 @@ self.onmessage = function (e) {
 			reply({ type: 'proved', id: msg.id, result: { status: r.status, solution: r.status === 'solved' ? r.solution : null } });
 		} else if (msg.type === 'ruleCheck') {
 			ruleCheck(msg);
+		} else if (msg.type === 'generationJobs') {
+			assignGeneration(msg.jobs || []);
 		} else if (msg.type === 'generate') {
-			generate(msg);
+			// Older callers still use one job, replaced by the next generate.
+			assignGeneration([Object.assign({}, msg, { jobId: msg.jobId === undefined ? 'legacy' : msg.jobId, revision: ++legacyRevision, generationEpoch: undefined })]);
 		}
 	} catch (err) {
 		reply({ type: 'error', id: msg.id, message: String(err && err.message || err), stack: err && err.stack });
@@ -188,20 +192,73 @@ function goalFilter(goals, limits) {
 // Generation loop (logic in mis_generator.js)
 /////////////////////////////////////////////////////////////////////
 
-function generate(msg) {
+let generationJobs = [], generationCursor = 0, generationEpoch = 0, legacyRevision = 0;
+let generationTick = null, generationQueued = false;
+
+function generationReply(context, msg) {
+	reply(Object.assign({}, msg, { jobId: context.msg.jobId, revision: context.msg.revision, generationEpoch: context.epoch }));
+}
+
+function queueGeneration() {
+	if (generationQueued || !generationJobs.length) return;
+	if (!generationTick) {
+		generationTick = new MessageChannel();
+		generationTick.port1.onmessage = generationSlice;
+	}
+	generationQueued = true;
+	generationTick.port2.postMessage(null);
+}
+
+function assignGeneration(jobs) {
+	const previous = new Map(generationJobs.map(function (c) { return [c.msg.jobId, c]; }));
+	const nextId = generationJobs[generationCursor] && generationJobs[generationCursor].msg.jobId;
+	generationJobs = jobs.map(function (msg) {
+		const old = previous.get(msg.jobId);
+		if (old && old.msg.revision === msg.revision && (msg.generationEpoch === undefined || old.epoch === msg.generationEpoch)) return old;
+		const epoch = msg.generationEpoch === undefined ? ++generationEpoch : msg.generationEpoch;
+		generationEpoch = Math.max(generationEpoch, epoch);
+		return { msg: msg, epoch: epoch, gen: null, lastStats: 0 };
+	});
+	generationCursor = Math.max(0, generationJobs.findIndex(function (c) { return c.msg.jobId === nextId; }));
+	queueGeneration();
+}
+
+function generationSlice() {
+	generationQueued = false;
+	const until = Date.now() + 40;
+	while (generationJobs.length) {
+		const context = generationJobs[generationCursor];
+		generationCursor = (generationCursor + 1) % generationJobs.length;
+		try {
+			if (!context.gen) context.gen = createGeneration(context.msg);
+			generationStep(context);
+		} catch (err) {
+			const at = generationJobs.indexOf(context);
+			generationJobs.splice(at, 1);
+			if (at < generationCursor) generationCursor--;
+			generationCursor = generationJobs.length ? generationCursor % generationJobs.length : 0;
+			generationReply(context, { type: 'genError', message: String(err && err.message || err), stack: err && err.stack });
+		}
+		if (Date.now() >= until) break;
+	}
+	queueGeneration();
+}
+
+// Creating a context assesses its seed. Do this only when its first step is
+// actually scheduled, rather than blocking every reassignment on all seeds.
+function createGeneration(msg) {
 	// Auto mode sends several transforms ({ id, text }); the generator picks
 	// among them as it learns which finds harder levels here.
 	let programs = null, program;
 	if (msg.transforms && msg.transforms.length) {
 		programs = msg.transforms.map(function (t) { return { id: t.id, program: MISCore.parseTransform(t.text, model) }; })
 			.filter(function (t) { return !t.program.errors.length && t.program.statements.length; });
-		if (!programs.length) { reply({ type: 'genError', message: 'None of the transforms is usable.' }); return; }
+		if (!programs.length) throw new Error('None of the transforms is usable.');
 		program = programs[0].program;
 	} else {
 		program = MISCore.parseTransform(msg.transform, model);
 		if (!program.statements.length) {
-			reply({ type: 'genError', message: program.errors.length ? program.errors[0].message : 'The transform is empty.' });
-			return;
+			throw new Error(program.errors.length ? program.errors[0].message : 'The transform is empty.');
 		}
 	}
 	const base = boardFrom(msg.base);
@@ -216,45 +273,36 @@ function generate(msg) {
 		const r = backend.assess(base, { timeMs: 3000, maxExpanded: 400000, refine: false });
 		if (r.status === 'solved') seedPrimaryMs = r.primaryMs;
 	}
-	const gen = MISGenerator.create({
+	return MISGenerator.create({
 		model: model, backend: backend, program: program, programs: programs && programs.length > 1 ? programs : null, base: base, baseEffort: baseEffort, seedPrimaryMs: seedPrimaryMs, adaptive: msg.adaptive === true, parents: msg.parents,
 		frozen: msg.frozen ? new Uint8Array(msg.frozen) : null, seed: msg.seed, keep: msg.keep || 8,
 		optimalCap: msg.optimalCap, initialBudgetMs: msg.initialBudgetMs, maxBudgetMs: msg.maxBudgetMs,
 		shard: msg.shardCount > 1 ? { index: msg.shardIndex, count: msg.shardCount } : null,
-		pipeline: msg.pipeline,
+		pipeline: msg.pipeline, maxSeen: msg.maxSeen,
 		accept: msg.goals && (msg.goals.need.length || msg.goals.ban.length)
 			? goalFilter(msg.goals, { timeMs: 2000, maxExpanded: 200000 }) : null,
 	});
-	let lastStats = 0;
-	function flushStats(force) {
-		const t = Date.now();
-		if (force || t - lastStats > 250) {
-			lastStats = t;
-			reply({ type: 'stats', stats: Object.assign({}, gen.stats()), profile: Object.assign({}, gen.profile()), arms: gen.arms(), transforms: gen.transforms(), exhausted: gen.exhausted() });
-		}
-	}
-	function step() {
-		const found = gen.step();
-		if (found) {
-			const r = found.result;
-			reply({
-				type: 'candidate',
-				board: { w: found.board.w, h: found.board.h, cells: Array.from(found.board.cells) },
-				result: { status: 'solved', effort: r.effort, length: r.length, lanes: r.lanes, solution: r.solution, optimal: r.optimal, refined: !!r.refined },
-			});
-		}
-		flushStats();
-	}
+}
 
-	// Yield between slices so messages get through; MessageChannel avoids the
-	// 4ms clamp browsers apply to nested setTimeout(0).
-	const tick = new MessageChannel();
-	function loop() {
-		const until = Date.now() + 40;
-		do { step(); } while (Date.now() < until);
-		tick.port2.postMessage(null);
+function generationStats(context, force) {
+	const gen = context.gen, t = Date.now();
+	if (force || t - context.lastStats > 250) {
+		context.lastStats = t;
+		generationReply(context, { type: 'stats', stats: Object.assign({}, gen.stats()), profile: Object.assign({}, gen.profile()), arms: gen.arms(), transforms: gen.transforms(), exhausted: gen.exhausted() });
 	}
-	tick.port1.onmessage = loop;
-	flushStats(true);
-	loop();
+}
+
+function generationStep(context) {
+	const gen = context.gen;
+	if (!context.lastStats) generationStats(context, true);
+	const found = gen.step();
+	if (found) {
+		const r = found.result;
+		generationReply(context, {
+			type: 'candidate',
+			board: { w: found.board.w, h: found.board.h, cells: Array.from(found.board.cells) },
+			result: { status: 'solved', effort: r.effort, length: r.length, lanes: r.lanes, solution: r.solution, optimal: r.optimal, refined: !!r.refined },
+		});
+	}
+	generationStats(context);
 }

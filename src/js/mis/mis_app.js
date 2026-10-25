@@ -67,11 +67,78 @@
 		cards: [],               // pool of suggestions
 		pinned: [],
 		special: null,           // simplify/tighten result card
-		gen: null,               // generation session
+		gen: null,               // current level’s generation session
 		rules: null,             // compiled rule lines: { lines, random, keyOf, lineOf }
 		ruleTags: {},            // line -> 'cosmetic' | 'inert' (from the workers' analysis)
 		ruleGoals: {},           // levelIndex -> { rule key: 'need' | 'ban' }
 	};
+
+	// Selection changes the workspace aliases; background jobs keep their own
+	// stable identity even when a new level is inserted before them.
+	app.workspaces = {};
+	app.defaultTransform = '';
+	let nextWorkspaceId = 1;
+	function workspace(index) {
+		index = index === undefined ? app.levelIndex : index;
+		if (!app.workspaces[index]) app.workspaces[index] = {
+			id: 'level-' + nextWorkspaceId++, levelIndex: +index,
+			transform: app.defaultTransform, presetId: null, cards: [], pinned: [], special: null, gen: null,
+			boardKey: app.model && app.model.levels[index] && app.model.levels[index].board ? boardIdentity(app.model.levels[index].board) : null,
+		};
+		return app.workspaces[index];
+	}
+	['transform', 'presetId', 'cards', 'pinned', 'special', 'gen'].forEach(function (key) {
+		Object.defineProperty(app, key, { configurable: true, get: function () { return workspace()[key]; }, set: function (value) { workspace()[key] = value; } });
+	});
+	function boardIdentity(board) { return board.w + 'x' + board.h + '|' + C.cellsKey(board.cells); }
+	function hasGeneration() { return !!(app.generationPool && app.generationPool.activeCount()); }
+	function copyLevelSettings(from, to) {
+		const src = workspace(from), dst = workspace(to);
+		dst.transform = src.transform; dst.presetId = src.presetId;
+		if (app.locks[from]) app.locks[to] = app.locks[from].slice();
+		if (app.ruleGoals[from]) app.ruleGoals[to] = Object.assign({}, app.ruleGoals[from]);
+	}
+	function shiftLevelSettings(after, amount) {
+		[app.workspaces, app.locks, app.ruleGoals, app.lineage].forEach(function (map) {
+			Object.keys(map).map(Number).filter(function (i) { return i > after; }).sort(function (a, b) { return b - a; }).forEach(function (i) {
+				map[i + amount] = map[i]; delete map[i];
+			});
+		});
+		Object.keys(app.workspaces).forEach(function (key) {
+			const ws = app.workspaces[key]; ws.levelIndex = +key;
+			if (ws.gen) ws.gen.levelIndex = +key;
+			ws.cards.concat(ws.pinned).forEach(function (card) { card.levelIndex = +key; });
+			if (ws.special) ws.special.levelIndex = +key;
+		});
+	}
+	function syncWorkspaceEditor() {
+		if (!transformCM) return;
+		const ws = workspace();
+		suppressTransformChange = true;
+		if (app.editorWorkspace !== ws) {
+			if (app.editorWorkspace) app.editorWorkspace.editorState = transformCM.documentState();
+			if (ws.editorState && ws.editorState.doc.toString() === ws.transform) transformCM.restoreDocument(ws.editorState);
+			else transformCM.newDocument(ws.transform);
+			app.editorWorkspace = ws;
+		} else if (transformCM.getValue() !== app.transform) transformCM.setValue(app.transform);
+		suppressTransformChange = false;
+		app.presetId = presetIdForText(app.transform);
+		markPresets(); validateTransform(); updateGenButton(); updateMeter();
+		$('transform-level').textContent = 'Level ' + (countPlayableBefore(app.levelIndex) + 1);
+	}
+	function invalidateWorkspace(ws, clearPins) {
+		const running = ws.gen && ws.gen.running;
+		if (ws.restartTransform) { clearTimeout(ws.restartTransform); ws.restartTransform = null; }
+		if (ws.gen) ws.gen.running = false;
+		if (app.generationPool) app.generationPool.pause(ws.id);
+		ws.gen = null; ws.cards = []; ws.special = null;
+		if (clearPins) ws.pinned = [];
+		return running;
+	}
+	function invalidateAllWorkspaces() {
+		Object.values(app.workspaces).forEach(function (ws) { invalidateWorkspace(ws, true); });
+		if (app.generationPool) { app.generationPool.destroy(); app.generationPool = null; }
+	}
 
 	/////////////////////////////////////////////////////////////////////
 	// Workers
@@ -122,7 +189,7 @@
 		// Background (level-health) jobs wait while the transformer runs, so the
 		// generator workers get the CPU.
 		let at = 0;
-		if (app.gen && app.gen.running) {
+		if (hasGeneration()) {
 			at = handle.queue.findIndex(function (j) { return !j.background; });
 			if (at < 0) return;
 		}
@@ -187,13 +254,17 @@
 		let model = null;
 		try { model = C.extractModel(text); } catch (e) { console.error(e); }
 		if (!model) return false;
+		const oldModel = app.model;
 		app.model = model;
+		app.compiledText = text;
 		app.rules = computeRules(text);
 		if (!model.levelMapOK) $('source-diag').insertAdjacentHTML('afterbegin', '<div class="warn">Note: this LEVELS layout can\'t be edited from the board (read-only).</div>');
 		const sig = rulesSignature(text);
 		const rulesChanged = sig !== app.rulesSig;
 		app.rulesSig = sig;
 		if (rulesChanged) {
+			app.editorWorkspace = null; Object.values(app.workspaces).forEach(function (ws) { delete ws.editorState; });
+			if (oldModel) invalidateAllWorkspaces();
 			app.ruleTags = {};
 			transformCM.setGameSource(text);
 			ensureWorkers(true);
@@ -207,7 +278,7 @@
 
 	function setSource(text, opts) {
 		opts = opts || {};
-		if (!opts.noUndo && app.source && text !== app.source) pushUndo();
+		if (!opts.noUndo && app.source && text !== app.source) pushUndo(!!opts.levelEdit);
 		app.source = text;
 		if (!opts.fromEditor && sourceCM && sourceCM.getValue() !== text) {
 			suppressSourceChange = true;
@@ -216,8 +287,27 @@
 			sourceCM.scrollTo(scroll.left, scroll.top);
 			suppressSourceChange = false;
 		}
+		const oldModel = app.model, oldSig = app.rulesSig;
+		const levelEditStates = opts.levelEdit ? Object.values(app.workspaces).map(function (ws) { return { ws: ws, cards: ws.cards, pinned: ws.pinned, running: !!((ws.gen && ws.gen.running) || ws.restartTransform) }; }) : [];
 		const ok = compileSource(text);
 		if (ok) {
+			if (opts.fromEditor && oldModel && (oldModel.levels.length !== app.model.levels.length || app.model.levels.some(function (lv, i) { return lv.board && oldModel.levels[i] && oldModel.levels[i].board && !C.boardsEqual(lv.board, oldModel.levels[i].board) && oldModel.levels.some(function (old, j) { return j !== i && old.board && C.boardsEqual(old.board, lv.board); }); }))) {
+				invalidateAllWorkspaces(); app.workspaces = {}; app.locks = {}; app.ruleGoals = {}; app.lineage = {};
+				toast('Level order changed — generation paused. Check each level’s settings before restarting.');
+			}
+			const restart = [];
+			if (opts.levelEdit && oldSig !== app.rulesSig) levelEditStates.forEach(function (state) {
+				const lv = app.model.levels[state.ws.levelIndex];
+				if (lv && lv.board && boardIdentity(lv.board) === state.ws.boardKey) { state.ws.cards = state.cards; state.ws.pinned = state.pinned; }
+				if (state.running) restart.push(state.ws.levelIndex);
+			});
+			Object.values(app.workspaces).forEach(function (ws) {
+				const lv = app.model.levels[ws.levelIndex];
+				if (!lv || !lv.board) { invalidateWorkspace(ws, true); return; }
+				const key = boardIdentity(lv.board);
+				if (ws.boardKey && ws.boardKey !== key) { if (invalidateWorkspace(ws, false)) restart.push(ws.levelIndex); }
+				ws.boardKey = key;
+			});
 			const n = app.model.levels.length;
 			if (app.levelIndex >= n) app.levelIndex = n - 1;
 			if (app.model.levels[app.levelIndex].message !== undefined && !opts.keepMessage) {
@@ -226,6 +316,8 @@
 			}
 			loadCurrentBoard();
 			refreshLevelStrip();
+			syncWorkspaceEditor();
+			restart.forEach(function (i) { startGeneration(i); });
 		}
 		markDirty(!opts.clean);
 		autosave();
@@ -256,11 +348,10 @@
 		layoutBoard();
 		analyzeCurrent();
 		renderLineage();
-		if (app.gen && app.gen.running) restartGeneration();
 	}
 
 	// Commit the working board into the source text.
-	function commitBoard(label) {
+	function commitBoard(label, opts) {
 		if (!app.board || !app.model) return;
 		if (!app.model.levelMapOK) {
 			toast("Can't write this level back into the source (unusual LEVELS layout).", true);
@@ -270,7 +361,7 @@
 		try { text = C.writeLevelToSource(app.model, app.source, app.levelIndex, app.board); }
 		catch (e) { toast(e.message, true); return; }
 		recordLineage(label || 'edit', app.board);
-		setSource(text);
+		setSource(text, Object.assign({ levelEdit: true }, opts));
 	}
 
 	function markDirty(on) {
@@ -282,35 +373,60 @@
 	// Undo / redo (whole-document snapshots)
 	/////////////////////////////////////////////////////////////////////
 
-	function snapshot() {
+	function snapshot(levelEdit) {
 		const locks = {};
 		Object.keys(app.locks).forEach(function (k) { locks[k] = Array.from(app.locks[k]); });
-		return { source: app.source, levelIndex: app.levelIndex, locks: locks, ruleGoals: JSON.parse(JSON.stringify(app.ruleGoals)) };
+		return { levelEdit: !!levelEdit, source: app.source, levelIndex: app.levelIndex, locks: locks, ruleGoals: JSON.parse(JSON.stringify(app.ruleGoals)), lineage: Object.fromEntries(Object.entries(app.lineage).map(function (entry) { return [entry[0], { cur: entry[1].cur, nodes: entry[1].nodes.map(function (node) { return Object.assign({}, node); }) }]; })), workspaces: Object.fromEntries(Object.entries(app.workspaces).map(function (entry) { return [entry[0], Object.assign({}, entry[1], { wasGenerating: !!((entry[1].gen && entry[1].gen.running) || entry[1].restartTransform) })]; })) };
 	}
 	function restoreSnapshot(s) {
+		const current = new Map(Object.values(app.workspaces).map(function (ws) { return [ws.id, ws]; }));
+		const restored = {}, resume = [];
+		Object.entries(s.workspaces || {}).forEach(function (entry) {
+			const index = +entry[0], saved = entry[1], live = current.get(saved.id);
+			const oldIndex = live ? live.levelIndex : index;
+			const same = live && live.boardKey === saved.boardKey && live.transform === saved.transform &&
+				JSON.stringify(Array.from(app.locks[oldIndex] || [])) === JSON.stringify(s.locks[index] || []) &&
+				JSON.stringify(app.ruleGoals[oldIndex] || {}) === JSON.stringify((s.ruleGoals || {})[index] || {});
+			if (same) restored[index] = live;
+			else {
+				const running = live && live.gen && live.gen.running;
+				if (live) invalidateWorkspace(live, true);
+				restored[index] = Object.assign({}, saved, { gen: null, special: null, restartTransform: null });
+				if (running || saved.wasGenerating) resume.push(index);
+			}
+			const ws = restored[index]; ws.levelIndex = index;
+			if (ws.gen) ws.gen.levelIndex = index;
+			ws.cards.concat(ws.pinned).forEach(function (card) { card.levelIndex = index; });
+			current.delete(saved.id);
+		});
+		current.forEach(function (ws) { invalidateWorkspace(ws, true); });
+		app.workspaces = restored;
 		app.locks = {};
 		Object.keys(s.locks).forEach(function (k) { app.locks[k] = Uint8Array.from(s.locks[k]); });
-		app.levelIndex = s.levelIndex;
-		app.ruleGoals = s.ruleGoals || {};
-		setSource(s.source, { noUndo: true });
+		app.levelIndex = s.levelIndex; app.ruleGoals = s.ruleGoals || {}; app.lineage = s.lineage || {};
+		setSource(s.source, { noUndo: true, levelEdit: s.levelEdit });
+		resume.forEach(function (index) { startGeneration(index); });
 		renderRuleGutter();
 	}
-	function pushUndo() {
-		app.undo.push(snapshot());
+
+	function pushUndo(levelEdit) {
+		app.undo.push(snapshot(levelEdit));
 		if (app.undo.length > 200) app.undo.shift();
 		app.redo.length = 0;
 		updateUndoButtons();
 	}
 	function doUndo() {
 		if (!app.undo.length) return;
-		app.redo.push(snapshot());
-		restoreSnapshot(app.undo.pop());
+		const target = app.undo.pop();
+		app.redo.push(snapshot(target.levelEdit));
+		restoreSnapshot(target);
 		updateUndoButtons();
 	}
 	function doRedo() {
 		if (!app.redo.length) return;
-		app.undo.push(snapshot());
-		restoreSnapshot(app.redo.pop());
+		const target = app.redo.pop();
+		app.undo.push(snapshot(target.levelEdit));
+		restoreSnapshot(target);
 		updateUndoButtons();
 	}
 	function updateUndoButtons() {
@@ -476,7 +592,7 @@
 		}
 		const padding = getComputedStyle(wrap);
 		const aw = wrap.clientWidth - parseFloat(padding.paddingLeft) - parseFloat(padding.paddingRight), ah = wrap.clientHeight - parseFloat(padding.paddingTop) - parseFloat(padding.paddingBottom);
-		const cell = Math.max(1, Math.floor(Math.min(aw / b.w, ah / b.h)));
+		const cell = Math.max(1, Math.floor(Math.min((aw - 24) / b.w, (ah - 24) / b.h)));
 		const dpr = window.devicePixelRatio || 1;
 		view.cell = cell; view.dpr = dpr;
 		boardCanvas.style.width = (b.w * cell) + 'px';
@@ -484,6 +600,7 @@
 		boardCanvas.width = Math.round(b.w * cell * dpr);
 		boardCanvas.height = Math.round(b.h * cell * dpr);
 		renderBoard();
+		updateResizeHandles();
 	}
 
 	function displayedBoard() {
@@ -538,7 +655,7 @@
 			ctx.lineWidth = 1.5;
 			ctx.strokeRect(x * cell + 0.75, y * cell + 0.75, cell - 1.5, cell - 1.5);
 		}
-		updateBanner();
+		updateBanner(); updateResizeHandles();
 	}
 
 	function updateBanner() {
@@ -689,7 +806,7 @@
 			app.locks[app.levelIndex] = now;
 			markDirty(true);
 			autosave();
-			if (app.gen && app.gen.running) restartGeneration();
+			restartGeneration();
 			return;
 		}
 		commitBoard('edit');
@@ -704,6 +821,107 @@
 		}
 		if (paintTile(tile, stroke.how)) { stroke.changed = true; renderBoard(); }
 	}
+
+	/////////////////////////////////////////////////////////////////////
+	// Level creation and direct resizing
+	/////////////////////////////////////////////////////////////////////
+
+	function insertBoardLevel(board, inherit, inheritLocks) {
+		if (!app.model || !app.model.levelMapOK) { toast('This LEVELS layout is read-only.', true); return false; }
+		try {
+			const from = app.levelIndex, next = from + 1;
+			const text = C.insertLevelInSource(app.model, app.source, from, board);
+			pushUndo(true); shiftLevelSettings(from, 1);
+			if (inherit) copyLevelSettings(from, next);
+			if (!inheritLocks || !app.locks[next] || app.locks[next].length !== board.w * board.h) app.locks[next] = new Uint8Array(board.w * board.h);
+			app.levelIndex = next;
+			setSource(text, { noUndo: true, levelEdit: true });
+			toast('Added Level ' + (countPlayableBefore(next) + 1) + ' — other levels keep generating.');
+			return true;
+		} catch (e) { toast(e.message, true); return false; }
+	}
+	let newDialogFocus = null;
+	function newLevelDialog() {
+		if (!app.model || !app.model.levelMapOK) return;
+		newDialogFocus = document.activeElement;
+		let dims = app.board ? [app.board.w, app.board.h] : [3, 3];
+		try { const saved = JSON.parse(localStorage.getItem('mis-new-dimensions')); if (saved && saved.length === 2) dims = saved; } catch (e) { /* use current size */ }
+		$('new-width').value = Math.max(1, Math.min(MISBoard.MAX_DIMENSION, dims[0]));
+		$('new-height').value = Math.max(1, Math.min(MISBoard.MAX_DIMENSION, dims[1]));
+		$('new-level-error').textContent = '';
+		$('new-level-dialog').showModal(); $('new-width').focus(); $('new-width').select();
+	}
+	$('new-level-form').addEventListener('submit', function (e) {
+		e.preventDefault();
+		try {
+			const w = Number($('new-width').value), h = Number($('new-height').value);
+			const board = MISBoard.create(app.model, w, h);
+			if (insertBoardLevel(board, true, false)) {
+				try { localStorage.setItem('mis-new-dimensions', JSON.stringify([w, h])); } catch (e) { /* optional preference */ }
+				$('new-level-dialog').close();
+			}
+		} catch (e) { $('new-level-error').textContent = e.message; }
+	});
+	$('cancel-new-level').onclick = function () { $('new-level-dialog').close(); };
+	$('new-level-dialog').addEventListener('close', function () { if (newDialogFocus && newDialogFocus.isConnected) newDialogFocus.focus(); });
+
+	let resizing = null;
+	function canResize() { return !!(app.board && app.model && app.model.levelMapOK && app.mode === 'edit' && !app.preview && !app.watching); }
+	function updateResizeHandles() {
+		if (!$('board-frame')) return;
+		$('board-frame').classList.toggle('resizable', canResize());
+		$('board-dimensions').textContent = app.board ? app.board.w + ' × ' + app.board.h : '';
+	}
+	function resizeDeltas(edge, dx, dy, board) {
+		const delta = { left: 0, right: 0, top: 0, bottom: 0 };
+		if (edge.includes('left')) delta.left = Math.max(1 - board.w, Math.min(MISBoard.MAX_DIMENSION - board.w, -dx));
+		if (edge.includes('right')) delta.right = Math.max(1 - board.w, Math.min(MISBoard.MAX_DIMENSION - board.w, dx));
+		if (edge.includes('top')) delta.top = Math.max(1 - board.h, Math.min(MISBoard.MAX_DIMENSION - board.h, -dy));
+		if (edge.includes('bottom')) delta.bottom = Math.max(1 - board.h, Math.min(MISBoard.MAX_DIMENSION - board.h, dy));
+		return delta;
+	}
+	function applyResize(delta) {
+		if (!canResize() || !Object.values(delta).some(Boolean)) return;
+		try {
+			const out = MISBoard.resize(app.model, app.board, delta, app.locks[app.levelIndex]);
+			pushUndo(true); app.board = out.board; app.locks[app.levelIndex] = out.locks;
+			commitBoard('resize', { noUndo: true });
+		} catch (e) { toast(e.message, true); }
+	}
+	function cancelResize() {
+		if (!resizing) return;
+		resizing = null; $('resize-preview').hidden = true; updateResizeHandles();
+	}
+	document.querySelectorAll('[data-resize]').forEach(function (handle) {
+		handle.addEventListener('pointerdown', function (e) {
+			if (e.button !== 0 || !canResize()) return;
+			e.preventDefault(); handle.focus(); handle.setPointerCapture(e.pointerId);
+			resizing = { handle: handle, pointerId: e.pointerId, index: app.levelIndex, edge: handle.dataset.resize, x: e.clientX, y: e.clientY, cell: view.cell, board: app.board, delta: {} };
+		});
+		handle.addEventListener('pointermove', function (e) {
+			if (!resizing || resizing.handle !== handle) return;
+			const r = resizing;
+			r.delta = resizeDeltas(r.edge, Math.round((e.clientX - r.x) / r.cell), Math.round((e.clientY - r.y) / r.cell), r.board);
+			const w = r.board.w + r.delta.left + r.delta.right, h = r.board.h + r.delta.top + r.delta.bottom;
+			const preview = $('resize-preview'); preview.hidden = false;
+			preview.style.left = (-r.delta.left * r.cell) + 'px'; preview.style.top = (-r.delta.top * r.cell) + 'px';
+			preview.style.width = (w * r.cell) + 'px'; preview.style.height = (h * r.cell) + 'px';
+			preview.textContent = w + ' × ' + h;
+		});
+		handle.addEventListener('pointerup', function () {
+			if (!resizing || resizing.handle !== handle) return;
+			const r = resizing; cancelResize();
+			if (r.index === app.levelIndex && r.board === app.board) applyResize(r.delta);
+		});
+		handle.addEventListener('pointercancel', cancelResize);
+		handle.addEventListener('lostpointercapture', cancelResize);
+		handle.addEventListener('keydown', function (e) {
+			if (!canResize() || !['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) return;
+			e.preventDefault(); e.stopPropagation();
+			applyResize(resizeDeltas(handle.dataset.resize, e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0, e.key === 'ArrowUp' ? -1 : e.key === 'ArrowDown' ? 1 : 0, app.board));
+		});
+	});
+	document.addEventListener('keydown', function (e) { if (resizing && e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); cancelResize(); } }, true);
 
 	/////////////////////////////////////////////////////////////////////
 	// Modes & play
@@ -782,7 +1000,7 @@
 	let solving = false;
 
 	// Backends measure effort differently, so results are cached per backend.
-	function cacheKey(board) { return app.backendPref + '|' + app.rulesSig + '|' + C.cellsKey(board.cells); }
+	function cacheKey(board) { return app.backendPref + '|' + app.rulesSig + '|' + boardIdentity(board); }
 
 	function showBackend(backend, note) {
 		const el = $('backend-note');
@@ -927,9 +1145,13 @@
 			const board = i === app.levelIndex && app.board ? app.board : lv.board;
 			const item = document.createElement('div');
 			item.className = 'level-item' + (i === app.levelIndex ? ' current' : '');
+			item.dataset.levelIndex = i;
 			const cv = document.createElement('canvas');
 			renderThumbInto(cv, board, 150, 90);
-			item.appendChild(cv);
+			const thumbnail = document.createElement('div'); thumbnail.className = 'level-thumbnail'; thumbnail.appendChild(cv);
+			const badge = document.createElement('button'); badge.type = 'button'; badge.className = 'generation-badge';
+			badge.onclick = function (e) { e.stopPropagation(); const ws = workspace(i); if ((ws.gen && ws.gen.running) || ws.restartTransform) stopGeneration(false, i); else startGeneration(i); };
+			thumbnail.appendChild(badge); item.appendChild(thumbnail);
 			const meta = document.createElement('div');
 			meta.className = 'level-meta';
 			const r = app.model.canWin ? app.assessCache.get(cacheKey(board)) : NO_WIN;
@@ -948,13 +1170,14 @@
 			if (!r) queueHealth(board);
 		});
 		$('health-summary').textContent = app.blind && !app.revealed ? '' : (bad ? bad + ' broken' : solved + '/' + total + ' ✓');
+		updateGenerationIndicators();
 		const cur = list.querySelector('.current');
 		if (cur && cur.scrollIntoViewIfNeeded) cur.scrollIntoViewIfNeeded(false);
 	}
 
 	function countPlayableBefore(i) {
 		let n = 0;
-		for (let k = 0; k < i; k++) if (app.model.levels[k].board) n++;
+		for (let k = 0; app.model && k < Math.min(i, app.model.levels.length); k++) if (app.model.levels[k].board) n++;
 		return n;
 	}
 
@@ -978,8 +1201,8 @@
 		setPreview(null);
 		app.levelIndex = i;
 		app.revealed = false;
-		app.special = null;
 		loadCurrentBoard();
+		syncWorkspaceEditor();
 		refreshLevelStrip();
 		renderCards();
 	}
@@ -1090,7 +1313,7 @@
 		autosave();
 		startRuleCheck();
 		renderRuleGutter();
-		if (app.gen && app.gen.running) restartGeneration();
+		restartGeneration();
 	}
 
 	function solverInfoHidden() { return app.blind && !app.revealed; }
@@ -1295,6 +1518,7 @@
 			app.presetId = presetIdForText(app.transform);
 			validateTransform();
 		}
+		if (!app.defaultTransform) app.defaultTransform = app.transform;
 		markPresets();
 	}
 	function markPresets() {
@@ -1304,20 +1528,28 @@
 	}
 
 	let suppressTransformChange = false;
-	function setTransformText(text, fromPreset) {
-		app.transform = text;
-		if (transformCM.getValue() !== text) {
-			suppressTransformChange = true;
-			transformCM.setValue(text);
-			suppressTransformChange = false;
+	function setTransformText(text, fromPreset, target, forceChanged) {
+		const ws = target || workspace();
+		if (!Object.values(app.workspaces).includes(ws)) return;
+		const selected = ws === workspace(), changed = forceChanged || text !== ws.transform, pending = !!ws.restartTransform;
+		const running = changed ? invalidateWorkspace(ws, true) : false;
+		ws.transform = text;
+		if (selected && transformCM.getValue() !== text) {
+			suppressTransformChange = true; transformCM.setValue(text); suppressTransformChange = false;
 		}
-		if (!fromPreset) { app.presetId = presetIdForText(text); markPresets(); }
-		validateTransform();
+		if (!fromPreset) ws.presetId = presetIdForText(text);
+		if (selected) { markPresets(); validateTransform(); }
 		autosave();
-		if (app.gen && app.gen.running) {
-			clearTimeout(setTransformText.t);
-			setTransformText.t = setTimeout(restartGeneration, 500);
+		if (changed) {
+			markDirty(true);
+			if (selected) { renderCards(); updateGenButton(); updateMeter(); }
+			updateGenerationIndicators();
 		}
+		if (running || pending) {
+			clearTimeout(ws.restartTransform);
+			ws.restartTransform = setTimeout(function () { ws.restartTransform = null; if (Object.values(app.workspaces).includes(ws)) startGeneration(ws.levelIndex); }, 500);
+		}
+		updateGenButton(); updateGenerationIndicators();
 	}
 
 	let transformMarks = [];
@@ -1376,83 +1608,134 @@
 	// Generation session
 	/////////////////////////////////////////////////////////////////////
 
-	function startGeneration() {
-		const prog = validateTransform();
-		if (!prog || !prog.statements.length || !app.board) return;
+	function ensureGenerationPool() {
+		if (app.generationPool) return app.generationPool;
+		app.generationPool = MISGenerationPool.create({
+			size: GEN_WORKERS, spawn: function () { return spawnWorker(app.source); },
+			onChange: function () { updateGenerationIndicators(); updateGenButton(); },
+			onMessage: function (id, workerIndex, m) {
+				const ws = Object.values(app.workspaces).find(function (w) { return w.id === id; });
+				if (!ws || !ws.gen) return;
+				const session = ws.gen;
+				if (m.type === 'stats') {
+					const key = workerIndex + ':' + m.generationEpoch;
+					let at = session.statKeys.indexOf(key);
+					if (at < 0) { at = session.statKeys.length; session.statKeys.push(key); }
+					session.stats[at] = m.stats; session.arms[at] = m.arms; session.transforms[at] = m.transforms; session.exhausted[at] = m.exhausted;
+					if (ws.levelIndex === app.levelIndex) scheduleMeter();
+				} else if (m.type === 'candidate') addCandidate(session, unpackBoard(m.board), m.result, ws);
+				else if (m.type === 'genError' || m.type === 'error') {
+					session.running = false; session.error = m.message;
+					toast('Level ' + (countPlayableBefore(ws.levelIndex) + 1) + ': ' + m.message, true);
+					updateGenerationIndicators(); updateGenButton(); checkpointSoon();
+				}
+			},
+		});
+		return app.generationPool;
+	}
+	function startGeneration(index) {
+		index = index === undefined ? app.levelIndex : index;
+		const ws = workspace(index), lv = app.model && app.model.levels[index];
+		if (ws.restartTransform) { clearTimeout(ws.restartTransform); ws.restartTransform = null; }
+		if (!lv || !lv.board) return;
+		ws.presetId = presetIdForText(ws.transform);
+		const programs = ws.presetId === 'auto' ? autoPrograms() : null;
+		const prog = programs ? programs[0] && programs[0].program : C.parseTransform(ws.transform, app.model);
+		if (!prog || prog.errors.length || !prog.statements.length) { toast('Level ' + (countPlayableBefore(index) + 1) + ': choose or write a valid transform first.', true); return; }
 		if (!app.model.canWin) { toast('This game can’t be won: add WINCONDITIONS or a rule with the win command.', true); return; }
-		stopGeneration(true);
+		const base = index === app.levelIndex ? app.board : lv.board;
+		const baseKey = boardIdentity(base);
 		const session = {
-			running: true, workers: [], stats: [], started: Date.now(),
-			base: C.cloneBoard(app.board), baseKey: C.cellsKey(app.board.cells), levelIndex: app.levelIndex,
-			exhausted: [], arms: [], transforms: [], interesting: 0, seen: new Set(), timeline: [],
+			id: ws.id, running: true, workers: [], stats: [], statKeys: [], started: Date.now(),
+			base: C.cloneBoard(base), baseKey: baseKey, levelIndex: index,
+			exhausted: [], arms: [], transforms: [], interesting: 0, seen: new Set(),
 		};
-		app.gen = session;
-		// Keep suggestions that still belong to this starting board; drop the rest.
-		app.cards = app.cards.filter(function (c) { return c.baseKey === session.baseKey; });
-		for (let i = 0; i < GEN_WORKERS; i++) {
-			const h = spawnWorker(app.source);
-			session.workers.push(h);
-			session.stats.push(null);
-			h.onReady = function (m) {
-				if (!m.ok) return;
-				h.w.postMessage({
-					type: 'generate', base: packBoard(session.base), frozen: Array.from(app.locks[app.levelIndex] || []),
-					transform: app.transform, seed: (Date.now() + i * 7919) >>> 0, keep: SHOWN_CARDS,
-					transforms: isAuto() ? autoPrograms().map(function (p) { return { id: p.id, text: p.text }; }) : undefined,
-					baseEffort: currentResult && currentResult.status === 'solved' ? currentResult.effort : undefined,
-					goals: goalLines(),
-				});
-			};
-			h.onMessage = (function (idx) {
-				return function (m) {
-					if (app.gen !== session) return;
-					if (m.type === 'stats') { session.stats[idx] = m.stats; session.arms[idx] = m.arms; session.transforms[idx] = m.transforms; session.exhausted[idx] = m.exhausted; scheduleMeter(); }
-					else if (m.type === 'candidate') addCandidate(session, unpackBoard(m.board), m.result);
-					else if (m.type === 'genError') { toast(m.message, true); stopGeneration(); }
-				};
-			})(i);
-		}
-		updateGenButton();
-		updateMeter();
+		ws.gen = session; ws.boardKey = baseKey;
+		ws.cards = ws.cards.filter(function (c) { return c.baseKey === baseKey; });
+		ws.cards.forEach(function (c) { session.seen.add(c.key); });
+		const r = app.assessCache.get(cacheKey(base));
+		session.baseEffort = r && r.status === 'solved' ? r.effort : 0;
+
+		const selectedGoals = index === app.levelIndex ? goalLines() : goalsForLevel(index);
+		ensureGenerationPool().start(ws.id, {
+			type: 'generate', base: packBoard(base), frozen: Array.from(app.locks[index] || []),
+			transform: ws.transform, seed: (Date.now() + nextGenerationSeed++) >>> 0, keep: SHOWN_CARDS,
+			transforms: programs ? programs.map(function (p) { return { id: p.id, text: p.text }; }) : undefined,
+			baseEffort: r && r.status === 'solved' ? r.effort : undefined,
+			goals: selectedGoals,
+		});
+		updateGenButton(); updateGenerationIndicators();
+		if (index === app.levelIndex) { renderCards(); updateMeter(); }
+		checkpointSoon();
+	}
+	let nextGenerationSeed = 1;
+	function goalsForLevel(index) {
+		const goals = app.ruleGoals[index] || {}, out = { need: [], ban: [] };
+		if (app.rules && !app.rules.random) Object.keys(goals).forEach(function (key) { const line = app.rules.lineOf.get(key); if (line && !app.ruleTags[line]) out[goals[key]].push(line); });
+		return out;
+	}
+	function stopGeneration(silent, index) {
+		index = index === undefined ? app.levelIndex : index;
+		const ws = workspace(index), session = ws.gen;
+		if (ws.restartTransform) { clearTimeout(ws.restartTransform); ws.restartTransform = null; }
+		if (session) session.running = false;
+		if (app.generationPool) app.generationPool.pause(ws.id);
+		if (bgWorker && !hasGeneration()) pump(bgWorker);
+		if (!silent) { updateGenButton(); updateGenerationIndicators(); updateMeter(); checkpointSoon(); }
+	}
+	function stopAllGeneration() {
+		Object.values(app.workspaces).forEach(function (ws) { if (ws.restartTransform) { clearTimeout(ws.restartTransform); ws.restartTransform = null; } if (ws.gen) ws.gen.running = false; });
+		if (app.generationPool) app.generationPool.stopAll();
+		if (bgWorker) pump(bgWorker);
+		updateGenerationIndicators(); updateGenButton(); updateMeter(); checkpointSoon();
+	}
+	function restartGeneration(index) {
+		index = index === undefined ? app.levelIndex : index;
+		const ws = workspace(index), running = invalidateWorkspace(ws, true);
+		if (running) startGeneration(index);
+		if (index === app.levelIndex) { renderCards(); updateMeter(); updateGenButton(); }
+		updateGenerationIndicators(); checkpointSoon();
 	}
 
-	function stopGeneration(silent) {
-		const s = app.gen;
-		if (!s) return;
-		s.running = false;
-		s.workers.forEach(kill);
-		s.workers = [];
-		if (bgWorker) pump(bgWorker); // resume level-health checks
-		if (!silent) { updateGenButton(); updateMeter(); }
+	function updateGenerationIndicators() {
+		if (!$('level-list')) return;
+		$('level-list').querySelectorAll('.level-item').forEach(function (item) {
+			const index = +item.dataset.levelIndex, ws = app.workspaces[index];
+			const badge = item.querySelector('.generation-badge'); if (!badge) return;
+			const running = !!(ws && ((ws.gen && ws.gen.running) || ws.restartTransform)), hasResults = !!(ws && (ws.gen || ws.cards.length));
+			badge.classList.toggle('running', running); badge.classList.toggle('paused', !running && hasResults);
+			badge.innerHTML = running ? '<span aria-hidden="true">⚙</span>' : '<span aria-hidden="true">▶</span>';
+			badge.title = (running ? 'Generating — click to pause' : hasResults ? 'Paused — click to resume generation' : 'Generate this level') + ' · Level ' + (countPlayableBefore(index) + 1) + (ws && ws.cards.length ? ' · ' + ws.cards.length + ' suggestions' : '');
+			badge.setAttribute('aria-label', badge.title); badge.setAttribute('aria-pressed', String(running));
+		});
+		const active = Object.values(app.workspaces).filter(function (ws) { return (ws.gen && ws.gen.running) || ws.restartTransform; }).length;
+		$('generation-summary').textContent = active ? active + (active === 1 ? ' level generating' : ' levels generating') : '';
+		$('stop-all-generation').disabled = !active;
 	}
-
-	function restartGeneration() {
-		if (!app.gen || !app.gen.running) return;
-		startGeneration();
-	}
-
 	function updateGenButton() {
-		const on = !!(app.gen && app.gen.running);
+		const on = !!((app.gen && app.gen.running) || workspace().restartTransform);
 		const b = $('gen-btn');
-		b.textContent = on ? '■ Stop' : '▶ Generate';
+		b.textContent = on ? '■ Pause' : '▶ Generate';
 		b.className = on ? 'danger' : 'primary';
+		b.title = (on ? 'Pause generation for' : 'Generate suggestions for') + ' Level ' + (countPlayableBefore(app.levelIndex) + 1) + ' (G)';
 	}
 
-	function addCandidate(session, board, result) {
-		const key = C.cellsKey(board.cells);
+	function addCandidate(session, board, result, ws) {
+		ws = ws || workspace(session.levelIndex);
+		if (ws.gen !== session || !session.running) return;
+		const key = boardIdentity(board);
 		if (session.seen.has(key)) return;
 		session.seen.add(key);
-		const cur = currentResult && currentResult.status === 'solved' ? currentResult.effort : 0;
-		if (result.effort > cur) { session.interesting++; session.timeline.push(Date.now()); }
-		app.cards.push({
-			id: key, key: key, board: board, result: result, baseKey: session.baseKey,
+		if (session.seen.size > Math.max(32, Math.min(10000, Math.floor(1048576 / Math.max(16, session.base.cells.byteLength))))) session.seen.delete(session.seen.values().next().value);
+		const cur = session.baseEffort || 0;
+		if (result.effort > cur) { session.interesting++; }
+		ws.cards.push({
+			id: key, key: key, board: board, result: result, baseKey: session.baseKey, levelIndex: ws.levelIndex,
 			objects: C.countObjects(app.model, board), diff: C.boardDiffCount(session.base, board, app.model.stride),
 		});
-		if (app.cards.length > 400) {
-			rankCards();
-			app.cards = app.cards.slice(0, 200);
-		}
-		scheduleCards();
+		if (ws.cards.length > 200) ws.cards = ws.cards.sort(function (a, b) { return b.result.effort - a.result.effort; }).slice(0, 100);
+		if (ws.levelIndex === app.levelIndex) scheduleCards();
+		updateGenerationIndicators(); checkpointSoon();
 	}
 
 	function scheduleCards() {
@@ -1477,7 +1760,7 @@
 	function updateMeter() {
 		const el = $('meter');
 		const s = app.gen;
-		if (!s) return;
+		if (!s) { el.innerHTML = '<span class="faint">Generate works on this level. Other levels keep running when you switch.</span>'; return; }
 		const t = totals(s);
 		const secs = Math.max(1, (Date.now() - s.started) / 1000);
 		const tried = t.solved + t.unsolvable + t.timeout;
@@ -1486,7 +1769,7 @@
 		const pct = function (n) { return tried ? (100 * n / tried).toFixed(1) : 0; };
 		const perMin = s.interesting / (secs / 60);
 		const running = s.running;
-		const dry = running && s.exhausted.length === s.workers.length && s.exhausted.every(Boolean);
+		const dry = running && s.exhausted.length > 0 && s.exhausted.every(Boolean);
 		el.innerHTML =
 			(running ? '<span class="dot busy"></span>' : '<span class="dot"></span>') +
 			'<span><b>' + tried.toLocaleString() + '</b> tried · <b>' + (tried / secs).toFixed(1) + '</b>/s</span>' +
@@ -1582,7 +1865,7 @@
 		const existing = new Map(Array.from(el.querySelectorAll('.card')).map(function (d) { return [d.dataset.cardKey, d]; }));
 		const keep = new Set();
 		list.forEach(function (c, idx) {
-			const key = (c.specialLabel ? 'special:' : 'candidate:') + (c.key || C.cellsKey(c.board.cells));
+			const key = workspace().id + ':' + (c.specialLabel ? 'special:' : 'candidate:') + boardIdentity(c.board);
 			let d = existing.get(key);
 			if (!d) {
 				d = document.createElement('div'); d.dataset.cardKey = key;
@@ -1595,7 +1878,10 @@
 				tools.appendChild(watchB);
 				const pinB = document.createElement('button'); pinB.className = 'pin-card';
 				pinB.onclick = function (e) { e.stopPropagation(); togglePin(d.card); };
-				tools.appendChild(pinB); d.appendChild(tools);
+				tools.appendChild(pinB);
+				const addB = document.createElement('button'); addB.className = 'add-level-card'; addB.textContent = 'Add'; addB.title = 'Add this suggestion as a new level';
+				addB.onclick = function (e) { e.stopPropagation(); insertBoardLevel(d.card.board, true); }; tools.appendChild(addB);
+				d.appendChild(tools);
 				d.onmouseenter = d.onfocus = function () {
 					const card = d.card, r = card.result;
 					if (!app.watching) setPreview(card.board, card.specialLabel || ('suggestion · ' + r.length + ' moves · effort ' + r.effort));
@@ -1655,7 +1941,7 @@
 		const i = app.pinned.findIndex(function (p) { return p.key === c.key; });
 		if (i >= 0) app.pinned.splice(i, 1);
 		else app.pinned.push(Object.assign({}, c, { pinnedCard: true, levelIndex: app.levelIndex }));
-		renderCards();
+		renderCards(); checkpointSoon();
 	}
 
 	function adopt(c) {
@@ -1698,31 +1984,32 @@
 		const btn = mode === 'simplify' ? $('simplify-btn') : null;
 		const label0 = btn ? btn.textContent : '';
 		if (btn) btn.textContent = '✂ Checking…';
-		const levelIndex = app.levelIndex;
+		const target = workspace(), sourceSig = app.rulesSig;
 		const base = C.cloneBoard(app.board);
 		// Jump the queue ahead of level-health checks.
 		enqueue(bgWorker, { type: 'simplify', board: packBoard(base), opts: { mode: mode, objectId: objectId, budgetMs: 45000 } }, function (m) {
 			simplifyRunning = false;
 			if (btn) btn.textContent = label0;
 			if (m.type === 'error') { toast(m.message, true); return; }
+			if (app.rulesSig !== sourceSig || !Object.values(app.workspaces).includes(target) || !app.model.levels[target.levelIndex] || !C.boardsEqual(app.model.levels[target.levelIndex].board, base)) return;
 			const r = m.result;
 			if (!r.ok) { toast(r.reason, true); return; }
 			if (!r.changed) { toast(mode === 'simplify' ? 'Nothing to remove — every object matters.' : 'No spot where that is harmless.'); return; }
 			const board = unpackBoard(r.board);
 			const what = mode === 'simplify' ? '−' + r.changed + ' object' + (r.changed === 1 ? '' : 's') : '+' + r.changed + ' ' + app.model.objects[objectId].display;
-			app.special = {
-				key: 'special', kind: mode, levelIndex: levelIndex, board: board,
+			target.special = {
+				key: 'special', kind: mode, levelIndex: target.levelIndex, board: board,
 				specialLabel: (mode === 'simplify' ? 'Simplified ' : 'Tightened ') + what + ', still ' + r.length + ' moves',
 				result: { status: 'solved', effort: 0, length: r.length, optimal: true, lanes: {}, solution: null },
 			};
-			if (levelIndex === app.levelIndex) {
+			if (target.levelIndex === app.levelIndex) {
 				renderCards();
-				setPreview(board, app.special.specialLabel + ' — click the blue card to apply');
+				setPreview(board, target.special.specialLabel + ' — click the blue card to apply');
 				setTimeout(function () { if (app.preview && app.preview.board === board) setPreview(null); }, 2500);
 			}
 			// The simplify card lacks a solution/effort until assessed.
 			enqueue(bgWorker, { type: 'assess', board: packBoard(board), opts: { timeMs: 3000, bfsFloor: 100000 } }, function (a) {
-				if (a.type === 'assessed' && app.special && app.special.board === board) { app.special.result = a.result; renderCards(); }
+				if (app.rulesSig === sourceSig && a.type === 'assessed' && target.special && target.special.board === board) { target.special.result = a.result; if (target.levelIndex === app.levelIndex) renderCards(); }
 			}, null, true);
 		}, function (p) {
 			if (btn) btn.textContent = '✂ ' + Math.round(100 * p.done / p.total) + '%';
@@ -1739,7 +2026,7 @@
 	// the engine even though the transform text has its own parentheses.
 	function embedMeta(text) {
 		let out = stripMeta(text).replace(/\s*$/, '\n');
-		if (app.transform.trim()) out += '\n(MIS transform\n' + app.transform.replace(/\s*$/, '') + '\nMIS end)\n';
+		if (app.defaultTransform.trim()) out += '\n(MIS transform\n' + app.defaultTransform.replace(/\s*$/, '') + '\nMIS end)\n';
 		Object.keys(app.locks).forEach(function (k) {
 			const locks = app.locks[k];
 			const lv = app.model && app.model.levels[k];
@@ -1757,11 +2044,16 @@
 			if (!keys.length) return;
 			out += '(MIS rule goals ' + k + '\n' + keys.map(function (key) { return goals[key] + ' ' + key; }).join('\n') + '\nMIS end)\n';
 		});
+		const transforms = {};
+		Object.entries(app.workspaces).forEach(function (entry) { const ws = entry[1]; transforms[entry[0]] = { transform: ws.transform, presetId: ws.presetId }; });
+		out += '(MIS level transforms\n' + JSON.stringify(transforms).replace(/\(/g, '\\u0028').replace(/\)/g, '\\u0029') + '\nMIS end)\n';
 		return out;
 	}
-	function stripMeta(text) { return text.replace(META_RE, '\n'); }
+	const WORKSPACE_META_RE = /\n?\(MIS level transforms\n([^\n]*)\nMIS end\)\n?/g;
+	function stripMeta(text) { return text.replace(META_RE, '\n').replace(WORKSPACE_META_RE, '\n'); }
 	function readMeta(text) {
-		const meta = { transform: null, locks: {}, ruleGoals: {} };
+		const meta = { transform: null, locks: {}, ruleGoals: {}, workspaces: {} };
+		text.replace(WORKSPACE_META_RE, function (all, json) { try { meta.workspaces = JSON.parse(json); } catch (e) { /* ignore invalid optional metadata */ } return ''; });
 		text.replace(META_RE, function (all, tr, lvl, rows, goalLvl, goalRows) {
 			if (tr !== undefined) meta.transform = tr;
 			else if (goalLvl !== undefined) {
@@ -1785,7 +2077,8 @@
 	}
 
 	function openText(text, name, filePath) {
-		stopGeneration();
+		invalidateAllWorkspaces();
+		app.workspaces = {}; app.editorWorkspace = null;
 		const meta = readMeta(text);
 		app.fileName = name || 'game.txt';
 		app.filePath = filePath || null;
@@ -1797,7 +2090,9 @@
 		app.undo = []; app.redo = [];
 		app.assessCache.clear();
 		app.rulesSig = 0;
-		app.transform = meta.transform || '';
+		app.defaultTransform = meta.transform || '';
+		app.transform = app.defaultTransform;
+		Object.keys(meta.workspaces || {}).forEach(function (index) { const saved = meta.workspaces[index]; if (!Number.isInteger(+index) || +index < 0 || !saved || typeof saved.transform !== 'string') return; const ws = workspace(+index); ws.transform = saved.transform; ws.presetId = saved.presetId || null; });
 		app.presetId = null;
 		suppressTransformChange = true;
 		transformCM.setValue(app.transform);
@@ -1871,7 +2166,57 @@
 		finally { openingFile = false; }
 	}
 
+	let checkpointTimer = null, recovery = null, recoveryWarning = false;
+	function checkpointSoon() {
+		if (checkpointTimer || !recovery || !app.source) return;
+		checkpointTimer = setTimeout(function () { checkpointTimer = null; checkpoint(); }, 2000);
+	}
+	function savedCard(card) {
+		return { key: card.key, id: card.id, levelIndex: card.levelIndex, baseKey: card.baseKey, board: packBoard(card.board),
+			result: card.result, objects: card.objects, diff: card.diff, pinnedCard: !!card.pinnedCard };
+	}
+	async function checkpoint() {
+		if (!recovery || !app.model || !app.source) return false;
+		const spaces = {};
+		Object.entries(app.workspaces).forEach(function (entry) {
+			const ws = entry[1], gen = ws.gen;
+			spaces[entry[0]] = { transform: ws.transform, presetId: ws.presetId,
+				cards: ws.cards.slice().sort(function (a,b) { return b.result.effort - a.result.effort; }).slice(0, 64).map(savedCard),
+				pinned: ws.pinned.slice(-64).map(savedCard),
+				gen: gen ? { base: packBoard(gen.base), baseKey: gen.baseKey, started: gen.started, interesting: gen.interesting, stats: gen.stats, wasRunning: gen.running } : null };
+		});
+		return recovery.save({ version: 1, text: embedMeta(app.source), compiledText: app.compiledText, name: app.fileName, levelIndex: app.levelIndex, backend: app.backendPref, workspaces: spaces });
+	}
+	function embedRecoveredMetadata(compiled, authored) {
+		const comments = authored.match(META_RE) || [];
+		const transforms = authored.match(WORKSPACE_META_RE) || [];
+		return compiled + '\n' + comments.concat(transforms).join('\n');
+	}
+
+	function restoreCollections(record) {
+		if (!app.model) return;
+		Object.entries(record.workspaces || {}).forEach(function (entry) {
+			const index = +entry[0], saved = entry[1], lv = app.model.levels[index];
+			if (!lv || !lv.board) return;
+			const ws = workspace(index);
+			function card(c) {
+				const board = unpackBoard(c.board);
+				if (board.cells.length !== board.w * board.h * app.model.stride || !c.result || !Array.isArray(c.result.solution)) return null;
+				return Object.assign({}, c, { board: board, levelIndex: index });
+			}
+			try {
+				ws.cards = (saved.cards || []).map(card).filter(Boolean);
+				ws.pinned = (saved.pinned || []).map(card).filter(Boolean);
+				if (saved.gen) ws.gen = { id: ws.id, running: false, recovered: true, base: unpackBoard(saved.gen.base), baseKey: saved.gen.baseKey,
+					levelIndex: index, started: saved.gen.started, interesting: saved.gen.interesting || 0, stats: saved.gen.stats || [], statKeys: [], arms: [], transforms: [], exhausted: [], workers: [], seen: new Set(ws.cards.map(function (c) { return c.key; })) };
+			} catch (e) { ws.cards = []; ws.pinned = []; ws.gen = null; }
+		});
+		if (record.levelIndex && app.model.levels[record.levelIndex] && app.model.levels[record.levelIndex].board) selectLevel(record.levelIndex);
+		syncWorkspaceEditor(); refreshLevelStrip(); renderCards(); updateMeter();
+	}
+
 	function autosave() {
+		checkpointSoon();
 		clearTimeout(autosave.t);
 		autosave.t = setTimeout(function () {
 			try { localStorage.setItem('mis-autosave', JSON.stringify({ text: embedMeta(app.source), name: app.fileName, levelIndex: app.levelIndex })); } catch (e) { /* storage unavailable */ }
@@ -1924,8 +2269,11 @@
 		});
 		transformCM.on('change', function () {
 			if (suppressTransformChange) return;
-			clearTimeout(initEditors.tt);
-			initEditors.tt = setTimeout(function () { setTransformText(transformCM.getValue()); }, 300);
+			const ws = workspace(), text = transformCM.getValue();
+			if (text === ws.transform) return;
+			// Own the text immediately; decorate only after CodeMirror finishes its transaction.
+			ws.transform = text;
+			queueMicrotask(function () { if (ws.transform === text) setTransformText(text, false, ws, true); });
 		});
 	}
 
@@ -1968,9 +2316,9 @@
 	$('help-btn').onclick = function () { showTab('help'); };
 	$('undo-btn').onclick = doUndo;
 	$('redo-btn').onclick = doRedo;
-	$('gen-btn').onclick = function () { if (app.gen && app.gen.running) stopGeneration(); else startGeneration(); };
+	$('gen-btn').onclick = function () { if ((app.gen && app.gen.running) || workspace().restartTransform) stopGeneration(); else startGeneration(); };
 	$('rank-select').onchange = renderCards;
-	$('clear-cards').onclick = function () { app.cards = []; if (app.gen) app.gen.seen.clear(); renderCards(); };
+	$('clear-cards').onclick = function () { app.cards = []; if (app.gen) app.gen.seen.clear(); renderCards(); updateGenerationIndicators(); checkpointSoon(); };
 	$('peek-btn').onclick = peekSample;
 	$('watch-btn').onclick = function () { if (currentResult && currentResult.solution) watch(app.board, currentResult.solution); };
 	$('solve-btn').onclick = function () { if (solving) stopCurrentSolve(); else analyzeCurrent(); };
@@ -1980,25 +2328,24 @@
 		e.target.value = '';
 		if (v !== '') runSimplify('tighten', +v);
 	};
-	$('lock-none').onclick = function () { pushUndo(); app.locks[app.levelIndex].fill(0); renderBoard(); markDirty(true); if (app.gen && app.gen.running) restartGeneration(); };
-	$('lock-invert').onclick = function () { pushUndo(); const l = app.locks[app.levelIndex]; for (let i = 0; i < l.length; i++) l[i] = l[i] ? 0 : 1; renderBoard(); markDirty(true); if (app.gen && app.gen.running) restartGeneration(); };
-	$('dup-level').onclick = function () {
-		if (!app.board) return;
-		const text = C.insertLevelInSource(app.model, app.source, app.levelIndex, app.board);
-		const next = app.levelIndex + 1;
-		setSource(text);
-		selectLevel(next);
-		toast('Duplicated — you are editing the copy.');
+	$('lock-none').onclick = function () { pushUndo(); app.locks[app.levelIndex].fill(0); renderBoard(); markDirty(true); restartGeneration(); autosave(); };
+	$('lock-invert').onclick = function () { pushUndo(); const l = app.locks[app.levelIndex]; for (let i = 0; i < l.length; i++) l[i] = l[i] ? 0 : 1; renderBoard(); markDirty(true); restartGeneration(); autosave(); };
+	$('dup-level').onclick = function () { if (app.board) insertBoardLevel(app.board, true, true); };
+	$('new-level').onclick = newLevelDialog;
+	$('stop-all-generation').onclick = stopAllGeneration;
+	$('share-transform').onclick = function () {
+		const text = app.transform, preset = app.presetId; app.defaultTransform = text;
+		app.model.levels.forEach(function (lv, index) { if (!lv.board || index === app.levelIndex) return; const ws = workspace(index); ws.transform = text; ws.presetId = preset; restartGeneration(index); });
+		markDirty(true); autosave(); toast('Transform copied to every level.');
 	};
 	$('backend-select').onchange = function (e) {
 		app.backendPref = e.target.value;
 		try { localStorage.setItem('mis-backend', app.backendPref); } catch (err) { /* ignore */ }
-		const wasRunning = app.gen && app.gen.running;
-		stopGeneration(true);
+		invalidateAllWorkspaces();
 		ensureWorkers(true);
 		analyzeCurrent();
 		refreshLevelStrip();
-		if (wasRunning) startGeneration(); else updateGenButton();
+		updateGenButton(); updateMeter(); renderCards(); updateGenerationIndicators();
 	};
 	$('blind-toggle').onchange = function (e) { app.blind = e.target.checked; app.revealed = false; renderStatus(); refreshLevelStrip(); renderRuleGutter(); };
 	$('open-btn').onclick = function () { if (desktop) openNative(); else $('file-input').click(); };
@@ -2045,13 +2392,28 @@
 	let restored = null;
 	try { restored = JSON.parse(localStorage.getItem('mis-autosave') || 'null'); } catch (e) { restored = null; }
 	const params = new URLSearchParams(location.search);
-	let initialLoad;
-	if (params.get('demo')) initialLoad = loadDemo(params.get('demo'));
-	else if (restored && restored.text) {
-		openText(restored.text, restored.name);
-		if (restored.levelIndex && app.model && app.model.levels[restored.levelIndex] && app.model.levels[restored.levelIndex].board) selectLevel(restored.levelIndex);
-		markDirty(false);
-	} else initialLoad = loadDemo(DEMOS[0][1], 'sokoban_basic.txt');
+	recovery = MISRecovery.create({ onError: function () { if (!recoveryWarning) { recoveryWarning = true; toast('Could not save generation recovery. Save your game before closing.', true); } } });
+	app.checkpoint = checkpoint;
+	const initialLoad = (async function () {
+		if (params.get('demo')) await loadDemo(params.get('demo'));
+		else {
+			const record = await recovery.load();
+			if (record && record.version === 1 && record.text) {
+				if (record.backend === 'native' || record.backend === 'js') app.backendPref = record.backend;
+				$('backend-select').value = app.backendPref;
+				openText(record.compiledText ? embedRecoveredMetadata(record.compiledText, record.text) : record.text, record.name);
+				if (record.compiledText && stripMeta(record.text) !== record.compiledText) { if (!setSource(stripMeta(record.text), { noUndo: true, clean: true })) showTab('source'); }
+				restoreCollections(record); markDirty(false);
+			} else if (restored && restored.text) {
+				openText(restored.text, restored.name);
+				if (restored.levelIndex && app.model.levels[restored.levelIndex] && app.model.levels[restored.levelIndex].board) selectLevel(restored.levelIndex);
+				markDirty(false);
+			} else await loadDemo(DEMOS[0][1], 'sokoban_basic.txt');
+		}
+		app.recoveryReady = true;
+	})();
+	window.addEventListener('pagehide', function () { checkpoint(); });
+	document.addEventListener('visibilitychange', function () { if (document.hidden) checkpoint(); });
 
 	window.misDocument = { save: saveFile, open: openNative };
 	if (desktop) {
@@ -2060,11 +2422,12 @@
 		desktop.onClose(async function () {
 			if (confirmingClose) return;
 			confirmingClose = true;
-			try { if (await canReplace()) desktop.closeConfirmed(); }
+			try { if (await canReplace()) { await checkpoint(); desktop.closeConfirmed(); } }
 			finally { confirmingClose = false; }
 		});
 		Promise.resolve(initialLoad).then(function () { desktop.ready(); });
 	}
 
+	app.cacheKey = cacheKey;
 	window.misApp = app; // for debugging from the console
 })();

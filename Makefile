@@ -22,7 +22,7 @@ MIS_NPM := npm.cmd
 else
 MIS_NPM ?= npm
 endif
-.PHONY: all desktop distro install serve mis_app mis_app_start mis_app_tests mis_web_bundle mis_web_tests mis_scrollbar_tests mis_analysis_tests mis_palette_tests mis_publish
+.PHONY: all desktop distro install serve mis_app mis_app_start mis_app_tests mis_web_bundle mis_web_tests mis_levels_tests mis_scrollbar_tests mis_analysis_tests mis_palette_tests mis_publish
 all: desktop
 
 desktop: mis_app
@@ -53,6 +53,11 @@ mis_scrollbar_tests:
 
 mis_analysis_tests:
 	$(NODE) src/tests/mis_analysis_browser.cjs
+
+mis_levels_tests:
+	$(NODE) src/tests/mis_level_ownership_browser.cjs
+	$(NODE) src/tests/mis_levels_browser.cjs
+	$(NODE) src/tests/mis_recovery_browser.cjs
 
 mis_palette_tests:
 	$(NODE) src/tests/mis_palette_browser.cjs
@@ -1926,6 +1931,9 @@ mis_web_serve:
 	$(PYTHON) -m http.server $(MIS_WEB_PORT) --directory bin
 
 mis_tests:
+	$(NODE) src/tests/mis_board_node.js
+	$(NODE) src/tests/mis_generation_pool_node.js
+	$(NODE) --test src/tests/mis_recovery_node.cjs
 	$(NODE) src/tests/mis_core_node.js
 	$(NODE) src/tests/portable_semantics_node.js
 	$(NODE) src/tests/aggregate_win_semantics_node.js

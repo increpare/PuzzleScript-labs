@@ -60,7 +60,7 @@ app.whenReady().then(async () => {
   win = new BrowserWindow({ width: 1360, height: 900, minWidth: 600, minHeight: 420,
     frame: false, show: false, backgroundColor: '#c0c0c0', title: 'MIS95',
     ...(process.platform !== 'darwin' ? { icon: path.join(__dirname, 'icons', process.platform === 'win32' ? 'app.ico' : 'app.png') } : {}),
-    webPreferences: { preload: path.join(__dirname, 'preload.cjs'), nodeIntegration: false, contextIsolation: true, sandbox: true }
+    webPreferences: { preload: path.join(__dirname, 'preload.cjs'), nodeIntegration: false, contextIsolation: true, sandbox: true, backgroundThrottling: false }
   });
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.webContents.on('will-navigate', event => event.preventDefault());

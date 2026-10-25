@@ -202,6 +202,9 @@
 			get view() { return view; },
 			get language() { return language; },
 			getValue: () => view.state.doc.toString(),
+			documentState: () => view.state,
+			restoreDocument(state) { R.closeCompletion(view); markedLines.clear(); view.setState(state); view.dispatch({ effects: setMarks.of([]) }); },
+			newDocument(text) { R.closeCompletion(view); markedLines.clear(); view.setState(R.EditorState.create({ doc: String(text), extensions: extensions() })); },
 			setValue(text) {
 				R.closeCompletion(view);
 				markedLines.clear();

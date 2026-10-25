@@ -84,7 +84,7 @@ const { chromium } = require('playwright');
     const start = Date.now();
     await page.waitForFunction(() => document.querySelector('#status-text').textContent.includes('Solvable'), null, { timeout: 180000 });
     const result = await page.evaluate(() => {
-      const key = misApp.backendPref + '|' + misApp.rulesSig + '|' + MISCore.cellsKey(misApp.board.cells);
+      const key = misApp.cacheKey(misApp.board);
       const result = misApp.assessCache.get(key);
       MISCore.replayFrames(misApp.model, misApp.board, result.solution);
       return { status: result.status, moves: result.solution.length, replayWon: MISCore.winconditionsNow(), level: misApp.levelIndex };

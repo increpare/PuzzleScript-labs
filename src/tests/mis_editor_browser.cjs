@@ -21,7 +21,7 @@ const base = process.argv[2] || 'http://127.0.0.1:8080';
 		async function setText(name, text) {
 			await page.locator('[data-tab="' + name + '"]').click();
 			await editor(name).locator('.cm-content').click();
-			await page.keyboard.press('Control+a');
+			await page.keyboard.press('ControlOrMeta+a');
 			await page.keyboard.insertText(text);
 			await page.keyboard.press('Control+End');
 		}
@@ -41,7 +41,7 @@ const base = process.argv[2] || 'http://127.0.0.1:8080';
 		});
 		await page.keyboard.type('Foot_'); await accept('source', 'Foot_Selected');
 		assert(await editor('source').evaluate(root => root.misEditor.getValue().includes('[ up Foot_Selected ]')));
-		await page.keyboard.press('Control+z');
+		await page.keyboard.press('ControlOrMeta+z');
 		assert(!(await editor('source').evaluate(root => root.misEditor.getValue().includes('[ up Foot_Selected ]'))));
 		await setText('source', original);
 		await page.waitForFunction(text => misApp.source === text, original);
@@ -52,12 +52,12 @@ const base = process.argv[2] || 'http://127.0.0.1:8080';
 		await setText('transform', 'ch'); await page.keyboard.press('Control+Space');
 		await accept('transform', 'choose');
 		assert.equal(await editor('transform').evaluate(root => root.misEditor.getValue()), 'choose');
-		await page.keyboard.press('Control+z');
+		await page.keyboard.press('ControlOrMeta+z');
 		assert.equal(await editor('transform').evaluate(root => root.misEditor.getValue()), 'ch');
-		await page.keyboard.press('Control+y');
+		await page.keyboard.press('ControlOrMeta+y');
 		assert.equal(await editor('transform').evaluate(root => root.misEditor.getValue()), 'choose');
 		assert.equal(await editor('source').evaluate(root => root.misEditor.getValue()), original);
-		await page.keyboard.press('Control+f'); assert(await editor('transform').locator('.cm-search').isVisible());
+		await page.keyboard.press('ControlOrMeta+f'); assert(await editor('transform').locator('.cm-search').isVisible());
 		await page.keyboard.press('Escape'); assert(!(await editor('transform').locator('.cm-search').count()));
 		// Recompiling renamed objects refreshes transform context, without stale names.
 		const renamed = original.replace(/Foot_Selected/gi, 'NovelFoot');

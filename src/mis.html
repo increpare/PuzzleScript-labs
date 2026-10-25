@@ -32,6 +32,7 @@
 		<div class="pane-title">Levels <span class="spacer"></span><span id="health-summary" class="faint"></span></div>
 		<div class="project-root"><span class="command-icon icon-open" aria-hidden="true"></span><span id="project-document">Game project</span></div><div id="level-list" aria-label="Game levels"></div>
 		<div id="levels-foot">
+			<button id="new-level" title="Create a blank level with an exact width and height">New…</button>
 			<button id="dup-level" title="Insert a copy of this level after it">Duplicate</button>
 		</div>
 	</aside>
@@ -63,7 +64,16 @@
 			</select>
 		</div>
 		<div id="board-wrap">
-			<canvas id="board" width="10" height="10"></canvas>
+			<div id="board-frame"><canvas id="board" width="10" height="10"></canvas>
+<button type="button" class="resize-handle" data-resize="left" aria-label="Resize left edge" title="Drag to resize; arrow keys adjust one cell"></button>
+<button type="button" class="resize-handle" data-resize="right" aria-label="Resize right edge" title="Drag to resize; arrow keys adjust one cell"></button>
+<button type="button" class="resize-handle" data-resize="top" aria-label="Resize top edge" title="Drag to resize; arrow keys adjust one cell"></button>
+<button type="button" class="resize-handle" data-resize="bottom" aria-label="Resize bottom edge" title="Drag to resize; arrow keys adjust one cell"></button>
+<button type="button" class="resize-handle" data-resize="top-left" aria-label="Resize top left edge" title="Drag to resize; arrow keys adjust one cell"></button>
+<button type="button" class="resize-handle" data-resize="top-right" aria-label="Resize top right edge" title="Drag to resize; arrow keys adjust one cell"></button>
+<button type="button" class="resize-handle" data-resize="bottom-left" aria-label="Resize bottom left edge" title="Drag to resize; arrow keys adjust one cell"></button>
+<button type="button" class="resize-handle" data-resize="bottom-right" aria-label="Resize bottom right edge" title="Drag to resize; arrow keys adjust one cell"></button>
+<div id="resize-preview" hidden></div><span id="board-dimensions"></span></div>
 			<div id="board-banner"></div>
 			<div id="toast"></div>
 		</div>
@@ -105,11 +115,12 @@
 			<button data-tab="help">Help</button>
 		</div>
 		<div class="tab on" id="tab-transform">
-			<div class="pane-title">Transform presets</div>
+			<div class="pane-title">Transform — <span id="transform-level">Level 1</span></div>
 			<div class="presets" id="presets"></div>
 			<div class="hint" id="preset-hint"></div>
 			<div class="editor-box"><textarea id="transform-text"></textarea></div>
 			<div class="side-actions">
+				<button id="share-transform" title="Copy this level’s transform to every level">Use for all levels</button>
 				<button id="peek-btn" title="Show one random application of the transform on the board — no solving">Peek a sample</button>
 				<span class="faint">Hover a suggestion to preview it · click to adopt</span>
 			</div>
@@ -157,8 +168,9 @@ choose 9 horizontal [Player | no Wall] -> [ | Player]</pre>
 		</div>
 	</aside>
 </main>
-<footer class="app-status"><span id="ui-status">Ready</span><span id="cursor-status">Level Designer</span><span>MIS95</span></footer>
+<footer class="app-status"><span id="ui-status">Ready</span><span id="generation-summary" role="status"></span><button id="stop-all-generation" title="Pause generation on every level" hidden>Stop all generation</button><span id="cursor-status">Level Designer</span><span>MIS95</span></footer>
 <dialog id="about-dialog" aria-labelledby="about-title"><div class="dialog-caption" id="about-title">About MIS95</div><div class="about-content"><span class="app-icon" aria-hidden="true"></span><div><strong>MIS95</strong><p>A mixed-initiative puzzle design environment.</p><p class="about-credit">Based on <b>PuzzleScript+MIS</b> by <b>Kevin De Keyser</b>,<br>whose original tool and research this is built on:<br><a href="https://dekeyser.ch/puzzlescriptmis/" target="_blank" rel="noopener">dekeyser.ch/puzzlescriptmis</a></p><p>Edit levels, write transforms, and explore variations<br>with the PuzzleScript engine and solver.</p><p>Interface inspired by Windows 95 development tools.</p></div></div><form method="dialog"><button autofocus>OK</button></form></dialog>
+<dialog id="new-level-dialog" aria-labelledby="new-level-title"><div class="dialog-caption" id="new-level-title">New level</div><form id="new-level-form"><div class="new-level-fields"><label>Width <input id="new-width" name="width" type="number" min="1" max="128" required></label><label>Height <input id="new-height" name="height" type="number" min="1" max="128" required></label><p>Blank level · uses the current level’s transform.<br>You can resize it afterward by dragging its edges.</p><p id="new-level-error" role="alert"></p></div><div class="dialog-actions"><button id="create-level" type="submit">Create</button><button id="cancel-new-level" type="button">Cancel</button></div></form></dialog>
 <div id="fatal"><div id="fatal-msg"></div></div>
 
 <script src="js/mis/mis_shims.js"></script>
@@ -196,6 +208,9 @@ choose 9 horizontal [Player | no Wall] -> [ | Player]</pre>
 <script src="js/codemirror/rule-transform.js"></script>
 <script src="js/puzzlescript-autocomplete.js"></script>
 <script src="js/mis/mis_editor.js"></script>
+<script src="js/mis/mis_board.js"></script>
+<script src="js/mis/mis_generation_pool.js"></script>
+<script src="js/mis/mis_recovery.js"></script>
 <script src="js/mis/mis_app.js"></script>
 <script src="js/mis/mis_win95.js"></script>
 </body>

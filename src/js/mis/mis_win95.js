@@ -14,7 +14,7 @@
     ]],
     ['Edit', [
       ['Undo level edit', '#undo-btn', 'Ctrl+Z'], ['Redo level edit', '#redo-btn', 'Ctrl+Shift+Z'], null,
-      ['Duplicate level', '#dup-level'], ['Unlock all tiles', '#lock-none'], ['Invert tile locks', '#lock-invert'],
+      ['New level…', '#new-level'], ['Duplicate level', '#dup-level'], ['Unlock all tiles', '#lock-none'], ['Invert tile locks', '#lock-invert'],
     ]],
     ['View', [
       ['Transform code', '[data-tab="transform"]'], ['Game source', '[data-tab="source"]'],
@@ -23,7 +23,7 @@
     ['Run', [
       ['Edit level', '[data-mode="edit"]', 'E'], ['Lock tiles', '[data-mode="lock"]', 'L'],
       ['Playtest', '[data-mode="play"]', 'P'], null,
-      ['Generate / stop', '#gen-btn', 'G'], ['Peek a sample', '#peek-btn'],
+      ['Generate / pause this level', '#gen-btn', 'G'], ['Stop all generation', '#stop-all-generation'], ['Peek a sample', '#peek-btn'],
       ['Watch solution', '#watch-btn'], ['Simplify level', '#simplify-btn'],
     ]],
     ['Help', [['Workbench help', '#help-btn', 'F1'], null, ['About MIS95…', () => $('about-dialog').showModal()]]],
@@ -126,7 +126,7 @@
   document.addEventListener('pointerdown', event => { if (!event.target.closest('#menubar')) close(false); });
   window.addEventListener('blur', () => close(false));
   document.addEventListener('keydown', event => {
-    if ($('about-dialog').open) return;
+    if (document.querySelector('dialog[open]')) return;
     const key = event.key;
     if ((event.ctrlKey || event.metaKey) && event.shiftKey && key.toLowerCase() === 's' && opened < 0) {
       event.preventDefault(); event.stopImmediatePropagation(); window.misDocument.save(true); return;

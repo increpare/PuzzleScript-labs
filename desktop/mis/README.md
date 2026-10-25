@@ -5,6 +5,8 @@ GUI95 app. It is a redesign of Kevin De Keyser's PuzzleScript+MIS
 (<https://dekeyser.ch/puzzlescriptmis/>).
 It uses the same engine, Web Workers, native WebAssembly solver and CodeMirror
 editor as the browser version. It runs offline, including its bundled demos.
+Per-level generation continues when the window is minimized; it does not keep the computer awake. Generated collections
+are checkpointed locally and reopen paused.
 The older openFrameworks application in `tools/puzzlescriptmis-app` is separate.
 
 From the repository root, with Node 22.12 or newer and GNU Make:

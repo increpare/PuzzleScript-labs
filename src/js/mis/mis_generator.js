@@ -34,7 +34,14 @@ const MISGenerator = (function () {
 		const rng = C.makeRng(opts.seed >>> 0);
 		const baseKey = C.cellsKey(base.cells);
 		const seen = opts.seen || new Set();
+		// Bound private dedupe for unattended sessions. A caller-owned set may
+		// be shared across workers or inspected by a profiler: never evict it.
+		const maxSeen = opts.seen ? Infinity : (Number.isFinite(opts.maxSeen) ? Math.max(1, Math.floor(opts.maxSeen)) : Math.max(32, Math.min(20000, Math.floor(4194304 / Math.max(16, base.cells.byteLength)))));
 		seen.add(baseKey);
+		function remember(key) {
+			seen.add(key);
+			while (seen.size > maxSeen) seen.delete(seen.values().next().value);
+		}
 		const keepCount = opts.keep || 8;
 		// Solver budget per candidate: doubles on timeouts until something
 		// solves, then follows 7x the admitted candidates' solve time. Relative to
@@ -222,7 +229,7 @@ const MISGenerator = (function () {
 				if (key === baseKey) skip = 'unchanged';
 				else if (seen.has(key)) skip = 'duplicates';
 				else {
-					seen.add(key);
+					remember(key);
 					if (shard && shardOf(key) !== shard.index) skip = 'otherShard';
 				}
 				prof.keyMs += now() - t;
