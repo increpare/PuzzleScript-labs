@@ -1,0 +1,97 @@
+title Static Analysis Object Tag Quantity Overlapping Rows
+
+(Cells in different rows of one rule can match the same board cell. The
+ engine matches every row first, then replaces row by row, so a later row
+ sees an earlier row's changes.
+ Player: rows 1 and 2 share the player's cell; row 1 clears it, row 2 puts
+ it back, row 3 adds one more -> the count can rise.
+ Gem: rows 3 and 4 can share one empty cell, so two gems become one -> the
+ count can fall.
+ Crate: a crate cell and a no-crate cell can never coincide -> a plain move,
+ count preserved.
+ Hero: as Player, through two concrete HeroA rows -> the group count can rise.
+ Knight: each member alone looks safe, but row 2's Knight cell can be row
+ 1's KnightA cell: row 1 empties it, row 2 refills it with KnightB, and row 3
+ adds a KnightA -> the group count can rise.)
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Wall
+brown
+
+Gem
+blue
+
+Crate
+orange
+
+HeroA
+green
+
+HeroB
+red
+
+KnightA
+lightgreen
+
+KnightB
+pink
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+# = Wall
+G = Gem
+C = Crate
+H = HeroA
+Hero = HeroA or HeroB
+K = KnightA
+Knight = KnightA or KnightB
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player, Wall
+Gem
+Crate
+HeroA, HeroB
+KnightA, KnightB
+
+=====
+RULES
+=====
+
+[ action Player ] [ Player ] [ no Player no Wall ] -> [ ] [ Player ] [ Player ]
+[ action Player ] [ Gem | Gem ] [ no Gem ] [ no Gem ] -> [ action Player ] [ | ] [ Gem ] [ Gem ]
+[ Crate ] [ no Crate ] -> [ ] [ Crate ]
+[ HeroA ] [ HeroA ] [ no Hero ] -> [ ] [ HeroA ] [ HeroB ]
+[ KnightA ] [ Knight ] [ no Knight ] -> [ ] [ KnightB ] [ KnightA ]
+
+=============
+WINCONDITIONS
+=============
+
+No Wall
+
+======
+LEVELS
+======
+
+PGGCHK.#

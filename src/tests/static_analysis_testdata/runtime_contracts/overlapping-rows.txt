@@ -1,0 +1,55 @@
+title Static Analysis Runtime Overlapping Rows
+
+(Rows 1 and 2 both match the player's cell. Row 1 clears it, row 2 puts
+ it back and row 3 adds a second player, so pressing action makes two.
+ The count analysis must not claim the Player count is fixed.)
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Wall
+brown
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+# = Wall
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player, Wall
+
+=====
+RULES
+=====
+
+[ action Player ] [ Player ] [ no Player no Wall ] -> [ ] [ Player ] [ Player ]
+
+=============
+WINCONDITIONS
+=============
+
+No Wall
+
+======
+LEVELS
+======
+
+P..#

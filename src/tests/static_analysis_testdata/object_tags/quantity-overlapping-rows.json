@@ -1,0 +1,40 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "human_verified": false,
+  "objectTag": [
+    {
+      "object": "Player",
+      "quantity_never_increases": false,
+      "quantity_exactly_one": false,
+      "quantity_at_most_one": false
+    },
+    {
+      "object": "Gem",
+      "quantity_never_decreases": false
+    },
+    {
+      "object": "Crate",
+      "quantity_never_increases": true,
+      "quantity_never_decreases": true,
+      "quantity_exactly_one": true
+    },
+    {
+      "object": "KnightA",
+      "quantity_never_increases": true
+    }
+  ],
+  "propertyTag": [
+    {
+      "property": "Hero",
+      "quantity_never_increases": false,
+      "quantity_exactly_one": false,
+      "quantity_at_most_one": false
+    },
+    {
+      "property": "Knight",
+      "quantity_never_increases": false,
+      "quantity_exactly_one": false,
+      "quantity_at_most_one": false
+    }
+  ]
+}

@@ -1398,6 +1398,7 @@ function concreteCellObjectsByLayer(psTagged, cell) {
 
 function exactRuleCountDelta(psTagged, rule) {
     if (!rule.tags.solver_state_active || !rule.tags.object_mutating) return new Map();
+    if (ruleOverlapExposedObjects(psTagged, rule).size > 0) return null;
 
     const delta = new Map();
     const rowCount = Math.max(rule.lhs.length, rule.rhs.length);
@@ -1755,6 +1756,137 @@ function deriveSolverHashProjectionFacts(psTagged) {
     })];
 }
 
+// Cells in different rows of one rule can match the same board cell. The
+// engine matches every row first and then replaces row by row, so a later
+// row's replacement sees what an earlier row did to that cell. Per-cell count
+// reasoning assumes each cell acts on the board as it was before the rule ran.
+// That breaks for an object when an earlier coinciding cell really changes it
+// and the later cell was counted as a definite create, destroy or keep (its
+// own LHS fixed whether the object was there). Returns those objects.
+const overlapExposedObjectsCache = new WeakMap();
+function ruleOverlapExposedObjects(psTagged, rule) {
+    if (overlapExposedObjectsCache.has(rule)) return overlapExposedObjectsCache.get(rule);
+    const cells = ruleWritingCells(psTagged, rule);
+    const exposed = new Set();
+    for (const [earlier, later] of coincidingCellPairs(psTagged, cells)) {
+        const joint = earlier.lhsCell.concat(later.lhsCell);
+        for (const objectName of new Set([...earlier.sets, ...earlier.clears])) {
+            if (!later.sets.has(objectName) && !later.clears.has(objectName)) continue;
+            // A cell that sets an object also clears it first; it ends present.
+            const earlierNoop = earlier.sets.has(objectName)
+                ? requiredPresentObjectSet(joint).has(objectName)
+                : lhsCellExcludesObject(psTagged, joint, objectName);
+            if (earlierNoop) continue;
+            const laterDefinite = requiredPresentObjectSet(later.lhsCell).has(objectName)
+                || !cellCouldContainObjectBefore(psTagged, presentObjectSet(later.lhsCell), absentObjectSet(later.lhsCell), objectName);
+            if (laterDefinite) exposed.add(objectName);
+        }
+    }
+    overlapExposedObjectsCache.set(rule, exposed);
+    return exposed;
+}
+
+// Writing cells of a rule, in row order, with their object writes.
+function ruleWritingCells(psTagged, rule) {
+    const cells = [];
+    const rowCount = Math.max(rule.lhs.length, rule.rhs.length);
+    for (let rowIndex = 0; rowIndex < rowCount; rowIndex++) {
+        const lhsRow = rule.lhs[rowIndex] || [];
+        const rhsRow = rule.rhs[rowIndex] || [];
+        const cellCount = maxCellsInRows(lhsRow, rhsRow);
+        for (let cellIndex = 0; cellIndex < cellCount; cellIndex++) {
+            const lhsCell = lhsRow[cellIndex] || [];
+            const rhsCell = rhsRow[cellIndex] || [];
+            if (lhsCell.concat(rhsCell).some(term => term.ref && term.ref.type === 'ellipsis')) continue;
+            const writes = cellObjectWrites(psTagged, lhsCell, rhsCell);
+            if (writes.sets.size > 0 || writes.clears.size > 0) cells.push({ rowIndex, lhsCell, rhsCell, ...writes });
+        }
+    }
+    return cells;
+}
+
+// Pairs [earlier row's cell, later row's cell] that may be one board cell.
+function coincidingCellPairs(psTagged, cells) {
+    const pairs = [];
+    for (let left = 0; left < cells.length; left++) {
+        for (let right = left + 1; right < cells.length; right++) {
+            if (cells[left].rowIndex === cells[right].rowIndex) continue;
+            if (lhsCellsMayCoincide(psTagged, cells[left].lhsCell, cells[right].lhsCell)) pairs.push([cells[left], cells[right]]);
+        }
+    }
+    return pairs;
+}
+
+// Objects whose presence bit the cell's replacement may set or clear.
+function cellObjectWrites(psTagged, lhsCell, rhsCell) {
+    const sets = new Set();
+    const clears = new Set();
+    const lhsProperties = lhsCell.filter(term => term.kind === 'present' && term.ref && term.ref.type === 'object_set');
+    const carried = rhsTerm => rhsTerm.kind === 'present' && rhsTerm.ref && rhsTerm.ref.type === 'object_set'
+        && rhsTermIsSameLhsProperty(lhsProperties, rhsTerm);
+    const rhsConcrete = new Set();
+    for (const term of rhsCell) {
+        if (term.kind === 'absent') {
+            addValues(clears, termObjects(term));
+            continue;
+        }
+        if (term.kind !== 'present' && term.kind !== 'random_object') continue;
+        if (term.ref && term.ref.type === 'ellipsis') continue;
+        if (carried(term)) continue;
+        if (term.kind === 'present' && term.ref.type === 'object') addValues(rhsConcrete, termObjects(term));
+        for (const objectName of termObjects(term)) {
+            sets.add(objectName);
+            for (const mate of layerObjectsForObject(psTagged, objectName)) {
+                if (mate !== objectName) clears.add(mate);
+            }
+        }
+    }
+    for (const term of lhsCell) {
+        if (term.kind !== 'present' || !term.ref || term.ref.type === 'ellipsis') continue;
+        const kept = term.ref.type === 'object'
+            ? termObjects(term).every(objectName => rhsConcrete.has(objectName))
+            : rhsCell.some(rhsTerm => carried(rhsTerm) && sameObjectSet(term, rhsTerm));
+        if (!kept) addValues(clears, termObjects(term));
+    }
+    return { sets, clears };
+}
+
+// True when every board cell matching these LHS terms lacks the object.
+function lhsCellExcludesObject(psTagged, lhsTerms, objectName) {
+    if (absentObjectSet(lhsTerms).has(objectName)) return true;
+    const layer = layerForObject(psTagged, objectName);
+    return lhsTerms.some(term => term.kind === 'present' && termObjects(term).length > 0
+        && termObjects(term).every(name => layerForObject(psTagged, name) === layer)
+        && !termObjects(term).includes(objectName));
+}
+
+const SINGLE_MOVEMENTS = new Set(['up', 'down', 'left', 'right', 'action', 'stationary']);
+
+// False only when no board cell can satisfy both LHS cell patterns at once.
+function lhsCellsMayCoincide(psTagged, leftCell, rightCell) {
+    const conflicts = (aCell, bCell) => {
+        const absent = absentObjectSet(bCell);
+        for (const aTerm of aCell) {
+            if (aTerm.kind !== 'present') continue;
+            const aObjects = termObjects(aTerm);
+            if (aObjects.length === 0) continue;
+            if (aObjects.every(objectName => absent.has(objectName))) return true;
+            for (const bTerm of bCell) {
+                if (bTerm.kind !== 'present') continue;
+                const bObjects = termObjects(bTerm);
+                if (bObjects.length === 0) continue;
+                const layers = new Set(aObjects.concat(bObjects).map(objectName => layerForObject(psTagged, objectName)));
+                if (layers.size === 1 && !aObjects.some(objectName => bObjects.includes(objectName))) return true;
+                if (aTerm.ref.type === 'object' && bTerm.ref.type === 'object' && aObjects[0] === bObjects[0]
+                    && SINGLE_MOVEMENTS.has(aTerm.movement) && SINGLE_MOVEMENTS.has(bTerm.movement)
+                    && aTerm.movement !== bTerm.movement) return true;
+            }
+        }
+        return false;
+    };
+    return !conflicts(leftCell, rightCell) && !conflicts(rightCell, leftCell);
+}
+
 function ruleCountEffectObjects(psTagged, rule) {
     const effects = {
         increases: new Set(),
@@ -1846,6 +1978,25 @@ function ruleCountEffectObjects(psTagged, rule) {
         const destroyCount = guaranteedDestroys.get(objectName) || 0;
         if (createCount > destroyCount) effects.increases.add(objectName);
         if (destroyCount > createCount) effects.decreases.add(objectName);
+    }
+
+    // Where cells of different rows may be one board cell and both write an
+    // object, creates and destroys can merge or undo each other: trust none
+    // of its netting. It may decrease, and increase if any cell sets it.
+    const exposed = ruleOverlapExposedObjects(psTagged, rule);
+    if (exposed.size > 0) {
+        const setSomewhere = new Set();
+        for (const row of rule.rhs) {
+            for (const cell of row) {
+                for (const term of cell) {
+                    if (term.kind === 'present' || term.kind === 'random_object') addValues(setSomewhere, termObjects(term));
+                }
+            }
+        }
+        for (const objectName of exposed) {
+            effects.decreases.add(objectName);
+            if (setSomewhere.has(objectName)) effects.increases.add(objectName);
+        }
     }
 
     return effects;
@@ -2055,6 +2206,7 @@ function cardinalityTags(levelCounts, objectNames, quantity) {
 // [-1, 1]. Returns null when a term defeats the analysis.
 function groupRuleCountDeltaBounds(psTagged, rule, members, memberLayers) {
     if (!rule.tags.solver_state_active || !rule.tags.object_mutating) return { min: 0, max: 0 };
+    if (groupOverlapExposed(psTagged, rule, members, memberLayers)) return null;
     let min = 0;
     let max = 0;
     const rowCount = Math.max(rule.lhs.length, rule.rhs.length);
@@ -2077,7 +2229,49 @@ function groupRuleCountDeltaBounds(psTagged, rule, members, memberLayers) {
     return { min, max };
 }
 
-function groupLayerSlotDelta(psTagged, lhsCell, rhsCell, members, layer) {
+// The group analogue of ruleOverlapExposedObjects, per member-bearing layer:
+// an earlier coinciding cell really changes member presence on the layer
+// (not a no-op given both patterns) and the later cell was counted from a
+// definite before-state of that layer slot.
+function groupOverlapExposed(psTagged, rule, members, memberLayers) {
+    for (const [earlier, later] of coincidingCellPairs(psTagged, ruleWritingCells(psTagged, rule))) {
+        for (const layer of memberLayers) {
+            const writesMember = cell => [...cell.sets, ...cell.clears]
+                .some(objectName => members.has(objectName) && layerForObject(psTagged, objectName) === layer);
+            if (!writesMember(earlier) || !writesMember(later)) continue;
+            const before = groupLayerSlotBefore(psTagged, later.lhsCell, members, layer);
+            if (before.min !== before.max) continue;
+            const jointBefore = groupLayerSlotBefore(psTagged, earlier.lhsCell.concat(later.lhsCell), members, layer);
+            if (jointBefore.min === jointBefore.max) {
+                const effect = groupLayerSlotDelta(psTagged, earlier.lhsCell, earlier.rhsCell, members, layer, jointBefore);
+                if (effect !== null && effect.min === 0 && effect.max === 0) continue;
+            }
+            return true;
+        }
+    }
+    return false;
+}
+
+function groupLayerSlotBefore(psTagged, lhsCell, members, layer) {
+    const onLayer = objectName => layerForObject(psTagged, objectName) === layer;
+    const layerMembers = Array.from(members).filter(onLayer);
+    let min = 0;
+    let max = 1;
+    for (const term of lhsCell) {
+        const objects = termObjects(term).filter(onLayer);
+        if (term.kind === 'present') {
+            if (objects.length === 0 || !termObjects(term).every(onLayer)) continue;
+            if (objects.every(objectName => members.has(objectName))) min = 1;
+            else if (objects.every(objectName => !members.has(objectName))) max = 0;
+        } else if (term.kind === 'absent') {
+            if (layerMembers.every(objectName => termObjects(term).includes(objectName))) max = 0;
+        }
+    }
+    return { min, max };
+}
+
+// beforeOverride, when given, replaces the slot's before-state bounds.
+function groupLayerSlotDelta(psTagged, lhsCell, rhsCell, members, layer, beforeOverride = null) {
     const onLayer = objectName => layerForObject(psTagged, objectName) === layer;
     const layerObjects = term => termObjects(term).filter(onLayer);
     const withinLayer = term => termObjects(term).length > 0 && termObjects(term).every(onLayer);
@@ -2109,6 +2303,10 @@ function groupLayerSlotDelta(psTagged, lhsCell, rhsCell, members, layer) {
         } else if (term.kind === 'absent') {
             if (layerMembers.every(objectName => termObjects(term).includes(objectName))) beforeMax = 0;
         }
+    }
+    if (beforeOverride) {
+        beforeMin = beforeOverride.min;
+        beforeMax = beforeOverride.max;
     }
     if (beforeMin > beforeMax) return { min: 0, max: 0 };
 

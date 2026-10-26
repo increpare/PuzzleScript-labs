@@ -1,0 +1,9 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "human_verified": false,
+  "inputs": ["ACTION"],
+  "expectedFinalLevel": "background player:0,0,background:1,background wall:2,\n",
+  "expect": {
+    "cardinalityBoundaryChecks": 2
+  }
+}

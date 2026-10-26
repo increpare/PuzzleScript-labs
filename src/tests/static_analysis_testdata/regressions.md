@@ -15,3 +15,15 @@ an initial `ObjB`.
 - `winflow/property-inferred-overwrite.*`
 - `movement_action/property-inferred-overwrite-action.*`
 - `runtime_contracts/property-inferred-overwrite.*`
+
+## Overlapping Rule Rows
+
+Cells in different rows of one rule can match the same board cell. The engine
+matches every row first and then replaces row by row, so
+`[ action Player ] [ Player ] [ no Player no Wall ] -> [ ] [ Player ] [ Player ]`
+clears the player, puts it back and adds a second one. Count claims must not
+net per-cell creates and destroys where an earlier coinciding cell really
+changes an object that a later cell was counted from.
+
+- `object_tags/quantity-overlapping-rows.*`
+- `runtime_contracts/overlapping-rows.*`
