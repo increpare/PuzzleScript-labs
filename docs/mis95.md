@@ -412,15 +412,34 @@ object takes over their collision layer. Tags per class: `never_increases`,
 `never_decreases`, `keeps_zero`, `keeps_one`, `keeps_at_most_one`, each with the
 transform lines that block it.
 
+Statements also bound how often they apply. `choose N` (or `choose a-N`)
+applies at most N matches, one alternative per iteration; an everywhere
+statement applies any number. So one run of a transform changes a class's count
+by at most the sum, over its statements, of the per-application range times
+that limit (`run`). Statements are not applied as one unit: in the "Swap a
+pair" preset, *remove a pair* can succeed while *add a pair* finds no free
+unlocked cells, so its counts stay within ±1 but aren't kept exactly. A
+single multi-pattern rule (`choose 1 [ A ] [ B ] [ free ] [ free ] -> [ ] [ ] [ A ] [ B ]`)
+is applied as one unit and keeps both counts exactly.
+
 Each generation context builds a session certificate from its start board,
 every transform it may apply (all of them in Auto) and the game rules'
 `quantity` tags (from the workers' static analysis, `count_layer_invariants`):
 
-- `candidates`: `exactly_zero` / `exactly_one` / `at_most_one` classes that hold
-  on every board the generator produces;
-- `play`: those that also hold on every state reached by playing one, when the
-  rules can't change the count;
+- `candidates`: a count range `{ min, max }` per class (max `null` when
+  unbounded) on every board the generator produces, combining the start count,
+  the per-application tags and the run range, with `exact_count`,
+  `exactly_zero`, `exactly_one` and `at_most_one` derived from it;
+- `play`: the same for every state reached by playing one: a bound survives
+  when the rules can't move the count past it;
 - `objectsMayAppear`: objects on the start board plus those a transform creates.
+
+In adaptive mode the generator may scale `choose` counts by up to
+`MISGenerator.MAX_CHOOSE_SCALE`, and the worker widens the run ranges to match.
+With elite parents a candidate can be a transform of a transform, so only the
+per-application facts are used. `facts.candidates` / `facts.play` list
+`counts` (bounded classes), `exact_count`, and the three singleton tags as id
+lists.
 
 The generator re-checks each new candidate against the certificate
 (`checkBoard`, a count over the board) and passes `opts.facts` to the solver's
@@ -429,7 +448,8 @@ certificate for the rest of the session and shows a warning in the meter.
 No solver path reads `opts.facts` yet; it is the hook for single-player and
 object-universe specializations. The transform panel says whether the
 transform keeps a one-Player level at one Player, linking any line that
-doesn't; the meter shows the session's result. Checks:
+doesn't; the meter shows the session's result, with kept counts and count
+ranges in its tooltip. Checks:
 `node src/tests/mis_transform_analysis_node.js`, which includes a fuzz test
 holding every claim against real transform runs.
 

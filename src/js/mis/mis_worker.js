@@ -278,7 +278,13 @@ function createGeneration(msg) {
 	// one) is proved to keep: the generator re-checks each candidate and hands
 	// these facts to the solver only for boards that pass.
 	const certificate = MISTransformAnalysis.sessionCertificate(model, programs ? programs.map(function (p) { return p.program; }) : [program], base,
-		{ ruleQuantity: preparation && preparation.ruleQuantity });
+		{
+			ruleQuantity: preparation && preparation.ruleQuantity,
+			// The adaptive step size scales choose counts; elite parents transform
+			// earlier candidates again, so only per-application facts hold.
+			chooseScale: msg.adaptive === true ? MISGenerator.MAX_CHOOSE_SCALE : 1,
+			repeated: msg.parents === 'elite',
+		});
 	return MISGenerator.create({
 		gate: MISTransformAnalysis.gate(model, certificate),
 		model: model, backend: backend, program: program, programs: programs && programs.length > 1 ? programs : null, base: base, baseEffort: baseEffort, seedPrimaryMs: seedPrimaryMs, adaptive: msg.adaptive === true, parents: msg.parents,

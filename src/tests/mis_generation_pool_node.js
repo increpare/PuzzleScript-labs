@@ -277,6 +277,8 @@ test('real JS worker serves two levels, keeps the continuing context, and isolat
 	send({ type: 'generationJobs', jobs: [a] });
 	const retained = vm.runInContext('generationJobs[0].gen.stats().generated', sandbox);
 	assert(retained > 0);
+	const gateStats = vm.runInContext('generationJobs[0].gen.stats()', sandbox);
+	assert(gateStats.gateChecked > 0 && gateStats.gateFailed === 0 && gateStats.gatePassed === gateStats.gateChecked, 'real candidates pass the session certificate: ' + JSON.stringify(gateStats));
 	for (let i = 0; i < 4; i++) tick();
 	assert(messages.filter(m => m.type === 'candidate' && m.jobId === 'a').length > before);
 	const marker = messages.length;
@@ -284,6 +286,12 @@ test('real JS worker serves two levels, keeps the continuing context, and isolat
 	for (let i = 0; i < 4; i++) tick();
 	assert(messages.slice(marker).some(m => m.type === 'genError' && m.jobId === 'a' && m.revision === 2 && m.generationEpoch === 3));
 	assert(vm.runInContext("generationJobs.length === 1 && generationJobs[0].msg.jobId === 'b' && generationJobs[0].gen.stats().generated > 0", sandbox), 'the other real job continues sampling after the error');
+	// Adaptive step sizes and elite parents widen what the certificate may claim.
+	const c = { jobId: 'c', revision: 1, generationEpoch: 5, base, transform, seed: 5, adaptive: true, parents: 'elite' };
+	send({ type: 'generationJobs', jobs: [c] });
+	for (let i = 0; i < 30; i++) tick();
+	const wide = vm.runInContext('generationJobs[0].gen.stats()', sandbox);
+	assert(wide.gateChecked > 0 && wide.gateFailed === 0, 'adaptive, elite candidates pass their certificate: ' + JSON.stringify(wide));
 	send({ type: 'generationJobs', jobs: [] });
 	if (tasks.length) tick();
 	assert.strictEqual(tasks.length, 0);

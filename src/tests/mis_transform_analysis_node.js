@@ -71,6 +71,11 @@ function analyse(g, text) {
 	assert.deepStrictEqual(prog.errors, [], text);
 	return A.analyzeTransform(g.model, prog);
 }
+function countId(model, board, id) {
+	let n = 0;
+	for (let t = 0; t < board.w * board.h; t++) if (C.hasBit(board.cells, t, id, model.stride)) n++;
+	return n;
+}
 function count(model, board, name) {
 	const ids = model.names[name].ids;
 	let n = 0;
@@ -304,6 +309,337 @@ test('generator gate: facts reach the solver only for boards that pass', () => {
 	assert(first > 0 && seen[0] === facts, 'first board carried the facts');
 	assert(seen.slice(first).every(f => f === undefined), 'no facts after a failed check');
 	assert.strictEqual(s.gateFailed, 1, 'checking stops once withdrawn');
+});
+
+/////////////////////////////////////////////////////////////////////
+// Count ranges: exact counts, one-sided bounds, choose-bounded statements
+/////////////////////////////////////////////////////////////////////
+
+const idsOf = (model, name) => model.names[name].ids.slice().sort((a, b) => a - b);
+const keyOf = (model, name) => idsOf(model, name).join(',');
+function certFor(g, texts, board, opts) {
+	const programs = [].concat(texts).map(text => {
+		const prog = C.parseTransform(text, g.model);
+		assert.deepStrictEqual(prog.errors, [], text);
+		return prog;
+	});
+	const cert = A.sessionCertificate(g.model, programs, board, opts || {});
+	assert(cert.ok, cert.reason);
+	return cert;
+}
+function classIn(cert, model, name) {
+	const c = cert.classes.find(x => x.key === keyOf(model, name));
+	assert(c, name + ' class in certificate');
+	return c;
+}
+const FREE = 'no Wall no Crate no Player';
+const sokoCrates = count(soko.model, sokoBoard, 'crate');
+const sokoWalls = count(soko.model, sokoBoard, 'wall');
+const sokoTargets = count(soko.model, sokoBoard, 'target');
+
+test('exact counts: a crate shuffle keeps the crate count', () => {
+	const m = soko.model;
+	const cert = certFor(soko, 'choose 3 [ Crate | ' + FREE + ' ] -> [ | Crate ]', sokoBoard, { ruleQuantity: { objects: { crate: [true, true], player: [true, true] }, properties: [] } });
+	const crate = classIn(cert, m, 'crate');
+	assert.strictEqual(crate.candidates.exact_count, sokoCrates);
+	assert.strictEqual(crate.candidates.min, sokoCrates);
+	assert.strictEqual(crate.candidates.max, sokoCrates);
+	assert.strictEqual(crate.play.exact_count, sokoCrates, 'sokoban rules keep crates too');
+	assert.strictEqual(classIn(cert, m, 'target').candidates.exact_count, sokoTargets, 'untouched objects keep their count');
+	assert.strictEqual(classIn(cert, m, 'wall').candidates.exact_count, sokoWalls);
+	assert(cert.facts.candidates.exact_count.some(f => f.ids.join(',') === crate.key && f.count === sokoCrates));
+	assert(cert.facts.play.exact_count.some(f => f.ids.join(',') === crate.key && f.count === sokoCrates));
+});
+
+test('exact counts need both directions: one-sided transforms give one-sided bounds', () => {
+	const m = soko.model;
+	const remove = classIn(certFor(soko, '[ Wall ] -> [ ]', sokoBoard), m, 'wall');
+	assert.deepStrictEqual([remove.candidates.min, remove.candidates.max, remove.candidates.exact_count], [0, sokoWalls, null]);
+	const fill = classIn(certFor(soko, '[ ' + FREE + ' ] -> [ Wall ]', sokoBoard), m, 'wall');
+	assert.deepStrictEqual([fill.candidates.min, fill.candidates.max, fill.candidates.exact_count], [sokoWalls, null, null]);
+});
+
+test('a choose statement adds at most its count', () => {
+	const m = soko.model, crate = cert => classIn(cert, m, 'crate').candidates;
+	const one = crate(certFor(soko, 'choose 1 [ ' + FREE + ' ] -> [ Crate ]', sokoBoard));
+	assert.deepStrictEqual([one.min, one.max], [sokoCrates, sokoCrates + 1]);
+	const range = crate(certFor(soko, 'choose 2-3 [ ' + FREE + ' ] -> [ Crate ]', sokoBoard));
+	assert.deepStrictEqual([range.min, range.max], [sokoCrates, sokoCrates + 3], 'the top of a range bounds it');
+	const option = crate(certFor(soko, 'choose 2 option 0.5 [ Crate ] -> [ ]', sokoBoard));
+	assert.deepStrictEqual([option.min, option.max], [Math.max(0, sokoCrates - 2), sokoCrates]);
+	const either = crate(certFor(soko, 'choose 2 [ Crate ] -> [ ]\nor [ ' + FREE + ' ] -> [ Crate ]', sokoBoard));
+	assert.deepStrictEqual([either.min, either.max], [Math.max(0, sokoCrates - 2), sokoCrates + 2], 'each iteration applies one alternative');
+	const sum = crate(certFor(soko, 'choose 1 [ ' + FREE + ' ] -> [ Crate ]\nchoose 2 [ ' + FREE + ' ] -> [ Crate ]', sokoBoard));
+	assert.deepStrictEqual([sum.min, sum.max], [sokoCrates, sokoCrates + 3], 'statements add up');
+	const everywhere = crate(certFor(soko, '[ ' + FREE + ' ] -> [ Crate ]', sokoBoard));
+	assert.deepStrictEqual([everywhere.min, everywhere.max], [sokoCrates, null], 'an everywhere rule has no bound');
+	const neutral = crate(certFor(soko, '[ Crate | ' + FREE + ' ] -> [ | Crate ]', sokoBoard));
+	assert.strictEqual(neutral.exact_count, sokoCrates, 'everywhere is fine when each application keeps the count');
+});
+
+test('choose bounds prove at most one where the one-step rule cannot', () => {
+	const m = two.model;
+	assert.strictEqual(count(m, twoBoard2, 'gem'), 0);
+	const cert = certFor(two, 'choose 1 [ no Wall no Gem ] -> [ Gem ]', twoBoard2);
+	const gem = classIn(cert, m, 'gem');
+	assert.strictEqual(A.analyzeTransform(m, C.parseTransform('choose 1 [ no Wall no Gem ] -> [ Gem ]', m)).classes[gem.key].keeps_at_most_one, false);
+	assert.strictEqual(gem.candidates.at_most_one, true);
+	assert.strictEqual(gem.candidates.exactly_zero, false);
+	assert.deepStrictEqual([gem.candidates.min, gem.candidates.max], [0, 1]);
+	assert(cert.facts.candidates.at_most_one.some(ids => ids.join(',') === gem.key));
+	const many = classIn(certFor(two, '[ no Wall no Gem ] -> [ Gem ]', twoBoard2), m, 'gem');
+	assert.strictEqual(many.candidates.at_most_one, false);
+	const twice = classIn(certFor(two, 'choose 2 [ no Wall no Gem ] -> [ Gem ]', twoBoard2), m, 'gem');
+	assert.strictEqual(twice.candidates.at_most_one, false);
+	assert.strictEqual(twice.candidates.max, 2);
+});
+
+test('pair swap: counts stay within one, but are not kept', () => {
+	const m = soko.model;
+	const preset = C.derivePresets(m).find(p => p.id === 'pair-target-crate');
+	assert(preset, 'sokoban has a pair-swap preset');
+	const cert = certFor(soko, preset.text, sokoBoard);
+	for (const name of ['crate', 'target']) {
+		const c = classIn(cert, m, name).candidates, start = count(m, sokoBoard, name);
+		assert.strictEqual(c.exact_count, null, name + ' is not certified exact');
+		assert.deepStrictEqual([c.min, c.max], [start - 1, start + 1], name + ' range');
+	}
+	// The second statement can fail: put a crate on a target and lock every
+	// other tile. Removing that target and another crate leaves one free tile,
+	// and the pair needs two.
+	const b = C.cloneBoard(sokoBoard);
+	const has = (t, n) => C.hasBit(b.cells, t, m.names[n].ids[0], m.stride);
+	let onTarget = false;
+	for (let t = 0; t < b.w * b.h && !onTarget; t++) if (has(t, 'target') && has(t, 'crate')) onTarget = true;
+	for (let t = 0; t < b.w * b.h && !onTarget; t++) {
+		if (has(t, 'target') && !has(t, 'wall') && !has(t, 'player')) { C.placeObject(m, b.cells, t, m.names.crate.ids[0]); onTarget = true; }
+	}
+	assert(onTarget);
+	const frozen = new Uint8Array(b.w * b.h);
+	for (let t = 0; t < b.w * b.h; t++) frozen[t] = has(t, 'target') || has(t, 'crate') ? 0 : 1;
+	const prog = C.parseTransform(preset.text, m), rng = C.makeRng(99);
+	const crates = count(m, b, 'crate'), bcert = A.sessionCertificate(m, [prog], b, {});
+	let lost = 0;
+	for (let i = 0; i < 200; i++) {
+		const out = C.runTransform(m, prog, b, frozen, rng);
+		const n = count(m, out, 'crate');
+		assert(n >= crates - 1 && n <= crates + 1);
+		assert.deepStrictEqual(A.checkBoard(m, bcert, out), []);
+		if (n === crates - 1) lost++;
+	}
+	assert(lost > 0, 'the preset really can lose a pair');
+});
+
+test('an atomic pair move keeps exact counts', () => {
+	const m = soko.model, free = 'no Target ' + FREE;
+	const cert = certFor(soko, 'choose 3 [ Crate ] [ Target ] [ ' + free + ' ] [ ' + free + ' ] -> [ ] [ ] [ Crate ] [ Target ]', sokoBoard);
+	assert.strictEqual(classIn(cert, m, 'crate').candidates.exact_count, sokoCrates);
+	assert.strictEqual(classIn(cert, m, 'target').candidates.exact_count, sokoTargets);
+});
+
+test('adaptive scaling widens choose bounds', () => {
+	const m = soko.model, text = 'choose 2 [ ' + FREE + ' ] -> [ Crate ]';
+	assert.strictEqual(classIn(certFor(soko, text, sokoBoard), m, 'crate').candidates.max, sokoCrates + 2);
+	assert.strictEqual(classIn(certFor(soko, text, sokoBoard, { chooseScale: 2 }), m, 'crate').candidates.max, sokoCrates + 4);
+	assert.strictEqual(classIn(certFor(soko, 'choose 3 [ ' + FREE + ' ] -> [ Crate ]', sokoBoard, { chooseScale: 0.5 }), m, 'crate').candidates.max, sokoCrates + 3,
+		'scales below one never shrink the bound');
+});
+
+test('repeated transforms (elite parents) keep only one-step facts', () => {
+	const m = soko.model;
+	const cert = certFor(soko, 'choose 1 [ ' + FREE + ' ] -> [ Crate ]\nchoose 2 [ Player | ' + FREE + ' ] -> [ | Player ]', sokoBoard, { repeated: true });
+	const crate = classIn(cert, m, 'crate').candidates;
+	assert.deepStrictEqual([crate.min, crate.max], [sokoCrates, null], 'repeated adds have no bound');
+	assert.strictEqual(classIn(cert, m, 'target').candidates.exact_count, sokoTargets);
+	assert.strictEqual(cert.classes.find(c => c.isPlayer).candidates.exactly_one, true);
+});
+
+test('Auto: ranges cover every transform', () => {
+	const m = soko.model;
+	const crate = classIn(certFor(soko, ['choose 1 [ ' + FREE + ' ] -> [ Crate ]', 'choose 2 [ Crate ] -> [ ]'], sokoBoard), m, 'crate').candidates;
+	assert.deepStrictEqual([crate.min, crate.max], [Math.max(0, sokoCrates - 2), sokoCrates + 1]);
+	const both = classIn(certFor(soko, ['[ Crate | ' + FREE + ' ] -> [ | Crate ]', 'choose 2 [ Crate | ' + FREE + ' ] -> [ | Crate ]'], sokoBoard), m, 'crate');
+	assert.strictEqual(both.candidates.exact_count, sokoCrates);
+});
+
+test('checkBoard enforces count ranges', () => {
+	const m = soko.model;
+	const cert = certFor(soko, 'choose 1 [ ' + FREE + ' ] -> [ Crate ]', sokoBoard);
+	const free = [];
+	for (let t = 0; t < sokoBoard.w * sokoBoard.h; t++) {
+		if (!['wall', 'crate', 'player'].some(n => C.hasBit(sokoBoard.cells, t, m.names[n].ids[0], m.stride))) free.push(t);
+	}
+	const one = C.cloneBoard(sokoBoard);
+	C.placeObject(m, one.cells, free[0], m.names.crate.ids[0]);
+	assert.deepStrictEqual(A.checkBoard(m, cert, one), []);
+	const two_ = C.cloneBoard(one);
+	C.placeObject(m, two_.cells, free[1], m.names.crate.ids[0]);
+	assert(A.checkBoard(m, cert, two_).some(v => /crate/i.test(v) && /at most/.test(v)), 'two extra crates break the bound');
+	const fewer = C.cloneBoard(sokoBoard);
+	for (let t = 0; t < fewer.w * fewer.h; t++) if (C.hasBit(fewer.cells, t, m.names.crate.ids[0], m.stride)) { C.clearBit(fewer.cells, t, m.names.crate.ids[0], m.stride); break; }
+	assert(A.checkBoard(m, cert, fewer).some(v => /crate/i.test(v) && /at least/.test(v)), 'a missing crate breaks the bound');
+});
+
+test('play ranges follow the rules', () => {
+	const m = soko.model, text = 'choose 1 [ ' + FREE + ' ] -> [ Crate ]';
+	const grows = classIn(certFor(soko, text, sokoBoard, { ruleQuantity: { objects: { crate: [false, true] }, properties: [] } }), m, 'crate');
+	assert.deepStrictEqual([grows.play.min, grows.play.max], [sokoCrates, null]);
+	const shrinks = classIn(certFor(soko, text, sokoBoard, { ruleQuantity: { objects: { crate: [true, false] }, properties: [] } }), m, 'crate');
+	assert.deepStrictEqual([shrinks.play.min, shrinks.play.max], [0, sokoCrates + 1]);
+	assert.strictEqual(shrinks.play.at_most_one, false);
+	const unknown = classIn(certFor(soko, text, sokoBoard), m, 'crate');
+	assert.strictEqual(unknown.play, null);
+});
+
+test('facts list bounded counts for consumers', () => {
+	const m = soko.model;
+	const cert = certFor(soko, 'choose 1 [ ' + FREE + ' ] -> [ Crate ]\n[ Wall ] -> [ ]', sokoBoard);
+	const entry = name => cert.facts.candidates.counts.find(f => f.ids.join(',') === keyOf(m, name));
+	assert.deepStrictEqual(entry('crate'), { ids: idsOf(m, 'crate'), min: sokoCrates, max: sokoCrates + 1 });
+	assert.deepStrictEqual(entry('wall'), { ids: idsOf(m, 'wall'), min: 0, max: sokoWalls });
+	assert(!cert.facts.candidates.exact_count.some(f => f.ids.join(',') === keyOf(m, 'crate')));
+	const fill = A.sessionCertificate(m, [C.parseTransform('[ ' + FREE + ' ] -> [ Wall ]', m)], sokoBoard, {});
+	assert.deepStrictEqual(fill.facts.candidates.counts.find(f => f.ids.join(',') === keyOf(m, 'wall')), { ids: idsOf(m, 'wall'), min: sokoWalls, max: null });
+	assert.notStrictEqual(A.gate(m, cert), null, 'bounds alone make a gate');
+});
+
+test('run ranges per transform', () => {
+	const m = soko.model, key = keyOf(m, 'crate');
+	const a = A.analyzeTransform(m, C.parseTransform('choose 2-4 [ ' + FREE + ' ] -> [ Crate ]\n[ Crate | ' + FREE + ' ] -> [ | Crate ]\nchoose 1 option 0.5 [ Crate ] -> [ ]', m));
+	assert.deepStrictEqual(a.classes[key].run, { min: -1, max: 4 });
+	const b = A.analyzeTransform(m, C.parseTransform('[ Crate ] -> [ ]', m));
+	assert.deepStrictEqual(b.classes[key].run, { min: -Infinity, max: 0 });
+	const scaled = A.analyzeTransform(m, C.parseTransform('choose 3 [ ' + FREE + ' ] -> [ Crate ]', m), { chooseScale: 2 });
+	assert.deepStrictEqual(scaled.classes[key].run, { min: 0, max: 6 });
+	const never = A.analyzeTransform(m, C.parseTransform('choose 5 [ Wall Crate ] -> [ ]', m));
+	assert.deepStrictEqual(never.classes[key].run, { min: 0, max: 0 }, 'an alternative that can never match changes nothing');
+});
+
+/////////////////////////////////////////////////////////////////////
+// Fuzz: every candidate passes its session certificate
+/////////////////////////////////////////////////////////////////////
+
+// Random transforms mixing every statement form: everywhere, choose N,
+// choose a-b, option probabilities and 'or' alternatives.
+function randomTransform(rng, rules) {
+	const pick = list => list[Math.floor(rng() * list.length)];
+	const lines = [];
+	const n = 1 + Math.floor(rng() * 3);
+	for (let i = 0; i < n; i++) {
+		const r = rng();
+		const head = r < 0.25 ? '' : r < 0.6 ? 'choose ' + (1 + Math.floor(rng() * 4)) + ' ' : 'choose ' + Math.floor(rng() * 3) + '-' + (1 + Math.floor(rng() * 4)) + ' ';
+		const alt = () => (rng() < 0.3 ? 'option ' + (0.2 + 0.2 * Math.floor(rng() * 4)).toFixed(1) + ' ' : '') + pick(rules);
+		let line = head + alt();
+		if (head && rng() < 0.35) line += ' or ' + alt();
+		lines.push(line);
+		if (rng() < 0.25) lines.push('or ' + alt());
+	}
+	return lines.join('\n');
+}
+const FUZZ_POOLS = [
+	[soko, () => [sokoBoard, soko.model.levels.filter(l => l.board)[1].board], [
+		'[ Player | no Wall ] -> [ | Player ]', '[ Player | no Wall no Crate ] -> [ | Player ]', '[ no Wall ] -> [ Player ]',
+		'[ no Wall ] -> [ Crate ]', '[ no Wall no Player ] -> [ Crate ]', '[ Crate | Player ] -> [ Player | Crate ]',
+		'[ Crate ] [ Target ] -> [ ] [ ]', '[ Target no Crate ] -> [ Target Crate ]', '[ Wall ] -> [ Player ]',
+		'[ Player ] -> [ Crate ]', '[ Player | Crate ] -> [ Crate | Player ]', '[ no Player | Player ] -> [ Player | ]',
+		'[ Crate no Target ] -> [ Target ]', '[ Wall | no Wall ] -> [ | Wall ]', '[ Crate ] -> [ ]', '[ Wall ] -> [ ]',
+		'[ no Target ' + FREE + ' ] -> [ Target ]', '[ ' + FREE + ' ] -> [ Crate ]', '[ Crate | ' + FREE + ' ] -> [ | Crate ]',
+		'[ Crate ] [ Target ] [ no Target ' + FREE + ' ] [ no Target ' + FREE + ' ] -> [ ] [ ] [ Crate ] [ Target ]',
+	]],
+	[two, () => [twoBoard, twoBoard2], [
+		'[ PlayerL ] -> [ PlayerR ]', '[ Player ] -> [ Player Gem ]', '[ Player | no Wall ] -> [ | PlayerL ]',
+		'[ Gem | no Gem ] -> [ | Gem ]', '[ no Wall ] -> [ Gem ]', '[ Gem ] -> [ ]', '[ PlayerL | no Player ] -> [ PlayerL | PlayerL ]',
+		'[ Player no Gem ] -> [ Player Gem ]', '[ no Player | PlayerL ] -> [ PlayerL | ]', '[ Crate ] -> [ PlayerR ]',
+		'[ PlayerR | no Wall no Crate no Player ] -> [ | PlayerR ]', '[ no Gem ] [ Gem ] -> [ Gem ] [ ]', '[ no Wall no Gem ] -> [ Gem ]',
+	]],
+];
+function randomFrozen(rng, board) {
+	if (rng() < 0.5) return null;
+	const f = new Uint8Array(board.w * board.h);
+	for (let t = 0; t < f.length; t++) f[t] = rng() < 0.3 ? 1 : 0;
+	return f;
+}
+// The generator's step-size arms (mis_generator.js scaleProgram).
+function scaleProgram(prog, scale) {
+	return { errors: prog.errors, statements: prog.statements.map(st => {
+		if (!st.choose) return st;
+		const lo = Math.max(1, Math.round(st.choose[0] * scale));
+		return Object.assign({}, st, { choose: [lo, Math.max(lo, Math.round(st.choose[1] * scale))] });
+	}) };
+}
+
+test('fuzz: every candidate from the start board passes the certificate', () => {
+	const rng = C.makeRng(2024);
+	let boards = 0, bounded = 0;
+	for (const [g, getBoards, rules] of FUZZ_POOLS) {
+		const m = g.model;
+		for (let trial = 0; trial < 150; trial++) {
+			const text = randomTransform(rng, rules), prog = C.parseTransform(text, m);
+			assert.deepStrictEqual(prog.errors, [], text);
+			const analysis = A.analyzeTransform(m, prog);
+			for (const base of getBoards()) {
+				const cert = A.sessionCertificate(m, [prog], base, {});
+				bounded += cert.facts.candidates.counts.length;
+				for (let run = 0; run < 8; run++) {
+					const out = C.runTransform(m, prog, base, randomFrozen(rng, base), rng);
+					boards++;
+					assert.deepStrictEqual(A.checkBoard(m, cert, out), [], text);
+					for (const c of cert.classes) {
+						const r = analysis.classes[c.key].run;
+						const d = c.ids.reduce((s, id) => s + countId(m, out, id) - countId(m, base, id), 0);
+						assert(d >= r.min && d <= r.max, 'run range ' + c.name + ' ' + d + ' not in [' + r.min + ', ' + r.max + ']: ' + text);
+					}
+				}
+			}
+		}
+	}
+	assert(boards > 4000 && bounded > 1000, boards + ' boards, ' + bounded + ' bounded classes');
+});
+
+test('fuzz: chained candidates pass a repeated-mode certificate', () => {
+	const rng = C.makeRng(77);
+	let boards = 0, bounded = 0;
+	for (const [g, getBoards, rules] of FUZZ_POOLS) {
+		const m = g.model;
+		for (let trial = 0; trial < 80; trial++) {
+			const text = randomTransform(rng, rules), prog = C.parseTransform(text, m);
+			for (const base of getBoards()) {
+				const cert = A.sessionCertificate(m, [prog], base, { repeated: true });
+				bounded += cert.facts.candidates.counts.filter(f => f.max !== null).length;
+				let parent = base;
+				for (let run = 0; run < 12; run++) {
+					const out = C.runTransform(m, prog, parent, null, rng);
+					boards++;
+					assert.deepStrictEqual(A.checkBoard(m, cert, out), [], text + ' (generation ' + run + ')');
+					parent = rng() < 0.7 ? out : base;
+				}
+			}
+		}
+	}
+	assert(boards > 2000 && bounded > 500, boards + ' boards, ' + bounded + ' upper bounds');
+});
+
+test('fuzz: scaled step sizes stay inside a chooseScale certificate', () => {
+	const rng = C.makeRng(31337);
+	let boards = 0, choosey = 0;
+	for (const [g, getBoards, rules] of FUZZ_POOLS) {
+		const m = g.model;
+		for (let trial = 0; trial < 80; trial++) {
+			const text = randomTransform(rng, rules), prog = C.parseTransform(text, m);
+			for (const base of getBoards()) {
+				const cert = A.sessionCertificate(m, [prog], base, { chooseScale: MISGenerator.MAX_CHOOSE_SCALE });
+				const plain = A.sessionCertificate(m, [prog], base, {});
+				// Classes whose bound the scaling widens: the case this test is about.
+				choosey += cert.classes.filter((c, i) => c.candidates.max !== plain.classes[i].candidates.max).length;
+				for (const scale of [0.125, 0.25, 0.5, 1, 2]) {
+					const out = C.runTransform(m, scaleProgram(prog, scale), base, null, rng);
+					boards++;
+					assert.deepStrictEqual(A.checkBoard(m, cert, out), [], text + ' at scale ' + scale);
+				}
+			}
+		}
+	}
+	assert(boards > 1000 && choosey > 100, boards + ' boards, ' + choosey + ' widened bounds');
 });
 
 console.log('\n' + passed + ' passed');

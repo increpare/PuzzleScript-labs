@@ -23,11 +23,19 @@
 // the match, given the left-hand side, the rewrite gives exactly one object
 // (or nothing) after it, so each slot's change is exact per starting object.
 //
+// A statement also bounds how often it applies: `choose N` applies at most N
+// matches (one alternative per iteration), an everywhere rule any number. So a
+// whole run of a transform changes a class's count by at most the sum of each
+// statement's per-application range times its limit (`run`). Statements are
+// not atomic: in a two-statement "remove a pair, add a pair" the second can
+// fail to apply, so the run range is all that is proved, not an exact count.
+//
 // The certificate (sessionCertificate) combines this with the start board's
-// counts and, when known, the game rules' quantity tags from static_analysis.js:
-// `candidates` facts hold on every board the generator produces, `play` facts
-// also on every state the game reaches from them. The generator re-checks each
-// candidate (checkBoard) before handing the facts to the solver.
+// counts and, when known, the game rules' quantity tags from static_analysis.js.
+// Per class it gives a count range: `candidates` holds on every board the
+// generator produces, `play` also on every state the game reaches from them.
+// The generator re-checks each candidate (checkBoard) before handing the facts
+// to the solver.
 
 const MISTransformAnalysis = (function () {
 
@@ -201,7 +209,26 @@ const MISTransformAnalysis = (function () {
 
 	// Per-class facts of one parsed transform (MISCore.parseTransform), plus the
 	// objects it may write into or erase from a cell.
-	function analyzeTransform(model, program) {
+	// How many matches a `choose` statement with this upper count may apply,
+	// when the generator may scale counts by up to `scale` (its adaptive step
+	// size; scaled counts never drop below one).
+	function chooseLimit(hi, scale) {
+		if (!scale || scale === 1) return hi;
+		return Math.max(hi, Math.ceil(hi * scale), 1);
+	}
+
+	// Count change of `times` applications, each in `range` (which holds 0).
+	function repeat(times, range) {
+		return {
+			min: range.min === 0 ? 0 : times * range.min,
+			max: range.max === 0 ? 0 : times * range.max,
+		};
+	}
+
+	// opts.chooseScale: the largest factor the generator may scale `choose`
+	// counts by (MISGenerator.MAX_CHOOSE_SCALE in adaptive mode; default 1).
+	function analyzeTransform(model, program, opts) {
+		opts = opts || {};
 		const cls = classes(model);
 		const out = { classes: {}, created: [], destroyed: [] };
 		const created = new Set(), destroyed = new Set();
@@ -210,9 +237,12 @@ const MISTransformAnalysis = (function () {
 				key: c.key, name: c.name, ids: c.ids,
 				never_increases: true, never_decreases: true, keeps_zero: true, keeps_one: true, keeps_at_most_one: true,
 				blockers: { never_increases: [], never_decreases: [], keeps_zero: [], keeps_one: [], keeps_at_most_one: [] },
+				// Count change over one run of the whole transform (may be infinite).
+				run: { min: 0, max: 0 },
 			};
 		});
 		(program.statements || []).forEach(function (stmt) {
+			const perApplication = {}; // class key -> range of one application of any alternative
 			stmt.alts.forEach(function (alt) {
 				const slots = alternativeSlots(model, alt);
 				if (!slots) return; // never matches
@@ -236,7 +266,16 @@ const MISTransformAnalysis = (function () {
 					if (d.none && d.none.max > 0) fail('keeps_zero');
 					if (d.one && (d.one.min !== 0 || d.one.max !== 0)) fail('keeps_one');
 					if ((d.none && d.none.max > 1) || (d.one && d.one.max > 0)) fail('keeps_at_most_one');
+					perApplication[c.key] = union(perApplication[c.key], d.general);
 				});
+			});
+			const times = stmt.choose ? chooseLimit(stmt.choose[1], opts.chooseScale) : Infinity;
+			cls.forEach(function (c) {
+				const r = perApplication[c.key];
+				if (!r) return;
+				const run = out.classes[c.key].run, step = repeat(times, r);
+				run.min += step.min;
+				run.max += step.max;
 			});
 		});
 		out.created = sortedIds(Array.from(created));
@@ -302,50 +341,80 @@ const MISTransformAnalysis = (function () {
 
 	const TAGS = ['exactly_zero', 'exactly_one', 'at_most_one'];
 
+	// A count range as the certificate reports it (max null when unbounded).
+	function bounds(min, max) {
+		min = Math.max(0, min);
+		return {
+			min: min, max: max === Infinity ? null : max,
+			exact_count: min === max ? min : null,
+			exactly_zero: max === 0,
+			exactly_one: min === 1 && max === 1,
+			at_most_one: max <= 1,
+		};
+	}
+
 	// Facts for one generation session: its start board and every transform
-	// it may apply (programs: parsed transforms). opts.ruleQuantity: the table
-	// for ruleQuantityFor, or null when the rules' tags are unknown.
+	// it may apply (programs: parsed transforms). Options:
+	//   ruleQuantity: the table for ruleQuantityFor, or null when the rules'
+	//     tags are unknown (then there are no play facts);
+	//   chooseScale: the largest factor the generator may scale `choose`
+	//     counts by (adaptive step size);
+	//   repeated: candidates may be transforms of earlier candidates (elite
+	//     parents), so only facts every single application keeps hold, not the
+	//     run ranges.
 	function sessionCertificate(model, programs, base, opts) {
 		opts = opts || {};
 		const form = wellFormed(model, base);
 		const counts = idCounts(model, base);
-		const analyses = programs.map(function (p) { return analyzeTransform(model, p); });
+		const analyses = programs.map(function (p) { return analyzeTransform(model, p, { chooseScale: opts.chooseScale }); });
 		const created = new Set();
 		analyses.forEach(function (a) { a.created.forEach(function (id) { created.add(id); }); });
 		const cert = {
 			ok: form.ok, reason: form.reason || null, classes: [],
-			objectsMayAppear: [], rulesKnown: !!opts.ruleQuantity,
+			objectsMayAppear: [], rulesKnown: !!opts.ruleQuantity, repeated: !!opts.repeated,
 			facts: { candidates: {}, play: {}, objectsMayAppear: [] },
 		};
-		TAGS.forEach(function (tag) { cert.facts.candidates[tag] = []; cert.facts.play[tag] = []; });
+		['candidates', 'play'].forEach(function (scope) {
+			TAGS.forEach(function (tag) { cert.facts[scope][tag] = []; });
+			cert.facts[scope].counts = [];
+			cert.facts[scope].exact_count = [];
+		});
 		classes(model).forEach(function (c) {
 			const start = c.ids.reduce(function (n, id) { return n + counts[id]; }, 0);
-			const t = { blockers: {} };
-			['keeps_zero', 'keeps_one', 'keeps_at_most_one'].forEach(function (k) {
-				t[k] = analyses.every(function (a) { return a.classes[c.key][k]; });
-				t.blockers[k] = [];
-				analyses.forEach(function (a, i) {
-					a.classes[c.key].blockers[k].forEach(function (line) { t.blockers[k].push({ transform: i, line: line }); });
-				});
+			const per = analyses.map(function (a) { return a.classes[c.key]; });
+			const all = function (k) { return per.every(function (f) { return f[k]; }); };
+			const blockers = {};
+			['keeps_zero', 'keeps_one', 'keeps_at_most_one', 'never_increases', 'never_decreases'].forEach(function (k) {
+				blockers[k] = [];
+				per.forEach(function (f, i) { f.blockers[k].forEach(function (line) { blockers[k].push({ transform: i, line: line }); }); });
 			});
-			const candidates = {
-				exactly_zero: form.ok && start === 0 && t.keeps_zero,
-				exactly_one: form.ok && start === 1 && t.keeps_one,
-				at_most_one: form.ok && start <= 1 && t.keeps_at_most_one,
-			};
+			let min = 0, max = Infinity;
+			if (form.ok) {
+				// Kept by every single application, so by any number of them.
+				if (all('never_increases')) max = Math.min(max, start);
+				if (all('never_decreases')) min = Math.max(min, start);
+				if (start === 0 && all('keeps_zero')) max = 0;
+				if (start === 1 && all('keeps_one')) { min = Math.max(min, 1); max = Math.min(max, 1); }
+				if (start <= 1 && all('keeps_at_most_one')) max = Math.min(max, 1);
+				// One run of one transform from the start board.
+				if (!opts.repeated && per.length) {
+					min = Math.max(min, start + Math.min.apply(null, per.map(function (f) { return f.run.min; })));
+					max = Math.min(max, start + Math.max.apply(null, per.map(function (f) { return f.run.max; })));
+				}
+			}
+			const candidates = bounds(min, max);
 			const rules = opts.ruleQuantity ? ruleQuantityFor(model, opts.ruleQuantity, c.ids) : null;
-			const play = rules ? {
-				exactly_zero: candidates.exactly_zero && rules.never_increases,
-				exactly_one: candidates.exactly_one && rules.never_increases && rules.never_decreases,
-				at_most_one: candidates.at_most_one && rules.never_increases,
-			} : null;
+			const play = rules ? bounds(rules.never_decreases ? candidates.min : 0, rules.never_increases ? max : Infinity) : null;
 			cert.classes.push({
 				key: c.key, name: c.name, names: c.names, ids: c.ids, kind: c.kind, isPlayer: c.isPlayer,
-				start: start, candidates: candidates, play: play, rules: rules, blockers: t.blockers,
+				start: start, candidates: candidates, play: play, rules: rules, blockers: blockers,
 			});
-			TAGS.forEach(function (tag) {
-				if (candidates[tag]) cert.facts.candidates[tag].push(c.ids);
-				if (play && play[tag]) cert.facts.play[tag].push(c.ids);
+			[['candidates', candidates], ['play', play]].forEach(function (pair) {
+				const facts = cert.facts[pair[0]], b = pair[1];
+				if (!b) return;
+				TAGS.forEach(function (tag) { if (b[tag]) facts[tag].push(c.ids); });
+				if (b.min > 0 || b.max !== null) facts.counts.push({ ids: c.ids, min: b.min, max: b.max });
+				if (b.exact_count !== null) facts.exact_count.push({ ids: c.ids, count: b.exact_count });
 			});
 		});
 		if (form.ok) {
@@ -365,9 +434,9 @@ const MISTransformAnalysis = (function () {
 		const counts = idCounts(model, board);
 		cert.classes.forEach(function (c) {
 			const n = c.ids.reduce(function (sum, id) { return sum + counts[id]; }, 0);
-			if (c.candidates.exactly_zero && n !== 0) out.push(c.name + ': expected none, found ' + n);
-			if (c.candidates.exactly_one && n !== 1) out.push(c.name + ': expected exactly one, found ' + n);
-			if (c.candidates.at_most_one && n > 1) out.push(c.name + ': expected at most one, found ' + n);
+			const b = c.candidates;
+			if (b.max !== null && n > b.max) out.push(c.name + ': expected at most ' + b.max + ', found ' + n);
+			if (n < b.min) out.push(c.name + ': expected at least ' + b.min + ', found ' + n);
 		});
 		const may = new Set(cert.objectsMayAppear);
 		counts.forEach(function (n, id) {
@@ -377,10 +446,9 @@ const MISTransformAnalysis = (function () {
 	}
 
 	// A generator gate ({ facts, check }) for the session, or null if the
-	// certificate proves nothing.
+	// certificate bounds no count.
 	function gate(model, cert) {
-		const f = cert.facts.candidates;
-		if (!cert.ok || !(f.exactly_zero.length || f.exactly_one.length || f.at_most_one.length)) return null;
+		if (!cert.ok || !cert.facts.candidates.counts.length) return null;
 		return { facts: cert.facts, check: function (board) { return checkBoard(model, cert, board).length === 0; } };
 	}
 

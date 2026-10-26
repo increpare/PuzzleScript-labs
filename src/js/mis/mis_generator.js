@@ -25,6 +25,10 @@ const MISGenerator = (function () {
 	const WORK_STATES_PER_MS = 50;
 	const WORK_TIME_LIMIT_MS = 120000; // safety net only: states budgets bind first
 	const WORK_PER_SAMPLE = 1; // states charged per sampled board (transform + dedupe)
+	// Adaptive step sizes scale `choose` counts by these factors. The session
+	// certificate (mis_transform_analysis.js) bounds counts by the largest.
+	const CHOOSE_SCALES = [0.125, 0.25, 0.5, 1, 2];
+	const MAX_CHOOSE_SCALE = Math.max.apply(null, CHOOSE_SCALES);
 
 	function create(opts) {
 		const model = opts.model, backend = opts.backend, C = MISCore;
@@ -99,7 +103,7 @@ const MISGenerator = (function () {
 			const arms = [];
 			const hasChoose = entry.program.statements.some(function (st) { return !!st.choose; });
 			// Scaling changes the written choose counts, so require explicit opt-in.
-			const scales = opts.adaptive === true && hasChoose ? [0.125, 0.25, 0.5, 1, 2] : [1];
+			const scales = opts.adaptive === true && hasChoose ? CHOOSE_SCALES : [1];
 			scales.forEach(function (scale) {
 				arms.push({ scale: scale, program: scaleProgram(entry.program, scale), ms: 0, reward: 0, pulls: 0 });
 			});
@@ -370,7 +374,7 @@ const MISGenerator = (function () {
 		};
 	}
 
-	return { create: create, WORK_STATES_PER_MS: WORK_STATES_PER_MS };
+	return { create: create, WORK_STATES_PER_MS: WORK_STATES_PER_MS, MAX_CHOOSE_SCALE: MAX_CHOOSE_SCALE };
 })();
 
 if (typeof module !== 'undefined' && module.exports) module.exports = MISGenerator;

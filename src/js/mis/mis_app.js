@@ -1915,17 +1915,23 @@
 			return '<span class="dry" title="A suggestion broke a fact the transform analysis proved (mis_transform_analysis.js): a bug. The solver no longer gets those facts in this session.">⚠ ' + t.gateFailed + ' suggestion' + (t.gateFailed === 1 ? '' : 's') + ' broke the transform certificate</span>';
 		}
 		if (!cert || !cert.ok) return '';
-		const names = function (scope, tag) { return cert.classes.filter(function (c) { return c[scope] && c[scope][tag]; }).map(function (c) { return c.name; }); };
-		const one = names('candidates', 'exactly_one');
-		if (!one.length) return '';
-		const player = cert.classes.find(function (c) { return c.isPlayer; });
-		const playOne = names('play', 'exactly_one');
-		const tip = ['Every suggestion has exactly one of: ' + one.join(', ') + '.',
-			cert.rulesKnown ? (playOne.length ? 'The rules keep it so in play too, for: ' + playOne.join(', ') + '.' : 'The rules may change these counts in play.') : 'The rules\u2019 count tags aren\u2019t known yet.',
-			'At most one: ' + (names('candidates', 'at_most_one').join(', ') || 'none') + '.',
+		const certClasses = cert.classes;
+		// Counts of zero are left out: they are every absent object.
+		const exact = certClasses.filter(function (c) { return c.candidates.exact_count; });
+		const ranged = certClasses.filter(function (c) { return c.candidates.exact_count === null && (c.candidates.max !== null || c.candidates.min > 0); });
+		if (!exact.length && !ranged.length) return '';
+		const playKept = certClasses.filter(function (c) { return c.play && c.play.exact_count; }).map(function (c) { return c.name; });
+		const rangeText = function (c) { return c.name + ' ' + c.candidates.min + (c.candidates.max === null ? '+' : '–' + c.candidates.max); };
+		const tip = [
+			exact.length ? 'Every suggestion keeps these counts: ' + exact.map(function (c) { return c.name + ' ' + c.candidates.exact_count; }).join(', ') + '.' : '',
+			ranged.length ? 'Counts stay within: ' + ranged.map(rangeText).join(', ') + '.' : '',
+			cert.rulesKnown ? (playKept.length ? 'The rules keep these in play too: ' + playKept.join(', ') + '.' : 'The rules may change these counts in play.') : 'The rules’ count tags aren’t known yet.',
 			'Objects that can appear: ' + cert.objectsMayAppear.map(function (id) { return app.model.objects[id].display; }).join(', ') + '.',
-			t.gateChecked ? 'Checked ' + t.gatePassed.toLocaleString() + ' suggestions against this.' : ''].filter(Boolean).join('\n');
-		const label = player && player.candidates.exactly_one ? 'one Player' : one.length + ' singleton' + (one.length === 1 ? '' : 's');
+			t.gateChecked ? 'Checked ' + t.gatePassed.toLocaleString() + ' suggestions against this.' : '',
+		].filter(Boolean).join('\n');
+		const player = certClasses.find(function (c) { return c.isPlayer; });
+		const label = player && player.candidates.exactly_one ? 'one Player' + (exact.length > 1 ? ', ' + (exact.length - 1) + ' more counts kept' : '')
+			: exact.length ? exact.length + ' count' + (exact.length === 1 ? '' : 's') + ' kept' : 'counts bounded';
 		return '<span title="' + escapeHtml(tip) + '">' + label + ' ✓</span>';
 	}
 
