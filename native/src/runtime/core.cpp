@@ -3111,6 +3111,20 @@ std::pair<int32_t, int32_t> directionMaskToDelta(int32_t directionMask) {
     }
 }
 
+// True when the per-object cell index matches the current board exactly.
+bool objectCellIndexReady(const FullState& session) {
+#if PS_INTERPRETER_OBJECT_CELL_INDEX
+    const int32_t tileCount = currentLevelWidth(session) * currentLevelHeight(session);
+    return !session.scratch.objectCellIndexDirty
+        && session.scratch.objectCellBitTileCount == tileCount
+        && session.scratch.objectCellBits.size() == static_cast<size_t>(session.game->objectCount) * objectCellWordCount(session)
+        && session.scratch.objectCellCounts.size() == static_cast<size_t>(session.game->objectCount);
+#else
+    (void)session;
+    return false;
+#endif
+}
+
 bool seedPlayerMovements(FullState& session, int32_t directionMask) {
     const Game& game = *session.game;
     if (directionMask == 0 || game.playerMask == kNullMaskOffset) {
@@ -3125,22 +3139,19 @@ bool seedPlayerMovements(FullState& session, int32_t directionMask) {
     const uint32_t movementStride = static_cast<uint32_t>(game.strideMovement);
     MaskVector playerCellMask;
     MaskVector movementMask;
-    for (int32_t tileIndex = 0; tileIndex < tileCount; ++tileIndex) {
+    // Sets the input direction on every player layer in a tile that holds
+    // the player (all player objects, for an aggregate Player).
+    const auto seedTile = [&](int32_t tileIndex) {
         const MaskWord* cellMaskPtr = getCellObjectsPtr(session, tileIndex);
         if (!game.playerMaskAggregate) {
             if (!anyBitsInCommon(cellMaskPtr, objectStride, playerMask, wordCount)) {
-                continue;
+                return;
             }
         } else {
-            bool containsAll = true;
             for (uint32_t word = 0; word < wordCount; ++word) {
                 if ((cellMaskPtr[word] & playerMask[word]) != playerMask[word]) {
-                    containsAll = false;
-                    break;
+                    return;
                 }
-            }
-            if (!containsAll) {
-                continue;
             }
         }
 
@@ -3151,7 +3162,7 @@ bool seedPlayerMovements(FullState& session, int32_t directionMask) {
         }
         const auto layers = findLayersInMask(session, playerCellMask);
         if (layers.empty()) {
-            continue;
+            return;
         }
 
         const MaskWord* movementSrc = getCellMovementsPtr(session, tileIndex);
@@ -3168,6 +3179,43 @@ bool seedPlayerMovements(FullState& session, int32_t directionMask) {
             setCellMovements(session, tileIndex, movementMask);
             changed = true;
         }
+    };
+
+#if PS_INTERPRETER_OBJECT_CELL_INDEX
+    // Visit only the tiles the object-cell index says hold player objects
+    // (union over Player's objects, or intersection for an aggregate),
+    // instead of the whole board. Usually that is a single tile.
+    if (objectCellIndexReady(session)) {
+        const size_t cellWordCount = objectCellWordCount(session);
+        for (size_t cellWord = 0; cellWord < cellWordCount; ++cellWord) {
+            MaskWordUnsigned tiles = game.playerMaskAggregate ? ~MaskWordUnsigned{0} : MaskWordUnsigned{0};
+            for (uint32_t word = 0; word < wordCount; ++word) {
+                MaskWordUnsigned objectBits = static_cast<MaskWordUnsigned>(playerMask[word]);
+                while (objectBits != 0) {
+                    const int32_t bit = maskWordCountTrailingZeros(objectBits);
+                    objectBits &= objectBits - 1;
+                    const int32_t objectId = static_cast<int32_t>(word) * static_cast<int32_t>(kMaskWordBits) + bit;
+                    if (objectId >= game.objectCount) {
+                        continue;
+                    }
+                    const MaskWordUnsigned cells = session.scratch.objectCellBits[static_cast<size_t>(objectId) * cellWordCount + cellWord];
+                    tiles = game.playerMaskAggregate ? (tiles & cells) : (tiles | cells);
+                }
+            }
+            while (tiles != 0) {
+                const int32_t bit = maskWordCountTrailingZeros(tiles);
+                tiles &= tiles - 1;
+                const int32_t tileIndex = static_cast<int32_t>(cellWord * kMaskWordBits) + bit;
+                if (tileIndex < tileCount) {
+                    seedTile(tileIndex);
+                }
+            }
+        }
+        return changed;
+    }
+#endif
+    for (int32_t tileIndex = 0; tileIndex < tileCount; ++tileIndex) {
+        seedTile(tileIndex);
     }
 
     return changed;
