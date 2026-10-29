@@ -9,7 +9,7 @@
 namespace {
 
 std::string gameWithRule(const std::string& ruleLine) {
-    return "title test\nauthor test\n\n========\nOBJECTS\n========\n\nBackground\nblack\n\nPlayer\ngreen\n\nWall\nbrown\n\nStrap\norange\n\n=======\nLEGEND\n=======\n\n. = Background\nP = Player\n# = Wall\nS = Strap\n\n=======\nSOUNDS\n=======\n\n================\nCOLLISIONLAYERS\n================\n\nBackground\nPlayer, Wall, Strap\n\n======\nRULES\n======\n\n"
+    return "title test\nauthor test\n\n========\nOBJECTS\n========\n\nBackground\nblack\n\nPlayer\ngreen\n\nWall\nbrown\n\nStrap\norange\n\n=======\nLEGEND\n=======\n\n. = Background\nP = Player\n# = Wall\nS = Strap\nChoice = Player or Wall or Strap\nExcluded = Player or Wall\nExcludedAlias = Excluded\nAllChoices = Player or Wall or Strap\n\n=======\nSOUNDS\n=======\n\n================\nCOLLISIONLAYERS\n================\n\nBackground\nPlayer, Wall, Strap\n\n======\nRULES\n======\n\n"
         + ruleLine + "\n\n==============\nWINCONDITIONS\n==============\n\n=======\nLEVELS\n=======\n\n.\n";
 }
 
@@ -65,6 +65,17 @@ int main() {
         assert(hasMessageContaining(
             diagnostics,
             "You cannot specify the same object more than once in a single cell (in this case PLAYER occurs multiple times)."));
+    }
+    for (const std::string& constraint : {"no player", "no excluded", "no excludedalias"}) {
+        puzzlescript::compiler::DiagnosticSink diagnostics;
+        runDiagnosticsForRule("late right [ " + constraint + " choice | background ] -> [ choice | background ]", diagnostics);
+        assert(countSeverity(diagnostics, puzzlescript::compiler::Severity::Error) == 0);
+        assert(!hasMessageContaining(diagnostics, "can never match"));
+    }
+    {
+        puzzlescript::compiler::DiagnosticSink diagnostics;
+        runDiagnosticsForRule("late right [ no allchoices choice | background ] -> [ choice | background ]", diagnostics);
+        assert(hasMessageContaining(diagnostics, "can never match"));
     }
     return 0;
 }

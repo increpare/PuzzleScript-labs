@@ -13419,13 +13419,19 @@ let codeMirrorFn = function () {
             let rulesCopy = [];
 
             for (let i = 0; i < state.legend_synonyms.length; i++) {
-                legend_synonymsCopy.push(state.legend_synonyms[i].slice());
+                legend_synonymsCopy.push(Object.assign(state.legend_synonyms[i].slice(), {
+                    lineNumber: state.legend_synonyms[i].lineNumber
+                }));
             }
             for (let i = 0; i < state.legend_aggregates.length; i++) {
-                legend_aggregatesCopy.push(state.legend_aggregates[i].slice());
+                legend_aggregatesCopy.push(Object.assign(state.legend_aggregates[i].slice(), {
+                    lineNumber: state.legend_aggregates[i].lineNumber
+                }));
             }
             for (let i = 0; i < state.legend_properties.length; i++) {
-                legend_propertiesCopy.push(state.legend_properties[i].slice());
+                legend_propertiesCopy.push(Object.assign(state.legend_properties[i].slice(), {
+                    lineNumber: state.legend_properties[i].lineNumber
+                }));
             }
             for (let i = 0; i < state.sounds.length; i++) {
                 soundsCopy.push(state.sounds[i].slice());
@@ -17018,6 +17024,19 @@ function concretizePropertyRule(state, rule, lineNumber) {
                         }
 
                         let aliases = state.propertiesDict[property];
+                        // A property is a set of alternatives. Excluding some
+                        // members only narrows that set; don't generate doomed
+                        // variants and then warn that the authored rule is dead.
+                        const excluded = new BitVec(STRIDE_OBJ);
+                        for (let ci = 0; ci < cur_cell.length; ci += 2) {
+                            if (cur_cell[ci] === 'no') {
+                                excluded.ior(state.objectMasks[cur_cell[ci + 1]]);
+                            }
+                        }
+                        const allowed = aliases.filter(name => !excluded.get(state.objects[name].id));
+                        // Keep a wholly impossible expansion for the existing
+                        // contradiction diagnostic rather than hiding it.
+                        if (allowed.length > 0) aliases = allowed;
 
                         shouldremove = true;
                         modified = true;
@@ -18314,6 +18333,8 @@ function ruleMatchInteractionMetadata(state, rule) {
 }
 
 function ruleHasFixedReplacements(rule) {
+    const objectSet = new BitVec(STRIDE_OBJ), objectClear = new BitVec(STRIDE_OBJ);
+    const movementSet = new BitVec(STRIDE_MOV), movementClear = new BitVec(STRIDE_MOV);
     for (const row of rule[1]) for (const cell of row) {
         if (cell === ellipsisPattern || !cell.replacement) continue;
         const replacement = cell.replacement;
@@ -18325,6 +18346,22 @@ function ruleHasFixedReplacements(rule) {
                 replacement.inferredAggregateBindings.length > 0 ||
                 replacement.inferredPropertyBindings.length > 0 ||
                 replacement.inferredPropertySources.length > 0) return false;
+        // Different match tuples can place different pattern cells on the same
+        // board cell. Constant assignments only converge in one scan if those
+        // assignments agree: [ A | A ] -> [ right A | left A ] does not.
+        const clearObjectsHere = replacement.objectsClear.clone();
+        clearObjectsHere.iclear(replacement.objectsSet);
+        const clearMovementsHere = replacement.movementsClear.clone();
+        clearMovementsHere.ior(replacement.movementsLayerMask);
+        clearMovementsHere.iclear(replacement.movementsSet);
+        if (objectSet.anyBitsInCommon(clearObjectsHere) ||
+                objectClear.anyBitsInCommon(replacement.objectsSet) ||
+                movementSet.anyBitsInCommon(clearMovementsHere) ||
+                movementClear.anyBitsInCommon(replacement.movementsSet)) return false;
+        objectSet.ior(replacement.objectsSet);
+        objectClear.ior(clearObjectsHere);
+        movementSet.ior(replacement.movementsSet);
+        movementClear.ior(clearMovementsHere);
     }
     return true;
 }

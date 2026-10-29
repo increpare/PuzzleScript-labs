@@ -74,7 +74,7 @@ function misCompile(text) {
 	const errors = (typeof errorStrings !== 'undefined' ? errorStrings : []).map(function (html) {
 		const m = /line\s+(\d+)/.exec(html);
 		const plain = stripHTMLTags(html).replace(/^line\s+\d+\s*:\s*/, '');
-		return { line: m ? parseInt(m[1], 10) : null, message: plain, isError: /errorText/.test(html) };
+		return { line: m ? parseInt(m[1], 10) : null, message: plain, isError: /class="errorText"/.test(html) };
 	});
 	if (threw) errors.push({ line: null, message: String(threw.message || threw), isError: true });
 	// Like the PuzzleScript editor: errors don't stop a game from running as long

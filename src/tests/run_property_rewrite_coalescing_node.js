@@ -190,6 +190,41 @@ test('no-property terms match via the property union mask', () => {
     assertCell(0, ['alpha'], 'cell containing a Thing should not match no Thing');
 });
 
+
+// Reduced from Selene's Labyrinth, gist 34da610e12cac29309b174af89c3a3ad,
+// lines 3648/3652: an excluded property member does not exclude the others.
+test('property negation silently filters only the excluded alternatives', () => {
+    for (const [glyph, name] of [['a', 'alpha'], ['b', 'beta'], ['c', 'gamma'], ['g', 'good']]) {
+        for (const constraint of ['no Alpha', 'no Flow', 'no FlowAlias']) {
+            const source = baseSource(
+                `late right [ ${constraint} Thing | Player ] -> [ Thing | Target ]`,
+                glyph + 'p'
+            ).replace('Actor = Target or Player',
+                'Actor = Target or Player\nFlow = Alpha or Beta\nFlowAlias = Flow');
+            const result = compileSourceAllowingMessages(source);
+            assert.strictEqual(result.errorCount, 0);
+            assert.deepStrictEqual(result.messages, [], constraint);
+            processInput(-1);
+            assertCell(0, [name], 'preserve the matched alternative');
+            const excluded = name === 'alpha' || (constraint !== 'no Alpha' && name === 'beta');
+            assertCell(1, [excluded ? 'player' : 'target'], constraint + ' on ' + name);
+        }
+    }
+});
+
+test('property negation still warns when every alternative is excluded', () => {
+    const result = compileSourceAllowingMessages(baseSource(
+        'late right [ Thing no Flow | Player ] -> [ Thing | Target ]',
+        'ap'
+    ).replace('Actor = Target or Player',
+        'Actor = Target or Player\nFlow = Alpha or Beta or Gamma or Good'));
+    assert.strictEqual(result.errorCount, 0);
+    assert.ok(result.messages.some(message => message.includes('can never match')));
+    assert.strictEqual(totalRuleCount(result.state), 0);
+    processInput(-1);
+    assertCell(1, ['player']);
+});
+
 if (process.exitCode) {
     process.exit(process.exitCode);
 }

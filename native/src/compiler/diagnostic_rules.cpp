@@ -386,7 +386,13 @@ void checkMasks(const Names& names, const AuthoredRule& rule, DiagnosticSink& di
                 discards.clear(); return;
             }
             for (size_t i = 0; i+1 < left.size(); i += 2) if (left[i] != "no" && left[i] != "random" && names.property(left[i+1])) {
-                for (const auto& name : names.objects(left[i+1])) if (std::find(absent.begin(), absent.end(), name) != absent.end())
+                const auto members = names.objects(left[i+1]);
+                // A partially excluded OR property can still match another
+                // member. Only a wholly excluded property makes the rule dead.
+                if (members.empty() || !std::all_of(members.begin(), members.end(), [&](const auto& name) {
+                    return std::find(absent.begin(), absent.end(), name) != absent.end();
+                })) continue;
+                for (const auto& name : members)
                     warn("This rule has something amounting to \"" + upper(name) + " NO " + upper(name) + "\" on the left-hand-side,which can never match, so the rule is getting removed during compilation.");
             }
             bool malformedEllipsis = false;

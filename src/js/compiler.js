@@ -2493,6 +2493,19 @@ function concretizePropertyRule(state, rule, lineNumber) {
                         }
 
                         let aliases = state.propertiesDict[property];
+                        // A property is a set of alternatives. Excluding some
+                        // members only narrows that set; don't generate doomed
+                        // variants and then warn that the authored rule is dead.
+                        const excluded = new BitVec(STRIDE_OBJ);
+                        for (let ci = 0; ci < cur_cell.length; ci += 2) {
+                            if (cur_cell[ci] === 'no') {
+                                excluded.ior(state.objectMasks[cur_cell[ci + 1]]);
+                            }
+                        }
+                        const allowed = aliases.filter(name => !excluded.get(state.objects[name].id));
+                        // Keep a wholly impossible expansion for the existing
+                        // contradiction diagnostic rather than hiding it.
+                        if (allowed.length > 0) aliases = allowed;
 
                         shouldremove = true;
                         modified = true;

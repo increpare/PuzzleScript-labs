@@ -51,6 +51,19 @@ const C = MISCore;
 const soko = load('demo/sokoban_basic.txt');
 const firstLevel = soko.model.levels.find(l => l.board);
 
+test('compile warnings with line numbers remain warnings', () => {
+	try {
+		const warning = misCompile(soko.text.replace('[ > Player | Crate ]', '[ > Player no Wall | Crate ]'));
+		assert(warning.ok);
+		assert(warning.errors.some(issue => issue.line && /leave this out/.test(issue.message)));
+		assert(warning.errors.every(issue => !issue.isError), JSON.stringify(warning.errors));
+		assert.strictEqual(warning.hasErrors, false);
+		const error = misCompile(soko.text.replace('[ > Player | Crate ]', '[ > Player Player | Crate ]'));
+		assert(error.hasErrors);
+		assert(error.errors.some(issue => issue.line && issue.isError));
+	} finally { misCompile(soko.text); }
+});
+
 test('selected-level search can disable both the clock and expansion limits', () => {
 	const now = Date.now;
 	let clock = 0;
