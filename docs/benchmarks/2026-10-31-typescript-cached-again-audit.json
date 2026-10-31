@@ -1,0 +1,3624 @@
+{
+  "summary": {
+    "total": 148,
+    "paired_passed": 136,
+    "baseline_failed": 0,
+    "baseline_timeout": 12,
+    "candidate_failed": 0,
+    "candidate_timeout": 12
+  },
+  "fixtures": 148,
+  "jobs": 4,
+  "timeout_ms": 30000,
+  "provenance": {
+    "baseline": {
+      "board.js": "8c4c8d2806a52c846ee8adce24e62b8304139d818ed15b6aedc0cc478b8158a7",
+      "colors.js": "ed73bfe25c3514f7a8e150da567e1ae51ef46866744c479f0cb10a6c14b888ca",
+      "commands.js": "33f580f8b908ceed6802ec5b631bc5931a5a317144c7a1ced4dd2d4ed71878c2",
+      "compatibility-vanilla-5a94bde1.js": "966730a481d876dc7cfbb34cf41b702f4c21e2b5b7009900d559a81743ab74c3",
+      "declaration-model.js": "c06b6224618ab9c0f6e58ec97b3f4e458f51a59c07af28ab0958ea6125bf75b9",
+      "declarations.js": "a888f10d26d83f41a55ef854f0ed41bdaf9cf5d4d76d8178337181705cddd562",
+      "execution-model.js": "4b4089982cf12921d24c8618e48826c15e062f0205ff4ae94edb3508cc6cbc03",
+      "matching.js": "d90acf63ef1d3a95ef1c19e5b10381769ec8ddd71a53f00e0fdcef4b99d862fb",
+      "model.js": "8701cbe1fbe60a2d86f40fdeada38bf1cac40f2c5dd9e942daecdd0b3604bea1",
+      "movement.js": "7b5425951adbc144f3449981bd86a2c501187029b1c743ce3a3957427d662e37",
+      "package.json": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae",
+      "random.js": "08b7ab9d2dcb862fb340bba1faaaa1c7479a07a7ce61726ee723230870e8d763",
+      "replacement.js": "c0211229687f27711dbcd554d1db4ffefd335b5626c780fde6e8cec8a0e0d54e",
+      "rule-duplicates.js": "3482b570e0ee3587993c0188aea051263d5188cb58a2bc8d8c832dfaec75c5af",
+      "rule-lexing.js": "fc1e114489abd9609eb1cc024e965013490b5a79f584deba9290acda179b36ea",
+      "rule-lowering.js": "6fe150194e05fd4b0ede6bb8262af00a7204b5b2de34134c92b87c309061edf2",
+      "rule-model.js": "d2a7fe29a3053d886c6faa246a4c5bb15c412895735479a50bbdec531e5f6056",
+      "rule-movements.js": "8e3ca18fdc9d85d2fc86ac704559eefe55ece2b41897d32d785a7abd223bbd7d",
+      "rule-names.js": "06ad1fe1d11474279d25c19f0946376f61a4cbfdb32c5cea8ee8463e5e92ba53",
+      "rule-negatives.js": "c36a8e0a932d34a7956265dd70af0126492c62a206c6cec9a65123391581dede",
+      "rule-orientations.js": "895efd9a9a237ab8e17161cb1a36c102f5c9469ea3d45542341e4a71222d399a",
+      "rule-properties.js": "bfb14cdbe3b45ca99b136a997c4cbd4829e7a6c67de0b51f1aa30df052dcc7af",
+      "rule-spawns.js": "a942847035c4ce52d91c788fe6de757f0af349a87a551fab54b64df668d35331",
+      "rule-syntax.js": "e12595e7174f4132e30de311de39e423678112748c36a6f22f9b97c2401136e3",
+      "rules.js": "dc85819ea151ca419e7d7981972b5c0c217ecce6cc70b647b9c80cd9246bb6b1",
+      "scan-order.js": "fdeacdcaafb06795831eb1f592b8e0cf1a8ed7a5837342c77944165bb5974b03",
+      "scheduling.js": "bc67f0dea1a36fcc0ed1c14892b2715af8c67e0f5cebf0ccb22fa836402ed066",
+      "session-model.js": "a08e2d0aaa37699d667fe18d8ae62a859d2d38d62b97f962b467d559c6ae8cb4",
+      "session.js": "801b8ed8ae8fe0d4690ab44febcb43eb7631a2bdd292a44690b21eab324587bd",
+      "source-assets.js": "5c617a9bf659e937ade142871988abae809919712b7f5b0e4b2cd1c597a2cabf",
+      "source-compiler.js": "57ed2604f7388911efe41c42008144b0da521e86d23ca2c86f964fc180a723c9",
+      "source-diagnostics.js": "029e14918d27422c9d4b0c8a083a8177e667bd77110838ccc74a95e7dec45fb4",
+      "source-game-data.js": "bc13554246d6036876c5857f979db52c464717b440e0f203d8fd5802cd9be91d",
+      "source-legend.js": "25543014e937f536b443ae6350cce016f61e6a278fdefd3aa2b48fb198c3e409",
+      "source-lexical.js": "f1f3dbf4cccc1c9dec915ca791d7b9c0b47edf207cf64ddee6721937b9770648",
+      "source-model.js": "dbf968c9945c5ea80eafd15005d5ea98dbf6818a7f7add3ec9749ec8d1ac0bcc",
+      "source-parser.js": "1a5228d0c22f70e465d27079a49e4b5e7520e2dd5c36471010367f900571fff9",
+      "source-reader.js": "43021aef1b7575d825409a11e5108bbe32cc943975c01c77fc60ed6c0829301b",
+      "source-rule-compiler.js": "030ee1961c150ab4fbc4e0b76328ba8c68001ab82e6ba97f9b75b7aed9cb0bfd",
+      "source-rule-model.js": "1989687e6ed7008ad13aa6a0b7a18b8c4a7e1fe1f9a419eadafc4c91d27c9e0b",
+      "source-rule-schedules.js": "0737b42ddd883da192987557f5fbc1722d7e1c8ec0aba12f9f37f37349ed857f",
+      "source-rules.js": "20e8067703c1464029b2e0b55469b2b16156bdab868edc778da42a9fcc22b6ae",
+      "source-text.js": "2b38f01edaf8e96c38f71ab7a9adbc8a2b8045eaefeeafd446b09ec308a1cd3c",
+      "turn-rules.js": "c9cbb3be1c739181f18c60b6a18b72f8b93ebbd631d13d58dbbbf4f3e5310350",
+      "win-conditions.js": "773099833a973d2121db1bdbd979a17388f6fd615a7fb0336b1fc53664e8f7d2"
+    },
+    "candidate": {
+      "board.js": "8c4c8d2806a52c846ee8adce24e62b8304139d818ed15b6aedc0cc478b8158a7",
+      "colors.js": "ed73bfe25c3514f7a8e150da567e1ae51ef46866744c479f0cb10a6c14b888ca",
+      "commands.js": "33f580f8b908ceed6802ec5b631bc5931a5a317144c7a1ced4dd2d4ed71878c2",
+      "compatibility-vanilla-5a94bde1.js": "746db47c7ebdc9a622a8ad1ef8e552167d388e5d17d1f6ed05611ef7510df72e",
+      "declaration-model.js": "c06b6224618ab9c0f6e58ec97b3f4e458f51a59c07af28ab0958ea6125bf75b9",
+      "declarations.js": "a888f10d26d83f41a55ef854f0ed41bdaf9cf5d4d76d8178337181705cddd562",
+      "execution-model.js": "4b4089982cf12921d24c8618e48826c15e062f0205ff4ae94edb3508cc6cbc03",
+      "matching.js": "d90acf63ef1d3a95ef1c19e5b10381769ec8ddd71a53f00e0fdcef4b99d862fb",
+      "model.js": "8701cbe1fbe60a2d86f40fdeada38bf1cac40f2c5dd9e942daecdd0b3604bea1",
+      "movement.js": "7b5425951adbc144f3449981bd86a2c501187029b1c743ce3a3957427d662e37",
+      "random.js": "08b7ab9d2dcb862fb340bba1faaaa1c7479a07a7ce61726ee723230870e8d763",
+      "replacement.js": "c0211229687f27711dbcd554d1db4ffefd335b5626c780fde6e8cec8a0e0d54e",
+      "rule-duplicates.js": "3482b570e0ee3587993c0188aea051263d5188cb58a2bc8d8c832dfaec75c5af",
+      "rule-lexing.js": "fc1e114489abd9609eb1cc024e965013490b5a79f584deba9290acda179b36ea",
+      "rule-lowering.js": "6fe150194e05fd4b0ede6bb8262af00a7204b5b2de34134c92b87c309061edf2",
+      "rule-model.js": "d2a7fe29a3053d886c6faa246a4c5bb15c412895735479a50bbdec531e5f6056",
+      "rule-movements.js": "8e3ca18fdc9d85d2fc86ac704559eefe55ece2b41897d32d785a7abd223bbd7d",
+      "rule-names.js": "06ad1fe1d11474279d25c19f0946376f61a4cbfdb32c5cea8ee8463e5e92ba53",
+      "rule-negatives.js": "c36a8e0a932d34a7956265dd70af0126492c62a206c6cec9a65123391581dede",
+      "rule-orientations.js": "895efd9a9a237ab8e17161cb1a36c102f5c9469ea3d45542341e4a71222d399a",
+      "rule-properties.js": "bfb14cdbe3b45ca99b136a997c4cbd4829e7a6c67de0b51f1aa30df052dcc7af",
+      "rule-spawns.js": "a942847035c4ce52d91c788fe6de757f0af349a87a551fab54b64df668d35331",
+      "rule-syntax.js": "e12595e7174f4132e30de311de39e423678112748c36a6f22f9b97c2401136e3",
+      "rules.js": "dc85819ea151ca419e7d7981972b5c0c217ecce6cc70b647b9c80cd9246bb6b1",
+      "scan-order.js": "fdeacdcaafb06795831eb1f592b8e0cf1a8ed7a5837342c77944165bb5974b03",
+      "scheduling.js": "bc67f0dea1a36fcc0ed1c14892b2715af8c67e0f5cebf0ccb22fa836402ed066",
+      "session-model.js": "a08e2d0aaa37699d667fe18d8ae62a859d2d38d62b97f962b467d559c6ae8cb4",
+      "session.js": "7b3f739c350db5d7a2361d167efb7cd3abd34f84f67763110c361990400ee698",
+      "source-assets.js": "5c617a9bf659e937ade142871988abae809919712b7f5b0e4b2cd1c597a2cabf",
+      "source-compiler.js": "57ed2604f7388911efe41c42008144b0da521e86d23ca2c86f964fc180a723c9",
+      "source-diagnostics.js": "029e14918d27422c9d4b0c8a083a8177e667bd77110838ccc74a95e7dec45fb4",
+      "source-game-data.js": "bc13554246d6036876c5857f979db52c464717b440e0f203d8fd5802cd9be91d",
+      "source-legend.js": "25543014e937f536b443ae6350cce016f61e6a278fdefd3aa2b48fb198c3e409",
+      "source-lexical.js": "f1f3dbf4cccc1c9dec915ca791d7b9c0b47edf207cf64ddee6721937b9770648",
+      "source-model.js": "dbf968c9945c5ea80eafd15005d5ea98dbf6818a7f7add3ec9749ec8d1ac0bcc",
+      "source-parser.js": "1a5228d0c22f70e465d27079a49e4b5e7520e2dd5c36471010367f900571fff9",
+      "source-reader.js": "43021aef1b7575d825409a11e5108bbe32cc943975c01c77fc60ed6c0829301b",
+      "source-rule-compiler.js": "030ee1961c150ab4fbc4e0b76328ba8c68001ab82e6ba97f9b75b7aed9cb0bfd",
+      "source-rule-model.js": "1989687e6ed7008ad13aa6a0b7a18b8c4a7e1fe1f9a419eadafc4c91d27c9e0b",
+      "source-rule-schedules.js": "0737b42ddd883da192987557f5fbc1722d7e1c8ec0aba12f9f37f37349ed857f",
+      "source-rules.js": "20e8067703c1464029b2e0b55469b2b16156bdab868edc778da42a9fcc22b6ae",
+      "source-text.js": "2b38f01edaf8e96c38f71ab7a9adbc8a2b8045eaefeeafd446b09ec308a1cd3c",
+      "turn-rules.js": "c9cbb3be1c739181f18c60b6a18b72f8b93ebbd631d13d58dbbbf4f3e5310350",
+      "win-conditions.js": "773099833a973d2121db1bdbd979a17388f6fd615a7fb0336b1fc53664e8f7d2"
+    },
+    "oracle": {
+      "application-oracle.test.mjs": "21ad75188b2ad37480afded3a9dbadcb50a6387f83932b0e79b59019419c5c2b",
+      "commands.test.mjs": "81a1dae9189874accfa8e730fadbbf7c45c7f4ac244f396eda7b155fe3254144",
+      "compatibility-boundary.test.mjs": "d1ac33f802b04ecf9a41a35c0f4fc01af66659ae465c36977ad9c738917a440f",
+      "corpus.cjs": "d4fae91f6268a09d592cd4080e90c516e7f405b45c36b5170a382f35668b7c66",
+      "declaration-oracle.test.mjs": "831659441a9869da3245ceee03d70cceb57fb7796dfc37aff5af4bdb976052be",
+      "declarations.test.mjs": "e29dca42186999202dc60ea0dcbe9d42da3d6fb278cfa8bd401ef7e1818f91d9",
+      "game-data-oracle.test.mjs": "fa041b7b984f41f079429d96eb58dd1dd2630592c9512292cea568c4759931b6",
+      "legacy-declaration-oracle.cjs": "4cb85acf94f7104ba579a0c99a2d184074fcdb48e03b253bc95f6dc5985bfc60",
+      "legacy-execution.cjs": "4e90dec096acfa150615e783ac1f9028e3a37f45733a54b48b46da3f9e7793a3",
+      "legacy-game-data-oracle.cjs": "23e584b15caa8c805caf8d32e47311d666ed00858aaba5b3c294b62e1c041526",
+      "legacy-oracle.cjs": "1d26419b36003ee39323e5552da9f962082b19917129b9c347758d2e901c15a4",
+      "legacy-oriented-rules.cjs": "e4ec57665d6219ddbde676c7f6d80af38af91711564b59655dfe5216786be2c5",
+      "legacy-patterns.cjs": "98988f840d9cce0ae9fae79e80724948e75adb61e283bf54de4fe7cea725b879",
+      "legacy-rule-duplicates.cjs": "104989c545dddbabb1aa65f33ef313b68aa3030dcc73741a51b58f42d29a2295",
+      "legacy-rule-lowering.cjs": "52f085f9302184691cc7aaa309e81a97593c087f1bd7f56cb4730e95810a5dea",
+      "legacy-rule-movements.cjs": "32168a23d80ca00e05f148e5f6f804af6af4effb4d76e078ca2274ddb8d11159",
+      "legacy-rule-negatives.cjs": "386b685050115c911cea8de172b19bc1594a3d34f9f582c92cf2116426b72461",
+      "legacy-rule-properties.cjs": "711483f6e7cbbcdff64278629c90c9e91108eb49bb7c42b7aeb07883dbccbe4b",
+      "legacy-rule-syntax.cjs": "98bfc8a230932af9dcaa11d211026f72607bdede0bd30333d628e8723a0488fc",
+      "legacy-session-data.cjs": "41e4899c9d6d0df084679ba856d4cbbe20ae01783407149c9528728a3d0e3883",
+      "legacy-session-oracle.cjs": "0e20e65090e711bb1d9fb4e975934c18a3251e8e5f058a54c3a8b19ec07e9e4a",
+      "legacy-source-assets.cjs": "534eb0610c4c9d2121fc4a3b95ec365f88e33781aa3015efaf1634e1f8c2ce69",
+      "legacy-source-compiler.cjs": "9459bdeb0c82fa04eeeb0459987c87c06dc632927cc735d3b8279f461d0aaf0a",
+      "legacy-source-objects.cjs": "05d969795c5e140825cbb2d45cf3d11432b574cbfafe4983a09f7f37ff783de2",
+      "legacy-source-oracle.cjs": "dcbc6aeb871870bf48e8b6066616f833353c321bd2a8a119d4386a0993957ec3",
+      "legacy-source-parser.cjs": "c1ac5a42025bc63b05fd96f2e210ddac8b72dfbbcf5a7dae740d4d765c51bac1",
+      "legacy-source-rule-compiler.cjs": "7176352d56445fed9fdf249dbeef33efbaa0339501bb1c79c9de3a8d85dd87b1",
+      "legacy-source-schedules.cjs": "11f1d991f165b43b191f01415eaba92098059a64707cbac3c750b850b55e04c4",
+      "legacy-turn-hook.cjs": "3ec34e3ad7e7c73658d14d57f9a15997c1519ff4399d8060fd6bd0e5a54b5db8",
+      "matching.test.mjs": "0b15cee6fa0920a6c75b49b7a4ead1686338e7dc6eee74c197002043f60a09bc",
+      "movement.test.mjs": "fb77ffc691f34f854c5ed1c3c56c1e806209ae0ea18f7bad33315e1908e596ad",
+      "native-host.cjs": "7707993fcbcefdee05a346ee405316adc182e04353d2f77c1a4e665283a5f390",
+      "oracle-packaging.test.mjs": "0380573f6cf6c66c4213d88e347d0fd7e7c1a9535098a16304f515cda7b589e9",
+      "oracle.test.mjs": "35c18ebbb11970791aab1380d301c9a649933b16e52106613db9bf786d350c5e",
+      "oriented-rules.test.mjs": "04de0c5d6b5e5d74a87cd9354d2acca37f59ed0dc1499336e8422b3b9aaa249c",
+      "orphaned-objects.test.mjs": "e338755ed520dde60dfcc2a519933f001ac723d880afd13534bc46a877a47bb5",
+      "player-oracle.test.mjs": "0c6439036fca5051650bc83316ba3f07779a83ef229f938929a3779eade69ed7",
+      "quirk-impact.mjs": "20606f35bb9760c816b1baa58a9cf69133e8fadd8b0b0e03e1c5c28dcf5e554a",
+      "quirks.test.mjs": "def697166c8fe93b43628fa8d8b2f586a46070c21f7b0ca553c9e8ffd44b6134",
+      "random.test.mjs": "66ff9614dfd0754eebff18aba1c88d4a229a8094bbd629bc51ba5b8380641e0a",
+      "replacement.test.mjs": "e79b7672c72c8daf199f26f24af3748510df3d722a0f83432921fca8dbd09ca3",
+      "repros/rigid-owner.cjs": "a04e3a7a2cb427561e2f24038f8cb2627f71d1734ab6b653971a36378358f75f",
+      "rule-duplicates.test.mjs": "b262c535f4becb5f0c1e0a5238133e15f3916c298b8d743d757a10c260bf24fa",
+      "rule-lexing.test.mjs": "60906742e89b4467b79e0f67be605ddb690c249404dd6df488c00e17efdee3a8",
+      "rule-lowering.test.mjs": "16f6e0d983d04dc21d4c263604384538da1e651353fa6976723d2e32fd15a03d",
+      "rule-movements.test.mjs": "fe85e63b89b50c809f11e67f736c383528b0426c012edf3cfc8fcedee45abebf",
+      "rule-negatives.test.mjs": "bc2738735815623e56cba418d13fe055d5be5d385adcd041e78c16fe87f18786",
+      "rule-properties.test.mjs": "2aa24c4fdab1591cad4bf82311690b8333fa872643837ec95b5a167b4392f14f",
+      "rule-syntax.test.mjs": "41b494ceb4e54d480513fe26ec18ef82fc44f20cf8b414b00f480a47bcee9ff5",
+      "rules.test.mjs": "68581ead6e4a8c0aa1ff43d2fdcc2a504851a082b552276a7ab8cf426ca36d3c",
+      "scan-order.test.mjs": "a7c01dc4228c0a18a93636176bb7a055d457b8f9991260ac273be18af71ecbba",
+      "scenarios.mjs": "d894628fb4ed4589bb6315d4431f8e70b49ea61802ec969acf39823e56243018",
+      "scheduling.test.mjs": "fc0341e03d7333ee11ddf117582f86d825f1ba36b060242af529dfb02c23e010",
+      "semantic-fixtures.test.mjs": "502ec919b35835f6f88a9d8039c1c849e5c6eaa2532835d7ace47b698c082b43",
+      "session-oracle.test.mjs": "4586f0ab537c40d14a0373ce548c180373f3303a23d506d9079f2278f8d942c8",
+      "session.test.mjs": "8034e82857685e91f4e58e26e74b0e6f369f282cd5c310c535a61cfcf804ded8",
+      "source-assets.test.mjs": "206b4fb0073349d0d16a27e4ecb97136a83a5ee1ba1eb86c9f6c3dbc0941de92",
+      "source-compiler.test.mjs": "7508e60a1a7121d13bf139d807244f0c9bbe0f46c892881af556b1db9b383eef",
+      "source-game-data.test.mjs": "56eae09cd34f3c2c6ffbdd1e7b496b5d8a5344de6a724b62ea7a39c19162491d",
+      "source-oracle.test.mjs": "618e9137e034474562551d9f6dc7b04f260dac656811a269c09209af5aace9b6",
+      "source-parser.test.mjs": "f21a604eb84b17d7c964b0ebd623acc2405db702c5d82d3f468b60c66e145cf7",
+      "source-reader.test.mjs": "b7de99806e2124cbdf6ab7d92a771935277a96c465295c89983ffb5d314bfd5a",
+      "source-rule-compiler.test.mjs": "ddad84d9304d03578bca933478f629bcec57619d1bc9f3a01c73a6a7fb90c354",
+      "source-rule-schedules.test.mjs": "27fa826265df82a5db5b2861a192595f00b86381381d280d79965fc69dc1b1f4",
+      "source-session-data.cjs": "a3c9e629de21cbbcb9c8e39e8f4a23225f954ff00e143462ce9d9f4747cf286a",
+      "source-session-oracle.test.mjs": "627ea89bb6b059c9acc2bac92aae7d8ca9f035c604e80b9f1130ba4e23ff0c71",
+      "source-trace.test.mjs": "635973b876154c086306628a7aae31f3ad52003d838f5167f1f2ba7395b08022",
+      "support/bounded-matches.mjs": "056e78bde3e1ef84f578d63ccb1ab189a6f56a2aadcc7ce01e3802b22237c994",
+      "support/parser-snapshot.cjs": "eca32cfb4f03cecdf76628fe81ffd6cc58dee0356341f23d90c93e1b240d30be",
+      "support/player-trace.cjs": "7a05d680c9e1bbb42a5f5bcaef46daafdd82d1b57fb58a4154cbfe91e32e63a5",
+      "support/trace.cjs": "9b4d0ca047aa859d8f68f3844dcaade66333556adf7ea01b7c6f65e1fc1616d1",
+      "turn-oracle.test.mjs": "5bef1d754899457b12d995c2ce78773bb3b8d1d0d0a71eddf65e9e483a654de9",
+      "turn-rules.test.mjs": "11649f2d546a31588becebc3bbc98caf1d81bfbdfce47e23dc2a222267ed7035",
+      "unicode-legend.test.mjs": "9938f27d9f001b6a61a0a454ef1302a723dacadc5abec434cd8f6b9925dcab37",
+      "unicode-object-names.test.mjs": "a3934af14abf215f68176006bfab55406795d8090fbf4f9dd65f58a8a9dbb67f",
+      "vanilla/js/bitvec.js": "51e1fdd82fc4f82e509d09da47659867152cf1d406629b1384269f7d4dfbab3f",
+      "vanilla/js/codemirror/stringstream.js": "78947b75195ee9b03d09c0bc9e6008e9821a76ed3414c9355f6ab2b056f89b2b",
+      "vanilla/js/colorhelpers.js": "cfefd6f524866fe1c07cf2e2b448e66b858bd5ceadcef948fe03e2a69ed9e53e",
+      "vanilla/js/colors.js": "b842cef3c8252d430aaa500269a0c6f19d57ea5697de88f679b553b2e084a798",
+      "vanilla/js/compiler.js": "16a38257cef21aef496199a948c78ee3c2891bce919572b3c85222e456c2b18b",
+      "vanilla/js/debug_off.js": "d7878ec111060bc17894a48d05a6d901ec679ee3bfcc0ae5d49c699e742f733f",
+      "vanilla/js/debug.js": "b36e5f7959c279032804a99a19d10526d7dc06847aff17b5ccd6649d1db6ec8d",
+      "vanilla/js/engine.js": "b66587221dd58ff0bad1b985a3a4e2c062f56db8e799c9498dd721f093267e44",
+      "vanilla/js/font.js": "da17f798ddf0b4a1d6a778396c96d0d2f3eaf7511d0e3bf8fdfa83fda9f436eb",
+      "vanilla/js/globalVariables.js": "2e8820c606f4e3d723646a0e377fb0b978fc841adcfd9a33c05d53fd9c3d36fe",
+      "vanilla/js/inputoutput.js": "fa161868f4327263e7c003e9405ecf538ffe513b6365d08b88d1b3a7dca5be3a",
+      "vanilla/js/languageConstants.js": "f6556cb9b0a4fc0a1e10ff2b32303d7cbd98001be87027957554b0db33ab2245",
+      "vanilla/js/level.js": "7db48c669bdb1e9a0d40eb737388e95ca3e2c2e022e23d71eb4e5a13dd882271",
+      "vanilla/js/parser.js": "0369403ef3cd5ed68295d19b4604d619368453ebf7b6e548bcf8a7402bb4ef3d",
+      "vanilla/js/riffwave.js": "960e4337169f9db67af4131c8d696c1c7282b41ed9796798301553a4ea3b6924",
+      "vanilla/js/rng.js": "9570e7354eb86fe13f22c1e74c258c5e0e39fd8b69e117096463be8d8612b723",
+      "vanilla/js/sfxr.js": "b4707692c61d42ceebf8063fffda92933b1e032d9fe75251e51b27a6f4401b87",
+      "vanilla/js/soundbar.js": "8dc24f1d4f2d14b44fcbb0a2bddd5c572252e478e6d26af8350364ab59457b86",
+      "vanilla/js/storagewrapper.js": "3b6b3dfee738beefa33ed0d38a3c26b16557c45a59378cf382f62b270bf41014",
+      "vanilla/tests/resources/errormessage_testdata.js": "c53391caba3af6f1c2cbfca75754a5864b85af9bd2434b2c87d0f943713080a5",
+      "vanilla/tests/resources/testdata.js": "59d52a2a01bf171f0a4de015303b79f7cc833697167ceb76fefec0f8adc8e453",
+      "vanilla/tests/resources/testingFrameWork.js": "bba9bc7ebf5aa63b97a0ebf99abc990984194f66e0f997cddf13aecb54447ce0",
+      "vanilla-adapter.test.mjs": "04880306b566c8d7b0283ed0cdb5a6d91183bbd5e6f21c13dbe3863809dbbe2d",
+      "vanilla-fields.cjs": "53c4b827d6777547cd9602226831729dd12b7d48ca7fd8956007a5fc3e8477a8",
+      "win-conditions.test.mjs": "025604756115cfe90103f73532c3a01e22d4b436bbb06accba136516afa6278c",
+      "zero-step.test.mjs": "8dcde433add55be5fb41e4d96254188aef6a78f0238c9775e60c6829de08a640"
+    },
+    "oracle_manifest": "77c7c0f4495e784a371658f88593cf22ea7833af4e5893ec326d135590024e98",
+    "tool": "fd9beddeea496652eba091dabf4dfdc9ecc6bc3fbbf13f799e03f4ba6c145cb7"
+  },
+  "results": [
+    {
+      "name": "ellipsis magnetism test",
+      "index": 23,
+      "baseline": {
+        "timeout_ms": 120000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 7,
+          "candidateOperations": 7,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 189.044042
+      },
+      "candidate": {
+        "timeout_ms": 120000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 7,
+          "candidateOperations": 7,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 218.14100000000002
+      }
+    },
+    {
+      "name": "optimization that broke andrew's game",
+      "index": 24,
+      "baseline": {
+        "timeout_ms": 120000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 4,
+          "candidateOperations": 4,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 139.511125
+      },
+      "candidate": {
+        "timeout_ms": 120000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 4,
+          "candidateOperations": 4,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 159.66825
+      }
+    },
+    {
+      "name": "collapse simple",
+      "index": 30,
+      "baseline": {
+        "timeout_ms": 120000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 83,
+          "candidateOperations": 83,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 20066.483916999998
+      },
+      "candidate": {
+        "timeout_ms": 120000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 83,
+          "candidateOperations": 83,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 15371.185375000001
+      }
+    },
+    {
+      "name": "collapse long",
+      "index": 31,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "timeout"
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "timeout"
+      }
+    },
+    {
+      "name": "Saga of the Candy Scroll",
+      "index": 52,
+      "baseline": {
+        "timeout_ms": 120000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 56,
+          "candidateOperations": 56,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1597.9595
+      },
+      "candidate": {
+        "timeout_ms": 120000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 56,
+          "candidateOperations": 56,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1662.4924999999998
+      }
+    },
+    {
+      "name": "Gobble Rush",
+      "index": 54,
+      "baseline": {
+        "timeout_ms": 120000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 42,
+          "candidateOperations": 42,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 448.5737919999999
+      },
+      "candidate": {
+        "timeout_ms": 120000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 42,
+          "candidateOperations": 42,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 448.34641600000003
+      }
+    },
+    {
+      "name": "Slidings",
+      "index": 55,
+      "baseline": {
+        "timeout_ms": 120000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 11,
+          "candidateOperations": 11,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 145.567167
+      },
+      "candidate": {
+        "timeout_ms": 120000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 11,
+          "candidateOperations": 11,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 132.013041
+      }
+    },
+    {
+      "name": "Flying Kick",
+      "index": 56,
+      "baseline": {
+        "timeout_ms": 120000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 46,
+          "candidateOperations": 46,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 757.814542
+      },
+      "candidate": {
+        "timeout_ms": 120000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 46,
+          "candidateOperations": 46,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 895.6965829999999
+      }
+    },
+    {
+      "name": "Cratopia",
+      "index": 57,
+      "baseline": {
+        "timeout_ms": 120000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 36,
+          "candidateOperations": 36,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1090.888333
+      },
+      "candidate": {
+        "timeout_ms": 120000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 36,
+          "candidateOperations": 36,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 908.4191669999999
+      }
+    },
+    {
+      "name": "Heroes of Sokoban 3",
+      "index": 58,
+      "baseline": {
+        "timeout_ms": 120000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 47,
+          "candidateOperations": 47,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 689.707792
+      },
+      "candidate": {
+        "timeout_ms": 120000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 47,
+          "candidateOperations": 47,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 692.879875
+      }
+    },
+    {
+      "name": "Tunnel Rat",
+      "index": 60,
+      "baseline": {
+        "timeout_ms": 120000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 97,
+          "candidateOperations": 97,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 13436.76725
+      },
+      "candidate": {
+        "timeout_ms": 120000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 97,
+          "candidateOperations": 97,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 13889.308
+      }
+    },
+    {
+      "name": "Cute Train",
+      "index": 61,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "timeout"
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "timeout"
+      }
+    },
+    {
+      "name": "castlemouse",
+      "index": 63,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 140,
+          "candidateOperations": 140,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 8342.90775
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 140,
+          "candidateOperations": 140,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 6260.293458
+      }
+    },
+    {
+      "name": "atlas shrank",
+      "index": 64,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 26,
+          "candidateOperations": 26,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 805.047125
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 26,
+          "candidateOperations": 26,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 696.629167
+      }
+    },
+    {
+      "name": "tiny treasure hunt",
+      "index": 67,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 3,
+          "candidateOperations": 3,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 201.74325000000002
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 3,
+          "candidateOperations": 3,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 206.80870800000002
+      }
+    },
+    {
+      "name": "explod",
+      "index": 72,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 12,
+          "candidateOperations": 12,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 161.67466700000003
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 12,
+          "candidateOperations": 12,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 149.455416
+      }
+    },
+    {
+      "name": "icycrates",
+      "index": 74,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 25,
+          "candidateOperations": 25,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 288.41816700000004
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 25,
+          "candidateOperations": 25,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 257.847459
+      }
+    },
+    {
+      "name": "armageddon",
+      "index": 75,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 55,
+          "candidateOperations": 55,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 5187.795083
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 55,
+          "candidateOperations": 55,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 5882.004667
+      }
+    },
+    {
+      "name": "it dies in the light",
+      "index": 77,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 35,
+          "candidateOperations": 35,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 510.32270900000003
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 35,
+          "candidateOperations": 35,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 556.173125
+      }
+    },
+    {
+      "name": "Push",
+      "index": 80,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 26,
+          "candidateOperations": 26,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 583.718375
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 26,
+          "candidateOperations": 26,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 385.14654099999996
+      }
+    },
+    {
+      "name": "Bouncers",
+      "index": 82,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 71,
+          "candidateOperations": 71,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1197.710125
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 71,
+          "candidateOperations": 71,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1230.220083
+      }
+    },
+    {
+      "name": "Bouncers 2",
+      "index": 83,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 180,
+          "candidateOperations": 180,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 5868.738708
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 180,
+          "candidateOperations": 180,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 5746.823667000001
+      }
+    },
+    {
+      "name": "Sok7",
+      "index": 84,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 162,
+          "candidateOperations": 162,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 5444.65425
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 162,
+          "candidateOperations": 162,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 5535.118917
+      }
+    },
+    {
+      "name": "Closure",
+      "index": 85,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 61,
+          "candidateOperations": 61,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 2579.982375
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 61,
+          "candidateOperations": 61,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 2538.057875
+      }
+    },
+    {
+      "name": "Color Chained",
+      "index": 86,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 21,
+          "candidateOperations": 21,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 444.15254200000004
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 21,
+          "candidateOperations": 21,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 410.34133299999996
+      }
+    },
+    {
+      "name": "Drop Swap",
+      "index": 87,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 31,
+          "candidateOperations": 31,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 310.640083
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 31,
+          "candidateOperations": 31,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 295.597667
+      }
+    },
+    {
+      "name": "Drop Swap 2",
+      "index": 88,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 24,
+          "candidateOperations": 24,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 292.031833
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 24,
+          "candidateOperations": 24,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 294.408167
+      }
+    },
+    {
+      "name": "Drop Swap 3",
+      "index": 89,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 94,
+          "candidateOperations": 94,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1082.35025
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 94,
+          "candidateOperations": 94,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1051.0608750000001
+      }
+    },
+    {
+      "name": "Threes",
+      "index": 90,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 7,
+          "candidateOperations": 7,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 666.458416
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 7,
+          "candidateOperations": 7,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 665.3428749999999
+      }
+    },
+    {
+      "name": "again + message combo",
+      "index": 92,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 3,
+          "candidateOperations": 3,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 47.74825
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 3,
+          "candidateOperations": 3,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 47.122084
+      }
+    },
+    {
+      "name": "chaos wizard",
+      "index": 93,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 74,
+          "candidateOperations": 74,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1126.0341660000001
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 74,
+          "candidateOperations": 74,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1184.945792
+      }
+    },
+    {
+      "name": "netrunner test",
+      "index": 100,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 37,
+          "candidateOperations": 37,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1704.035834
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 37,
+          "candidateOperations": 37,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1800.0667079999998
+      }
+    },
+    {
+      "name": "wb + gems test",
+      "index": 101,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 35,
+          "candidateOperations": 35,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1004.982542
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 35,
+          "candidateOperations": 35,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1014.679417
+      }
+    },
+    {
+      "name": "robotic arm",
+      "index": 105,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 82,
+          "candidateOperations": 82,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 4087.153542
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 82,
+          "candidateOperations": 82,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 3985.7635
+      }
+    },
+    {
+      "name": "circuit game",
+      "index": 106,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 84,
+          "candidateOperations": 84,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 686.620667
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 84,
+          "candidateOperations": 84,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 678.038583
+      }
+    },
+    {
+      "name": "2048",
+      "index": 108,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 84,
+          "candidateOperations": 84,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 415.80325000000005
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 84,
+          "candidateOperations": 84,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 454.5107919999999
+      }
+    },
+    {
+      "name": "Rigidbody fix bug #246",
+      "index": 116,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 197,
+          "candidateOperations": 197,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 6745.9130000000005
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 197,
+          "candidateOperations": 197,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 6694.57075
+      }
+    },
+    {
+      "name": "Undo test (#315)",
+      "index": 119,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 56,
+          "candidateOperations": 56,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 141.029292
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 56,
+          "candidateOperations": 56,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 130.736583
+      }
+    },
+    {
+      "name": "gallery game: sokodig",
+      "index": 153,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 45,
+          "candidateOperations": 45,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 839.648292
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 45,
+          "candidateOperations": 45,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 830.211541
+      }
+    },
+    {
+      "name": "gallery game: at the hedges of time",
+      "index": 154,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "timeout"
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "timeout"
+      }
+    },
+    {
+      "name": "gallery game: Indigestion",
+      "index": 156,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 33,
+          "candidateOperations": 33,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1215.503958
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 33,
+          "candidateOperations": 33,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1113.505083
+      }
+    },
+    {
+      "name": "gallery game: two worlds",
+      "index": 157,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 85,
+          "candidateOperations": 85,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 8940.503417
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 85,
+          "candidateOperations": 85,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 7170.716417000001
+      }
+    },
+    {
+      "name": "gallery game: mad queens",
+      "index": 158,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 18,
+          "candidateOperations": 18,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 255.72425
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 18,
+          "candidateOperations": 18,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 236.625375
+      }
+    },
+    {
+      "name": "gallery game: fall leaves",
+      "index": 159,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 49,
+          "candidateOperations": 49,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 620.360459
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 49,
+          "candidateOperations": 49,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 603.293292
+      }
+    },
+    {
+      "name": "gallery game: mini nomerads",
+      "index": 160,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 49,
+          "candidateOperations": 49,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 499.96891700000003
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 49,
+          "candidateOperations": 49,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 488.30899999999997
+      }
+    },
+    {
+      "name": "gallery game: Broken Abacus",
+      "index": 161,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 43,
+          "candidateOperations": 43,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1076.4986250000002
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 43,
+          "candidateOperations": 43,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1187.147375
+      }
+    },
+    {
+      "name": "gallery game: maera public works",
+      "index": 165,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 23,
+          "candidateOperations": 23,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1341.560666
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 23,
+          "candidateOperations": 23,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1360.104625
+      }
+    },
+    {
+      "name": "gallery game: interconnection",
+      "index": 167,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 25,
+          "candidateOperations": 25,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 398.98266600000005
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 25,
+          "candidateOperations": 25,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 342.010333
+      }
+    },
+    {
+      "name": "gallery game: coin collector",
+      "index": 170,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 78,
+          "candidateOperations": 78,
+          "levelLoads": 3
+        },
+        "elapsed_ms": 966.224333
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 78,
+          "candidateOperations": 78,
+          "levelLoads": 3
+        },
+        "elapsed_ms": 976.1366669999999
+      }
+    },
+    {
+      "name": "gallery game: two worlds",
+      "index": 171,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 50,
+          "candidateOperations": 50,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 5175.249917
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 50,
+          "candidateOperations": 50,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 4217.3157089999995
+      }
+    },
+    {
+      "name": "gallery: midas",
+      "index": 173,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 7,
+          "candidateOperations": 7,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 139.088833
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 7,
+          "candidateOperations": 7,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 145.148917
+      }
+    },
+    {
+      "name": "gallery: you're pulleying my leg",
+      "index": 176,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 67,
+          "candidateOperations": 67,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 5403.575416
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 67,
+          "candidateOperations": 67,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 5102.546875
+      }
+    },
+    {
+      "name": "gallery: swap bot",
+      "index": 181,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 63,
+          "candidateOperations": 63,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1120.221708
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 63,
+          "candidateOperations": 63,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1058.086542
+      }
+    },
+    {
+      "name": "gallery: spaceokoban",
+      "index": 182,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 17,
+          "candidateOperations": 17,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 222.65033400000002
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 17,
+          "candidateOperations": 17,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 208.11175000000003
+      }
+    },
+    {
+      "name": "gallery: marble shot",
+      "index": 187,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 29,
+          "candidateOperations": 29,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 756.55275
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 29,
+          "candidateOperations": 29,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 765.666375
+      }
+    },
+    {
+      "name": "gallery:cyber-lasso",
+      "index": 188,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "timeout"
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "timeout"
+      }
+    },
+    {
+      "name": "gallery: train braining",
+      "index": 189,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 32,
+          "candidateOperations": 32,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 553.265208
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 32,
+          "candidateOperations": 32,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 482.63895900000006
+      }
+    },
+    {
+      "name": "gallery: enqueue",
+      "index": 190,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 18,
+          "candidateOperations": 18,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 311.557709
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 18,
+          "candidateOperations": 18,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 283.130042
+      }
+    },
+    {
+      "name": "gallery: tidy the cafe",
+      "index": 191,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 54,
+          "candidateOperations": 54,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 204.627
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 54,
+          "candidateOperations": 54,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 220.71083300000004
+      }
+    },
+    {
+      "name": "gallery: hazard golf",
+      "index": 195,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 32,
+          "candidateOperations": 32,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 3056.967292
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 32,
+          "candidateOperations": 32,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 2941.904583
+      }
+    },
+    {
+      "name": "gallery: skipping stones to lonely homes",
+      "index": 197,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "timeout"
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "timeout"
+      }
+    },
+    {
+      "name": "gallery: JAM3 Game",
+      "index": 199,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 28,
+          "candidateOperations": 28,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 706.530167
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 28,
+          "candidateOperations": 28,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 656.8188329999999
+      }
+    },
+    {
+      "name": "gallery: dharma dojo demake",
+      "index": 200,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 69,
+          "candidateOperations": 69,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 584.5364169999999
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 69,
+          "candidateOperations": 69,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 539.470958
+      }
+    },
+    {
+      "name": "gallery: vines",
+      "index": 201,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 58,
+          "candidateOperations": 58,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1174.568708
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 58,
+          "candidateOperations": 58,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1194.820125
+      }
+    },
+    {
+      "name": "gallery: unconventional guns",
+      "index": 202,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 41,
+          "candidateOperations": 41,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 945.296083
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 41,
+          "candidateOperations": 41,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 765.007417
+      }
+    },
+    {
+      "name": "gallery: newton's crates",
+      "index": 203,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 33,
+          "candidateOperations": 33,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1793.4188749999998
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 33,
+          "candidateOperations": 33,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1735.36375
+      }
+    },
+    {
+      "name": "gallery: count mover",
+      "index": 204,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 22,
+          "candidateOperations": 22,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 267.121583
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 22,
+          "candidateOperations": 22,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 279.452458
+      }
+    },
+    {
+      "name": "gallery: boxes love boxing gloves",
+      "index": 205,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 45,
+          "candidateOperations": 45,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1390.503125
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 45,
+          "candidateOperations": 45,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1354.3913750000002
+      }
+    },
+    {
+      "name": "gallery: vacuum",
+      "index": 206,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 31,
+          "candidateOperations": 31,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 13751.726583
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 31,
+          "candidateOperations": 31,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 12632.524125
+      }
+    },
+    {
+      "name": "gallery: paralands",
+      "index": 207,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 89,
+          "candidateOperations": 89,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 3198.69875
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 89,
+          "candidateOperations": 89,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 3057.5417079999997
+      }
+    },
+    {
+      "name": "gallery: Some lines were meant to be crossed",
+      "index": 208,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 180,
+          "candidateOperations": 180,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1543.691875
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 180,
+          "candidateOperations": 180,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1479.3640420000002
+      }
+    },
+    {
+      "name": "gallery: Stand Off",
+      "index": 209,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 16,
+          "candidateOperations": 16,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 313.559583
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 16,
+          "candidateOperations": 16,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 340.749417
+      }
+    },
+    {
+      "name": "gallery: Rose",
+      "index": 211,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "timeout"
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "timeout"
+      }
+    },
+    {
+      "name": "gallery: season finale",
+      "index": 212,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 359,
+          "candidateOperations": 359,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 29156.688333000002
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 359,
+          "candidateOperations": 359,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 21148.987625
+      }
+    },
+    {
+      "name": "gallery: Spider's Hollow",
+      "index": 213,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 20,
+          "candidateOperations": 20,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 358.252208
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 20,
+          "candidateOperations": 20,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 369.66654200000005
+      }
+    },
+    {
+      "name": "gallery: PrograMaze",
+      "index": 215,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 27,
+          "candidateOperations": 27,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 437.8807499999999
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 27,
+          "candidateOperations": 27,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 408.42733400000003
+      }
+    },
+    {
+      "name": "gallery: Symbolism",
+      "index": 216,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 54,
+          "candidateOperations": 54,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1834.5731250000001
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 54,
+          "candidateOperations": 54,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1828.995333
+      }
+    },
+    {
+      "name": "gallery: Spikes 'n' Stuff",
+      "index": 219,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "timeout"
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "timeout"
+      }
+    },
+    {
+      "name": "vertebrae",
+      "index": 222,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 25,
+          "candidateOperations": 25,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 18403.280084
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 25,
+          "candidateOperations": 25,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 17376.708916
+      }
+    },
+    {
+      "name": "increpare game: LED Challenge",
+      "index": 224,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 143,
+          "candidateOperations": 143,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1955.9875
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 143,
+          "candidateOperations": 143,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1522.560042
+      }
+    },
+    {
+      "name": "increpare game: robot arm",
+      "index": 225,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 40,
+          "candidateOperations": 40,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 2459.636375
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 40,
+          "candidateOperations": 40,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 2178.275042
+      }
+    },
+    {
+      "name": "increpare game: you complete me",
+      "index": 227,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 27,
+          "candidateOperations": 27,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 340.087334
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 27,
+          "candidateOperations": 27,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 333.63654199999996
+      }
+    },
+    {
+      "name": "increpare game: happy kraken",
+      "index": 229,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 33,
+          "candidateOperations": 33,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 9643.236625000001
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 33,
+          "candidateOperations": 33,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 8683.031958000001
+      }
+    },
+    {
+      "name": "increpare game: match three billiards",
+      "index": 230,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 17,
+          "candidateOperations": 17,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 419.304792
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 17,
+          "candidateOperations": 17,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 404.99570900000003
+      }
+    },
+    {
+      "name": "newton",
+      "index": 231,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 20,
+          "candidateOperations": 20,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 238.94458300000002
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 20,
+          "candidateOperations": 20,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 229.430542
+      }
+    },
+    {
+      "name": "unewton",
+      "index": 232,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 64,
+          "candidateOperations": 64,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1186.830292
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 64,
+          "candidateOperations": 64,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1541.886333
+      }
+    },
+    {
+      "name": "Match two two by twos",
+      "index": 233,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 122,
+          "candidateOperations": 122,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 2741.673875
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 122,
+          "candidateOperations": 122,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 2499.570292
+      }
+    },
+    {
+      "name": "Garten der Medusen",
+      "index": 234,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 82,
+          "candidateOperations": 82,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1117.832416
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 82,
+          "candidateOperations": 82,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1128.687709
+      }
+    },
+    {
+      "name": "Kreiseln",
+      "index": 235,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 12,
+          "candidateOperations": 12,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 401.73458299999993
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 12,
+          "candidateOperations": 12,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 381.720208
+      }
+    },
+    {
+      "name": "Des Poseidons Dreizack",
+      "index": 236,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 69,
+          "candidateOperations": 69,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 3812.4334590000003
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 69,
+          "candidateOperations": 69,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 3651.625958
+      }
+    },
+    {
+      "name": "Bring the ice cube to the goal without exposing it to heat.",
+      "index": 237,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 39,
+          "candidateOperations": 39,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 613.216375
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 39,
+          "candidateOperations": 39,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 605.4470839999999
+      }
+    },
+    {
+      "name": "der Hydra Krypta",
+      "index": 238,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 37,
+          "candidateOperations": 37,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 5182.777375000001
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 37,
+          "candidateOperations": 37,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 5256.783667000001
+      }
+    },
+    {
+      "name": "Karamell",
+      "index": 241,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 76,
+          "candidateOperations": 76,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 8841.532917
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 76,
+          "candidateOperations": 76,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 8784.625125
+      }
+    },
+    {
+      "name": "Gabelstapler",
+      "index": 243,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 49,
+          "candidateOperations": 49,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 657.534083
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 49,
+          "candidateOperations": 49,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 616.519708
+      }
+    },
+    {
+      "name": "Slot Machine",
+      "index": 244,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 30,
+          "candidateOperations": 30,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 269.257417
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 30,
+          "candidateOperations": 30,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 281.990041
+      }
+    },
+    {
+      "name": "a distant sunset",
+      "index": 254,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 21,
+          "candidateOperations": 21,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 819.278416
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 21,
+          "candidateOperations": 21,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 796.5817499999999
+      }
+    },
+    {
+      "name": "Seize the flag!",
+      "index": 255,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 28,
+          "candidateOperations": 28,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1866.289292
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 28,
+          "candidateOperations": 28,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1817.887375
+      }
+    },
+    {
+      "name": "Car Crash",
+      "index": 258,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "timeout"
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "timeout"
+      }
+    },
+    {
+      "name": "Alternatey",
+      "index": 259,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 7,
+          "candidateOperations": 7,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 72.864667
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 7,
+          "candidateOperations": 7,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 70.71516600000001
+      }
+    },
+    {
+      "name": "Expand, avoid the flames [also it's not always solvable]",
+      "index": 265,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 48,
+          "candidateOperations": 48,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 575.232667
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 48,
+          "candidateOperations": 48,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 634.73275
+      }
+    },
+    {
+      "name": "Snakey Snakey Makes A Sixy",
+      "index": 270,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 121,
+          "candidateOperations": 121,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1769.5802919999999
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 121,
+          "candidateOperations": 121,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1762.9417500000002
+      }
+    },
+    {
+      "name": "Voitex Rasteriser [Demake of Vertex Dispenser Puzzle Mode]",
+      "index": 271,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 51,
+          "candidateOperations": 51,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 388.599625
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 51,
+          "candidateOperations": 51,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 385.97166599999997
+      }
+    },
+    {
+      "name": "NIGHTMARECROBAN",
+      "index": 276,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 33,
+          "candidateOperations": 33,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 170.890917
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 33,
+          "candidateOperations": 33,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 171.680208
+      }
+    },
+    {
+      "name": "Vexatious Match 3",
+      "index": 278,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 39,
+          "candidateOperations": 39,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 197.57908299999997
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 39,
+          "candidateOperations": 39,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 200.99037500000003
+      }
+    },
+    {
+      "name": "A CLEAR VIEW OF THE SKY",
+      "index": 280,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 10,
+          "candidateOperations": 10,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 415.32762500000007
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 10,
+          "candidateOperations": 10,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 409.082542
+      }
+    },
+    {
+      "name": "A CLEAR VIEW OF THE SKY",
+      "index": 281,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 64,
+          "candidateOperations": 64,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 2364.517708
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 64,
+          "candidateOperations": 64,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 2232.922667
+      }
+    },
+    {
+      "name": "BIAXIAL INVASION OF SATURN",
+      "index": 282,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 17,
+          "candidateOperations": 17,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1009.528625
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 17,
+          "candidateOperations": 17,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 974.0232080000001
+      }
+    },
+    {
+      "name": "sum three horizontally to 8!",
+      "index": 283,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 12,
+          "candidateOperations": 12,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 199.82408300000003
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 12,
+          "candidateOperations": 12,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 208.25008300000002
+      }
+    },
+    {
+      "name": "Pocket Gopher: Root-Shoot Nibbler",
+      "index": 288,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 11,
+          "candidateOperations": 11,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 261.746167
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 11,
+          "candidateOperations": 11,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 250.614583
+      }
+    },
+    {
+      "name": "North Wind Simple Sailboat Buoy Collection",
+      "index": 289,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 28,
+          "candidateOperations": 28,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1586.180375
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 28,
+          "candidateOperations": 28,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1704.040042
+      }
+    },
+    {
+      "name": "It gets its Feet Wet",
+      "index": 290,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 38,
+          "candidateOperations": 38,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 3349.714916
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 38,
+          "candidateOperations": 38,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 3782.5788749999997
+      }
+    },
+    {
+      "name": "Neoprenanzieher",
+      "index": 291,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "timeout"
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "timeout"
+      }
+    },
+    {
+      "name": "C\u014cDEX\u00b7L\u016aBRICUS",
+      "index": 297,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 58,
+          "candidateOperations": 58,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1012.5916670000001
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 58,
+          "candidateOperations": 58,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1163.68575
+      }
+    },
+    {
+      "name": "Oh No My Dog Is About To Swallow A Piece Of Chocolate",
+      "index": 298,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "timeout"
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "timeout"
+      }
+    },
+    {
+      "name": "paint everything everywhere!",
+      "index": 299,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 44,
+          "candidateOperations": 44,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 4208.405125
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 44,
+          "candidateOperations": 44,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 3195.167708
+      }
+    },
+    {
+      "name": "Putting Bicycle Helmets on Young Children",
+      "index": 300,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 70,
+          "candidateOperations": 70,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 6226.595875
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 70,
+          "candidateOperations": 70,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 6200.823041000001
+      }
+    },
+    {
+      "name": "No! Don't eat that!",
+      "index": 301,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 66,
+          "candidateOperations": 66,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 7189.282708
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 66,
+          "candidateOperations": 66,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 5437.456542
+      }
+    },
+    {
+      "name": "NO FORBIDDEN SYMBOLS",
+      "index": 304,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 10,
+          "candidateOperations": 10,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 80.87175
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 10,
+          "candidateOperations": 10,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 82.997875
+      }
+    },
+    {
+      "name": "SWIMMING TIME!",
+      "index": 305,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 37,
+          "candidateOperations": 37,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 11152.4345
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 37,
+          "candidateOperations": 37,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 10788.508833
+      }
+    },
+    {
+      "name": "Explodoban",
+      "index": 309,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 17,
+          "candidateOperations": 17,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 108.752875
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 17,
+          "candidateOperations": 17,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 106.78116599999998
+      }
+    },
+    {
+      "name": "Bicycle-Kick Football",
+      "index": 310,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 61,
+          "candidateOperations": 61,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 461.73150000000004
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 61,
+          "candidateOperations": 61,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 438.46083300000004
+      }
+    },
+    {
+      "name": "The sponge what lights up the seafloor",
+      "index": 312,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 78,
+          "candidateOperations": 78,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 2919.1342910000003
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 78,
+          "candidateOperations": 78,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 2925.359625
+      }
+    },
+    {
+      "name": "Yellow Box",
+      "index": 315,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 19,
+          "candidateOperations": 19,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 202.145958
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 19,
+          "candidateOperations": 19,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 224.19625
+      }
+    },
+    {
+      "name": "Cucumber Surprise",
+      "index": 326,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 37,
+          "candidateOperations": 37,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 259.89675
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 37,
+          "candidateOperations": 37,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 271.92333299999996
+      }
+    },
+    {
+      "name": "Chevron Lodger",
+      "index": 327,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 67,
+          "candidateOperations": 67,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 831.339167
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 67,
+          "candidateOperations": 67,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 834.76725
+      }
+    },
+    {
+      "name": "Two-Tone Tango",
+      "index": 328,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 43,
+          "candidateOperations": 43,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 309.331459
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 43,
+          "candidateOperations": 43,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 314.866916
+      }
+    },
+    {
+      "name": "Hole-Stuffer",
+      "index": 329,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 43,
+          "candidateOperations": 43,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 354.6635
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 43,
+          "candidateOperations": 43,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 358.47562500000004
+      }
+    },
+    {
+      "name": "pipe puffer",
+      "index": 336,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 53,
+          "candidateOperations": 53,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 600.380458
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 53,
+          "candidateOperations": 53,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 593.757208
+      }
+    },
+    {
+      "name": "Double-Entry Bookkeeping Simulator#1",
+      "index": 341,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 32,
+          "candidateOperations": 32,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 967.1677500000001
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 32,
+          "candidateOperations": 32,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 946.609209
+      }
+    },
+    {
+      "name": "Double-Entry Bookkeeping Simulator#2",
+      "index": 342,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 12,
+          "candidateOperations": 12,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 610.939833
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 12,
+          "candidateOperations": 12,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 639.631875
+      }
+    },
+    {
+      "name": "Wallnut chasing mouse chasing cat chasing dog chasing man",
+      "index": 347,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 48,
+          "candidateOperations": 48,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 631.178917
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 48,
+          "candidateOperations": 48,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 626.566167
+      }
+    },
+    {
+      "name": "I Need To Stop My Teleport Gun",
+      "index": 350,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 100,
+          "candidateOperations": 100,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 9582.959166999999
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 100,
+          "candidateOperations": 100,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 8338.473041000001
+      }
+    },
+    {
+      "name": "City road builder",
+      "index": 351,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 54,
+          "candidateOperations": 54,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 559.873292
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 54,
+          "candidateOperations": 54,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 557.665291
+      }
+    },
+    {
+      "name": "I wanna change my position",
+      "index": 357,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 145,
+          "candidateOperations": 145,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 813.5504999999999
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 145,
+          "candidateOperations": 145,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 802.8122079999999
+      }
+    },
+    {
+      "name": "Sokoban... in 3D!",
+      "index": 400,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 85,
+          "candidateOperations": 85,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 2579.765666
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 85,
+          "candidateOperations": 85,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 2466.879916
+      }
+    },
+    {
+      "name": "Crate Assembler",
+      "index": 402,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 27,
+          "candidateOperations": 27,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 3018.858167
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 27,
+          "candidateOperations": 27,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 3279.7980000000002
+      }
+    },
+    {
+      "name": "Clearing space",
+      "index": 403,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 68,
+          "candidateOperations": 68,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1121.5541249999999
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 68,
+          "candidateOperations": 68,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1092.4215000000002
+      }
+    },
+    {
+      "name": "Mini Jill Off",
+      "index": 404,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 86,
+          "candidateOperations": 86,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1357.474834
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 86,
+          "candidateOperations": 86,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1480.947958
+      }
+    },
+    {
+      "name": "Big dog and little dog",
+      "index": 405,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 73,
+          "candidateOperations": 73,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 8042.25625
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 73,
+          "candidateOperations": 73,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 7026.221208
+      }
+    },
+    {
+      "name": "The Monsterous Autoshove",
+      "index": 406,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 80,
+          "candidateOperations": 80,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1322.164375
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 80,
+          "candidateOperations": 80,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 997.9532079999999
+      }
+    },
+    {
+      "name": "ecosystem generator",
+      "index": 407,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 181,
+          "candidateOperations": 181,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 16507.635333
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 181,
+          "candidateOperations": 181,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 16937.507416
+      }
+    },
+    {
+      "name": "WITCH LIFTER",
+      "index": 410,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 22,
+          "candidateOperations": 22,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 739.109792
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 22,
+          "candidateOperations": 22,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 727.230125
+      }
+    },
+    {
+      "name": "Missing/Skipping Rules? Objects disappear for no reason? #1046",
+      "index": 420,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 9,
+          "candidateOperations": 9,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 53.29104199999999
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 9,
+          "candidateOperations": 9,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 54.930375
+      }
+    },
+    {
+      "name": "#1094 winning broken in Cratopia",
+      "index": 468,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 6,
+          "candidateOperations": 6,
+          "levelLoads": 2
+        },
+        "elapsed_ms": 120.49133300000001
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 6,
+          "candidateOperations": 6,
+          "levelLoads": 2
+        },
+        "elapsed_ms": 121.23074999999999
+      }
+    },
+    {
+      "name": "Selene's Labyrinth",
+      "index": 471,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "timeout"
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "timeout"
+      }
+    },
+    {
+      "name": "ENIGMASH",
+      "index": 472,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "timeout"
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "timeout"
+      }
+    },
+    {
+      "name": "Lock & Pin",
+      "index": 473,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 76,
+          "candidateOperations": 76,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1165.9012500000001
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 76,
+          "candidateOperations": 76,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 1111.063167
+      }
+    },
+    {
+      "name": "Un-Lock",
+      "index": 477,
+      "baseline": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 129,
+          "candidateOperations": 129,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 13774.666958
+      },
+      "candidate": {
+        "timeout_ms": 30000,
+        "status": "passed",
+        "observations": {
+          "snapshots": 129,
+          "candidateOperations": 129,
+          "levelLoads": 1
+        },
+        "elapsed_ms": 14320.220041999999
+      }
+    }
+  ],
+  "date": "2026-10-31"
+}

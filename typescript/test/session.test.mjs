@@ -8,7 +8,9 @@ import { createBoard } from '../build/board.js';
 import { CommandKind } from '../build/commands.js';
 import { Direction, Movement } from '../build/model.js';
 import { createRandom, nextRandom } from '../build/random.js';
-import { PlayerMatchKind } from '../build/turn-rules.js';
+import { vanillaQuirks, noQuirks } from '../build/compatibility-vanilla-5a94bde1.js';
+import { compileSource, SourceCompilationKind } from '../build/source-compiler.js';
+import { applyTurnRules, PlayerMatchKind } from '../build/turn-rules.js';
 import { ObjectMatchKind, WinQuantifier } from '../build/win-conditions.js';
 import { LevelKind, RunMode, ScreenKind, SimpleSound, SessionEffectKind, PersistenceKind } from '../build/session-model.js';
 import { createSession, stepSession, undoSession, restartSession, advanceSession } from '../build/session.js';
@@ -593,4 +595,283 @@ test('legacy message input confirms Replay advances silently while Interactive p
     const emitted = result.effects.filter(effect => effect.kind === SessionEffectKind.Sound).map(effect => [effect.seed, effect.simple]);
     assert.deepEqual(emitted, legacy[1].sounds);
   }
+});
+
+
+// Reading the real rule schedule counts complete turn simulations, including probes.
+function countedAgainGame(quirks = vanillaQuirks, random = false) {
+  let simulations = 0;
+  const earlyRules = schedule([autoWalk()]);
+  const incoming = game({ quirks, levels: [grid(board(Array.from({ length: 102 }, (_, x) => x === 0 ? [Player] : [])))],
+    lateRules: random ? schedule([commandRule({ kind: CommandKind.Sound, index: 0 })], true) : schedule() });
+  Object.defineProperty(incoming, 'earlyRules', { configurable: true, get() { simulations++; return earlyRules; } });
+  return { incoming, count: () => simulations };
+}
+
+for (const quirks of [vanillaQuirks, noQuirks]) {
+  test(`AGAIN reuses deterministic preparation for 100 turns (${quirks === vanillaQuirks ? 'vanilla' : 'clean'})`, () => {
+    const { incoming, count } = countedAgainGame(quirks);
+    let state = start(incoming);
+    for (let turn = 0; turn < 100; turn++) {
+      const next = stepSession(incoming, state, turn === 0 ? Movement.Action : null, environment());
+      assert.equal(next.modified, true);
+      assert.equal(next.state.againing, true);
+      assert.ok(cell(next.state, turn + 1).has(Player));
+      state = next.state;
+    }
+    assert.equal(count(), 101);
+  });
+}
+
+test('clean random AGAIN probes keep the stream private and commit the prepared draw once', () => {
+  const { incoming, count } = countedAgainGame(noQuirks, true);
+  let state = start(incoming);
+  let expectedRandom = state.execution.random;
+  for (let turn = 0; turn < 100; turn++) {
+    const next = stepSession(incoming, state, turn === 0 ? Movement.Action : null, environment());
+    expectedRandom = nextRandom(expectedRandom).state;
+    assert.deepEqual(next.state.execution.random, expectedRandom);
+    assert.deepEqual(sounds(next), ['sfx0']);
+    assert.equal(next.state.againing, true);
+    state = next.state;
+  }
+  assert.equal(count(), 101);
+});
+
+test('cached AGAIN results equal uncached immutable branches and can be committed repeatedly', () => {
+  for (const quirks of [vanillaQuirks, noQuirks]) for (const random of [false, true]) {
+    const { incoming } = countedAgainGame(quirks, random);
+    let state = stepSession(incoming, start(incoming), Movement.Action, environment()).state;
+    for (let turn = 0; turn < 5; turn++) {
+      const original = structuredClone(state);
+      const cached = stepSession(incoming, state, null, environment());
+      const uncached = stepSession(incoming, { ...state }, null, environment());
+      const repeated = stepSession(incoming, state, null, environment());
+      assert.deepEqual(cached, uncached);
+      assert.deepEqual(repeated, cached);
+      assert.deepEqual(state, original);
+      assert.notEqual(cached.state.execution.board, repeated.state.execution.board);
+      assert.notEqual(cached.state.execution.random.permutation, repeated.state.execution.random.permutation);
+      cell(cached.state, turn + 2).clear();
+      cached.state.execution.random.permutation.reverse();
+      assert.deepEqual(stepSession(incoming, state, null, environment()), uncached);
+      state = uncached.state;
+    }
+  }
+});
+
+test('clean quiet and cancelling AGAIN probes keep checkpoint persistence and audio private', () => {
+  const outer = rule([[pattern([Player], { requiredMovements: [{ layer: 0, movement: Movement.Right }] })]], [[replacement()]], [{ kind: CommandKind.Again }]);
+  const checkpointGame = game({ quirks: noQuirks, earlyRules: schedule([outer]), lateRules: schedule([commandRule(CommandKind.Checkpoint)]) });
+  const saved = stepSession(checkpointGame, start(checkpointGame), Movement.Right, environment());
+  assert.equal(persisted(saved).length, 1);
+  const cancelIfStationary = rule([[pattern([Player], { forbiddenMovements: [{ layer: 0, movement: Movement.Right }] })]], [],
+    [{ kind: CommandKind.Cancel }, { kind: CommandKind.Sound, index: 0 }], { hasReplacements: false });
+  const cancelGame = game({ quirks: noQuirks, earlyRules: schedule([outer, cancelIfStationary]) });
+  const result = stepSession(cancelGame, start(cancelGame), Movement.Right, environment());
+  assert.equal(result.state.againing, true);
+  assert.deepEqual(sounds(result), []);
+  const next = stepSession(cancelGame, result.state, null, environment());
+  assert.deepEqual(sounds(next), ['sfx0', 'Cancel']);
+});
+
+for (const [name, mutate] of [
+  ['board objects', state => cell(state, 5).add(Marker)],
+  ['RNG permutation', state => { state.execution.random.permutation.reverse(); }],
+  ['RNG i', state => { state.execution.random.i++; }],
+  ['RNG j', state => { state.execution.random.j++; }],
+  ['RNG seed', state => { state.execution.random.seed = 'different seed'; }],
+  ['pending movements', state => { state.execution.pendingMovements.push(request(1, 0, Movement.Down)); }],
+  ['rigid marks', state => { state.execution.rigidMarks.push({ ...request(1, 0, Movement.Down), group: null }); }],
+  ['command message', state => { state.execution.commands.message = 'changed outside'; }],
+]) {
+  test('AGAIN validates exposed mutable execution input: ' + name, () => {
+    const { incoming, count } = countedAgainGame(noQuirks, true);
+    const state = stepSession(incoming, start(incoming), Movement.Action, environment()).state;
+    mutate(state);
+    const beforeCount = count();
+    const actual = stepSession(incoming, state, null, environment());
+    assert.equal(count() - beforeCount, 2);
+    assert.deepEqual(actual, stepSession(incoming, { ...state }, null, environment()));
+  });
+}
+
+for (const kind of [CommandKind.Sound, CommandKind.Message, CommandKind.Win, CommandKind.Checkpoint, CommandKind.Restart, CommandKind.Cancel]) {
+  test(`clean prepared AGAIN defers command ${CommandKind[kind]} until the real turn`, () => {
+    const command = kind === CommandKind.Sound ? { kind, index: 0 } : kind === CommandKind.Message ? { kind, text: 'prepared message' } : { kind };
+    const onMarker = rule([[pattern([Player, Marker])]], [], kind === CommandKind.Cancel ? [command, { kind: CommandKind.Sound, index: 0 }] : [command], { hasReplacements: false });
+    const incoming = game({ quirks: noQuirks, earlyRules: schedule([autoWalk()]), lateRules: schedule([onMarker]),
+      levels: [grid(board([[Player], [], [Marker], []]))] });
+    const first = stepSession(incoming, start(incoming, { runMode: RunMode.Interactive }), Movement.Action, environment());
+    assert.equal(first.state.againing, true);
+    assert.deepEqual(first.effects, []);
+    assert.equal(first.state.checkpointUsed, false);
+    assert.equal(first.state.winning, false);
+    assert.equal(first.state.screen.kind, ScreenKind.Board);
+    const next = stepSession(incoming, first.state, null, environment());
+    assert.deepEqual(next, stepSession(incoming, { ...first.state }, null, environment()));
+    if (kind === CommandKind.Sound) assert.deepEqual(sounds(next), ['sfx0']);
+    if (kind === CommandKind.Message) assert.equal(next.state.screen.text, 'prepared message');
+    if (kind === CommandKind.Win) assert.equal(next.state.winning, true);
+    if (kind === CommandKind.Checkpoint) assert.equal(persisted(next).length, 1);
+    if (kind === CommandKind.Restart) assert.ok(cell(next.state).has(Player));
+    if (kind === CommandKind.Cancel) assert.ok(cell(next.state, 1).has(Player));
+  });
+}
+
+test('clean no-op random AGAIN probes discard their draws, commands and execution events', () => {
+  const outer = rule([[pattern([Player], { requiredMovements: [{ layer: 0, movement: Movement.Right }] })]], [[replacement()]],
+    [{ kind: CommandKind.Again }, { kind: CommandKind.Message, text: 'outer message' }]);
+  const incoming = game({ quirks: noQuirks, earlyRules: schedule([outer]),
+    lateRules: schedule([commandRule({ kind: CommandKind.Message, text: 'probe message' })], true) });
+  const before = start(incoming);
+  const result = stepSession(incoming, before, Movement.Right, environment());
+  assert.equal(result.state.againing, false);
+  assert.deepEqual(result.state.execution.random, nextRandom(before.execution.random).state);
+  assert.equal(result.state.execution.commands.message, 'outer message');
+});
+
+test('AGAIN preparation respects next input, game identity and public step options', () => {
+  const { incoming, count } = countedAgainGame(noQuirks, true);
+  const state = stepSession(incoming, start(incoming), Movement.Action, environment()).state;
+  const nextGame = { ...incoming, lateRules: schedule() };
+  assert.deepEqual(stepSession(nextGame, state, null, environment()), stepSession(nextGame, { ...state }, null, environment()));
+  for (const input of [Movement.Action, Movement.Left, Movement.Right]) {
+    assert.deepEqual(stepSession(incoming, state, input, environment()), stepSession(incoming, { ...state }, input, environment()));
+  }
+  for (const options of [{ probe: true }, { suppressWin: true }, { probe: true, suppressWin: true }]) {
+    const beforeCount = count();
+    const actual = stepSession(incoming, state, null, environment(), options);
+    assert.equal(count() - beforeCount, options.probe ? 0 : 1);
+    assert.deepEqual(actual, stepSession(incoming, { ...state }, null, environment(), options));
+  }
+});
+
+test('undo, restart and advance do not carry a preparation into their new state', () => {
+  const { incoming } = countedAgainGame(noQuirks, true);
+  const state = stepSession(incoming, start(incoming), Movement.Action, environment()).state;
+  for (const next of [undoSession(incoming, state).state, restartSession(incoming, state, environment()).state,
+    advanceSession(incoming, state, environment()).state]) {
+    assert.deepEqual(stepSession(incoming, next, null, environment()), stepSession(incoming, { ...next }, null, environment()));
+  }
+});
+
+test('vanilla random probes fall back when their consumed stream differs from the prepared input', () => {
+  const { incoming, count } = countedAgainGame(vanillaQuirks, true);
+  let state = start(incoming);
+  let random = state.execution.random;
+  for (let turn = 0; turn < 100; turn++) {
+    const next = stepSession(incoming, state, turn === 0 ? Movement.Action : null, environment());
+    random = nextRandom(nextRandom(random).state).state;
+    assert.deepEqual(next.state.execution.random, random);
+    state = next.state;
+  }
+  assert.equal(count(), 200);
+});
+
+test('vanilla probes fall back when restore clears deterministic late pending movements', () => {
+  const { incoming, count } = countedAgainGame();
+  incoming.lateRules = schedule([autoWalk([])]);
+  let state = start(incoming);
+  for (let turn = 0; turn < 10; turn++) {
+    state = stepSession(incoming, state, turn === 0 ? Movement.Action : null, environment()).state;
+    assert.equal(state.againing, true);
+    assert.deepEqual(state.execution.pendingMovements, []);
+  }
+  assert.equal(count(), 20);
+});
+
+test('clean probes publish diagnostics without exposing the private prepared diagnostic objects', () => {
+  const { incoming, count } = countedAgainGame(noQuirks);
+  const add = rule([[pattern([Player], { forbiddenObjects: new Set([Marker]) })]], [[replacement({ addObjects: new Set([Marker]) })]]);
+  const remove = rule([[pattern([Player, Marker])]], [[replacement({ removeObjects: new Set([Marker]) })]]);
+  incoming.lateRules = schedule([add, remove]);
+  const first = stepSession(incoming, start(incoming), Movement.Action, environment());
+  assert.equal(first.state.againing, true);
+  assert.equal(first.effects.length, 2);
+  assert.ok(first.effects.every(effect => effect.kind === SessionEffectKind.Diagnostic && effect.diagnostic.origin === 'rules'));
+  first.effects[1].diagnostic.detail.sourceLine = 999;
+  const beforeCount = count();
+  const next = stepSession(incoming, first.state, null, environment());
+  assert.equal(count() - beforeCount, 1);
+  assert.deepEqual(next, stepSession(incoming, { ...first.state }, null, environment()));
+  assert.ok(next.effects.every(effect => effect.diagnostic.detail.sourceLine === add.sourceLine));
+});
+
+
+test('source-compiled random AGAIN chains cache with only the probe side-effect quirk disabled', () => {
+  const source = movementSource({ rules: 'right [ Player ] -> [ > Player ] again\nlate random [ Player ] -> sfx0',
+    sounds: 'sfx0 123', level: 'P' + '.'.repeat(101) });
+  const compiled = compileSource(source, { quirks: { ...vanillaQuirks, againProbeHasSideEffects: false } });
+  assert.equal(compiled.outcome.kind, SourceCompilationKind.Accepted);
+  const incoming = compiled.outcome.game;
+  const earlyRules = incoming.earlyRules;
+  let simulations = 0;
+  Object.defineProperty(incoming, 'earlyRules', { configurable: true, get() { simulations++; return earlyRules; } });
+  let state = start(incoming);
+  let random = state.execution.random;
+  for (let turn = 0; turn < 100; turn++) {
+    const next = stepSession(incoming, state, turn === 0 ? Movement.Action : null, environment());
+    random = nextRandom(random).state;
+    assert.deepEqual(next.state.execution.random, random);
+    assert.deepEqual(sounds(next), ['123']);
+    assert.equal(next.state.againing, true);
+    state = next.state;
+  }
+  assert.equal(simulations, 101);
+});
+
+test('clean probes share owned history until replacing it, without copying every old snapshot twice', () => {
+  const { incoming } = countedAgainGame(noQuirks);
+  const original = start(incoming);
+  let historyCopies = 0;
+  class History extends Array {
+    map(callback) { historyCopies++; return super.map(callback); }
+  }
+  const history = new History(...Array.from({ length: 100 }, () => ({ board: original.execution.board, viewport: null })));
+  const before = { ...original, history };
+  const next = stepSession(incoming, before, null, environment());
+  assert.equal(historyCopies, 1);
+  assert.equal(next.state.history.length, 100);
+  assert.equal(before.history.length, 100);
+  cell(next.state, 1).clear();
+  next.state.history[0].board.rows[0][0].objects.clear();
+  assert.ok(cell(before).has(Player));
+});
+
+test('AGAIN rejects changed board Set order even when its object membership is unchanged', () => {
+  const { incoming, count } = countedAgainGame(noQuirks);
+  incoming.levels = [grid(board(Array.from({ length: 102 }, (_, x) => x === 0 ? [Player, Marker] : [Marker])))];
+  const first = stepSession(incoming, start(incoming), Movement.Action, environment()).state;
+  const objects = cell(first, 1);
+  objects.delete(Marker);
+  objects.add(Marker);
+  const beforeCount = count();
+  const next = stepSession(incoming, first, null, environment());
+  assert.equal(count() - beforeCount, 2);
+  assert.deepEqual(next, stepSession(incoming, { ...first }, null, environment()));
+});
+
+
+test('prepared AGAIN reuses completed rigid retries and their final failure sounds', () => {
+  const { incoming } = countedAgainGame(noQuirks);
+  incoming.rigid = true;
+  const blocked = rule(undefined, [[{ ...replacement({ resetMovementLayers: new Set([0]),
+    addMovements: [{ layer: 0, movement: Movement.Up }] }), rigidLayers: new Set([0]) }]], [], { rigidGroup: 1 });
+  const earlyRules = { groups: [{ rules: [autoWalk()], random: false }, { rules: [blocked], random: false }], loops: new Map() };
+  let simulations = 0;
+  Object.defineProperty(incoming, 'earlyRules', { configurable: true, get() { simulations++; return earlyRules; } });
+  incoming.failureSounds = [{ objects: new Set([Player]), layer: 0, movements: new Set([Movement.Up]), seed: 'blocked rigid move' }];
+  const before = start(incoming);
+  const proof = applyTurnRules(incoming, before.execution, null);
+  assert.equal(proof.rigidRetries, 1);
+  const first = stepSession(incoming, before, Movement.Action, environment());
+  assert.equal(first.state.againing, true);
+  assert.deepEqual(sounds(first), ['blocked rigid move']);
+  const beforeCount = simulations;
+  const next = stepSession(incoming, first.state, null, environment());
+  assert.equal(simulations - beforeCount, 2); // Only the next probe's two rigid attempts.
+  assert.deepEqual(next, stepSession(incoming, { ...first.state }, null, environment()));
+  assert.deepEqual(sounds(next), ['blocked rigid move']);
+  assert.deepEqual(next.state.execution.bannedGroups, new Set([1]));
 });

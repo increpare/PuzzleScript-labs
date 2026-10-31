@@ -14,6 +14,12 @@ outcome and messages, or after any input or AGAIN step the level, screen, board,
 sounds, saves, wins or the input's modified flag. The full run took 2 h 10 min on
 9 workers.
 
+This is the historical seven-switch measurement. The later
+`againProbeHasSideEffects` switch is documented and tested in the
+[cached-AGAIN report](../docs/typescript-cached-again.md); its full corpus impact
+has not been measured here. The old "All off" row describes the seven switches
+available on 25 October, rather than the current eight-switch `noQuirks` object.
+
 ## Results
 
 | Switch turned off | Games that change | Why |

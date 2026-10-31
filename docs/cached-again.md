@@ -86,6 +86,9 @@ node tools/assess-labs-cached-again.cjs BASELINE_CHECKOUT CANDIDATE_CHECKOUT OUT
 Run these from the standalone collection; both checkouts are read-only inputs.
 The vanilla master sync cursor remains independent of this local-branch port.
 
+The [TypeScript follow-up](typescript-cached-again.md) implements the same reuse
+behind that engine's explicit vanilla compatibility boundary.
+
 ## Validation
 
 - Core: **976/976**, plus random replay, stale-frontier, sparse replacement and

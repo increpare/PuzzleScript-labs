@@ -123,6 +123,7 @@ extend compatibility-owned field declarations.
 
 | Switch | On (vanilla) | Off (clean) |
 | --- | --- | --- |
+| `againProbeHasSideEffects` | AGAIN probes consume RNG and retain historical state/effect side effects | Private lookahead; compatible prepared results commit on the next null input |
 | `restoreKeepsMovements` | Undo/restart keep movements outside the first storage word per tile | Restoring clears every pending movement |
 | `rigidOwnerOrdinalMerge` | Issue #1206: overlapping rigid writes can blame a group that never matched | A rigid mark keeps the group that first marked it |
 | `lhsRandomDirIsUpAndLeft` | LHS `randomdir` requires Up and Left together | Compile error |
@@ -137,6 +138,21 @@ The compiled game records its `quirks`; hand-built games without the field use
 vanilla. `npm --prefix typescript run quirk-impact` replays the recorded corpus with
 each switch off and lists the games that play differently; the latest results are
 in [QUIRKS.md](QUIRKS.md).
+
+Session-level AGAIN lookahead retains a prepared rule result and reuses it on
+the following null input when its source still matches. Matching itself remains
+uncached. The `againProbeHasSideEffects` switch preserves vanilla's speculative
+RNG draws, execution events and effects when on; incompatible random or carried
+movement probes are reevaluated. Off, lookahead stays private until commitment,
+apart from visible diagnostics, and random continuations can also be reused.
+`noQuirks` turns it off. To change only this behavior, use
+`compileSource(source, { quirks: { ...vanillaQuirks, againProbeHasSideEffects: false } })`.
+
+Prepared work is internal, carries no history and does not change the public
+state shape. Reusing an immutable state in two branches gives independent
+results. Spreading or serializing it drops the optimization; changing board,
+RNG, movement/rigid state, message or game invalidates incompatible work.
+See [the TypeScript cache report](../docs/typescript-cached-again.md).
 
 A `Cell` records the objects actually present. One object per collision layer is
 not an unconditional runtime invariant: accepted source with diagnosed conflicting

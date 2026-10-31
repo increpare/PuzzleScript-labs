@@ -11,6 +11,9 @@ import { Movement, type Board, type LayerMovements } from './model.js';
  * where vanilla gives no meaning, "off" reports an error rather than inventing one.
  */
 export interface Quirks {
+  /** AGAIN probes share execution events, RNG and session effects with the real
+   * turn. Off: speculative work stays private until the next null turn. */
+  readonly againProbeHasSideEffects: boolean;
   /** Undo and restart keep some pending movements: same-size restore cleared one
    * storage word per tile. Off: restoring a board clears every pending movement. */
   readonly restoreKeepsMovements: boolean;
@@ -37,7 +40,7 @@ export interface Quirks {
 export const vanillaQuirks: Quirks = Object.freeze({
   restoreKeepsMovements: true, rigidOwnerOrdinalMerge: true, lhsRandomDirIsUpAndLeft: true,
   combinedMovementsStayPut: true, uniformCanReachOne: true, columnMajorMovementOrder: true,
-  lateMovementsCarryOver: true,
+  lateMovementsCarryOver: true, againProbeHasSideEffects: true,
 });
 
 export const noQuirks: Quirks = Object.freeze(Object.fromEntries(

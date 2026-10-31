@@ -1,0 +1,642 @@
+{
+  "baseline_commit": "fba2000a",
+  "node": "v25.8.1",
+  "architecture": "arm64",
+  "pairs": 9,
+  "policy": "Pinned vanilla quirks; hashing full final session/effects outside timing; plain games timed, earlyRules getter counts collected separately",
+  "sources": {
+    "baseline": {
+      "session.js": "801b8ed8ae8fe0d4690ab44febcb43eb7631a2bdd292a44690b21eab324587bd",
+      "turn-rules.js": "c9cbb3be1c739181f18c60b6a18b72f8b93ebbd631d13d58dbbbf4f3e5310350",
+      "compatibility-vanilla-5a94bde1.js": "966730a481d876dc7cfbb34cf41b702f4c21e2b5b7009900d559a81743ab74c3"
+    },
+    "candidate": {
+      "session.js": "7b3f739c350db5d7a2361d167efb7cd3abd34f84f67763110c361990400ee698",
+      "turn-rules.js": "c9cbb3be1c739181f18c60b6a18b72f8b93ebbd631d13d58dbbbf4f3e5310350",
+      "compatibility-vanilla-5a94bde1.js": "746db47c7ebdc9a622a8ad1ef8e552167d388e5d17d1f6ed05611ef7510df72e"
+    }
+  },
+  "results": [
+    {
+      "name": "deterministic",
+      "cells": 1000,
+      "turns": 100,
+      "baseline_median_ms": 126.75545833333338,
+      "candidate_median_ms": 97.99720833333332,
+      "median_paired_speedup": 1.293288539374809,
+      "paired_min": 1.2658717034817286,
+      "paired_max": 1.3261180846253091,
+      "baseline_rule_passes": 200,
+      "candidate_rule_passes": 101
+    },
+    {
+      "name": "rigid",
+      "cells": 1000,
+      "turns": 100,
+      "baseline_median_ms": 124.19752766666663,
+      "candidate_median_ms": 87.59781933333336,
+      "median_paired_speedup": 1.4221801485894132,
+      "paired_min": 1.3858682048523243,
+      "paired_max": 1.4337064554566696,
+      "baseline_rule_passes": 201,
+      "candidate_rule_passes": 102
+    },
+    {
+      "name": "noagain",
+      "cells": 1000,
+      "turns": 100,
+      "baseline_median_ms": 63.45815300000004,
+      "candidate_median_ms": 63.07605566666674,
+      "median_paired_speedup": 1.0097505779887412,
+      "paired_min": 0.9847621170085927,
+      "paired_max": 1.0401612089921644,
+      "baseline_rule_passes": 100,
+      "candidate_rule_passes": 100
+    }
+  ],
+  "samples": {
+    "baseline": [
+      [
+        {
+          "name": "deterministic",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 380.26637500000015,
+          "early_rule_passes": 200,
+          "checksum": "e5718f79b3a7b724c87e159cac823cb414685b505754a3b61bfe9d4e0d5bdcf0",
+          "source_sha256": "868d76ad7473e4db84eb3fb70e50d66875ca608180d826109d85621dcc3b7b72"
+        },
+        {
+          "name": "rigid",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 367.87621000000036,
+          "early_rule_passes": 201,
+          "checksum": "601169d119410854599358ca7dcae7e5c140d7a0cc1bb8278cc50d3a5207d232",
+          "source_sha256": "7773e46571b1c5259bf4b0e38886762d2dd0bbaac9822a791f578949fcb0dbc7"
+        },
+        {
+          "name": "noagain",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 189.38954200000012,
+          "early_rule_passes": 100,
+          "checksum": "97f4c7cc5e2447d14e29936e850f0e99481fbd4e04548bc0b5922ca9450e9140",
+          "source_sha256": "cdff4e09607dbbef086d3877217e1aa3dcccb2356b21f25fb992e4ab3434a35d"
+        }
+      ],
+      [
+        {
+          "name": "deterministic",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 375.7946679999999,
+          "early_rule_passes": 200,
+          "checksum": "e5718f79b3a7b724c87e159cac823cb414685b505754a3b61bfe9d4e0d5bdcf0",
+          "source_sha256": "868d76ad7473e4db84eb3fb70e50d66875ca608180d826109d85621dcc3b7b72"
+        },
+        {
+          "name": "rigid",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 374.0926250000002,
+          "early_rule_passes": 201,
+          "checksum": "601169d119410854599358ca7dcae7e5c140d7a0cc1bb8278cc50d3a5207d232",
+          "source_sha256": "7773e46571b1c5259bf4b0e38886762d2dd0bbaac9822a791f578949fcb0dbc7"
+        },
+        {
+          "name": "noagain",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 187.23200100000054,
+          "early_rule_passes": 100,
+          "checksum": "97f4c7cc5e2447d14e29936e850f0e99481fbd4e04548bc0b5922ca9450e9140",
+          "source_sha256": "cdff4e09607dbbef086d3877217e1aa3dcccb2356b21f25fb992e4ab3434a35d"
+        }
+      ],
+      [
+        {
+          "name": "deterministic",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 376.38258299999995,
+          "early_rule_passes": 200,
+          "checksum": "e5718f79b3a7b724c87e159cac823cb414685b505754a3b61bfe9d4e0d5bdcf0",
+          "source_sha256": "868d76ad7473e4db84eb3fb70e50d66875ca608180d826109d85621dcc3b7b72"
+        },
+        {
+          "name": "rigid",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 367.6177909999999,
+          "early_rule_passes": 201,
+          "checksum": "601169d119410854599358ca7dcae7e5c140d7a0cc1bb8278cc50d3a5207d232",
+          "source_sha256": "7773e46571b1c5259bf4b0e38886762d2dd0bbaac9822a791f578949fcb0dbc7"
+        },
+        {
+          "name": "noagain",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 189.47983299999964,
+          "early_rule_passes": 100,
+          "checksum": "97f4c7cc5e2447d14e29936e850f0e99481fbd4e04548bc0b5922ca9450e9140",
+          "source_sha256": "cdff4e09607dbbef086d3877217e1aa3dcccb2356b21f25fb992e4ab3434a35d"
+        }
+      ],
+      [
+        {
+          "name": "deterministic",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 377.30945800000006,
+          "early_rule_passes": 200,
+          "checksum": "e5718f79b3a7b724c87e159cac823cb414685b505754a3b61bfe9d4e0d5bdcf0",
+          "source_sha256": "868d76ad7473e4db84eb3fb70e50d66875ca608180d826109d85621dcc3b7b72"
+        },
+        {
+          "name": "rigid",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 370.679791,
+          "early_rule_passes": 201,
+          "checksum": "601169d119410854599358ca7dcae7e5c140d7a0cc1bb8278cc50d3a5207d232",
+          "source_sha256": "7773e46571b1c5259bf4b0e38886762d2dd0bbaac9822a791f578949fcb0dbc7"
+        },
+        {
+          "name": "noagain",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 195.1052920000002,
+          "early_rule_passes": 100,
+          "checksum": "97f4c7cc5e2447d14e29936e850f0e99481fbd4e04548bc0b5922ca9450e9140",
+          "source_sha256": "cdff4e09607dbbef086d3877217e1aa3dcccb2356b21f25fb992e4ab3434a35d"
+        }
+      ],
+      [
+        {
+          "name": "deterministic",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 382.86195900000007,
+          "early_rule_passes": 200,
+          "checksum": "e5718f79b3a7b724c87e159cac823cb414685b505754a3b61bfe9d4e0d5bdcf0",
+          "source_sha256": "868d76ad7473e4db84eb3fb70e50d66875ca608180d826109d85621dcc3b7b72"
+        },
+        {
+          "name": "rigid",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 373.6786239999999,
+          "early_rule_passes": 201,
+          "checksum": "601169d119410854599358ca7dcae7e5c140d7a0cc1bb8278cc50d3a5207d232",
+          "source_sha256": "7773e46571b1c5259bf4b0e38886762d2dd0bbaac9822a791f578949fcb0dbc7"
+        },
+        {
+          "name": "noagain",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 190.37445900000012,
+          "early_rule_passes": 100,
+          "checksum": "97f4c7cc5e2447d14e29936e850f0e99481fbd4e04548bc0b5922ca9450e9140",
+          "source_sha256": "cdff4e09607dbbef086d3877217e1aa3dcccb2356b21f25fb992e4ab3434a35d"
+        }
+      ],
+      [
+        {
+          "name": "deterministic",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 386.4945,
+          "early_rule_passes": 200,
+          "checksum": "e5718f79b3a7b724c87e159cac823cb414685b505754a3b61bfe9d4e0d5bdcf0",
+          "source_sha256": "868d76ad7473e4db84eb3fb70e50d66875ca608180d826109d85621dcc3b7b72"
+        },
+        {
+          "name": "rigid",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 372.5925829999999,
+          "early_rule_passes": 201,
+          "checksum": "601169d119410854599358ca7dcae7e5c140d7a0cc1bb8278cc50d3a5207d232",
+          "source_sha256": "7773e46571b1c5259bf4b0e38886762d2dd0bbaac9822a791f578949fcb0dbc7"
+        },
+        {
+          "name": "noagain",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 190.87983400000007,
+          "early_rule_passes": 100,
+          "checksum": "97f4c7cc5e2447d14e29936e850f0e99481fbd4e04548bc0b5922ca9450e9140",
+          "source_sha256": "cdff4e09607dbbef086d3877217e1aa3dcccb2356b21f25fb992e4ab3434a35d"
+        }
+      ],
+      [
+        {
+          "name": "deterministic",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 389.07625100000007,
+          "early_rule_passes": 200,
+          "checksum": "e5718f79b3a7b724c87e159cac823cb414685b505754a3b61bfe9d4e0d5bdcf0",
+          "source_sha256": "868d76ad7473e4db84eb3fb70e50d66875ca608180d826109d85621dcc3b7b72"
+        },
+        {
+          "name": "rigid",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 377.00087599999983,
+          "early_rule_passes": 201,
+          "checksum": "601169d119410854599358ca7dcae7e5c140d7a0cc1bb8278cc50d3a5207d232",
+          "source_sha256": "7773e46571b1c5259bf4b0e38886762d2dd0bbaac9822a791f578949fcb0dbc7"
+        },
+        {
+          "name": "noagain",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 191.07325100000025,
+          "early_rule_passes": 100,
+          "checksum": "97f4c7cc5e2447d14e29936e850f0e99481fbd4e04548bc0b5922ca9450e9140",
+          "source_sha256": "cdff4e09607dbbef086d3877217e1aa3dcccb2356b21f25fb992e4ab3434a35d"
+        }
+      ],
+      [
+        {
+          "name": "deterministic",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 383.6573750000001,
+          "early_rule_passes": 200,
+          "checksum": "e5718f79b3a7b724c87e159cac823cb414685b505754a3b61bfe9d4e0d5bdcf0",
+          "source_sha256": "868d76ad7473e4db84eb3fb70e50d66875ca608180d826109d85621dcc3b7b72"
+        },
+        {
+          "name": "rigid",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 386.1317079999999,
+          "early_rule_passes": 201,
+          "checksum": "601169d119410854599358ca7dcae7e5c140d7a0cc1bb8278cc50d3a5207d232",
+          "source_sha256": "7773e46571b1c5259bf4b0e38886762d2dd0bbaac9822a791f578949fcb0dbc7"
+        },
+        {
+          "name": "noagain",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 192.3154569999997,
+          "early_rule_passes": 100,
+          "checksum": "97f4c7cc5e2447d14e29936e850f0e99481fbd4e04548bc0b5922ca9450e9140",
+          "source_sha256": "cdff4e09607dbbef086d3877217e1aa3dcccb2356b21f25fb992e4ab3434a35d"
+        }
+      ],
+      [
+        {
+          "name": "deterministic",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 378.64416600000004,
+          "early_rule_passes": 200,
+          "checksum": "e5718f79b3a7b724c87e159cac823cb414685b505754a3b61bfe9d4e0d5bdcf0",
+          "source_sha256": "868d76ad7473e4db84eb3fb70e50d66875ca608180d826109d85621dcc3b7b72"
+        },
+        {
+          "name": "rigid",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 369.7720410000002,
+          "early_rule_passes": 201,
+          "checksum": "601169d119410854599358ca7dcae7e5c140d7a0cc1bb8278cc50d3a5207d232",
+          "source_sha256": "7773e46571b1c5259bf4b0e38886762d2dd0bbaac9822a791f578949fcb0dbc7"
+        },
+        {
+          "name": "noagain",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 189.34270800000013,
+          "early_rule_passes": 100,
+          "checksum": "97f4c7cc5e2447d14e29936e850f0e99481fbd4e04548bc0b5922ca9450e9140",
+          "source_sha256": "cdff4e09607dbbef086d3877217e1aa3dcccb2356b21f25fb992e4ab3434a35d"
+        }
+      ]
+    ],
+    "candidate": [
+      [
+        {
+          "name": "deterministic",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 295.96825099999995,
+          "early_rule_passes": 101,
+          "checksum": "e5718f79b3a7b724c87e159cac823cb414685b505754a3b61bfe9d4e0d5bdcf0",
+          "source_sha256": "868d76ad7473e4db84eb3fb70e50d66875ca608180d826109d85621dcc3b7b72"
+        },
+        {
+          "name": "rigid",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 259.6490410000001,
+          "early_rule_passes": 102,
+          "checksum": "601169d119410854599358ca7dcae7e5c140d7a0cc1bb8278cc50d3a5207d232",
+          "source_sha256": "7773e46571b1c5259bf4b0e38886762d2dd0bbaac9822a791f578949fcb0dbc7"
+        },
+        {
+          "name": "noagain",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 189.90783299999975,
+          "early_rule_passes": 100,
+          "checksum": "97f4c7cc5e2447d14e29936e850f0e99481fbd4e04548bc0b5922ca9450e9140",
+          "source_sha256": "cdff4e09607dbbef086d3877217e1aa3dcccb2356b21f25fb992e4ab3434a35d"
+        }
+      ],
+      [
+        {
+          "name": "deterministic",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 293.99162499999994,
+          "early_rule_passes": 101,
+          "checksum": "e5718f79b3a7b724c87e159cac823cb414685b505754a3b61bfe9d4e0d5bdcf0",
+          "source_sha256": "868d76ad7473e4db84eb3fb70e50d66875ca608180d826109d85621dcc3b7b72"
+        },
+        {
+          "name": "rigid",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 262.7934580000001,
+          "early_rule_passes": 102,
+          "checksum": "601169d119410854599358ca7dcae7e5c140d7a0cc1bb8278cc50d3a5207d232",
+          "source_sha256": "7773e46571b1c5259bf4b0e38886762d2dd0bbaac9822a791f578949fcb0dbc7"
+        },
+        {
+          "name": "noagain",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 190.12916700000028,
+          "early_rule_passes": 100,
+          "checksum": "97f4c7cc5e2447d14e29936e850f0e99481fbd4e04548bc0b5922ca9450e9140",
+          "source_sha256": "cdff4e09607dbbef086d3877217e1aa3dcccb2356b21f25fb992e4ab3434a35d"
+        }
+      ],
+      [
+        {
+          "name": "deterministic",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 297.33074999999997,
+          "early_rule_passes": 101,
+          "checksum": "e5718f79b3a7b724c87e159cac823cb414685b505754a3b61bfe9d4e0d5bdcf0",
+          "source_sha256": "868d76ad7473e4db84eb3fb70e50d66875ca608180d826109d85621dcc3b7b72"
+        },
+        {
+          "name": "rigid",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 260.34979099999987,
+          "early_rule_passes": 102,
+          "checksum": "601169d119410854599358ca7dcae7e5c140d7a0cc1bb8278cc50d3a5207d232",
+          "source_sha256": "7773e46571b1c5259bf4b0e38886762d2dd0bbaac9822a791f578949fcb0dbc7"
+        },
+        {
+          "name": "noagain",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 190.28812600000037,
+          "early_rule_passes": 100,
+          "checksum": "97f4c7cc5e2447d14e29936e850f0e99481fbd4e04548bc0b5922ca9450e9140",
+          "source_sha256": "cdff4e09607dbbef086d3877217e1aa3dcccb2356b21f25fb992e4ab3434a35d"
+        }
+      ],
+      [
+        {
+          "name": "deterministic",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 290.04995899999994,
+          "early_rule_passes": 101,
+          "checksum": "e5718f79b3a7b724c87e159cac823cb414685b505754a3b61bfe9d4e0d5bdcf0",
+          "source_sha256": "868d76ad7473e4db84eb3fb70e50d66875ca608180d826109d85621dcc3b7b72"
+        },
+        {
+          "name": "rigid",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 266.7388739999999,
+          "early_rule_passes": 102,
+          "checksum": "601169d119410854599358ca7dcae7e5c140d7a0cc1bb8278cc50d3a5207d232",
+          "source_sha256": "7773e46571b1c5259bf4b0e38886762d2dd0bbaac9822a791f578949fcb0dbc7"
+        },
+        {
+          "name": "noagain",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 187.57216700000004,
+          "early_rule_passes": 100,
+          "checksum": "97f4c7cc5e2447d14e29936e850f0e99481fbd4e04548bc0b5922ca9450e9140",
+          "source_sha256": "cdff4e09607dbbef086d3877217e1aa3dcccb2356b21f25fb992e4ab3434a35d"
+        }
+      ],
+      [
+        {
+          "name": "deterministic",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 296.0375409999999,
+          "early_rule_passes": 101,
+          "checksum": "e5718f79b3a7b724c87e159cac823cb414685b505754a3b61bfe9d4e0d5bdcf0",
+          "source_sha256": "868d76ad7473e4db84eb3fb70e50d66875ca608180d826109d85621dcc3b7b72"
+        },
+        {
+          "name": "rigid",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 260.63816799999995,
+          "early_rule_passes": 102,
+          "checksum": "601169d119410854599358ca7dcae7e5c140d7a0cc1bb8278cc50d3a5207d232",
+          "source_sha256": "7773e46571b1c5259bf4b0e38886762d2dd0bbaac9822a791f578949fcb0dbc7"
+        },
+        {
+          "name": "noagain",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 186.99712499999987,
+          "early_rule_passes": 100,
+          "checksum": "97f4c7cc5e2447d14e29936e850f0e99481fbd4e04548bc0b5922ca9450e9140",
+          "source_sha256": "cdff4e09607dbbef086d3877217e1aa3dcccb2356b21f25fb992e4ab3434a35d"
+        }
+      ],
+      [
+        {
+          "name": "deterministic",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 293.5378340000001,
+          "early_rule_passes": 101,
+          "checksum": "e5718f79b3a7b724c87e159cac823cb414685b505754a3b61bfe9d4e0d5bdcf0",
+          "source_sha256": "868d76ad7473e4db84eb3fb70e50d66875ca608180d826109d85621dcc3b7b72"
+        },
+        {
+          "name": "rigid",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 261.74054200000023,
+          "early_rule_passes": 102,
+          "checksum": "601169d119410854599358ca7dcae7e5c140d7a0cc1bb8278cc50d3a5207d232",
+          "source_sha256": "7773e46571b1c5259bf4b0e38886762d2dd0bbaac9822a791f578949fcb0dbc7"
+        },
+        {
+          "name": "noagain",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 188.9458320000001,
+          "early_rule_passes": 100,
+          "checksum": "97f4c7cc5e2447d14e29936e850f0e99481fbd4e04548bc0b5922ca9450e9140",
+          "source_sha256": "cdff4e09607dbbef086d3877217e1aa3dcccb2356b21f25fb992e4ab3434a35d"
+        }
+      ],
+      [
+        {
+          "name": "deterministic",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 293.394876,
+          "early_rule_passes": 101,
+          "checksum": "e5718f79b3a7b724c87e159cac823cb414685b505754a3b61bfe9d4e0d5bdcf0",
+          "source_sha256": "868d76ad7473e4db84eb3fb70e50d66875ca608180d826109d85621dcc3b7b72"
+        },
+        {
+          "name": "rigid",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 265.086583,
+          "early_rule_passes": 102,
+          "checksum": "601169d119410854599358ca7dcae7e5c140d7a0cc1bb8278cc50d3a5207d232",
+          "source_sha256": "7773e46571b1c5259bf4b0e38886762d2dd0bbaac9822a791f578949fcb0dbc7"
+        },
+        {
+          "name": "noagain",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 189.2281670000002,
+          "early_rule_passes": 100,
+          "checksum": "97f4c7cc5e2447d14e29936e850f0e99481fbd4e04548bc0b5922ca9450e9140",
+          "source_sha256": "cdff4e09607dbbef086d3877217e1aa3dcccb2356b21f25fb992e4ab3434a35d"
+        }
+      ],
+      [
+        {
+          "name": "deterministic",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 298.8826670000001,
+          "early_rule_passes": 101,
+          "checksum": "e5718f79b3a7b724c87e159cac823cb414685b505754a3b61bfe9d4e0d5bdcf0",
+          "source_sha256": "868d76ad7473e4db84eb3fb70e50d66875ca608180d826109d85621dcc3b7b72"
+        },
+        {
+          "name": "rigid",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 270.6794580000003,
+          "early_rule_passes": 102,
+          "checksum": "601169d119410854599358ca7dcae7e5c140d7a0cc1bb8278cc50d3a5207d232",
+          "source_sha256": "7773e46571b1c5259bf4b0e38886762d2dd0bbaac9822a791f578949fcb0dbc7"
+        },
+        {
+          "name": "noagain",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 188.76745800000026,
+          "early_rule_passes": 100,
+          "checksum": "97f4c7cc5e2447d14e29936e850f0e99481fbd4e04548bc0b5922ca9450e9140",
+          "source_sha256": "cdff4e09607dbbef086d3877217e1aa3dcccb2356b21f25fb992e4ab3434a35d"
+        }
+      ],
+      [
+        {
+          "name": "deterministic",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 291.136917,
+          "early_rule_passes": 101,
+          "checksum": "e5718f79b3a7b724c87e159cac823cb414685b505754a3b61bfe9d4e0d5bdcf0",
+          "source_sha256": "868d76ad7473e4db84eb3fb70e50d66875ca608180d826109d85621dcc3b7b72"
+        },
+        {
+          "name": "rigid",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 266.8161660000003,
+          "early_rule_passes": 102,
+          "checksum": "601169d119410854599358ca7dcae7e5c140d7a0cc1bb8278cc50d3a5207d232",
+          "source_sha256": "7773e46571b1c5259bf4b0e38886762d2dd0bbaac9822a791f578949fcb0dbc7"
+        },
+        {
+          "name": "noagain",
+          "cells": 1000,
+          "turns": 100,
+          "repetitions": 3,
+          "elapsed_ms": 189.2874589999999,
+          "early_rule_passes": 100,
+          "checksum": "97f4c7cc5e2447d14e29936e850f0e99481fbd4e04548bc0b5922ca9450e9140",
+          "source_sha256": "cdff4e09607dbbef086d3877217e1aa3dcccb2356b21f25fb992e4ab3434a35d"
+        }
+      ]
+    ]
+  },
+  "date": "2026-10-31",
+  "test_source_sha256": "8034e82857685e91f4e58e26e74b0e6f369f282cd5c310c535a61cfcf804ded8",
+  "tool_sha256": "8a0ee0ed11f34f4411620770edc98388f9db47de95d9ef4280acab1038e2fb8e"
+}

@@ -2,7 +2,7 @@ import { cloneBoard, createBoard } from './board.js';
 import { CommandKind } from './commands.js';
 import * as vanilla from './compatibility-vanilla-5a94bde1.js';
 import type { RuleExecutionState } from './execution-model.js';
-import type { Board, Movement } from './model.js';
+import type { Board, LayerMovements, Movement } from './model.js';
 import { createRandom } from './random.js';
 import { cloneExecutionState } from './rules.js';
 import {
@@ -10,8 +10,23 @@ import {
   type BoardSnapshot, type CreateSessionOptions, type SessionEffect, type SessionEnvironment,
   type SessionGame, type SessionResult, type SessionState, type StepSessionOptions, type UndoSessionOptions, type Viewport,
 } from './session-model.js';
-import { applyTurnRules } from './turn-rules.js';
+import { applyTurnRules, type TurnRulesResult } from './turn-rules.js';
 import { hasWon } from './win-conditions.js';
+
+/** Only rule execution is cached; history and session effects always run on demand. */
+interface PreparedTurn {
+  readonly game: SessionGame;
+  readonly before: RuleExecutionState;
+  readonly turn: TurnRulesResult;
+}
+const preparedTurns = new WeakMap<SessionState, PreparedTurn>();
+interface TurnCapture { prepared: PreparedTurn | undefined }
+
+function copyTurn(turn: TurnRulesResult): TurnRulesResult {
+  return { ...turn, state: cloneExecutionState(turn.state),
+    playerPositions: turn.playerPositions.map(position => ({ ...position })),
+    diagnostics: turn.diagnostics.map(detail => ({ ...detail })) };
+}
 
 type WorkingState = { -readonly [Key in keyof SessionState]: SessionState[Key] };
 /** Only this local machine changes during a public operation, including nested probes. */
@@ -20,6 +35,7 @@ interface Machine {
   readonly environment: SessionEnvironment;
   readonly effects: SessionEffect[];
   readonly state: WorkingState;
+  prepared: PreparedTurn | undefined;
 }
 
 function copyViewport(viewport: Viewport | null): Viewport | null {
@@ -40,9 +56,17 @@ function copyState(before: SessionState): WorkingState {
   };
 }
 function machine(game: SessionGame, before: SessionState, environment: SessionEnvironment): Machine {
-  return { game, state: copyState(before), environment, effects: [] };
+  return { game, state: copyState(before), environment, effects: [], prepared: undefined };
+}
+/** The outer operation already owns these containers. Probe helpers replace state
+ * properties and copy snapshots/history before writes; this machine never escapes. */
+function probeMachine(work: Machine): Machine {
+  return { ...work, state: { ...work.state }, effects: [], prepared: undefined };
 }
 function result(work: Machine, modified: boolean): SessionResult {
+  if (work.state.againing && work.prepared !== undefined && sameRuleInput(work.prepared.before, work.state.execution)) {
+    preparedTurns.set(work.state, work.prepared);
+  }
   return { state: work.state, modified, effects: work.effects };
 }
 function sameBoard(left: Board, right: Board): boolean {
@@ -56,6 +80,36 @@ function sameBoard(left: Board, right: Board): boolean {
     }
   }
   return true;
+}
+/** Compare every incoming value applyTurnRules reads before resetting turn events.
+ * Snapshots keep private containers, so mutation of a returned state causes a miss. */
+function sameRuleInput(left: RuleExecutionState, right: RuleExecutionState): boolean {
+  if (!sameRuleBoard(left.board, right.board) || left.commands.message !== right.commands.message) return false;
+  const a = left.random;
+  const b = right.random;
+  if (a.seed !== b.seed || a.i !== b.i || a.j !== b.j || a.permutation.length !== b.permutation.length
+    || a.permutation.some((value, index) => value !== b.permutation[index])) return false;
+  if (!sameMovements(left.pendingMovements, right.pendingMovements)
+    || !sameMovements(left.rigidMarks, right.rigidMarks)) return false;
+  return left.rigidMarks.every((mark, index) => mark.group === right.rigidMarks[index]!.group);
+}
+function sameMovements(left: readonly LayerMovements[], right: readonly LayerMovements[]): boolean {
+  return left.length === right.length && left.every((entry, index) => {
+    const other = right[index]!;
+    return entry.position.x === other.position.x && entry.position.y === other.position.y && entry.layer === other.layer
+      && sameSetOrder(entry.movements, other.movements);
+  });
+}
+/** Order is observable in the returned containers even when membership is equal. */
+function sameSetOrder<Value>(left: ReadonlySet<Value>, right: ReadonlySet<Value>): boolean {
+  if (left.size !== right.size) return false;
+  const other = right.values();
+  for (const value of left) if (value !== other.next().value) return false;
+  return true;
+}
+function sameRuleBoard(left: Board, right: Board): boolean {
+  if (left.width !== right.width || left.height !== right.height) return false;
+  return left.rows.every((row, y) => row.every((cell, x) => sameSetOrder(cell.objects, right.rows[y]![x]!.objects)));
 }
 function sound(work: Machine, seed: string | undefined, simple: boolean): void {
   if (seed !== undefined) work.effects.push({ kind: SessionEffectKind.Sound, seed, simple });
@@ -223,11 +277,18 @@ function checkpoint(work: Machine): void {
   work.effects.push({ kind: SessionEffectKind.Persistence, operation: PersistenceKind.Checkpoint,
     levelIndex: work.state.levelIndex, snapshot: copySnapshot(work.state.restartTarget) });
 }
-function step(work: Machine, input: Movement | null, options: StepSessionOptions): boolean {
+function step(work: Machine, input: Movement | null, options: StepSessionOptions, capture?: TurnCapture): boolean {
+  const prepared = work.prepared;
+  work.prepared = undefined;
   work.state.againing = false;
   if (work.state.screen.kind !== ScreenKind.Board) return false;
   const before = snapshot(work.state);
-  const turn = applyTurnRules(work.game, work.state.execution, input);
+  const executionBefore = capture === undefined ? undefined : cloneExecutionState(work.state.execution);
+  const turn = input === null && prepared?.game === work.game && sameRuleInput(prepared.before, work.state.execution)
+    ? copyTurn(prepared.turn) : applyTurnRules(work.game, work.state.execution, input);
+  if (capture !== undefined && executionBefore !== undefined) {
+    capture.prepared = { game: work.game, before: executionBefore, turn: copyTurn(turn) };
+  }
   work.state.execution = turn.state;
   for (const detail of turn.diagnostics) {
     work.effects.push({ kind: SessionEffectKind.Diagnostic, diagnostic: { origin: 'rules', detail } });
@@ -281,8 +342,16 @@ function step(work: Machine, input: Movement | null, options: StepSessionOptions
     if (queued(work, CommandKind.Checkpoint)) checkpoint(work);
     if (queued(work, CommandKind.Again) && modified) {
       const message = work.state.execution.commands.message;
-      const possibleChange = step(work, null, { suppressWin: true, probe: true });
-      if (possibleChange) work.state.againing = true;
+      const capture: TurnCapture = { prepared: undefined };
+      const probe = vanilla.quirksOf(work.game).againProbeHasSideEffects ? work : probeMachine(work);
+      const possibleChange = step(probe, null, { suppressWin: true, probe: true }, capture);
+      if (probe !== work) {
+        for (const effect of probe.effects) if (effect.kind === SessionEffectKind.Diagnostic) work.effects.push(effect);
+      }
+      if (possibleChange) {
+        work.state.againing = true;
+        work.prepared = capture.prepared;
+      }
       setMessage(work, message);
     }
   }
@@ -308,6 +377,7 @@ export function createSession(game: SessionGame, options: CreateSessionOptions, 
 export function stepSession(game: SessionGame, before: SessionState, input: Movement | null,
   environment: SessionEnvironment, options: StepSessionOptions = {}): SessionResult {
   const work = machine(game, before, environment);
+  if (before.againing) work.prepared = preparedTurns.get(before);
   return result(work, step(work, input, options));
 }
 export function undoSession(game: SessionGame, before: SessionState, options: UndoSessionOptions = {}): SessionResult {
