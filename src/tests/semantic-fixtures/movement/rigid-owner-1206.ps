@@ -1,0 +1,36 @@
+title Known issue 1206 ownership preservation
+
+objects
+Background
+black
+
+Player
+white
+
+Crate
+red
+
+Wall
+blue
+
+legend
+. = Background
+P = Player and Crate
+
+sounds
+
+collisionlayers
+Background
+Player
+Crate
+Wall
+
+rules
+rigid right [ Player ] -> [ > Player ]
+rigid down [ Player Crate ] -> [ > Player > Crate ]
+rigid right [ Wall ] -> [ > Wall ]
+
+winconditions
+
+levels
+P.

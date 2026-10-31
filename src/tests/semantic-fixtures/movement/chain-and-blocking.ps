@@ -1,0 +1,45 @@
+title Movement: chain-and-blocking
+
+
+OBJECTS
+
+Background
+black
+
+Player
+white
+
+Crate
+red
+
+Wall
+blue
+
+Mark
+yellow
+
+LEGEND
+. = Background
+P = Player
+C = Crate
+# = Wall
+m = Mark
+X = Player and Mark
+Movable = Player or Crate
+
+SOUNDS
+
+
+COLLISIONLAYERS
+Background
+Player, Crate, Wall
+Mark
+
+RULES
+right [ > Movable | Crate ] -> [ > Movable | > Crate ]
+
+WINCONDITIONS
+no Player
+
+LEVELS
+PCC.#

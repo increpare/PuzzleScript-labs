@@ -1,0 +1,45 @@
+title late-direction-carryover
+
+objects
+
+Background
+black
+
+Player
+white
+
+Crate
+red
+
+Switch
+yellow
+
+Spent
+blue
+
+legend
+
+. = Background
+P = Player
+C = Crate
+S = Switch
+
+sounds
+
+
+
+collisionlayers
+
+Background
+Switch, Spent
+Player, Crate
+
+rules
+
+late [ Crate ] [ Switch ] -> [ randomdir Crate ] [ Spent ]
+
+winconditions
+
+levels
+
+S.C.P

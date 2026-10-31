@@ -1,0 +1,156 @@
+[
+  {
+    "id": "random/one-tuple-per-turn",
+    "sourceFile": "random/one-tuple-per-turn.ps",
+    "explanation": "A random rule group chooses one tuple only. Seed split-colors-5 uses .4640 to choose the middle of three Seedlings, then .5014 to choose Berry. Next turn .4747 chooses the first remaining Seedling and .3532 chooses Apple. Candidate selection and random object selection are distinct draws.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "S": [
+        "background",
+        "seedling"
+      ],
+      "A": [
+        "background",
+        "apple"
+      ],
+      "B": [
+        "background",
+        "berry"
+      ],
+      "R": [
+        "background",
+        "player",
+        "apple"
+      ],
+      "Q": [
+        "background",
+        "player",
+        "berry"
+      ]
+    },
+    "cases": [
+      {
+        "name": "one chosen match among three",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "SBPS"
+        ],
+        "seed": "split-colors-5"
+      },
+      {
+        "name": "second choice consumes another tuple and object draw",
+        "inputs": [
+          4,
+          4
+        ],
+        "expected": [
+          "ABPS"
+        ],
+        "seed": "split-colors-5"
+      },
+      {
+        "name": "undo returns the first random replacement",
+        "inputs": [
+          4,
+          4,
+          "undo"
+        ],
+        "expected": [
+          "SBPS"
+        ],
+        "seed": "split-colors-5"
+      }
+    ]
+  },
+  {
+    "id": "random/one-rule-from-group",
+    "sourceFile": "random/one-rule-from-group.ps",
+    "explanation": "Two random-prefixed alternatives share one group via +. The first .4640 draw chooses the first rule (Apple), and the next .5014 draw chooses the second (Berry). Each application emits only that chosen rule\u2019s command sound.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "S": [
+        "background",
+        "seedling"
+      ],
+      "A": [
+        "background",
+        "apple"
+      ],
+      "B": [
+        "background",
+        "berry"
+      ],
+      "R": [
+        "background",
+        "player",
+        "apple"
+      ],
+      "Q": [
+        "background",
+        "player",
+        "berry"
+      ]
+    },
+    "cases": [
+      {
+        "name": "first rule selected",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "R"
+        ],
+        "expectedSounds": [],
+        "expectedPlayedSounds": [
+          500
+        ],
+        "seed": "split-colors-5"
+      },
+      {
+        "name": "second rule selected next turn",
+        "inputs": [
+          4,
+          4
+        ],
+        "expected": [
+          "Q"
+        ],
+        "expectedSounds": [],
+        "expectedPlayedSounds": [
+          500,
+          501
+        ],
+        "seed": "split-colors-5"
+      },
+      {
+        "name": "unmatched input consumes no rule choice",
+        "inputs": [
+          "tick",
+          4
+        ],
+        "expected": [
+          "R"
+        ],
+        "expectedSounds": [],
+        "expectedPlayedSounds": [
+          500
+        ],
+        "seed": "split-colors-5"
+      }
+    ]
+  }
+]

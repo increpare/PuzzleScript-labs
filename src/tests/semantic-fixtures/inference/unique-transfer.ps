@@ -1,0 +1,50 @@
+title Inference: unique-transfer
+
+OBJECTS
+
+Background
+black
+
+Player
+white
+
+Red
+red
+
+Blue
+blue
+
+Mark
+yellow
+
+Token
+green
+
+LEGEND
+. = Background
+P = Player
+r = Red
+b = Blue
+m = Mark
+t = Token
+Item = Red or Blue
+
+SOUNDS
+
+COLLISIONLAYERS
+Background
+Player
+Red, Blue
+Mark
+Token
+
+RULES
+right [ action Player | Item | no Item ] -> [ Player | | Item ]
+
+WINCONDITIONS
+no Player
+
+LEVELS
+Pr..
+
+Pb..

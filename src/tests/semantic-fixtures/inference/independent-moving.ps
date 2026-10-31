@@ -1,0 +1,51 @@
+title Inference: independent-moving
+
+OBJECTS
+
+Background
+black
+
+Player
+white
+
+Red
+red
+
+Blue
+blue
+
+Mark
+yellow
+
+Token
+green
+
+LEGEND
+. = Background
+P = Player
+r = Red
+b = Blue
+m = Mark
+t = Token
+Item = Red or Blue
+
+SOUNDS
+
+COLLISIONLAYERS
+Background
+Player
+Red, Blue
+Mark
+Token
+
+RULES
+right [ > Player | stationary Item ] -> [ > Player | up Item ]
+right [ moving Player | moving Item no Mark ] -> [ moving Player | moving Item up Mark ]
+
+WINCONDITIONS
+no Player
+
+LEVELS
+....
+.Pr.
+....

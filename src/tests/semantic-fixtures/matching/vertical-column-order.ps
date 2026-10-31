@@ -1,0 +1,69 @@
+title Matching: vertical column order
+
+objects
+
+Background
+black
+00000
+00000
+00000
+00000
+00000
+
+Player
+white
+00000
+00000
+00000
+00000
+00000
+
+A
+red
+00000
+00000
+00000
+00000
+00000
+
+B
+green
+00000
+00000
+00000
+00000
+00000
+
+Token
+orange
+00000
+00000
+00000
+00000
+00000
+
+legend
+. = Background
+P = Player
+T = Token
+X = Player and Token
+
+sounds
+
+
+collisionlayers
+Background
+Player
+A, B
+Token
+
+rules
+down [ A | A ] [ Token ] -> [ B | ] [ ]
+
+winconditions
+
+
+levels
+..A.
+A.A.
+A..X

@@ -1,0 +1,39 @@
+title restart-precedence
+
+objects
+
+Background
+black
+
+Player
+white
+
+Mark
+red
+
+legend
+
+. = Background
+P = Player
+
+sounds
+
+
+
+collisionlayers
+
+Background
+Mark
+Player
+
+rules
+
+[ action Player ] -> [ Player Mark ] checkpoint
+[ Player Mark ] -> restart
+[ Player Mark ] -> checkpoint
+
+winconditions
+
+levels
+
+P..

@@ -1,0 +1,27 @@
+title Late player randomdir crashes on second Action
+
+objects
+Background
+black
+
+Player
+white
+
+legend
+. = Background
+P = Player
+
+sounds
+
+collisionlayers
+Background
+Player
+
+rules
+late [ Player ] -> [ randomdir Player ]
+
+winconditions
+no Player
+
+levels
+P

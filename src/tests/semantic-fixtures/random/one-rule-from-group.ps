@@ -1,0 +1,41 @@
+title Random groups: one-rule-from-group
+
+objects
+Background
+black
+
+Player
+white
+
+Apple
+red
+
+Berry
+blue
+
+legend
+. = Background
+P = Player
+A = Apple
+B = Berry
+R = Player and Apple
+Q = Player and Berry
+
+sounds
+sfx0 500
+sfx1 501
+
+collisionlayers
+Background
+Player
+Apple, Berry
+
+rules
+random right [ action Player ] -> [ Player Apple ] sfx0
++ right [ action Player ] -> [ Player Berry ] sfx1
+
+winconditions
+no Player
+
+levels
+P

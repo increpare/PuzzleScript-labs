@@ -1,0 +1,949 @@
+[
+  {
+    "id": "movement/chain-and-blocking",
+    "sourceFile": "movement/chain-and-blocking.ps",
+    "explanation": "Movement propagates through the crate chain before resolution. A boundary wall blocks the entire shared-layer chain; undo restores the preceding board.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "C": [
+        "background",
+        "crate"
+      ],
+      "#": [
+        "background",
+        "wall"
+      ],
+      "m": [
+        "background",
+        "mark"
+      ],
+      "X": [
+        "background",
+        "player",
+        "mark"
+      ]
+    },
+    "cases": [
+      {
+        "name": "push two crates",
+        "inputs": [
+          3
+        ],
+        "expected": [
+          ".PCC#"
+        ]
+      },
+      {
+        "name": "wall blocks whole chain",
+        "inputs": [
+          3,
+          3
+        ],
+        "expected": [
+          ".PCC#"
+        ]
+      },
+      {
+        "name": "undo successful push",
+        "inputs": [
+          3,
+          "undo"
+        ],
+        "expected": [
+          "PCC.#"
+        ]
+      },
+      {
+        "name": "action is not a right push",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "PCC.#"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "movement/convoy",
+    "sourceFile": "movement/convoy.ps",
+    "explanation": "Both Player objects receive input. A later mover vacates the target of an earlier blocked mover, which succeeds on the next resolution pass. Objects move only once per input.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "C": [
+        "background",
+        "crate"
+      ],
+      "#": [
+        "background",
+        "wall"
+      ],
+      "m": [
+        "background",
+        "mark"
+      ],
+      "X": [
+        "background",
+        "player",
+        "mark"
+      ]
+    },
+    "cases": [
+      {
+        "name": "followers enter vacated cells",
+        "inputs": [
+          3
+        ],
+        "expected": [
+          ".PP."
+        ]
+      },
+      {
+        "name": "second input advances convoy",
+        "inputs": [
+          3,
+          3
+        ],
+        "expected": [
+          "..PP"
+        ]
+      },
+      {
+        "name": "undo restores first convoy state",
+        "inputs": [
+          3,
+          3,
+          "undo"
+        ],
+        "expected": [
+          ".PP."
+        ]
+      }
+    ]
+  },
+  {
+    "id": "movement/contested-cell",
+    "sourceFile": "movement/contested-cell.ps",
+    "explanation": "Column-first resolution lets Player enter the contested cell before the downward Crate. Once a mover vacates a cell, a previously blocked mover can succeed on a later pass.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "C": [
+        "background",
+        "crate"
+      ],
+      "#": [
+        "background",
+        "wall"
+      ],
+      "m": [
+        "background",
+        "mark"
+      ],
+      "X": [
+        "background",
+        "player",
+        "mark"
+      ]
+    },
+    "cases": [
+      {
+        "name": "column-first winner",
+        "inputs": [
+          3
+        ],
+        "expected": [
+          ".C.",
+          ".P.",
+          "..."
+        ]
+      },
+      {
+        "name": "vacated target frees second mover",
+        "inputs": [
+          3,
+          3
+        ],
+        "expected": [
+          "...",
+          ".CP",
+          "..."
+        ]
+      },
+      {
+        "name": "tick only moves crate",
+        "inputs": [
+          "tick"
+        ],
+        "expected": [
+          "...",
+          "PC.",
+          "..."
+        ]
+      },
+      {
+        "name": "retry after crate vacates",
+        "inputs": [
+          "tick",
+          3
+        ],
+        "expected": [
+          "...",
+          ".P.",
+          ".C."
+        ]
+      }
+    ]
+  },
+  {
+    "id": "movement/independent-layers",
+    "sourceFile": "movement/independent-layers.ps",
+    "explanation": "Player and Mark can enter the same coordinate because they occupy different collision layers. Movement order does not turn other layers into blockers.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "C": [
+        "background",
+        "crate"
+      ],
+      "#": [
+        "background",
+        "wall"
+      ],
+      "m": [
+        "background",
+        "mark"
+      ],
+      "X": [
+        "background",
+        "player",
+        "mark"
+      ]
+    },
+    "cases": [
+      {
+        "name": "two layers share target",
+        "inputs": [
+          3
+        ],
+        "expected": [
+          "...",
+          ".X.",
+          "..."
+        ]
+      },
+      {
+        "name": "layers subsequently separate",
+        "inputs": [
+          3,
+          3
+        ],
+        "expected": [
+          "...",
+          "..P",
+          ".m."
+        ]
+      }
+    ]
+  },
+  {
+    "id": "movement/action-and-failure-sounds",
+    "sourceFile": "movement/action-and-failure-sounds.ps",
+    "explanation": "Action succeeds in place despite Player occupying the source layer. A rightward move is blocked by Wall. Recorded movement sounds retain their temporal order.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "C": [
+        "background",
+        "crate"
+      ],
+      "#": [
+        "background",
+        "wall"
+      ],
+      "m": [
+        "background",
+        "mark"
+      ],
+      "X": [
+        "background",
+        "player",
+        "mark"
+      ]
+    },
+    "cases": [
+      {
+        "name": "action has no displacement",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "P#"
+        ],
+        "expectedSounds": [
+          101
+        ]
+      },
+      {
+        "name": "wall records failed move",
+        "inputs": [
+          3
+        ],
+        "expected": [
+          "P#"
+        ],
+        "expectedSounds": [
+          202
+        ]
+      },
+      {
+        "name": "success then failure history",
+        "inputs": [
+          4,
+          3
+        ],
+        "expected": [
+          "P#"
+        ],
+        "expectedSounds": [
+          101,
+          202
+        ]
+      }
+    ]
+  },
+  {
+    "id": "movement/require-player-movement",
+    "sourceFile": "movement/require-player-movement.ps",
+    "explanation": "A blocked directional input rolls back unrelated crate movement when require_player_movement is set. Tick may change the world, but a tick with no earlier input creates no undo entry.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "C": [
+        "background",
+        "crate"
+      ],
+      "#": [
+        "background",
+        "wall"
+      ],
+      "m": [
+        "background",
+        "mark"
+      ],
+      "X": [
+        "background",
+        "player",
+        "mark"
+      ]
+    },
+    "cases": [
+      {
+        "name": "blocked player cancels world change",
+        "inputs": [
+          3
+        ],
+        "expected": [
+          "P#C."
+        ]
+      },
+      {
+        "name": "action also requires displacement",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "P#C."
+        ]
+      },
+      {
+        "name": "tick advances nonplayer",
+        "inputs": [
+          "tick"
+        ],
+        "expected": [
+          "P#.C"
+        ]
+      },
+      {
+        "name": "tick alone creates no undo entry",
+        "inputs": [
+          "tick",
+          "undo"
+        ],
+        "expected": [
+          "P#.C"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "movement/rigid-rollback",
+    "sourceFile": "movement/rigid-rollback.ps",
+    "explanation": "A failed rigid push restores speculative Mark movement before retrying with that group banned. Mark advances once and publishes one sound; on the open level the push succeeds.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "C": [
+        "background",
+        "crate"
+      ],
+      "#": [
+        "background",
+        "wall"
+      ],
+      "m": [
+        "background",
+        "mark"
+      ],
+      "X": [
+        "background",
+        "player",
+        "mark"
+      ]
+    },
+    "cases": [
+      {
+        "name": "failed rigid attempt moves independent mark once",
+        "inputs": [
+          3
+        ],
+        "expected": [
+          "PC#",
+          ".m."
+        ],
+        "expectedSounds": [
+          404
+        ]
+      },
+      {
+        "name": "successive failed attempts",
+        "inputs": [
+          3,
+          3
+        ],
+        "expected": [
+          "PC#",
+          "..m"
+        ],
+        "expectedSounds": [
+          404,
+          404
+        ]
+      },
+      {
+        "name": "open rigid push",
+        "inputs": [
+          3
+        ],
+        "expected": [
+          ".PC",
+          ".m."
+        ],
+        "level": 1,
+        "expectedSounds": [
+          404
+        ]
+      },
+      {
+        "name": "boundary blocks second push only",
+        "inputs": [
+          3,
+          3
+        ],
+        "expected": [
+          ".PC",
+          "..m"
+        ],
+        "level": 1,
+        "expectedSounds": [
+          404,
+          404
+        ]
+      }
+    ]
+  },
+  {
+    "id": "movement/rigid-random-consumption",
+    "sourceFile": "movement/rigid-random-consumption.ps",
+    "explanation": "With seed split-colors-5, draws 0.4640 and 0.5014 choose Red then Blue. The failed rigid attempt restores Token but does not rewind RNG, so retry chooses Blue. Action needs no retry and chooses Red.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "C": [
+        "background",
+        "crate"
+      ],
+      "#": [
+        "background",
+        "wall"
+      ],
+      "m": [
+        "background",
+        "mark"
+      ],
+      "X": [
+        "background",
+        "player",
+        "mark"
+      ],
+      "T": [
+        "background",
+        "token"
+      ],
+      "r": [
+        "background",
+        "red"
+      ],
+      "b": [
+        "background",
+        "blue"
+      ]
+    },
+    "cases": [
+      {
+        "name": "rollback keeps consumed random draw",
+        "inputs": [
+          3
+        ],
+        "expected": [
+          "PC#b"
+        ],
+        "seed": "split-colors-5"
+      },
+      {
+        "name": "no rigid match uses first draw",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "PC#r"
+        ],
+        "seed": "split-colors-5"
+      },
+      {
+        "name": "undo restores token but not random stream",
+        "inputs": [
+          3,
+          "undo",
+          4
+        ],
+        "expected": [
+          "PC#r"
+        ],
+        "seed": "split-colors-5"
+      }
+    ]
+  },
+  {
+    "id": "movement/late-multiword-restore",
+    "sourceFile": "movement/late-multiword-restore.ps",
+    "explanation": "Constructed compatibility case: late randomdir assigns Right for seed late-restore. Same-size restoration clears only a prefix of native movement storage; the late intent survives at the centre. Layer count 8 tests the original word boundary. For seed late-restore, direction draws are Down, Up, Right, Down, Right, Right: the group settles on consecutive Right draws, not on the first draw.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "C": [
+        "background",
+        "crate"
+      ],
+      "#": [
+        "background",
+        "wall"
+      ],
+      "m": [
+        "background",
+        "mark"
+      ],
+      "X": [
+        "background",
+        "player",
+        "mark"
+      ],
+      "D": [
+        "background",
+        "dust"
+      ]
+    },
+    "cases": [
+      {
+        "name": "first action only assigns late movement",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "P..",
+          ".D.",
+          "..."
+        ],
+        "seed": "late-restore"
+      },
+      {
+        "name": "second action resolves pending movement",
+        "inputs": [
+          4,
+          4
+        ],
+        "expected": [
+          "P..",
+          "..D",
+          "..."
+        ],
+        "seed": "late-restore"
+      },
+      {
+        "name": "undo restores board",
+        "inputs": [
+          3,
+          "undo"
+        ],
+        "expected": [
+          "P..",
+          ".D.",
+          "..."
+        ],
+        "seed": "late-restore"
+      },
+      {
+        "name": "undo leaves late right movement pending",
+        "inputs": [
+          3,
+          "undo",
+          4
+        ],
+        "expected": [
+          "P..",
+          "..D",
+          "..."
+        ],
+        "seed": "late-restore"
+      },
+      {
+        "name": "restart leaves late right movement pending",
+        "inputs": [
+          3,
+          "restart",
+          4
+        ],
+        "expected": [
+          "P..",
+          "..D",
+          "..."
+        ],
+        "seed": "late-restore"
+      }
+    ]
+  },
+  {
+    "id": "movement/late-partial-word-restore",
+    "sourceFile": "movement/late-partial-word-restore.ps",
+    "explanation": "Constructed compatibility case: late randomdir assigns Right for seed late-restore. Same-size restoration clears only a prefix of native movement storage; the late intent survives at the centre. Layer count 7 tests the original word boundary. For seed late-restore, direction draws are Down, Up, Right, Down, Right, Right: the group settles on consecutive Right draws, not on the first draw. Seed up-pair-4 chooses Down, Right, Down, Up, Up, so the final Up request is cleared on restore.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "C": [
+        "background",
+        "crate"
+      ],
+      "#": [
+        "background",
+        "wall"
+      ],
+      "m": [
+        "background",
+        "mark"
+      ],
+      "X": [
+        "background",
+        "player",
+        "mark"
+      ],
+      "D": [
+        "background",
+        "dust"
+      ]
+    },
+    "cases": [
+      {
+        "name": "first action only assigns late movement",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "P..",
+          ".D.",
+          "..."
+        ],
+        "seed": "late-restore"
+      },
+      {
+        "name": "second action resolves pending movement",
+        "inputs": [
+          4,
+          4
+        ],
+        "expected": [
+          "P..",
+          "..D",
+          "..."
+        ],
+        "seed": "late-restore"
+      },
+      {
+        "name": "undo restores board",
+        "inputs": [
+          3,
+          "undo"
+        ],
+        "expected": [
+          "P..",
+          ".D.",
+          "..."
+        ],
+        "seed": "late-restore"
+      },
+      {
+        "name": "undo leaves late right movement pending",
+        "inputs": [
+          3,
+          "undo",
+          4
+        ],
+        "expected": [
+          "P..",
+          "..D",
+          "..."
+        ],
+        "seed": "late-restore"
+      },
+      {
+        "name": "restart leaves late right movement pending",
+        "inputs": [
+          3,
+          "restart",
+          4
+        ],
+        "expected": [
+          "P..",
+          "..D",
+          "..."
+        ],
+        "seed": "late-restore"
+      },
+      {
+        "name": "undo clears down while retaining right in same layer",
+        "inputs": [
+          3,
+          "undo",
+          4
+        ],
+        "expected": [
+          "P..",
+          ".D.",
+          "..."
+        ],
+        "seed": "partial-up-0"
+      },
+      {
+        "name": "undo clears up at the lower side of the word boundary",
+        "inputs": [
+          3,
+          "undo",
+          4
+        ],
+        "expected": [
+          "P..",
+          ".D.",
+          "..."
+        ],
+        "seed": "up-pair-4"
+      }
+    ]
+  },
+  {
+    "id": "movement/rigid-owner-1206",
+    "sourceFile": "movement/rigid-owner-1206.ps",
+    "explanation": "Known compatibility issue #1206: overlapping rigid replacements can attribute Player movement to the absent Wall group. The blocked downward request leaves the visible board unchanged. A dedicated supplemental native/TypeScript assertion checks ban [2], since the ordinary session snapshot omits this internal ban set. This is not a new bug discovery.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player",
+        "crate"
+      ]
+    },
+    "cases": [
+      {
+        "name": "overlap retains diagnosed historical ownership",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "P."
+        ]
+      },
+      {
+        "name": "tick also reaches historical ownership",
+        "inputs": [
+          "tick"
+        ],
+        "expected": [
+          "P."
+        ]
+      },
+      {
+        "name": "repeat remains deterministic",
+        "inputs": [
+          4,
+          4
+        ],
+        "expected": [
+          "P."
+        ]
+      }
+    ]
+  },
+  {
+    "id": "movement/opposing-carried-input",
+    "sourceFile": "movement/opposing-carried-input.ps",
+    "explanation": "Seed partial-up-1 first draws .246074, choosing Up. The late rule also consumes Switch, so it draws only once. A following Down input combines with carried Up: vanilla defines this as a zero-offset request that still collides with Player in its source layer. Both Up and Down failure sounds are recorded. This is not the general mathematical rule that opposite directions cancel.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "S": [
+        "background",
+        "switch"
+      ],
+      "s": [
+        "background",
+        "spent"
+      ]
+    },
+    "cases": [
+      {
+        "name": "one-shot late choice waits",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "s..",
+          ".P.",
+          "..."
+        ],
+        "seed": "partial-up-1",
+        "expectedSounds": []
+      },
+      {
+        "name": "opposing input is a colliding zero-offset request",
+        "inputs": [
+          4,
+          2
+        ],
+        "expected": [
+          "s..",
+          ".P.",
+          "..."
+        ],
+        "seed": "partial-up-1",
+        "expectedSounds": [
+          100,
+          200
+        ]
+      },
+      {
+        "name": "failed combined request is cleared before tick",
+        "inputs": [
+          4,
+          2,
+          "tick"
+        ],
+        "expected": [
+          "s..",
+          ".P.",
+          "..."
+        ],
+        "seed": "partial-up-1",
+        "expectedSounds": [
+          100,
+          200
+        ]
+      },
+      {
+        "name": "undo restores the one-shot switch",
+        "inputs": [
+          4,
+          2,
+          "undo"
+        ],
+        "expected": [
+          "S..",
+          ".P.",
+          "..."
+        ],
+        "seed": "partial-up-1",
+        "expectedSounds": [
+          100,
+          200
+        ]
+      }
+    ]
+  }
+]

@@ -1,0 +1,43 @@
+title cancel-precedence
+
+objects
+
+Background
+black
+
+Player
+white
+
+Mark
+red
+
+legend
+
+. = Background
+P = Player
+
+sounds
+
+sfx0 500
+sfx1 501
+sfx2 502
+sfx3 503
+
+collisionlayers
+
+Background
+Mark
+Player
+
+rules
+
+[ action Player ] -> [ action Player Mark ] checkpoint sfx0
+[ Player Mark ] -> restart sfx1
+[ Player Mark ] -> cancel sfx2
+[ Player Mark ] -> checkpoint sfx3
+
+winconditions
+
+levels
+
+P..

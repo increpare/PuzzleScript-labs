@@ -1,0 +1,51 @@
+title again-probe-random
+
+objects
+
+Background
+black
+
+Player
+white
+
+Target
+yellow
+
+Done
+gray
+
+Red
+red
+
+Blue
+blue
+
+legend
+
+. = Background
+P = Player
+T = Target
+Color = Red or Blue
+
+sounds
+
+
+
+collisionlayers
+
+Background
+Target
+Done
+Red, Blue
+Player
+
+rules
+
+[ action Player ] -> [ right Player ] again
+[ Player Target no Done ] -> [ Player Target Done random Color ]
+
+winconditions
+
+levels
+
+PT.

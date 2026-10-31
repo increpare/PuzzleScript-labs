@@ -1,0 +1,39 @@
+title Opposing carried movement collides with its source cell
+
+objects
+Background
+black
+
+Player
+white
+
+Switch
+yellow
+
+Spent
+blue
+
+legend
+. = Background
+P = Player
+S = Switch
+
+sounds
+Player cantmove up 100
+Player cantmove down 200
+
+collisionlayers
+Background
+Switch, Spent
+Player
+
+rules
+late [ Player ] [ Switch ] -> [ randomdir Player ] [ Spent ]
+
+winconditions
+no Player
+
+levels
+S..
+.P.
+...

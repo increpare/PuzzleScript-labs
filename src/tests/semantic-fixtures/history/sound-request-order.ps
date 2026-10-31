@@ -1,0 +1,54 @@
+title sound-request-order
+
+objects
+
+Background
+black
+
+Player
+white
+
+Wall
+gray
+
+Crate
+red
+
+Seedling
+green
+
+New
+yellow
+
+legend
+
+. = Background
+P = Player
+# = Wall
+C = Crate
+S = Seedling
+
+sounds
+
+Seedling destroy 404
+New create 303
+Crate move 202
+New create 303
+Player cantmove 101
+
+collisionlayers
+
+Background
+Seedling, New
+Player, Wall, Crate
+
+rules
+
+[ Crate ] -> [ right Crate ]
+[ Seedling ] -> [ New ]
+
+winconditions
+
+levels
+
+P#C.C.S

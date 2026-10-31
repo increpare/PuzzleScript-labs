@@ -1,0 +1,63 @@
+title Movement: late-partial-word-restore
+
+
+OBJECTS
+
+Background
+black
+
+Player
+white
+
+Crate
+red
+
+Wall
+blue
+
+Mark
+yellow
+
+Spare1
+red
+
+Spare2
+red
+
+Spare3
+red
+
+Dust
+yellow
+
+LEGEND
+. = Background
+P = Player
+C = Crate
+# = Wall
+m = Mark
+X = Player and Mark
+D = Dust
+
+SOUNDS
+
+
+COLLISIONLAYERS
+Background
+Player, Crate, Wall
+Mark
+Spare1
+Spare2
+Spare3
+Dust
+
+RULES
+late [ Dust ] -> [ randomdir Dust ]
+
+WINCONDITIONS
+no Player
+
+LEVELS
+P..
+.D.
+...

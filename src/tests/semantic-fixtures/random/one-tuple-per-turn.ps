@@ -1,0 +1,41 @@
+title Random groups: one-tuple-per-turn
+
+objects
+Background
+black
+
+Player
+white
+
+Seedling
+green
+
+Apple
+red
+
+Berry
+blue
+
+legend
+. = Background
+P = Player
+S = Seedling
+A = Apple
+B = Berry
+Fruit = Apple or Berry
+
+sounds
+
+
+collisionlayers
+Background
+Player, Seedling, Apple, Berry
+
+rules
+random [ Seedling ] -> [ random Fruit ]
+
+winconditions
+no Player
+
+levels
+SSPS

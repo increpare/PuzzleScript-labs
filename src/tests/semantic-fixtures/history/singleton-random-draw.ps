@@ -1,0 +1,48 @@
+title singleton-random-draw
+
+objects
+
+Background
+black
+
+Player
+white
+
+Coin
+yellow
+
+Red
+red
+
+Blue
+blue
+
+legend
+
+P = Player
+Q = Player and Coin
+Color = Red or Blue
+
+sounds
+
+
+
+collisionlayers
+
+Background
+Coin
+Red, Blue
+Player
+
+rules
+
+[ action Player no Coin ] -> [ action Player random Coin ]
+[ action Player ] -> [ Player random Color ]
+
+winconditions
+
+levels
+
+P
+
+Q

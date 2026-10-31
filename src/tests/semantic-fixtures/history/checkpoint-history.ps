@@ -1,0 +1,38 @@
+title checkpoint-history
+
+objects
+
+Background
+black
+
+Player
+white
+
+Target
+yellow
+
+legend
+
+. = Background
+P = Player
+T = Target
+
+sounds
+
+
+
+collisionlayers
+
+Background
+Target
+Player
+
+rules
+
+late [ Player Target ] -> checkpoint
+
+winconditions
+
+levels
+
+P.T..

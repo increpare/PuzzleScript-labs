@@ -1,0 +1,49 @@
+title Movement: rigid-rollback
+
+
+OBJECTS
+
+Background
+black
+
+Player
+white
+
+Crate
+red
+
+Wall
+blue
+
+Mark
+yellow
+
+LEGEND
+. = Background
+P = Player
+C = Crate
+# = Wall
+m = Mark
+X = Player and Mark
+
+SOUNDS
+Mark move right 404
+
+COLLISIONLAYERS
+Background
+Player, Crate, Wall
+Mark
+
+RULES
+rigid right [ > Player | Crate ] -> [ > Player | > Crate ]
+right [ Mark ] -> [ right Mark ]
+
+WINCONDITIONS
+no Player
+
+LEVELS
+PC#
+m..
+
+PC.
+m..

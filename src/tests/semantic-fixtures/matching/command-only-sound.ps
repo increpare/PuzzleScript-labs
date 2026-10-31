@@ -1,0 +1,58 @@
+title Matching: command only sound
+
+objects
+
+Background
+black
+00000
+00000
+00000
+00000
+00000
+
+Player
+white
+00000
+00000
+00000
+00000
+00000
+
+A
+red
+00000
+00000
+00000
+00000
+00000
+
+B
+green
+00000
+00000
+00000
+00000
+00000
+
+legend
+. = Background
+P = Player
+
+sounds
+sfx0 12345
+
+collisionlayers
+Background
+Player
+A, B
+
+rules
+right [ A ] [ B ] -> sfx0
+
+winconditions
+
+
+levels
+AABBP
+
+AAP

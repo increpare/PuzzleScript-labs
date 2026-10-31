@@ -1,0 +1,664 @@
+[
+  {
+    "id": "history/late-stage-mark",
+    "sourceFile": "history/late-stage-mark.ps",
+    "explanation": "The early rule sees the board before movement, while the late rule sees the arrived player. On the following input the early marker replaces the late marker.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "T": [
+        "background",
+        "target"
+      ],
+      "L": [
+        "background",
+        "player",
+        "target",
+        "lateseen"
+      ],
+      "E": [
+        "background",
+        "player",
+        "target",
+        "early"
+      ]
+    },
+    "cases": [
+      {
+        "name": "arrival uses late stage",
+        "inputs": [
+          3
+        ],
+        "expected": [
+          ".L"
+        ]
+      },
+      {
+        "name": "following action uses early stage",
+        "inputs": [
+          3,
+          4
+        ],
+        "expected": [
+          ".E"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "history/late-direction-carryover",
+    "sourceFile": "history/late-direction-carryover.ps",
+    "explanation": "A late randomdir is installed after movement and survives into the next tick. Undo restores objects and clears that pending direction. Seed right-first-1 starts with 0.8744485650765657; floor(4u) = 3 selects right.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "C": [
+        "background",
+        "crate"
+      ],
+      "S": [
+        "background",
+        "switch"
+      ],
+      "s": [
+        "background",
+        "spent"
+      ]
+    },
+    "cases": [
+      {
+        "name": "late direction waits for next turn",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "s.C.P"
+        ],
+        "seed": "right-first-1"
+      },
+      {
+        "name": "tick resolves carried direction",
+        "inputs": [
+          4,
+          "tick"
+        ],
+        "expected": [
+          "s..CP"
+        ],
+        "seed": "right-first-1"
+      },
+      {
+        "name": "undo removes carried direction",
+        "inputs": [
+          4,
+          "undo",
+          "tick"
+        ],
+        "expected": [
+          "s.C.P"
+        ],
+        "seed": "right-first-1"
+      }
+    ]
+  },
+  {
+    "id": "history/cancel-precedence",
+    "sourceFile": "history/cancel-precedence.ps",
+    "explanation": "An action first requests a checkpoint, then restart, then cancel. Cancel has highest command priority and restores the pre-input board; its output command survives the queue replacement. The later checkpoint request is ignored.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ]
+    },
+    "cases": [
+      {
+        "name": "cancel defeats restart and checkpoint",
+        "inputs": [
+          3,
+          4
+        ],
+        "expected": [
+          ".P."
+        ],
+        "expectedSounds": [],
+        "expectedPlayedSounds": [
+          502
+        ]
+      },
+      {
+        "name": "cancel does not add a lasting undo step",
+        "inputs": [
+          3,
+          4,
+          "undo"
+        ],
+        "expected": [
+          "P.."
+        ],
+        "expectedSounds": [],
+        "expectedPlayedSounds": [
+          502
+        ]
+      },
+      {
+        "name": "canceled checkpoint cannot become restart target",
+        "inputs": [
+          3,
+          4,
+          "restart"
+        ],
+        "expected": [
+          "P.."
+        ],
+        "expectedSounds": [],
+        "expectedPlayedSounds": [
+          502
+        ]
+      }
+    ]
+  },
+  {
+    "id": "history/restart-precedence",
+    "sourceFile": "history/restart-precedence.ps",
+    "explanation": "A matched restart discards an earlier checkpoint request, resets to the initial target, and keeps the pre-restart board available to undo.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ]
+    },
+    "cases": [
+      {
+        "name": "restart defeats checkpoint",
+        "inputs": [
+          3,
+          4
+        ],
+        "expected": [
+          "P.."
+        ]
+      },
+      {
+        "name": "undo reaches pre-restart board",
+        "inputs": [
+          3,
+          4,
+          "undo"
+        ],
+        "expected": [
+          ".P."
+        ]
+      }
+    ]
+  },
+  {
+    "id": "history/command-only-match",
+    "sourceFile": "history/command-only-match.ps",
+    "explanation": "A command-only late rule is queued only if its pattern matches. The first move is retained; the next move onto the target matches cancel and is rolled back.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "T": [
+        "background",
+        "target"
+      ]
+    },
+    "cases": [
+      {
+        "name": "unmatched command does nothing",
+        "inputs": [
+          3
+        ],
+        "expected": [
+          ".PT"
+        ]
+      },
+      {
+        "name": "matched command cancels arrival",
+        "inputs": [
+          3,
+          3
+        ],
+        "expected": [
+          ".PT"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "history/again-chain-history",
+    "sourceFile": "history/again-chain-history.ps",
+    "explanation": "Action starts a rightward run. AGAIN executes only while its no-input lookahead can change the board, and all automatic moves share the initiating input history entry.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "R": [
+        "background",
+        "player",
+        "running"
+      ],
+      "#": [
+        "background",
+        "wall"
+      ]
+    },
+    "cases": [
+      {
+        "name": "again stops at blocked edge",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "...R#"
+        ]
+      },
+      {
+        "name": "one undo reverts entire run",
+        "inputs": [
+          4,
+          "undo"
+        ],
+        "expected": [
+          "P...#"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "history/again-probe-random",
+    "sourceFile": "history/again-probe-random.ps",
+    "explanation": "Action moves onto a target and requests AGAIN. The no-input lookahead draws a random color before restoring the board, then the actual automatic turn uses the following draw. Undo restores the board but leaves those draws consumed. Seed split-colors-5 draws 0.4640369099043778, 0.5014220301644389, 0.4747373187016426, 0.3532109762234204; Red is index 0 and Blue index 1, so actual AGAIN uses Blue then Red.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "T": [
+        "background",
+        "target"
+      ],
+      "R": [
+        "background",
+        "player",
+        "target",
+        "done",
+        "red"
+      ],
+      "B": [
+        "background",
+        "player",
+        "target",
+        "done",
+        "blue"
+      ]
+    },
+    "cases": [
+      {
+        "name": "actual again uses second draw",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          ".B."
+        ],
+        "seed": "split-colors-5"
+      },
+      {
+        "name": "again undo restores original board",
+        "inputs": [
+          4,
+          "undo"
+        ],
+        "expected": [
+          "PT."
+        ],
+        "seed": "split-colors-5"
+      },
+      {
+        "name": "replay after undo uses fourth draw",
+        "inputs": [
+          4,
+          "undo",
+          4
+        ],
+        "expected": [
+          ".R."
+        ],
+        "seed": "split-colors-5"
+      }
+    ]
+  },
+  {
+    "id": "history/checkpoint-history",
+    "sourceFile": "history/checkpoint-history.ps",
+    "explanation": "A late checkpoint saves the arrived board as the restart target. Restart itself can be undone, while undoing the checkpoint move does not erase the saved target.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "T": [
+        "background",
+        "target"
+      ],
+      "Q": [
+        "background",
+        "player",
+        "target"
+      ]
+    },
+    "cases": [
+      {
+        "name": "restart returns to checkpoint arrival",
+        "inputs": [
+          3,
+          3,
+          3,
+          "restart"
+        ],
+        "expected": [
+          "..Q.."
+        ]
+      },
+      {
+        "name": "undo reverses explicit restart",
+        "inputs": [
+          3,
+          3,
+          3,
+          "restart",
+          "undo"
+        ],
+        "expected": [
+          "..TP."
+        ]
+      },
+      {
+        "name": "undo of arrival keeps checkpoint target",
+        "inputs": [
+          3,
+          3,
+          "undo",
+          "restart"
+        ],
+        "expected": [
+          "..Q.."
+        ]
+      }
+    ]
+  },
+  {
+    "id": "history/undo-random-stream",
+    "sourceFile": "history/undo-random-stream.ps",
+    "explanation": "Each action replaces the player color with one random property member. Undo and restart restore objects without rewinding the random stream. Seed split-colors-5 starts with 0.4640369099043778 then 0.5014220301644389; floor(2u) selects Red then Blue.",
+    "cells": {
+      "P": [
+        "background",
+        "player"
+      ],
+      "R": [
+        "background",
+        "player",
+        "red"
+      ],
+      "B": [
+        "background",
+        "player",
+        "blue"
+      ]
+    },
+    "cases": [
+      {
+        "name": "first draw is red",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "R"
+        ],
+        "seed": "split-colors-5"
+      },
+      {
+        "name": "undo leaves first draw consumed",
+        "inputs": [
+          4,
+          "undo",
+          4
+        ],
+        "expected": [
+          "B"
+        ],
+        "seed": "split-colors-5"
+      },
+      {
+        "name": "restart leaves first draw consumed",
+        "inputs": [
+          4,
+          "restart",
+          4
+        ],
+        "expected": [
+          "B"
+        ],
+        "seed": "split-colors-5"
+      }
+    ]
+  },
+  {
+    "id": "history/random-property-order",
+    "sourceFile": "history/random-property-order.ps",
+    "explanation": "Two seedlings are replaced with random members of a property. The left seedling consumes the first draw and the right seedling consumes the second; undo restores both together. Seed split-colors-5 starts with 0.4640369099043778 then 0.5014220301644389; floor(2u) selects Apple then Berry in declaration order.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "S": [
+        "background",
+        "seedling"
+      ],
+      "A": [
+        "background",
+        "apple"
+      ],
+      "B": [
+        "background",
+        "berry"
+      ]
+    },
+    "cases": [
+      {
+        "name": "property choices follow cell order",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "APB"
+        ],
+        "seed": "split-colors-5"
+      },
+      {
+        "name": "undo restores both seedlings",
+        "inputs": [
+          4,
+          "undo"
+        ],
+        "expected": [
+          "SPS"
+        ],
+        "seed": "split-colors-5"
+      }
+    ]
+  },
+  {
+    "id": "history/singleton-random-draw",
+    "sourceFile": "history/singleton-random-draw.ps",
+    "explanation": "Choosing random Coin still consumes a draw although Coin has only one possible member. A level where Coin already exists skips that rule, so the subsequent color comes from the first rather than second draw. Seed split-colors-5 starts with 0.4640369099043778 then 0.5014220301644389, selecting Red then Blue. The compiler emits its expected warning for random applied to a concrete object; the source is accepted and executes.",
+    "cells": {
+      "P": [
+        "background",
+        "player"
+      ],
+      "R": [
+        "background",
+        "player",
+        "coin",
+        "red"
+      ],
+      "B": [
+        "background",
+        "player",
+        "coin",
+        "blue"
+      ]
+    },
+    "cases": [
+      {
+        "name": "singleton advances stream before color",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "B"
+        ],
+        "seed": "split-colors-5"
+      },
+      {
+        "name": "existing singleton skips its draw",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "R"
+        ],
+        "seed": "split-colors-5",
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": "history/sound-request-order",
+    "sourceFile": "history/sound-request-order.ps",
+    "explanation": "Movement failures play before successful movement, then creation and destruction sounds play in declaration order. Multiple moving crates deduplicate a movement seed; duplicate creation entries each play. Undo restores objects without removing recorded sounds.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "#": [
+        "background",
+        "wall"
+      ],
+      "C": [
+        "background",
+        "crate"
+      ],
+      "S": [
+        "background",
+        "seedling"
+      ],
+      "N": [
+        "background",
+        "new"
+      ],
+      "Q": [
+        "background",
+        "crate",
+        "new"
+      ]
+    },
+    "cases": [
+      {
+        "name": "category order and duplicate requests",
+        "inputs": [
+          3
+        ],
+        "expected": [
+          "P#.C.CN"
+        ],
+        "expectedSounds": [
+          101,
+          202,
+          303,
+          303,
+          404
+        ]
+      },
+      {
+        "name": "undo preserves sound history",
+        "inputs": [
+          3,
+          "undo"
+        ],
+        "expected": [
+          "P#C.C.S"
+        ],
+        "expectedSounds": [
+          101,
+          202,
+          303,
+          303,
+          404
+        ]
+      },
+      {
+        "name": "later turn adds only movement sounds",
+        "inputs": [
+          3,
+          3
+        ],
+        "expected": [
+          "P#..C.Q"
+        ],
+        "expectedSounds": [
+          101,
+          202,
+          303,
+          303,
+          404,
+          101,
+          202
+        ]
+      }
+    ]
+  }
+]

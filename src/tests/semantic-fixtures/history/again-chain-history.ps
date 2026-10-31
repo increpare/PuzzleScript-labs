@@ -1,0 +1,42 @@
+title again-chain-history
+
+objects
+
+Background
+black
+
+Player
+white
+
+Running
+red
+
+Wall
+gray
+
+legend
+
+. = Background
+P = Player
+# = Wall
+
+sounds
+
+
+
+collisionlayers
+
+Background
+Running
+Player, Wall
+
+rules
+
+[ action Player ] -> [ right Player right Running ] again
+right [ Player Running | no Player no Wall ] -> [ > Player > Running | ] again
+
+winconditions
+
+levels
+
+P...#

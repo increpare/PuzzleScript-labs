@@ -147,6 +147,14 @@ behavior through undo and restart.
 
 ## Verification and compatibility
 
+The [authored semantic guide](../src/tests/semantic-fixtures/README.md) adds 52
+small games and 140 portable `testdata.js` fixtures with hand-specified boards,
+random-choice reasoning and sound expectations. Run it with
+`npm --prefix typescript run test:semantics`. It compares 370 per-input/AGAIN
+observations and includes supplemental authored assertions for simple sounds and
+the known phantom rigid ban. A minimized shared accepted-source crash is recorded
+separately; the passing corpus does not conceal it as an expected board.
+
 The pinned native oracle lives in [test/vanilla/](test/vanilla/README.md), with its
 upstream license and original corpus. This lets the port live in PuzzleScript-labs
 while comparing against vanilla. Tests never substitute the labs `src/` engine
@@ -157,7 +165,7 @@ npm --prefix typescript test
 npm --prefix typescript run test:corpus -- --session
 ```
 
-The strict suite passes **1,599 tests**. Complete compilation comparison passes
+The strict suite passes **1,749 tests**. Complete compilation comparison passes
 all **312 compiler fixtures** and **478 simulation sources**, including exact
 diagnostic order, recovery, acceptance, canonical identities and 99,076 final
 rules. The compiler, session adapter and trace command have passed independent

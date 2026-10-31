@@ -1,0 +1,59 @@
+title Movement: rigid-random-consumption
+
+
+OBJECTS
+
+Background
+black
+
+Player
+white
+
+Crate
+red
+
+Wall
+blue
+
+Mark
+yellow
+
+Token
+green
+
+Red
+red
+
+Blue
+blue
+
+LEGEND
+. = Background
+P = Player
+C = Crate
+# = Wall
+m = Mark
+X = Player and Mark
+T = Token
+r = Red
+b = Blue
+Color = Red or Blue
+
+SOUNDS
+
+
+COLLISIONLAYERS
+Background
+Player, Crate, Wall
+Mark
+Token, Red, Blue
+
+RULES
+rigid right [ > Player | Crate ] -> [ > Player | > Crate ]
+[ Token ] -> [ random Color ]
+
+WINCONDITIONS
+no Player
+
+LEVELS
+PC#T

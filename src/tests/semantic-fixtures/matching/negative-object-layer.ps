@@ -1,0 +1,68 @@
+title Matching: negative object layer
+
+objects
+
+Background
+black
+00000
+00000
+00000
+00000
+00000
+
+Player
+white
+00000
+00000
+00000
+00000
+00000
+
+A
+red
+00000
+00000
+00000
+00000
+00000
+
+B
+green
+00000
+00000
+00000
+00000
+00000
+
+Token
+orange
+00000
+00000
+00000
+00000
+00000
+
+legend
+. = Background
+P = Player
+T = Token
+X = A and Token
+
+sounds
+B create 34567
+A destroy 23456
+
+collisionlayers
+Background
+Player
+A, B
+Token
+
+rules
+[ A no Token ] -> [ B ]
+
+winconditions
+
+
+levels
+AXTP

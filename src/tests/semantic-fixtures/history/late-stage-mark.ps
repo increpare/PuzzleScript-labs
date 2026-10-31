@@ -1,0 +1,46 @@
+title late-stage-mark
+
+objects
+
+Background
+black
+
+Player
+white
+
+Target
+yellow
+
+Early
+red
+
+LateSeen
+blue
+
+legend
+
+. = Background
+P = Player
+T = Target
+
+sounds
+
+
+
+collisionlayers
+
+Background
+Target
+Early, LateSeen
+Player
+
+rules
+
+[ Player Target ] -> [ Player Target Early ]
+late [ Player Target no Early ] -> [ Player Target LateSeen ]
+
+winconditions
+
+levels
+
+PT

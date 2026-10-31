@@ -1,0 +1,62 @@
+title Inference: relative-perpendicular
+
+OBJECTS
+
+Background
+black
+
+Player
+white
+
+Red
+red
+
+Blue
+blue
+
+Mark
+yellow
+
+Token
+green
+
+LEGEND
+. = Background
+P = Player
+r = Red
+b = Blue
+m = Mark
+t = Token
+Item = Red or Blue
+
+SOUNDS
+
+COLLISIONLAYERS
+Background
+Player
+Red, Blue
+Mark
+Token
+
+RULES
+[ action Player | stationary Item ] -> [ Player | ^ Item ]
+
+WINCONDITIONS
+no Player
+
+LEVELS
+...
+.Pr
+...
+
+...
+.P.
+.b.
+
+...
+rP.
+...
+
+.b.
+.P.
+...

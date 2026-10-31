@@ -1,0 +1,46 @@
+title Movement: contested-cell
+
+
+OBJECTS
+
+Background
+black
+
+Player
+white
+
+Crate
+red
+
+Wall
+blue
+
+Mark
+yellow
+
+LEGEND
+. = Background
+P = Player
+C = Crate
+# = Wall
+m = Mark
+X = Player and Mark
+
+SOUNDS
+
+
+COLLISIONLAYERS
+Background
+Player, Crate, Wall
+Mark
+
+RULES
+down [ Crate ] -> [ down Crate ]
+
+WINCONDITIONS
+no Player
+
+LEVELS
+.C.
+P..
+...

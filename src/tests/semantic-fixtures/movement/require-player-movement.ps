@@ -1,0 +1,44 @@
+title Movement: require-player-movement
+
+require_player_movement
+OBJECTS
+
+Background
+black
+
+Player
+white
+
+Crate
+red
+
+Wall
+blue
+
+Mark
+yellow
+
+LEGEND
+. = Background
+P = Player
+C = Crate
+# = Wall
+m = Mark
+X = Player and Mark
+
+SOUNDS
+
+
+COLLISIONLAYERS
+Background
+Player, Crate, Wall
+Mark
+
+RULES
+right [ Crate ] -> [ right Crate ]
+
+WINCONDITIONS
+no Player
+
+LEVELS
+P#C.

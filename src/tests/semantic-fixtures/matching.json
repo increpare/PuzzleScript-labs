@@ -1,0 +1,708 @@
+[
+  {
+    "id": "matching/overlap-right",
+    "sourceFile": "matching/overlap-right.ps",
+    "explanation": "Adjacent right-facing matches overlap. Rechecking live cells skips a tuple whose A was removed by an earlier replacement; disjoint pairs still apply. All expectations are hand-specified.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "A": [
+        "background",
+        "a"
+      ],
+      "B": [
+        "background",
+        "b"
+      ]
+    },
+    "cases": [
+      {
+        "name": "load does not run rules",
+        "inputs": [],
+        "expected": [
+          "AAAAP"
+        ]
+      },
+      {
+        "name": "even run consumes disjoint pairs",
+        "inputs": [
+          "tick"
+        ],
+        "expected": [
+          "B.B.P"
+        ]
+      },
+      {
+        "name": "odd run preserves the unpaired last A",
+        "inputs": [
+          "tick"
+        ],
+        "expected": [
+          "B.AP"
+        ],
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": "matching/overlap-left",
+    "sourceFile": "matching/overlap-left.ps",
+    "explanation": "A left-facing row starts at its right-hand cell, but candidate origins are scanned in increasing x. The first origin in AAA is the middle cell; it consumes the left A and invalidates the overlapping last origin.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "A": [
+        "background",
+        "a"
+      ],
+      "B": [
+        "background",
+        "b"
+      ]
+    },
+    "cases": [
+      {
+        "name": "left-facing origins still scan from low x",
+        "inputs": [
+          "tick"
+        ],
+        "expected": [
+          ".BAP"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "matching/horizontal-row-order",
+    "sourceFile": "matching/horizontal-row-order.ps",
+    "explanation": "Horizontal row matches scan y before x. A unique Token is a second, spatially independent pattern row: consuming it allows only the first pair, the pair in the top row, even though its x is larger.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "A": [
+        "background",
+        "a"
+      ],
+      "B": [
+        "background",
+        "b"
+      ],
+      "T": [
+        "background",
+        "token"
+      ],
+      "X": [
+        "background",
+        "player",
+        "token"
+      ]
+    },
+    "cases": [
+      {
+        "name": "top row wins the single shared token",
+        "inputs": [
+          "tick"
+        ],
+        "expected": [
+          "..B.",
+          "AA..",
+          "...P"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "matching/vertical-column-order",
+    "sourceFile": "matching/vertical-column-order.ps",
+    "explanation": "Vertical row matches scan x before y. A unique Token gates one replacement, so the lower pair in the left column wins over the higher pair in the third column. Expected rows use ordinary y order.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "A": [
+        "background",
+        "a"
+      ],
+      "B": [
+        "background",
+        "b"
+      ],
+      "T": [
+        "background",
+        "token"
+      ],
+      "X": [
+        "background",
+        "player",
+        "token"
+      ]
+    },
+    "cases": [
+      {
+        "name": "left column wins the single shared token",
+        "inputs": [
+          "tick"
+        ],
+        "expected": [
+          "..A.",
+          "B.A.",
+          "...P"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "matching/separate-group-order",
+    "sourceFile": "matching/separate-group-order.ps",
+    "explanation": "Separate rule groups execute in source order without revisiting an earlier group. Creating B in the second group cannot enable the earlier B-to-C group until the next input. On that next input the later C-to-D group does see the C just created by the first group.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "A": [
+        "background",
+        "a"
+      ],
+      "B": [
+        "background",
+        "b"
+      ],
+      "C": [
+        "background",
+        "c"
+      ],
+      "D": [
+        "background",
+        "d"
+      ]
+    },
+    "cases": [
+      {
+        "name": "later group creates B",
+        "inputs": [
+          "tick"
+        ],
+        "expected": [
+          "BP"
+        ]
+      },
+      {
+        "name": "next input consumes B then a later group consumes new C",
+        "inputs": [
+          "tick",
+          "tick"
+        ],
+        "expected": [
+          "DP"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "matching/joined-group-fixed-point",
+    "sourceFile": "matching/joined-group-fixed-point.ps",
+    "explanation": "The plus prefix joins both rules into one group. A later rule creating B enables the earlier B-to-C rule when that same group repeats, within one input.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "A": [
+        "background",
+        "a"
+      ],
+      "B": [
+        "background",
+        "b"
+      ],
+      "C": [
+        "background",
+        "c"
+      ]
+    },
+    "cases": [
+      {
+        "name": "joined group revisits its earlier rule",
+        "inputs": [
+          "tick"
+        ],
+        "expected": [
+          "CP"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "matching/new-match-next-pass",
+    "sourceFile": "matching/new-match-next-pass.ps",
+    "explanation": "The right-facing swap has only the first AB as an initial match. Its replacement creates the next AB, which a subsequent pass through the same group finds; the A reaches the far end in a single input.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "A": [
+        "background",
+        "a"
+      ],
+      "B": [
+        "background",
+        "b"
+      ]
+    },
+    "cases": [
+      {
+        "name": "newly enabled matches propagate in one input",
+        "inputs": [
+          "tick"
+        ],
+        "expected": [
+          "BBBAP"
+        ]
+      },
+      {
+        "name": "stable board stays stable on a later input",
+        "inputs": [
+          "tick",
+          "tick"
+        ],
+        "expected": [
+          "BBBAP"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "matching/ellipsis-spans",
+    "sourceFile": "matching/ellipsis-spans.ps",
+    "explanation": "One ellipsis spans zero or more cells between explicit endpoints, never wraps a row and requires an ordered B. Multiple possible B endpoints share the same A, which is consumed once.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "A": [
+        "background",
+        "a"
+      ],
+      "B": [
+        "background",
+        "b"
+      ],
+      "C": [
+        "background",
+        "c"
+      ]
+    },
+    "cases": [
+      {
+        "name": "zero cells in the gap",
+        "inputs": [
+          "tick"
+        ],
+        "expected": [
+          "CBP"
+        ]
+      },
+      {
+        "name": "two cells in the gap",
+        "inputs": [
+          "tick"
+        ],
+        "expected": [
+          "C..BP"
+        ],
+        "level": 1
+      },
+      {
+        "name": "several endpoints cannot rewrite a consumed A",
+        "inputs": [
+          "tick"
+        ],
+        "expected": [
+          "C.B.BP"
+        ],
+        "level": 2
+      },
+      {
+        "name": "B before A is not a right-facing endpoint",
+        "inputs": [
+          "tick"
+        ],
+        "expected": [
+          "B.AP"
+        ],
+        "level": 3
+      },
+      {
+        "name": "ellipsis cannot wrap across a row boundary",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "..A",
+          "B.P"
+        ],
+        "level": 4
+      }
+    ]
+  },
+  {
+    "id": "matching/two-ellipses",
+    "sourceFile": "matching/two-ellipses.ps",
+    "explanation": "Two ellipses independently admit empty or unequal gaps. The explicit B must lie between A and C in the rule direction; their mere presence elsewhere is insufficient.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "A": [
+        "background",
+        "a"
+      ],
+      "B": [
+        "background",
+        "b"
+      ],
+      "C": [
+        "background",
+        "c"
+      ],
+      "D": [
+        "background",
+        "d"
+      ]
+    },
+    "cases": [
+      {
+        "name": "both gaps empty",
+        "inputs": [
+          "tick"
+        ],
+        "expected": [
+          "DBCP"
+        ]
+      },
+      {
+        "name": "unequal nonempty gaps",
+        "inputs": [
+          "tick"
+        ],
+        "expected": [
+          "D.B..CP"
+        ],
+        "level": 1
+      },
+      {
+        "name": "middle and final endpoints in the wrong order",
+        "inputs": [
+          "tick"
+        ],
+        "expected": [
+          "A.C.BP"
+        ],
+        "level": 2
+      }
+    ]
+  },
+  {
+    "id": "matching/ellipsis-live-recheck",
+    "sourceFile": "matching/ellipsis-live-recheck.ps",
+    "explanation": "Each match moves A to a B endpoint. On ABB, the first tuple removes its starting A and invalidates the other precomputed tuple. A new pass discovers the moved A and reaches the final B.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "A": [
+        "background",
+        "a"
+      ],
+      "B": [
+        "background",
+        "b"
+      ]
+    },
+    "cases": [
+      {
+        "name": "recheck plus another pass moves A twice",
+        "inputs": [
+          "tick"
+        ],
+        "expected": [
+          "..AP"
+        ]
+      },
+      {
+        "name": "no endpoint remains on the next input",
+        "inputs": [
+          "tick",
+          "tick"
+        ],
+        "expected": [
+          "..AP"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "matching/multirow-cartesian",
+    "sourceFile": "matching/multirow-cartesian.ps",
+    "explanation": "Two bracketed rows match independently, forming Cartesian candidate tuples. Rechecking after each live write pairs each available A with one available B, skipping tuples that reuse a consumed endpoint.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "A": [
+        "background",
+        "a"
+      ],
+      "B": [
+        "background",
+        "b"
+      ],
+      "C": [
+        "background",
+        "c"
+      ],
+      "D": [
+        "background",
+        "d"
+      ]
+    },
+    "cases": [
+      {
+        "name": "two independent pairs",
+        "inputs": [
+          "tick"
+        ],
+        "expected": [
+          "CC.DDP"
+        ]
+      },
+      {
+        "name": "excess A remains after B endpoints are consumed",
+        "inputs": [
+          "tick"
+        ],
+        "expected": [
+          "CCA.DDP"
+        ],
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": "matching/multirow-same-cell",
+    "sourceFile": "matching/multirow-same-cell.ps",
+    "explanation": "Independent pattern rows may select the same cell. Both A patterns match before either replacement writes. With B and C on the same collision layer, the second replacement clears B and leaves C.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "A": [
+        "background",
+        "a"
+      ],
+      "B": [
+        "background",
+        "b"
+      ],
+      "C": [
+        "background",
+        "c"
+      ]
+    },
+    "cases": [
+      {
+        "name": "one cell can satisfy both rows",
+        "inputs": [
+          "tick"
+        ],
+        "expected": [
+          "CP"
+        ]
+      },
+      {
+        "name": "each self-overlapping tuple leaves its last layer write",
+        "inputs": [
+          "tick"
+        ],
+        "expected": [
+          "CC.P"
+        ],
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": "matching/negative-object-layer",
+    "sourceFile": "matching/negative-object-layer.ps",
+    "explanation": "The negative Token condition excludes an A sharing its cell with Token. Replacing the qualifying A with B clears its collision layer while preserving other layers. Creation sounds precede destruction sounds and are emitted only on the changing input.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "A": [
+        "background",
+        "a"
+      ],
+      "B": [
+        "background",
+        "b"
+      ],
+      "T": [
+        "background",
+        "token"
+      ],
+      "X": [
+        "background",
+        "a",
+        "token"
+      ]
+    },
+    "cases": [
+      {
+        "name": "only the token-free A is replaced",
+        "inputs": [
+          "tick"
+        ],
+        "expected": [
+          "BXTP"
+        ],
+        "expectedSounds": [
+          34567,
+          23456
+        ]
+      },
+      {
+        "name": "the excluded A remains excluded on later inputs",
+        "inputs": [
+          "tick",
+          "tick"
+        ],
+        "expected": [
+          "BXTP"
+        ],
+        "expectedSounds": [
+          34567,
+          23456
+        ]
+      }
+    ]
+  },
+  {
+    "id": "matching/command-only-sound",
+    "sourceFile": "matching/command-only-sound.ps",
+    "explanation": "A command-only rule needs a complete match but no board mutation. Several A/B tuples queue one sfx0 per input; another input can queue it again. Simple sfx commands deliberately do not enter legacy soundHistory, so the empty recorded-sound expectation is intentional; the independent per-input comparison observes the played command sound.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "A": [
+        "background",
+        "a"
+      ],
+      "B": [
+        "background",
+        "b"
+      ]
+    },
+    "cases": [
+      {
+        "name": "all tuple matches share one sound command",
+        "inputs": [
+          "tick"
+        ],
+        "expected": [
+          "AABBP"
+        ],
+        "expectedSounds": [],
+        "expectedPlayedSounds": [
+          12345
+        ]
+      },
+      {
+        "name": "another input can emit the command again",
+        "inputs": [
+          "tick",
+          "tick"
+        ],
+        "expected": [
+          "AABBP"
+        ],
+        "expectedSounds": [],
+        "expectedPlayedSounds": [
+          12345,
+          12345
+        ]
+      },
+      {
+        "name": "missing B prevents the command",
+        "inputs": [
+          "tick"
+        ],
+        "expected": [
+          "AAP"
+        ],
+        "level": 1,
+        "expectedSounds": [],
+        "expectedPlayedSounds": []
+      }
+    ]
+  }
+]

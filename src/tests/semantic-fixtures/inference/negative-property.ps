@@ -1,0 +1,52 @@
+title Inference: negative-property
+
+OBJECTS
+
+Background
+black
+
+Player
+white
+
+Red
+red
+
+Blue
+blue
+
+Mark
+yellow
+
+Token
+green
+
+LEGEND
+. = Background
+P = Player
+r = Red
+b = Blue
+m = Mark
+t = Token
+q = Red and Blue
+Item = Red or Blue
+
+SOUNDS
+
+COLLISIONLAYERS
+Background
+Player
+Red
+Blue
+Mark
+Token
+
+RULES
+right [ action Player | no Item no Mark ] -> [ Player | Mark ]
+
+WINCONDITIONS
+no Player
+
+LEVELS
+P.
+
+Pq

@@ -1,0 +1,52 @@
+title Inference: cross-layer-transfer
+
+OBJECTS
+
+Background
+black
+
+Player
+white
+
+Red
+red
+
+Blue
+blue
+
+Mark
+yellow
+
+Token
+green
+
+LEGEND
+. = Background
+P = Player
+r = Red
+b = Blue
+m = Mark
+t = Token
+q = Red and Blue
+Item = Red or Blue
+
+SOUNDS
+
+COLLISIONLAYERS
+Background
+Player
+Red
+Blue
+Mark
+Token
+
+RULES
+right [ action Player | Item ] -> [ action Player Item | ]
+
+WINCONDITIONS
+no Player
+
+LEVELS
+Pr.
+
+Pq.

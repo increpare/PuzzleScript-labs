@@ -1,0 +1,560 @@
+[
+  {
+    "id": "inference/unique-transfer",
+    "sourceFile": "inference/unique-transfer.ps",
+    "explanation": "Item occurs once on the left, so its concrete red or blue identity is inferred at the different cell on the right. The original Item cell is cleared. A second action cannot repeat the transfer because the Item is no longer next to Player.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "r": [
+        "background",
+        "red"
+      ],
+      "b": [
+        "background",
+        "blue"
+      ]
+    },
+    "cases": [
+      {
+        "name": "red transfers once across two actions",
+        "inputs": [
+          4,
+          4
+        ],
+        "expected": [
+          "P.r."
+        ]
+      },
+      {
+        "name": "blue identity follows the transfer",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "P.b."
+        ],
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": "inference/unique-copy",
+    "sourceFile": "inference/unique-copy.ps",
+    "explanation": "The one left-side Item binds every right-side occurrence of Item. Keeping it in its original cell and placing another Item in the next cell copies the concrete member, rather than choosing an arbitrary member of the property.",
+    "cells": {
+      "P": [
+        "background",
+        "player"
+      ],
+      "r": [
+        "background",
+        "red"
+      ],
+      "b": [
+        "background",
+        "blue"
+      ]
+    },
+    "cases": [
+      {
+        "name": "one red source binds two red sinks",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "Prr"
+        ]
+      },
+      {
+        "name": "one blue source binds two blue sinks",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "Pbb"
+        ],
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": "inference/repeated-local",
+    "sourceFile": "inference/repeated-local.ps",
+    "explanation": "The two Item occurrences can match different members. Since each right-side Item has a corresponding left-side Item in the same cell, each local identity is retained independently while the last cell receives Mark.",
+    "cells": {
+      "P": [
+        "background",
+        "player"
+      ],
+      "r": [
+        "background",
+        "red"
+      ],
+      "b": [
+        "background",
+        "blue"
+      ],
+      "R": [
+        "background",
+        "red",
+        "mark"
+      ],
+      "B": [
+        "background",
+        "blue",
+        "mark"
+      ]
+    },
+    "cases": [
+      {
+        "name": "red followed by blue remains mixed",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "PrB"
+        ]
+      },
+      {
+        "name": "blue followed by red remains mixed",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "PbR"
+        ],
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": "inference/cross-layer-transfer",
+    "sourceFile": "inference/cross-layer-transfer.ps",
+    "explanation": "Red and Blue occupy different collision layers. Item is concretized into member rules; each matched member can transfer onto Player independently. With both members in the source cell, both are transferred before the rule group reaches a fixed point because the right side explicitly retains Player action.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "X": [
+        "background",
+        "player",
+        "red",
+        "blue"
+      ],
+      "A": [
+        "background",
+        "player",
+        "red"
+      ]
+    },
+    "cases": [
+      {
+        "name": "one cross-layer member transfers",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "A.."
+        ]
+      },
+      {
+        "name": "both simultaneous members transfer",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "X.."
+        ],
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": "inference/negative-property",
+    "sourceFile": "inference/negative-property.ps",
+    "explanation": "No Item means no Red and no Blue, including when those members have separate layers and can coexist. Only the empty neighboring cell receives Mark; a cell containing both members must not match the negative property.",
+    "cells": {
+      "P": [
+        "background",
+        "player"
+      ],
+      "q": [
+        "background",
+        "red",
+        "blue"
+      ],
+      "m": [
+        "background",
+        "mark"
+      ]
+    },
+    "cases": [
+      {
+        "name": "empty cell satisfies the whole-property negation",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "Pm"
+        ]
+      },
+      {
+        "name": "both members prevent the negative match",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "Pq"
+        ],
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": "inference/partial-exclusion",
+    "sourceFile": "inference/partial-exclusion.ps",
+    "explanation": "Item and no Red together select Blue from the single-layer Red-or-Blue property. Local right-side property preservation keeps that Blue while adding Mark. The Red level remains unchanged.",
+    "cells": {
+      "P": [
+        "background",
+        "player"
+      ],
+      "r": [
+        "background",
+        "red"
+      ],
+      "B": [
+        "background",
+        "blue",
+        "mark"
+      ]
+    },
+    "cases": [
+      {
+        "name": "excluded red does not match",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "Pr"
+        ]
+      },
+      {
+        "name": "remaining blue member matches",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "PB"
+        ],
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": "inference/stationary-versus-moving",
+    "sourceFile": "inference/stationary-versus-moving.ps",
+    "explanation": "The first rule gives an adjacent Item a rightward movement on action. The later stationary rule must ignore it during that same turn. On a subsequent tick, movement has been cleared, so the Item is stationary and receives Mark.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "r": [
+        "background",
+        "red"
+      ],
+      "R": [
+        "background",
+        "red",
+        "mark"
+      ]
+    },
+    "cases": [
+      {
+        "name": "moving red is not stationary in its launch turn",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "P.r."
+        ]
+      },
+      {
+        "name": "a later tick sees the settled red",
+        "inputs": [
+          4,
+          "tick"
+        ],
+        "expected": [
+          "P.R."
+        ]
+      },
+      {
+        "name": "without action the initial red is stationary",
+        "inputs": [
+          "tick"
+        ],
+        "expected": [
+          "PR.."
+        ]
+      }
+    ]
+  },
+  {
+    "id": "inference/moving-propagation",
+    "sourceFile": "inference/moving-propagation.ps",
+    "explanation": "There is one moving qualifier on the left. Its concrete input direction is inferred for both moving terms on the right, even though the fixed rightward pattern orientation differs from the up or down movement. The Item keeps its own concrete property identity.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "r": [
+        "background",
+        "red"
+      ]
+    },
+    "cases": [
+      {
+        "name": "up propagates across a rightward pattern",
+        "inputs": [
+          0
+        ],
+        "expected": [
+          ".Pr..",
+          ".....",
+          "....."
+        ]
+      },
+      {
+        "name": "down propagates across a rightward pattern",
+        "inputs": [
+          2
+        ],
+        "expected": [
+          ".....",
+          ".....",
+          ".Pr.."
+        ]
+      },
+      {
+        "name": "right propagates along the pattern",
+        "inputs": [
+          3
+        ],
+        "expected": [
+          ".....",
+          "..Pr.",
+          "....."
+        ]
+      }
+    ]
+  },
+  {
+    "id": "inference/relative-perpendicular",
+    "sourceFile": "inference/relative-perpendicular.ps",
+    "explanation": "The rule is tried in all four orientations. The right-side ^ is the direction to the left of the oriented pattern: up for a rightward match, right for down, down for left, and left for up. Player stays in place on action.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "r": [
+        "background",
+        "red"
+      ],
+      "b": [
+        "background",
+        "blue"
+      ]
+    },
+    "cases": [
+      {
+        "name": "rightward pattern turns red up",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "..r",
+          ".P.",
+          "..."
+        ]
+      },
+      {
+        "name": "downward pattern turns blue right",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "...",
+          ".P.",
+          "..b"
+        ],
+        "level": 1
+      },
+      {
+        "name": "leftward pattern turns red down",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "...",
+          ".P.",
+          "r.."
+        ],
+        "level": 2
+      },
+      {
+        "name": "upward pattern turns blue left",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "b..",
+          ".P.",
+          "..."
+        ],
+        "level": 3
+      }
+    ]
+  },
+  {
+    "id": "inference/independent-moving",
+    "sourceFile": "inference/independent-moving.ps",
+    "explanation": "The launch rule moves Player right and Item up. The next rule contains two moving occurrences whose matching right-side occurrences are local, so their different concrete directions are preserved independently. Mark has an explicit up movement and accompanies Item; the two locally inferred moving qualifiers keep Player rightward and Item upward.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "R": [
+        "background",
+        "red",
+        "mark"
+      ]
+    },
+    "cases": [
+      {
+        "name": "different local movements survive a mixed property match",
+        "inputs": [
+          3
+        ],
+        "expected": [
+          "..R.",
+          "..P.",
+          "...."
+        ]
+      },
+      {
+        "name": "a later player move does not move the settled item",
+        "inputs": [
+          3,
+          3
+        ],
+        "expected": [
+          "..R.",
+          "...P",
+          "...."
+        ]
+      }
+    ]
+  },
+  {
+    "id": "inference/spawned-stationary",
+    "sourceFile": "inference/spawned-stationary.ps",
+    "explanation": "An unqualified right-side Player in a cell that did not contain a left-side Player is spawned stationary. This clears even pre-existing Player movement in that destination cell, so adjacent input-moving players do not carry the moved Player onward. Separate source players each produce one Token and one settled Player.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "t": [
+        "background",
+        "token"
+      ]
+    },
+    "cases": [
+      {
+        "name": "overwriting an input-moving neighbor clears its movement",
+        "inputs": [
+          3
+        ],
+        "expected": [
+          "tP.."
+        ]
+      },
+      {
+        "name": "separate moving players each settle after one transfer",
+        "inputs": [
+          3
+        ],
+        "expected": [
+          "tPtP"
+        ],
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": "inference/random-versus-inferred",
+    "sourceFile": "inference/random-versus-inferred.ps",
+    "explanation": "A random Item on the right is selected independently from the property binding, while the unqualified Item in the next cell copies the one left-side Item. With the default seed inference/random-versus-inferred, the first RNG uniform is 0.32362268323636484, selecting Red from the Red, Blue object order.",
+    "cells": {
+      "P": [
+        "background",
+        "player"
+      ],
+      "r": [
+        "background",
+        "red"
+      ],
+      "b": [
+        "background",
+        "blue"
+      ]
+    },
+    "cases": [
+      {
+        "name": "random red and inferred red coincide",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "Prr"
+        ]
+      },
+      {
+        "name": "random red is independent of inferred blue",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "Prb"
+        ],
+        "level": 1
+      }
+    ]
+  }
+]
