@@ -1,6 +1,6 @@
 {
   "repository": "https://github.com/increpare/PuzzleScript",
-  "revision": "5a94bde1a5127a3a45306ea28598eba2874d446d",
+  "revision": "57f9f6cba69f6aa52ed738d5aee1d709d0037648",
   "implementation": "vanilla",
   "sourceSha256": {
     "js/storagewrapper.js": "3b6b3dfee738beefa33ed0d38a3c26b16557c45a59378cf382f62b270bf41014",
@@ -16,14 +16,14 @@
     "js/sfxr.js": "b4707692c61d42ceebf8063fffda92933b1e032d9fe75251e51b27a6f4401b87",
     "js/colorhelpers.js": "cfefd6f524866fe1c07cf2e2b448e66b858bd5ceadcef948fe03e2a69ed9e53e",
     "js/colors.js": "b842cef3c8252d430aaa500269a0c6f19d57ea5697de88f679b553b2e084a798",
-    "js/engine.js": "b66587221dd58ff0bad1b985a3a4e2c062f56db8e799c9498dd721f093267e44",
-    "js/parser.js": "0369403ef3cd5ed68295d19b4604d619368453ebf7b6e548bcf8a7402bb4ef3d",
-    "js/compiler.js": "16a38257cef21aef496199a948c78ee3c2891bce919572b3c85222e456c2b18b",
+    "js/engine.js": "54bfaba21547696b03e88e5d3951d09082e238f42db6b843f44929a4c278b0c7",
+    "js/parser.js": "a4c2f02250029e525b3628b48c7c8812e8a36bed9d99f878bc41f7bec075a8f8",
+    "js/compiler.js": "19593b85ed34c8e817bdfa841c4f800db599fe7eb0bb53efddf40e77c6c482b9",
     "js/soundbar.js": "8dc24f1d4f2d14b44fcbb0a2bddd5c572252e478e6d26af8350364ab59457b86",
     "js/codemirror/stringstream.js": "78947b75195ee9b03d09c0bc9e6008e9821a76ed3414c9355f6ab2b056f89b2b",
     "tests/resources/testingFrameWork.js": "bba9bc7ebf5aa63b97a0ebf99abc990984194f66e0f997cddf13aecb54447ce0",
-    "tests/resources/testdata.js": "59d52a2a01bf171f0a4de015303b79f7cc833697167ceb76fefec0f8adc8e453",
-    "tests/resources/errormessage_testdata.js": "c53391caba3af6f1c2cbfca75754a5864b85af9bd2434b2c87d0f943713080a5",
-    "js/inputoutput.js": "fa161868f4327263e7c003e9405ecf538ffe513b6365d08b88d1b3a7dca5be3a"
+    "tests/resources/testdata.js": "f99c0b274ed398443c7dde23de407a50860f0fe3cf2bf4cdf4ac7fa54dfc562c",
+    "tests/resources/errormessage_testdata.js": "b2cfb52f6945bef979fea6a94e63a08441b7f79964eeb3386409afe46a8a1d1b",
+    "js/inputoutput.js": "00ae336789243152becc9d627e513148eba3693a35acfa7219e07144e14c6f12"
   }
 }

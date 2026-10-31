@@ -1,4 +1,4 @@
-import type { QuirkSettings, RigidOwner } from './compatibility-vanilla-5a94bde1.js';
+import type { QuirkSettings, RigidOwner } from './compatibility.js';
 
 export enum Direction {
   Up,

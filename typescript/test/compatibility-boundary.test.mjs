@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Movement } from '../build/model.js';
 
-const compatibility = () => import('../build/compatibility-vanilla-5a94bde1.js');
+const compatibility = () => import('../build/compatibility.js');
 const all = [Movement.Up, Movement.Down, Movement.Left, Movement.Right, Movement.Action];
 
 test('restore compatibility identifies a partial layer at the original word boundary', async () => {
@@ -28,14 +28,26 @@ test('restoration retains only the declared old intents and clears shape changes
   assert.notEqual(retained[0].movements, before[0].movements);
 });
 
-test('issue 1206 names actual groups or an unattributable owner, never encoded ordinals', async () => {
+test('current rigid ownership tables retain the first source group across every incoming group', async () => {
   const vanilla = await compatibility();
   const transitions = vanilla.rigidOwnershipTransitions([10, 20, 30]);
-  assert.equal(vanilla.combineRigidOwners(vanilla.vanillaQuirks, transitions, 10, 20), 30);
-  assert.equal(vanilla.combineRigidOwners(vanilla.vanillaQuirks, transitions, 10, 10), 10);
-  assert.equal(vanilla.combineRigidOwners(vanilla.vanillaQuirks, transitions, null, 20), null);
-  assert.equal(vanilla.combineRigidOwners(vanilla.vanillaQuirks, vanilla.rigidOwnershipTransitions([10, 20]), 10, 20), null);
-  assert.throws(() => vanilla.combineRigidOwners(vanilla.vanillaQuirks, new Map(), 10, 20), /Missing rigid provenance/);
+  assert.deepEqual(transitions, new Map([
+    [10, new Map([[10, 10], [20, 10], [30, 10]])],
+    [20, new Map([[10, 20], [20, 20], [30, 20]])],
+    [30, new Map([[10, 30], [20, 30], [30, 30]])],
+  ]));
+  assert.equal(vanilla.combineRigidOwners(vanilla.vanillaQuirks, new Map(), 10, 20), 10);
+});
+
+test('historical issue 1206 research names actual groups or an unattributable owner, never encoded ordinals', async () => {
+  const vanilla = await compatibility();
+  const research = { ...vanilla.vanillaQuirks, rigidOwnerOrdinalMerge: true };
+  const transitions = vanilla.rigidOwnershipTransitions([10, 20, 30], research);
+  assert.equal(vanilla.combineRigidOwners(research, transitions, 10, 20), 30);
+  assert.equal(vanilla.combineRigidOwners(research, transitions, 10, 10), 10);
+  assert.equal(vanilla.combineRigidOwners(research, transitions, null, 20), null);
+  assert.equal(vanilla.combineRigidOwners(research, vanilla.rigidOwnershipTransitions([10, 20], research), 10, 20), null);
+  assert.throws(() => vanilla.combineRigidOwners(research, new Map(), 10, 20), /Missing rigid provenance/);
 });
 
 test('historical movement exceptions do not imply a general opposite-direction cancellation rule', async () => {

@@ -8,7 +8,12 @@ requiring a change to vanilla PuzzleScript.
 This is a **newly constructed reproducer**, made while developing the TypeScript
 reference port. It was not found in an existing game or the existing test corpus.
 
-Confirmed against unmodified vanilla PuzzleScript at
+The active reference now targets
+[`57f9f6cb`](https://github.com/increpare/PuzzleScript/commit/57f9f6cba69f6aa52ed738d5aee1d709d0037648).
+The native state and source-line links below are historical evidence from the
+original pin. This report does not claim a new full runtime replay.
+
+Originally confirmed against unmodified vanilla PuzzleScript at
 [`5a94bde1a5127a3a45306ea28598eba2874d446d`](https://github.com/increpare/PuzzleScript/commit/5a94bde1a5127a3a45306ea28598eba2874d446d),
 using the Node test host. This is malformed source: Background appears in two
 collision layers and Player has no collision layer. The compiler diagnoses both,

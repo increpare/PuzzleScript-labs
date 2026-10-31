@@ -5,7 +5,7 @@ import {
 } from './execution-model.js';
 import { findMatches, matchTuples } from './matching.js';
 import { nextRandom } from './random.js';
-import { choiceIndex, quirksOf } from './compatibility-vanilla-5a94bde1.js';
+import { choiceIndex, quirksOf } from './compatibility.js';
 import type { RowMatch } from './rule-model.js';
 import { applyRuleAt, cloneExecutionState, tryApplyRule } from './rules.js';
 

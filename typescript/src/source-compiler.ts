@@ -10,7 +10,7 @@ import { SourceDiagnosticSeverity, SourceDiagnosticPhase, type SourceDocument, t
 import { parseSource, SourceParserOutcomeKind, SourceParserStopReason } from './source-parser.js';
 import { expandSourceRules, lowerSourceRules } from './source-rule-compiler.js';
 import { compileRuleGroups, compileRuleLoops } from './source-rule-schedules.js';
-import { vanillaQuirks, type Quirks } from './compatibility-vanilla-5a94bde1.js';
+import { vanillaQuirks, type Quirks } from './compatibility.js';
 
 export enum SourceCompilationKind { Accepted, Declined, Invalid, Stopped }
 export enum SourceCompilationStopReason { ParserErrors, IssueLimit }
@@ -73,7 +73,7 @@ export function compileSource(source: string, options: CompileSourceOptions = {}
     const expanded = expandSourceRules(document, declarations, report);
     if (expanded.rules === null) return invalid();
     const lowered = lowerSourceRules(expanded.rules, declarations, report, quirks);
-    const groups = compileRuleGroups(lowered.rules, report);
+    const groups = compileRuleGroups(lowered.rules, report, quirks);
     const winConditions = compileWinConditions(document, declarations, dataReport);
     reportUnlayeredObjects(declarations, report);
     const metadata = compileMetadata(document, dataReport);

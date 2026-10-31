@@ -21,9 +21,9 @@ function decodeExecution(legacy, context) {
     return { kind: commandNames.get(name) };
   };
   const rigidGroups = legacy.rigidGroupIndex_to_GroupIndex;
-  const rigidMerges = new Map(rigidGroups.map((group, before) => [group,
-    new Map(rigidGroups.map((incoming, added) =>
-      [incoming, rigidGroups[((before + 1) | (added + 1)) - 1] ?? null])),
+  // In the refreshed native engine an assigned owner survives later writes.
+  const rigidMerges = new Map(rigidGroups.map(group => [group,
+    new Map(rigidGroups.map(incoming => [incoming, group])),
   ]));
   const fullLayers = mask => {
     const layers = new Set();

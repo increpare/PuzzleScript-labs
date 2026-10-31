@@ -1,10 +1,18 @@
 # Undo and restart leave pending movements behind when movement storage spans multiple words
 
+**Historical valid-source evidence at `5a94bde1`.** The active reference now targets
+[`57f9f6cb`](https://github.com/increpare/PuzzleScript/commit/57f9f6cba69f6aa52ed738d5aee1d709d0037648),
+which diagnoses the late `randomdir` rule below with
+`Movements cannot appear in late rules.` This report preserves the original
+measurements; the source is now an error-recovery example. Current runtime research
+tests use a valid early rule moved into an explicitly artificial late schedule,
+with `lateMovementsCarryOver: true`, to isolate the restoration behavior.
+
 Undo and restart restore the visible board but can leave pending movements from
 the discarded turn. Those movements execute on the next input. `restoreLevel`
 clears only `level.n_tiles` entries of an array that can be longer than that.
 
-This is a **newly constructed, valid-source reproducer** made while developing
+This was a **newly constructed, valid-source reproducer at that historical pin**, made while developing
 the TypeScript reference port. It was not found in an existing game. Confirmed
 against unmodified vanilla PuzzleScript at
 [`5a94bde1a5127a3a45306ea28598eba2874d446d`](https://github.com/increpare/PuzzleScript/commit/5a94bde1a5127a3a45306ea28598eba2874d446d)
@@ -70,11 +78,11 @@ P..
 ```
 
 The five unused objects provide separate collision layers, bringing the total to
-eight. Every object is assigned to exactly one layer. The compiler accepts
-`randomdir` in late rules; this source does not trigger the error for ordinary
-movement directions in late rules.
+eight. Every object is assigned to exactly one layer. The historical compiler
+accepted `randomdir` in late rules without the error it gave for ordinary movement
+directions in late rules. Current vanilla diagnoses it too.
 
-## Steps and observed behavior
+## Historical steps and observed behavior
 
 1. Compile and load the game. Player starts at the top left; Dust is in the centre.
 2. Press Right. Player moves right. Dust stays in the centre, with a random
@@ -99,7 +107,7 @@ centre, just as the first Action input after a fresh load does.
 This expectation does not require undo to restore the random generator. It is
 about movement state surviving restoration, before another random choice is made.
 
-## Verified native state
+## Verified native state at 5a94bde1
 
 For a deterministic run, compile with seed `late-restore`. The Node host used
 `processInput(3)` for Right, `DoUndo(false, true)` for Undo, `DoRestart()` for
@@ -152,5 +160,7 @@ Clear the whole movement array in the same-size branch, for example with
 
 As an isolation check, explicitly clearing the whole movement array immediately
 after Undo or Restart prevents Dust from moving on the following Action input.
-No production JavaScript was changed. The TypeScript port currently preserves
-the existing behavior for compatibility.
+No production JavaScript was changed to obtain the original measurements. The
+TypeScript port still models the partial restore through `restoreKeepsMovements`,
+but its current default diagnoses this late rule and disables late movement
+carryover. The historical runtime path requires explicit research opt-in.

@@ -242,9 +242,9 @@ test('all native producers, including the early negative pass, are guarded', () 
   assert.throws(() => oracle.independently(() => runInThisContext('new codeMirrorFn().startState()')), /Candidate called native codeMirrorFn/);
 });
 
-test('all 478 retained simulation sources match before and after the native early negative pass', t => {
+test('all 492 pinned simulation sources match before and after the native early negative pass', t => {
   const fixtures = oracle.corpusFixtures();
-  assert.equal(fixtures.length, 478);
+  assert.equal(fixtures.length, 492);
   const totals = { sources: 0, captured: 0, rules: 0, diagnostics: 0 };
   for (const item of fixtures) {
     const { result, captured } = oracle.compareFixture(item);

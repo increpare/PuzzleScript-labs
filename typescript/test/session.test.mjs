@@ -254,6 +254,17 @@ test('checkpoint snapshots own viewport and restart preserves RNG, message and s
   assert.deepEqual(undoSession(incoming, result.state).state.execution.board, moved.execution.board);
 });
 
+test('speculative checkpoints leave restart state, checkpoint status and storage untouched', () => {
+  const incoming = game({ earlyRules: schedule([commandRule(CommandKind.Checkpoint)]) });
+  const before = start(incoming);
+  const moved = stepSession(game(), before, Movement.Right, environment()).state;
+  const result = stepSession(incoming, moved, null, environment(), { probe: true, suppressWin: true });
+  assert.equal(result.modified, false);
+  assert.deepEqual(result.state.restartTarget, before.restartTarget);
+  assert.equal(result.state.checkpointUsed, false);
+  assert.deepEqual(persisted(result), []);
+});
+
 test('restart honours noRestart, force and recursion guard; command restart returns actual post-restart difference', () => {
   const incoming = game();
   const before = start(incoming);
@@ -319,13 +330,13 @@ test('quiet random AGAIN probe consumes the stream, retains its execution events
   assert.deepEqual(result.state.execution.commands.entries, []);
 });
 
-test('quiet AGAIN probes can checkpoint and cancelling probes emit their cancel sound', () => {
+test('quiet AGAIN probes leave the committed checkpoint alone and cancelling probes emit their cancel sound', () => {
   const outer = rule([[pattern([Player], { requiredMovements: [{ layer: 0, movement: Movement.Right }] })]], [[replacement()]], [{ kind: CommandKind.Again }]);
   const quietCheckpoint = commandRule(CommandKind.Checkpoint);
   const incoming = game({ earlyRules: schedule([outer]), lateRules: schedule([quietCheckpoint]) });
   const saved = stepSession(incoming, start(incoming), Movement.Right, environment());
   assert.equal(saved.state.checkpointUsed, true);
-  assert.equal(persisted(saved).length, 2);
+  assert.equal(persisted(saved).length, 1);
   assert.equal(saved.state.againing, false);
   const cancelIfStationary = rule([[pattern([Player], { forbiddenMovements: [{ layer: 0, movement: Movement.Right }] })]], [],
     [{ kind: CommandKind.Cancel }, { kind: CommandKind.Sound, index: 0 }], { hasReplacements: false });

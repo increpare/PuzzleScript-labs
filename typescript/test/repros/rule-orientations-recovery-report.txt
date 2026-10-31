@@ -1,7 +1,10 @@
 Vanilla orientation/name-stage recovery observations
 ===================================================
 
-Authority: increpare/PuzzleScript 5a94bde1a5127a3a45306ea28598eba2874d446d.
+Historical authority: increpare/PuzzleScript 5a94bde1a5127a3a45306ea28598eba2874d446d.
+The active reference is now 57f9f6cba69f6aa52ed738d5aee1d709d0037648.
+The observations below retain their original authority and are not a new
+measurement against the refreshed pin.
 The native host verifies pinned SHA-256 hashes before loading compiler.js.
 Production JavaScript is unchanged.
 

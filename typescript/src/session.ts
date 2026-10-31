@@ -1,6 +1,6 @@
 import { cloneBoard, createBoard } from './board.js';
 import { CommandKind } from './commands.js';
-import * as vanilla from './compatibility-vanilla-5a94bde1.js';
+import * as vanilla from './compatibility.js';
 import type { RuleExecutionState } from './execution-model.js';
 import type { Board, Movement } from './model.js';
 import { createRandom } from './random.js';
@@ -278,7 +278,7 @@ function step(work: Machine, input: Movement | null, options: StepSessionOptions
   }
   if (work.state.screen.kind === ScreenKind.Board) checkWin(work, options.suppressWin === true);
   if (!work.state.winning) {
-    if (queued(work, CommandKind.Checkpoint)) checkpoint(work);
+    if (options.probe !== true && queued(work, CommandKind.Checkpoint)) checkpoint(work);
     if (queued(work, CommandKind.Again) && modified) {
       const message = work.state.execution.commands.message;
       const possibleChange = step(work, null, { suppressWin: true, probe: true });

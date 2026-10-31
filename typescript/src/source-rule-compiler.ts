@@ -3,7 +3,7 @@ import type { SourceLoopMarker } from './source-model.js';
 import type { ResolvedDeclarations } from './declaration-model.js';
 import { normalizeRuleDuplicates } from './rule-duplicates.js';
 import { lowerRules } from './rule-lowering.js';
-import type { Quirks } from './compatibility-vanilla-5a94bde1.js';
+import type { Quirks } from './compatibility.js';
 import { expandRuleMovements } from './rule-movements.js';
 import { expandRuleAggregates, substituteRuleSynonyms } from './rule-names.js';
 import { checkEarlyNegativeTerms } from './rule-negatives.js';

@@ -1,5 +1,5 @@
 import { appendSourceIssue, type SourceIssueReporter } from './source-diagnostics.js';
-import * as vanilla from './compatibility-vanilla-5a94bde1.js';
+import * as vanilla from './compatibility.js';
 import type { ExecutableRule } from './execution-model.js';
 import type { SourcePatternRule } from './source-model.js';
 import type { RuleGame, RuleGroup, RuleSchedule } from './execution-model.js';
@@ -145,7 +145,9 @@ function scheduleLoops(groups: readonly RuleGroup[], bounds: readonly SourceLoop
 }
 
 /** Form runtime schedules only after source variants have survived group validation. */
-export function compileRuleGroups(rules: readonly LoweredRule[], reporter?: SourceIssueReporter): {
+export function compileRuleGroups(
+  rules: readonly LoweredRule[], reporter?: SourceIssueReporter, quirks: vanilla.Quirks = vanilla.vanillaQuirks,
+): {
   readonly early: RuleSchedule;
   readonly late: RuleSchedule;
   readonly rigid: boolean;
@@ -168,7 +170,7 @@ export function compileRuleGroups(rules: readonly LoweredRule[], reporter?: Sour
   if (rigidGroups.length > 30) {
     report(diagnostics, 'too-many-rigid-groups', "There can't be more than 30 rigid groups (rule groups containing rigid members).", early[rigidGroups[30]!]![0]!.namedRule.source.originalLine.span, SourceDiagnosticSeverity.Error, reporter);
   }
-  const rigidMerges = vanilla.rigidOwnershipTransitions(rigidGroups);
+  const rigidMerges = vanilla.rigidOwnershipTransitions(rigidGroups, quirks);
   const ruleSources = new Map<ExecutableRule, SourcePatternRule>();
   const earlyGroups = executableGroups(early, rigidBySource, ruleSources), lateGroups = executableGroups(late, rigidBySource, ruleSources);
   return { early: { groups: earlyGroups, loops: new Map() }, late: { groups: lateGroups, loops: new Map() },
@@ -184,8 +186,10 @@ export function compileRuleLoops(early: RuleSchedule, late: RuleSchedule, loops:
 }
 
 /** Convenience composition, sharing the same final executable identities. */
-export function compileRuleSchedules(rules: readonly LoweredRule[], loops: readonly SourceLoopMarker[]) {
-  const groups = compileRuleGroups(rules);
+export function compileRuleSchedules(
+  rules: readonly LoweredRule[], loops: readonly SourceLoopMarker[], quirks: vanilla.Quirks = vanilla.vanillaQuirks,
+) {
+  const groups = compileRuleGroups(rules, undefined, quirks);
   const scheduled = compileRuleLoops(groups.early, groups.late, loops);
   return { early: scheduled.early, late: scheduled.late, rigid: groups.rigid, rigidMerges: groups.rigidMerges,
     diagnostics: [...groups.diagnostics, ...scheduled.diagnostics] };

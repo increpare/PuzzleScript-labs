@@ -34,9 +34,9 @@ for (const sounds of ['', 'sfx0 123', 'sfx0', 'sfx0 rubbish', 'sfx0 123 extra', 
   });
 }
 
-test('all 478 original simulation sources match actual final schedules and complete raw rule diagnostics', t => {
+test('all 492 pinned simulation sources match actual final schedules and complete raw rule diagnostics', t => {
   const fixtures = oracle.corpusFixtures();
-  assert.equal(fixtures.length, 478);
+  assert.equal(fixtures.length, 492);
   const totals = { sources: 0, finalRules: 0, earlyGroups: 0, lateGroups: 0, loops: 0, diagnostics: 0, invalid: 0 };
   for (const item of fixtures) {
     const { result } = oracle.compareFixture(item);
@@ -48,9 +48,9 @@ test('all 478 original simulation sources match actual final schedules and compl
     totals.finalRules += [...earlyRules.groups, ...lateRules.groups].reduce((sum, group) => sum + group.rules.length, 0);
   }
   t.diagnostic(JSON.stringify(totals));
-  assert.equal(totals.finalRules, 99076);
-  assert.equal(totals.earlyGroups, 11072); assert.equal(totals.lateGroups, 4481); assert.equal(totals.loops, 89);
-  assert.equal(totals.diagnostics, 398); assert.equal(totals.invalid, 0);
+  assert.equal(totals.finalRules, 99192);
+  assert.equal(totals.earlyGroups, 11145); assert.equal(totals.lateGroups, 4502); assert.equal(totals.loops, 89);
+  assert.equal(totals.diagnostics, 402); assert.equal(totals.invalid, 0);
 });
 
 // Instrument ordinary module imports only in a test-owned copy. Production APIs
@@ -183,7 +183,7 @@ test('issue 1206 executes typed source rules plus typed game data with the same 
     const game = { ...data, ...result.data };
     assert.equal(game.collisionLayers, declarations.collisionLayers);
     assert.equal(game.player, declarations.player);
-    assert.equal(game.rigidMerges.get(0).get(1), 2);
+    assert.equal(game.rigidMerges.get(0).get(1), 0);
     const before = executionState(game.levels[0].board, 'rigid-source');
     const applied = applyTurnRules(game, before, null);
     assert.deepEqual(cells(applied.state.board), expected.frames[1].cells.map(row => row.map(cell => [...cell].sort())));
@@ -192,7 +192,7 @@ test('issue 1206 executes typed source rules plus typed game data with the same 
     assert.equal(applied.attempts, attempts.length);
     assert.equal(applied.rigidRetries, attempts.filter(attempt => attempt.retry).length);
     assert.deepEqual(applied.state.bannedGroups, new Set(attempts.at(-1).bans));
-    assert.deepEqual(attempts, [{ retry: true, bans: [2] }, { retry: false, bans: [2] }]);
+    assert.deepEqual(attempts, [{ retry: true, bans: [0] }, { retry: true, bans: [0, 1] }, { retry: false, bans: [0, 1] }]);
   });
 });
 

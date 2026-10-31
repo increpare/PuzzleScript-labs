@@ -1,5 +1,5 @@
 import type { Command, CommandState } from './commands.js';
-import type { QuirkSettings, VanillaRigidCompatibility } from './compatibility-vanilla-5a94bde1.js';
+import type { QuirkSettings, VanillaRigidCompatibility } from './compatibility.js';
 import type { CollisionLayer, GameObject, MovementState } from './model.js';
 import type { RandomState } from './random.js';
 import type { CellEdits } from './replacement.js';

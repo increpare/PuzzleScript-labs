@@ -1,6 +1,10 @@
 FIXED: Whole-line Unicode lexing for legend, object and collision-layer names
 
-Oracle: increpare/PuzzleScript, revision 5a94bde1a5127a3a45306ea28598eba2874d446d.
+Original oracle: increpare/PuzzleScript, revision 5a94bde1a5127a3a45306ea28598eba2874d446d.
+Active reference (2026-10-31): 57f9f6cba69f6aa52ed738d5aee1d709d0037648.
+Both Unicode suites pass in the refreshed 214-test parser/reader/declaration gate;
+it includes 492 simulation-source comparisons and 335 malformed-source span checks.
+The original implementation evidence and corpus counts below are historical.
 Reproduction: legend-unicode-expansion.puzzlescript.
 
 Native lowercases the whole physical line before tokenization. In
@@ -72,4 +76,6 @@ The existing 478-source comparisons and 312 malformed-source span checks remain.
 Scope boundary: this fixes the confirmed object/layer lexical-name mismatches.
 It does not establish complete Unicode grammar compatibility or change malformed
 object-header comment-continuation grammar, native diagnostics, production JS,
-or the preserved vanilla behavior documented in issue #1206.
+or the separate rigid ownership behavior documented in issue #1206. The active
+reference now follows that issue's upstream fix; the old ordinal merge is only
+an explicit research opt-in.

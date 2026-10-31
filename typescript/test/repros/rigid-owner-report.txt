@@ -1,4 +1,15 @@
-Title: Rigid rollback can disable a rule group that never matched
+Title: Historical rigid-owner bug and its fixed current behavior
+
+Current status (2026-10-31): fixed at the active vanilla reference,
+57f9f6cba69f6aa52ed738d5aee1d709d0037648. Re-running rigid-owner.cjs 4 against
+that unmodified oracle confirms first ownership by group 0 / line 29 for Player
+and group 1 / line 30 for Crate. Failed attempts ban group 0, then group 1;
+the final attempt has no rigid owners and completes without another retry.
+Group 2 is never banned.
+The default TypeScript reference follows this behavior. Historical ordinal
+merging remains available only through rigidOwnerOrdinalMerge: true.
+
+Historical evidence below: Rigid rollback can disable a rule group that never matched
 
 Repository: https://github.com/increpare/PuzzleScript
 Upstream issue: https://github.com/increpare/PuzzleScript/issues/1206
@@ -6,7 +17,7 @@ Verified revision: 5a94bde1a5127a3a45306ea28598eba2874d446d
 Origin of discovery: constructed edge-case test during a TypeScript port;
 not a failure first found in an existing game.
 
-Reproduction:
+Historical reproduction at 5a94bde1:
 1. Open rigid-owner.puzzlescript in the vanilla editor and compile it.
 2. Press X (action) once.
 3. Observe the rigid rollback diagnostic referring to line 31, the Wall rule.
@@ -26,7 +37,7 @@ Rigid ownership and rollback should refer to a group that actually contributed
 to the attempted move. The absent Wall rule must not become the owner.
 This report does not prescribe which of the two contributing groups should win.
 
-Actual on the first movement attempt:
+Historical actual state on the first movement attempt:
   Player layer owner: group index 2, source line 31 (the unmatched Wall rule).
   Crate layer owner: group index 1, source line 30.
   Movement fails and bans group index 2, then retries once.
@@ -34,7 +45,9 @@ Actual on the first movement attempt:
 Independent Node reproduction from this checkout:
   node typescript/test/repros/rigid-owner.cjs 4
 Omit the final 4 to reproduce with a no-input tick instead of action.
-The runner loads the unmodified pinned vanilla JS and prints owners and bans.
+The runner loads the current unmodified pinned vanilla JS and prints its revision,
+owners and bans. Its present output is the fixed behavior summarized above; it
+does not load the old 5a94bde1 oracle.
 
 Cause:
 Rigid group identifiers are stored as one-based numeric codes. Overlapping
@@ -42,9 +55,10 @@ replacements can combine ownership codes using bitwise OR. Codes 1 and 2
 combine into 3, which is then interpreted as the third group. A cell-wide
 guard permits this when the later replacement also affects a new layer.
 
-Compatibility decision for the reference port:
-The user has requested preserving this existing behaviour for now (issue #1206);
-the readable runtime uses transitions between actual groups, not packed codes.
+Historical compatibility decision for the reference port:
+At the original pin, this behavior was preserved for issue #1206. The refreshed
+default now follows the upstream fix; the readable runtime still represents
+transitions between actual groups rather than packed codes.
 
 Separate finding:
 The randomdir/input-specialization sound bug was observed in PuzzleScript-labs.

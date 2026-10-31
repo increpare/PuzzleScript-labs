@@ -1,20 +1,27 @@
-# Vanilla quirks: corpus impact
+# Vanilla quirks: current defaults and historical corpus impact
 
-Which recorded games play differently when a quirk switch (see
-[README](README.md#quirk-switches)) is turned off. Measured 2026-10-25 against the
-478 simulation fixtures pinned in `test/vanilla/`.
+The active reference is vanilla `57f9f6cba69f6aa52ed738d5aee1d709d0037648`,
+with 492 simulation fixtures. Its defaults match that revision:
+`rigidOwnerOrdinalMerge`, `lhsRandomDirIsUpAndLeft` and `lateMovementsCarryOver`
+are off; the other four switches remain on. See [README](README.md#quirk-switches).
+
+The measurements below are **historical**, taken on 2026-10-25 against the previous
+`5a94bde1a5127a3a45306ea28598eba2874d446d` pin and its 478 simulation fixtures.
+They have not been rerun against the refreshed corpus.
 
 ```sh
 npm --prefix typescript run quirk-impact -- [--jobs N] [--json OUT] [name filter]
 ```
 
-Each game is replayed with vanilla quirks, then with one switch off at a time,
-then with all off. A game "changes" if any observation differs: compilation
+The current runner replays each game with current vanilla defaults, then toggles
+one switch from its default at a time, then turns all switches off. This permits
+research opt-ins for historical bugs that current vanilla has fixed. A game
+"changes" if any observation differs: compilation
 outcome and messages, or after any input or AGAIN step the level, screen, board,
-sounds, saves, wins or the input's modified flag. The full run took 2 h 10 min on
-9 workers.
+sounds, saves, wins or the input's modified flag. The historical run turned each
+then-enabled switch off and took 2 h 10 min on 9 workers.
 
-## Results
+## Historical results at 5a94bde1
 
 | Switch turned off | Games that change | Why |
 | --- | --- | --- |
@@ -49,7 +56,7 @@ and one moving right, can each move into a cell the other is leaving. Visiting
 columns first resolves them in the opposite order from visiting rows first, so the
 final board differs.
 
-## What this means
+## Interpretation of the historical results
 
 - **Column-first movement order is language semantics, not a quirk.** Published
   games depend on it. It should stay, documented as a rule, with no switch.
@@ -58,12 +65,27 @@ final board differs.
   source of movements pending between turns, so it is the only way to reach the
   restore bug and the Up+Down combination.
 
-## Limits
+## Changes at the refreshed pin
+
+- Rigid ownership now stays with the first group that marked a layer. The old
+  ordinal merge remains an explicit research opt-in.
+- LHS `random` and `randomdir` produce compiler errors and remove the whole rule.
+  The historical LHS `randomdir` interpretation requires its research switch.
+- Movement qualifiers in late rules, including `randomdir`, produce compiler
+  errors. Enabling the carryover switch does not make that syntax valid. Runtime
+  carryover/restore tests use an explicitly artificial historical schedule.
+- Speculative AGAIN turns cannot save a checkpoint or write persistence.
+
+These changes invalidate using the historical late-`randomdir` reproducers as
+examples of current valid gameplay. Their reports retain the earlier measurements
+with the original authority clearly labelled.
+
+## Limits of the historical measurement
 
 - "0 games" means no recorded input sequence observes a difference. It doesn't
   mean the quirk is unreachable: the hand-made reproducers in `test/repros/` do
   observe each one.
-- The baseline is this port with vanilla quirks, which matches vanilla on every
-  input. Later level loads use deterministic seeds here (vanilla uses fresh random
-  ones), and every configuration sees the same seeds.
+- The historical baseline used this port's then-current vanilla quirks. Later
+  level loads used deterministic seeds (vanilla uses fresh random ones), and every
+  configuration saw the same seeds. It is not a new replay of the refreshed pin.
 - Error-recovery behavior for malformed source is not switchable and not measured.

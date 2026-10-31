@@ -274,9 +274,9 @@ test('every native producer including orientation and name functions is guarded'
   assert.throws(() => oracle.independently(() => runInThisContext('new codeMirrorFn().startState()')), /Candidate called native codeMirrorFn/);
 });
 
-test('all 478 retained simulation sources match orientations, names, order and new diagnostics', t => {
+test('all 492 retained simulation sources match orientations, names, order and new diagnostics', t => {
   const fixtures = oracle.corpusFixtures();
-  assert.equal(fixtures.length, 478);
+  assert.equal(fixtures.length, 492);
   const totals = { sources: 0, captured: 0, before: 0, oriented: 0, diagnostics: 0 };
   for (const item of fixtures) {
     const report = oracle.compareFixture(item);

@@ -8,6 +8,7 @@ import { compileGameData } from '../build/source-game-data.js';
 import { movementSource } from './scenarios.mjs';
 import { walkSourceLexically } from '../build/source-lexical.js';
 import { readAuthoredSource } from '../build/source-reader.js';
+import { buildParserStateSnapshot } from './support/parser-snapshot.cjs';
 const parser = await import('../build/source-parser.js').catch(error => {
   if (error.code !== 'ERR_MODULE_NOT_FOUND') throw error;
   return {};
@@ -64,14 +65,14 @@ test('the global issue cap counts recorded issues and interrupts only after reco
 
 test('all existing compilation sources match actual native parser visits and post-token exits', () => {
   const fixtures = oracle.compilationFixtures();
-  assert.equal(fixtures.length, 312);
+  assert.equal(fixtures.length, 335);
   let raw = 0, recorded = 0, exits = 0;
   for (const fixture of fixtures) {
     const { native } = oracle.compareFixture(fixture);
     raw += native.raw.length; recorded += native.recorded.length;
     if (native.reason !== null) exits++;
   }
-  assert.deepEqual({ raw, recorded, exits }, { raw: 268, recorded: 244, exits: 3 });
+  assert.deepEqual({ raw, recorded, exits }, { raw: 234, recorded: 210, exits: 3 });
 });
 
 test('collector deduplication uses displayed line and severity while ignoring code, phase and authored location', () => {
@@ -94,7 +95,7 @@ test('collector deduplication uses displayed line and severity while ignoring co
 
 test('all original simulation sources retain their native nonzero parser issues without rejecting the game', () => {
   const fixtures = oracle.corpusFixtures();
-  assert.equal(fixtures.length, 478);
+  assert.equal(fixtures.length, 492);
   let raw = 0, recorded = 0, errors = 0, sourcesWithIssues = 0;
   for (const fixture of fixtures) {
     const { native } = oracle.compareFixture(fixture);
@@ -102,7 +103,7 @@ test('all original simulation sources retain their native nonzero parser issues 
     if (native.raw.length > 0) sourcesWithIssues++;
     assert.equal(native.reason, null);
   }
-  assert.deepEqual({ raw, recorded, errors, sourcesWithIssues }, { raw: 265, recorded: 265, errors: 14, sourcesWithIssues: 104 });
+  assert.deepEqual({ raw, recorded, errors, sourcesWithIssues }, { raw: 144, recorded: 144, errors: 14, sourcesWithIssues: 69 });
 });
 
 for (const key of ['title', 'author', 'homepage']) for (const prefix of ['', '(prefix)', '(prefix\n)']) {
@@ -113,7 +114,7 @@ for (const key of ['title', 'author', 'homepage']) for (const prefix of ['', '(p
     const document = readSource(source).document;
     assert.equal(document.metadata[0].authoredValue, 'MiXeD');
     const declarations = resolveDeclarations(document).declarations;
-    assert.equal(compileGameData(document, declarations).metadata.get(key), prefix === '' ? 'MiXeD' : 'mixed');
+    assert.equal(compileGameData(document, declarations).metadata.get(key), 'MiXeD');
     const compiled = oracle.nativeMetadata(source);
     assert.equal(compiled.errorCount, 0);
     assert.equal(compiled.metadata[key], compileGameData(document, declarations).metadata.get(key));
@@ -130,7 +131,7 @@ for (const prefix of ['', '(prefix)', '(prefix\n)']) test('constructed level mes
   const document = readSource(source).document;
   const compiled = oracle.nativeMetadata(source);
   assert.equal(compiled.errorCount, 0);
-  assert.deepEqual(compiled.messages, [prefix === '' ? 'MiXeD (Keep)' : 'mixed (keep)']);
+  assert.deepEqual(compiled.messages, ['MiXeD (Keep)']);
   assert.equal(compileGameData(document, resolveDeclarations(document).declarations).data.levels[0].text, compiled.messages[0]);
 });
 
@@ -141,6 +142,62 @@ test('parser stops retain later authored text without accepting later lexical de
   assert.equal(result.document.metadata.at(-1).authoredValue, 'AFTER');
   assert.equal(result.document.metadata.at(-1).accepted, false);
   assert.deepEqual(result.document.objects[0].definitionNames, []);
+});
+
+test('single-character keyword aliases and legend names avoid warnings while primary names still warn', () => {
+  const source = 'OBJECTS\nPlayer P > < ^ | [ ] V\nWhite\n\nV\nRed\nLEGEND\nv = Player\n> = Player\n^ = Player\nUp = Player';
+  const { native } = oracle.compareFixture({ name: 'single-character keyword name roles', source });
+  assert.deepEqual(native.raw.filter(issue => issue.message.includes('this is a keyword')).map(issue => [issue.line, issue.message]), [
+    [5, 'You named an object "V", but this is a keyword. Don\'t do that!'],
+    [11, 'You named an object "UP", but this is a keyword. Don\'t do that!'],
+  ]);
+});
+
+test('collision-layer warnings include native recovery guidance in their exact visit order', () => {
+  const source = 'OBJECTS\nA\nRed\n\nB\nBlue\nLEGEND\np = A or B\nSOUNDS\nCOLLISIONLAYERS\nA\nB\np,p';
+  const { native } = oracle.compareFixture({ name: 'multiple collision layers recovery guidance', source });
+  assert.deepEqual(native.raw.map(issue => issue.message), [
+    'Object "P" included in multiple collision layers ( layers #1, #2, #3 ). You should fix this! (The compiler will just pick one layer to assign it to).',
+    'Object "P" included in multiple collision layers ( layers #1, #2, #3 ). You should fix this! (The compiler will just pick one layer to assign it to).',
+    'Object "P" included explicitly multiple times in the same layer. Don\'t do that innit.',
+  ]);
+});
+
+test('native parser snapshots retain the current source line and actual rule-row state', () => {
+  const line = '(prefix) [ Player ] [ Player ] -> [ Player ] message MiXeD';
+  const source = movementSource({ rules: line }).split('\nwinconditions')[0].trimEnd();
+  const { parser_state: state } = buildParserStateSnapshot(source);
+  assert.equal(state.current_line_mixed_case, line);
+  assert.equal(state.lhs_rhs_rowcount_difference, 1);
+  assert.equal(state.rhs_pattern_started, true);
+  assert.equal(Object.hasOwn(state, 'bracket_balance'), false);
+  assert.equal(state.rules.at(-1).mixed_case, line);
+});
+
+test('editor blank-line visits and token-by-token state copies match the native compiler parser', () => {
+  const source = movementSource({
+    rules: '(prefix) [ Player ] -> message MiXeD\n\n[ Player ] [ Crate ] -> [ Player ]',
+    level: 'PC.\n\nmessage End MiXeD\n\nPC.',
+  }).replace('Player\nwhite', 'Player Alias > V\nwhite')
+    .replace('C = Crate', 'C = Crate\nEither = Player or Crate\nBoth = Player and Crate');
+  const { native } = oracle.compareFixture({ name: 'editor blank-line and copied-state parity', source });
+  const editor = oracle.nativeEditorParser(source);
+  // Native copyState explicitly adds uncompiled strides and omits its unused subsection.
+  assert.equal(native.state.subsection, '');
+  assert.equal(Object.hasOwn(editor.state, 'subsection'), false);
+  for (const field of ['STRIDE_OBJ', 'STRIDE_MOV']) {
+    assert.equal(Object.hasOwn(editor.state, field), true);
+    assert.equal(editor.state[field], undefined);
+  }
+  assert.deepEqual({ ...editor, state: { ...editor.state, subsection: '' } },
+    { ...native, state: { ...native.state, STRIDE_OBJ: undefined, STRIDE_MOV: undefined } });
+  assert.equal(editor.state.lineNumber, source.split('\n').length);
+  assert.equal(editor.state.original_case_names.alias, 'Alias');
+  assert.equal(editor.state.original_case_names.either, 'Either');
+  for (const field of ['legend_synonyms', 'legend_properties', 'legend_aggregates']) {
+    assert.ok(editor.state[field].length > 0);
+    for (const entry of editor.state[field]) assert.equal(typeof entry.lineNumber, 'number');
+  }
 });
 
 const constructed = [

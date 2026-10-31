@@ -141,13 +141,21 @@ test('wins load fresh seeded levels and finish at the title screen', () => {
   assert.equal(report.levelLoads, 3);
 });
 
-test('actual multiword late movements survive same-size undo and restart exactly', () => {
+test('historical late-randomdir source compares diagnosed recovery through undo and restart', () => {
   const source = movementSource({ level: 'P.D', rules: 'late [ Dust ] -> [ randomdir Dust ]' })
     .replace('legend\n', 'Dust\nyellow\n\nA\nred\n\nB\nred\n\nE\nred\n\nF\nred\n\nG\nred\n\nlegend\n')
     .replace('# = Wall', '# = Wall\nD = Dust')
     .replace('Background\nPlayer, Crate, Wall\n\nrules', 'Background\nPlayer, Crate, Wall\nA\nB\nE\nF\nG\nDust\n\nrules');
-  const report = oracle.compareFixture({ name: 'multiword restore requests', source,
-    inputs: [3, 'undo', 'restart', 0, 'undo'], seed: 'late-restore' });
+  const compiled = compileSource(source);
+  assert.equal(compiled.errorCount, 1);
+  assert.ok(compiled.rawDiagnostics.some(issue => issue.message === 'Movements cannot appear in late rules.'));
+  const report = oracle.compareFixture({ name: 'historical multiword late-randomdir recovery', source,
+    inputs: [3, 'undo', 'restart', 0, 'undo'], seed: 'late-restore' }, { stepSession: (...args) => {
+    const result = session.stepSession(...args);
+    assert.deepEqual(result.state.execution.pendingMovements, []);
+    assert.ok([...result.state.execution.board.rows[0][2].objects].some(object => object.name === 'dust'));
+    return result;
+  } });
   assert.equal(report.snapshots, 6);
 });
 
@@ -198,8 +206,26 @@ test('immutable compiled data checks preserve the explicit ellipsis symbol', () 
   assert.equal(report.snapshots, 2);
 });
 
-test('quiet-probe persistence writes are compared even when saved values agree', () => {
-  assert.throws(() => oracle.compareFixture({ name: 'missing duplicate checkpoint write',
+test('an AGAIN probe cannot install a checkpoint reached only without input', () => {
+  const source = movementSource({ level: 'P..', rules:
+    'right [ > Player ] -> [ > Player ] again\nright [ stationary Player ] -> checkpoint' });
+  const outcomes = [];
+  const report = oracle.compareFixture({ name: 'probe-only checkpoint has no persistent effect', source,
+    inputs: [3, 'restart'], seed: 'probe-only-checkpoint' }, { stepSession: (...args) => {
+    const result = session.stepSession(...args);
+    outcomes.push(result);
+    return result;
+  } });
+  assert.equal(report.snapshots, 3);
+  assert.equal(outcomes[0].state.checkpointUsed, false);
+  assert.equal(outcomes[0].effects.some(effect => effect.kind === sessionTypes.SessionEffectKind.Persistence), false);
+  const objects = outcomes[0].state.restartTarget.board.rows[0].map(cell => [...cell.objects].map(object => object.name));
+  assert.ok(objects[0].includes('player'));
+  assert.ok(!objects[1].includes('player'));
+});
+
+test('the single committed checkpoint write is compared after a quiet AGAIN probe', () => {
+  assert.throws(() => oracle.compareFixture({ name: 'missing committed checkpoint write',
     source: movementSource({ level: 'P..',
       rules: 'right [ > Player ] -> [ > Player ] again\nlate [ Player ] -> checkpoint' }),
     inputs: [3], seed: 'checkpoint-writes',
@@ -207,7 +233,7 @@ test('quiet-probe persistence writes are compared even when saved values agree',
     const result = session.stepSession(...args);
     const checkpoints = result.effects.filter(effect => effect.kind === sessionTypes.SessionEffectKind.Persistence
       && effect.operation === sessionTypes.PersistenceKind.Checkpoint);
-    assert.equal(checkpoints.length, 2);
+    assert.equal(checkpoints.length, 1);
     return { ...result, effects: result.effects.filter(effect => effect !== checkpoints[0]) };
   } }), /session snapshot/);
 });

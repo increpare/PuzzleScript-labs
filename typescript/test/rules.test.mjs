@@ -4,6 +4,7 @@ import { createBoard } from '../build/board.js';
 import { CommandKind } from '../build/commands.js';
 import { Direction, Movement } from '../build/model.js';
 import { createRandom, nextRandom } from '../build/random.js';
+import { vanillaQuirks } from '../build/compatibility.js';
 import { Ellipsis } from '../build/rule-model.js';
 import { applyRuleAt, cloneExecutionState, tryApplyRule } from '../build/rules.js';
 
@@ -299,10 +300,20 @@ test('already fully marked affected layers retain their first owner', () => {
   assert.deepEqual(result.state.rigidMarks, before.rigidMarks);
 });
 
-test('a newly affected layer makes rigid attribution update all affected layers in the cell', () => {
+test('a newly affected rigid layer retains every earlier layer owner by default', () => {
   const before = state([[[A, C]]], { rigidMarks: [{ ...request(0, 0, 0, allMovements), group: 0 }] });
   const incoming = rule(undefined, [[replacement({}, { rigidLayers: new Set([0, 1]) })]], { rigidGroup: 1 });
-  const overlapGame = { collisionLayers: layers, rigidMerges: new Map([[0, new Map([[1, 2]])]]) };
+  const result = applyRuleAt(game, incoming, before, [match()], true);
+  assert.deepEqual(result.state.rigidMarks, [
+    { ...request(0, 0, 0, allMovements), group: 0 }, { ...request(0, 0, 1, allMovements), group: 1 },
+  ]);
+  assert.equal(result.changed, true);
+});
+
+test('historical research: a newly affected layer merges all affected rigid owners', () => {
+  const before = state([[[A, C]]], { rigidMarks: [{ ...request(0, 0, 0, allMovements), group: 0 }] });
+  const incoming = rule(undefined, [[replacement({}, { rigidLayers: new Set([0, 1]) })]], { rigidGroup: 1 });
+  const overlapGame = { collisionLayers: layers, quirks: { ...vanillaQuirks, rigidOwnerOrdinalMerge: true }, rigidMerges: new Map([[0, new Map([[1, 2]])]]) };
   const result = applyRuleAt(overlapGame, incoming, before, [match()], true);
   assert.deepEqual(result.state.rigidMarks, [
     { ...request(0, 0, 0, allMovements), group: 2 }, { ...request(0, 0, 1, allMovements), group: 1 },
@@ -310,10 +321,10 @@ test('a newly affected layer makes rigid attribution update all affected layers 
   assert.equal(result.changed, true);
 });
 
-test('rigid overlap may produce a null owner and that owner survives later overlap', () => {
+test('historical research: rigid overlap may produce a null owner that survives later overlap', () => {
   const before = state([[[A, C]]], { rigidMarks: [{ ...request(0, 0, 0, allMovements), group: 0 }] });
   const incoming = rule(undefined, [[replacement({}, { rigidLayers: new Set([0, 1]) })]], { rigidGroup: 1 });
-  const overlapGame = { collisionLayers: layers, rigidMerges: new Map([[0, new Map([[1, null]])], [1, new Map([[2, 2]])]]) };
+  const overlapGame = { collisionLayers: layers, quirks: { ...vanillaQuirks, rigidOwnerOrdinalMerge: true }, rigidMerges: new Map([[0, new Map([[1, null]])], [1, new Map([[2, 2]])]]) };
   const first = applyRuleAt(overlapGame, incoming, before, [match()], true);
   assert.equal(first.state.rigidMarks[0].group, null);
   const next = rule(undefined, [[replacement({}, { rigidLayers: new Set([0, 1, 2]) })]], { rigidGroup: 2 });
@@ -329,11 +340,11 @@ test('partially marked rigid layers become complete without requiring a self mer
   assert.equal(result.changed, true);
 });
 
-test('missing rigid overlap transitions raise a clear error without changing the input', () => {
+test('historical research: missing rigid transitions raise a clear error without changing the input', () => {
   const before = state([[[A]]], { rigidMarks: [{ ...request(0, 0, 0, allMovements), group: 0 }] });
   const snapshot = structuredClone(before);
   const incoming = rule(undefined, [[replacement({ addObjects: new Set([C]) }, { rigidLayers: new Set([0, 1]) })]], { rigidGroup: 1 });
-  assert.throws(() => applyRuleAt(game, incoming, before, [match()], true), /[Rr]igid.*0.*1/);
+  assert.throws(() => applyRuleAt({ ...game, quirks: { ...vanillaQuirks, rigidOwnerOrdinalMerge: true } }, incoming, before, [match()], true), /[Rr]igid.*0.*1/);
   assert.deepEqual(before, snapshot);
 });
 

@@ -1,14 +1,14 @@
 # Vanilla gameplay adapter schema
 
 The oracle is pinned to official vanilla commit
-`5a94bde1a5127a3a45306ea28598eba2874d446d`. The native files are hash-checked
+`57f9f6cba69f6aa52ed738d5aee1d709d0037648`. The native files are hash-checked
 before loading. No production source changes are proposed.
 
 For integration into PuzzleScript-labs, those sources are packaged unchanged in
 [`vanilla/`](vanilla/README.md). Every adapter source read uses that directory,
-including producer discovery and isolated native-function checks. The original
-21 hashes are unchanged; the input/output source used by session checks is now
-also pinned, bringing the manifest to 22 files. The packaging regression checks
+including producer discovery and isolated native-function checks. The manifest records SHA-256 hashes for all 22 files, including the input/output
+source used by session checks. Refreshes copy every file from the exact pinned
+commit before recomputing those hashes. The packaging regression checks
 that the host loads these fixtures independently of the labs `src/` tree.
 
 The original copied labs adapter read fields absent from vanilla.
@@ -58,7 +58,7 @@ still checked before replacement writes: a failed live recheck returns unchanged
 state, while an unchecked tuple with the wrong row count throws before cloning,
 as it did when that guard lived in the removed capture helper.
 
-Fresh cleanup verification from `typescript/`:
+Historical cleanup verification at the previous `5a94bde1` authority, from `typescript/`:
 
 | Check | Result |
 | --- | --- |

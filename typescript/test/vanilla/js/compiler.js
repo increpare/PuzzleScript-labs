@@ -188,6 +188,9 @@ function generateExtraMembers(state) {
             o.colors = ["#ff00ff"];
         }
         if (o.spritematrix.length === 0) {
+            if (o.colors.length > 1) {
+                logWarning('Object "' + n.toUpperCase() + '" lists several colours but doesn\'t have a sprite matrix; it will just be a solid square of the first colour.', o.lineNumber);
+            }
             o.spritematrix = [
                 [0, 0, 0, 0, 0],
                 [0, 0, 0, 0, 0],
@@ -707,7 +710,7 @@ function processRuleString(rule, state, curRules) {
                             logError("Error, an item can only have one direction/action at a time, but you're looking for several at once!", lineNumber);
                         } else if (!incellrow) {
                             logWarning("Invalid syntax. Directions should be placed at the start of a rule.", lineNumber);
-                        } else if (late && token !== 'no' && token !== 'random' && token !== 'randomdir') {
+                        } else if (late && token !== 'no' && token !== 'random') {
                             logError("Movements cannot appear in late rules.", lineNumber);
                         } else {
                             curcell.push(token);
@@ -1825,9 +1828,11 @@ function rulesToMask(state) {
                         break;
                     }
                     
-                    if (object_dir === 'random') {
-                        logError("RANDOM cannot be matched on the left-hand side, it can only appear on the right", rule.lineNumber);
-                        continue;
+                    if (object_dir === 'random' || object_dir === 'randomdir') {
+                        logError(`${object_dir.toUpperCase()} cannot be matched on the left-hand side; it can only appear on the right`, rule.lineNumber);
+                        state.rules.splice(ruleIndex, 1);
+                        ruleIndex--;
+                        continue outerloop;
                     }
 
                     // Process regular object
@@ -2436,6 +2441,7 @@ function twiddleMetaData(state) {
             } else {
                 if (intcoords[0] <= 0 || intcoords[1] <= 0) {
                     logWarning(`The dimensions given to me (you gave "${val}") are baad - they should be > 0.`, lineNumber);
+                    return null;
                 }
                 return intcoords;
             }

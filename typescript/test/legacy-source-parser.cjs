@@ -42,12 +42,20 @@ function createSourceParserOracle(types) {
       return { raw, recorded, errorCount, stopped, formatted: [...errorStrings] };
     } finally { globalThis.logIssue = original; compiling = wasCompiling; }
   }
-  function nativeParser(source) {
-    const processor = new codeMirrorFn(), state = processor.startState();
+  function nativeParser(source, editorVisits = false) {
+    const processor = new codeMirrorFn();
+    let state = processor.startState();
     let cursor = { line: 1, column: 1 }, reason = null;
     const issues = collect(() => {
       const lines = source.split('\n');
       for (let index = 0; index < lines.length; index++) {
+        if (editorVisits && lines[index] === '') {
+          processor.blankLine(state);
+          state = processor.copyState(state);
+          cursor = { line: index + 1, column: 1 };
+          if (errorCount > 5) { reason = types.SourceParserStopReason.Errors; return; }
+          continue;
+        }
         const stream = new CodeMirror.StringStream(lines[index], 4);
         do {
           try { processor.token(stream, state); }
@@ -60,15 +68,18 @@ function createSourceParserOracle(types) {
             }
             cursor = { line: index + 1, column: authored + 1 };
           }
+          if (editorVisits) state = processor.copyState(state);
           if (errorCount > 5) { reason = types.SourceParserStopReason.Errors; return; }
         } while (!stream.eol());
       }
     });
     assertVanillaFields('parser state', state, ['objects', 'lineNumber', 'commentLevel', 'section', 'visitedSections',
-      'line_should_end', 'line_should_end_because', 'sol_after_comment', 'inside_cell', 'bracket_balance', 'arrow_passed',
+      'line_should_end', 'line_should_end_because', 'sol_after_comment', 'inside_cell', 'lhs_rhs_rowcount_difference', 'arrow_passed',
+      'rhs_pattern_started',
       'rule_prelude', 'objects_candname', 'objects_section', 'objects_spritematrix', 'collisionLayers', 'tokenIndex',
-      'current_line_wip_array', 'legend_synonyms', 'legend_aggregates', 'legend_properties', 'sounds', 'rules', 'names',
-      'winconditions', 'metadata', 'metadata_lines', 'original_case_names', 'original_line_numbers', 'abbrevNames', 'levels', 'subsection']);
+      'current_line_wip_array', 'current_line_mixed_case', 'legend_synonyms', 'legend_aggregates', 'legend_properties', 'sounds', 'rules', 'names',
+      'winconditions', 'metadata', 'metadata_lines', 'original_case_names', 'original_line_numbers', 'abbrevNames', 'levels',
+      ...(editorVisits ? ['STRIDE_OBJ', 'STRIDE_MOV'] : ['subsection'])]);
     if (issues.stopped) reason = types.SourceParserStopReason.Issues;
     return { ...issues, cursor, reason, section: state.section || null, state };
   }
@@ -123,7 +134,7 @@ function createSourceParserOracle(types) {
     return { metadata: { ...state.metadata }, messages: state.levels.filter(level => level.message !== undefined).map(level => level.message),
       errorCount: issues.errorCount };
   }
-  return { collect, nativeParser, compareFixture, independently, view, nativeMetadata,
+  return { collect, nativeParser, nativeEditorParser: source => nativeParser(source, true), compareFixture, independently, view, nativeMetadata,
     compilationFixtures: () => errormessage_testdata.map(([name, data]) => ({ name, source: data[0] })),
     corpusFixtures: () => testdata.map(([name, data]) => ({ name, source: data[0] })) };
 }

@@ -150,8 +150,8 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
     const property = properties.find(entry => entry.name === name);
     return property === undefined ? { kind: NameKind.Undeclared, name } : { kind: NameKind.Property, name, entry: property };
   };
-  const keywordWarning = (name: string): void => {
-    if (keywords.has(name)) issue('You named an object "' + name.toUpperCase() + '", but this is a keyword. Don\'t do that!', true);
+  const keywordWarning = (name: string, includeSingleCharacter = false): void => {
+    if ((includeSingleCharacter || name.length > 1) && keywords.has(name)) issue('You named an object "' + name.toUpperCase() + '", but this is a keyword. Don\'t do that!', true);
   };
   const processLegend = (): void => {
     let okay = true;
@@ -242,7 +242,7 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
       attempts.push(token); objectNameAttempts.set(lineNumber, attempts);
       if (concrete.has(name) || inheritedObjectNames.has(name)) { issue('Object "' + name.toUpperCase() + '" defined multiple times.'); return; }
       for (const entry of synonyms) if (entry.name === name) issue('Name "' + name.toUpperCase() + '" already in use.');
-      keywordWarning(name);
+      keywordWarning(name, sol);
       if (sol) {
         objectName = name;
         const object: SourceObjectLexical = { primary: token, names: [token], colors: [], rows: [] };
@@ -394,7 +394,7 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
     const others: number[] = [];
     for (const member of members) for (let index = 0; index < layers.length - 1; index++) if (layers[index]!.includes(member)) others.push(index);
     if (others.length > 0) issue('Object "' + name.toUpperCase() + '" included in multiple collision layers ( layers ' +
-      others.map(index => '#' + (index + 1) + ', ').join('') + '#' + layers.length + ' ). You should fix this!', true);
+      others.map(index => '#' + (index + 1) + ', ').join('') + '#' + layers.length + ' ). You should fix this! (The compiler will just pick one layer to assign it to).', true);
     if (words.includes(name)) issue('Object "' + name.toUpperCase() + '" included explicitly multiple times in the same layer. Don\'t do that innit.', true);
     words.push(name); current.push(...members);
   };
@@ -491,7 +491,7 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
   };
   const visit = (): void => {
     const physicalSol = cursor.index === 0;
-    const mixedCase = physicalSol ? cursor.line.original : cursor.text;
+    const mixedCase = cursor.line.original;
     let sol = physicalSol;
     if (sol) { words = []; sounds = []; soundFailed = false; soundEvent = null; tokenIndex = 0; lineShouldEnd = null; }
     if (afterComment) { sol = true; afterComment = false; }

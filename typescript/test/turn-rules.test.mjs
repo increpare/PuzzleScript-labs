@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { vanillaQuirks } from '../build/compatibility.js';
 import assert from 'node:assert/strict';
 import { createBoard } from '../build/board.js';
 import { CommandKind } from '../build/commands.js';
@@ -213,7 +214,10 @@ test('input moves through an empty early schedule before late rules inspect the 
   assertCell(result.state, [], 0);
   assertCell(result.state, [Player, Marker], 1);
   assert.deepEqual(result.playerPositions, [{ x: 0, y: 0 }]);
-  assert.deepEqual(result.state.pendingMovements, [request(1, 0, 0, Movement.Left)]);
+  assert.deepEqual(result.state.pendingMovements, []);
+  const historical = applyTurnRules(game({ quirks: { ...vanillaQuirks, lateMovementsCarryOver: true },
+    lateRules: schedule([group([late])]) }), before, Movement.Right);
+  assert.deepEqual(historical.state.pendingMovements, [request(1, 0, 0, Movement.Left)]);
   assert.equal(result.state.commands.entries[0].command.kind, CommandKind.Win);
   assert.equal(result.state.commands.entries[0].source, late);
   assert.deepEqual(result.state.createdObjects, new Set([Marker]));
@@ -383,11 +387,12 @@ test('scheduler diagnostics retain attempt order, including discarded early work
   ]);
 });
 
-test('repeated complete turns own independent results and preserve input, game and rule identities', () => {
+test('historical research turns own independent carried movements and preserve input, game and rule identities', () => {
   const early = blocked(0);
   const late = rule(undefined, [[replacement({ addObjects: new Set([Marker]), addMovements: [{ layer: 0, movement: Movement.Left }] })]],
     { commands: [{ kind: CommandKind.Message, text: 'late message' }] });
-  const incoming = game({ rigid: true, earlyRules: schedule([group([early])]), lateRules: schedule([group([late])]) });
+  const incoming = game({ rigid: true, quirks: { ...vanillaQuirks, lateMovementsCarryOver: true },
+    earlyRules: schedule([group([early])]), lateRules: schedule([group([late])]) });
   const before = state([[[Player], []]]);
   const beforeSnapshot = structuredClone(before);
   const gameSnapshot = structuredClone(incoming);

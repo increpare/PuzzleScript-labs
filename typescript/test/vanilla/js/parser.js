@@ -269,7 +269,7 @@ let codeMirrorFn = function () {
                 ok = false;
             }
 
-            if (keyword_array.includes(candname)) {
+            if (candname.length > 1 && keyword_array.includes(candname)) {
                 logWarning('You named an object "' + candname.toUpperCase() + '", but this is a keyword. Don\'t do that!', state.lineNumber);
             }
 
@@ -440,13 +440,13 @@ let codeMirrorFn = function () {
             let rulesCopy = [];
 
             for (let i = 0; i < state.legend_synonyms.length; i++) {
-                legend_synonymsCopy.push(state.legend_synonyms[i].slice());
+                legend_synonymsCopy.push(Object.assign(state.legend_synonyms[i].slice(), { lineNumber: state.legend_synonyms[i].lineNumber }));
             }
             for (let i = 0; i < state.legend_aggregates.length; i++) {
-                legend_aggregatesCopy.push(state.legend_aggregates[i].slice());
+                legend_aggregatesCopy.push(Object.assign(state.legend_aggregates[i].slice(), { lineNumber: state.legend_aggregates[i].lineNumber }));
             }
             for (let i = 0; i < state.legend_properties.length; i++) {
-                legend_propertiesCopy.push(state.legend_properties[i].slice());
+                legend_propertiesCopy.push(Object.assign(state.legend_properties[i].slice(), { lineNumber: state.legend_properties[i].lineNumber }));
             }
             for (let i = 0; i < state.sounds.length; i++) {
                 soundsCopy.push(state.sounds[i].slice());
@@ -479,8 +479,9 @@ let codeMirrorFn = function () {
                 sol_after_comment: state.sol_after_comment,
 
                 inside_cell: state.inside_cell,
-                bracket_balance: state.bracket_balance,
+                lhs_rhs_rowcount_difference: state.lhs_rhs_rowcount_difference,
                 arrow_passed: state.arrow_passed,
+                rhs_pattern_started: state.rhs_pattern_started,
                 rule_prelude: state.rule_prelude,
 
                 objects_candname: state.objects_candname,
@@ -489,6 +490,7 @@ let codeMirrorFn = function () {
 
                 tokenIndex: state.tokenIndex,
                 current_line_wip_array: state.current_line_wip_array.slice(),
+                current_line_mixed_case: state.current_line_mixed_case,
 
                 legend_synonyms: legend_synonymsCopy,
                 legend_aggregates: legend_aggregatesCopy,
@@ -519,18 +521,22 @@ let codeMirrorFn = function () {
             return nstate;
         },
         blankLine: function (state) {
-            pushNewBlankLevel(state);
+            // CodeMirror skips token() for empty lines; the compiler does not.
+            // Keep line numbers and section transitions identical in both paths.
+            this.token(new CodeMirror.StringStream(''), state);
         },
         token: function (stream, state) {
-            let mixedCase = stream.string;
             let sol = stream.sol();
             if (sol) {
                 state.lineNumber++;
                 state.current_line_wip_array = [];
+                // Keep the source spelling for names registered after the first token.
+                state.current_line_mixed_case = stream.string;
                 stream.string = stream.string.toLowerCase();
                 state.tokenIndex = 0;
                 state.line_should_end = false;
             }
+            let mixedCase = state.current_line_mixed_case;
             if (state.sol_after_comment) {
                 sol = true;
                 state.sol_after_comment = false;
@@ -715,7 +721,7 @@ let codeMirrorFn = function () {
                                         logError('Name "' + candname.toUpperCase() + '" already in use.', state.lineNumber);
                                     }
                                 }
-                                if (keyword_array.includes(candname)) {
+                                if ((sol || candname.length > 1) && keyword_array.includes(candname)) {
                                     logWarning('You named an object "' + candname.toUpperCase() + '", but this is a keyword. Don\'t do that!', state.lineNumber);
                                 }
 
@@ -1166,7 +1172,7 @@ let codeMirrorFn = function () {
                                     warningStr += "#" + (foundOthers[i] + 1) + ", ";
                                 }
                                 warningStr += "#" + state.collisionLayers.length;
-                                logWarning(warningStr + ' ). You should fix this!', state.lineNumber);
+                                logWarning(warningStr + ' ). You should fix this! (The compiler will just pick one layer to assign it to).', state.lineNumber);
                             }
 
                             if (state.current_line_wip_array.includes(candname)) {
@@ -1192,7 +1198,8 @@ let codeMirrorFn = function () {
                             state.tokenIndex = 0;//in rules, records whether bracket has been found or not
                             state.inside_cell = false;
                             state.arrow_passed = false;
-                            state.bracket_balance = 0;
+                            state.lhs_rhs_rowcount_difference = 0;
+                            state.rhs_pattern_started = false;
                             state.rule_prelude = true;
                         }
 
@@ -1208,13 +1215,16 @@ let codeMirrorFn = function () {
                             if (ch === '[') {
                                 state.inside_cell = true;
                                 state.rule_prelude = false;
+                                if (state.arrow_passed) {
+                                    state.rhs_pattern_started = true;
+                                }
                             } else if (ch === ']') {
                                 state.inside_cell = false;
                                 //used to detect if we've reached the final ']'
                                 if (state.arrow_passed) {
-                                    state.bracket_balance--;
+                                    state.lhs_rhs_rowcount_difference--;
                                 } else {
-                                    state.bracket_balance++;
+                                    state.lhs_rhs_rowcount_difference++;
                                 }
                             }
 
@@ -1497,8 +1507,9 @@ let codeMirrorFn = function () {
                 sol_after_comment: false,
 
                 inside_cell: false,
-                bracket_balance: 0,
+                lhs_rhs_rowcount_difference: 0,
                 arrow_passed: false,
+                rhs_pattern_started: false,
                 rule_prelude: true,
 
                 objects_candname: '',
@@ -1510,6 +1521,7 @@ let codeMirrorFn = function () {
                 tokenIndex: 0,
 
                 current_line_wip_array: [],
+                current_line_mixed_case: '',
 
                 legend_synonyms: [],
                 legend_aggregates: [],

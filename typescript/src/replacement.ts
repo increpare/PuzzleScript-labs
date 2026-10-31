@@ -1,5 +1,5 @@
 import { Movement, type CollisionLayer, type GameObject } from './model.js';
-import * as vanilla from './compatibility-vanilla-5a94bde1.js';
+import * as vanilla from './compatibility.js';
 import { nextRandom, type RandomState } from './random.js';
 import type { LayerMovement } from './rule-model.js';
 

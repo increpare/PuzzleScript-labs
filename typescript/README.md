@@ -1,7 +1,7 @@
 # Readable TypeScript reference port
 
 A separate, headless port of **vanilla PuzzleScript**, pinned to
-[increpare/PuzzleScript at 5a94bde1](https://github.com/increpare/PuzzleScript/commit/5a94bde1a5127a3a45306ea28598eba2874d446d).
+[increpare/PuzzleScript at 57f9f6cb](https://github.com/increpare/PuzzleScript/commit/57f9f6cba69f6aa52ed738d5aee1d709d0037648).
 The existing labs JavaScript editor and player are unchanged.
 
 The implementation describes actual objects, cells, movements and unnamed
@@ -12,9 +12,9 @@ precedence over performance.
 
 Exact compatibility still includes historical behavior derived from vanilla's
 storage layout. Those exceptions are explicit in
-[compatibility-vanilla-5a94bde1.ts](src/compatibility-vanilla-5a94bde1.ts), and each
-one that changes how valid games play is a switch in its `Quirks` object.
-`compileSource(source)` uses `vanillaQuirks` (all on, exact parity);
+[compatibility.ts](src/compatibility.ts). Its `Quirks` object includes current
+compatibility behavior and research switches for bugs fixed by the pinned revision.
+`compileSource(source)` uses `vanillaQuirks`, whose defaults match that revision;
 `compileSource(source, { quirks: noQuirks })` gives the clean model. See
 [Quirk switches](#quirk-switches).
 
@@ -89,7 +89,7 @@ npm --prefix typescript run example:session
 | [session-model.ts](src/session-model.ts), [session.ts](src/session.ts) | Input, history, restart, messages, levels, effects and wins |
 | [random.ts](src/random.ts) | Explicit seeded random state and draws |
 | [scan-order.ts](src/scan-order.ts) | Observable coordinate order, independent of board storage |
-| [compatibility-vanilla-5a94bde1.ts](src/compatibility-vanilla-5a94bde1.ts) | Version-specific restore, rigid ownership and movement exceptions |
+| [compatibility.ts](src/compatibility.ts) | Current restore and movement exceptions, plus historical research switches |
 | [source-compiler.ts](src/source-compiler.ts) | The complete compiler's explicit pass order |
 | [source-model.ts](src/source-model.ts), [source-reader.ts](src/source-reader.ts), [declarations.ts](src/declarations.ts) | Authored source evidence and canonical names/objects/layers |
 | [source-rule-compiler.ts](src/source-rule-compiler.ts) and `rule-*.ts` | Syntax, ordered movement/property inference, lowering and schedules |
@@ -112,31 +112,44 @@ than a cell index or memory layout.
 Ordinary rule groups apply each rule in order and repeat while a rule changes
 state, subject to the iteration limit. There is no failure-counter shortcut.
 
-The versioned compatibility module owns the layout-derived restore calculation,
-rigid issue #1206's ownership transitions and their nullable owner type. It also
-names LHS `randomdir`'s Up-and-Left interpretation, the specific self-colliding
-movement combinations, and the random-direction draw that rounds to Action.
+The compatibility module owns the layout-derived restore calculation and rigid
+ownership transitions. Current vanilla keeps the first group that marks a layer;
+the old issue #1206 ordinal merge is available only as a research opt-in. The
+module also names the historical LHS `randomdir` Up-and-Left interpretation, the
+specific self-colliding movement combinations, and the random-direction draw that
+rounds to Action.
 Compiler and runtime call sites use explicit `vanilla.*` names. Game interfaces
 extend compatibility-owned field declarations.
 
 ### Quirk switches
 
-| Switch | On (vanilla) | Off (clean) |
-| --- | --- | --- |
-| `restoreKeepsMovements` | Undo/restart keep movements outside the first storage word per tile | Restoring clears every pending movement |
-| `rigidOwnerOrdinalMerge` | Issue #1206: overlapping rigid writes can blame a group that never matched | A rigid mark keeps the group that first marked it |
-| `lhsRandomDirIsUpAndLeft` | LHS `randomdir` requires Up and Left together | Compile error |
-| `combinedMovementsStayPut` | Up+Down (or all four) is a zero-offset move that collides | Runtime error |
-| `uniformCanReachOne` | A draw of exactly 1 indexes past the last choice (Action for `randomdir`) | Selects the last choice |
-| `columnMajorMovementOrder` | Movement and input visit cells column by column | Row by row |
-| `lateMovementsCarryOver` | Late `randomdir` movements stay pending into the next turn | Discarded when the turn ends |
+| Switch | Current vanilla default | On | Off |
+| --- | --- | --- | --- |
+| `restoreKeepsMovements` | On | Undo/restart keep movements outside the first storage word per tile | Restoring clears every pending movement |
+| `rigidOwnerOrdinalMerge` | Off | Historical issue #1206: overlapping rigid writes can blame a group that never matched | A rigid mark keeps the group that first marked it |
+| `lhsRandomDirIsUpAndLeft` | Off | Historical LHS `randomdir` requires Up and Left together | Compile error; remove the whole invalid rule |
+| `combinedMovementsStayPut` | On | Up+Down (or all four) is a zero-offset move that collides | Runtime error |
+| `uniformCanReachOne` | On | A draw of exactly 1 indexes past the last choice (Action for `randomdir`) | Selects the last choice |
+| `columnMajorMovementOrder` | On | Movement and input visit cells column by column | Row by row |
+| `lateMovementsCarryOver` | Off | Historical late movement requests stay pending into the next turn | Discarded when the turn ends |
 
 Where vanilla gives a combination no meaning, "off" reports an error instead of
-inventing one. Error-recovery behavior for malformed source is not switchable.
+inventing one. Current vanilla diagnoses every movement qualifier in late rules,
+including `randomdir`; the carryover research switch does not bypass that syntax
+check. Its runtime tests explicitly construct a historical late-rule schedule.
+Other error-recovery behavior for malformed source is not switchable.
 The compiled game records its `quirks`; hand-built games without the field use
 vanilla. `npm --prefix typescript run quirk-impact` replays the recorded corpus with
-each switch off and lists the games that play differently; the latest results are
-in [QUIRKS.md](QUIRKS.md).
+each switch toggled from its default and lists the games that play differently.
+[QUIRKS.md](QUIRKS.md) retains the previous pin's measured results as historical evidence.
+
+The refreshed compiler removes an entire rule when `random` or `randomdir`
+appears on its left-hand side. It also drops nonpositive viewport dimensions
+after warning, and warns when a solid sprite lists unused extra colors. Parser
+visits preserve original spelling through leading comments, keep editor blank
+lines and copied states consistent with compilation, and suppress keyword
+warnings for single-character aliases and legend names. Speculative AGAIN turns
+cannot install checkpoints or emit persistence writes.
 
 A `Cell` records the objects actually present. One object per collision layer is
 not an unconditional runtime invariant: accepted source with diagnosed conflicting
@@ -147,13 +160,12 @@ behavior through undo and restart.
 
 ## Verification and compatibility
 
-The [authored semantic guide](../src/tests/semantic-fixtures/README.md) adds 52
-small games and 140 portable `testdata.js` fixtures with hand-specified boards,
+The [authored semantic guide](../src/tests/semantic-fixtures/README.md) contains
+small games and portable `testdata.js` fixtures with hand-specified boards,
 random-choice reasoning and sound expectations. Run it with
-`npm --prefix typescript run test:semantics`. It compares 370 per-input/AGAIN
-observations and includes supplemental authored assertions for simple sounds and
-the known phantom rigid ban. A minimized shared accepted-source crash is recorded
-separately; the passing corpus does not conceal it as an expected board.
+`npm --prefix typescript run test:semantics`. Historical late-`randomdir` examples
+now check diagnosed error recovery. The guide keeps their original provenance
+and earlier crash evidence separate from current valid gameplay.
 
 The pinned native oracle lives in [test/vanilla/](test/vanilla/README.md), with its
 upstream license and original corpus. This lets the port live in PuzzleScript-labs
@@ -165,17 +177,25 @@ npm --prefix typescript test
 npm --prefix typescript run test:corpus -- --session
 ```
 
-The strict suite passes **1,749 tests**. Complete compilation comparison passes
-all **312 compiler fixtures** and **478 simulation sources**, including exact
-diagnostic order, recovery, acceptance, canonical identities and 99,076 final
-rules. The compiler, session adapter and trace command have passed independent
-spec and quality reviews. At the original completion checkpoint, the complete
-source-compiled replay passed all
-**478 games**, **20,034 session observations/operations** and **525 level loads**,
-including every recorded input and AGAIN step, with exit status zero.
-The final whole-port review found no outstanding issues. Evidence is recorded in the
+The refreshed strict suite passes **1,768 tests**. Exact compilation comparison
+covers **335 compiler fixtures**, **492 simulation sources** and **99,192 final
+executable rules**, including diagnostics, stopping outcomes, authored source
+evidence and declaration identities. Full source-compiled replay passes all
+**492 games**, **20,076 session observations/operations** and **539 level loads**,
+including every recorded input and AGAIN step. All **140 authored fixtures**
+also pass, with 370 observations. Independent review found no actionable issues.
+The [refresh audit](../docs/superpowers/plans/2026-10-31-typescript-vanilla-refresh.md)
+records the authority and verification separately from historical runs.
+
+Historical verification at the previous `5a94bde1` pin: the strict suite passed
+**1,749 tests** and complete compilation comparison passed **312 compiler
+fixtures**, **478 simulation sources** and **99,076 final rules**. At the original
+completion checkpoint, the source-compiled replay passed **478 games**,
+**20,034 session observations/operations** and **525 level loads**, including every
+recorded input and AGAIN step. The final whole-port review found no outstanding
+issues at that checkpoint. Evidence is recorded in the
 [completion audit](../docs/superpowers/plans/2026-10-25-typescript-completion-audit.md).
-The subsequent compatibility cleanup passes the current 1,590-test suite and
+The subsequent compatibility cleanup at that previous pin passed its 1,590-test suite and
 targeted source-compiled replays of seven games, with 336 per-move observations
 and nine level loads. Its independent review found no actionable issues; the
 [cleanup plan](../docs/superpowers/plans/2026-10-25-typescript-compatibility-boundary.md)
@@ -191,10 +211,12 @@ leaves both the installed native game and running session unchanged. All 22
 native source/test hashes in [oracle-source.json](oracle-source.json) are pinned.
 Only test adapters decode native masks.
 
-Compatibility quirks are explicit domain data. The port preserves rigid ownership
-[issue #1206](https://github.com/increpare/PuzzleScript/issues/1206), same-shape
-[movement restoration behavior](test/repros/movement-restore-bug-report.md) and
-writable orphan objects from malformed declarations. The
+Compatibility quirks are explicit domain data. The current default fixes rigid
+ownership [issue #1206](https://github.com/increpare/PuzzleScript/issues/1206);
+the [historical repro report](test/repros/rigid-owner-report.txt) records both revisions.
+The port retains the same-shape [movement restoration behavior](test/repros/movement-restore-bug-report.md)
+and writable orphan objects from malformed declarations. The restoration report's
+old late-`randomdir` source now produces a compiler error. The
 [orphan-object recovery note](test/repros/orphaned-object-bug-report.md) records
 accepted behavior after a serious reported source error and explicitly labels
 its **newly constructed reproducer**, which was not found in an existing game or

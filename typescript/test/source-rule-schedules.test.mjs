@@ -100,7 +100,7 @@ test('rigid ownership applies individually across early and late source-group me
   ]) });
   assert.deepEqual(schedule.early.groups.map(group => group.rules.map(rule => rule.rigidGroup)), [[null, 0], [null], [2]]);
   assert.deepEqual(schedule.late.groups.map(group => group.rules.map(rule => rule.rigidGroup)), [[0], [null]]);
-  assert.equal(schedule.rigidMerges.get(0).get(2), null);
+  assert.equal(schedule.rigidMerges.get(0).get(2), 0);
 });
 test('the 31st rigid group reports at its first rule and retains the complete maps', () => {
   const { schedule, inputs } = oracle.compareFixture(fixture(Array.from({ length: 31 }, (_, i) => `rigid right [ Player ] -> message ${i}`).join('\n')));
@@ -143,14 +143,14 @@ test('every rigid transition for 1 through 30 owners matches actual native repla
     transitions += count * count;
   }
   assert.equal(transitions, 9455);
-  t.diagnostic('9455 actual native replacement transitions, including holes, null and third-group owners');
+  t.diagnostic('9455 actual native replacement transitions, including source-group holes and overlapping writes');
 });
 
-test('the issue 1206 source repro preserves the unmatched third-group owner', () => {
+test('the issue 1206 source repro preserves the first contributing owner', () => {
   const source = readFileSync(new URL('./repros/rigid-owner.puzzlescript', import.meta.url), 'utf8');
   const { schedule, expectedSchedules } = oracle.compareFixture({ name: 'issue 1206 source repro', source });
   assert.deepEqual(schedule.rigidMerges, oracle.actualRigidTransitions(expectedSchedules.parsed));
-  assert.equal(schedule.rigidMerges.get(0).get(1), 2);
+  assert.equal(schedule.rigidMerges.get(0).get(1), 0);
 });
 
 test('queued commands retain the schedule executable as their canonical source', () => {
@@ -175,7 +175,7 @@ for (const [name, item, corrupt] of [
     result => changeFirstGroup(result, group => ({ ...group, rules: group.rules.map(rule => ({ ...rule, rigidGroup: null })) }))],
   ['rigid merge transition', fixture('rigid right [ Player ] -> win\nrigid right [ Crate ] -> win'),
     result => ({ ...result, rigidMerges: new Map([...result.rigidMerges].map(([from, entries]) =>
-      [from, new Map([...entries].map(([to, owner]) => [to, from === 0 && to === 1 ? 0 : owner]))])) })],
+      [from, new Map([...entries].map(([to, owner]) => [to, from === 0 && to === 1 ? 1 : owner]))])) })],
   ['loop target', fixture('startloop\nright [ Player ] -> win\nright [ Crate ] -> win\nendloop'),
     result => changeEarly(result, early => ({ ...early, loops: new Map([[1, 1]]) }))],
   ['diagnostic sequence', fixture('right [ Player | ... | ... | ... | Crate ] -> win'),
@@ -213,9 +213,9 @@ test('native scheduled rule decoder retains its unknown-field check', () => {
     /Unsupported vanilla scheduled rule field: unsupportedField/);
 });
 
-test('all 478 native sources match final schedules, rigid transitions and raw schedule diagnostics', t => {
+test('all 492 native sources match final schedules, rigid transitions and raw schedule diagnostics', t => {
   const fixtures = oracle.corpusFixtures();
-  assert.equal(fixtures.length, 478);
+  assert.equal(fixtures.length, 492);
   const totals = { sources: 0, lowered: 0, final: 0, earlyGroups: 0, lateGroups: 0, rigidGroups: 0, transitions: 0, loops: 0, diagnostics: 0 };
   for (const item of fixtures) {
     const { schedule, inputs } = oracle.compareFixture(item);
@@ -228,7 +228,7 @@ test('all 478 native sources match final schedules, rigid transitions and raw sc
     totals.diagnostics += schedule.diagnostics.length;
   }
   t.diagnostic(JSON.stringify(totals));
-  assert.equal(totals.sources, 478); assert.equal(totals.lowered, 99327); assert.equal(totals.final, 99076);
+  assert.equal(totals.sources, 492); assert.equal(totals.lowered, 99443); assert.equal(totals.final, 99192);
 });
 
 

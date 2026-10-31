@@ -177,8 +177,14 @@ function createCompiledGameComparator(types) {
   function checkDataFields(game) {
     fields(game, ['collisionLayers', 'player', 'levels', 'winConditions', 'metadata', 'sounds', 'movementSounds',
       'failureSounds', 'earlyRules', 'lateRules', 'rigid', 'rigidMerges', 'restorePolicies', 'quirks']);
-    // The native oracle is vanilla, so the candidate must compile with every quirk on.
-    assert.ok(Object.values(game.quirks).every(value => value === true), 'source oracle compiles with vanilla quirks');
+    // Independently state the complete behavior profile of the pinned revision.
+    // Fixed upstream bugs are false; comparing with candidate defaults here
+    // would let a wrong default silently redefine the oracle's authority.
+    assert.deepEqual(game.quirks, {
+      restoreKeepsMovements: true, rigidOwnerOrdinalMerge: false, lhsRandomDirIsUpAndLeft: false,
+      combinedMovementsStayPut: true, uniformCanReachOne: true, columnMajorMovementOrder: true,
+      lateMovementsCarryOver: false,
+    }, 'source oracle compiles with the pinned vanilla profile');
     fields(game.player, ['kind', 'objects']);
     assertVanillaFields('session metadata', game.metadata, ['requirePlayerMovement', 'runRulesOnLevelStart', 'noUndo', 'noRestart', 'flickscreen', 'zoomscreen']);
     for (const level of game.levels) {
@@ -206,7 +212,8 @@ function createCompiledGameComparator(types) {
     level.message === undefined ? level.lineNumber : result.document.levels[i].keyword.span.start.line)) {
     const formed = result.outcome, { declarations, game } = formed;
     assertVanillaFields('compiled state', nativeState, ['LAYER_COUNT', 'STRIDE_MOV', 'STRIDE_OBJ', 'aggregateMasks',
-      'aggregatesDict', 'arrow_passed', 'backgroundid', 'backgroundlayer', 'bgcolor', 'bracket_balance',
+      'aggregatesDict', 'arrow_passed', 'backgroundid', 'backgroundlayer', 'bgcolor', 'lhs_rhs_rowcount_difference',
+      'rhs_pattern_started', 'current_line_mixed_case',
       'calculateRowColMasks', 'collisionLayers', 'fgcolor', 'glyphDict', 'glyphOrder', 'groupIndex_to_RigidGroupIndex',
       'groupNumber_to_RigidGroupIndex', 'idDict', 'inside_cell', 'lateLoopPoint', 'lateRules', 'layerMasks',
       'legend_aggregates', 'legend_properties', 'legend_synonyms', 'levels', 'lineNumber', 'loopPoint',

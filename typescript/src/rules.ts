@@ -1,6 +1,6 @@
 import { cloneBoard } from './board.js';
 import { queueCommands } from './commands.js';
-import * as vanilla from './compatibility-vanilla-5a94bde1.js';
+import * as vanilla from './compatibility.js';
 import type { ExecutableRule, RuleExecutionResult, RuleExecutionState, RuleGame } from './execution-model.js';
 import { findMatches, matchesRow, matchTuples } from './matching.js';
 import { Direction, Movement, type Cell, type LayerMovements, type Position, type RigidMark } from './model.js';
@@ -95,13 +95,16 @@ function markRigidLayers(
   }
   if (!needsMark) return false;
 
-  // The legacy guard is cell-wide: an unmarked affected layer also updates
-  // already marked affected layers. The adapter supplies the explicit group
-  // transitions, including overlaps which name no existing group (null).
+  // Current vanilla assigns ownership only to unmarked layers. The historical
+  // research mode keeps the old cell-wide guard, where a newly affected layer
+  // also combines already assigned owners through the explicit transition map.
+  const quirks = vanilla.quirksOf(game);
   for (const layer of layers) {
     const index = rigidMarkIndex(marks, position, layer);
     const previous = marks[index];
-    const group = vanilla.combineRigidOwners(vanilla.quirksOf(game), game.rigidMerges, previous === undefined ? incoming : previous.group, incoming);
+    if (!quirks.rigidOwnerOrdinalMerge && previous !== undefined
+      && allMovements.every(movement => previous.movements.has(movement))) continue;
+    const group = vanilla.combineRigidOwners(quirks, game.rigidMerges, previous === undefined ? incoming : previous.group, incoming);
     const movements = new Set(previous?.movements);
     for (const movement of allMovements) movements.add(movement);
     const mark = { position: { ...position }, layer, movements, group };

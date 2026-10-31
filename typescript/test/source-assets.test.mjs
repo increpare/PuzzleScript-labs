@@ -25,6 +25,20 @@ test('independent source assets match the actual native producers', () => {
 const fixture = (objects = 'Background .\nBlack\n\nPlayer P\nWhite', metadata = '') => ({ name: objects + metadata,
   source: `${metadata}\nOBJECTS\n${objects}\nLEGEND\nSOUNDS\nCOLLISIONLAYERS\nBackground\nPlayer\nRULES\nWINCONDITIONS\nLEVELS\nP.` });
 
+test('a solid sprite with several colors warns and uses only its first color', () => {
+  const { result, document } = oracle.compareFixture(fixture('Background .\nBlack Blue Red\n\nPlayer P\nWhite'));
+  assert.deepEqual(result.diagnostics.map(issue => ({ code: issue.code, message: issue.message,
+    line: issue.reportedLine, warning: issue.severity === sourceTypes.SourceDiagnosticSeverity.Warning,
+    countsAsError: issue.countsAsError })), [{
+    code: 'multiple-solid-sprite-colors',
+    message: 'Object "BACKGROUND" lists several colours but doesn\'t have a sprite matrix; it will just be a solid square of the first colour.',
+    line: document.objects[0].primaryName.span.start.line, warning: true, countsAsError: false,
+  }]);
+  const sprite = result.sprites.values().next().value;
+  assert.equal(sprite.colors.length, 3);
+  assert.ok(sprite.pixels.every(row => row.every(pixel => pixel.kind === assets.SpritePixelKind.Color && pixel.color === 0)));
+});
+
 const fifthRowFixture = suffix => fixture(`Background .\nBlack\n00000\n00000\n00000\n00000\n00000${suffix}\n\nPlayer P\nWhite`);
 test('the fifth accepted pixel of row five immediately turns the suffix into a canonical alias', () => {
   const item = fifthRowFixture('0');
@@ -219,7 +233,7 @@ test('invalid effective colors diagnose after the ten-color limit and retain the
       object.definitionColors.splice(0, object.definitionColors.length, ...values.map(value => ({ value, word })));
     },
   });
-  assert.deepEqual(result.diagnostics.map(issue => issue.code), ['too-many-sprite-colors', 'invalid-object-color']);
+  assert.deepEqual(result.diagnostics.map(issue => issue.code), ['too-many-sprite-colors', 'invalid-object-color', 'multiple-solid-sprite-colors']);
   assert.equal(result.sprites.values().next().value.colors[1], '#ff00ff');
 });
 
@@ -339,9 +353,9 @@ test('native appearance diagnostics remain separate from later background declar
   assert.deepEqual(native.extraMemberDiagnostics, [...native.diagnostics, ...native.declarationDiagnostics]);
 });
 
-test('all 478 original sources match every native object appearance and display color', t => {
+test('all 492 pinned sources match every native object appearance and display color', t => {
   const fixtures = oracle.corpusFixtures();
-  assert.equal(fixtures.length, 478);
+  assert.equal(fixtures.length, 492);
   const totals = { sources: 0, objects: 0, pixels: 0, colors: 0, objectDiagnostics: 0, displayDiagnostics: 0 };
   for (const item of fixtures) {
     const { result, display } = oracle.compareFixture(item);
@@ -354,5 +368,5 @@ test('all 478 original sources match every native object appearance and display 
     totals.displayDiagnostics += display.diagnostics.length;
   }
   t.diagnostic(JSON.stringify(totals));
-  assert.deepEqual(totals, { sources: 478, objects: 12196, pixels: 304900, colors: 22867, objectDiagnostics: 3, displayDiagnostics: 0 });
+  assert.deepEqual(totals, { sources: 492, objects: 12295, pixels: 307375, colors: 22975, objectDiagnostics: 26, displayDiagnostics: 0 });
 });

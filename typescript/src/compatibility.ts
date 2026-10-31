@@ -1,14 +1,16 @@
-/** Historical exceptions for vanilla PuzzleScript revision 5a94bde1.
- * These preserve observed behavior, including storage accidents. The address
- * calculations below are genuinely layout-dependent; domain boards are not.
+/** Compatibility with vanilla PuzzleScript revision 57f9f6cb.
+ * Defaults preserve current observed behavior, including storage accidents.
+ * Historical bugs fixed by that revision remain explicit research opt-ins.
+ * Address calculations below depend on the original layout; domain boards do not.
  * Keep this boundary explicit rather than presenting these as general rules.
  */
 import { Movement, type Board, type LayerMovements } from './model.js';
 
 /** Switches for behaviour that comes from vanilla's implementation rather than
- * from the language. All on (vanillaQuirks) reproduces vanilla exactly and is the
- * default. All off (noQuirks) is the clean model. Each switch says what "off" does;
- * where vanilla gives no meaning, "off" reports an error rather than inventing one.
+ * from the language. vanillaQuirks reproduces the pinned revision and is the
+ * default; fixed historical bugs are off. All off (noQuirks) is the clean model.
+ * Each switch says what "off" does; where vanilla gives no meaning, "off" reports
+ * an error rather than inventing one.
  */
 export interface Quirks {
   /** Undo and restart keep some pending movements: same-size restore cleared one
@@ -29,15 +31,16 @@ export interface Quirks {
   /** Movement resolution and player input visit cells column by column, the
    * storage order x*height+y. Off: row by row, in reading order. */
   readonly columnMajorMovementOrder: boolean;
-  /** Movements written by late rules (only randomdir is allowed there) stay
-   * pending into the next turn. Off: they are discarded when the turn ends. */
+  /** Historical movements written by late rules stay pending into the next turn.
+   * Current vanilla rejects late movement syntax. Off: such runtime requests are
+   * discarded when the turn ends. */
   readonly lateMovementsCarryOver: boolean;
 }
 
 export const vanillaQuirks: Quirks = Object.freeze({
-  restoreKeepsMovements: true, rigidOwnerOrdinalMerge: true, lhsRandomDirIsUpAndLeft: true,
+  restoreKeepsMovements: true, rigidOwnerOrdinalMerge: false, lhsRandomDirIsUpAndLeft: false,
   combinedMovementsStayPut: true, uniformCanReachOne: true, columnMajorMovementOrder: true,
-  lateMovementsCarryOver: true,
+  lateMovementsCarryOver: false,
 });
 
 export const noQuirks: Quirks = Object.freeze(Object.fromEntries(
@@ -120,9 +123,11 @@ function combineOrdinals(first: number, second: number): number {
     + 2 * combineOrdinals(Math.floor(first / 2), Math.floor(second / 2));
 }
 
-export function rigidOwnershipTransitions(groups: readonly number[]): VanillaRigidCompatibility['rigidMerges'] {
+export function rigidOwnershipTransitions(
+  groups: readonly number[], quirks: Quirks = vanillaQuirks,
+): VanillaRigidCompatibility['rigidMerges'] {
   return new Map(groups.map((group, first) => [group, new Map(groups.map((incoming, second) =>
-    [incoming, groups[combineOrdinals(first + 1, second + 1) - 1] ?? null]))]));
+    [incoming, quirks.rigidOwnerOrdinalMerge ? groups[combineOrdinals(first + 1, second + 1) - 1] ?? null : group]))]));
 }
 
 export function combineRigidOwners(

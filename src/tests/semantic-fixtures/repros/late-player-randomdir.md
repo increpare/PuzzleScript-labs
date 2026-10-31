@@ -1,13 +1,13 @@
-# A late randomdir on Player crashes on the next Action input
+# Historical crash: late randomdir on Player followed by Action
 
 Historical report: upstream [#1207](https://github.com/increpare/PuzzleScript/pull/1207)
 fixes the source-acceptance bug by rejecting `randomdir` in late rules. Current
 Labs follows that restriction and drops the invalid qualifier during error
-recovery. The pinned-native and TypeScript reproducer below intentionally retains
-the historical accepted-source behavior.
+recovery. The current pinned-native and TypeScript runner verifies this diagnostic and
+safe recovery at `57f9f6cb`. The crash evidence below belongs to the old revision.
 
 This is a newly constructed headless reproducer from the semantic-fixture work,
-not a failure discovered in an existing game. The source compiles with **zero
+not a failure discovered in an existing game. At the historical revisions below, the source compiled with **zero
 errors and zero warnings**. The issue reproduces in unmodified vanilla at
 `5a94bde1a5127a3a45306ea28598eba2874d446d` and the Labs engine at base
 `3367a2d41964ff90c5ab9a5e8eae2132e5f225f2`. The TypeScript compatibility port also
@@ -26,12 +26,12 @@ The relevant rule is:
 late [ Player ] -> [ randomdir Player ]
 ```
 
-The pinned compiler explicitly allows `randomdir` in late rules, despite rejecting
+The historical compiler explicitly allowed `randomdir` in late rules, despite rejecting
 ordinary movement directions there. The game should either be rejected with a
 diagnostic explaining that restriction, or handle these inputs without an
 internal exception. This report does not prescribe the intended late-rule semantics.
 
-## Verified behavior
+## Historical verified behavior
 
 1. Compilation reports no diagnostics.
 2. First Action succeeds in place. The late group then chooses movement
@@ -71,10 +71,11 @@ npm --prefix typescript run build
 node src/tests/semantic-fixtures/repros/late-player-randomdir.cjs
 ```
 
-The runner asserts zero compilation diagnostics, verifies both failures and the
-early-rule control, and prints the observed errors. Browser rendering was not
+The current runner requires the late-movement diagnostic, verifies two Actions
+succeed with no pending movement, and verifies the early-rule control remains
+valid. It prints the authority and observed diagnostic. Browser rendering was not
 tested; keyboard instructions above describe the equivalent inputs.
 
-The crashing case is deliberately separate from the passing `testdata.js`
-fixtures: that legacy format expects a completed run and cannot express an
-expected exception. No engine changes or oracle relaxations were made.
+The historical crashing source remains separate from portable gameplay fixtures.
+The reference revision test also checks the fixed acceptance boundary and safe
+recovery. Native implementation files are copied unchanged from the new authority.

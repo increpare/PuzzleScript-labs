@@ -40,10 +40,13 @@ function loadFixtures({ directory = __dirname, filter = '' } = {}) {
     const games = JSON.parse(fs.readFileSync(path.join(directory, filename), 'utf8'));
     assert.ok(Array.isArray(games), filename + ': expected an array of games');
     for (const game of games) {
-      fields(game, ['id', 'sourceFile', 'explanation', 'cells', 'cases'], 'game');
+      fields(game, ['id', 'sourceFile', 'explanation', 'cells', 'cases', 'expectedErrors'], 'game');
       assert.ok(typeof game.id === 'string' && game.id.length > 0 && !ids.has(game.id), 'Duplicate or missing game id: ' + game.id);
       ids.add(game.id);
       assert.ok(typeof game.explanation === 'string' && game.explanation.length > 0, game.id + ': explain the behavior');
+      const expectedErrors = game.expectedErrors ?? [];
+      assert.ok(Array.isArray(expectedErrors) && expectedErrors.every(message => typeof message === 'string' && message.length > 0),
+        game.id + ': expectedErrors must explicitly name compiler errors');
       assert.ok(typeof game.sourceFile === 'string', game.id + ': missing sourceFile');
       const sourcePath = path.resolve(directory, game.sourceFile);
       assert.ok(sourcePath.startsWith(path.resolve(directory) + path.sep), game.id + ': sourceFile must stay inside fixture directory');
@@ -64,7 +67,8 @@ function loadFixtures({ directory = __dirname, filter = '' } = {}) {
         assert.ok(typeof seed === 'string' && seed.length > 0, name + ': seed must be a nonempty string');
         const expectedBoard = serializeExpectedBoard(entry.expected, game.cells);
         const fixture = { name, source, inputs: [...entry.inputs], expectedBoard, level, seed,
-          expectedRows: [...entry.expected], explanation: game.explanation, sourceFile: game.sourceFile };
+          expectedRows: [...entry.expected], explanation: game.explanation, sourceFile: game.sourceFile,
+          expectedErrors: [...expectedErrors] };
         if (entry.labsExpected !== undefined) {
           fixture.labsExpectedBoard = serializeExpectedBoard(entry.labsExpected, game.cells);
           fixture.labsExpectedRows = [...entry.labsExpected];
@@ -82,7 +86,7 @@ function loadFixtures({ directory = __dirname, filter = '' } = {}) {
   return fixtures;
 }
 
-// Keep the pinned-native verifier historical; only Labs exports opt into overrides.
+// Ordinary expectations follow the pinned vanilla authority; Labs can override a fork difference.
 function fixtureTuple(fixture, { labs = false } = {}) {
   const expectedBoard = labs ? fixture.labsExpectedBoard ?? fixture.expectedBoard : fixture.expectedBoard;
   const expectedSounds = labs ? fixture.labsExpectedSounds ?? fixture.expectedSounds : fixture.expectedSounds;

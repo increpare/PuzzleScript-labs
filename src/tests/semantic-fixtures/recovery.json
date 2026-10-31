@@ -1,0 +1,390 @@
+[
+  {
+    "id": "history/late-direction-carryover",
+    "sourceFile": "history/late-direction-carryover.ps",
+    "explanation": "Invalid-source recovery after upstream #1207: late randomdir is diagnosed and its qualifier is dropped. The remaining late rule replaces Switch with Spent and leaves Crate stationary. A tick has no carried direction; undo restores Switch, which the next tick consumes again. This source exercised late movement in the historical 5a94bde1 authority.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "C": [
+        "background",
+        "crate"
+      ],
+      "S": [
+        "background",
+        "switch"
+      ],
+      "s": [
+        "background",
+        "spent"
+      ]
+    },
+    "cases": [
+      {
+        "name": "recovered late rule consumes switch",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "s.C.P"
+        ],
+        "seed": "right-first-1"
+      },
+      {
+        "name": "tick has no carried direction",
+        "inputs": [
+          4,
+          "tick"
+        ],
+        "expected": [
+          "s.C.P"
+        ],
+        "seed": "right-first-1"
+      },
+      {
+        "name": "undo and tick repeat recovered replacement",
+        "inputs": [
+          4,
+          "undo",
+          "tick"
+        ],
+        "expected": [
+          "s.C.P"
+        ],
+        "seed": "right-first-1"
+      }
+    ],
+    "expectedErrors": [
+      "Movements cannot appear in late rules."
+    ]
+  },
+  {
+    "id": "movement/late-multiword-restore",
+    "sourceFile": "movement/late-multiword-restore.ps",
+    "explanation": "Invalid-source recovery after upstream #1207: late randomdir is diagnosed and its qualifier is dropped. The recovered rule leaves Dust stationary through actions, undo and restart. This constructed 8-layer source exercised movement-storage restoration at a word boundary in historical 5a94bde1; current accepted-language semantics do not allow that late movement.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "C": [
+        "background",
+        "crate"
+      ],
+      "#": [
+        "background",
+        "wall"
+      ],
+      "m": [
+        "background",
+        "mark"
+      ],
+      "X": [
+        "background",
+        "player",
+        "mark"
+      ],
+      "D": [
+        "background",
+        "dust"
+      ]
+    },
+    "cases": [
+      {
+        "name": "first action leaves Dust in place",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "P..",
+          ".D.",
+          "..."
+        ],
+        "seed": "late-restore"
+      },
+      {
+        "name": "second action has no pending movement",
+        "inputs": [
+          4,
+          4
+        ],
+        "expected": [
+          "P..",
+          ".D.",
+          "..."
+        ],
+        "seed": "late-restore"
+      },
+      {
+        "name": "undo restores board",
+        "inputs": [
+          3,
+          "undo"
+        ],
+        "expected": [
+          "P..",
+          ".D.",
+          "..."
+        ],
+        "seed": "late-restore"
+      },
+      {
+        "name": "undo and action leave Dust in place",
+        "inputs": [
+          3,
+          "undo",
+          4
+        ],
+        "expected": [
+          "P..",
+          ".D.",
+          "..."
+        ],
+        "seed": "late-restore"
+      },
+      {
+        "name": "restart and action leave Dust in place",
+        "inputs": [
+          3,
+          "restart",
+          4
+        ],
+        "expected": [
+          "P..",
+          ".D.",
+          "..."
+        ],
+        "seed": "late-restore"
+      }
+    ],
+    "expectedErrors": [
+      "Movements cannot appear in late rules."
+    ]
+  },
+  {
+    "id": "movement/late-partial-word-restore",
+    "sourceFile": "movement/late-partial-word-restore.ps",
+    "explanation": "Invalid-source recovery after upstream #1207: late randomdir is diagnosed and its qualifier is dropped. The recovered rule leaves Dust stationary through actions, undo and restart. This constructed 7-layer source exercised movement-storage restoration at a word boundary in historical 5a94bde1; current accepted-language semantics do not allow that late movement.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "C": [
+        "background",
+        "crate"
+      ],
+      "#": [
+        "background",
+        "wall"
+      ],
+      "m": [
+        "background",
+        "mark"
+      ],
+      "X": [
+        "background",
+        "player",
+        "mark"
+      ],
+      "D": [
+        "background",
+        "dust"
+      ]
+    },
+    "cases": [
+      {
+        "name": "first action leaves Dust in place",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "P..",
+          ".D.",
+          "..."
+        ],
+        "seed": "late-restore"
+      },
+      {
+        "name": "second action has no pending movement",
+        "inputs": [
+          4,
+          4
+        ],
+        "expected": [
+          "P..",
+          ".D.",
+          "..."
+        ],
+        "seed": "late-restore"
+      },
+      {
+        "name": "undo restores board",
+        "inputs": [
+          3,
+          "undo"
+        ],
+        "expected": [
+          "P..",
+          ".D.",
+          "..."
+        ],
+        "seed": "late-restore"
+      },
+      {
+        "name": "undo and action leave Dust in place",
+        "inputs": [
+          3,
+          "undo",
+          4
+        ],
+        "expected": [
+          "P..",
+          ".D.",
+          "..."
+        ],
+        "seed": "late-restore"
+      },
+      {
+        "name": "restart and action leave Dust in place",
+        "inputs": [
+          3,
+          "restart",
+          4
+        ],
+        "expected": [
+          "P..",
+          ".D.",
+          "..."
+        ],
+        "seed": "late-restore"
+      },
+      {
+        "name": "alternate seed leaves Dust in place after undo",
+        "inputs": [
+          3,
+          "undo",
+          4
+        ],
+        "expected": [
+          "P..",
+          ".D.",
+          "..."
+        ],
+        "seed": "partial-up-0"
+      },
+      {
+        "name": "another seed leaves Dust in place after undo",
+        "inputs": [
+          3,
+          "undo",
+          4
+        ],
+        "expected": [
+          "P..",
+          ".D.",
+          "..."
+        ],
+        "seed": "up-pair-4"
+      }
+    ],
+    "expectedErrors": [
+      "Movements cannot appear in late rules."
+    ]
+  },
+  {
+    "id": "movement/opposing-carried-input",
+    "sourceFile": "movement/opposing-carried-input.ps",
+    "explanation": "Invalid-source recovery after upstream #1207: late randomdir is diagnosed and its qualifier is dropped, while Switch is still replaced by Spent. No Up request is carried into the next input. Down moves Player into the empty bottom cell with no failure sounds and adds an undo entry; undo therefore restores the already-Spent board after Action. This source exercised colliding opposite requests in historical 5a94bde1.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "S": [
+        "background",
+        "switch"
+      ],
+      "s": [
+        "background",
+        "spent"
+      ]
+    },
+    "cases": [
+      {
+        "name": "recovered late rule consumes switch",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "s..",
+          ".P.",
+          "..."
+        ],
+        "seed": "partial-up-1",
+        "expectedSounds": []
+      },
+      {
+        "name": "Down moves without carried Up",
+        "inputs": [
+          4,
+          2
+        ],
+        "expected": [
+          "s..",
+          "...",
+          ".P."
+        ],
+        "seed": "partial-up-1",
+        "expectedSounds": []
+      },
+      {
+        "name": "tick leaves moved Player in place",
+        "inputs": [
+          4,
+          2,
+          "tick"
+        ],
+        "expected": [
+          "s..",
+          "...",
+          ".P."
+        ],
+        "seed": "partial-up-1",
+        "expectedSounds": []
+      },
+      {
+        "name": "undo restores the consumed switch board",
+        "inputs": [
+          4,
+          2,
+          "undo"
+        ],
+        "expected": [
+          "s..",
+          ".P.",
+          "..."
+        ],
+        "seed": "partial-up-1",
+        "expectedSounds": []
+      }
+    ],
+    "expectedErrors": [
+      "Movements cannot appear in late rules."
+    ]
+  }
+]

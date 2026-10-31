@@ -241,7 +241,7 @@ test('dropping a present undefined single-layer property is rejected', () => {
 
 test('the independent resolver agrees on declaration data for every simulation source', () => {
   const fixtures = oracle.corpusFixtures();
-  assert.equal(fixtures.length, 478);
+  assert.equal(fixtures.length, 492);
   for (const item of fixtures) oracle.compareFixture(item);
 });
 

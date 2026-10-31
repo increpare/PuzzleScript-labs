@@ -1,7 +1,12 @@
 Early negative terms: native unlayered-object recovery
 ====================================================
 
-Authority: the pinned vanilla src/js/compiler.js checkSuperfluousCoincidences,
+Historical authority: vanilla 5a94bde1a5127a3a45306ea28598eba2874d446d.
+The active reference is now 57f9f6cba69f6aa52ed738d5aee1d709d0037648.
+The observations below retain their original authority and are not a new
+measurement against the refreshed pin.
+
+Probe: src/js/compiler.js checkSuperfluousCoincidences,
 after actual codeMirrorFn parsing, generateExtraMembers, generateMasks and
 processRuleString. No later orientation or name substitution runs in these probes.
 
