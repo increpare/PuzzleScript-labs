@@ -116,6 +116,9 @@ Two types of tests, both using QUnit:
 
 ## Development Notes
 
+- **Vanilla upstream sync:** `.upstream-sync.json` records the exact reviewed-through
+  revision for selective ports. Read `docs/upstream-sync.md` before the next sync;
+  use its checkpoint rather than the Git merge base or TypeScript's pinned reference.
 - Source files in `src/` are the raw, uncompressed, directly-runnable version. The `bin/` directory is generated output — edit only in `src/`.
 - No linter or formatter is configured.
 - Browser globals are used extensively — the codebase predates ES modules.

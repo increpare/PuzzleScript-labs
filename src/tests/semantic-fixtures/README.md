@@ -2,8 +2,9 @@
 
 This collection contains **52 complete games and 140 portable gameplay fixtures**.
 Each example has a readable game, a short explanation and explicitly authored
-expected boards. The same fixtures run on labs JS, pinned vanilla JS and the
-independently compiled TypeScript reference. They were constructed for this work,
+expected boards. The fixtures run on labs JS, pinned vanilla JS and the
+independently compiled TypeScript reference, with explicit Labs overrides where
+upstream semantics have changed. They were constructed for this work,
 not extracted from existing games or recorded to bless engine output.
 
 | Family | Games | Cases | Behaviors |
@@ -84,6 +85,38 @@ can draw repeatedly until that group's state stops changing. The restore example
 spell out that sequence rather than equating a group's final direction with its
 first draw.
 
+### Historical expectations and Labs overrides
+
+The ordinary `expected` and `expectedSounds` fields retain the authored behavior
+of pinned vanilla `5a94bde1` and the TypeScript compatibility reference. A case may
+also provide `labsExpected` rows and/or `labsExpectedSounds`. The loader keeps
+these separately as `labsExpectedBoard`, `labsExpectedRows` and
+`labsExpectedSounds`; it never replaces the historical fields. `fixtureTuple`
+defaults to historical expectations for the pinned-native verifier. The exporter
+explicitly selects Labs expectations, falling back to historical values when an
+override is absent. The TypeScript suite still checks every historical board and
+sound expectation and checks that the Labs export matches these manifests.
+
+Upstream [#1207](https://github.com/increpare/PuzzleScript/pull/1207) rejects
+`randomdir` in late rules. Four historical games intentionally exercise the old
+acceptance bug: `history/late-direction-carryover`,
+`movement/late-multiword-restore`, `movement/late-partial-word-restore` and
+`movement/opposing-carried-input`. Their sources and original expectations remain
+intact. Labs reports the invalid qualifier and, during error recovery, drops it
+while preserving the rest of the rule. Ten cases therefore have explicit Labs
+board overrides, and three also override recorded sounds:
+
+- Crate and Dust have no pending movement, so ticks, undo and restart leave them
+  in their original cells. The late Switch-to-Spent replacement still happens.
+- Without carried Up on Player, a following Down moves into the empty bottom
+  cell with no failure sounds. That successful move records an undo entry, so
+  undo restores the already-Spent board after Action.
+
+These values follow the source rules and input history; the exporter does not run
+an engine to obtain them. Labs gameplay tests deliberately exercise error
+recovery for these four sources. The zero-compilation-error assertions belong to
+the unchanged pinned-native and TypeScript authorities.
+
 ## Sounds and internal observations
 
 `expectedSounds` is the optional portable sound-history array in `testdata.js`.
@@ -105,16 +138,19 @@ session oracle remains unchanged; its snapshots intentionally omit that ban set.
 
 ## Findings and limits
 
-- Passing authored cases agree with both JS implementations and TypeScript. No
-  JS/TypeScript gameplay mismatch was found in this collection.
+- Historical authored cases agree with pinned vanilla and TypeScript. The
+  explicit Labs overrides above cover the intentional upstream semantic change;
+  no historical JS/TypeScript gameplay mismatch was found in this collection.
 - [Late Player randomdir](repros/late-player-randomdir.md) is a separate accepted-source
-  crash, reduced to one cell and two Action inputs. Vanilla and labs throw a
-  TypeError; TypeScript reports an unsupported movement combination. It is not
-  included as a passing board fixture, and no engine fix was applied.
+  crash, reduced to one cell and two Action inputs. Pinned vanilla and historical
+  Labs throw a TypeError; TypeScript reports an unsupported movement combination.
+  Upstream #1207 fixes source acceptance by rejecting late `randomdir`. The
+  historical crash remains separate from passing board fixtures.
 - The movement word-boundary and #1206 cases preserve previously known behavior;
   they are not claimed as new bug discoveries.
 - Two singleton-random cases intentionally produce the existing concrete-random
-  warning. Every exported source compiles without errors.
+  warning. Every source compiles without errors in the pinned authority; the four
+  late-randomdir games above intentionally produce Labs errors after #1207.
 - Source-authoring omissions were corrected while retaining their hand-written
   outcomes. One initial history assumption was corrected after inspecting the
   contract: a standalone tick with no prior input creates no undo entry. The

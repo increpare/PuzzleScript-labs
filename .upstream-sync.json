@@ -1,0 +1,11 @@
+{
+  "repository": "https://github.com/increpare/PuzzleScript.git",
+  "remote": "upstream",
+  "branch": "master",
+  "reviewedThrough": "57f9f6cba69f6aa52ed738d5aee1d709d0037648",
+  "previousReviewedThrough": "b44aa2654f70fe347c8dcac16f82542b33547a12",
+  "labsBaseline": "7828b7ecbf781bb6adb63188c7efa6543ba24202",
+  "syncDate": "2026-10-31",
+  "strategy": "selective-port",
+  "notes": "docs/upstream-sync.md"
+}

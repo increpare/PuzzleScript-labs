@@ -1,0 +1,12 @@
+'use strict';
+const fs = require('node:fs');
+const vm = require('node:vm');
+const assert = require('node:assert/strict');
+const [input, outputJs, outputJson] = process.argv.slice(2);
+const context = {};
+vm.runInNewContext(fs.readFileSync(input, 'utf8'), context);
+const cases = context.testdata.filter(([name]) => name.includes('#1206'));
+assert(cases.length >= 6, 'Missing upstream rigid ownership regressions');
+const json = JSON.stringify(cases);
+fs.writeFileSync(outputJs, 'var testdata = ' + json + ';\n');
+fs.writeFileSync(outputJson, json + '\n');

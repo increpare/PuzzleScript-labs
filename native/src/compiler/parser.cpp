@@ -159,6 +159,7 @@ constexpr std::string_view kPreambleFlags[] = {
     "throttle_movement",
     "noundo",
     "noaction",
+    "nohack",
     "norestart",
     "scanline",
 };
@@ -814,7 +815,7 @@ void diagnoseLegendLineTokens(
             state.lineNumber,
             "Name \"" + toUpperCopy(candname) + "\" already in use (on line line " + std::to_string(*prevLine) + ").");
     }
-    if (isLegendKeywordName(candname)) {
+    if (candname.size() > 1 && isLegendKeywordName(candname)) {
         diagnostics.warning(
             DiagnosticCode::GenericWarning,
             state.lineNumber,
@@ -1267,7 +1268,7 @@ void parseObjectsLine(ParserState& state, DiagnosticSink& diagnostics, std::stri
                     "Name \"" + toUpperCopy(candLower) + "\" already in use.");
             }
         }
-        if (isLegendKeywordName(candLower)) {
+        if ((sol || candLower.size() > 1) && isLegendKeywordName(candLower)) {
             diagnostics.warning(
                 DiagnosticCode::GenericWarning,
                 state.lineNumber,
@@ -1291,11 +1292,9 @@ void parseObjectsLine(ParserState& state, DiagnosticSink& diagnostics, std::stri
                 state.originalLineNumbers[candLower] = state.lineNumber;
             }
         } else {
-            // Subsequent tokens on the same physical line see stream.string already lowercased in JS,
-            // so registerOriginalCaseName runs against the lowered line (match[0] is lowercase there).
-            registerOriginalCaseName(state, candLower, loweredLine, state.lineNumber);
+            registerOriginalCaseName(state, candLower, mixedLine, state.lineNumber);
             if (isIdentifierLike(candLower) && containsAsciiLetter(candLower) && state.originalCaseNames.count(candLower) == 0) {
-                state.originalCaseNames[candLower] = std::string(loweredLine.substr(tokenStart, tokenEnd - tokenStart));
+                state.originalCaseNames[candLower] = sliceMixedFor(tokenStart, tokenEnd);
                 state.originalLineNumbers[candLower] = state.lineNumber;
             }
             state.legendSynonyms.push_back(ParserLegendEntry{
@@ -1456,7 +1455,7 @@ void validateLevelMapRowAbbrevKeys(const ParserState& state, DiagnosticSink& dia
     }
 }
 
-void parseLegendLine(ParserState& state, DiagnosticSink& diagnostics, std::string_view trimmedLine) {
+void parseLegendLine(ParserState& state, DiagnosticSink& diagnostics, std::string_view trimmedLine, std::string_view originalLine) {
     const std::string trimmed = trim(std::string(trimmedLine));
     if (trimmed.empty()) {
         return;
@@ -1506,10 +1505,9 @@ void parseLegendLine(ParserState& state, DiagnosticSink& diagnostics, std::strin
     const std::string candname = toLowerCopy(trim(std::string(tokens[0])));
     entry.name = candname;
     entry.lineNumber = state.lineNumber;
-    // parser.js processLegendLine: mixedCase is stream.string at EOL, which is already lowercased
-    // after the first token on the line — same buffer registerOriginalCaseName searches in JS.
+    // Keep the physical line's source spelling even after tokenization lowercases it.
     if (isAsciiIdentifierLike(candname)) {
-        registerOriginalCaseName(state, candname, trimmedLine, state.lineNumber);
+        registerOriginalCaseName(state, candname, originalLine, state.lineNumber);
     } else if (isIdentifierLike(candname)) {
         // registerOriginalCaseName uses ASCII \\b boundaries only (matches JS RegExp without /u).
         // Unicode legend keys (e.g. "stück") still get a stable original_case_names entry in JS.
@@ -2119,7 +2117,7 @@ void parseCollisionLayersLine(ParserState& state, DiagnosticSink& diagnostics, s
                 warningStr += "#" + std::to_string(foundOthers[i] + 1) + ", ";
             }
             warningStr += "#" + std::to_string(state.collisionLayers.size());
-            diagnostics.warning(DiagnosticCode::GenericWarning, state.lineNumber, warningStr + " ). You should fix this!");
+            diagnostics.warning(DiagnosticCode::GenericWarning, state.lineNumber, warningStr + " ). You should fix this! (The compiler will just pick one layer to assign it to).");
         }
 
         // parser.js collision lines are lowercased before tokenizing; duplicate detection is case-insensitive.
@@ -2560,8 +2558,8 @@ ParserState parseSource(std::string_view source, DiagnosticSink& diagnostics) {
             } else {
                 const bool rawHasContent = !trim(rawLine).empty();
                 if (rawHasContent && state.section == "objects"
-                    && (state.objectsSection == 2 || state.objectsSection == 3)) {
-                    // Comment-only physical line while reading sprite matrix: JS still has
+                    && state.objectsSection >= 1 && state.objectsSection <= 3) {
+                    // Comment-only physical line while reading an object: JS still has
                     // non-empty stream.string so blankLineHandle does not run; do not reset.
                 } else {
                     handleBlankLine(state);
@@ -2636,7 +2634,7 @@ ParserState parseSource(std::string_view source, DiagnosticSink& diagnostics) {
                 break;
             case 'l':
                 if (state.section == "legend") {
-                    parseLegendLine(state, diagnostics, loweredVisible);
+                    parseLegendLine(state, diagnostics, loweredVisible, mixedVisible);
                 } else {
                     parseLevelsLine(state, diagnostics, trimmedVisible, rawLine);
                 }

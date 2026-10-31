@@ -53,7 +53,7 @@
   {
     "id": "history/late-direction-carryover",
     "sourceFile": "history/late-direction-carryover.ps",
-    "explanation": "A late randomdir is installed after movement and survives into the next tick. Undo restores objects and clears that pending direction. Seed right-first-1 starts with 0.8744485650765657; floor(4u) = 3 selects right.",
+    "explanation": "A late randomdir is installed after movement and survives into the next tick. Undo restores objects and clears that pending direction. Seed right-first-1 starts with 0.8744485650765657; floor(4u) = 3 selects right. Labs after upstream #1207 rejects randomdir in late rules and drops that qualifier during error recovery: the Crate stays at its original cell, while Switch is still replaced by Spent. A later tick therefore has no carried direction to resolve.",
     "cells": {
       ".": [
         "background"
@@ -95,7 +95,10 @@
         "expected": [
           "s..CP"
         ],
-        "seed": "right-first-1"
+        "seed": "right-first-1",
+        "labsExpected": [
+          "s.C.P"
+        ]
       },
       {
         "name": "undo removes carried direction",

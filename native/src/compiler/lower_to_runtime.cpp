@@ -4,6 +4,9 @@
 #include <array>
 #include <cctype>
 #include <cstdint>
+#include <cmath>
+#include <cstdlib>
+#include <limits>
 #include <map>
 #include <memory>
 #include <set>
@@ -33,6 +36,43 @@ std::string toLowerAsciiCopy(std::string_view input) {
 
 uint32_t ceilDivU32(uint32_t a, uint32_t b) {
     return (a + b - 1) / b;
+}
+
+std::string trimDimensionWhitespace(std::string_view value) {
+    size_t start = value.size(), end = 0;
+    for (size_t pos = 0; pos < value.size();) {
+        utf8proc_int32_t codepoint = 0;
+        const auto width = utf8proc_iterate(reinterpret_cast<const utf8proc_uint8_t*>(value.data() + pos),
+            static_cast<utf8proc_ssize_t>(value.size() - pos), &codepoint);
+        const size_t advance = width > 0 ? static_cast<size_t>(width) : 1;
+        const auto category = utf8proc_category(codepoint);
+        const bool whitespace = codepoint == 0xfeff || category == UTF8PROC_CATEGORY_ZS
+            || category == UTF8PROC_CATEGORY_ZL || category == UTF8PROC_CATEGORY_ZP
+            || (codepoint <= 0x7f && std::isspace(static_cast<unsigned char>(codepoint)));
+        if (!whitespace) {
+            start = std::min(start, pos);
+            end = pos + advance;
+        }
+        pos += advance;
+    }
+    return start <= end ? std::string(value.substr(start, end - start)) : std::string{};
+}
+
+bool validScreenDimensions(const std::string& value) {
+    const auto split = value.find('x');
+    if (split == std::string::npos || value.find('x', split + 1) != std::string::npos) return false;
+    for (const auto& rawComponent : {value.substr(0, split), value.substr(split + 1)}) {
+        const auto component = trimDimensionWhitespace(rawComponent);
+        char* end = nullptr;
+        const double number = std::strtod(component.c_str(), &end);
+        if (end == component.c_str()) return false;
+        while (std::isspace(static_cast<unsigned char>(*end))) ++end;
+        if (*end || !std::isfinite(number) || std::trunc(number) != number
+            || number < std::numeric_limits<int32_t>::min() || number > std::numeric_limits<int32_t>::max()) return false;
+        const long integer = std::strtol(component.c_str(), &end, 10);
+        if (end == component.c_str() || integer <= 0) return false;
+    }
+    return true;
 }
 
 puzzlescript::MaskVector makeEmptyMask(uint32_t wordCount) {
@@ -701,9 +741,17 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
 
     // --- Metadata ---
     // ParserState.metadata is a flat [key, value, key, value...] list.
-    game->metadata.pairs = state.metadata;
     for (size_t i = 0; i + 1 < state.metadata.size(); i += 2) {
         game->metadata.values[state.metadata[i]] = state.metadata[i + 1];
+    }
+    for (const auto* key : {"flickscreen", "zoomscreen"}) {
+        const auto value = game->metadata.values.find(key);
+        if (value != game->metadata.values.end() && !validScreenDimensions(value->second)) game->metadata.values.erase(value);
+    }
+    for (size_t i = 0; i + 1 < state.metadata.size(); i += 2) {
+        if ((state.metadata[i] == "flickscreen" || state.metadata[i] == "zoomscreen") && !game->metadata.values.contains(state.metadata[i])) continue;
+        game->metadata.pairs.push_back(state.metadata[i]);
+        game->metadata.pairs.push_back(state.metadata[i + 1]);
     }
     game->metadata.lines = state.metadataLines;
 
@@ -1418,7 +1466,8 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
             addDirectionAggregate("orthogonal");
         }
 
-        // JS grouping: each rule line starts a new group unless prefixed by "+".
+        // Establish authored grouping before dropping invalid rules so a
+        // following '+' keeps the group it originally joined.
         std::vector<std::vector<puzzlescript::Rule>>& groups = lateRule ? game->lateRules : game->rules;
         std::vector<std::vector<std::string>>& groupSignatures = lateRule ? lateRuleSignatures : earlyRuleSignatures;
         if (groups.empty() || !sameGroup) {
@@ -1507,6 +1556,9 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                     if (!dirNorm.empty()) {
                         dirNorm = toLowerAsciiCopy(dirNorm);
                     }
+                    // The late-rule diagnostic rejects RANDOMDIR before it
+                    // enters the pattern, retaining the following object.
+                    if (lateRule && dirNorm == "randomdir") dirNorm.clear();
                     if (inlineCommandSink != nullptr && dirNorm.empty() && isJsBracketPostfixCommand(nameNorm)
                         && !cellNameRefersToLegendOrObject(nameNorm)) {
                         puzzlescript::RuleCommand cmd;
@@ -1570,6 +1622,12 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
         auto rhsRows = arrowPos < tokens.size()
             ? parseSide(arrowPos + 1, firstTopLevelPostfixCommand, &parsedCommands)
             : std::vector<ParsedRow>{};
+
+        bool invalidRandomLhs = false;
+        for (const auto& row : lhsRows) for (const auto& cell : row) for (const auto& item : cell.items) {
+            invalidRandomLhs = invalidRandomLhs || item.dir == "random" || item.dir == "randomdir";
+        }
+        if (invalidRandomLhs) continue;
 
         auto maskTouchesLayer = [&](const puzzlescript::MaskVector& mask, int32_t layer) -> bool {
             if (layer < 0 || layer >= game->layerCount) {

@@ -117,7 +117,7 @@ function buildParserStateSnapshot(source) {
             line_should_end_because: state.line_should_end_because || '',
             sol_after_comment: Boolean(state.sol_after_comment),
             inside_cell: Boolean(state.inside_cell),
-            bracket_balance: state.bracket_balance || 0,
+            bracket_balance: state.lhs_rhs_rowcount_difference || 0,
             arrow_passed: Boolean(state.arrow_passed),
             rule_prelude: Boolean(state.rule_prelude),
             objects_candname: state.objects_candname || '',

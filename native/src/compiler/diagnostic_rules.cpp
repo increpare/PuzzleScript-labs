@@ -129,7 +129,7 @@ std::vector<AuthoredRule> parseRules(const ParserState& state, const Names& name
             } else if (movement(token)) {
                 if (cell.size() % 2) error("Error, an item can only have one direction/action at a time, but you're looking for several at once!");
                 else if (!inside) warn("Invalid syntax. Directions should be placed at the start of a rule.");
-                else if (rule.late && token != "no" && token != "random" && token != "randomdir") error("Movements cannot appear in late rules.");
+                else if (rule.late && token != "no" && token != "random") error("Movements cannot appear in late rules.");
                 else cell.push_back(token);
             } else if (token == "|") {
                 if (!inside) warn("Janky syntax. \"|\" should only be used inside cell rows (the square brackety bits).");
@@ -369,7 +369,6 @@ void checkMasks(const Names& names, const AuthoredRule& rule, DiagnosticSink& di
             Cell present, absent;
             for (size_t i = 0; i+1 < left.size(); i += 2) {
                 const auto& name = left[i+1];
-                if (left[i] == "random") { error("RANDOM cannot be matched on the left-hand side, it can only appear on the right"); continue; }
                 if (!names.state.objects.contains(name) && !names.properties.contains(name)) { error("Oops! " + upper(name) + " not assigned to a layer."); return; }
                 if (left[i] == "no") { const auto members = names.objects(name); absent.insert(absent.end(), members.begin(), members.end()); continue; }
                 if (names.state.objects.contains(name)) present.push_back(name);
@@ -480,6 +479,15 @@ bool runRuleDiagnostics(const ParserState& state, DiagnosticSink& diagnostics) {
     for (auto& rule : rules) if (!atomize(names, rule, diagnostics)) invalid = true;
     for (const auto& rule : rules) checkInference(names, rule, diagnostics);
     if (invalid) return false;
+    std::erase_if(rules, [&](const auto& rule) {
+        for (const auto& row : rule.lhs) for (const auto& cell : row) for (size_t i = 0; i+1 < cell.size(); i += 2) {
+            if (cell[i] != "random" && cell[i] != "randomdir") continue;
+            diagnostics.error(DiagnosticCode::GenericError, rule.line,
+                upper(cell[i]) + " cannot be matched on the left-hand side; it can only appear on the right");
+            return true;
+        }
+        return false;
+    });
     std::vector<std::vector<Conflict>> discards(rules.size());
     for (size_t i = 0; i < rules.size(); ++i) checkMasks(names, rules[i], diagnostics, discards[i]);
     for (size_t i = 0; i < rules.size(); ++i) reportDiscard(rules[i], discards[i], diagnostics);

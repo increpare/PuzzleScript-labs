@@ -14,16 +14,17 @@ import {createParserHarness, directParserTrace} from "./parser-support.mjs"
 const source = "OBJECTS\nPlayer\nred\n.....\n.....\n.....\n.....\n.....\n\nLEGEND\nHero = Player"
 const targetLineNumber = 11
 
-// Captured from CM5's actual editor.getTokenAt({line: 10, ch}, true).
+// CM5 token boundaries, with physical parser line numbers after upstream
+// e060ebc4 made blankLine follow the compiler token path.
 const expected = [
-  {ch: 0, start: 0, end: 0, string: "", type: null, lineNumber: 9, tokenIndex: 0, current: [], synonyms: []},
-  {ch: 2, start: 0, end: 4, string: "hero", type: "NAME", lineNumber: 10, tokenIndex: 1, current: ["hero"], synonyms: []},
-  {ch: 4, start: 0, end: 4, string: "hero", type: "NAME", lineNumber: 10, tokenIndex: 1, current: ["hero"], synonyms: []},
-  {ch: 5, start: 4, end: 7, string: " = ", type: "ASSIGNMENT", lineNumber: 10, tokenIndex: 2, current: ["hero", "="], synonyms: []},
-  {ch: 6, start: 4, end: 7, string: " = ", type: "ASSIGNMENT", lineNumber: 10, tokenIndex: 2, current: ["hero", "="], synonyms: []},
-  {ch: 7, start: 4, end: 7, string: " = ", type: "ASSIGNMENT", lineNumber: 10, tokenIndex: 2, current: ["hero", "="], synonyms: []},
-  {ch: 8, start: 7, end: 13, string: "player", type: "NAME", lineNumber: 10, tokenIndex: 3, current: ["hero", "=", "player"], synonyms: [["hero", "player"]]},
-  {ch: 13, start: 7, end: 13, string: "player", type: "NAME", lineNumber: 10, tokenIndex: 3, current: ["hero", "=", "player"], synonyms: [["hero", "player"]]}
+  {ch: 0, start: 0, end: 0, string: "", type: null, lineNumber: 10, tokenIndex: 0, current: [], synonyms: []},
+  {ch: 2, start: 0, end: 4, string: "hero", type: "NAME", lineNumber: 11, tokenIndex: 1, current: ["hero"], synonyms: []},
+  {ch: 4, start: 0, end: 4, string: "hero", type: "NAME", lineNumber: 11, tokenIndex: 1, current: ["hero"], synonyms: []},
+  {ch: 5, start: 4, end: 7, string: " = ", type: "ASSIGNMENT", lineNumber: 11, tokenIndex: 2, current: ["hero", "="], synonyms: []},
+  {ch: 6, start: 4, end: 7, string: " = ", type: "ASSIGNMENT", lineNumber: 11, tokenIndex: 2, current: ["hero", "="], synonyms: []},
+  {ch: 7, start: 4, end: 7, string: " = ", type: "ASSIGNMENT", lineNumber: 11, tokenIndex: 2, current: ["hero", "="], synonyms: []},
+  {ch: 8, start: 7, end: 13, string: "player", type: "NAME", lineNumber: 11, tokenIndex: 3, current: ["hero", "=", "player"], synonyms: [["hero", "player"]]},
+  {ch: 13, start: 7, end: 13, string: "player", type: "NAME", lineNumber: 11, tokenIndex: 3, current: ["hero", "=", "player"], synonyms: [["hero", "player"]]}
 ]
 
 function stateSummary(state) {

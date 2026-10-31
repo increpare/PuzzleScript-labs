@@ -153,6 +153,8 @@ void emitExtraMemberDiagnostics(const ParserState& state, DiagnosticSink& diagno
         if (object.colors.size() > 10) diagnostics.error(DiagnosticCode::GenericError, object.lineNumber + 1,
             "a sprite cannot have more than 10 colors. Why you would want more than 10 is beyond me.");
         if (object.colors.empty()) diagnostics.error(DiagnosticCode::GenericError, object.lineNumber, "color not specified for object \"" + name + "\".");
+        if (object.spritematrix.empty() && object.colors.size() > 1) diagnostics.warning(DiagnosticCode::GenericWarning, object.lineNumber,
+            "Object \"" + toUpperAsciiCopy(name) + "\" lists several colours but doesn't have a sprite matrix; it will just be a solid square of the first colour.");
         if (!object.spritematrix.empty()) {
             const bool valid = object.spritematrix.size() == 5 && std::all_of(object.spritematrix.begin(), object.spritematrix.end(), [](const auto& row) { return row.size() == 5; });
             if (!valid) diagnostics.warning(DiagnosticCode::GenericWarning, object.lineNumber, "Sprite graphics must be 5 wide and 5 high exactly.");

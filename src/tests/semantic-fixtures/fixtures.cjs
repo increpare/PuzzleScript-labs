@@ -51,7 +51,8 @@ function loadFixtures({ directory = __dirname, filter = '' } = {}) {
       assert.ok(game.cells && typeof game.cells === 'object' && !Array.isArray(game.cells), game.id + ': missing expected cells');
       assert.ok(Array.isArray(game.cases) && game.cases.length > 0, game.id + ': missing cases');
       for (const entry of game.cases) {
-        fields(entry, ['name', 'inputs', 'expected', 'level', 'seed', 'expectedSounds', 'expectedPlayedSounds'], 'case');
+        fields(entry, ['name', 'inputs', 'expected', 'level', 'seed', 'expectedSounds', 'expectedPlayedSounds',
+          'labsExpected', 'labsExpectedSounds'], 'case');
         assert.ok(typeof entry.name === 'string' && entry.name.length > 0, game.id + ': missing case name');
         const name = 'semantic: ' + game.id + ': ' + entry.name;
         assert.ok(!names.has(name), 'Duplicate fixture: ' + name);
@@ -64,7 +65,11 @@ function loadFixtures({ directory = __dirname, filter = '' } = {}) {
         const expectedBoard = serializeExpectedBoard(entry.expected, game.cells);
         const fixture = { name, source, inputs: [...entry.inputs], expectedBoard, level, seed,
           expectedRows: [...entry.expected], explanation: game.explanation, sourceFile: game.sourceFile };
-        for (const field of ['expectedSounds', 'expectedPlayedSounds']) {
+        if (entry.labsExpected !== undefined) {
+          fixture.labsExpectedBoard = serializeExpectedBoard(entry.labsExpected, game.cells);
+          fixture.labsExpectedRows = [...entry.labsExpected];
+        }
+        for (const field of ['expectedSounds', 'expectedPlayedSounds', 'labsExpectedSounds']) {
           if (entry[field] === undefined) continue;
           assert.ok(Array.isArray(entry[field]) && entry[field].every(seed => typeof seed === 'string' || typeof seed === 'number'),
             name + ': ' + field + ' must be a sequence of sound seeds');
@@ -77,9 +82,12 @@ function loadFixtures({ directory = __dirname, filter = '' } = {}) {
   return fixtures;
 }
 
-function fixtureTuple(fixture) {
-  const payload = [fixture.source, fixture.inputs, fixture.expectedBoard, fixture.level, fixture.seed];
-  if (fixture.expectedSounds !== undefined) payload.push(fixture.expectedSounds);
+// Keep the pinned-native verifier historical; only Labs exports opt into overrides.
+function fixtureTuple(fixture, { labs = false } = {}) {
+  const expectedBoard = labs ? fixture.labsExpectedBoard ?? fixture.expectedBoard : fixture.expectedBoard;
+  const expectedSounds = labs ? fixture.labsExpectedSounds ?? fixture.expectedSounds : fixture.expectedSounds;
+  const payload = [fixture.source, fixture.inputs, expectedBoard, fixture.level, fixture.seed];
+  if (expectedSounds !== undefined) payload.push(expectedSounds);
   return [fixture.name, payload];
 }
 

@@ -255,12 +255,12 @@ Mobile.setupPlayerControls = function () {
     menu.className = 'player-menu';
     menu.hidden = true;
     menu.innerHTML = '<div class="player-menu-panel" role="dialog" aria-modal="true" aria-label="Game menu">' +
-        '<div class="player-menu-header"><h2>Game menu</h2><button type="button" id="closeMenuButton" class="player-button" aria-label="Close menu" title="Close menu"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>' +
-        '<label><span>Button size</span><select id="controlSize"><option value="48">Compact</option><option value="56" selected>Comfortable</option><option value="64">Large</option></select></label>' +
-        '<label><span>Position</span><select id="controlPosition"><option value="12">Near edges</option><option value="24" selected>Inset</option><option value="36">Further in</option></select></label>' +
+        '<div class="player-menu-header"><button type="button" id="closeMenuButton" class="player-button" aria-label="Close menu" title="Close menu"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>' +
+        '<label><span>Button size</span><select id="controlSize"><option value="48">Small</option><option value="56" selected>Medium</option><option value="64">Large</option></select></label>' +
+        '<label><span>Position</span><select id="controlPosition"><option value="12">Flush</option><option value="24" selected>Inset</option><option value="36">Deep</option></select></label>' +
         '<div class="player-menu-toggles"><label><span>Button labels</span><input type="checkbox" id="buttonLabels" checked></label>' +
-        '<label><span>Swap control sides</span><input type="checkbox" id="swapControls"></label>' +
-        '<label><span>Overlay controls</span><input type="checkbox" id="overlayControls" checked></label></div>' +
+        '<label><span>Swap sides</span><input type="checkbox" id="swapControls"></label>' +
+        '<label><span>Buttons Overlap Game</span><input type="checkbox" id="overlayControls" checked></label></div>' +
         '<div class="player-menu-footer"><button type="button" id="backToTitleButton">Back to title</button></div></div>';
     root.appendChild(menu);
     var panel = menu.firstChild;
@@ -403,6 +403,21 @@ Mobile.setupPlayerControls = function () {
         });
     });
     Mobile.layoutPlayerControls();
+
+    Mobile.fitPlayerControls = function (width, height) {
+        Mobile.syncPlayerControls();
+        // The checkbox stores the preference; the class describes the actual
+        // layout. Recheck the reserved space so resizing or changing levels
+        // can return to non-overlay controls without changing that preference.
+        var overlay = document.getElementById('overlayControls').checked;
+        root.classList.toggle('controls-overlay', overlay);
+        if (overlay || !root.classList.contains('touch-enabled') ||
+            !movement.getClientRects().length) { return false; }
+        var container = canvas.parentNode;
+        var forcedOverlay = container.clientWidth < width || container.clientHeight < height;
+        root.classList.toggle('controls-overlay', forcedOverlay);
+        return forcedOverlay;
+    };
 
     // Keep the existing pixel scale in overlay mode. If the board can fit clear
     // of the visible buttons, use the nearest such position to its usual centre.
@@ -576,28 +591,13 @@ Mobile.debugDot = function (event) {
         left: 37, // left arrow
         right: 39, // right arrow
         up: 38, // up arrow
-        down: 40, // down arrow
-        undo: 85, // u
-        restart: 82, // r
-        quit: 27 // escape
+        down: 40 // down arrow
     }
-
-    var TAB_STRING = [
-        '<div class="tab">',
-        '  <div class="tab-affordance"></div>',
-        '  <div class="tab-icon">',
-        '    <div class="slice"></div>',
-        '    <div class="slice"></div>',
-        '  </div>',
-        '</div>'
-    ].join("\n");
 
     /** Bootstrap Methods **/
 
     proto.initialize = function () {
         this.firstPos = { x: 0, y: 0 };
-        this.setTabAnimationRatio = this.setTabAnimationRatio.bind(this);
-        this.setMenuAnimationRatio = this.setMenuAnimationRatio.bind(this);
         this.repeatTick = this.repeatTick.bind(this);
         this.isFocused = true;
     };
@@ -621,12 +621,13 @@ Mobile.debugDot = function (event) {
             Mobile.playerToolbar.classList.add('touch-enabled');
             Mobile.playerRoot.classList.add('touch-enabled');
             var links = document.getElementById('playerLinks');
+            // Keep the homepage by the title on touch screens, including
+            // games without a hack link. Desktop keeps both below the game.
+            var homepage = document.getElementById('homepagelink');
+            if (homepage) { Mobile.playerToolbar.querySelector('.player-identity').appendChild(homepage); }
             if (links) { document.querySelector('.player-menu-footer').appendChild(links); }
             Mobile.layoutPlayerControls();
             canvasResize();
-        } else {
-            this.showTab();
-            this.disableScrolling();
         }
         if (!this.isAudioSupported()) {
             this.disableAudio();
@@ -936,9 +937,9 @@ Mobile.debugDot = function (event) {
     proto.handleSwipe = function (direction, touchCount) {
         if (touchCount === 1) {
             this.emitKeydown(this.swipeDirection);
-        } else if (touchCount > 1) {
+        } else if (touchCount > 1 && Mobile.setPlayerMenu) {
             // Since this was a multitouch gesture, open the menu.
-            this.toggleMenu();
+            Mobile.setPlayerMenu(!Mobile.playerMenuOpen);
         }
     };
 
@@ -968,179 +969,6 @@ Mobile.debugDot = function (event) {
         });
     };
 
-    proto.toggleMenu = function () {
-        if (Mobile.playerToolbar) {
-            Mobile.setPlayerMenu(!Mobile.playerMenuOpen);
-            return;
-        }
-        if (this.isMenuVisible) {
-            this.hideMenu();
-        } else {
-            this.showMenu();
-        }
-    };
-
-    proto.showMenu = function () {
-        if (!this.menuElem) {
-            this.buildMenu();
-        }
-        this.getAnimatables().menu.animateUp();
-        this.isMenuVisible = true;
-        this.hideTab();
-    };
-
-    proto.hideMenu = function () {
-        if (this.menuElem) {
-            this.getAnimatables().menu.animateDown();
-        }
-        this.isMenuVisible = false;
-        this.showTab();
-    };
-
-    proto.getAnimatables = function () {
-        var self = this;
-        if (!this._animatables) {
-            this._animatables = {
-                tab: Animatable('tab', 0.1, self.setTabAnimationRatio),
-                menu: Animatable('menu', 0.1, self.setMenuAnimationRatio)
-            }
-        }
-        return this._animatables;
-    };
-
-    proto.showTab = function () {
-        if (!this.tabElem) {
-            this.buildTab();
-        }
-        this.getAnimatables().tab.animateDown();
-    };
-
-    proto.hideTab = function () {
-        if (this.tabElem) {
-            this.tabElem.setAttribute('style', 'display: none;');
-        }
-        this.getAnimatables().tab.animateUp();
-    };
-
-    proto.buildTab = function () {
-        var self = this;
-        var tempElem, body;
-        var openCallback;
-        var tabElem;
-        var assemblyElem;
-
-        tempElem = document.createElement('div');
-        tempElem.innerHTML = TAB_STRING;
-        assemblyElem = tempElem.children[0];
-
-        openCallback = function (event) {
-            event.stopPropagation();
-            self.showMenu();
-        };
-        this.tabAffordance = assemblyElem.getElementsByClassName('tab-affordance')[0];
-        this.tabElem = assemblyElem.getElementsByClassName('tab-icon')[0];
-
-        //the reason I'm adding all these empty click events is on safari to disable double-tap to zoom (also needs some other css settings. cf https://github.com/increpare/PuzzleScript/issues/599 SMGDH)
-        this.tabAffordance.addEventListener('touchstart', openCallback);
-        this.tabAffordance.addEventListener("click", event => { });
-        this.tabElem.addEventListener('touchstart', openCallback);
-        this.tabElem.addEventListener("click", event => { });
-
-        body = document.getElementsByTagName('body')[0];
-        body.appendChild(assemblyElem);
-    };
-
-    proto.buildMenu = function () {
-        var self = this;
-        var tempElem, body;
-        var undo, restart, quit;
-        var closeTab;
-        var closeCallback;
-
-        tempElem = document.createElement('div');
-        tempElem.innerHTML = this.buildMenuString(state);
-        this.menuElem = tempElem.children[0];
-        this.closeElem = this.menuElem.getElementsByClassName('close')[0];
-
-        closeCallback = function (event) {
-            event.stopPropagation();
-            self.hideMenu();
-        };
-        this.closeAffordance = this.menuElem.getElementsByClassName('close-affordance')[0];
-        closeTab = this.menuElem.getElementsByClassName('close')[0];
-        this.closeAffordance.addEventListener('touchstart', closeCallback);
-        this.closeAffordance.addEventListener("click", event => { });
-        closeTab.addEventListener('touchstart', closeCallback);
-        closeTab.addEventListener("click", event => { });
-
-        undo = this.menuElem.getElementsByClassName('undo')[0];
-        if (undo) {
-            undo.addEventListener('touchstart', function (event) {
-                event.stopPropagation();
-                self.emitKeydown('undo');
-            });
-            undo.addEventListener("click", event => { });
-        }
-        restart = this.menuElem.getElementsByClassName('restart')[0];
-        if (restart) {
-            restart.addEventListener('touchstart', function (event) {
-                event.stopPropagation();
-                self.emitKeydown('restart');
-            });
-            restart.addEventListener("click", event => { });
-        }
-
-        quit = this.menuElem.getElementsByClassName('quit')[0];
-        quit.addEventListener('touchstart', function (event) {
-            event.stopPropagation();
-            self.emitKeydown('quit');
-        });
-        quit.addEventListener("click", event => { });
-
-        body = document.getElementsByTagName('body')[0];
-        body.appendChild(this.menuElem);
-    };
-
-    proto.buildMenuString = function (state) {
-        // Template for the menu.
-        var itemCount, menuLines;
-        var noUndo, noRestart;
-
-        noUndo = state.metadata.noundo;
-        noRestart = state.metadata.norestart;
-
-        itemCount = 3;
-        if (noUndo) {
-            itemCount -= 1;
-        }
-        if (noRestart) {
-            itemCount -= 1;
-        }
-
-        menuLines = [
-            '<div class="mobile-menu item-count-' + itemCount + '">',
-            '  <div class="close-affordance"></div>',
-            '  <div class="close">',
-            '    <div class="slice"></div>',
-            '    <div class="slice"></div>',
-            '  </div>'
-        ];
-
-        if (!noUndo) {
-            menuLines.push('  <div class="undo button">Undo</div>');
-        }
-        if (!noRestart) {
-            menuLines.push('  <div class="restart button">Restart</div>');
-        }
-        menuLines = menuLines.concat([
-            '  <div class="quit button">Quit to Menu</div>',
-            '  <div class="clear"></div>',
-            '</div>'
-        ]);
-
-        return menuLines.join("\n");
-    };
-
     proto.buildFocusIndicator = function () {
         var focusElementParent;
         this.focusIndicator = document.createElement('DIV');
@@ -1150,71 +978,6 @@ Mobile.debugDot = function (event) {
         focusElementParent = this.focusElement.parentNode;
         focusElementParent.appendChild(this.focusIndicator);
     };
-
-    proto.setTabAnimationRatio = function (ratio) {
-        var LEFT = 18;
-        var RIGHT = 48 + 18;
-        var size, opacityString;
-        var style;
-
-        // Round away any exponents that might appear.
-        ratio = Math.round((ratio) * 1000) / 1000;
-        if (ratio >= 0.999) {
-            this.tabAffordance.setAttribute('style', 'display: none;');
-        } else {
-            this.tabAffordance.setAttribute('style', 'display: block;');
-        }
-        size = RIGHT * ratio + LEFT * (1 - ratio);
-        opacityString = 'opacity: ' + (1 - ratio) + ';';
-        style = opacityString + ' ' +
-            'width: ' + size + 'px;';
-        this.tabElem.setAttribute('style', style);
-    };
-
-    proto.setMenuAnimationRatio = function (ratio) {
-        var LEFT = -48 - 18;
-        var RIGHT = -18;
-        var size, opacityString;
-        var style;
-
-        // Round away any exponents that might appear.
-        ratio = Math.round((ratio) * 1000) / 1000;
-
-        size = RIGHT * ratio + LEFT * (1 - ratio);
-        opacityString = 'opacity: ' + ratio + ';';
-        style = 'left: ' + (size - 4) + 'px; ' +
-            opacityString + ' ' +
-            'width: ' + (-size) + 'px;';
-        ratio = Math.round((ratio) * 1000) / 1000;
-
-        if (ratio <= 0.001) {
-            this.closeAffordance.setAttribute('style', 'display: none;');
-            opacityString = "display:none;"
-        } else {
-            this.closeAffordance.setAttribute('style', 'display: block;');
-        }
-
-        this.closeElem.setAttribute('style', style);
-
-        this.menuElem.setAttribute('style', opacityString);
-    };
-
-    proto.disableScrolling = function () {
-        var style = {
-            height: "100%",
-            overflow: "hidden",
-            position: "fixed",
-            width: "100%",
-            margin: 0
-        }
-
-        var styleString = "";
-        for (var key in style) {
-            styleString += key + ": " + style[key] + "; ";
-        }
-
-        document.body.setAttribute('style', styleString)
-    }
 
     /** Audio Methods **/
 
@@ -1251,108 +1014,6 @@ Mobile.debugDot = function (event) {
     };
 
 }(window.Mobile.GestureHandler.prototype));
-
-window.Animator = function () {
-    this.initialize.apply(this, arguments);
-};
-
-(function (proto) {
-    proto.initialize = function () {
-        this._animations = {};
-        this.tick = this.tick.bind(this);
-    };
-
-    proto.animate = function (key, tick) {
-        this._animations[key] = tick;
-        this.wakeup();
-    };
-
-    proto.wakeup = function () {
-        if (this._isAnimating) {
-            return;
-        }
-        this._isAnimating = true;
-        this.tick();
-    };
-
-    proto.tick = function () {
-        var key;
-        var isFinished, allFinished;
-        var toRemove, index;
-
-        toRemove = [];
-        allFinished = true;
-        for (key in this._animations) {
-            if (!this._animations.hasOwnProperty(key)) {
-                return;
-            }
-            isFinished = this._animations[key]();
-            if (!isFinished) {
-                allFinished = false;
-            } else {
-                toRemove.push(key);
-            }
-        }
-
-        if (!allFinished) {
-            requestAnimationFrame(this.tick);
-        } else {
-            for (index = 0; index < toRemove.length; toRemove++) {
-                delete this._isAnimating[toRemove[index]];
-            }
-            this._isAnimating = false;
-        }
-    };
-
-}(window.Animator.prototype));
-
-window.Animator.getInstance = function () {
-    if (!window.Animator._instance) {
-        window.Animator._instance = new window.Animator();
-    }
-    return window.Animator._instance;
-};
-
-function Animatable(key, increment, update) {
-    var ratio;
-    var handles;
-
-    handles = {
-        animateUp: function () {
-            Animator.getInstance().animate(key, tickUp);
-        },
-        animateDown: function () {
-            Animator.getInstance().animate(key, tickDown);
-        }
-    };
-
-    ratio = 0;
-
-    function tickUp() {
-        var isFinished;
-        ratio += increment;
-        if (ratio >= 1.0) {
-            isFinished = true;
-            ratio = 1;
-        }
-        update(ratio);
-        return isFinished;
-    };
-
-    function tickDown() {
-        var isFinished;
-        ratio -= increment;
-        if (ratio <= 0.0) {
-            isFinished = true;
-            ratio = 0;
-        }
-        update(ratio);
-        return isFinished;
-    };
-
-    return handles;
-};
-
 
 // http://paulirish.com/2011/requestanimationframe-for-smart-animating/
 // http://my.opera.com/emoller/blog/2011/12/20/requestanimationframe-for-smart-er-animating

@@ -47,7 +47,16 @@ body.player-shell { height: 100dvh; }
     text-overflow: ellipsis;
 }
 #homepagelink { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 12px/16px system-ui, sans-serif; text-decoration-thickness: 1px; text-decoration-color: color-mix(in srgb, currentColor 40%, transparent); text-underline-offset: 3px; touch-action: manipulation; }
-#homepagelink::after { content: ''; position: absolute; inset: 0; }
+.touch-enabled #homepagelink::after { content: ''; position: absolute; inset: 0; }
+body.player-shell:not(.touch-enabled) > .player-toolbar {
+    grid-template-columns: 44px minmax(0, max-content) 44px;
+    justify-content: center;
+    gap: 12px;
+    padding: 12px 16px 8px;
+}
+body.player-shell:not(.touch-enabled) .player-identity { align-items: center; gap: 4px; }
+body.player-shell:not(.touch-enabled) .player-toolbar h1 { max-width: 100%; font-size: clamp(24px, 2.5vw, 32px); line-height: 1.2; }
+body.player-shell:not(.touch-enabled) #homepagelink { font-size: 16px; line-height: 22px; }
 .player-controls { display: flex; align-items: center; min-height: 44px; }
 .player-controls:last-child { justify-content: flex-end; }
 .player-button {
@@ -131,11 +140,10 @@ body.player-shell { height: 100dvh; }
 #errormessage:empty { display: none; }
 .player-menu { position: fixed; z-index: 10; inset: 0; display: flex; align-items: center; justify-content: center; padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); background: rgba(0,0,0,.45); }
 .player-menu[hidden] { display: none; }
-.player-menu-panel { max-height: 100%; overflow-y: auto; width: 340px; max-width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid color-mix(in srgb, currentColor 24%, transparent); border-radius: 18px; color: var(--player-fg); background: var(--player-bg); box-shadow: 0 16px 64px rgba(0,0,0,.35); display: grid; gap: 4px; }
+.player-menu-panel { max-height: 100%; overflow-y: auto; width: 340px; max-width: 100%; box-sizing: border-box; padding: 4px 12px 12px; border: 1px solid color-mix(in srgb, currentColor 24%, transparent); border-radius: 18px; color: var(--player-fg); background: var(--player-bg); box-shadow: 0 16px 64px rgba(0,0,0,.35); display: grid; gap: 4px; }
 .player-menu button, .player-menu a, .player-menu label { display: flex; align-items: center; justify-content: space-between; min-height: 44px; box-sizing: border-box; padding: 8px 12px; font: 14px/20px system-ui, sans-serif; border: 0; border-radius: 10px; color: inherit; background: transparent; touch-action: manipulation; cursor: pointer; }
 .player-menu-header, .player-menu-footer { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; }
-.player-menu-header { justify-content: space-between; }
-.player-menu-header h2 { margin: 0; padding-left: 8px; font: 500 16px/24px system-ui, sans-serif; }
+.player-menu-header { justify-content: flex-end; margin-right: -4px; }
 .player-menu .player-menu-header button { flex: none; width: 44px; height: 44px; padding: 0; }
 .player-menu label { gap: 12px; padding: 0 8px; }
 .player-menu-toggles { display: contents; }
@@ -150,12 +158,21 @@ body.player-shell { height: 100dvh; }
 .player-menu input:checked::before { left: 17px; background: var(--player-bg); }
 
 .player-menu #backToTitleButton { justify-content: flex-start; }
-#playerLinks { flex: none; text-align: center; }
-body > #playerLinks a { display: inline-block; padding: 8px 16px; font-size: 14px; }
-@media (orientation: landscape) and (min-width: 560px) {
+.footer-links { display: flex; justify-content: center; align-items: center; flex: none; min-width: 0; max-width: 100%; padding: 8px 16px; font: 16px/22px "Courier New", Courier, monospace; }
+.footer-links #homepagelink { display: block; min-width: 0; max-width: 80%; padding: 0; color: inherit; font: inherit; text-decoration: underline; }
+.footer-links #homepagelink::after { content: none; }
+#playerLinks { display: inline-flex; align-items: center; flex: none; font: inherit; }
+#playerLinks[hidden], .footer-links:empty { display: none; }
+#playerLinks :is(a, button) { min-height: 0; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; }
+#playerLinks .footer-separator { flex: none; padding: 0 6px; opacity: .5; }
+#playerLinks form { display: inline-flex; margin: 0; }
+.player-menu #playerLinks .footer-separator { display: none; }
+.player-menu-footer #playerLinks { flex: 1; justify-content: center; font: 14px/20px system-ui, sans-serif; }
+.player-menu-footer #playerLinks :is(a, button) { display: flex; align-items: center; min-height: 44px; padding: 0 8px; }
+@media (orientation: landscape) and (min-width: 560px) and (max-height: 400px) {
     .player-menu-toggles { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-    .player-menu-toggles label { gap: 8px; padding: 0 4px; }
-    .player-menu-panel { width: 560px; padding: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; row-gap: 3px; }
+    .player-menu-toggles label { gap: 8px; padding: 0 4px; border: 1px solid color-mix(in srgb, currentColor 24%, transparent); }
+    .player-menu-panel { width: 560px; padding: 4px 8px 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; row-gap: 3px; }
 }
 .disable-select { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 @media (max-width: 400px) {
@@ -196,17 +213,18 @@ body > #playerLinks a { display: inline-block; padding: 8px 16px; font-size: 14p
 </style>
 <style>
 body, #gameCanvas { background-color: ___BGCOLOR___; }
-h1, a { color: ___TEXTCOLOR___; }
+h1, a, .footer-links, #playerLinks { color: ___TEXTCOLOR___; }
 </style>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 </head>
 <body class="player-shell">
-<header class="player-toolbar" id="playerToolbar" aria-label="Game controls"><div class="player-identity"><h1 id="gametitle">__GAMETITLE__</h1><a id="homepagelink" href="__HOMEPAGE__" target="_blank" rel="noopener">__HOMEPAGE_STRIPPED_PROTOCOL__</a></div></header>
+<header class="player-toolbar" id="playerToolbar" aria-label="Game controls"><div class="player-identity"><h1 id="gametitle">__GAMETITLE__</h1></div></header>
 <div class="gameContainer">
 <canvas 
     id="gameCanvas" ></canvas>
 </div> 
 <span id="errormessage" style="color:red;" role="alert"></span>
+<div class="footer-links"><a id="homepagelink" href="__HOMEPAGE__" target="_blank" rel="noopener">__HOMEPAGE_STRIPPED_PROTOCOL__</a>__HACK_LINK__</div>
 
 <!--___SCRIPTINSERT___-->
 <script>
@@ -8665,9 +8683,6 @@ var oldfgcolor = -1;
 var forceRegenImages = false;
 function canvasResize(displaylevel) {
     displaylevel ||= level;
-    canvas.width = canvas.parentNode.clientWidth;
-    canvas.height = canvas.parentNode.clientHeight;
-
     screenwidth = displaylevel.width;
     screenheight = displaylevel.height;
     if (state !== undefined) {
@@ -8692,9 +8707,6 @@ function canvasResize(displaylevel) {
         screenheight = TERMINAL_HEIGHT;
     }
 
-    cellwidth = canvas.width / screenwidth;
-    cellheight = canvas.height / screenheight;
-
     var w = 5;//sprites[1].dat.length;
     var h = 5;//sprites[1].dat[0].length;
 
@@ -8704,8 +8716,15 @@ function canvasResize(displaylevel) {
         h = xchar.length;
     }
 
-    cellwidth = w * Math.max(~~(cellwidth / w), 1);
-    cellheight = h * Math.max(~~(cellheight / h), 1);
+    var forcedOverlay = window.Mobile && Mobile.fitPlayerControls &&
+        Mobile.fitPlayerControls(screenwidth * w, screenheight * h);
+    canvas.width = canvas.parentNode.clientWidth;
+    canvas.height = canvas.parentNode.clientHeight;
+
+    // A forced overlay only rescues a board that could not fit at 1x. Keep
+    // that scale instead of enlarging it back underneath the controls.
+    cellwidth = forcedOverlay ? w : w * Math.max(~~(canvas.width / screenwidth / w), 1);
+    cellheight = forcedOverlay ? h : h * Math.max(~~(canvas.height / screenheight / h), 1);
 
     xoffset = 0;
     yoffset = 0;
@@ -11172,8 +11191,12 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 			curRigidGroupIndexMask = level.rigidGroupIndexMask[currentIndex] || new BitVec(${STRIDE_MOV});
 			curRigidMovementAppliedMask = level.rigidMovementAppliedMask[currentIndex] || new BitVec(${STRIDE_MOV});
 
-			if (${NOT_BITS_SET_IN_ARRAY("rigidMask", "curRigidGroupIndexMask.data", MOVEMENT_SIZE)} &&
-				${NOT_BITS_SET_IN_ARRAY("replace.movementsLayerMask", "curRigidMovementAppliedMask.data", MOVEMENT_SIZE)}) 
+
+			// Don't allow subsequent rigid rules to alter already-assigned ownership;
+			// (and: group indices are numeric codes, not flags.)
+			// cf https://github.com/increpare/PuzzleScript/issues/1206
+			${UNROLL("rigidMask &= ~curRigidMovementAppliedMask", MOVEMENT_SIZE)}
+			if (${IS_NONZERO("rigidMask", MOVEMENT_SIZE)})
 			{
 				${UNROLL("curRigidGroupIndexMask |= rigidMask", MOVEMENT_SIZE)}
 				${UNROLL("curRigidMovementAppliedMask |= replace.movementsLayerMask", MOVEMENT_SIZE)}
@@ -12639,7 +12662,8 @@ function processCommandQueue(bak, dontModify, dontDoWin, inputDir, skipAgainProb
 	// If not winning, process checkpoints and AGAIN command.
 	if (!winning) {
 		let checkpointIndex = level.commandQueue.indexOf('checkpoint');
-		if (checkpointIndex >= 0) {
+		// A speculative AGAIN turn must not change the restart state or storage.
+		if (!dontModify && checkpointIndex >= 0) {
 			if (verbose_logging) {
 				let r = level.commandQueueSourceRules[checkpointIndex];
 				consolePrintFromRule('CHECKPOINT command executed, saving current state to the restart state.', r);
@@ -12977,7 +13001,7 @@ const reg_message_verb = /[\p{Z}\s]*message\b[\p{Z}\s]*/u;
 const reg_message_verb_nospace = /[\p{Z}\s]*message[\p{Z}\s]*/u;
 const reg_hexcolor = /#[0-9a-fA-F]+/;
 const metadata_with_value = ['title', 'author', 'homepage', 'background_color', 'text_color', 'key_repeat_interval', 'realtime_interval', 'again_interval', 'flickscreen', 'zoomscreen', 'color_palette', 'youtube'];
-const metadata_no_value = ['run_rules_on_level_start', 'norepeat_action', 'require_player_movement', 'debug', 'verbose_logging', 'throttle_movement', 'noundo', 'noaction', 'norestart', 'scanline'];
+const metadata_no_value = ['run_rules_on_level_start', 'norepeat_action', 'require_player_movement', 'debug', 'verbose_logging', 'throttle_movement', 'noundo', 'noaction', 'nohack', 'norestart', 'scanline'];
 const metadata_with_value_set = new Set(metadata_with_value);
 const metadata_no_value_set = new Set(metadata_no_value);
 const reg_ascii_lower_word = /^[a-z0-9_]+$/;
@@ -13246,7 +13270,7 @@ let codeMirrorFn = function () {
                 ok = false;
             }
 
-            if (keyword_array_set.has(candname)) {
+            if (candname.length > 1 && keyword_array_set.has(candname)) {
                 logWarning('You named an object "' + candname.toUpperCase() + '", but this is a keyword. Don\'t do that!', state.lineNumber);
             }
 
@@ -13464,8 +13488,9 @@ let codeMirrorFn = function () {
                 sol_after_comment: state.sol_after_comment,
 
                 inside_cell: state.inside_cell,
-                bracket_balance: state.bracket_balance,
+                lhs_rhs_rowcount_difference: state.lhs_rhs_rowcount_difference,
                 arrow_passed: state.arrow_passed,
+                rhs_pattern_started: state.rhs_pattern_started,
                 rule_prelude: state.rule_prelude,
 
                 objects_candname: state.objects_candname,
@@ -13474,6 +13499,7 @@ let codeMirrorFn = function () {
 
                 tokenIndex: state.tokenIndex,
                 current_line_wip_array: state.current_line_wip_array.slice(),
+                current_line_mixed_case: state.current_line_mixed_case,
 
                 legend_synonyms: legend_synonymsCopy,
                 legend_aggregates: legend_aggregatesCopy,
@@ -13506,18 +13532,22 @@ let codeMirrorFn = function () {
             return nstate;
         },
         blankLine: function (state) {
-            pushNewBlankLevel(state);
+            // CodeMirror skips token() for empty lines; the compiler does not.
+            // Keep line numbers and section transitions identical in both paths.
+            this.token(new CodeMirror.StringStream(''), state);
         },
         token: function (stream, state) {
-            let mixedCase = stream.string;
             let sol = stream.sol();
             if (sol) {
                 state.lineNumber++;
                 state.current_line_wip_array = [];
+                // Keep the source spelling for names registered after the first token.
+                state.current_line_mixed_case = stream.string;
                 stream.string = stream.string.toLowerCase();
                 state.tokenIndex = 0;
                 state.line_should_end = false;
             }
+            let mixedCase = state.current_line_mixed_case;
             if (state.sol_after_comment) {
                 sol = true;
                 state.sol_after_comment = false;
@@ -13704,7 +13734,7 @@ let codeMirrorFn = function () {
                                         logError('Name "' + candname.toUpperCase() + '" already in use.', state.lineNumber);
                                     }
                                 }
-                                if (keyword_array_set.has(candname)) {
+                                if ((sol || candname.length > 1) && keyword_array_set.has(candname)) {
                                     logWarning('You named an object "' + candname.toUpperCase() + '", but this is a keyword. Don\'t do that!', state.lineNumber);
                                 }
 
@@ -14155,7 +14185,7 @@ let codeMirrorFn = function () {
                                     warningStr += "#" + (foundOthers[i] + 1) + ", ";
                                 }
                                 warningStr += "#" + state.collisionLayers.length;
-                                logWarning(warningStr + ' ). You should fix this!', state.lineNumber);
+                                logWarning(warningStr + ' ). You should fix this! (The compiler will just pick one layer to assign it to).', state.lineNumber);
                             }
 
                             if (state.current_line_wip_array.includes(candname)) {
@@ -14181,7 +14211,8 @@ let codeMirrorFn = function () {
                             state.tokenIndex = 0;//in rules, records whether bracket has been found or not
                             state.inside_cell = false;
                             state.arrow_passed = false;
-                            state.bracket_balance = 0;
+                            state.lhs_rhs_rowcount_difference = 0;
+                            state.rhs_pattern_started = false;
                             state.rule_prelude = true;
                         }
 
@@ -14197,13 +14228,16 @@ let codeMirrorFn = function () {
                             if (ch === '[') {
                                 state.inside_cell = true;
                                 state.rule_prelude = false;
+                                if (state.arrow_passed) {
+                                    state.rhs_pattern_started = true;
+                                }
                             } else if (ch === ']') {
                                 state.inside_cell = false;
                                 //used to detect if we've reached the final ']'
                                 if (state.arrow_passed) {
-                                    state.bracket_balance--;
+                                    state.lhs_rhs_rowcount_difference--;
                                 } else {
-                                    state.bracket_balance++;
+                                    state.lhs_rhs_rowcount_difference++;
                                 }
                             }
 
@@ -14427,7 +14461,8 @@ let codeMirrorFn = function () {
                                 return 'METADATA';
                             } else {
                                 //garbage found
-                                logError(`Unrecognised stuff "${stream.string}" in the prelude.`, state.lineNumber);
+                                const text = stream.string.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                                logError(`Unrecognised stuff "${text}" in the prelude.`, state.lineNumber);
                             }
                         } else {
                             stream.match(reg_notcommentstart, true);
@@ -14485,8 +14520,9 @@ let codeMirrorFn = function () {
                 sol_after_comment: false,
 
                 inside_cell: false,
-                bracket_balance: 0,
+                lhs_rhs_rowcount_difference: 0,
                 arrow_passed: false,
+                rhs_pattern_started: false,
                 rule_prelude: true,
 
                 objects_candname: '',
@@ -14498,6 +14534,7 @@ let codeMirrorFn = function () {
                 tokenIndex: 0,
 
                 current_line_wip_array: [],
+                current_line_mixed_case: '',
 
                 legend_synonyms: [],
                 legend_aggregates: [],
@@ -14728,6 +14765,9 @@ function generateExtraMembers(state) {
             o.colors = ["#ff00ff"];
         }
         if (o.spritematrix.length === 0) {
+            if (o.colors.length > 1) {
+                logWarning('Object "' + n.toUpperCase() + '" lists several colours but doesn\'t have a sprite matrix; it will just be a solid square of the first colour.', o.lineNumber);
+            }
             o.spritematrix = [
                 [0, 0, 0, 0, 0],
                 [0, 0, 0, 0, 0],
@@ -15252,7 +15292,7 @@ function processRuleString(rule, state, curRules) {
                             logError("Error, an item can only have one direction/action at a time, but you're looking for several at once!", lineNumber);
                         } else if (!incellrow) {
                             logWarning("Invalid syntax. Directions should be placed at the start of a rule.", lineNumber);
-                        } else if (late && token !== 'no' && token !== 'random' && token !== 'randomdir') {
+                        } else if (late && token !== 'no' && token !== 'random') {
                             logError("Movements cannot appear in late rules.", lineNumber);
                         } else {
                             curcell.push(token);
@@ -17678,9 +17718,11 @@ function rulesToMask(state) {
                         break;
                     }
                     
-                    if (object_dir === 'random') {
-                        logError("RANDOM cannot be matched on the left-hand side, it can only appear on the right", rule.lineNumber);
-                        continue;
+                    if (object_dir === 'random' || object_dir === 'randomdir') {
+                        logError(`${object_dir.toUpperCase()} cannot be matched on the left-hand side; it can only appear on the right`, rule.lineNumber);
+                        state.rules.splice(ruleIndex, 1);
+                        ruleIndex--;
+                        continue outerloop;
                     }
 
                     // Process regular object
@@ -19210,6 +19252,7 @@ function twiddleMetaData(state) {
             } else {
                 if (intcoords[0] <= 0 || intcoords[1] <= 0) {
                     logWarning(`The dimensions given to me (you gave "${val}") are baad - they should be > 0.`, lineNumber);
+                    return null;
                 }
                 return intcoords;
             }
@@ -20457,6 +20500,16 @@ function onMouseUp(event) {
 	event.handled = true;
 }
 
+function pressKey(event, justPressed) {
+	// So if we have a key buffer that looks like A B ^ C D (current timepoint indicated by ^ ),
+	// and we press X, we want to get the new state being
+	// A B X ^ C D
+	keyRepeatIndex = Math.min(keyRepeatIndex + 1, keybuffer.length);
+	keybuffer.splice(keyRepeatIndex, 0, event.keyCode);
+	keyRepeatTimer = 0;
+	checkKey(event, justPressed);
+}
+
 function onKeyDown(event) {
 
 	ULBS();
@@ -20494,9 +20547,7 @@ function onKeyDown(event) {
 		if (keybuffer.indexOf(event.keyCode) === -1) {
 			if (event && ((event.ctrlKey&&event.keyCode!==90) || event.metaKey)) {
 			} else {
-				keybuffer.splice(keyRepeatIndex, 0, event.keyCode);
-				keyRepeatTimer = 0;
-				checkKey(event, !event.repeat);
+				pressKey(event, !event.repeat);
 			}
 		}
 	}
@@ -20655,9 +20706,7 @@ function pollGamepads() {
 
 	function keyPressed(keycode) {
     	if(keybuffer.indexOf(keycode) === -1) {
-    		keybuffer.splice(keyRepeatIndex, 0, keycode);
-	    	keyRepeatTimer = 0;
-	    	checkKey({keyCode: keycode}, true);
+			pressKey({keyCode: keycode}, true);
 		}
 
 		newGamepadKeys.splice(0, 0, keycode);
@@ -21343,12 +21392,12 @@ Mobile.setupPlayerControls = function () {
     menu.className = 'player-menu';
     menu.hidden = true;
     menu.innerHTML = '<div class="player-menu-panel" role="dialog" aria-modal="true" aria-label="Game menu">' +
-        '<div class="player-menu-header"><h2>Game menu</h2><button type="button" id="closeMenuButton" class="player-button" aria-label="Close menu" title="Close menu"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>' +
-        '<label><span>Button size</span><select id="controlSize"><option value="48">Compact</option><option value="56" selected>Comfortable</option><option value="64">Large</option></select></label>' +
-        '<label><span>Position</span><select id="controlPosition"><option value="12">Near edges</option><option value="24" selected>Inset</option><option value="36">Further in</option></select></label>' +
+        '<div class="player-menu-header"><button type="button" id="closeMenuButton" class="player-button" aria-label="Close menu" title="Close menu"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>' +
+        '<label><span>Button size</span><select id="controlSize"><option value="48">Small</option><option value="56" selected>Medium</option><option value="64">Large</option></select></label>' +
+        '<label><span>Position</span><select id="controlPosition"><option value="12">Flush</option><option value="24" selected>Inset</option><option value="36">Deep</option></select></label>' +
         '<div class="player-menu-toggles"><label><span>Button labels</span><input type="checkbox" id="buttonLabels" checked></label>' +
-        '<label><span>Swap control sides</span><input type="checkbox" id="swapControls"></label>' +
-        '<label><span>Overlay controls</span><input type="checkbox" id="overlayControls" checked></label></div>' +
+        '<label><span>Swap sides</span><input type="checkbox" id="swapControls"></label>' +
+        '<label><span>Buttons Overlap Game</span><input type="checkbox" id="overlayControls" checked></label></div>' +
         '<div class="player-menu-footer"><button type="button" id="backToTitleButton">Back to title</button></div></div>';
     root.appendChild(menu);
     var panel = menu.firstChild;
@@ -21491,6 +21540,21 @@ Mobile.setupPlayerControls = function () {
         });
     });
     Mobile.layoutPlayerControls();
+
+    Mobile.fitPlayerControls = function (width, height) {
+        Mobile.syncPlayerControls();
+        // The checkbox stores the preference; the class describes the actual
+        // layout. Recheck the reserved space so resizing or changing levels
+        // can return to non-overlay controls without changing that preference.
+        var overlay = document.getElementById('overlayControls').checked;
+        root.classList.toggle('controls-overlay', overlay);
+        if (overlay || !root.classList.contains('touch-enabled') ||
+            !movement.getClientRects().length) { return false; }
+        var container = canvas.parentNode;
+        var forcedOverlay = container.clientWidth < width || container.clientHeight < height;
+        root.classList.toggle('controls-overlay', forcedOverlay);
+        return forcedOverlay;
+    };
 
     // Keep the existing pixel scale in overlay mode. If the board can fit clear
     // of the visible buttons, use the nearest such position to its usual centre.
@@ -21664,28 +21728,13 @@ Mobile.debugDot = function (event) {
         left: 37, // left arrow
         right: 39, // right arrow
         up: 38, // up arrow
-        down: 40, // down arrow
-        undo: 85, // u
-        restart: 82, // r
-        quit: 27 // escape
+        down: 40 // down arrow
     }
-
-    var TAB_STRING = [
-        '<div class="tab">',
-        '  <div class="tab-affordance"></div>',
-        '  <div class="tab-icon">',
-        '    <div class="slice"></div>',
-        '    <div class="slice"></div>',
-        '  </div>',
-        '</div>'
-    ].join("\n");
 
     /** Bootstrap Methods **/
 
     proto.initialize = function () {
         this.firstPos = { x: 0, y: 0 };
-        this.setTabAnimationRatio = this.setTabAnimationRatio.bind(this);
-        this.setMenuAnimationRatio = this.setMenuAnimationRatio.bind(this);
         this.repeatTick = this.repeatTick.bind(this);
         this.isFocused = true;
     };
@@ -21709,12 +21758,13 @@ Mobile.debugDot = function (event) {
             Mobile.playerToolbar.classList.add('touch-enabled');
             Mobile.playerRoot.classList.add('touch-enabled');
             var links = document.getElementById('playerLinks');
+            // Keep the homepage by the title on touch screens, including
+            // games without a hack link. Desktop keeps both below the game.
+            var homepage = document.getElementById('homepagelink');
+            if (homepage) { Mobile.playerToolbar.querySelector('.player-identity').appendChild(homepage); }
             if (links) { document.querySelector('.player-menu-footer').appendChild(links); }
             Mobile.layoutPlayerControls();
             canvasResize();
-        } else {
-            this.showTab();
-            this.disableScrolling();
         }
         if (!this.isAudioSupported()) {
             this.disableAudio();
@@ -22024,9 +22074,9 @@ Mobile.debugDot = function (event) {
     proto.handleSwipe = function (direction, touchCount) {
         if (touchCount === 1) {
             this.emitKeydown(this.swipeDirection);
-        } else if (touchCount > 1) {
+        } else if (touchCount > 1 && Mobile.setPlayerMenu) {
             // Since this was a multitouch gesture, open the menu.
-            this.toggleMenu();
+            Mobile.setPlayerMenu(!Mobile.playerMenuOpen);
         }
     };
 
@@ -22056,179 +22106,6 @@ Mobile.debugDot = function (event) {
         });
     };
 
-    proto.toggleMenu = function () {
-        if (Mobile.playerToolbar) {
-            Mobile.setPlayerMenu(!Mobile.playerMenuOpen);
-            return;
-        }
-        if (this.isMenuVisible) {
-            this.hideMenu();
-        } else {
-            this.showMenu();
-        }
-    };
-
-    proto.showMenu = function () {
-        if (!this.menuElem) {
-            this.buildMenu();
-        }
-        this.getAnimatables().menu.animateUp();
-        this.isMenuVisible = true;
-        this.hideTab();
-    };
-
-    proto.hideMenu = function () {
-        if (this.menuElem) {
-            this.getAnimatables().menu.animateDown();
-        }
-        this.isMenuVisible = false;
-        this.showTab();
-    };
-
-    proto.getAnimatables = function () {
-        var self = this;
-        if (!this._animatables) {
-            this._animatables = {
-                tab: Animatable('tab', 0.1, self.setTabAnimationRatio),
-                menu: Animatable('menu', 0.1, self.setMenuAnimationRatio)
-            }
-        }
-        return this._animatables;
-    };
-
-    proto.showTab = function () {
-        if (!this.tabElem) {
-            this.buildTab();
-        }
-        this.getAnimatables().tab.animateDown();
-    };
-
-    proto.hideTab = function () {
-        if (this.tabElem) {
-            this.tabElem.setAttribute('style', 'display: none;');
-        }
-        this.getAnimatables().tab.animateUp();
-    };
-
-    proto.buildTab = function () {
-        var self = this;
-        var tempElem, body;
-        var openCallback;
-        var tabElem;
-        var assemblyElem;
-
-        tempElem = document.createElement('div');
-        tempElem.innerHTML = TAB_STRING;
-        assemblyElem = tempElem.children[0];
-
-        openCallback = function (event) {
-            event.stopPropagation();
-            self.showMenu();
-        };
-        this.tabAffordance = assemblyElem.getElementsByClassName('tab-affordance')[0];
-        this.tabElem = assemblyElem.getElementsByClassName('tab-icon')[0];
-
-        //the reason I'm adding all these empty click events is on safari to disable double-tap to zoom (also needs some other css settings. cf https://github.com/increpare/PuzzleScript/issues/599 SMGDH)
-        this.tabAffordance.addEventListener('touchstart', openCallback);
-        this.tabAffordance.addEventListener("click", event => { });
-        this.tabElem.addEventListener('touchstart', openCallback);
-        this.tabElem.addEventListener("click", event => { });
-
-        body = document.getElementsByTagName('body')[0];
-        body.appendChild(assemblyElem);
-    };
-
-    proto.buildMenu = function () {
-        var self = this;
-        var tempElem, body;
-        var undo, restart, quit;
-        var closeTab;
-        var closeCallback;
-
-        tempElem = document.createElement('div');
-        tempElem.innerHTML = this.buildMenuString(state);
-        this.menuElem = tempElem.children[0];
-        this.closeElem = this.menuElem.getElementsByClassName('close')[0];
-
-        closeCallback = function (event) {
-            event.stopPropagation();
-            self.hideMenu();
-        };
-        this.closeAffordance = this.menuElem.getElementsByClassName('close-affordance')[0];
-        closeTab = this.menuElem.getElementsByClassName('close')[0];
-        this.closeAffordance.addEventListener('touchstart', closeCallback);
-        this.closeAffordance.addEventListener("click", event => { });
-        closeTab.addEventListener('touchstart', closeCallback);
-        closeTab.addEventListener("click", event => { });
-
-        undo = this.menuElem.getElementsByClassName('undo')[0];
-        if (undo) {
-            undo.addEventListener('touchstart', function (event) {
-                event.stopPropagation();
-                self.emitKeydown('undo');
-            });
-            undo.addEventListener("click", event => { });
-        }
-        restart = this.menuElem.getElementsByClassName('restart')[0];
-        if (restart) {
-            restart.addEventListener('touchstart', function (event) {
-                event.stopPropagation();
-                self.emitKeydown('restart');
-            });
-            restart.addEventListener("click", event => { });
-        }
-
-        quit = this.menuElem.getElementsByClassName('quit')[0];
-        quit.addEventListener('touchstart', function (event) {
-            event.stopPropagation();
-            self.emitKeydown('quit');
-        });
-        quit.addEventListener("click", event => { });
-
-        body = document.getElementsByTagName('body')[0];
-        body.appendChild(this.menuElem);
-    };
-
-    proto.buildMenuString = function (state) {
-        // Template for the menu.
-        var itemCount, menuLines;
-        var noUndo, noRestart;
-
-        noUndo = state.metadata.noundo;
-        noRestart = state.metadata.norestart;
-
-        itemCount = 3;
-        if (noUndo) {
-            itemCount -= 1;
-        }
-        if (noRestart) {
-            itemCount -= 1;
-        }
-
-        menuLines = [
-            '<div class="mobile-menu item-count-' + itemCount + '">',
-            '  <div class="close-affordance"></div>',
-            '  <div class="close">',
-            '    <div class="slice"></div>',
-            '    <div class="slice"></div>',
-            '  </div>'
-        ];
-
-        if (!noUndo) {
-            menuLines.push('  <div class="undo button">Undo</div>');
-        }
-        if (!noRestart) {
-            menuLines.push('  <div class="restart button">Restart</div>');
-        }
-        menuLines = menuLines.concat([
-            '  <div class="quit button">Quit to Menu</div>',
-            '  <div class="clear"></div>',
-            '</div>'
-        ]);
-
-        return menuLines.join("\n");
-    };
-
     proto.buildFocusIndicator = function () {
         var focusElementParent;
         this.focusIndicator = document.createElement('DIV');
@@ -22238,71 +22115,6 @@ Mobile.debugDot = function (event) {
         focusElementParent = this.focusElement.parentNode;
         focusElementParent.appendChild(this.focusIndicator);
     };
-
-    proto.setTabAnimationRatio = function (ratio) {
-        var LEFT = 18;
-        var RIGHT = 48 + 18;
-        var size, opacityString;
-        var style;
-
-        // Round away any exponents that might appear.
-        ratio = Math.round((ratio) * 1000) / 1000;
-        if (ratio >= 0.999) {
-            this.tabAffordance.setAttribute('style', 'display: none;');
-        } else {
-            this.tabAffordance.setAttribute('style', 'display: block;');
-        }
-        size = RIGHT * ratio + LEFT * (1 - ratio);
-        opacityString = 'opacity: ' + (1 - ratio) + ';';
-        style = opacityString + ' ' +
-            'width: ' + size + 'px;';
-        this.tabElem.setAttribute('style', style);
-    };
-
-    proto.setMenuAnimationRatio = function (ratio) {
-        var LEFT = -48 - 18;
-        var RIGHT = -18;
-        var size, opacityString;
-        var style;
-
-        // Round away any exponents that might appear.
-        ratio = Math.round((ratio) * 1000) / 1000;
-
-        size = RIGHT * ratio + LEFT * (1 - ratio);
-        opacityString = 'opacity: ' + ratio + ';';
-        style = 'left: ' + (size - 4) + 'px; ' +
-            opacityString + ' ' +
-            'width: ' + (-size) + 'px;';
-        ratio = Math.round((ratio) * 1000) / 1000;
-
-        if (ratio <= 0.001) {
-            this.closeAffordance.setAttribute('style', 'display: none;');
-            opacityString = "display:none;"
-        } else {
-            this.closeAffordance.setAttribute('style', 'display: block;');
-        }
-
-        this.closeElem.setAttribute('style', style);
-
-        this.menuElem.setAttribute('style', opacityString);
-    };
-
-    proto.disableScrolling = function () {
-        var style = {
-            height: "100%",
-            overflow: "hidden",
-            position: "fixed",
-            width: "100%",
-            margin: 0
-        }
-
-        var styleString = "";
-        for (var key in style) {
-            styleString += key + ": " + style[key] + "; ";
-        }
-
-        document.body.setAttribute('style', styleString)
-    }
 
     /** Audio Methods **/
 
@@ -22339,108 +22151,6 @@ Mobile.debugDot = function (event) {
     };
 
 }(window.Mobile.GestureHandler.prototype));
-
-window.Animator = function () {
-    this.initialize.apply(this, arguments);
-};
-
-(function (proto) {
-    proto.initialize = function () {
-        this._animations = {};
-        this.tick = this.tick.bind(this);
-    };
-
-    proto.animate = function (key, tick) {
-        this._animations[key] = tick;
-        this.wakeup();
-    };
-
-    proto.wakeup = function () {
-        if (this._isAnimating) {
-            return;
-        }
-        this._isAnimating = true;
-        this.tick();
-    };
-
-    proto.tick = function () {
-        var key;
-        var isFinished, allFinished;
-        var toRemove, index;
-
-        toRemove = [];
-        allFinished = true;
-        for (key in this._animations) {
-            if (!this._animations.hasOwnProperty(key)) {
-                return;
-            }
-            isFinished = this._animations[key]();
-            if (!isFinished) {
-                allFinished = false;
-            } else {
-                toRemove.push(key);
-            }
-        }
-
-        if (!allFinished) {
-            requestAnimationFrame(this.tick);
-        } else {
-            for (index = 0; index < toRemove.length; toRemove++) {
-                delete this._isAnimating[toRemove[index]];
-            }
-            this._isAnimating = false;
-        }
-    };
-
-}(window.Animator.prototype));
-
-window.Animator.getInstance = function () {
-    if (!window.Animator._instance) {
-        window.Animator._instance = new window.Animator();
-    }
-    return window.Animator._instance;
-};
-
-function Animatable(key, increment, update) {
-    var ratio;
-    var handles;
-
-    handles = {
-        animateUp: function () {
-            Animator.getInstance().animate(key, tickUp);
-        },
-        animateDown: function () {
-            Animator.getInstance().animate(key, tickDown);
-        }
-    };
-
-    ratio = 0;
-
-    function tickUp() {
-        var isFinished;
-        ratio += increment;
-        if (ratio >= 1.0) {
-            isFinished = true;
-            ratio = 1;
-        }
-        update(ratio);
-        return isFinished;
-    };
-
-    function tickDown() {
-        var isFinished;
-        ratio -= increment;
-        if (ratio <= 0.0) {
-            isFinished = true;
-            ratio = 0;
-        }
-        update(ratio);
-        return isFinished;
-    };
-
-    return handles;
-};
-
 
 // http://paulirish.com/2011/requestanimationframe-for-smart-animating/
 // http://my.opera.com/emoller/blog/2011/12/20/requestanimationframe-for-smart-er-animating

@@ -38,7 +38,7 @@ const reg_message_verb = /[\p{Z}\s]*message\b[\p{Z}\s]*/u;
 const reg_message_verb_nospace = /[\p{Z}\s]*message[\p{Z}\s]*/u;
 const reg_hexcolor = /#[0-9a-fA-F]+/;
 const metadata_with_value = ['title', 'author', 'homepage', 'background_color', 'text_color', 'key_repeat_interval', 'realtime_interval', 'again_interval', 'flickscreen', 'zoomscreen', 'color_palette', 'youtube'];
-const metadata_no_value = ['run_rules_on_level_start', 'norepeat_action', 'require_player_movement', 'debug', 'verbose_logging', 'throttle_movement', 'noundo', 'noaction', 'norestart', 'scanline'];
+const metadata_no_value = ['run_rules_on_level_start', 'norepeat_action', 'require_player_movement', 'debug', 'verbose_logging', 'throttle_movement', 'noundo', 'noaction', 'nohack', 'norestart', 'scanline'];
 const metadata_with_value_set = new Set(metadata_with_value);
 const metadata_no_value_set = new Set(metadata_no_value);
 const reg_ascii_lower_word = /^[a-z0-9_]+$/;
@@ -307,7 +307,7 @@ let codeMirrorFn = function () {
                 ok = false;
             }
 
-            if (keyword_array_set.has(candname)) {
+            if (candname.length > 1 && keyword_array_set.has(candname)) {
                 logWarning('You named an object "' + candname.toUpperCase() + '", but this is a keyword. Don\'t do that!', state.lineNumber);
             }
 
@@ -525,8 +525,9 @@ let codeMirrorFn = function () {
                 sol_after_comment: state.sol_after_comment,
 
                 inside_cell: state.inside_cell,
-                bracket_balance: state.bracket_balance,
+                lhs_rhs_rowcount_difference: state.lhs_rhs_rowcount_difference,
                 arrow_passed: state.arrow_passed,
+                rhs_pattern_started: state.rhs_pattern_started,
                 rule_prelude: state.rule_prelude,
 
                 objects_candname: state.objects_candname,
@@ -535,6 +536,7 @@ let codeMirrorFn = function () {
 
                 tokenIndex: state.tokenIndex,
                 current_line_wip_array: state.current_line_wip_array.slice(),
+                current_line_mixed_case: state.current_line_mixed_case,
 
                 legend_synonyms: legend_synonymsCopy,
                 legend_aggregates: legend_aggregatesCopy,
@@ -567,18 +569,22 @@ let codeMirrorFn = function () {
             return nstate;
         },
         blankLine: function (state) {
-            pushNewBlankLevel(state);
+            // CodeMirror skips token() for empty lines; the compiler does not.
+            // Keep line numbers and section transitions identical in both paths.
+            this.token(new CodeMirror.StringStream(''), state);
         },
         token: function (stream, state) {
-            let mixedCase = stream.string;
             let sol = stream.sol();
             if (sol) {
                 state.lineNumber++;
                 state.current_line_wip_array = [];
+                // Keep the source spelling for names registered after the first token.
+                state.current_line_mixed_case = stream.string;
                 stream.string = stream.string.toLowerCase();
                 state.tokenIndex = 0;
                 state.line_should_end = false;
             }
+            let mixedCase = state.current_line_mixed_case;
             if (state.sol_after_comment) {
                 sol = true;
                 state.sol_after_comment = false;
@@ -765,7 +771,7 @@ let codeMirrorFn = function () {
                                         logError('Name "' + candname.toUpperCase() + '" already in use.', state.lineNumber);
                                     }
                                 }
-                                if (keyword_array_set.has(candname)) {
+                                if ((sol || candname.length > 1) && keyword_array_set.has(candname)) {
                                     logWarning('You named an object "' + candname.toUpperCase() + '", but this is a keyword. Don\'t do that!', state.lineNumber);
                                 }
 
@@ -1216,7 +1222,7 @@ let codeMirrorFn = function () {
                                     warningStr += "#" + (foundOthers[i] + 1) + ", ";
                                 }
                                 warningStr += "#" + state.collisionLayers.length;
-                                logWarning(warningStr + ' ). You should fix this!', state.lineNumber);
+                                logWarning(warningStr + ' ). You should fix this! (The compiler will just pick one layer to assign it to).', state.lineNumber);
                             }
 
                             if (state.current_line_wip_array.includes(candname)) {
@@ -1242,7 +1248,8 @@ let codeMirrorFn = function () {
                             state.tokenIndex = 0;//in rules, records whether bracket has been found or not
                             state.inside_cell = false;
                             state.arrow_passed = false;
-                            state.bracket_balance = 0;
+                            state.lhs_rhs_rowcount_difference = 0;
+                            state.rhs_pattern_started = false;
                             state.rule_prelude = true;
                         }
 
@@ -1258,13 +1265,16 @@ let codeMirrorFn = function () {
                             if (ch === '[') {
                                 state.inside_cell = true;
                                 state.rule_prelude = false;
+                                if (state.arrow_passed) {
+                                    state.rhs_pattern_started = true;
+                                }
                             } else if (ch === ']') {
                                 state.inside_cell = false;
                                 //used to detect if we've reached the final ']'
                                 if (state.arrow_passed) {
-                                    state.bracket_balance--;
+                                    state.lhs_rhs_rowcount_difference--;
                                 } else {
-                                    state.bracket_balance++;
+                                    state.lhs_rhs_rowcount_difference++;
                                 }
                             }
 
@@ -1488,7 +1498,8 @@ let codeMirrorFn = function () {
                                 return 'METADATA';
                             } else {
                                 //garbage found
-                                logError(`Unrecognised stuff "${stream.string}" in the prelude.`, state.lineNumber);
+                                const text = stream.string.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                                logError(`Unrecognised stuff "${text}" in the prelude.`, state.lineNumber);
                             }
                         } else {
                             stream.match(reg_notcommentstart, true);
@@ -1546,8 +1557,9 @@ let codeMirrorFn = function () {
                 sol_after_comment: false,
 
                 inside_cell: false,
-                bracket_balance: 0,
+                lhs_rhs_rowcount_difference: 0,
                 arrow_passed: false,
+                rhs_pattern_started: false,
                 rule_prelude: true,
 
                 objects_candname: '',
@@ -1559,6 +1571,7 @@ let codeMirrorFn = function () {
                 tokenIndex: 0,
 
                 current_line_wip_array: [],
+                current_line_mixed_case: '',
 
                 legend_synonyms: [],
                 legend_aggregates: [],

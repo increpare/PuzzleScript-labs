@@ -17,6 +17,7 @@
             ["homepage", "www.puzzlescript.net"],
             ["key_repeat_interval", "0.1"],
             ["noaction", ""],
+            ["nohack", ""],
             ["norepeat_action", ""],
             ["norestart", ""],
             ["noundo", ""],
@@ -382,8 +383,9 @@
                             candlists.push(RULE_DIRECTION_WORDS);
                             candlists.push(LOOP_WORDS);
 
-                            // we should only hint commands once we've reached the final ']'
-                            if (state.arrow_passed==true && state.bracket_balance===0) {
+                            // Commands may start directly after the arrow, or after
+                            // all RHS cell rows have closed.
+                            if (state.arrow_passed==true && (!state.rhs_pattern_started || state.lhs_rhs_rowcount_difference===0)) {
                                 var my_commands = RULE_COMMAND_WORDS;
                                 for (var i=0;i<SFX_COMMAND_LIST.length;i++){
                                     var sfxcommand = SFX_COMMAND_LIST[i];

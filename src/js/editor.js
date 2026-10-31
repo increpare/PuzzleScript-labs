@@ -3,9 +3,24 @@
 let code = document.getElementById('code');
 let _editorDirty = false;
 
+let importedSource = document.getElementById("importedSource");
 let sourceFileToOpen=getParameterByName("file");
 let fileToOpen=getParameterByName("demo");
-if (sourceFileToOpen!==null&&sourceFileToOpen.length>0) {
+if (importedSource && importedSource.textContent !== "null") {
+	code.value = JSON.parse(importedSource.textContent);
+	importedSource.remove();
+	// Imported pages disallow inline handlers. Dispatch numeric console links.
+	document.getElementById('consoletextarea').addEventListener('click', function(event) {
+		const link = event.target.closest('a');
+		if (!link) { return; }
+		const target = /^jumpToLine\((['"]?)([1-9][0-9]*)\1\);?$/.exec(link.getAttribute('onclick') || '');
+		if (!target) { return; }
+		const line = Number(target[2]);
+		if (!Number.isSafeInteger(line)) { return; }
+		event.preventDefault();
+		jumpToLine(line);
+	});
+} else if (sourceFileToOpen!==null&&sourceFileToOpen.length>0) {
 	tryLoadSourceFile(sourceFileToOpen);
 	code.value = "loading...";
 } else if (fileToOpen!==null&&fileToOpen.length>0) {

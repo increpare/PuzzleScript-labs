@@ -49,14 +49,12 @@ function declarationAtPosition(state, language, position) {
 
 function definitionLine(state, declaration) {
   if (!declaration || declaration.line < 1) return null
-  // StreamLanguage calls blankLine instead of token on empty lines. The
-  // legacy parser increments lineNumber only in token, so its declaration
-  // numbers count nonempty lines rather than physical document lines. The
-  // stream wrapper also rolls back state for lines beyond its length limit.
+  // The parser counts blank lines too. The stream wrapper rolls back state
+  // for lines beyond its length limit, so skip only those physical lines.
   let parsedLine = 0, number = 0
   for (const text of state.doc.iterLines()) {
     number++
-    if (text.length && text.length <= CM5_MAX_HIGHLIGHT_LENGTH &&
+    if (text.length <= CM5_MAX_HIGHLIGHT_LENGTH &&
         ++parsedLine === declaration.line) return state.doc.line(number)
   }
   return null

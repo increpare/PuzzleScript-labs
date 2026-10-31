@@ -2419,8 +2419,12 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 			curRigidGroupIndexMask = level.rigidGroupIndexMask[currentIndex] || new BitVec(${STRIDE_MOV});
 			curRigidMovementAppliedMask = level.rigidMovementAppliedMask[currentIndex] || new BitVec(${STRIDE_MOV});
 
-			if (${NOT_BITS_SET_IN_ARRAY("rigidMask", "curRigidGroupIndexMask.data", MOVEMENT_SIZE)} &&
-				${NOT_BITS_SET_IN_ARRAY("replace.movementsLayerMask", "curRigidMovementAppliedMask.data", MOVEMENT_SIZE)}) 
+
+			// Don't allow subsequent rigid rules to alter already-assigned ownership;
+			// (and: group indices are numeric codes, not flags.)
+			// cf https://github.com/increpare/PuzzleScript/issues/1206
+			${UNROLL("rigidMask &= ~curRigidMovementAppliedMask", MOVEMENT_SIZE)}
+			if (${IS_NONZERO("rigidMask", MOVEMENT_SIZE)})
 			{
 				${UNROLL("curRigidGroupIndexMask |= rigidMask", MOVEMENT_SIZE)}
 				${UNROLL("curRigidMovementAppliedMask |= replace.movementsLayerMask", MOVEMENT_SIZE)}
@@ -3886,7 +3890,8 @@ function processCommandQueue(bak, dontModify, dontDoWin, inputDir, skipAgainProb
 	// If not winning, process checkpoints and AGAIN command.
 	if (!winning) {
 		let checkpointIndex = level.commandQueue.indexOf('checkpoint');
-		if (checkpointIndex >= 0) {
+		// A speculative AGAIN turn must not change the restart state or storage.
+		if (!dontModify && checkpointIndex >= 0) {
 			if (verbose_logging) {
 				let r = level.commandQueueSourceRules[checkpointIndex];
 				consolePrintFromRule('CHECKPOINT command executed, saving current state to the restart state.', r);

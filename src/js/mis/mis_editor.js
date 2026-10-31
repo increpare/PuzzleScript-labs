@@ -34,7 +34,8 @@
 				if (stream.sol()) {
 					state.lineNumber++;
 					state.inside_cell = false; state.arrow_passed = false;
-					state.bracket_balance = 0; state.rule_prelude = true; state.tokenIndex = 0;
+					state.lhs_rhs_rowcount_difference = 0; state.rhs_pattern_started = false;
+					state.rule_prelude = true; state.tokenIndex = 0;
 				}
 				if (stream.eatSpace()) return null;
 				if (state.commentLevel || stream.peek() === '(') {
@@ -52,11 +53,13 @@
 				if (stream.match('->')) { state.arrow_passed = true; return 'ARROW'; }
 				const ch = stream.peek();
 				if (ch === '[') {
-					stream.next(); state.inside_cell = true; state.rule_prelude = false; state.bracket_balance++;
+					stream.next(); state.inside_cell = true; state.rule_prelude = false;
+					if (state.arrow_passed) state.rhs_pattern_started = true;
 					return 'BRACKET';
 				}
 				if (ch === ']') {
-					stream.next(); state.inside_cell = false; state.bracket_balance = Math.max(0, state.bracket_balance - 1);
+					stream.next(); state.inside_cell = false;
+					state.lhs_rhs_rowcount_difference += state.arrow_passed ? -1 : 1;
 					return 'BRACKET';
 				}
 				if (ch === '|') { stream.next(); return 'BRACKET'; }

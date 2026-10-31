@@ -61,3 +61,36 @@ test('generated testdata section replaces itself without touching existing fixtu
   assert.equal(context.testdata.length, 2);
   assert.equal(context.testdata[1][1][2], fixture.expectedBoard);
 });
+
+test('Labs exports use explicit board and sound overrides while historical fixtures stay pinned', () => {
+  const { loadFixtures, fixtureTuple } = require('./fixtures.cjs');
+  const { renderSection } = require('./export.cjs');
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'semantic-labs-loader-'));
+  try {
+    fs.writeFileSync(path.join(directory, 'game.ps'), 'authored source\n');
+    fs.writeFileSync(path.join(directory, 'family.json'), JSON.stringify([{
+      id: 'unit/late-compatibility', sourceFile: 'game.ps', explanation: 'An explicitly different Labs outcome.',
+      cells: { P: ['background', 'player'], '.': ['background'] },
+      cases: [
+        { name: 'different board and sounds', inputs: [4, 2], expected: ['P.'], expectedSounds: [100, 200],
+          labsExpected: ['.P'], labsExpectedSounds: [] },
+        { name: 'board override preserves shared sounds', inputs: [4], expected: ['P.'], expectedSounds: [300],
+          labsExpected: ['.P'] },
+      ],
+    }]));
+    const [different, sharedSounds] = loadFixtures({ directory });
+    assert.deepEqual(different.expectedRows, ['P.']);
+    assert.deepEqual(different.labsExpectedRows, ['.P']);
+    assert.equal(different.expectedBoard, 'background player:0,background:1,\n');
+    assert.equal(different.labsExpectedBoard, 'background:0,background player:1,\n');
+    assert.deepEqual(different.expectedSounds, [100, 200]);
+    assert.deepEqual(different.labsExpectedSounds, []);
+    assert.deepEqual(fixtureTuple(different)[1].slice(2), [different.expectedBoard, 0, different.seed, [100, 200]]);
+    assert.deepEqual(fixtureTuple(different, { labs: true })[1].slice(2), [different.labsExpectedBoard, 0, different.seed, []]);
+    assert.deepEqual(fixtureTuple(sharedSounds, { labs: true })[1].slice(2), [sharedSounds.labsExpectedBoard, 0, sharedSounds.seed, [300]]);
+    const context = { testdata: [] };
+    require('node:vm').runInNewContext(renderSection([different]), context);
+    assert.equal(context.testdata[0][1][2], different.labsExpectedBoard);
+    assert.equal(context.testdata[0][1][5].length, 0);
+  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});

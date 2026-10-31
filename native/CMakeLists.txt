@@ -1503,6 +1503,36 @@ add_test(
   WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
 )
 
+add_executable(compiler_upstream_regressions tests/compiler_upstream_regressions.cpp)
+target_link_libraries(compiler_upstream_regressions PRIVATE puzzlescript_native puzzlescript_compiler)
+target_include_directories(compiler_upstream_regressions PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+add_test(NAME compiler_upstream_regressions COMMAND compiler_upstream_regressions
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT})
+
+set(RIGID_OWNERSHIP_CASES_JS ${CMAKE_CURRENT_BINARY_DIR}/generated/rigid_ownership_cases.js)
+set(RIGID_OWNERSHIP_CASES_JSON ${CMAKE_CURRENT_BINARY_DIR}/generated/rigid_ownership_cases.json)
+set(RIGID_OWNERSHIP_KERNEL ${CMAKE_CURRENT_BINARY_DIR}/generated/rigid_ownership_kernel.cpp)
+add_custom_command(
+  OUTPUT ${RIGID_OWNERSHIP_CASES_JS} ${RIGID_OWNERSHIP_CASES_JSON}
+  COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/generated
+  COMMAND ${NODE_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/extract_rigid_ownership_cases.cjs
+    ${PUZZLESCRIPT_REPO_ROOT}/src/tests/resources/testdata.js
+    ${RIGID_OWNERSHIP_CASES_JS} ${RIGID_OWNERSHIP_CASES_JSON}
+  DEPENDS tests/extract_rigid_ownership_cases.cjs ${PUZZLESCRIPT_REPO_ROOT}/src/tests/resources/testdata.js
+  VERBATIM)
+add_custom_command(
+  OUTPUT ${RIGID_OWNERSHIP_KERNEL}
+  COMMAND $<TARGET_FILE:puzzlescript_cpp> compile-rules ${RIGID_OWNERSHIP_CASES_JS}
+    --emit-cpp ${RIGID_OWNERSHIP_KERNEL} --compact-turn-only --compact-turn-mode compiler
+  DEPENDS puzzlescript_cpp ${RIGID_OWNERSHIP_CASES_JS}
+  VERBATIM)
+add_executable(compiler_generated_rigid_ownership
+  tests/compiler_generated_rigid_ownership.cpp ${RIGID_OWNERSHIP_KERNEL})
+target_link_libraries(compiler_generated_rigid_ownership PRIVATE puzzlescript_native puzzlescript_compiler)
+target_include_directories(compiler_generated_rigid_ownership PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+add_test(NAME compiler_generated_rigid_ownership
+  COMMAND compiler_generated_rigid_ownership ${RIGID_OWNERSHIP_CASES_JSON})
+
 add_executable(generator_generation_rules
   tests/generator_generation_rules.cpp
   src/generator/generation_rules.cpp

@@ -316,7 +316,9 @@ async function main() {
 
     let player = fs.readFileSync("./bin/play.html", encoding = 'utf8');
     player = removeLocalScriptTags(player);
-    player = player.replace(/<!--___SCRIPTINSERT___-->/g, '<script src="js\/scripts_play_compiled.js"><\/script>');
+    // Keep the page, loader and player styling on the same release revision.
+    player = player.replace(/<!--___SCRIPTINSERT___-->/g, `<script src="js/scripts_play_compiled.js?v=${buildnum}"></script>`);
+    player = player.replace('href="css/player.css"', `href="css/player.css?v=${buildnum}"`);
     fs.writeFileSync("./bin/play.html", player, encoding = 'utf8');
 
     // mis.html ships unbundled: its workers importScripts() the engine by relative

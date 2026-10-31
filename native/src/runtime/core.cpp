@@ -4025,8 +4025,12 @@ bool applyReplacementAt(FullState& session, const Rule& rule, const Pattern& pat
 
             rigidGroupIndexMask = getCellRigidGroupIndexMask(session, tileIndex);
             rigidMovementAppliedMask = getCellRigidMovementAppliedMask(session, tileIndex);
-            if (!bitsSetInArray(rigidMask.data(), rigidMask.size(), rigidGroupIndexMask.data(), rigidGroupIndexMask.size())
-                && !bitsSetInArray(movementsLayerMask, movementWordCount, rigidMovementAppliedMask.data(), rigidMovementAppliedMask.size())) {
+            // Group indices are numeric codes, not flags. A later rigid rule
+            // may claim new layers but must preserve existing ownership.
+            for (size_t word = 0; word < rigidMask.size() && word < rigidMovementAppliedMask.size(); ++word) {
+                rigidMask[word] &= ~rigidMovementAppliedMask[word];
+            }
+            if (anyBitsSet(rigidMask)) {
                 for (size_t word = 0; word < rigidGroupIndexMask.size() && word < rigidMask.size(); ++word) {
                     rigidGroupIndexMask[word] |= rigidMask[word];
                 }

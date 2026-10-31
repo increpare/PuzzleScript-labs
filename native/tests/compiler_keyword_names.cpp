@@ -34,8 +34,8 @@ int main() {
             warnedAboutGlyph = true;
         }
     }
-    // JS warns about keyword aliases too; the glyph remains usable.
-    assert(warnedAboutGlyph);
+    // Single-character aliases remain usable without keyword warnings.
+    assert(!warnedAboutGlyph);
 
     puzzlescript::LoadedGame game;
     const auto error = puzzlescript::compiler::lowerToRuntimeGame(state, game);

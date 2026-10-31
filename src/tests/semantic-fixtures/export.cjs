@@ -9,7 +9,7 @@ const END = '// END GENERATED SEMANTIC FIXTURES';
 
 function renderSection(fixtures) {
   return BEGIN + '\n// Edit ../semantic-fixtures/ sources and manifests, then run export.cjs.\n'
-    + 'testdata.push(\n' + fixtures.map(fixture => '\t' + JSON.stringify(fixtureTuple(fixture))).join(',\n')
+    + 'testdata.push(\n' + fixtures.map(fixture => '\t' + JSON.stringify(fixtureTuple(fixture, { labs: true }))).join(',\n')
     + '\n);\n' + END + '\n';
 }
 
@@ -31,7 +31,7 @@ if (require.main === module) {
     'Usage: node export.cjs [--check|--stdout]');
   const fixtures = loadFixtures();
   assert.ok(fixtures.length > 0, 'No semantic fixtures found');
-  if (args.includes('--stdout')) process.stdout.write('var testdata = ' + JSON.stringify(fixtures.map(fixtureTuple), null, 2) + ';\n');
+  if (args.includes('--stdout')) process.stdout.write('var testdata = ' + JSON.stringify(fixtures.map(fixture => fixtureTuple(fixture, { labs: true })), null, 2) + ';\n');
   else {
     const target = path.join(__dirname, '..', 'resources', 'testdata.js');
     const original = fs.readFileSync(target, 'utf8');

@@ -580,7 +580,7 @@
   {
     "id": "movement/late-multiword-restore",
     "sourceFile": "movement/late-multiword-restore.ps",
-    "explanation": "Constructed compatibility case: late randomdir assigns Right for seed late-restore. Same-size restoration clears only a prefix of native movement storage; the late intent survives at the centre. Layer count 8 tests the original word boundary. For seed late-restore, direction draws are Down, Up, Right, Down, Right, Right: the group settles on consecutive Right draws, not on the first draw.",
+    "explanation": "Constructed compatibility case: late randomdir assigns Right for seed late-restore. Same-size restoration clears only a prefix of native movement storage; the late intent survives at the centre. Layer count 8 tests the original word boundary. For seed late-restore, direction draws are Down, Up, Right, Down, Right, Right: the group settles on consecutive Right draws, not on the first draw. Labs after upstream #1207 rejects late randomdir and drops the invalid qualifier during error recovery. The resulting late rule keeps Dust unchanged, so no movement survives a turn, undo or restart; the explicit Labs boards keep Dust at the centre.",
     "cells": {
       ".": [
         "background"
@@ -635,7 +635,12 @@
           "..D",
           "..."
         ],
-        "seed": "late-restore"
+        "seed": "late-restore",
+        "labsExpected": [
+          "P..",
+          ".D.",
+          "..."
+        ]
       },
       {
         "name": "undo restores board",
@@ -662,7 +667,12 @@
           "..D",
           "..."
         ],
-        "seed": "late-restore"
+        "seed": "late-restore",
+        "labsExpected": [
+          "P..",
+          ".D.",
+          "..."
+        ]
       },
       {
         "name": "restart leaves late right movement pending",
@@ -676,14 +686,19 @@
           "..D",
           "..."
         ],
-        "seed": "late-restore"
+        "seed": "late-restore",
+        "labsExpected": [
+          "P..",
+          ".D.",
+          "..."
+        ]
       }
     ]
   },
   {
     "id": "movement/late-partial-word-restore",
     "sourceFile": "movement/late-partial-word-restore.ps",
-    "explanation": "Constructed compatibility case: late randomdir assigns Right for seed late-restore. Same-size restoration clears only a prefix of native movement storage; the late intent survives at the centre. Layer count 7 tests the original word boundary. For seed late-restore, direction draws are Down, Up, Right, Down, Right, Right: the group settles on consecutive Right draws, not on the first draw. Seed up-pair-4 chooses Down, Right, Down, Up, Up, so the final Up request is cleared on restore.",
+    "explanation": "Constructed compatibility case: late randomdir assigns Right for seed late-restore. Same-size restoration clears only a prefix of native movement storage; the late intent survives at the centre. Layer count 7 tests the original word boundary. For seed late-restore, direction draws are Down, Up, Right, Down, Right, Right: the group settles on consecutive Right draws, not on the first draw. Seed up-pair-4 chooses Down, Right, Down, Up, Up, so the final Up request is cleared on restore. Labs after upstream #1207 rejects late randomdir and drops the invalid qualifier during error recovery. The resulting late rule keeps Dust unchanged, so no movement survives a turn, undo or restart; the explicit Labs boards keep Dust at the centre.",
     "cells": {
       ".": [
         "background"
@@ -738,7 +753,12 @@
           "..D",
           "..."
         ],
-        "seed": "late-restore"
+        "seed": "late-restore",
+        "labsExpected": [
+          "P..",
+          ".D.",
+          "..."
+        ]
       },
       {
         "name": "undo restores board",
@@ -765,7 +785,12 @@
           "..D",
           "..."
         ],
-        "seed": "late-restore"
+        "seed": "late-restore",
+        "labsExpected": [
+          "P..",
+          ".D.",
+          "..."
+        ]
       },
       {
         "name": "restart leaves late right movement pending",
@@ -779,7 +804,12 @@
           "..D",
           "..."
         ],
-        "seed": "late-restore"
+        "seed": "late-restore",
+        "labsExpected": [
+          "P..",
+          ".D.",
+          "..."
+        ]
       },
       {
         "name": "undo clears down while retaining right in same layer",
@@ -859,7 +889,7 @@
   {
     "id": "movement/opposing-carried-input",
     "sourceFile": "movement/opposing-carried-input.ps",
-    "explanation": "Seed partial-up-1 first draws .246074, choosing Up. The late rule also consumes Switch, so it draws only once. A following Down input combines with carried Up: vanilla defines this as a zero-offset request that still collides with Player in its source layer. Both Up and Down failure sounds are recorded. This is not the general mathematical rule that opposite directions cancel.",
+    "explanation": "Seed partial-up-1 first draws .246074, choosing Up. The late rule also consumes Switch, so it draws only once. A following Down input combines with carried Up: vanilla defines this as a zero-offset request that still collides with Player in its source layer. Both Up and Down failure sounds are recorded. This is not the general mathematical rule that opposite directions cancel. Labs after upstream #1207 rejects late randomdir and drops the invalid qualifier during error recovery, while still replacing Switch with Spent. Without carried Up, Down moves Player into the empty bottom-middle cell and records no failure sounds. That successful movement adds an undo entry, so undo returns to the Spent board after Action instead of the original Switch board.",
     "cells": {
       ".": [
         "background"
@@ -906,7 +936,13 @@
         "expectedSounds": [
           100,
           200
-        ]
+        ],
+        "labsExpected": [
+          "s..",
+          "...",
+          ".P."
+        ],
+        "labsExpectedSounds": []
       },
       {
         "name": "failed combined request is cleared before tick",
@@ -924,7 +960,13 @@
         "expectedSounds": [
           100,
           200
-        ]
+        ],
+        "labsExpected": [
+          "s..",
+          "...",
+          ".P."
+        ],
+        "labsExpectedSounds": []
       },
       {
         "name": "undo restores the one-shot switch",
@@ -942,7 +984,13 @@
         "expectedSounds": [
           100,
           200
-        ]
+        ],
+        "labsExpected": [
+          "s..",
+          ".P.",
+          "..."
+        ],
+        "labsExpectedSounds": []
       }
     ]
   }

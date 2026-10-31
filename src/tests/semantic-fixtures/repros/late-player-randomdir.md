@@ -1,9 +1,15 @@
 # A late randomdir on Player crashes on the next Action input
 
+Historical report: upstream [#1207](https://github.com/increpare/PuzzleScript/pull/1207)
+fixes the source-acceptance bug by rejecting `randomdir` in late rules. Current
+Labs follows that restriction and drops the invalid qualifier during error
+recovery. The pinned-native and TypeScript reproducer below intentionally retains
+the historical accepted-source behavior.
+
 This is a newly constructed headless reproducer from the semantic-fixture work,
 not a failure discovered in an existing game. The source compiles with **zero
 errors and zero warnings**. The issue reproduces in unmodified vanilla at
-`5a94bde1a5127a3a45306ea28598eba2874d446d` and the current labs engine at base
+`5a94bde1a5127a3a45306ea28598eba2874d446d` and the Labs engine at base
 `3367a2d41964ff90c5ab9a5e8eae2132e5f225f2`. The TypeScript compatibility port also
 fails, with an explicit unsupported-movement error. This is a shared accepted-source
 crash, not a discovered JS/TypeScript gameplay mismatch.
@@ -20,7 +26,7 @@ The relevant rule is:
 late [ Player ] -> [ randomdir Player ]
 ```
 
-The compiler explicitly allows `randomdir` in late rules, despite rejecting
+The pinned compiler explicitly allows `randomdir` in late rules, despite rejecting
 ordinary movement directions there. The game should either be rejected with a
 diagnostic explaining that restriction, or handle these inputs without an
 internal exception. This report does not prescribe the intended late-rule semantics.
