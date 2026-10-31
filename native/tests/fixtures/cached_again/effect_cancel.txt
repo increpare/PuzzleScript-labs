@@ -1,0 +1,37 @@
+title Cached AGAIN effect cancel
+
+OBJECTS
+Background .
+black
+
+Dormant P
+white
+
+Trigger
+blue
+
+Armed
+red
+
+Done
+green
+
+LEGEND
+Player = Dormant or Trigger or Armed or Done
+
+SOUNDS
+sfx0 123456
+cancel 234567
+restart 345678
+
+COLLISIONLAYERS
+Background
+Dormant, Trigger, Armed, Done
+
+RULES
+[ action Dormant ] -> [ Trigger ] again
+[ stationary Armed ] -> [ Done ] sfx0 cancel
+late [ Trigger ] -> [ Armed ]
+
+LEVELS
+P.

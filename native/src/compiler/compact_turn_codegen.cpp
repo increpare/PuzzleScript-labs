@@ -4463,6 +4463,9 @@ void emitCompactTurnCompilerSingleBody(
     std::string_view suffix,
     const CompactCodegenOptions& codegenOptions
 ) {
+    // Firmware output hooks and external board arrays keep their existing
+    // transactional probe; native sessions can retain the prepared simulation.
+    const bool cacheAgain = !codegenOptions.externalBoardStorage && !codegenOptions.externalSnapshotStorage;
     out << "    if (outHasAgain != nullptr) {\n"
         << "        *outHasAgain = false;\n"
         << "    }\n"
@@ -4480,8 +4483,18 @@ void emitCompactTurnCompilerSingleBody(
         << "        addRuntimeCounter(id, nowNs - profileMarkNs);\n"
         << "        profileMarkNs = nowNs;\n"
         << "    };\n"
-        << "    CompactTurnRuntimeCounterScope_" << suffix << " runtimeCounterScope(profileCompactTurn);\n"
-        << "    ps_step_result result{};\n"
+        << "    CompactTurnRuntimeCounterScope_" << suffix << " runtimeCounterScope(runtimeCountersEnabled());\n"
+        << "    ps_step_result result{};\n";
+    if (cacheAgain) {
+        out << "    std::shared_ptr<CompactTurnPrepared_" << suffix << "> cached;\n"
+            << "    bool replayPrepared = false;\n"
+            << "    if (!probeOnly) {\n"
+            << "        if (scratch.compactAgain.tag == &compact_turn_cache_tag_" << suffix << ") cached = std::static_pointer_cast<CompactTurnPrepared_" << suffix << ">(scratch.compactAgain.value);\n"
+            << "        replayPrepared = compact_turn_cache_enabled_" << suffix << " && input == PS_INPUT_TICK && options.againPolicy == AgainPolicy::Yield && cached && cached->matches(dimensions, currentLevelIndex, levelState, scratch, options);\n"
+            << "        if (cached) cached->valid = false;\n"
+            << "    }\n";
+    }
+    out
         << "    if (!compact_turn_prepare_state_" << suffix << "(dimensions, levelState, scratch)) {\n"
         << "        addProfileNs(RuntimeCounterId::CompactTurnSetupNs);\n"
         << "        return {false, result};\n"
@@ -4503,10 +4516,12 @@ void emitCompactTurnCompilerSingleBody(
             << "    CompactTurnBoardSnapshot_" << suffix << "* reusableTurnStartObjects = nullptr;\n";
     } else {
         out << "    CompactTurnBoardSnapshot_" << suffix << "* reusableTurnStartObjects = (!probeOnly && options.againPolicy == AgainPolicy::Drain) ? &scratch.turnStartObjectsScratch : nullptr;\n";
+        if (cacheAgain) out << "    if (probeOnly && preparing != nullptr) reusableTurnStartObjects = &preparing->source.board.objects;\n";
     }
     out << "    CompactTurnBoardSnapshot_" << suffix << "* turnStartObjects = nullptr;\n"
-        << "    if (needsTurnStartSnapshot) {\n"
-        << "        if (reusableTurnStartObjects != nullptr) {\n"
+        << "    if (needsTurnStartSnapshot) {\n";
+    if (cacheAgain) out << "        if (replayPrepared) { turnStartObjects = &cached->source.board.objects; } else\n";
+    out << "        if (reusableTurnStartObjects != nullptr) {\n"
         << "            compact_turn_copy_board_objects_" << suffix << "(levelState, *reusableTurnStartObjects);\n"
         << "            turnStartObjects = reusableTurnStartObjects;\n"
         << "        } else {\n"
@@ -4549,7 +4564,20 @@ void emitCompactTurnCompilerSingleBody(
         << "    bool ruleChanged = false;\n"
         << "    bool moved = false;\n"
         << "    int32_t rigidLoopCount = 0;\n"
-        << "    while (true) {\n"
+        << "    bool lateRuleChanged = false;\n";
+    if (cacheAgain) {
+        out << "    if (replayPrepared) {\n"
+            << "        compact_turn_apply_prepared_objects_" << suffix << "(dimensions, levelState, scratch, cached->prepared.board.objects, cached->changedTiles);\n"
+            << "        levelState.rng = cached->prepared.rng;\n"
+            << "        compact_turn_apply_prepared_movements_" << suffix << "(dimensions, scratch, cached->movements, cached->movementsClean);\n"
+            << "        scratch.rigidGroupIndexMasks.swap(cached->rigidGroups);\n"
+            << "        scratch.rigidMovementAppliedMasks.swap(cached->rigidApplied);\n"
+            << "        commands = cached->commands;\n"
+            << "        seededInput = cached->seeded; ruleChanged = cached->ruleChanged; moved = cached->moved; lateRuleChanged = cached->lateChanged;\n"
+            << "        compact_turn_rebuild_rule_derived_state_" << suffix << "(dimensions, levelState, scratch, !cached->changedTiles.empty(), !cached->movementsClean);\n"
+            << "    } else {\n";
+    }
+    out << "    while (true) {\n"
         << "        commands = CompactTurnCommands_" << suffix << "{};\n"
         << "        if (rigidLoopCount > 0 && needsTurnStartSnapshot) {\n"
         << "            compact_turn_restore_board_objects_" << suffix << "(levelState, *turnStartObjects);\n"
@@ -4601,18 +4629,51 @@ void emitCompactTurnCompilerSingleBody(
         << "#if defined(PS_GBA_PERF_TELEMETRY)\n"
         << "    ps_gba_perf_progress(4, 0xffffU);\n"
         << "#endif\n"
-        << "    const bool lateRuleChanged = compact_turn_apply_late_rules_" << suffix << "(dimensions, levelState, scratch, commands, nullptr);\n"
+        << "    lateRuleChanged = compact_turn_apply_late_rules_" << suffix << "(dimensions, levelState, scratch, commands, nullptr);\n";
+    if (cacheAgain) out << "    }\n";
+    out
         << "    const bool modified = needsTurnStartSnapshot\n"
         << "        ? compact_turn_board_objects_differ_" << suffix << "(levelState, *turnStartObjects)\n"
         << "        : (ruleChanged || moved || lateRuleChanged);\n"
         << "    addProfileNs(RuntimeCounterId::CompactTurnLateRulesNs);\n"
         << "    // 6. apply late rulegroups\n"
         << "    // 7. process commands and again policy\n"
-        << "    if (probeOnly) {\n"
-        << "        result.changed = commands.hasCancel\n"
+        << "    if (probeOnly) {\n";
+    if (cacheAgain) {
+        out << "        if (preparing != nullptr) {\n"
+            << "            preparing->prepared = levelState;\n"
+            << "            preparing->changedTiles.clear();\n"
+            << "            const int32_t tileCount = compact_turn_tile_count_" << suffix << "(dimensions);\n"
+            << "            for (int32_t tile = 0; tile < tileCount; ++tile) {\n"
+            << "                const size_t offset = static_cast<size_t>(tile) * compact_turn_object_stride_" << suffix << ";\n"
+            << "                for (int32_t word = 0; word < compact_turn_object_stride_" << suffix << "; ++word) {\n"
+            << "                    if (levelState.board.objects[offset + word] != (*turnStartObjects)[offset + word]) { preparing->changedTiles.push_back(tile); break; }\n"
+            << "                }\n"
+            << "            }\n"
+            << "            preparing->movements = scratch.liveMovements; preparing->movementsClean = scratch.liveMovementsClean;\n"
+            << "            preparing->rigidGroups = scratch.rigidGroupIndexMasks; preparing->rigidApplied = scratch.rigidMovementAppliedMasks;\n"
+            << "            preparing->commands = commands;\n"
+            << "            preparing->seeded = seededInput; preparing->ruleChanged = ruleChanged; preparing->moved = moved; preparing->lateChanged = lateRuleChanged;\n"
+            << "        }\n";
+    }
+    out << "        result.changed = commands.hasCancel\n"
         << "            ? commands.commandCount > 1\n"
-        << "            : (modified || commands.hasWin || commands.hasRestart);\n"
-        << "        compact_turn_restore_board_objects_" << suffix << "(levelState, *turnStartObjects);\n"
+        << "            : (modified || commands.hasWin || commands.hasRestart);\n";
+    if (cacheAgain) {
+        // A rigid retry restores board words directly. Its derived state can
+        // still describe a partial failed pass, so retain canonical restoration.
+        out << "        if (preparing != nullptr && rigidLoopCount == 0) {\n"
+            << "            compact_turn_apply_prepared_objects_" << suffix << "(dimensions, levelState, scratch, *turnStartObjects, preparing->changedTiles);\n"
+            << "            compact_turn_apply_prepared_movements_" << suffix << "(dimensions, scratch, turnStartMovements, turnStartLiveMovementsClean);\n"
+            << "            if (compact_turn_has_rigid_" << suffix << ") {\n"
+            << "                scratch.rigidGroupIndexMasks = turnStartRigidGroupIndexMasks;\n"
+            << "                scratch.rigidMovementAppliedMasks = turnStartRigidMovementAppliedMasks;\n"
+            << "            }\n"
+            << "            compact_turn_rebuild_rule_derived_state_" << suffix << "(dimensions, levelState, scratch, !preparing->changedTiles.empty(), !turnStartLiveMovementsClean);\n"
+            << "            compact_turn_refresh_any_masks_dirty_" << suffix << "(scratch);\n"
+            << "        } else {\n";
+    }
+    out << "        compact_turn_restore_board_objects_" << suffix << "(levelState, *turnStartObjects);\n"
         << "        if (turnStartLiveMovementsClean) {\n"
         << "            std::fill(scratch.liveMovements.begin(), scratch.liveMovements.end(), 0);\n"
         << "            compact_turn_clear_movement_masks_" << suffix << "(scratch);\n"
@@ -4628,8 +4689,9 @@ void emitCompactTurnCompilerSingleBody(
         << "        (void)compact_turn_rebuild_movement_derived_state_" << suffix << "(dimensions, scratch);\n"
         << "        scratch.objectCellIndexDirty = true;\n"
         << "        scratch.movementCellIndexDirty = true;\n"
-        << "        compact_turn_refresh_any_masks_dirty_" << suffix << "(scratch);\n"
-        << "        addProfileNs(RuntimeCounterId::CompactTurnCanonicalizeNs);\n"
+        << "        compact_turn_refresh_any_masks_dirty_" << suffix << "(scratch);\n";
+    if (cacheAgain) out << "        }\n";
+    out << "        addProfileNs(RuntimeCounterId::CompactTurnCanonicalizeNs);\n"
         << "        return {true, result};\n"
         << "    }\n"
         << "    if (!startPlayerPositions.empty() && !compact_turn_any_start_player_moved_" << suffix << "(levelState, startPlayerPositions)) {\n"
@@ -4747,7 +4809,12 @@ void emitCompactTurnCompilerSingleBody(
         << "#if defined(PS_COMPACT_TURN_OUTPUT_HOOKS)\n"
         << "                compactTurnPushAudioSuppression();\n"
         << "#endif\n"
-        << "                const SpecializedCompactTurnOutcome probeOutcome = [&] {\n"
+        << "                const SpecializedCompactTurnOutcome probeOutcome = [&] {\n";
+    if (cacheAgain) {
+        out << "                    if (compact_turn_cache_enabled_" << suffix << " && !cached) cached = std::make_shared<CompactTurnPrepared_" << suffix << ">();\n"
+            << "                    if (cached) cached->valid = false;\n";
+    }
+    out
         << "                    struct RestoreProbeRandomState {\n"
         << "                        RandomState& target;\n"
         << "                        RandomState saved;\n"
@@ -4761,7 +4828,9 @@ void emitCompactTurnCompilerSingleBody(
         << "                    PS_INPUT_TICK,\n"
         << "                    options,\n"
         << "                    nullptr,\n"
-        << "                    true\n"
+        << "                    true";
+    if (cacheAgain) out << ", cached.get()";
+    out << "\n"
         << "                    );\n"
         << "                }();\n"
         << "#if defined(PS_COMPACT_TURN_OUTPUT_HOOKS)\n"
@@ -4775,7 +4844,16 @@ void emitCompactTurnCompilerSingleBody(
         << "                if (!probeOutcome.handled) {\n"
         << "                    return probeOutcome;\n"
         << "                }\n"
-        << "                scheduleAgain = probeOutcome.result.changed || probeOutcome.result.transitioned || probeOutcome.result.won;\n"
+        << "                scheduleAgain = probeOutcome.result.changed || probeOutcome.result.transitioned || probeOutcome.result.won;\n";
+    if (cacheAgain) {
+        out << "                if (compact_turn_cache_enabled_" << suffix << " && cached) {\n"
+            << "                cached->source.rng = levelState.rng; cached->sourceMovements = scratch.liveMovements;\n"
+            << "                cached->dimensions = dimensions; cached->levelIndex = currentLevelIndex; cached->options = options;\n"
+            << "                cached->valid = scheduleAgain;\n"
+            << "                scratch.compactAgain.value = cached; scratch.compactAgain.tag = &compact_turn_cache_tag_" << suffix << ";\n"
+            << "                }\n";
+    }
+    out
         << "            }\n"
         << "        }\n"
         << "        *outHasAgain = scheduleAgain;\n"
@@ -10038,6 +10116,69 @@ void emitCompactTurnBackend(
             << " has_rule_loops=" << (program.hasRuleLoops ? "true" : "false")
             << "\n";
         emitCompactTurnAccessLayer(out, game, sourceIndex, options);
+        const bool cacheAgain = !options.externalBoardStorage && !options.externalSnapshotStorage;
+        if (cacheAgain) {
+            out << "// Apply retained net changes through the same incremental indexes as rules.\n"
+                << "void compact_turn_apply_prepared_objects_" << suffix << "(LevelDimensions dimensions, PersistentLevelState& levelState, Scratch& scratch, const MaskVector& objects, const std::vector<int32_t>& tiles) {\n"
+                << "    for (const int32_t tile : tiles) {\n"
+                << "        MaskWord* before = compact_turn_cell_objects_" << suffix << "(levelState, tile);\n"
+                << "        const MaskWord* after = objects.data() + static_cast<size_t>(tile) * compact_turn_object_stride_" << suffix << ";\n"
+                << "        compact_turn_note_object_cell_written_" << suffix << "(dimensions, scratch, tile, before, after);\n"
+                << "        std::copy_n(after, compact_turn_object_stride_" << suffix << ", before);\n"
+                << "    }\n"
+                << "}\n"
+                << "void compact_turn_apply_prepared_movements_" << suffix << "(LevelDimensions dimensions, Scratch& scratch, const MaskVector& movements, bool clean) {\n"
+                << "    if (clean) {\n"
+                << "        if (!scratch.liveMovementsClean) {\n"
+                << "            std::fill(scratch.liveMovements.begin(), scratch.liveMovements.end(), 0);\n"
+                << "            compact_turn_clear_movement_masks_" << suffix << "(scratch);\n"
+                << "        }\n"
+                << "        scratch.liveMovementsClean = true;\n"
+                << "        return;\n"
+                << "    }\n"
+                << "    const int32_t tileCount = compact_turn_tile_count_" << suffix << "(dimensions);\n"
+                << "    for (int32_t tile = 0; tile < tileCount; ++tile) {\n"
+                << "        MaskWord* before = compact_turn_cell_movements_" << suffix << "(scratch, tile);\n"
+                << "        const MaskWord* after = movements.data() + static_cast<size_t>(tile) * compact_turn_movement_stride_" << suffix << ";\n"
+                << "        bool different = false;\n"
+                << "        for (int32_t word = 0; word < compact_turn_movement_stride_" << suffix << "; ++word) different |= before[word] != after[word];\n"
+                << "        if (!different) continue;\n"
+                << "        compact_turn_note_movement_cell_written_" << suffix << "(dimensions, scratch, tile, before, after);\n"
+                << "        std::copy_n(after, compact_turn_movement_stride_" << suffix << ", before);\n"
+                << "    }\n"
+                << "    scratch.liveMovementsClean = false;\n"
+                << "}\n"
+                << "// Compact kernels may omit generic masks; expose their dirtiness to callers.\n"
+                << "void compact_turn_mark_omitted_masks_dirty_" << suffix << "(Scratch& scratch) {\n"
+                << "    if constexpr (!compact_turn_needs_object_row_masks_" << suffix << " || (" << (game.needsObjectLineAllMasks ? "true" : "false") << " && !compact_turn_needs_object_row_all_masks_" << suffix << ")) std::fill(scratch.dirtyObjectRows.begin(), scratch.dirtyObjectRows.end(), 1);\n"
+                << "    if constexpr (!compact_turn_needs_object_column_masks_" << suffix << " || (" << (game.needsObjectLineAllMasks ? "true" : "false") << " && !compact_turn_needs_object_column_all_masks_" << suffix << ")) std::fill(scratch.dirtyObjectColumns.begin(), scratch.dirtyObjectColumns.end(), 1);\n"
+                << "    if constexpr (!compact_turn_needs_object_board_mask_" << suffix << ") scratch.dirtyObjectBoard = true;\n"
+                << "    if constexpr (!compact_turn_needs_movement_row_masks_" << suffix << " || (" << (game.needsMovementLineAllMasks ? "true" : "false") << " && !compact_turn_needs_movement_row_all_masks_" << suffix << ")) std::fill(scratch.dirtyMovementRows.begin(), scratch.dirtyMovementRows.end(), 1);\n"
+                << "    if constexpr (!compact_turn_needs_movement_column_masks_" << suffix << " || (" << (game.needsMovementLineAllMasks ? "true" : "false") << " && !compact_turn_needs_movement_column_all_masks_" << suffix << ")) std::fill(scratch.dirtyMovementColumns.begin(), scratch.dirtyMovementColumns.end(), 1);\n"
+                << "    if constexpr (!compact_turn_needs_movement_board_mask_" << suffix << ") scratch.dirtyMovementBoard = true;\n"
+                << "    compact_turn_refresh_any_masks_dirty_" << suffix << "(scratch);\n"
+                << "}\n"
+                << "// Prepared simulation excludes session effects and undo history.\n"
+                << "static const char compact_turn_cache_tag_" << suffix << " = 0;\n"
+                << "// Output hooks hold external audio state; retain transactional probe/rerun there.\n"
+                << "#if defined(PS_COMPACT_TURN_OUTPUT_HOOKS)\n"
+                << "constexpr bool compact_turn_cache_enabled_" << suffix << " = false;\n"
+                << "#else\n"
+                << "constexpr bool compact_turn_cache_enabled_" << suffix << " = true;\n"
+                << "#endif\n"
+                << "struct CompactTurnPrepared_" << suffix << " {\n"
+                << "    bool valid = false; LevelDimensions dimensions{}; int32_t levelIndex = 0; RuntimeStepOptions options{};\n"
+                << "    PersistentLevelState source, prepared; MaskVector sourceMovements, movements, rigidGroups, rigidApplied; std::vector<int32_t> changedTiles;\n"
+                << "    bool movementsClean = false, seeded = false, ruleChanged = false, moved = false, lateChanged = false;\n"
+                << "    CompactTurnCommands_" << suffix << " commands;\n"
+                << "    bool matches(LevelDimensions nextDimensions, int32_t nextLevel, const PersistentLevelState& state, const Scratch& scratch, const RuntimeStepOptions& next) const {\n"
+                << "        return valid && dimensions.width == nextDimensions.width && dimensions.height == nextDimensions.height && levelIndex == nextLevel\n"
+                << "            && source.board.objects == state.board.objects && source.rng.s == state.rng.s && source.rng.i == state.rng.i && source.rng.j == state.rng.j && source.rng.valid == state.rng.valid\n"
+                << "            && sourceMovements == scratch.liveMovements\n"
+                << "            && options.playableUndo == next.playableUndo && options.emitAudio == next.emitAudio && options.solverMode == next.solverMode\n"
+                << "            && options.againPolicy == next.againPolicy && options.ignoreRestartCommand == next.ignoreRestartCommand && options.ignoreWin == next.ignoreWin;\n"
+                << "    }\n};\n";
+        }
         out << "SpecializedCompactTurnOutcome compact_turn_execute_program_" << suffix << "(\n"
             << "    LevelDimensions dimensions,\n"
             << "    int32_t currentLevelIndex,\n"
@@ -10046,7 +10187,9 @@ void emitCompactTurnBackend(
             << "    ps_input input,\n"
             << "    RuntimeStepOptions options,\n"
             << "    bool* outHasAgain,\n"
-            << "    bool probeOnly\n"
+            << "    bool probeOnly";
+        if (cacheAgain) out << ", CompactTurnPrepared_" << suffix << "* preparing = nullptr";
+        out << "\n"
             << ") {\n";
         emitCompactTurnCompilerSingleBody(out, suffix, options);
         out << "}\n\n";
@@ -10076,10 +10219,21 @@ void emitCompactTurnBackend(
         out << "    return compactStateInterpretedTurnBridge(game, levelState, scratch, context, input, options);\n"
             << "}\n\n";
     } else {
-        out << "    (void)game;\n"
-            << "    addRuntimeCounter(RuntimeCounterId::CompactTurnNativeCalls);\n"
-            << "    return specialized_compact_turn_core_" << sourceIndex << "(context.dimensions, context.currentLevelIndex, levelState, scratch, input, options);\n"
-            << "}\n\n";
+        if (!options.externalBoardStorage && !options.externalSnapshotStorage) {
+            out << "    if (scratch.compactAgain.owner != &game) scratch.compactAgain.reset();\n"
+                << "    scratch.compactAgain.owner = &game;\n";
+        } else {
+            out << "    (void)game;\n";
+        }
+        out << "    addRuntimeCounter(RuntimeCounterId::CompactTurnNativeCalls);\n";
+        if (!options.externalBoardStorage && !options.externalSnapshotStorage) {
+            out << "    const auto outcome = specialized_compact_turn_core_" << sourceIndex << "(context.dimensions, context.currentLevelIndex, levelState, scratch, input, options);\n"
+                << "    if (compact_turn_cache_enabled_" << suffix << " && compact_turn_has_again_command_" << suffix << " && options.againPolicy == AgainPolicy::Yield) compact_turn_mark_omitted_masks_dirty_" << suffix << "(scratch);\n"
+                << "    return outcome;\n";
+        } else {
+            out << "    return specialized_compact_turn_core_" << sourceIndex << "(context.dimensions, context.currentLevelIndex, levelState, scratch, input, options);\n";
+        }
+        out << "}\n\n";
     }
     out
         << "const SpecializedCompactTurnBackend specialized_compact_turn_backend_" << sourceIndex << " = {\n"

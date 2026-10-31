@@ -1,0 +1,38 @@
+title Cached AGAIN mixed negative directional masks
+
+OBJECTS
+
+Background .
+black
+
+Dormant P
+white
+
+Armed
+red
+
+Trigger
+green
+
+Done
+blue
+
+LEGEND
+Player = Dormant or Armed
+
+SOUNDS
+sfx0 123456
+Armed move 654321
+
+COLLISIONLAYERS
+Background
+Dormant, Armed, Trigger
+Done
+
+RULES
+[ action Dormant ] -> [ Trigger ] again
+right [ Armed no Done ] -> [ right Armed no Done ] again sfx0
+late [ Trigger ] -> [ Armed ]
+
+LEVELS
+P....

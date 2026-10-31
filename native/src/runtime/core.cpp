@@ -12,6 +12,7 @@
 #include <numeric>
 #include <sstream>
 #include <thread>
+#include <tuple>
 #include <unordered_map>
 
 #include "simdjson.h" // vendored; will replace puzzlescript::json in Task 4
@@ -68,6 +69,8 @@ struct MovementResolveOutcome {
     bool shouldUndo = false;
 };
 
+struct PreparedInterpretedTurn;
+
 struct ExecuteTurnOptions {
     bool pushUndo = true;
     bool recordRestartUndo = true;
@@ -78,8 +81,56 @@ struct ExecuteTurnOptions {
     bool dontModify = false;
     bool probeAgain = true;
     bool* observedModification = nullptr;
+    PreparedInterpretedTurn* prepare = nullptr;
+    bool usePrepared = false;
     SpecializedRulegroupsForInterpretedTurnFn applyEarlyRules = nullptr;
     SpecializedRulegroupsForInterpretedTurnFn applyLateRules = nullptr;
+};
+
+// Compare/copy only metagame values: never copy the recursively stored undo
+// history for lookahead. pendingAgain is the presentation of this very cache.
+template <typename Meta>
+auto preparedMetaValues(Meta& meta) {
+    return std::tie(meta.currentLevelIndex, meta.currentLevelTarget,
+        meta.titleScreen, meta.textMode, meta.titleMode, meta.titleSelection,
+        meta.titleSelected, meta.messageSelected, meta.winning, meta.messageText,
+        meta.loadedLevelSeed, meta.hasRandomState, meta.randomStateValid,
+        meta.randomStateI, meta.randomStateJ, meta.randomStateS,
+        meta.oldFlickscreenDat, meta.level.isMessage, meta.level.message,
+        meta.level.lineNumber, meta.level.width, meta.level.height, meta.level.objects,
+        meta.levelDimensions.width, meta.levelDimensions.height,
+        meta.restart.objects, meta.restart.oldFlickscreenDat,
+        meta.serializedLevel, meta.suppressRuleMessages);
+}
+bool samePreparedRandomState(const RandomState& a, const RandomState& b) {
+    return a.s == b.s && a.i == b.i && a.j == b.j && a.valid == b.valid;
+}
+struct PreparedInterpretedTurn {
+    bool valid = false;
+    std::shared_ptr<const Game> game;
+    MetaGameState sourceMeta;
+    size_t sourceUndoDepth = 0;
+    PersistentLevelState source, prepared;
+    MaskVector sourceMovements, movements, rigidGroups, rigidApplied, created, destroyed;
+    bool movementsClean = false;
+    bool seeded = false, ruleChanged = false, moved = false, lateChanged = false, modified = false;
+    CommandState commands;
+    TurnResult output;
+    ExecuteTurnOptions options;
+
+    bool matches(const FullState& session, const ExecuteTurnOptions& next) const {
+        return valid && game == session.game
+            && preparedMetaValues(sourceMeta) == preparedMetaValues(session.meta)
+            && sourceUndoDepth == session.meta.undoStack.size()
+            && source.board.objects == session.levelState.board.objects
+            && samePreparedRandomState(source.rng, session.levelState.rng)
+            && sourceMovements == session.scratch.liveMovements
+            && options.recordRestartUndo == next.recordRestartUndo
+            && options.emitAudio == next.emitAudio && options.solverMode == next.solverMode
+            && options.ignoreRestartCommand == next.ignoreRestartCommand
+            && options.ignoreWin == next.ignoreWin && options.probeAgain == next.probeAgain
+            && options.applyEarlyRules == next.applyEarlyRules && options.applyLateRules == next.applyLateRules;
+    }
 };
 
 struct RuntimeCounterStorage {
@@ -6686,6 +6737,8 @@ void transposeCellMajorToObjectMajor(
 }
 
 void setPersistentBoardObjectsFromCellMajor(FullState& session, const MaskVector& objects) {
+    session.scratch.interpretedAgain.reset();
+    session.scratch.compactAgain.reset();
     session.levelState.board.objects = objects;
 }
 
@@ -6695,6 +6748,8 @@ void setTurnInterrupt(TurnInterruptCheck check, void* context) {
 }
 
 bool retargetSessionBoard(FullState& session, const MaskVector& objects) {
+    session.scratch.interpretedAgain.reset();
+    session.scratch.compactAgain.reset();
     if (session.game == nullptr) return false;
     const int32_t stride = session.game->strideObject;
     const int32_t width = currentLevelWidth(session);
@@ -7007,7 +7062,7 @@ bool compiledRuleApplyRandomGroup(FullState& session, const std::vector<Rule>& g
 
 void runRulesOnLevelStart(FullState& session);
 void runRulesOnLevelStart(FullState& session, RuntimeStepOptions options);
-bool wouldAgainChange(FullState& session, bool* outWouldModify = nullptr, bool emitAudio = true);
+bool wouldAgainChange(FullState& session, bool* outWouldModify, ExecuteTurnOptions options);
 void settlePendingAgain(FullState& session);
 
 std::unique_ptr<Error> loadGameFromJson(std::string_view jsonText, LoadedGame& outGame) {
@@ -7339,6 +7394,8 @@ std::unique_ptr<Error> advanceLevel(FullState& session) {
 }
 
 bool restart(FullState& session, RuntimeStepOptions options) {
+    session.scratch.interpretedAgain.reset();
+    session.scratch.compactAgain.reset();
     if (session.game->metadata.values.find("norestart") != session.game->metadata.values.end()) {
         return true;
     }
@@ -7355,6 +7412,8 @@ bool restart(FullState& session) {
 }
 
 bool undo(FullState& session) {
+    session.scratch.interpretedAgain.reset();
+    session.scratch.compactAgain.reset();
     if (session.game->metadata.values.find("noundo") != session.game->metadata.values.end()) {
         return true;
     }
@@ -7511,38 +7570,48 @@ void runRulesOnLevelStart(FullState& session, RuntimeStepOptions options) {
     });
 }
 
-bool wouldAgainChange(FullState& session, bool* outWouldModify, bool emitAudio) {
-    const uint64_t beforeHash = hashFullState64(session);
+bool wouldAgainChange(FullState& session, bool* outWouldModify, ExecuteTurnOptions options) {
+    const uint64_t beforeHash = againDebugEnabled() ? hashFullState64(session) : 0;
+    auto cache = std::static_pointer_cast<PreparedInterpretedTurn>(session.scratch.interpretedAgain.value);
+    if (!cache) cache = std::make_shared<PreparedInterpretedTurn>();
+    cache->valid = false;
+    cache->game = session.game;
+    cache->options = options;
+    const RandomState sourceRandom = session.levelState.rng;
     session.meta.pendingAgain = false;
     bool wouldModify = false;
+    ExecuteTurnOptions probeOptions = options;
+    probeOptions.pushUndo = false;
+    probeOptions.ignoreWin = true;
+    // Preserve the historical eligibility check; commit uses the caller's
+    // solver policy after applying the prepared simulation.
+    probeOptions.solverMode = false;
+    probeOptions.dontModify = true;
+    probeOptions.usePrepared = false;
+    probeOptions.prepare = cache.get();
+    probeOptions.observedModification = &wouldModify;
     const ps_step_result result = [&] {
-        // Lookahead must leave the next real turn at the same random stream
-        // position, including when rule evaluation throws.
         struct RestoreProbeRandomState {
             RandomState& target;
             RandomState saved;
             ~RestoreProbeRandomState() { target = saved; }
-        } restoreRandom{session.levelState.rng, session.levelState.rng};
-        return executeTurn(session, 0, ExecuteTurnOptions{
-            .pushUndo = false,
-            .emitAudio = emitAudio,
-            .ignoreWin = true,
-            .dontModify = true,
-            .observedModification = &wouldModify,
-        }).core;
+        } restoreRandom{session.levelState.rng, sourceRandom};
+        return executeTurn(session, 0, probeOptions).core;
     }();
     const bool changed = result.changed || result.transitioned || result.won;
-    const int iterations = 1;
-    if (outWouldModify != nullptr) {
-        *outWouldModify = wouldModify;
+    if (outWouldModify) *outWouldModify = wouldModify;
+    if (changed) {
+        cache->source = session.levelState;
+        cache->sourceMovements = session.scratch.liveMovements;
+        preparedMetaValues(cache->sourceMeta) = preparedMetaValues(session.meta);
+        cache->sourceUndoDepth = session.meta.undoStack.size();
+        cache->valid = true;
     }
-
+    session.scratch.interpretedAgain.value = cache;
     if (againDebugEnabled()) {
         std::ostringstream stream;
-        stream << "probe changed=" << (changed ? 1 : 0)
-               << " modified=" << (wouldModify ? 1 : 0)
-               << " iterations=" << iterations
-               << " before_hash=" << beforeHash
+        stream << "probe changed=" << changed << " modified=" << wouldModify
+               << " iterations=1 before_hash=" << beforeHash
                << " after_hash=" << hashFullState64(session);
         againDebugLog(stream.str());
     }
@@ -7564,6 +7633,10 @@ bool wouldAgainChange(FullState& session, bool* outWouldModify, bool emitAudio) 
 // 10. Process restart, win/level transition, checkpoint, and again scheduling.
 // 11. Fill ps_step_result, sort audio, rebuild masks, and return.
 TurnResult executeTurn(FullState& session, int32_t directionMask, ExecuteTurnOptions options) {
+    auto cache = std::static_pointer_cast<PreparedInterpretedTurn>(session.scratch.interpretedAgain.value);
+    const bool replayPrepared = options.usePrepared && directionMask == 0
+        && cache && cache->matches(session, options);
+    if (cache) cache->valid = false;
     TurnResult out;
     ps_step_result& result = out.core;
     session.scratch.currentInputMask = inputSpecializationMaskForDirectionMask(directionMask);
@@ -7617,7 +7690,23 @@ TurnResult executeTurn(FullState& session, int32_t directionMask, ExecuteTurnOpt
     std::vector<bool> bannedGroups;
     int rigidLoopCount = 0;
     bool firstPass = true;
-    while (true) {
+    if (replayPrepared) {
+        session.levelState = cache->prepared;
+        session.scratch.liveMovements = cache->movements;
+        session.scratch.liveMovementsClean = cache->movementsClean;
+        session.scratch.rigidGroupIndexMasks = cache->rigidGroups;
+        session.scratch.rigidMovementAppliedMasks = cache->rigidApplied;
+        session.scratch.pendingCreateMask = cache->created;
+        session.scratch.pendingDestroyMask = cache->destroyed;
+        seeded = cache->seeded;
+        ruleChanged = cache->ruleChanged;
+        moved = cache->moved;
+        lateRuleChanged = cache->lateChanged;
+        commands = cache->commands;
+        out = cache->output;
+        markAllMasksDirty(session);
+        rebuildMasks(session);
+    } else while (true) {
         commands = CommandState{};
         if (firstPass) {
             firstPass = false;
@@ -7686,7 +7775,24 @@ TurnResult executeTurn(FullState& session, int32_t directionMask, ExecuteTurnOpt
         }
         break;
     }
-    const bool modified = !levelBoardMatchesSnapshot(session, turnStart);
+    const bool modified = replayPrepared ? cache->modified : !levelBoardMatchesSnapshot(session, turnStart);
+    if (options.prepare) {
+        auto& prepared = *options.prepare;
+        prepared.prepared = session.levelState;
+        prepared.movements = session.scratch.liveMovements;
+        prepared.movementsClean = session.scratch.liveMovementsClean;
+        prepared.rigidGroups = session.scratch.rigidGroupIndexMasks;
+        prepared.rigidApplied = session.scratch.rigidMovementAppliedMasks;
+        prepared.created = session.scratch.pendingCreateMask;
+        prepared.destroyed = session.scratch.pendingDestroyMask;
+        prepared.seeded = seeded;
+        prepared.ruleChanged = ruleChanged;
+        prepared.moved = moved;
+        prepared.lateChanged = lateRuleChanged;
+        prepared.modified = modified;
+        prepared.commands = commands;
+        prepared.output = out;
+    }
     if (options.observedModification != nullptr) {
         *options.observedModification = modified;
     }
@@ -7788,7 +7894,7 @@ TurnResult executeTurn(FullState& session, int32_t directionMask, ExecuteTurnOpt
     if (!won && hasAgain && modified) {
         if (options.probeAgain) {
             const auto audioBeforeAgainProbe = out.audio;
-            againWouldChange = wouldAgainChange(session, &againWouldModify, options.emitAudio);
+            againWouldChange = wouldAgainChange(session, &againWouldModify, options);
             if (options.emitAudio) {
                 out.audio = audioBeforeAgainProbe;
             }
@@ -7893,6 +7999,10 @@ ps_step_result interpretedTurnOnceWithSpecializedRulegroups(
 ) {
     gThreadTurnResult = TurnResult{};
     ps_step_result& result = gThreadTurnResult.core;
+    if (input != PS_INPUT_TICK && (session.meta.textMode || session.meta.titleScreen)) {
+        session.scratch.interpretedAgain.reset();
+        session.scratch.compactAgain.reset();
+    }
     if (session.meta.textMode && !session.meta.titleScreen && input == PS_INPUT_ACTION) {
         if (session.meta.level.isMessage) {
             result.transitioned = advanceToNextLevel(session);
@@ -7987,6 +8097,7 @@ ps_step_result interpretedTickWithSpecializedRulegroups(
         .emitAudio = options.emitAudio,
         .solverMode = options.solverMode,
         .probeAgain = options.againPolicy != AgainPolicy::Drain,
+        .usePrepared = options.againPolicy == AgainPolicy::Yield,
         .applyEarlyRules = applyEarlyRules,
         .applyLateRules = applyLateRules,
     });

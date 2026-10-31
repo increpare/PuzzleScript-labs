@@ -2663,6 +2663,24 @@ add_test(NAME compiled_solver_profiles_node
 add_test(NAME solver_stale_frontier_node
   COMMAND ${NODE_EXECUTABLE} ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_stale_frontier_node.js)
 
+# Always generate and link native compact kernels for continuation regressions.
+# Optional caller-provided compiled sources must not control this coverage.
+set(CACHED_AGAIN_FIXTURES ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/cached_again)
+file(GLOB CACHED_AGAIN_SOURCES CONFIGURE_DEPENDS ${CACHED_AGAIN_FIXTURES}/*.txt)
+set(CACHED_AGAIN_GENERATED ${CMAKE_CURRENT_BINARY_DIR}/generated/cached_again.cpp)
+add_custom_command(
+  OUTPUT ${CACHED_AGAIN_GENERATED}
+  COMMAND $<TARGET_FILE:puzzlescript_cpp> compile-rules ${CACHED_AGAIN_FIXTURES}
+          --emit-cpp ${CACHED_AGAIN_GENERATED} --compact-turn-mode compiler
+  DEPENDS puzzlescript_cpp ${CACHED_AGAIN_SOURCES}
+  VERBATIM)
+add_executable(cached_again_tests tests/cached_again_tests.cpp ${CACHED_AGAIN_GENERATED})
+target_include_directories(cached_again_tests PRIVATE src)
+target_compile_definitions(cached_again_tests PRIVATE PS_CACHED_AGAIN_INTERNAL_CACHE=1 PS_CACHED_AGAIN_FIXTURES="${CACHED_AGAIN_FIXTURES}")
+target_link_libraries(cached_again_tests PRIVATE puzzlescript_compiler puzzlescript_native)
+add_test(NAME cached_again_tests COMMAND cached_again_tests)
+set_tests_properties(cached_again_tests PROPERTIES TIMEOUT 60)
+
 # Assertions in test sources are checks, and sometimes perform setup. Release
 # tests must run them just as Debug tests do; production targets retain NDEBUG.
 get_property(native_targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)

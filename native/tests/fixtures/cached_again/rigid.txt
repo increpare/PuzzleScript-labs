@@ -1,0 +1,34 @@
+title Cached AGAIN rigid
+
+OBJECTS
+
+Background .
+black
+
+Dormant P
+white
+
+Armed
+red
+
+Trigger
+green
+
+LEGEND
+Player = Dormant or Armed
+
+SOUNDS
+sfx0 123456
+Armed move 654321
+
+COLLISIONLAYERS
+Background
+Dormant, Armed, Trigger
+
+RULES
+[ action Dormant ] -> [ Trigger ] again
+rigid [ stationary Armed ] -> [ right Armed ] again sfx0
+late [ Trigger ] -> [ Armed ]
+
+LEVELS
+P...................................................................................................

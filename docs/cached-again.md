@@ -24,8 +24,10 @@ calls; this can leave one final no-op interval. Seeded RC4 gameplay uses caching
 The four-argument `processInput` interface remains available. JS solver and MIS
 search callers using `skipAgainProbe` keep their existing single-simulation path
 and live level identity, including Zobrist hooks and input specialization. The
-native interpreter and generated compact Yield probes now restore their random
-state after speculation; native solving is not given a new board cache.
+native interpreter and generated compact Yield probes restore their random
+state after speculation. The subsequent [native cache implementation](native-cached-again.md)
+also reuses accepted continuations in C++; solver/Drain execution retains its
+existing uninterrupted path.
 
 ## Accepted random-sequence change
 

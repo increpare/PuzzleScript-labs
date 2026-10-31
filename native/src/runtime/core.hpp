@@ -554,7 +554,23 @@ private:
 
 MaskOffset storeMaskWords(Game& game, const MaskVector& words);
 
+// Prepared lookahead belongs to one live session. Copying scratch (notably for
+// solver siblings) deliberately drops it, while moves preserve reusable storage.
+struct PreparedTurnCache {
+    std::shared_ptr<void> value;
+    const void* tag = nullptr;
+    const void* owner = nullptr;
+    PreparedTurnCache() = default;
+    PreparedTurnCache(const PreparedTurnCache&) {}
+    PreparedTurnCache& operator=(const PreparedTurnCache&) { value.reset(); tag = nullptr; owner = nullptr; return *this; }
+    PreparedTurnCache(PreparedTurnCache&&) = default;
+    PreparedTurnCache& operator=(PreparedTurnCache&&) = default;
+    void reset() { value.reset(); tag = nullptr; owner = nullptr; }
+};
+
 struct Scratch {
+    PreparedTurnCache interpretedAgain;
+    PreparedTurnCache compactAgain;
     MaskVector liveMovements;
     bool liveMovementsClean = false;
     MaskVector rowMasks;
@@ -642,6 +658,8 @@ struct Scratch {
 // retaining capacity avoids repeating a large burst of heap traffic on the
 // first rule turn after each boundary.
 inline void resetScratchForLevel(Scratch& scratch) {
+    scratch.interpretedAgain.reset();
+    scratch.compactAgain.reset();
     scratch.liveMovements.clear();
     scratch.liveMovementsClean = false;
     scratch.rowMasks.clear();
