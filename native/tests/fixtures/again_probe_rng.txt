@@ -1,0 +1,44 @@
+title AGAIN probe random stream isolation
+
+OBJECTS
+
+Background
+black
+
+Player
+white
+
+Armed
+red
+
+Token
+blue
+
+Trigger
+green
+
+LEGEND
+
+P = Player
+X = Player and Token
+
+COLLISIONLAYERS
+
+Background
+Player
+Armed
+Token
+Trigger
+
+RULES
+
+[ action Player no Armed ] -> [ Player Trigger ] again
+random [ stationary Player Armed ] -> [ Player Armed ]
+[ stationary Player Armed Token ] -> [ Player Armed no Token ]
+late [ Player Trigger ] -> [ Player Armed no Trigger ]
+
+LEVELS
+
+P
+
+X

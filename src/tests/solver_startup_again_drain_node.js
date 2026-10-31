@@ -22,9 +22,11 @@ assert.strictEqual(againing, false, 'solver start snapshot must be after startup
 
 // Player/oracle drain (processInput(-1) with again probe), not skipAgainProbe settleAgain.
 const board = convertLevelToString();
-assert.ok(board.includes('background fire t3:'), `unexpected fire timer after player-style drain:\n${board}`);
+// Reviewed against the old Labs engine with only speculative RNG isolation:
+// startup AGAIN now commits its prepared first draw rather than drawing twice.
+assert.ok(board.includes('background fire t2:'), `unexpected fire timer after player-style drain:\n${board}`);
 assert.ok(
-    board.includes('background spawntile u:3,background d spawntile:4'),
+    board.includes('background spawntile u:3,background r spawntile:4'),
     `board should match oracle/player drained start, got:\n${board}`
 );
 

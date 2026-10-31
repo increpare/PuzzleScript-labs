@@ -7,5 +7,13 @@
   "labsBaseline": "7828b7ecbf781bb6adb63188c7efa6543ba24202",
   "syncDate": "2026-10-31",
   "strategy": "selective-port",
-  "notes": "docs/upstream-sync.md"
+  "notes": "docs/upstream-sync.md",
+  "additionalPorts": [
+    {
+      "branch": "codex/cached-again",
+      "commit": "92d045d3180eb03af34fc07fe6a56c87ebc298e8",
+      "portDate": "2026-10-31",
+      "notes": "docs/cached-again.md"
+    }
+  ]
 }

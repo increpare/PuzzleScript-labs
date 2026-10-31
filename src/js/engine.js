@@ -15,6 +15,14 @@ z to undo, r to restart...........
 
 
 let RandomGen = new RNG();
+let pendingAgainTurn = null;
+let againScratch = null;
+
+function resetAgain() {
+	againing = false;
+	pendingAgainTurn = null;
+	againScratch = null;
+}
 
 const intro_template = [
 	"..................................",
@@ -119,6 +127,7 @@ function setGameCanvasFocusable(focusable) {
 }
 
 function unloadGame() {
+	resetAgain();
 	if (levelEditorOpened){
 		printLevel();
 	}
@@ -547,7 +556,7 @@ function loadLevelFromLevelDat(state, leveldat, randomseed, clearinputhistory) {
 	titleMode = showContinueOptionOnTitleScreen() ? 1 : 0;
 	titleSelection = showContinueOptionOnTitleScreen() ? 1 : 0;
 	titleSelected = false;
-	againing = false;
+	resetAgain();
 	if (leveldat === undefined) {
 		consolePrint("Trying to access a level that doesn't exist.", true);
 		goToTitleScreen();
@@ -752,15 +761,12 @@ function setGameState(_state, command, randomseed) {
 	timer = 0;
 	autotick = 0;
 	winning = false;
-	againing = false;
+	resetAgain();
 	messageselected = false;
 	STRIDE_MOV = _state.STRIDE_MOV;
 	STRIDE_OBJ = _state.STRIDE_OBJ;
 	LAYER_COUNT = _state.LAYER_COUNT;
 	RebuildGameArrays();
-
-	sfxCreateMask = new BitVec(STRIDE_OBJ);
-	sfxDestroyMask = new BitVec(STRIDE_OBJ);
 
 	if (command === undefined) {
 		command = ["restart"];
@@ -956,6 +962,8 @@ function RebuildGameArrays(){
 	_m1 = new BitVec(STRIDE_MOV);
 	_m2 = new BitVec(STRIDE_MOV);
 	_m3 = new BitVec(STRIDE_MOV);
+	_movementVecs = [new BitVec(STRIDE_MOV), new BitVec(STRIDE_MOV), new BitVec(STRIDE_MOV)];
+	_movementVecIndex = 0;
 }
 
 function RebuildLevelArrays() {
@@ -969,10 +977,6 @@ function RebuildLevelArrays() {
 	level.colCellContents_Movements = [];
 	level.mapCellContents = new BitVec(STRIDE_OBJ);
 	level.mapCellContents_Movements = new BitVec(STRIDE_MOV);
-
-	//I have these to avoid dynamic allocation - I generate 3 because why not, 
-	//but according to my tests I never seem to call this while a previous copy is still in scope
-	_movementVecs = [new BitVec(STRIDE_MOV), new BitVec(STRIDE_MOV), new BitVec(STRIDE_MOV)];
 
 	for (let i = 0; i < level.height; i++) {
 		level.rowCellContents[i] = new BitVec(STRIDE_OBJ);
@@ -1077,7 +1081,7 @@ function restoreLevel(lev) {
 		}
 	}
 
-	againing = false;
+	resetAgain();
 	level.commandQueue = [];
 	level.commandQueueSourceRules = [];
 	if (level.solverZobristRecompute) {
@@ -1212,6 +1216,7 @@ function backupDiffers() {
 }
 
 function DoUndo(force, ignoreDuplicates) {
+	resetAgain();
 	if ((!levelEditorOpened) && ('noundo' in state.metadata && force !== true)) {
 		return;
 	}
@@ -1415,9 +1420,6 @@ let dirMaskName = {
 	3: 'no'
 };
 
-let seedsToPlay_CanMove = [];
-let seedsToPlay_CantMove = [];
-
 function repositionEntitiesOnLayer(positionIndex, layer, dirMask) {
 	let delta = dirMasksDelta[dirMask];
 
@@ -1448,8 +1450,8 @@ function repositionEntitiesOnLayer(positionIndex, layer, dirMask) {
 		if (objectMask.anyBitsInCommon(sourceMask)) {
 			let movementMask = level.getMovements(positionIndex);
 			let directionMask = o.directionMask;
-			if (movementMask.anyBitsInCommon(directionMask) && !seedsToPlay_CanMove.includes(o.seed)) {
-				seedsToPlay_CanMove.push(o.seed);
+			if (movementMask.anyBitsInCommon(directionMask) && !level.sounds.canMove.includes(o.seed)) {
+				level.sounds.canMove.push(o.seed);
 			}
 		}
 	}
@@ -2070,8 +2072,8 @@ function generateSparseReplaceFunction(replacement, objectSize, movementSize) {
 		changes.push(`oldObject${i} !== newObject${i}`);
 		writes += `
 			level.objects[currentIndex * ${objectSize} + ${i}] = newObject${i};
-			sfxCreateMask.data[${i}] |= newObject${i} & ~oldObject${i};
-			sfxDestroyMask.data[${i}] |= oldObject${i} & ~newObject${i};
+			level.sounds.created.data[${i}] |= newObject${i} & ~oldObject${i};
+			level.sounds.destroyed.data[${i}] |= oldObject${i} & ~newObject${i};
 			level.rowCellContents[row].data[${i}] |= newObject${i};
 			level.colCellContents[col].data[${i}] |= newObject${i};
 			level.mapCellContents.data[${i}] |= newObject${i};
@@ -2317,7 +2319,7 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 				}
 			}`
 			)}
-			const rand = choices[Math.floor(RandomGen.uniform() * choices.length)];
+			const rand = choices[Math.floor(level.randomGen.uniform() * choices.length)];
 			const n = state.idDict[rand];
 			const o = state.objects[n];
 			${IBITSET("objectsSet", "rand")}
@@ -2328,7 +2330,7 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 			${FOR(0, LAYER_COUNT, layerIndex =>
 			`{
 				if (${GET("replace_RandomDirMask", 5*layerIndex )}) {
-					const randomDir = Math.floor(RandomGen.uniform()*4);
+					const randomDir = Math.floor(level.randomGen.uniform()*4);
 					${IBITSET("movementsSet", `(randomDir + 5 * ${layerIndex})`)}
 				}
 			}`
@@ -2447,12 +2449,12 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 		const created = _o4;
 		${UNROLL("created = curCellMask", OBJECT_SIZE)}
 		${UNROLL("created &= ~oldCellMask", OBJECT_SIZE)}
-		${UNROLL("sfxCreateMask |= created", OBJECT_SIZE)}
+		${UNROLL("level.sounds.created |= created", OBJECT_SIZE)}
 		
 		const destroyed = _o5;
 		${UNROLL("destroyed = oldCellMask", OBJECT_SIZE)}
 		${UNROLL("destroyed &= ~curCellMask", OBJECT_SIZE)}
-		${UNROLL("sfxDestroyMask |= destroyed", OBJECT_SIZE)}
+		${UNROLL("level.sounds.destroyed |= destroyed", OBJECT_SIZE)}
 
 		${LEVEL_UPDATE_CELL_HASH("level", "currentIndex", "curCellMask")}
 		${LEVEL_SET_CELL("level", "currentIndex", "curCellMask", OBJECT_SIZE)}
@@ -3015,7 +3017,7 @@ Rule.prototype.queueCommands = function () {
 	if (currule_cancel || currule_restart) {
 		level.commandQueue = [];
 		level.commandQueueSourceRules = [];
-		messagetext = "";
+		level.commandQueueMessage = "";
 	}
 
 	for (let i = 0; i < this.commands.length; i++) {
@@ -3035,7 +3037,7 @@ Rule.prototype.queueCommands = function () {
 		}
 
 		if (command[0] === 'message') {
-			messagetext = command[1];
+			level.commandQueueMessage = command[1];
 		}
 	}
 };
@@ -3101,7 +3103,7 @@ function applyRandomRuleGroup(level, ruleGroup) {
 		return false;
 	}
 
-	let match = matches[Math.floor(RandomGen.uniform() * matches.length)];
+	let match = matches[Math.floor(level.randomGen.uniform() * matches.length)];
 	let ruleIndex = match[0];
 	let rule = ruleGroup[ruleIndex];
 	let tuple = match[1];
@@ -3538,8 +3540,8 @@ function generate_resolveMovements(OBJECT_SIZE, MOVEMENT_SIZE,state) {
 			
 						if (${ANY_BITS_IN_COMMON("cellMask", "objectMask", OBJECT_SIZE)} 
 						&& ${ANY_BITS_IN_COMMON("o.directionMask","movementMask", MOVEMENT_SIZE)} 
-					&& !seedsToPlay_CantMove.includes(o.seed)) {
-						seedsToPlay_CantMove.push(o.seed);
+					&& !level.sounds.cantMove.includes(o.seed)) {
+						level.sounds.cantMove.push(o.seed);
 					}
 					}
 				`)}
@@ -3564,8 +3566,6 @@ function generate_resolveMovements(OBJECT_SIZE, MOVEMENT_SIZE,state) {
 	return CACHE_RESOLVEMOVEMENTS[fn] = new Function("level", "bannedGroup", generatedFunctionSource("resolveMovements", fn));
 }
 
-let sfxCreateMask = null;
-let sfxDestroyMask = null;
 let _currentInputSlot = 5;
 let inputSpecializationActive =
 	!(typeof process !== 'undefined' && process.env
@@ -3579,12 +3579,121 @@ function getInputSpecializationActive() {
 	return inputSpecializationActive;
 }
 
-/* returns a bool indicating if anything changed */
-function processInput(dir, dontDoWin, dontModify, skipAgainProbe) {
-	againing = false;
-	if (textMode || titleScreen || !level || !Number.isInteger(level.n_tiles)) {
-		return false;
+function levelHasChanged(bak) {
+	if (level.width !== bak.width || level.height !== bak.height || level.objects.length !== bak.dat.length) {
+		return true;
 	}
+	for (let i = 0; i < level.objects.length; i++) {
+		if (level.objects[i] !== bak.dat[i]) {
+			return true;
+		}
+	}
+	return false;
+}
+
+// A cached turn belongs to one board/game and one position in the random stream.
+function takeAgainTurn(dir, dontModify, skipAgainProbe) {
+	const pending = pendingAgainTurn;
+	pendingAgainTurn = null;
+	if (dontModify || skipAgainProbe || dir !== -1 || pending === null || pending.sourceLevel !== level ||
+		pending.sourceState !== state || pending.sourceRandomGen !== RandomGen ||
+		pending.sourceRandomRevision !== RandomGen._revision ||
+		pending.verbose !== verbose_logging || levelHasChanged(pending.bak) ||
+		(pending.debug && (pending.debug.startIndex !== debugger_turnIndex ||
+			pending.debug.sourceTimeline !== debug_visualisation_array))) {
+		return simulateInput(dir, RandomGen, skipAgainProbe);
+	}
+
+	// Use the current viewport for undo, and retain the old board as scratch space.
+	const bak = backupLevel();
+	againScratch = {state, level};
+	level = pending.level;
+	RandomGen = level.randomGen;
+	turnObjectsModified = pending.turnObjectsModified;
+	_currentInputSlot = 5;
+	if (pending.debug) {
+		debugger_turnIndex = pending.debug.endIndex;
+		debug_visualisation_array = pending.debug.timeline;
+	}
+	for (const [print, args] of pending.logs) {
+		print(...args);
+	}
+	return {bak, inputindex: dir, playerPositions: []};
+}
+
+function prepareAgainTurn() {
+	const sourceLevel = level;
+	const sourceObjectsModified = turnObjectsModified;
+	const sourceInputSlot = _currentInputSlot;
+	const sourceMessageText = messagetext;
+	const previousConsoleCapture = consoleCapture;
+	const logs = [];
+	const debug = verbose_logging ? {
+		startIndex: debugger_turnIndex,
+		timeline: debug_visualisation_array
+	} : null;
+
+	try {
+		const scratch = againScratch;
+		againScratch = null;
+		if (scratch !== null && scratch.state === state &&
+			scratch.level.width === sourceLevel.width && scratch.level.height === sourceLevel.height &&
+			scratch.level.layerCount === sourceLevel.layerCount) {
+			level = scratch.level;
+			level.lineNumber = sourceLevel.lineNumber;
+			level.objects.set(sourceLevel.objects);
+			level.movements.fill(0);
+			level.rowColMasksValid = false;
+			if (state.rigid) {
+				for (let i = 0; i < level.n_tiles; i++) {
+					level.rigidMovementAppliedMask[i].setZero();
+					level.rigidGroupIndexMask[i].setZero();
+				}
+			}
+		} else {
+			level = sourceLevel.clone();
+			RebuildLevelArrays();
+		}
+		level.commandQueue = [];
+		level.commandQueueSourceRules = [];
+		consoleCapture = logs;
+		if (debug) {
+			debug_visualisation_array = debug.timeline.slice();
+		}
+
+		const {bak} = simulateInput(-1, RandomGen.clone());
+		const commands = level.commandQueue;
+		const shouldRun = commands.includes('cancel') ? commands.length > 1 :
+			levelHasChanged(bak) || commands.includes('win') || commands.includes('restart');
+		if (!shouldRun) {
+			againScratch = {state, level};
+			return null;
+		}
+		return {
+			bak, level, sourceLevel, sourceState: state, sourceRandomGen: RandomGen,
+			sourceRandomRevision: RandomGen._revision,
+			turnObjectsModified,
+			verbose: verbose_logging, logs,
+			debug: debug && {startIndex: debug.startIndex, endIndex: debugger_turnIndex,
+				sourceTimeline: debug.timeline, timeline: debug_visualisation_array}
+		};
+	} finally {
+		level = sourceLevel;
+		turnObjectsModified = sourceObjectsModified;
+		_currentInputSlot = sourceInputSlot;
+		messagetext = sourceMessageText;
+		consoleCapture = previousConsoleCapture;
+		if (debug) {
+			debugger_turnIndex = debug.startIndex;
+			debug_visualisation_array = debug.timeline;
+		}
+	}
+}
+
+// Run rules and resolve movement without executing commands or changing history.
+function simulateInput(dir, randomGen = RandomGen, skipAgainProbe) {
+	level.randomGen = randomGen;
+	level.commandQueueMessage = "";
 
 	let bak = backupLevel();
 	turnObjectsModified = false;
@@ -3644,10 +3753,13 @@ function processInput(dir, dontDoWin, dontModify, skipAgainProbe) {
 		commandQueue: [],
 		commandQueueSourceRules: []
 	} : null;
-	sfxCreateMask.setZero();
-	sfxDestroyMask.setZero();
-	seedsToPlay_CanMove = [];
-	seedsToPlay_CantMove = [];
+	if (!level.sounds || level.sounds.created.data.length !== STRIDE_OBJ) {
+		level.sounds = {created: new BitVec(STRIDE_OBJ), destroyed: new BitVec(STRIDE_OBJ), canMove: [], cantMove: []};
+	}
+	level.sounds.created.setZero();
+	level.sounds.destroyed.setZero();
+	level.sounds.canMove = [];
+	level.sounds.cantMove = [];
 	//rowColMasksValid is set by callers that have just computed exact masks for
 	//the current board (the solver's restore path, which fuses the rebuild into
 	//its snapshot copy); it is one-shot - the masks accumulate conservatively
@@ -3670,7 +3782,7 @@ function processInput(dir, dontDoWin, dontModify, skipAgainProbe) {
 			turnObjectsModified = true;
 		}
 		let shouldUndo = state.resolveMovements(level, bannedGroup);
-		if (skipAgainProbe && seedsToPlay_CanMove.length > 0) {
+		if (skipAgainProbe && level.sounds.canMove.length > 0) {
 			turnObjectsModified = true;
 		}
 
@@ -3700,10 +3812,9 @@ function processInput(dir, dontDoWin, dontModify, skipAgainProbe) {
 				if (level.solverZobristRecompute) {
 					level.solverZobristRecompute();
 				}
-				sfxCreateMask.setZero();
-			sfxDestroyMask.setZero();
-			seedsToPlay_CanMove = [];
-			//seedsToPlay_CantMove = []; 
+				level.sounds.created.setZero();
+			level.sounds.destroyed.setZero();
+			level.sounds.canMove = [];
 			// CAN'T MOVE SHOULD BE KEPT - it's not perfect, but more often than not, 
 			// the thing that can't move is the rigid body, and we want to keep that information, 
 			// not clear it.
@@ -3740,6 +3851,18 @@ function processInput(dir, dontDoWin, dontModify, skipAgainProbe) {
 		consolePrint("Looped through 50 times, gave up.  too many loops!");
 	}
 
+	return {bak, inputindex, playerPositions};
+}
+
+/* returns a bool indicating if anything changed */
+function processInput(dir, dontDoWin, dontModify, skipAgainProbe) {
+	againing = false;
+	if (textMode || titleScreen || !level || !Number.isInteger(level.n_tiles)) {
+		resetAgain();
+		return false;
+	}
+	const {bak, inputindex, playerPositions} = takeAgainTurn(dir, dontModify, skipAgainProbe);
+
 	// Post move stuff
 	if (playerPositions.length > 0 && state.metadata.require_player_movement !== undefined) {
 		let somemoved = false;
@@ -3772,34 +3895,36 @@ function processInput(dir, dontDoWin, dontModify, skipAgainProbe) {
 		consoleCacheDump();
 	}
 	if (winning) {
-		againing = false;
+		resetAgain();
 	}
 
 	return modified;
 }
 
-function playSounds(seedsToPlay_CantMove, seedsToPlay_CanMove, sfx_CreationMasks, sfx_DestructionMasks, sfxCreateMask, sfxDestroyMask) {
-	for (let i = 0; i < seedsToPlay_CantMove.length; i++) {
-		playSound(seedsToPlay_CantMove[i]);
+function playSounds(sounds) {
+	for (const seed of sounds.cantMove) {
+		playSound(seed);
 	}
-	for (let i = 0; i < seedsToPlay_CanMove.length; i++) {
-		playSound(seedsToPlay_CanMove[i]);
+	for (const seed of sounds.canMove) {
+		playSound(seed);
 	}
-	for (let i = 0; i < sfx_CreationMasks.length; i++) {
-		let entry = sfx_CreationMasks[i];
-		if (sfxCreateMask.anyBitsInCommon(entry.objectMask)) {
+	for (const entry of state.sfx_CreationMasks) {
+		if (sounds.created.anyBitsInCommon(entry.objectMask)) {
 			playSound(entry.seed);
 		}
 	}
-	for (let i = 0; i < sfx_DestructionMasks.length; i++) {
-		let entry = sfx_DestructionMasks[i];
-		if (sfxDestroyMask.anyBitsInCommon(entry.objectMask)) {
+	for (const entry of state.sfx_DestructionMasks) {
+		if (sounds.destroyed.anyBitsInCommon(entry.objectMask)) {
 			playSound(entry.seed);
 		}
 	}
 }
 
 function processCommandQueue(bak, dontModify, dontDoWin, inputDir, skipAgainProbe) {
+	if (level.commandQueue.some(command => command === 'message' || command === 'cancel' || command === 'restart')) {
+		messagetext = level.commandQueueMessage;
+	}
+
 	// Process CANCEL command
 	const cancelIndex = level.commandQueue.indexOf('cancel');
 	if (cancelIndex >= 0) {
@@ -3875,7 +4000,7 @@ function processCommandQueue(bak, dontModify, dontDoWin, inputDir, skipAgainProb
 
 	if (!dontModify) {
 		// Play failure/movement sounds as needed.
-		playSounds(seedsToPlay_CantMove, seedsToPlay_CanMove, state.sfx_CreationMasks, state.sfx_DestructionMasks, sfxCreateMask, sfxDestroyMask);
+		playSounds(level.sounds);
 		processOutputCommands(level.commandQueue);
 	}
 
@@ -3906,31 +4031,25 @@ function processCommandQueue(bak, dontModify, dontDoWin, inputDir, skipAgainProb
 		let againIndex = level.commandQueue.indexOf('again');
 		if (againIndex >= 0 && modified) {
 			let r = level.commandQueueSourceRules[againIndex];
-			if (skipAgainProbe) {
+			// Function-backed RNGs own external state that cannot be cloned. Schedule
+			// conservatively, as the solver does, and draw only on the actual turn.
+			if (skipAgainProbe || (!dontModify && RandomGen._state === null)) {
 				if (verbose_logging) {
 					consolePrintFromRule('AGAIN command executed, with changes detected - will execute another turn.', r);
 				}
 				againing = true;
 				timer = 0;
-			} else {
-				let oldVerboseLogging = verbose_logging;
-				let oldMessageText = messagetext;
-				verbose_logging = false;
-				if (processInput(-1, true, true)) {
-					verbose_logging = oldVerboseLogging;
+			} else if (!dontModify) {
+				pendingAgainTurn = prepareAgainTurn();
+				if (pendingAgainTurn !== null) {
 					if (verbose_logging) {
 						consolePrintFromRule('AGAIN command executed, with changes detected - will execute another turn.', r);
 					}
 					againing = true;
 					timer = 0;
-				} else {
-					verbose_logging = oldVerboseLogging;
-					if (verbose_logging) {
-						consolePrintFromRule("AGAIN command not executed, it wouldn't make any changes.", r);
-					}
+				} else if (verbose_logging) {
+					consolePrintFromRule("AGAIN command not executed, it wouldn't make any changes.", r);
 				}
-				verbose_logging = oldVerboseLogging;
-				messagetext = oldMessageText;
 			}
 		}
 	}
@@ -4050,7 +4169,7 @@ function DoWin() {
 	if (winning) {
 		return;
 	}
-	againing = false;
+	resetAgain();
 	tryPlayEndLevelSound();
 	if (unitTesting) {
 		nextLevel();
@@ -4063,7 +4182,7 @@ function DoWin() {
 
 function nextLevel() {
 	const startedInTextMode = textMode;
-	againing = false;
+	resetAgain();
 	messagetext = "";
 	if (state && state.levels && (curlevel > state.levels.length)) {
 		curlevel = state.levels.length - 1;
@@ -4133,7 +4252,7 @@ function nextLevel() {
 }
 
 function goToTitleScreen() {
-	againing = false;
+	resetAgain();
 	messagetext = "";
 	titleScreen = true;
 	textMode = true;

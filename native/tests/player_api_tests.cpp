@@ -526,6 +526,59 @@ void runCompiledCompactSolverFreshScratchRegression(const std::string& source) {
     }
 }
 
+void runAgainProbeRandomIsolationRegression() {
+    const std::string source = readTextFile(PS_AGAIN_PROBE_RNG_SOURCE);
+    puzzlescript::compiler::DiagnosticSink diagnostics;
+    const auto parserState = puzzlescript::compiler::parseSource(source, diagnostics);
+    puzzlescript::LoadedGame loaded;
+    const auto error = puzzlescript::compiler::lowerToRuntimeGame(parserState, loaded);
+    require(error == nullptr && loaded.information != nullptr, "AGAIN RNG fixture compilation failed");
+    puzzlescript::attachLinkedCompiledRules(
+        *std::const_pointer_cast<puzzlescript::Game>(loaded.information), source);
+    const auto* compact = loaded.information->specializedCompactTurn;
+    if (std::getenv("PUZZLESCRIPT_AGAIN_PROBE_REQUIRE_COMPACT")) {
+        require(compact != nullptr && compact->nativeKernel, "AGAIN RNG fixture compact backend was not linked");
+    }
+
+    // The outer action is deterministic. Both an accepted and a rejected
+    // continuation draw randomness; neither speculative draw may commit.
+    for (bool useCompact : {false, true}) {
+        if (useCompact && compact == nullptr) continue;
+        for (int levelIndex : {0, 1}) {
+            auto session = puzzlescript::createFullStateWithLoadedLevelSeed(loaded, "again-probe-rng");
+            require(session != nullptr, "AGAIN RNG session creation failed");
+            require(puzzlescript::loadLevel(*session, levelIndex) == nullptr, "AGAIN RNG level load failed");
+            const auto before = session->levelState.rng;
+            constexpr puzzlescript::RuntimeStepOptions options{
+                .playableUndo = false, .emitAudio = false,
+                .againPolicy = puzzlescript::AgainPolicy::Yield,
+            };
+            const auto step = [&](ps_input input) {
+                if (useCompact) {
+                    bool handled = false;
+                    (void)puzzlescript::compiledCompactPrimaryTurn(*session, input, options, &handled);
+                    require(handled, "AGAIN RNG compact turn was not handled");
+                } else {
+                    (void)puzzlescript::interpretedTurn(*session, input, options);
+                }
+            };
+            step(PS_INPUT_ACTION);
+            const auto& after = session->levelState.rng;
+            require(before.valid == after.valid && before.i == after.i
+                && before.j == after.j && before.s == after.s,
+                useCompact ? "compact AGAIN probe consumed randomness" : "interpreted AGAIN probe consumed randomness");
+            require(session->meta.pendingAgain == (levelIndex == 1), "AGAIN RNG probe scheduled wrong continuation");
+            if (session->meta.pendingAgain) {
+                step(PS_INPUT_TICK);
+                require(session->levelState.rng.i != before.i || session->levelState.rng.j != before.j
+                    || session->levelState.rng.s != before.s,
+                    "committed AGAIN continuation failed to consume randomness");
+                require(!session->meta.pendingAgain, "AGAIN RNG continuation did not settle");
+            }
+        }
+    }
+}
+
 void runCompiledCompactSolverPathRegression(const char* sourcePath) {
     const std::string source = readCompiledRulesSourceText(sourcePath);
     runCompiledCompactSolverFreshScratchRegression(source);
@@ -659,6 +712,7 @@ void runCompiledCompactSolverDiscardRegression(const char* sourcePath) {
 } // namespace
 
 int main() {
+    runAgainProbeRandomIsolationRegression();
     if (const char* compactDiscardSource = std::getenv("PUZZLESCRIPT_COMPILED_COMPACT_DISCARD_SOURCE")) {
         runCompiledCompactSolverDiscardRegression(compactDiscardSource);
     }

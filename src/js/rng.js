@@ -88,6 +88,7 @@ RC4.prototype.next = function() {
  */
 function RNG(seed) {
     this.seed = seed;
+    this._revision = 0;
     if (seed == null) {
         seed = (Math.random() + Date.now()).toString();
         //window.console.log("setting random seed "+seed); 
@@ -114,10 +115,21 @@ function RNG(seed) {
     }
 }
 
+// Copy the random stream without consuming entropy or sharing its RC4 permutation.
+RNG.prototype.clone = function() {
+    const copy = Object.assign(Object.create(RNG.prototype), this);
+    if (this._state !== null) {
+        copy._state = Object.assign(Object.create(RC4.prototype), this._state);
+        copy._state.s = this._state.s.slice();
+    }
+    return copy;
+};
+
 /**
  * @return {number} Uniform random number between 0 and 255.
  */
 RNG.prototype.nextByte = function() {
+    this._revision++;
     return this._state.next();
 };
 

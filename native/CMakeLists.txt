@@ -519,6 +519,9 @@ target_include_directories(puzzlescript_cpp_player_api_tests
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
+target_compile_definitions(puzzlescript_cpp_player_api_tests PRIVATE
+  PS_AGAIN_PROBE_RNG_SOURCE="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/again_probe_rng.txt"
+)
 
 if(PS_COMPILED_RULES_SOURCE_ABS_LIST)
   target_sources(puzzlescript_cpp_player_api_tests PRIVATE ${PS_COMPILED_RULES_SOURCE_ABS_LIST})

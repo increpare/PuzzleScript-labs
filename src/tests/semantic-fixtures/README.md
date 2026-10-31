@@ -87,6 +87,13 @@ first draw.
 
 ### Historical expectations and Labs overrides
 
+Cached AGAIN also changes `history/again-probe-random`: current Labs commits the
+first draw (Red), and replay after undo uses the second draw (Blue). Two explicit
+`labsExpected` boards record this accepted change. The historical second/fourth
+draw expectations and case names remain intact for the pinned vanilla/TypeScript
+reference. The independent old-engine oracle isolates only speculative RNG draws
+and agrees with all current Labs gameplay boards and sounds.
+
 The ordinary `expected` and `expectedSounds` fields retain the authored behavior
 of pinned vanilla `5a94bde1` and the TypeScript compatibility reference. A case may
 also provide `labsExpected` rows and/or `labsExpectedSounds`. The loader keeps

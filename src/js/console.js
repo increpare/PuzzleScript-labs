@@ -10,6 +10,11 @@ let consolecache = [];
 
 
 function consolePrintFromRule(text,rule,urgent) {
+	if (consoleCapture !== null) {
+		consoleCapture.push([consolePrintFromRule, Array.from(arguments)]);
+		return;
+	}
+
 
 	if (urgent===undefined) {
 		urgent=false;
@@ -29,6 +34,24 @@ function consolePrintFromRule(text,rule,urgent) {
 }
 
 function consolePrint(text,urgent,linenumber,inspect_ID,scrolldown=true) {
+	if (consoleCapture !== null) {
+		consoleCapture.push([consolePrint, Array.from(arguments)]);
+		// Diagnostics must stay visible even if lookahead finds no turn to commit.
+		// Keep normal rule/debug output deferred with the candidate board.
+		if (typeof text === 'string' && (/class="(?:errorText|warningText)/.test(text) ||
+			text.startsWith('Rigid movement application failed') ||
+			text.startsWith('Looped through 50 times'))) {
+			const capture = consoleCapture;
+			consoleCapture = null;
+			try {
+				consolePrint('AGAIN lookahead: ' + text, true, linenumber, null, scrolldown);
+			} finally {
+				consoleCapture = capture;
+			}
+		}
+		return;
+	}
+
 
 	if (urgent===undefined) {
 		urgent=false;
@@ -65,6 +88,11 @@ function addToConsole(text,scrolldown=true) {
 }
 
 function consoleCacheDump(scrolldown=true) {
+	if (consoleCapture !== null) {
+		consoleCapture.push([consoleCacheDump, Array.from(arguments)]);
+		return;
+	}
+
 	if (suppress_all_console_output){
 		return;
 	}

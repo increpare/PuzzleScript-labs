@@ -297,7 +297,7 @@
   {
     "id": "history/again-probe-random",
     "sourceFile": "history/again-probe-random.ps",
-    "explanation": "Action moves onto a target and requests AGAIN. The no-input lookahead draws a random color before restoring the board, then the actual automatic turn uses the following draw. Undo restores the board but leaves those draws consumed. Seed split-colors-5 draws 0.4640369099043778, 0.5014220301644389, 0.4747373187016426, 0.3532109762234204; Red is index 0 and Blue index 1, so actual AGAIN uses Blue then Red.",
+    "explanation": "Action moves onto a target and requests AGAIN. The no-input lookahead draws a random color before restoring the board, then the actual automatic turn uses the following draw. Undo restores the board but leaves those draws consumed. Seed split-colors-5 draws 0.4640369099043778, 0.5014220301644389, 0.4747373187016426, 0.3532109762234204; Red is index 0 and Blue index 1, so actual AGAIN uses Blue then Red. Labs cached AGAIN isolates lookahead RNG and commits its prepared turn, so the first actual automatic turn uses the first draw (Red). Undo keeps that committed draw consumed; replay uses the second draw (Blue). Historical case names and expected fields describe pinned vanilla; labsExpected records the new behavior.",
     "cells": {
       ".": [
         "background"
@@ -334,7 +334,10 @@
         "expected": [
           ".B."
         ],
-        "seed": "split-colors-5"
+        "seed": "split-colors-5",
+        "labsExpected": [
+          ".R."
+        ]
       },
       {
         "name": "again undo restores original board",
@@ -357,7 +360,10 @@
         "expected": [
           ".R."
         ],
-        "seed": "split-colors-5"
+        "seed": "split-colors-5",
+        "labsExpected": [
+          ".B."
+        ]
       }
     ]
   },

@@ -7,13 +7,12 @@ compileGameFile(path.join(__dirname,'solver_smoke_tests/one_move.txt'),{quiet:tr
 lazyFunctionGeneration = false;
 STRIDE_OBJ = STRIDE_MOV = 2;
 _o2_5 = new BitVec(2);
-sfxCreateMask = new BitVec(2);sfxDestroyMask = new BitVec(2);
 const bv = words => new BitVec(words);
 const empty = () => bv([0,0]);
 const replacement = (clear,set,moveClear=[0,0],moveSet=[0,0]) => new CellReplacement([
     bv(clear),bv(set),bv(moveClear),bv(moveSet),empty(),empty(),empty(),[]
 ]);
-const board = () => ({height:1,objects:new Int32Array([1,8]),movements:new Int32Array([0,2]),
+const board = () => ({sounds:{created:empty(),destroyed:empty(),canMove:[],cantMove:[]},height:1,objects:new Int32Array([1,8]),movements:new Int32Array([0,2]),
     rowCellContents:[empty()],colCellContents:[empty()],mapCellContents:empty(),
     rowCellContents_Movements:[empty()],colCellContents_Movements:[empty()],mapCellContents_Movements:empty()});
 const rule = {rigid:false};

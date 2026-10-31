@@ -37,6 +37,10 @@ revision, move the former value to `previousReviewedThrough`, set the pre-port
 any exclusions explicitly. TypeScript's immutable vanilla-reference revision is
 a separate contract.
 
+Additional branch features are recorded under `additionalPorts` in the JSON.
+The local `codex/cached-again` port is described in
+[cached AGAIN](cached-again.md); it does not advance the vanilla master cursor.
+
 ## 31 October port: `b44aa265..57f9f6cb`
 
 | Upstream commits | Disposition |

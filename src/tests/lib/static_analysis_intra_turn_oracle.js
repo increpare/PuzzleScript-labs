@@ -69,13 +69,13 @@ function createIntraTurnOracle(report, options = {}) {
             rigidGroups: (level.rigidGroupIndexMask || []).map(mask => Array.from(mask.data)),
             commands: (level.commandQueue || []).slice(),
             commandSources: (level.commandQueueSourceRules || []).map(rule => rule.lineNumber),
-            message: messagetext,
-            rng: RandomGen && RandomGen._state ? {
-                s: RandomGen._state.s.slice(), i: RandomGen._state.i, j: RandomGen._state.j,
-                normal: RandomGen._normal,
+            message: level.commandQueueMessage,
+            rng: level.randomGen && level.randomGen._state ? {
+                s: level.randomGen._state.s.slice(), i: level.randomGen._state.i, j: level.randomGen._state.j,
+                normal: level.randomGen._normal,
             } : null,
-            created: sfxCreateMask ? Array.from(sfxCreateMask.data) : [],
-            destroyed: sfxDestroyMask ? Array.from(sfxDestroyMask.data) : [],
+            created: level.sounds ? Array.from(level.sounds.created.data) : [],
+            destroyed: level.sounds ? Array.from(level.sounds.destroyed.data) : [],
             modified: turnObjectsModified,
         };
     }
@@ -88,21 +88,17 @@ function createIntraTurnOracle(report, options = {}) {
             probeLevel[key] = key === 'commandQueueSourceRules' ? level[key].slice() : cloneData(level[key]);
         }
         const actualRng = RandomGen;
-        const actualCreate = sfxCreateMask, actualDestroy = sfxDestroyMask;
         const actualMessage = messagetext, actualModified = turnObjectsModified;
         const captures = Array.from(mappings.keys(), rule => [rule, cloneData(rule.propertyCaptures), cloneData(rule.aggregateCaptures)]);
         level = probeLevel;
         RandomGen = cloneRng(RandomGen);
-        if (sfxCreateMask) sfxCreateMask = sfxCreateMask.clone();
-        if (sfxDestroyMask) sfxDestroyMask = sfxDestroyMask.clone();
+        level.randomGen = actualLevel.randomGen === actualRng ? RandomGen : cloneRng(actualLevel.randomGen);
         suspended++;
         try { return fn(); }
         finally {
             suspended--;
             level = actualLevel;
             RandomGen = actualRng;
-            sfxCreateMask = actualCreate;
-            sfxDestroyMask = actualDestroy;
             messagetext = actualMessage;
             turnObjectsModified = actualModified;
             for (const [rule, property, aggregate] of captures) {

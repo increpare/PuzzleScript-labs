@@ -7515,13 +7515,22 @@ bool wouldAgainChange(FullState& session, bool* outWouldModify, bool emitAudio) 
     const uint64_t beforeHash = hashFullState64(session);
     session.meta.pendingAgain = false;
     bool wouldModify = false;
-    const ps_step_result result = executeTurn(session, 0, ExecuteTurnOptions{
-        .pushUndo = false,
-        .emitAudio = emitAudio,
-        .ignoreWin = true,
-        .dontModify = true,
-        .observedModification = &wouldModify,
-    }).core;
+    const ps_step_result result = [&] {
+        // Lookahead must leave the next real turn at the same random stream
+        // position, including when rule evaluation throws.
+        struct RestoreProbeRandomState {
+            RandomState& target;
+            RandomState saved;
+            ~RestoreProbeRandomState() { target = saved; }
+        } restoreRandom{session.levelState.rng, session.levelState.rng};
+        return executeTurn(session, 0, ExecuteTurnOptions{
+            .pushUndo = false,
+            .emitAudio = emitAudio,
+            .ignoreWin = true,
+            .dontModify = true,
+            .observedModification = &wouldModify,
+        }).core;
+    }();
     const bool changed = result.changed || result.transitioned || result.won;
     const int iterations = 1;
     if (outWouldModify != nullptr) {

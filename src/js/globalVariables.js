@@ -39,6 +39,7 @@ let verbose_logging = false;
 let throttle_movement = false;
 let suppress_all_console_output = false;
 let cache_console_messages = false;
+let consoleCapture = null; // Deferred diagnostics from a simulated AGAIN turn.
 let quittingTitleScreen = false;
 let quittingMessageScreen = false;
 let deltatime = 17; // this gets updated every frame; see loop()
