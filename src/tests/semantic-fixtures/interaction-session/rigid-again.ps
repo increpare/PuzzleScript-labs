@@ -1,0 +1,70 @@
+title Interaction session: rigid-again
+
+objects
+
+Background
+black
+
+Player
+white
+
+Target
+yellow
+
+Running
+green
+
+Done
+gray
+
+Red
+red
+
+Blue
+blue
+
+Crate
+orange
+
+Wall
+gray
+
+legend
+
+. = Background
+P = Player
+T = Target
+Color = Red or Blue
+C = Crate
+# = Wall
+
+sounds
+
+sfx0 730
+Red create 731
+Blue create 732
+
+collisionlayers
+
+Background
+Target
+Running
+Done
+Red, Blue
+Player, Crate, Wall
+
+rules
+
+[ action Player ] -> [ right Player right Running ] again
+rigid right [ Player Target Running ] [ Crate ] -> [ Player Target Running ] [ right Crate ]
+[ Player Target Running no Done ] -> [ Player Target Running Done random Color ]
+late [ Player Target Done ] -> checkpoint sfx0
+
+winconditions
+
+
+
+levels
+
+PT.
+C#.

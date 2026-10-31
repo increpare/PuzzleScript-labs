@@ -1,0 +1,41 @@
+title Interaction session: dead-probe-checkpoint
+
+objects
+
+Background
+black
+
+Player
+white
+
+Running
+green
+
+legend
+
+. = Background
+P = Player
+
+sounds
+
+sfx0 760
+sfx1 761
+
+collisionlayers
+
+Background
+Running
+Player
+
+rules
+
+[ action Player ] -> [ right Player right Running ] again sfx0
+[ stationary Player Running ] -> checkpoint sfx1
+
+winconditions
+
+
+
+levels
+
+P..

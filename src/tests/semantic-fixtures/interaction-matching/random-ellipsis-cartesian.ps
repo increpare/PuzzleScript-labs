@@ -1,0 +1,60 @@
+title Interaction matching: random ellipsis Cartesian tuples
+
+OBJECTS
+
+Background
+black
+
+Player
+white
+
+Red
+red
+
+Blue
+blue
+
+Origin
+yellow
+
+Target
+green
+
+Token
+orange
+
+Apple
+pink
+
+Berry
+purple
+
+LEGEND
+. = Background
+P = Player
+r = Red and Origin
+b = Blue and Origin
+s = Origin
+t = Target
+k = Token
+Item = Red or Blue
+Prize = Apple or Berry
+
+SOUNDS
+
+COLLISIONLAYERS
+Background
+Player
+Red, Blue
+Origin
+Target
+Token, Apple, Berry
+
+RULES
+random right [ Item Origin | ... | Target no Item ] [ Token ] -> [ Origin | ... | Target Item ] [ random Prize ]
+
+WINCONDITIONS
+no Player
+
+LEVELS
+rbt.tkkP

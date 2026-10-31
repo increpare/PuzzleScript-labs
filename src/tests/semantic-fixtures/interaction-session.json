@@ -1,0 +1,790 @@
+[
+  {
+    "id": "interaction-session/rigid-checkpoint",
+    "sourceFile": "interaction-session/rigid-checkpoint.ps",
+    "explanation": "Action requests a rigid push of Crate into Wall. Token is replaced before movement fails; rigid rollback restores Token and discards that creation event, bans the pushing group, and retries without rewinding RNG. Red is floor(2u)=0 and Blue is 1. Seed split-colors-5 draws 0.4640369099043778 (Red), 0.5014220301644389 (Blue), 0.4747373187016426 (Red), 0.3532109762234204 (Red). Thus the first committed retry is Blue and replay after undo commits the fourth draw, Red. The late Saved marker makes checkpoint a one-shot command. Down moves Player away without replacing that checkpoint; undo restores boards and preserves both RNG consumption and the saved restart target. Only committed color creation emits a sound; the failed attempt is discarded.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "C": [
+        "background",
+        "crate"
+      ],
+      "#": [
+        "background",
+        "wall"
+      ],
+      "T": [
+        "background",
+        "token"
+      ],
+      "R": [
+        "background",
+        "red",
+        "saved"
+      ],
+      "B": [
+        "background",
+        "blue",
+        "saved"
+      ]
+    },
+    "cases": [
+      {
+        "name": "failed push checkpoints second draw",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "PC#B",
+          "...."
+        ],
+        "expectedSounds": [
+          702
+        ],
+        "seed": "split-colors-5"
+      },
+      {
+        "name": "undo restores token but preserves consumed draws",
+        "inputs": [
+          4,
+          "undo"
+        ],
+        "expected": [
+          "PC#T",
+          "...."
+        ],
+        "expectedSounds": [
+          702
+        ],
+        "seed": "split-colors-5"
+      },
+      {
+        "name": "replay checkpoints fourth draw",
+        "inputs": [
+          4,
+          "undo",
+          4
+        ],
+        "expected": [
+          "PC#R",
+          "...."
+        ],
+        "expectedSounds": [
+          702,
+          701
+        ],
+        "seed": "split-colors-5"
+      },
+      {
+        "name": "player can leave saved retry board",
+        "inputs": [
+          4,
+          2
+        ],
+        "expected": [
+          ".C#B",
+          "P..."
+        ],
+        "expectedSounds": [
+          702
+        ],
+        "seed": "split-colors-5"
+      },
+      {
+        "name": "restart restores successful retry checkpoint",
+        "inputs": [
+          4,
+          2,
+          "restart"
+        ],
+        "expected": [
+          "PC#B",
+          "...."
+        ],
+        "expectedSounds": [
+          702
+        ],
+        "seed": "split-colors-5"
+      },
+      {
+        "name": "undo restart restores departure board",
+        "inputs": [
+          4,
+          2,
+          "restart",
+          "undo"
+        ],
+        "expected": [
+          ".C#B",
+          "P..."
+        ],
+        "expectedSounds": [
+          702
+        ],
+        "seed": "split-colors-5"
+      },
+      {
+        "name": "undo original input does not erase retry checkpoint",
+        "inputs": [
+          4,
+          "undo",
+          "restart"
+        ],
+        "expected": [
+          "PC#B",
+          "...."
+        ],
+        "expectedSounds": [
+          702
+        ],
+        "seed": "split-colors-5"
+      }
+    ]
+  },
+  {
+    "id": "interaction-session/rigid-cancel",
+    "sourceFile": "interaction-session/rigid-cancel.ps",
+    "explanation": "Each Action consumes one random Token replacement in the failed rigid push and one in its retry. The explicit Red-or-Blue order uses floor(2u); split-colors-5 begins 0.4640369099043778, 0.5014220301644389, 0.4747373187016426, 0.3532109762234204. The first retry is Blue, whose late cancel restores Token without restoring either draw or adding an undo entry. The sfx0 command is audible as 710 but ordinary Blue creation is suppressed. A second Action uses draws three and four, commits Red, emits 711, and checkpoints it. Undo restores Token while the Red restart target remains saved.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "C": [
+        "background",
+        "crate"
+      ],
+      "#": [
+        "background",
+        "wall"
+      ],
+      "T": [
+        "background",
+        "token"
+      ],
+      "R": [
+        "background",
+        "red"
+      ],
+      "B": [
+        "background",
+        "blue"
+      ]
+    },
+    "cases": [
+      {
+        "name": "blue retry cancels but outputs its command sound",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "PC#T"
+        ],
+        "expectedSounds": [],
+        "seed": "split-colors-5",
+        "expectedPlayedSounds": [
+          710
+        ]
+      },
+      {
+        "name": "canceled retry leaves no undo entry",
+        "inputs": [
+          4,
+          "undo"
+        ],
+        "expected": [
+          "PC#T"
+        ],
+        "expectedSounds": [],
+        "seed": "split-colors-5",
+        "expectedPlayedSounds": [
+          710
+        ]
+      },
+      {
+        "name": "second action commits fourth draw and checkpoints",
+        "inputs": [
+          4,
+          4
+        ],
+        "expected": [
+          "PC#R"
+        ],
+        "expectedSounds": [
+          711
+        ],
+        "seed": "split-colors-5",
+        "expectedPlayedSounds": [
+          710,
+          711
+        ]
+      },
+      {
+        "name": "undo committed retry returns to restored token",
+        "inputs": [
+          4,
+          4,
+          "undo"
+        ],
+        "expected": [
+          "PC#T"
+        ],
+        "expectedSounds": [
+          711
+        ],
+        "seed": "split-colors-5",
+        "expectedPlayedSounds": [
+          710,
+          711
+        ]
+      },
+      {
+        "name": "restart after undo keeps red checkpoint",
+        "inputs": [
+          4,
+          4,
+          "undo",
+          "restart"
+        ],
+        "expected": [
+          "PC#R"
+        ],
+        "expectedSounds": [
+          711
+        ],
+        "seed": "split-colors-5",
+        "expectedPlayedSounds": [
+          710,
+          711
+        ]
+      }
+    ]
+  },
+  {
+    "id": "interaction-session/rigid-again",
+    "sourceFile": "interaction-session/rigid-again.ps",
+    "explanation": "Action carries Player and Running onto Target. In each following no-input turn the rigid group tries to move Crate right into Wall, while the independent color rule draws before that failure. Retry restores the no-Done board, bans the rigid group, and draws again. Native AGAIN first probes (draws one and two), restores only the board, then actually runs (draws three and four). For split-colors-5 those values are 0.4640369099043778, 0.5014220301644389, 0.4747373187016426 and 0.3532109762234204. Red is index zero, so canonical actual color is Red from draw four; Labs isolates the probe and commits its retry, Blue from draw two. Only the actual color creation and sfx0 are audible. The automatic checkpoint survives undo of the whole initiating Action, and restart restores it. The crate and wall remain in place through every retry.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "T": [
+        "background",
+        "target"
+      ],
+      "Q": [
+        "background",
+        "player",
+        "target",
+        "running"
+      ],
+      "R": [
+        "background",
+        "player",
+        "target",
+        "running",
+        "done",
+        "red"
+      ],
+      "B": [
+        "background",
+        "player",
+        "target",
+        "running",
+        "done",
+        "blue"
+      ],
+      "C": [
+        "background",
+        "crate"
+      ],
+      "#": [
+        "background",
+        "wall"
+      ]
+    },
+    "cases": [
+      {
+        "name": "actual again retries after speculative retry",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          ".R.",
+          "C#."
+        ],
+        "expectedSounds": [
+          731
+        ],
+        "seed": "split-colors-5",
+        "labsExpected": [
+          ".B.",
+          "C#."
+        ],
+        "labsExpectedSounds": [
+          732
+        ],
+        "expectedPlayedSounds": [
+          731,
+          730
+        ]
+      },
+      {
+        "name": "undo restores whole action and automatic retry",
+        "inputs": [
+          4,
+          "undo"
+        ],
+        "expected": [
+          "PT.",
+          "C#."
+        ],
+        "expectedSounds": [
+          731
+        ],
+        "seed": "split-colors-5",
+        "labsExpectedSounds": [
+          732
+        ],
+        "expectedPlayedSounds": [
+          731,
+          730
+        ]
+      },
+      {
+        "name": "automatic retry checkpoint persists through undo",
+        "inputs": [
+          4,
+          "undo",
+          "restart"
+        ],
+        "expected": [
+          ".R.",
+          "C#."
+        ],
+        "expectedSounds": [
+          731
+        ],
+        "seed": "split-colors-5",
+        "labsExpected": [
+          ".B.",
+          "C#."
+        ],
+        "labsExpectedSounds": [
+          732
+        ],
+        "expectedPlayedSounds": [
+          731,
+          730
+        ]
+      },
+      {
+        "name": "explicit restart preserves automatic checkpoint",
+        "inputs": [
+          4,
+          "restart"
+        ],
+        "expected": [
+          ".R.",
+          "C#."
+        ],
+        "expectedSounds": [
+          731
+        ],
+        "seed": "split-colors-5",
+        "labsExpected": [
+          ".B.",
+          "C#."
+        ],
+        "labsExpectedSounds": [
+          732
+        ],
+        "expectedPlayedSounds": [
+          731,
+          730
+        ]
+      }
+    ]
+  },
+  {
+    "id": "interaction-session/dead-probe-checkpoint",
+    "sourceFile": "interaction-session/dead-probe-checkpoint.ps",
+    "explanation": "Action moves Player and Running right and queues AGAIN with audible sfx0=760. The following no-input probe matches stationary Player Running and queues checkpoint plus sfx1, but changes no objects. It must return false without running a real automatic turn, playing 761, or saving the speculative checkpoint. Restart therefore returns to the original P.. even after undo. Replaying Action after undo emits a second 760. This specifically exercises the checkpoint guard on a board-unchanged AGAIN probe, rather than a probe whose object modifications return early.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "Q": [
+        "background",
+        "player",
+        "running"
+      ]
+    },
+    "cases": [
+      {
+        "name": "unchanged checkpoint probe produces no automatic turn",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          ".Q."
+        ],
+        "expectedSounds": [],
+        "expectedPlayedSounds": [
+          760
+        ]
+      },
+      {
+        "name": "restart ignores speculative checkpoint",
+        "inputs": [
+          4,
+          "restart"
+        ],
+        "expected": [
+          "P.."
+        ],
+        "expectedSounds": [],
+        "expectedPlayedSounds": [
+          760
+        ]
+      },
+      {
+        "name": "undo then restart still uses original target",
+        "inputs": [
+          4,
+          "undo",
+          "restart"
+        ],
+        "expected": [
+          "P.."
+        ],
+        "expectedSounds": [],
+        "expectedPlayedSounds": [
+          760
+        ]
+      },
+      {
+        "name": "replay does not inherit a speculative checkpoint",
+        "inputs": [
+          4,
+          "undo",
+          4
+        ],
+        "expected": [
+          ".Q."
+        ],
+        "expectedSounds": [],
+        "expectedPlayedSounds": [
+          760,
+          760
+        ]
+      }
+    ]
+  },
+  {
+    "id": "interaction-session/again-cancel",
+    "sourceFile": "interaction-session/again-cancel.ps",
+    "explanation": "Action reaches Target with Running, saves that pre-color board, and asks for AGAIN. A no-input turn adds Done and draws Red-or-Blue using floor(2u). Native probes with split-colors-5 draw one 0.4640369099043778 (Red), rolls the board back, then actually draws two 0.5014220301644389 (Blue). The actual Blue turn cancels, restores the saved pre-color board, and emits only sfx0=740. A subsequent tick consumes draw three 0.4747373187016426 (Red), emits creation 741 and replaces the checkpoint. Undo restores the initiating Action boundary but retains that checkpoint. Labs commits its isolated first-draw Red probe; that actual checkpoint is already Red, so its following tick is unchanged. Sound history retains committed events across undo.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "T": [
+        "background",
+        "target"
+      ],
+      "Q": [
+        "background",
+        "player",
+        "target",
+        "running"
+      ],
+      "R": [
+        "background",
+        "player",
+        "target",
+        "running",
+        "done",
+        "red"
+      ],
+      "B": [
+        "background",
+        "player",
+        "target",
+        "running",
+        "done",
+        "blue"
+      ]
+    },
+    "cases": [
+      {
+        "name": "actual blue cancels after successful red probe",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          ".Q."
+        ],
+        "expectedSounds": [],
+        "seed": "split-colors-5",
+        "labsExpected": [
+          ".R."
+        ],
+        "labsExpectedSounds": [
+          741
+        ],
+        "expectedPlayedSounds": [
+          740
+        ]
+      },
+      {
+        "name": "undo canceled automatic turn restores initial board",
+        "inputs": [
+          4,
+          "undo"
+        ],
+        "expected": [
+          "PT."
+        ],
+        "expectedSounds": [],
+        "seed": "split-colors-5",
+        "labsExpectedSounds": [
+          741
+        ],
+        "expectedPlayedSounds": [
+          740
+        ]
+      },
+      {
+        "name": "restart after undo restores last actual checkpoint",
+        "inputs": [
+          4,
+          "undo",
+          "restart"
+        ],
+        "expected": [
+          ".Q."
+        ],
+        "expectedSounds": [],
+        "seed": "split-colors-5",
+        "labsExpected": [
+          ".R."
+        ],
+        "labsExpectedSounds": [
+          741
+        ],
+        "expectedPlayedSounds": [
+          740
+        ]
+      },
+      {
+        "name": "tick after cancellation uses third draw and checkpoints red",
+        "inputs": [
+          4,
+          "tick"
+        ],
+        "expected": [
+          ".R."
+        ],
+        "expectedSounds": [
+          741
+        ],
+        "seed": "split-colors-5",
+        "expectedPlayedSounds": [
+          740,
+          741
+        ]
+      },
+      {
+        "name": "tick checkpoint survives undo of initiating action",
+        "inputs": [
+          4,
+          "tick",
+          "undo",
+          "restart"
+        ],
+        "expected": [
+          ".R."
+        ],
+        "expectedSounds": [
+          741
+        ],
+        "seed": "split-colors-5",
+        "expectedPlayedSounds": [
+          740,
+          741
+        ]
+      }
+    ]
+  },
+  {
+    "id": "interaction-session/again-restart",
+    "sourceFile": "interaction-session/again-restart.ps",
+    "explanation": "Action reaches Target with Running, checkpoints that pre-color board, then requests AGAIN. Native probe draw one of split-colors-5 is 0.4640369099043778 (Red); it queues restart, pushes its pre-probe board to history, then restores its random object change through a second push/pop. That leaves one extra pre-AGAIN history snapshot. Actual draw two is 0.5014220301644389 (Blue), commits Done Blue and emits creation 752. One undo therefore returns to the checkpoint board and a second undo reaches the initial board. Labs isolates the probe and actually commits first-draw Red: restart outputs sfx0=750, restores the checkpoint and leaves its real restart history entry. Because fixture undo ignores duplicate boards, Labs skips that real restart snapshot when it equals the restored checkpoint and reaches the initial board with one undo. The Red creation mask still emits 751 after restart, although the Red object was restored away. Its next tick draws two and commits Blue, whereas native Blue is already Done and draws nothing. Restart and undo never rewind RNG or erase sound history.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "T": [
+        "background",
+        "target"
+      ],
+      "Q": [
+        "background",
+        "player",
+        "target",
+        "running"
+      ],
+      "R": [
+        "background",
+        "player",
+        "target",
+        "running",
+        "done",
+        "red"
+      ],
+      "B": [
+        "background",
+        "player",
+        "target",
+        "running",
+        "done",
+        "blue"
+      ]
+    },
+    "cases": [
+      {
+        "name": "speculative restart followed by actual blue",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          ".B."
+        ],
+        "expectedSounds": [
+          752
+        ],
+        "seed": "split-colors-5",
+        "labsExpected": [
+          ".Q."
+        ],
+        "labsExpectedSounds": [
+          751
+        ],
+        "expectedPlayedSounds": [
+          752
+        ]
+      },
+      {
+        "name": "one undo reaches pre-again restart snapshot",
+        "inputs": [
+          4,
+          "undo"
+        ],
+        "expected": [
+          ".Q."
+        ],
+        "expectedSounds": [
+          752
+        ],
+        "seed": "split-colors-5",
+        "labsExpectedSounds": [
+          751
+        ],
+        "expectedPlayedSounds": [
+          752
+        ],
+        "labsExpected": [
+          "PT."
+        ]
+      },
+      {
+        "name": "second undo reaches initiating input boundary",
+        "inputs": [
+          4,
+          "undo",
+          "undo"
+        ],
+        "expected": [
+          "PT."
+        ],
+        "expectedSounds": [
+          752
+        ],
+        "seed": "split-colors-5",
+        "labsExpectedSounds": [
+          751
+        ],
+        "expectedPlayedSounds": [
+          752
+        ]
+      },
+      {
+        "name": "explicit restart returns to pre-color checkpoint",
+        "inputs": [
+          4,
+          "restart"
+        ],
+        "expected": [
+          ".Q."
+        ],
+        "expectedSounds": [
+          752
+        ],
+        "seed": "split-colors-5",
+        "labsExpectedSounds": [
+          751
+        ],
+        "expectedPlayedSounds": [
+          752
+        ]
+      },
+      {
+        "name": "later tick leaves native done blue but completes labs restart",
+        "inputs": [
+          4,
+          "tick"
+        ],
+        "expected": [
+          ".B."
+        ],
+        "expectedSounds": [
+          752
+        ],
+        "seed": "split-colors-5",
+        "labsExpectedSounds": [
+          751,
+          752
+        ],
+        "expectedPlayedSounds": [
+          752
+        ]
+      }
+    ]
+  }
+]

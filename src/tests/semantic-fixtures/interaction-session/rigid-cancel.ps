@@ -1,0 +1,60 @@
+title Interaction session: rigid-cancel
+
+objects
+
+Background
+black
+
+Player
+white
+
+Crate
+orange
+
+Wall
+gray
+
+Token
+yellow
+
+Red
+red
+
+Blue
+blue
+
+legend
+
+. = Background
+P = Player
+C = Crate
+# = Wall
+T = Token
+Color = Red or Blue
+
+sounds
+
+sfx0 710
+Red create 711
+Blue create 712
+
+collisionlayers
+
+Background
+Player, Crate, Wall
+Token, Red, Blue
+
+rules
+
+rigid right [ action Player | Crate ] -> [ right Player | right Crate ]
+[ Token ] -> [ random Color ]
+late [ Blue ] -> cancel sfx0
+late [ Red ] -> checkpoint
+
+winconditions
+
+
+
+levels
+
+PC#T

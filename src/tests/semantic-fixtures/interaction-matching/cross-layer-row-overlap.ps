@@ -1,0 +1,46 @@
+title Interaction matching: cross-layer row overlap
+
+OBJECTS
+
+Background
+black
+
+Player
+white
+
+Red
+red
+
+Blue
+blue
+
+Mark
+yellow
+
+LEGEND
+. = Background
+P = Player
+r = Red
+b = Blue
+q = Red and Blue
+Item = Red or Blue
+
+SOUNDS
+
+COLLISIONLAYERS
+Background
+Player
+Red
+Blue
+Mark
+
+RULES
+right [ Item no Mark ] [ Item no Mark ] [ action Player ] -> [ Item Mark ] [ ] [ Player ]
+
+WINCONDITIONS
+no Player
+
+LEVELS
+qbP
+
+brP

@@ -1,0 +1,50 @@
+title Interaction matching: inferred ellipsis live
+
+OBJECTS
+
+Background
+black
+
+Player
+white
+
+Red
+red
+
+Blue
+blue
+
+Origin
+yellow
+
+Target
+green
+
+LEGEND
+. = Background
+P = Player
+r = Red and Origin
+b = Blue and Origin
+s = Origin
+t = Target
+Item = Red or Blue
+
+SOUNDS
+
+COLLISIONLAYERS
+Background
+Player
+Red, Blue
+Origin
+Target
+
+RULES
+right [ Item Origin | ... | Target no Item ] -> [ Origin | ... | Target Item ]
+
+WINCONDITIONS
+no Player
+
+LEVELS
+rbt.ttP
+
+rrt.ttP

@@ -1,0 +1,44 @@
+title Interaction matching: local property overlap
+
+OBJECTS
+
+Background
+black
+
+Player
+white
+
+Red
+red
+
+Blue
+blue
+
+Mark
+yellow
+
+LEGEND
+. = Background
+P = Player
+r = Red
+b = Blue
+Item = Red or Blue
+
+SOUNDS
+
+COLLISIONLAYERS
+Background
+Player
+Red, Blue
+Mark
+
+RULES
+right [ Item no Mark | Item no Mark ] -> [ Item Mark | ]
+
+WINCONDITIONS
+no Player
+
+LEVELS
+rbrbP
+
+brbP

@@ -1,0 +1,48 @@
+title Interaction matching: random property candidates
+
+OBJECTS
+
+Background
+black
+
+Player
+white
+
+Red
+red
+
+Blue
+blue
+
+Origin
+yellow
+
+Target
+green
+
+LEGEND
+. = Background
+P = Player
+r = Red and Origin
+b = Blue and Origin
+s = Origin
+t = Target
+Item = Red or Blue
+
+SOUNDS
+
+COLLISIONLAYERS
+Background
+Player
+Red, Blue
+Origin
+Target
+
+RULES
+random right [ Item Origin ] [ Target no Item ] -> [ Origin ] [ Target Item ]
+
+WINCONDITIONS
+no Player
+
+LEVELS
+b.r.ttP

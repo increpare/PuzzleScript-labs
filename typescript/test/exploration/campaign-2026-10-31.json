@@ -1,0 +1,56 @@
+{
+  "authority": {
+    "repository": "https://github.com/increpare/PuzzleScript",
+    "revision": "57f9f6cba69f6aa52ed738d5aee1d709d0037648",
+    "manifestSha256": "2938c07c7de2e3518389df46faebb7cb82329a461a668fa35fb745e74bdc2632"
+  },
+  "seed": "interactions-2026-10-31",
+  "start": 0,
+  "jobs": 4,
+  "timeoutMs": 5000,
+  "totals": {
+    "requested": 4096,
+    "completed": 4096,
+    "passed": 4096,
+    "excluded": 0,
+    "failed": 0,
+    "comparisonFailures": 0,
+    "oracleExceptions": 0,
+    "timeouts": 0,
+    "processFailures": 0,
+    "snapshots": 28859,
+    "candidateOperations": 28859,
+    "levelLoads": 4096,
+    "uniqueSources": 4027,
+    "uniqueRuleSets": 104,
+    "uniqueBoards": 3566
+  },
+  "byFamily": {
+    "push-property": {
+      "completed": 1024,
+      "passed": 1024,
+      "excluded": 0,
+      "failed": 0
+    },
+    "multirow-live": {
+      "completed": 1024,
+      "passed": 1024,
+      "excluded": 0,
+      "failed": 0
+    },
+    "random-rigid": {
+      "completed": 1024,
+      "passed": 1024,
+      "excluded": 0,
+      "failed": 0
+    },
+    "session-again": {
+      "completed": 1024,
+      "passed": 1024,
+      "excluded": 0,
+      "failed": 0
+    }
+  },
+  "findings": [],
+  "reductions": []
+}

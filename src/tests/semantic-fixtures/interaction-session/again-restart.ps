@@ -1,0 +1,61 @@
+title Interaction session: again-restart
+
+objects
+
+Background
+black
+
+Player
+white
+
+Target
+yellow
+
+Running
+green
+
+Done
+gray
+
+Red
+red
+
+Blue
+blue
+
+legend
+
+. = Background
+P = Player
+T = Target
+Color = Red or Blue
+
+sounds
+
+sfx0 750
+Red create 751
+Blue create 752
+
+collisionlayers
+
+Background
+Target
+Running
+Done
+Red, Blue
+Player
+
+rules
+
+[ action Player ] -> [ right Player right Running ] again
+[ stationary Player Target no Done ] -> [ Player Target Done random Color ]
+late [ Player Target no Done ] -> checkpoint
+late [ Red ] -> restart sfx0
+
+winconditions
+
+
+
+levels
+
+PT.

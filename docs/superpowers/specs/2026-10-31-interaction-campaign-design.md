@@ -41,8 +41,10 @@ The CLI supports deterministic replay and bounded shrinking of saved cases.
 
 Try removing input chunks, rules, board rows/columns, cell occupants and optional
 objects/properties. Keep Background/Player declarations and retain only candidates
-that both compilers agree are error-free and reproduce the original failure
-category. Use a strictly decreasing explicit complexity measure. A bounded run
+that reproduce the original failure category. Session failures require both
+compilers to agree the game is error-free. Compiler disagreements retain native
+error-free compilation, observed before candidate execution. Use a strictly
+decreasing explicit complexity measure. A bounded run
 reports attempts and whether it reached a local fixed point; it never promises a
 globally smallest program. Preserve source, seed and tape in the reduced bundle.
 

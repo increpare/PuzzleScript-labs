@@ -1,0 +1,62 @@
+title Interaction session: again-cancel
+
+objects
+
+Background
+black
+
+Player
+white
+
+Target
+yellow
+
+Running
+green
+
+Done
+gray
+
+Red
+red
+
+Blue
+blue
+
+legend
+
+. = Background
+P = Player
+T = Target
+Color = Red or Blue
+
+sounds
+
+sfx0 740
+Red create 741
+Blue create 742
+
+collisionlayers
+
+Background
+Target
+Running
+Done
+Red, Blue
+Player
+
+rules
+
+[ action Player ] -> [ right Player right Running ] again
+[ stationary Player Target no Done ] -> [ Player Target Done random Color ]
+late [ Player Target no Done ] -> checkpoint
+late [ Blue ] -> cancel sfx0
+late [ Red ] -> checkpoint
+
+winconditions
+
+
+
+levels
+
+PT.

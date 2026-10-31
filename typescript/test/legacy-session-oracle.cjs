@@ -27,8 +27,10 @@ function copyData(value, seen = new Map()) {
   return copy;
 }
 
-function createSessionOracle(types) {
-  loadPuzzleScript({ includeTests: true });
+// Reuse requires an earlier oracle to have loaded and verified this pinned host
+// with tests. It does not change the independent candidate checks below.
+function createSessionOracle(types, { nativeAlreadyLoaded = false } = {}) {
+  if (!nativeAlreadyLoaded) loadPuzzleScript({ includeTests: true });
   const { Movement, ScreenKind, RunMode, SessionEffectKind, PersistenceKind } = types;
   const validate = createSessionValidator(types);
   const inputMovements = [Movement.Up, Movement.Left, Movement.Down, Movement.Right, Movement.Action];

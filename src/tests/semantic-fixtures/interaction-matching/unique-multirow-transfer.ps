@@ -1,0 +1,48 @@
+title Interaction matching: unique multirow transfer
+
+OBJECTS
+
+Background
+black
+
+Player
+white
+
+Red
+red
+
+Blue
+blue
+
+Origin
+yellow
+
+Target
+green
+
+LEGEND
+. = Background
+P = Player
+r = Red and Origin
+b = Blue and Origin
+s = Origin
+t = Target
+Item = Red or Blue
+
+SOUNDS
+
+COLLISIONLAYERS
+Background
+Player
+Red, Blue
+Origin
+Target
+
+RULES
+right [ Item Origin ] [ Target no Item ] [ action Player ] -> [ Origin ] [ Target Item ] [ Player ]
+
+WINCONDITIONS
+no Player
+
+LEVELS
+b.r.ttP

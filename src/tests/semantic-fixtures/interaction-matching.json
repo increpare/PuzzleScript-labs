@@ -1,0 +1,634 @@
+[
+  {
+    "id": "interaction-matching/local-property-overlap",
+    "sourceFile": "interaction-matching/local-property-overlap.ps",
+    "explanation": "Both Item occurrences are local single-layer predicates, so Red and Blue may differ within one match. Candidate origins scan left to right. The first pair keeps and marks its own left member, then removes its right member; that live removal invalidates the overlapping middle pair. The disjoint final pair still applies. Marks exclude the retained members from later passes and inputs. In the odd Blue-Red-Blue level, the unpaired Blue remains unmarked.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "r": [
+        "background",
+        "red"
+      ],
+      "b": [
+        "background",
+        "blue"
+      ],
+      "R": [
+        "background",
+        "red",
+        "mark"
+      ],
+      "B": [
+        "background",
+        "blue",
+        "mark"
+      ]
+    },
+    "cases": [
+      {
+        "name": "load preserves the alternating members",
+        "inputs": [],
+        "expected": [
+          "rbrbP"
+        ]
+      },
+      {
+        "name": "live overlap consumes two disjoint mixed pairs",
+        "inputs": [
+          "tick"
+        ],
+        "expected": [
+          "R.R.P"
+        ]
+      },
+      {
+        "name": "marked survivors do not rematch on another tick",
+        "inputs": [
+          "tick",
+          "tick"
+        ],
+        "expected": [
+          "R.R.P"
+        ]
+      },
+      {
+        "name": "odd blue run preserves the final unpaired member",
+        "inputs": [
+          "tick"
+        ],
+        "expected": [
+          "B.bP"
+        ],
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": "interaction-matching/unique-multirow-transfer",
+    "sourceFile": "interaction-matching/unique-multirow-transfer.ps",
+    "explanation": "The sole left-side Item supplies its concrete member to the independent Target row. Transport requires Red and then Blue variants in legend order, even though Blue is spatially first. Each variant forms Cartesian tuples with the empty targets; the last pattern row consumes Player action on the first successful tuple, invalidating every remaining tuple that input. First Action moves Red to the first target; the next moves Blue to the remaining target. Origin and Target survive on their independent layers, and transferred members lack Origin so cannot become new sources.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "r": [
+        "background",
+        "red",
+        "origin"
+      ],
+      "b": [
+        "background",
+        "blue",
+        "origin"
+      ],
+      "s": [
+        "background",
+        "origin"
+      ],
+      "t": [
+        "background",
+        "target"
+      ],
+      "R": [
+        "background",
+        "red",
+        "target"
+      ],
+      "B": [
+        "background",
+        "blue",
+        "target"
+      ]
+    },
+    "cases": [
+      {
+        "name": "load has two sources and two empty targets",
+        "inputs": [],
+        "expected": [
+          "b.r.ttP"
+        ]
+      },
+      {
+        "name": "red variant wins before the spatially earlier blue source",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "b.s.RtP"
+        ]
+      },
+      {
+        "name": "next action binds the remaining blue into the second target",
+        "inputs": [
+          4,
+          4
+        ],
+        "expected": [
+          "s.s.RBP"
+        ]
+      },
+      {
+        "name": "exhausted sources cannot transfer again",
+        "inputs": [
+          4,
+          4,
+          4
+        ],
+        "expected": [
+          "s.s.RBP"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "interaction-matching/cross-layer-row-overlap",
+    "sourceFile": "interaction-matching/cross-layer-row-overlap.ps",
+    "explanation": "Cross-layer Item expands each independent pattern row, in Red/Red, Red/Blue, Blue/Red, Blue/Blue order. Both rows may select the same cell. The first Red/Red tuple at q preserves Red and adds Mark, then the second row clears only the matched Red layer; coexisting Blue and the new Mark survive. Removing Player action rejects later live tuples, including stale mixed-member tuples. A second Action selects the remaining unmarked Blue and leaves a bare Mark there. The br level demonstrates that concrete variant order selects the right-hand Red before the left-hand Blue.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "r": [
+        "background",
+        "red"
+      ],
+      "b": [
+        "background",
+        "blue"
+      ],
+      "q": [
+        "background",
+        "red",
+        "blue"
+      ],
+      "B": [
+        "background",
+        "blue",
+        "mark"
+      ],
+      "m": [
+        "background",
+        "mark"
+      ]
+    },
+    "cases": [
+      {
+        "name": "load contains a simultaneous red and blue source",
+        "inputs": [],
+        "expected": [
+          "qbP"
+        ]
+      },
+      {
+        "name": "same-cell second row removes red but retains blue and the first mark",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "BbP"
+        ]
+      },
+      {
+        "name": "next action consumes only the remaining unmarked blue",
+        "inputs": [
+          4,
+          4
+        ],
+        "expected": [
+          "BmP"
+        ]
+      },
+      {
+        "name": "marks block all later member variants",
+        "inputs": [
+          4,
+          4,
+          4
+        ],
+        "expected": [
+          "BmP"
+        ]
+      },
+      {
+        "name": "red variant order outranks the leftmost blue position",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "bmP"
+        ],
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": "interaction-matching/inferred-ellipsis-live",
+    "sourceFile": "interaction-matching/inferred-ellipsis-live.ps",
+    "explanation": "A single Item on the left binds the remote right-side Item across an ellipsis. Red variants run before Blue. For each source, candidate gaps visit the nearest eligible target first. Clearing that source invalidates its precomputed farther-target tuples; filling the target invalidates tuples from other sources that still refer to that endpoint. In rbt.ttP, Red takes the first target and Blue takes the second, leaving the third empty. In rrt.ttP, the second Red can still use the second target after its tuple for the now-filled first target is skipped. Transferred members have no Origin and cannot propagate onward.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "r": [
+        "background",
+        "red",
+        "origin"
+      ],
+      "b": [
+        "background",
+        "blue",
+        "origin"
+      ],
+      "s": [
+        "background",
+        "origin"
+      ],
+      "t": [
+        "background",
+        "target"
+      ],
+      "R": [
+        "background",
+        "red",
+        "target"
+      ],
+      "B": [
+        "background",
+        "blue",
+        "target"
+      ]
+    },
+    "cases": [
+      {
+        "name": "load retains all three unfilled targets",
+        "inputs": [],
+        "expected": [
+          "rbt.ttP"
+        ]
+      },
+      {
+        "name": "mixed inferred members each consume one live endpoint",
+        "inputs": [
+          "tick"
+        ],
+        "expected": [
+          "ssR.BtP"
+        ]
+      },
+      {
+        "name": "transferred members cannot relaunch on another input",
+        "inputs": [
+          "tick",
+          "tick"
+        ],
+        "expected": [
+          "ssR.BtP"
+        ]
+      },
+      {
+        "name": "same-member sources skip the filled endpoint without cloning",
+        "inputs": [
+          "tick"
+        ],
+        "expected": [
+          "ssR.RtP"
+        ],
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": "interaction-matching/random-property-candidates",
+    "sourceFile": "interaction-matching/random-property-candidates.ps",
+    "explanation": "A random group flattens candidates by compiled property variant, then by Cartesian row tuple. With Red then Blue in Item and two targets, the initial list is Red-to-first, Red-to-second, Blue-to-first, Blue-to-second, despite Blue being spatially earlier. Seed split-colors-5 is explicit because its first uniform 0.4640369099043778 lies in [1/4, 1/2), selecting Red-to-second. There is no random-object replacement. The second uniform 0.5014220301644389 is still consumed for the sole remaining Blue-to-first tuple. Exhausted inputs have no candidates and consume no draw; undo restores the board while retaining consumed draws. After one Action and undo, replay uses the second uniform 0.5014220301644389 on the restored four-candidate list, selecting index 2, Blue-to-first, rather than replaying the original Red transfer.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "r": [
+        "background",
+        "red",
+        "origin"
+      ],
+      "b": [
+        "background",
+        "blue",
+        "origin"
+      ],
+      "s": [
+        "background",
+        "origin"
+      ],
+      "t": [
+        "background",
+        "target"
+      ],
+      "R": [
+        "background",
+        "red",
+        "target"
+      ],
+      "B": [
+        "background",
+        "blue",
+        "target"
+      ]
+    },
+    "cases": [
+      {
+        "name": "load has four ordered candidates without drawing",
+        "inputs": [],
+        "expected": [
+          "b.r.ttP"
+        ],
+        "seed": "split-colors-5"
+      },
+      {
+        "name": "candidate one is red to the second target",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "b.s.tRP"
+        ],
+        "seed": "split-colors-5"
+      },
+      {
+        "name": "singleton remaining candidate still consumes a choice draw",
+        "inputs": [
+          4,
+          4
+        ],
+        "expected": [
+          "s.s.BRP"
+        ],
+        "seed": "split-colors-5"
+      },
+      {
+        "name": "no candidate on a third input leaves the completed assignment",
+        "inputs": [
+          4,
+          4,
+          4
+        ],
+        "expected": [
+          "s.s.BRP"
+        ],
+        "seed": "split-colors-5"
+      },
+      {
+        "name": "undo restores the first random assignment",
+        "inputs": [
+          4,
+          4,
+          "undo"
+        ],
+        "expected": [
+          "b.s.tRP"
+        ],
+        "seed": "split-colors-5"
+      },
+      {
+        "name": "undo replay keeps the consumed draw and selects blue to the first target",
+        "inputs": [
+          4,
+          "undo",
+          4
+        ],
+        "expected": [
+          "s.r.BtP"
+        ],
+        "seed": "split-colors-5"
+      }
+    ]
+  },
+  {
+    "id": "interaction-matching/random-ellipsis-cartesian",
+    "sourceFile": "interaction-matching/random-ellipsis-cartesian.ps",
+    "explanation": "Each concrete Item variant has two ellipsis endpoints and two independent Token matches. The first pattern row varies fastest: Red-to-first/left-token, Red-to-second/left-token, Red-to-first/right-token, Red-to-second/right-token, then the corresponding four Blue candidates. Seed interaction-tuples-13 is explicit because its first uniform 0.22954715012363636 lies in [1/8, 2/8), selecting Red-to-second/left-token and distinguishing Cartesian row order. The separate random-Prize draw 0.861740763953031 selects Berry from Apple, Berry. On the next input only Blue-to-first/right-token remains: 0.5606029882576322 consumes its singleton candidate draw, then 0.3333197334816941 selects Apple. Undo restores the first transferred member, left Berry and right Token, while retaining consumed draws. After just one Action and undo, replay uses the third uniform 0.5606029882576322 on the restored eight-candidate list, selecting index 4, Blue-to-first/left-token; the fourth uniform selects Apple. The restored Red source remains in place.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "r": [
+        "background",
+        "red",
+        "origin"
+      ],
+      "b": [
+        "background",
+        "blue",
+        "origin"
+      ],
+      "s": [
+        "background",
+        "origin"
+      ],
+      "t": [
+        "background",
+        "target"
+      ],
+      "R": [
+        "background",
+        "red",
+        "target"
+      ],
+      "B": [
+        "background",
+        "blue",
+        "target"
+      ],
+      "k": [
+        "background",
+        "token"
+      ],
+      "a": [
+        "background",
+        "apple"
+      ],
+      "v": [
+        "background",
+        "berry"
+      ]
+    },
+    "cases": [
+      {
+        "name": "load exposes eight variant and Cartesian candidates",
+        "inputs": [],
+        "expected": [
+          "rbt.tkkP"
+        ],
+        "seed": "interaction-tuples-13"
+      },
+      {
+        "name": "row-zero-fastest candidate order chooses the left token and farther target",
+        "inputs": [
+          4
+        ],
+        "expected": [
+          "sbt.RvkP"
+        ],
+        "seed": "interaction-tuples-13"
+      },
+      {
+        "name": "remaining candidate and separate object draw fill the opposite pair",
+        "inputs": [
+          4,
+          4
+        ],
+        "expected": [
+          "ssB.RvaP"
+        ],
+        "seed": "interaction-tuples-13"
+      },
+      {
+        "name": "undo restores the first chosen ellipsis tuple and its prize",
+        "inputs": [
+          4,
+          4,
+          "undo"
+        ],
+        "expected": [
+          "sbt.RvkP"
+        ],
+        "seed": "interaction-tuples-13"
+      },
+      {
+        "name": "undo replay retains the first two draws and selects a blue transfer with apple",
+        "inputs": [
+          4,
+          "undo",
+          4
+        ],
+        "expected": [
+          "rsB.takP"
+        ],
+        "seed": "interaction-tuples-13"
+      }
+    ]
+  },
+  {
+    "id": "interaction-matching/two-ellipsis-relay-live",
+    "sourceFile": "interaction-matching/two-ellipsis-relay-live.ps",
+    "explanation": "The sole Item binds the far endpoint across two independently sized ellipses. Red variants run before Blue, and each source visits the first gap before the second: the nearest Relay is tried before a later Relay, with its nearest eligible Target first. A successful tuple clears its source, changes its middle Relay to Spent and fills its endpoint; live rechecks must reject every stale tuple that reuses any of those changed cells. In rbkttkttP, Red uses relay x2 and target x3; Blue must skip the spent first relay and use relay x5 and target x6, leaving targets x4 and x7 empty. With only one relay, Blue remains at its Origin even though unfilled targets remain. The last level gives Red gaps (3, 1) and Blue gaps (4, 0), checking unequal and empty second gaps while preserving their different inferred identities. Transferred members have no Origin, and Spent is outside the Relay predicate, so subsequent inputs cannot relaunch the transfers.",
+    "cells": {
+      ".": [
+        "background"
+      ],
+      "P": [
+        "background",
+        "player"
+      ],
+      "r": [
+        "background",
+        "red",
+        "origin"
+      ],
+      "b": [
+        "background",
+        "blue",
+        "origin"
+      ],
+      "s": [
+        "background",
+        "origin"
+      ],
+      "t": [
+        "background",
+        "target"
+      ],
+      "k": [
+        "background",
+        "relay"
+      ],
+      "x": [
+        "background",
+        "spent"
+      ],
+      "R": [
+        "background",
+        "red",
+        "target"
+      ],
+      "B": [
+        "background",
+        "blue",
+        "target"
+      ]
+    },
+    "cases": [
+      {
+        "name": "load keeps both relays and all four empty targets",
+        "inputs": [],
+        "expected": [
+          "rbkttkttP"
+        ]
+      },
+      {
+        "name": "two inferred members consume separate live relays and endpoints",
+        "inputs": [
+          "tick"
+        ],
+        "expected": [
+          "ssxRtxBtP"
+        ]
+      },
+      {
+        "name": "spent middle cells and cleared origins prevent another transfer",
+        "inputs": [
+          "tick",
+          "tick"
+        ],
+        "expected": [
+          "ssxRtxBtP"
+        ]
+      },
+      {
+        "name": "one consumed relay leaves blue stranded beside unused targets",
+        "inputs": [
+          "tick"
+        ],
+        "expected": [
+          "sbxRt.ttP"
+        ],
+        "level": 1
+      },
+      {
+        "name": "unequal first gaps combine with nonempty and empty second gaps",
+        "inputs": [
+          "tick"
+        ],
+        "expected": [
+          "s.s.x.RxBP"
+        ],
+        "level": 2
+      }
+    ]
+  }
+]

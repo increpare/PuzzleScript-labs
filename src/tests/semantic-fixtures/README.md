@@ -1,6 +1,6 @@
 # Small executable PuzzleScript semantics fixtures
 
-This collection contains **52 complete games and 140 portable gameplay fixtures**.
+This collection contains **65 complete games and 203 portable gameplay fixtures**.
 Each example has a readable game, a short explanation and explicitly authored
 expected boards. The fixtures run on labs JS, pinned vanilla JS and the
 independently compiled TypeScript reference, using vanilla checkpoint `57f9f6cb` as the shared authority. They were constructed for this work,
@@ -13,6 +13,8 @@ not extracted from existing games or recorded to bless engine output.
 | [History](history.json) | 11 | 27 | AGAIN probes, checkpoint/restart/cancel priority, RNG across undo, singleton draws and sound ordering |
 | [Movement](movement.json) | 9 | 30 | Convoys, contention, independent layers, action/collision, required-player rollback, rigid retries and consumed random draws |
 | [Random groups](random.json) | 2 | 6 | One tuple per random group, separate candidate/object draws, `+` alternatives and unmatched-input RNG consumption |
+| [Matching interactions](interaction-matching.json) | 7 | 33 | Local versus inferred properties, same-cell multirow writes, one/two ellipses, ordered random candidates and RNG across undo |
+| [Session interactions](interaction-session.json) | 6 | 30 | Rigid RNG retries inside AGAIN, checkpoint/cancel/restart priority and speculative history effects |
 | [Error recovery](recovery.json) | 4 | 19 | Reported invalid late movements, safe continuation, undo and restart after recovery |
 
 ## Run and export
@@ -88,11 +90,15 @@ can draw repeatedly until that group's state stops changing. Historical movement
 The ordinary `expected` and `expectedSounds` fields describe pinned vanilla
 `57f9f6cb` and the independently compiled TypeScript reference. The loader and
 exporter support optional `labsExpected` and `labsExpectedSounds` for intentional
-Labs differences. Two `history/again-probe-random` cases use board overrides:
-vanilla consumes a speculative draw and then an actual draw, yielding Blue on
-the first run and Red after undo/replay. Labs cached AGAIN commits its prepared
-turn instead, yielding Red first and Blue after undo/replay. The canonical
-expectations and case names continue to describe pinned vanilla and TypeScript.
+Labs differences. Fourteen cases use explicit board/sound overrides: two in
+`history/again-probe-random` and twelve in the session interaction family.
+Vanilla consumes speculative draws and then actual draws; Labs cached AGAIN
+commits the prepared turn. This changes selected colors, sound histories and
+sometimes which undo snapshot is reached. For example, `again-restart` records a
+native speculative restart snapshot; duplicate-skipping undo in Labs reaches a
+different board after its first-draw actual restart. Each manifest explains its
+case's draw and history sequence. Canonical expectations describe pinned vanilla
+and TypeScript; exports select the explicit Labs overrides.
 
 Upstream [#1207](https://github.com/increpare/PuzzleScript/pull/1207) rejects
 `randomdir` in late rules. The four sources in [recovery.json](recovery.json)
@@ -152,3 +158,18 @@ session oracle remains unchanged; its snapshots intentionally omit that ban set.
 These examples improve coverage; passing them is not proof that no other
 discrepancies exist. Keep new discoveries minimal, record their provenance and
 diagnostics, and review the intended behavior before adding expected outcomes.
+
+## Generated exploration and reading the implementation
+
+The second campaign added thirteen newly constructed games and sixty-three
+cases. A separate [source-game explorer](../../../typescript/test/exploration/README.md)
+compares generated error-free games without recording golden outcomes. Findings
+are reduced before any human-reviewed regression is authored here. Its initial
+4,096-case campaign passed all 28,859 observations; this is coverage evidence,
+not proof that all combinations are correct.
+
+The [readability walkthrough](../../../typescript/READABILITY.md) follows these
+examples through inference, live matching, rigid retry and speculative session
+control, and identifies concrete opportunities to simplify the code. Portable
+boards/sounds and the richer per-input oracle serve different purposes: the
+latter also checks RNG, full history, checkpoints, persistence and return values.

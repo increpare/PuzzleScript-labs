@@ -1,0 +1,63 @@
+title Interaction session: rigid-checkpoint
+
+objects
+
+Background
+black
+
+Player
+white
+
+Crate
+orange
+
+Wall
+gray
+
+Token
+yellow
+
+Red
+red
+
+Blue
+blue
+
+Saved
+green
+
+legend
+
+. = Background
+P = Player
+C = Crate
+# = Wall
+T = Token
+Color = Red or Blue
+
+sounds
+
+Red create 701
+Blue create 702
+
+collisionlayers
+
+Background
+Player, Crate, Wall
+Token, Red, Blue
+Saved
+
+rules
+
+rigid right [ action Player | Crate ] -> [ right Player | right Crate ]
+[ Token ] -> [ random Color ]
+late [ Color no Saved ] -> [ Color Saved ] checkpoint
+
+winconditions
+
+
+
+levels
+
+PC#T
+....

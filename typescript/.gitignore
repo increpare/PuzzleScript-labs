@@ -1,2 +1,8 @@
 node_modules/
 build/
+exploration-findings/
+
+# Command-line modules are source; the repository's other bin directories are generated.
+!bin/
+bin/*
+!bin/*.mjs

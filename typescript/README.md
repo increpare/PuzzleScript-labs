@@ -176,6 +176,18 @@ behavior through undo and restart.
 
 ## Verification and compatibility
 
+The [small-game exploration tool](test/exploration/README.md) generates complete
+source games, compares compilation and every input, and reduces saved failures:
+
+```sh
+npm --prefix typescript run explore -- --seed my-campaign --cases 200 --jobs 4 --out /tmp/ps-findings
+```
+
+Its initial 4,096-game run passed 28,859 observations with no exclusions or
+discrepancies. The [readability walkthrough](READABILITY.md) follows new authored
+examples through property inference, live writes, rigid retry and session probes,
+then lists specific clarity improvements protected by those fixtures.
+
 The [authored semantic guide](../src/tests/semantic-fixtures/README.md) contains
 small games and portable `testdata.js` fixtures with hand-specified boards,
 random-choice reasoning and sound expectations. Run it with
@@ -193,13 +205,13 @@ npm --prefix typescript test
 npm --prefix typescript run test:corpus -- --session
 ```
 
-The refreshed strict suite, including prepared-AGAIN regressions, passes **1,797 tests**. Exact compilation comparison
+The refreshed strict suite, including prepared-AGAIN regressions, passes **1,890 tests**. Exact compilation comparison
 covers **335 compiler fixtures**, **492 simulation sources** and **99,192 final
 executable rules**, including diagnostics, stopping outcomes, authored source
 evidence and declaration identities. Full source-compiled replay passes all
 **492 games**, **20,076 session observations/operations** and **539 level loads**,
-including every recorded input and AGAIN step. All **140 authored fixtures**
-also pass, with 370 observations. Independent review found no actionable issues.
+including every recorded input and AGAIN step. All **203 authored fixtures**
+also pass, with 563 observations. Independent review found no actionable issues.
 The [refresh audit](../docs/superpowers/plans/2026-10-31-typescript-vanilla-refresh.md)
 records the authority and verification separately from historical runs.
 

@@ -1,0 +1,60 @@
+title Interaction matching: two-ellipsis relay live
+
+OBJECTS
+
+Background
+black
+
+Player
+white
+
+Red
+red
+
+Blue
+blue
+
+Origin
+yellow
+
+Target
+green
+
+Relay
+orange
+
+Spent
+gray
+
+LEGEND
+. = Background
+P = Player
+r = Red and Origin
+b = Blue and Origin
+s = Origin
+t = Target
+k = Relay
+Item = Red or Blue
+
+SOUNDS
+
+COLLISIONLAYERS
+Background
+Player
+Red, Blue
+Origin
+Target
+Relay, Spent
+
+RULES
+right [ Item Origin | ... | Relay | ... | Target no Item ] -> [ Origin | ... | Spent | ... | Target Item ]
+
+WINCONDITIONS
+no Player
+
+LEVELS
+rbkttkttP
+
+rbktt.ttP
+
+r.b.k.tktP
