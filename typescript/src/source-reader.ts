@@ -227,11 +227,7 @@ export function readAuthoredSource(source: string, lexical: SourceLexicalResult)
           document.collisionLayers.push({ sectionId: section.id, order: order++, span: line.span, names, words,
             definitionNames: reuseLexicalWords(lexical.collisionNames.get(line.span.start.line) ?? [], names) });
         } else if (section.kind === SourceSectionKind.Rules) {
-          // Native lowercases at physical SOL; after a leading comment, the next
-          // parser call captures that lowercase line as its full compiler input.
-          const followsLeadingComment = startsInsideComment || line.original.slice(0, contentStart).includes('(');
-          const compilerLine = followsLeadingComment ? line.original.toLowerCase() : line.original;
-          const rule = readRule(line, compilerLine, { sectionId: section.id, order: order++, span: line.span }, declaredNames, issue);
+          const rule = readRule(line, line.original, { sectionId: section.id, order: order++, span: line.span }, declaredNames, issue);
           document.rules.push(rule);
           if (rule.kind === SourceRuleKind.Invalid) line.kind = SourceLineKind.Invalid;
         } else if (section.kind === SourceSectionKind.WinConditions) {

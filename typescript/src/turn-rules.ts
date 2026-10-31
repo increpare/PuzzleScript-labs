@@ -4,7 +4,7 @@ import { cloneExecutionState } from './rules.js';
 import { resolveMovements } from './movement.js';
 import { applyRules } from './scheduling.js';
 import { movementPositions } from './scan-order.js';
-import { quirksOf } from './compatibility-vanilla-5a94bde1.js';
+import { quirksOf } from './compatibility.js';
 
 export enum PlayerMatchKind { Any, All, Never }
 export interface PlayerDefinition {
@@ -99,7 +99,8 @@ export function applyTurnRules(
       const bannedGroups = state.bannedGroups;
       const late = applyRules(game, game.lateRules, { ...state, bannedGroups: new Set() });
       state = { ...late.state, bannedGroups };
-      // Movement has already resolved; only late randomdir can have written these.
+      // Current source syntax rejects late movement. Historical runtime research
+      // can still write requests here, after this turn's movement has resolved.
       if (!quirksOf(game).lateMovementsCarryOver) state = { ...state, pendingMovements: [] };
       diagnostics.push(...late.diagnostics);
       break;

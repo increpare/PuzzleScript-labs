@@ -1,7 +1,7 @@
 import { appendSourceIssue, type SourceIssueReporter } from './source-diagnostics.js';
 import { ResolvedNameKind, type ResolvedDeclarations } from './declaration-model.js';
 import type { SoundIndex } from './commands.js';
-import * as vanilla from './compatibility-vanilla-5a94bde1.js';
+import * as vanilla from './compatibility.js';
 import { Movement, type GameObject, type MovementSound } from './model.js';
 import { positionsByColumn } from './scan-order.js';
 import { LevelKind, SimpleSound, type Dimensions, type ObjectSound, type SessionGame, type SessionLevel, type SessionMetadata, type SessionSounds } from './session-model.js';
@@ -116,7 +116,10 @@ function parseDimensions(value: string, span: SourceSpan, report: GameDataReport
     report('invalid-dimensions', `Couldn't understand the dimensions given to me (you gave "${value}") - should be of the form AxB.`, span, true);
     return null;
   }
-  if (width <= 0 || height <= 0) report('nonpositive-dimensions', `The dimensions given to me (you gave "${value}") are baad - they should be > 0.`, span, true);
+  if (width <= 0 || height <= 0) {
+    report('nonpositive-dimensions', `The dimensions given to me (you gave "${value}") are baad - they should be > 0.`, span, true);
+    return null;
+  }
   return { width, height };
 }
 

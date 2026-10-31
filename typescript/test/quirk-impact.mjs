@@ -1,5 +1,5 @@
-// Which recorded corpus games play differently when a vanilla quirk is turned off?
-// Replays every simulation fixture with vanilla quirks, then with each quirk off
+// Which recorded corpus games play differently when a compatibility quirk is toggled?
+// Replays every simulation fixture with current vanilla defaults, then each quirk toggled
 // (and with all off), and reports the first observation that differs.
 //
 //   npm --prefix typescript run quirk-impact -- [--jobs N] [--json OUT] [name filter]
@@ -103,7 +103,7 @@ async function runWorker({ fixtures, configurations }) {
 }
 
 async function main() {
-  const { vanillaQuirks, noQuirks, quirkNames } = await import(new URL('compatibility-vanilla-5a94bde1.js', build));
+  const { vanillaQuirks, noQuirks, quirkNames } = await import(new URL('compatibility.js', build));
   const args = process.argv.slice(2);
   let jobs = Math.max(1, availableParallelism() - 1), jsonPath = null, filter = null;
   while (args.length > 0) {
@@ -114,7 +114,7 @@ async function main() {
   }
   const fixtures = loadFixtures().filter(fixture => filter === null || fixture.name.toLowerCase().includes(filter));
   const configurations = [{ name: 'vanilla', quirks: { ...vanillaQuirks } },
-    ...quirkNames.map(name => ({ name, quirks: { ...vanillaQuirks, [name]: false } })),
+    ...quirkNames.map(name => ({ name, quirks: { ...vanillaQuirks, [name]: !vanillaQuirks[name] } })),
     { name: 'all off', quirks: { ...noQuirks } }];
 
   // Interleave fixtures so slow games spread across workers.
@@ -138,7 +138,9 @@ async function main() {
   for (const configuration of configurations.slice(1)) {
     const changed = reports.filter(report =>
       report.results.find(result => result.configuration === configuration.name).divergence !== null);
-    console.log(`${configuration.name === 'all off' ? 'all quirks' : configuration.name} off: ${changed.length} game(s) change`);
+    const setting = configuration.name === 'all off' ? 'all quirks off'
+      : configuration.name + (configuration.quirks[configuration.name] ? ' on' : ' off');
+    console.log(`${setting}: ${changed.length} game(s) change`);
     for (const report of changed) {
       const { divergence } = report.results.find(result => result.configuration === configuration.name);
       console.log(`  - ${report.fixture.name} — first difference at ${divergence.label}`

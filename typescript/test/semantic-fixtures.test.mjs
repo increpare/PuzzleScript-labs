@@ -43,7 +43,8 @@ for (const fixture of fixtures) {
   test(fixture.name, () => {
     const compilation = compiler.compileSource(fixture.source);
     assert.equal(compilation.outcome.kind, compiler.SourceCompilationKind.Accepted);
-    assert.equal(compilation.errorCount, 0, 'Semantic examples must compile without errors');
+    assert.equal(compilation.errorCount, fixture.expectedErrors.length, 'Each compile error must be explicitly authored');
+    for (const message of fixture.expectedErrors) assert.ok(compilation.diagnostics.some(issue => issue.message === message));
     const report = compareAuthoredFixture(fixture);
     assert.ok(report.snapshots >= fixture.inputs.length + 1);
     totals.fixtures++;
@@ -74,7 +75,7 @@ test('authored simple-sound expectations are checked beyond JS/TS agreement', ()
   assert.throws(() => compareAuthoredFixture({ ...fixture, expectedPlayedSounds: ['wrong audible sound'] }), /authored played sounds/);
 });
 
-test('known issue 1206 fixture explicitly checks the otherwise invisible phantom ban', () => {
+test('fixed issue 1206 bans actual contributors and never the absent Wall group', () => {
   const fixture = fixtures.find(fixture => fixture.name.startsWith('semantic: movement/rigid-owner-1206:'));
   assert.ok(fixture);
   unitTesting = true;
@@ -88,12 +89,12 @@ test('known issue 1206 fixture explicitly checks the otherwise invisible phantom
     };
     processInput(4);
   } finally { nativeGame.resolveMovements = resolve; unitTesting = false; }
-  assert.deepEqual(attempts, [{ retry: true, bans: [2] }, { retry: false, bans: [2] }]);
+  assert.deepEqual(attempts, [{ retry: true, bans: [0] }, { retry: true, bans: [0, 1] }, { retry: false, bans: [0, 1] }]);
   const game = compiler.compileSource(fixture.source).outcome.game;
   const environment = { nextLevelSeed() { throw new Error('Unexpected level load'); } };
   const initial = session.createSession(game, { seed: fixture.seed }, environment).state;
   const actual = session.stepSession(game, initial, model.Movement.Action, environment).state;
-  assert.deepEqual(actual.execution.bannedGroups, new Set([2]));
+  assert.deepEqual(actual.execution.bannedGroups, new Set([0, 1]));
 });
 
 test('semantic corpus compares every authored case', context => {

@@ -270,9 +270,9 @@ test('every native parser/compiler producer is guarded during candidate executio
   assert.throws(() => oracle.independently(() => runInThisContext('new CodeMirror.StringStream("", 4)')), /Candidate called native CodeMirror.StringStream/);
 });
 
-test('all 478 vanilla sources match complete movement order, duplicates, diagnostics and stage invalidity', t => {
+test('all 492 pinned vanilla sources match complete movement order, duplicates, diagnostics and stage invalidity', t => {
   const fixtures = oracle.corpusFixtures();
-  assert.equal(fixtures.length, 478);
+  assert.equal(fixtures.length, 492);
   const totals = { sources: 0, syntax: 0, inputs: 0, outputs: 0, diagnostics: 0, aborted: 0 };
   for (const item of fixtures) {
     const { expected, named, result } = oracle.compareFixture(item);
@@ -283,6 +283,6 @@ test('all 478 vanilla sources match complete movement order, duplicates, diagnos
     totals.diagnostics += result.diagnostics.length;
     totals.aborted += Number(result.abortsCompilation);
   }
-  assert.deepEqual(totals, { sources: 478, syntax: 16577, inputs: 25985, outputs: 30005, diagnostics: 0, aborted: 0 });
+  assert.deepEqual(totals, { sources: 492, syntax: 16674, inputs: 26093, outputs: 30121, diagnostics: 0, aborted: 0 });
   t.diagnostic(JSON.stringify(totals));
 });

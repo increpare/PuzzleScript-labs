@@ -1,5 +1,5 @@
 import { appendSourceIssue, type SourceIssueReporter } from './source-diagnostics.js';
-import * as vanilla from './compatibility-vanilla-5a94bde1.js';
+import * as vanilla from './compatibility.js';
 import type { ResolvedDeclarations } from './declaration-model.js';
 import type { CellReplacement, ExecutableRule } from './execution-model.js';
 import { getObjectIntentLayer, Movement, type GameObject } from './model.js';
@@ -92,9 +92,11 @@ export function lowerRules(
             isEllipsis = true;
             break;
           }
-          if (qualifier === Q.RandomObject) {
-            issue('random-object-on-left', 'RANDOM cannot be matched on the left-hand side, it can only appear on the right');
-            continue;
+          if (qualifier === Q.RandomObject || qualifier === Q.RandomDirection && !quirks.lhsRandomDirIsUpAndLeft) {
+            const randomObject = qualifier === Q.RandomObject;
+            issue(randomObject ? 'random-object-on-left' : 'random-direction-on-left',
+              `${randomObject ? 'RANDOM' : 'RANDOMDIR'} cannot be matched on the left-hand side; it can only appear on the right`);
+            continue ruleLoop;
           }
           const layer = layerOf(name);
           if (layer === undefined) { missingLayer(name); continue; }
@@ -108,9 +110,7 @@ export function lowerRules(
             leftConcreteLayers.add(layer);
           } else anyObjects.push(new Set(namedObjects(name)));
           if (qualifier === Q.Stationary) addMovements(forbiddenMovements, layer, allMovements);
-          else if (qualifier === Q.RandomDirection && !quirks.lhsRandomDirIsUpAndLeft) {
-            issue('random-direction-on-left', 'RANDOMDIR cannot be matched on the left-hand side, it can only appear on the right');
-          } else addMovements(requiredMovements, layer, qualifierMovements(qualifier));
+          else addMovements(requiredMovements, layer, qualifierMovements(qualifier));
         }
         if (isEllipsis) { patternRow.push(Ellipsis); replacementRow.push(null); continue; }
         const pattern: CellPattern = { requiredObjects, forbiddenObjects, anyObjects,

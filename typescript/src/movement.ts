@@ -1,5 +1,5 @@
 import { Direction, Movement } from './model.js';
-import * as vanilla from './compatibility-vanilla-5a94bde1.js';
+import * as vanilla from './compatibility.js';
 import { movementPositions } from './scan-order.js';
 import type {
   CollisionLayer, GameObject, LayerMovements, MovementGame, MovementResolution,

@@ -155,7 +155,7 @@ export function recoverRuleSyntax(document: SourceDocument, declarations: Resolv
       } else if (qualifier !== undefined) {
         if (pending !== null) problem('multiple-rule-qualifiers', "Error, an item can only have one direction/action at a time, but you're looking for several at once!", token);
         else if (!insideRow) problem('qualifier-outside-row', 'Invalid syntax. Directions should be placed at the start of a rule.', token, true);
-        else if (late && qualifier !== RuleQualifier.No && qualifier !== RuleQualifier.RandomObject && qualifier !== RuleQualifier.RandomDirection) {
+        else if (late && qualifier !== RuleQualifier.No && qualifier !== RuleQualifier.RandomObject) {
           problem('movement-in-late-rule', 'Movements cannot appear in late rules.', token);
         } else pending = { qualifier, origin: token.word.span };
       } else if (value === '|') {

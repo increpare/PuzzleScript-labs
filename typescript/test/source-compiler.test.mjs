@@ -61,7 +61,7 @@ const compilerTypes = { compileSource, SourceCompilationKind, SourceCompilationS
   ...model, ...sessionModel, ...turnRules, ...winConditions, ...commands, ...ruleModel, ...assets, ...declarationModel };
 const oracle = createSourceCompilerOracle(compilerTypes);
 
-test('all 312 original compilation sources match actual compile diagnostics and acceptance', t => {
+test('all 335 pinned compilation sources match actual compile diagnostics and acceptance', t => {
   const totals = { sources: 0, formed: 0, invalid: 0, stopped: 0, accepted: 0, declined: 0, raw: 0, recorded: 0 };
   for (const fixture of oracle.compilationFixtures()) {
     const { result } = oracle.compareFixture(fixture);
@@ -75,11 +75,11 @@ test('all 312 original compilation sources match actual compile diagnostics and 
     }
   }
   t.diagnostic(JSON.stringify(totals));
-  assert.deepEqual(totals, { sources: 312, formed: 293, invalid: 16, stopped: 3,
-    accepted: 284, declined: 9, raw: 899, recorded: 728 });
+  assert.deepEqual(totals, { sources: 335, formed: 315, invalid: 17, stopped: 3,
+    accepted: 306, declined: 9, raw: 876, recorded: 705 });
 });
 
-test('all 478 original simulation sources match complete actual compilation semantics and issues', t => {
+test('all 492 pinned simulation sources match complete actual compilation semantics and issues', t => {
   const totals = { sources: 0, accepted: 0, raw: 0, recorded: 0, errors: 0, finalRules: 0 };
   for (const fixture of oracle.corpusFixtures()) {
     const { result } = oracle.compareFixture(fixture);
@@ -89,7 +89,7 @@ test('all 478 original simulation sources match complete actual compilation sema
       .reduce((sum, group) => sum + group.rules.length, 0);
   }
   t.diagnostic(JSON.stringify(totals));
-  assert.deepEqual(totals, { sources: 478, accepted: 478, raw: 673, recorded: 642, errors: 21, finalRules: 99076 });
+  assert.deepEqual(totals, { sources: 492, accepted: 492, raw: 579, recorded: 548, errors: 25, finalRules: 99192 });
 });
 
 const originalFixture = name => {
@@ -160,7 +160,7 @@ test('constructed: explicit orphan and issue 1206 remain in the whole source res
   assert.equal(game.earlyRules.groups[0].rules[0].replacements[0][0].edits.randomObjects[0].object, declarations.orphanedObject);
   const rigid = oracle.compareFixture({ name: 'original issue 1206 repro',
     source: readFileSync(new URL('./repros/rigid-owner.puzzlescript', import.meta.url), 'utf8') }).result;
-  assert.equal(rigid.outcome.game.rigidMerges.get(0).get(1), 2);
+  assert.equal(rigid.outcome.game.rigidMerges.get(0).get(1), 0);
 });
 
 const corruptResult = mutate => text => { const result = compileSource(text); mutate(result); return result; };

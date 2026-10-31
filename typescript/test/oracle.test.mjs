@@ -192,8 +192,8 @@ test('the oracle rejects initialization from the wrong seed', () => {
   }, { createRandom: () => createRandom('different-seed') }), /seeded random state/);
 });
 
-test('records legacy rigid responsibility when two groups affect overlapping layers', () => {
-  // Preserve https://github.com/increpare/PuzzleScript/issues/1206 as requested.
+test('overlapping rigid layers retain their first contributing owners', () => {
+  // Regression for https://github.com/increpare/PuzzleScript/issues/1206.
   const observed = [];
   const report = oracle.compareFixture({
     name: 'overlapping rigid layer provenance',
@@ -214,8 +214,12 @@ test('records legacy rigid responsibility when two groups affect overlapping lay
       return resolveMovements(game, before);
     },
   });
-  // Group 2 never matched: its Wall is absent. Nevertheless, overlapping
-  // writes from groups 0 and 1 give the Player layer this responsibility in JS.
-  assert.deepEqual(observed[0], [{ layer: 1, group: 2 }, { layer: 2, group: 1 }]);
-  assert.equal(report.rigidRetries, 1);
+  // Group 2 never matched: its Wall is absent. The Player keeps its first
+  // contributor while the newly marked Crate layer belongs to group 1.
+  assert.deepEqual(observed, [
+    [{ layer: 1, group: 0 }, { layer: 2, group: 1 }],
+    [{ layer: 1, group: 1 }, { layer: 2, group: 1 }],
+    [],
+  ]);
+  assert.equal(report.rigidRetries, 2);
 });

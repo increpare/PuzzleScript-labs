@@ -19,10 +19,11 @@ History and other session metadata are read fresh at commitment. Private probes
 share the outer operation's owned snapshots until a helper replaces them; they
 do not deep-copy the entire history a second time.
 
-The default remains exact vanilla `5a94bde1`. Its new explicit
+The cache originally targeted vanilla `5a94bde1`; the reference refresh advances
+the default to `57f9f6cb`. Its new explicit
 `againProbeHasSideEffects` quirk is on: old speculative random draws, movement
-restoration, execution events, cancel sounds and checkpoint writes remain
-observable. A prepared turn is reused only when the actual next input still
+restoration, execution events and cancel sounds remain observable. The refreshed
+checkpoint fix prevents checkpoint writes during speculative turns. A prepared turn is reused only when the actual next input still
 equals what was probed. Random draws and some late-movement cases therefore
 take the old reevaluation path in this compatibility mode.
 
@@ -33,9 +34,23 @@ quirks on. Diagnostics remain visible at discovery and appear on a later real
 commit just as they would under uncached execution. These are separate public
 operations; diagnostics themselves never alias the private cache.
 
-Frozen vanilla sources, oracle hashes and historical expectations are unchanged.
+The cache change itself left frozen sources and hashes unchanged. The separate
+reference refresh updates them to `57f9f6cb`; current verification is recorded in
+the [refresh audit](superpowers/plans/2026-10-31-typescript-vanilla-refresh.md).
 
 ## Reproduction
+
+The commands and measurements below belong to the original cache commit
+`8628b57e`, with the historical `5a94bde1` oracle. Check out that commit before
+reproducing them with the `fba2000a` baseline. The current oracle requires the
+refreshed behavior profile, so its audit tool cannot compare that old build.
+
+For a new comparison at `57f9f6cb`, copy the current candidate build to a separate
+baseline directory and replace only its `session.js` and `session.js.map` with
+the uncached versions built from `6f40be98`. This keeps both sides' parser,
+compiler, oracle and eight-switch compatibility profile identical. Use those
+directories with the commands below; the old timings are not measurements of
+the refreshed authority.
 
 ```sh
 npm --prefix typescript test

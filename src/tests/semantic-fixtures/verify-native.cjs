@@ -15,7 +15,8 @@ for (const fixture of fixtures) {
   let passed;
   try { console.log = () => {}; passed = runTest(fixtureTuple(fixture)[1], fixture.name); }
   finally { console.log = log; playSound = originalPlaySound; }
-  if (errorCount !== 0) passed = false;
+  const expectedErrors = fixture.expectedErrors;
+  if (errorCount !== expectedErrors.length || !expectedErrors.every(message => errorStrings.some(issue => stripHTMLTags(issue).includes(message)))) passed = false;
   if (fixture.expectedPlayedSounds !== undefined
     && JSON.stringify(played) !== JSON.stringify(fixture.expectedPlayedSounds.map(String))) passed = false;
   warnings += errorStrings.length;

@@ -148,7 +148,7 @@ for (const [line, payload] of [
   ['[ Player ] -> message', ' '],
   ['[ Player ] -> MeSsAgE HeLLo WoRLD', 'HeLLo WoRLD'],
   ['[ Player ] -> message Hello (literal)', 'Hello (literal)'],
-  ['(message message) [ Player ] -> message HeLLo (literal)', 'hello (literal)'],
+  ['(message message) [ Player ] -> message HeLLo (literal)', 'HeLLo (literal)'],
   ['İİ [ Player ] -> message HELLO', 'ELLO'],
 ]) {
   test('compiler message payload matches the native normalized cursor: ' + line, () => {
@@ -182,33 +182,33 @@ test('message cursor retains native indexOf failure arithmetic without assuming 
   }
 });
 
-test('a rule entered after a leading comment uses the native lowercase payload while authored evidence keeps case', () => {
+test('a rule entered after a leading comment preserves native and authored message case', () => {
   const { source, rule, native } = readRule('(comment) [ Player ] -> message HeLLo (literal)');
   const values = globalThis.tokenizeRuleLine(native.rule);
   const index = values.indexOf('message');
-  assert.equal(nativePayload(native, values, index), 'hello (literal)');
+  assert.equal(nativePayload(native, values, index), 'HeLLo (literal)');
   assert.equal(rule.commands[0].authoredPayload, 'HeLLo (literal)');
   assert.equal(rule.commands[0].legacyPayload, 'HeLLo (literal)');
   const tokens = compilerTokens(rule);
   freezeSource(tokens, source);
-  assert.equal(compilerPayload(rule, tokens, index), 'hello (literal)');
+  assert.equal(compilerPayload(rule, tokens, index), 'HeLLo (literal)');
 });
 
-for (const [line, lowered] of [
-  ['[ Player ] -> message HeLLo (literal)', false],
-  ['(comment) [ Player ] -> message HeLLo', true],
-  ['(outer (inner)) [ Player ] -> message HeLLo', true],
-  ['(one) (two) [ Player ] -> message HeLLo', true],
-  [' \t(comment) [ Player ] -> message HeLLo', true],
-  ['(comment\n) [ Player ] -> message HeLLo', true],
-  ['(outer\n(inner) comment) [ Player ] -> message HeLLo', true],
-  ['(İ) İİ [ Player ] -> message HeLLo (literal)', true],
+for (const line of [
+  '[ Player ] -> message HeLLo (literal)',
+  '(comment) [ Player ] -> message HeLLo',
+  '(outer (inner)) [ Player ] -> message HeLLo',
+  '(one) (two) [ Player ] -> message HeLLo',
+  ' \t(comment) [ Player ] -> message HeLLo',
+  '(comment\n) [ Player ] -> message HeLLo',
+  '(outer\n(inner) comment) [ Player ] -> message HeLLo',
+  '(İ) İİ [ Player ] -> message HeLLo (literal)',
 ]) {
   test('effective compiler casing follows native comment reentry: ' + JSON.stringify(line), () => {
     const { source, document, rule, native, before } = readRule(line);
     const authoredLine = line.split('\n').at(-1);
     assert.equal(rule.originalLine.original, authoredLine);
-    assert.equal(native.mixed_case, lowered ? authoredLine.toLowerCase() : authoredLine);
+    assert.equal(native.mixed_case, authoredLine);
     const tokens = checkTokens(rule, source, native);
     freezeSource(tokens, source);
     for (let index = 0; index < tokens.length; index++) {
@@ -260,7 +260,7 @@ function compareSources(fixtures) {
 }
 
 test('compiler lexing compares every retained simulation-source rule with native producers', t => {
-  assert.equal(globalThis.testdata.length, 478);
+  assert.equal(globalThis.testdata.length, 492);
   const report = compareSources(globalThis.testdata);
   assert.ok(report.rules > 0);
   assert.ok(report.messages > 0);
@@ -268,7 +268,7 @@ test('compiler lexing compares every retained simulation-source rule with native
 });
 
 test('compiler lexing compares every retained compilation-source rule with native producers', t => {
-  assert.equal(globalThis.errormessage_testdata.length, 312);
+  assert.equal(globalThis.errormessage_testdata.length, 335);
   const report = compareSources(globalThis.errormessage_testdata);
   assert.ok(report.rules > 0);
   t.diagnostic(JSON.stringify(report));

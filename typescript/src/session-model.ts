@@ -1,5 +1,5 @@
 import type { SoundIndex } from './commands.js';
-import type { VanillaRestoreCompatibility } from './compatibility-vanilla-5a94bde1.js';
+import type { VanillaRestoreCompatibility } from './compatibility.js';
 import type { ExecutionDiagnostic, RuleExecutionState } from './execution-model.js';
 import type { Board, GameObject } from './model.js';
 import type { TurnRulesGame } from './turn-rules.js';

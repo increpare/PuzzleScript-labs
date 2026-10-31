@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Compare the same readable engine workload, excluding compilation and hashing.
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createHash } from 'node:crypto';
@@ -82,8 +82,11 @@ async function main() {
       baseline_rule_passes: samples.baseline[0][index].early_rule_passes,
       candidate_rule_passes: samples.candidate[0][index].early_rule_passes };
   });
-  const hashes = build => Object.fromEntries(['session.js', 'turn-rules.js', 'compatibility-vanilla-5a94bde1.js'].map(file => [file, sha256(readFileSync(resolve(build, file)))]));
-  const report = { baseline_commit: 'fba2000a', node: process.version, architecture: process.arch, pairs,
+  const hashes = build => {
+    const compatibility = existsSync(resolve(build, 'compatibility.js')) ? 'compatibility.js' : 'compatibility-vanilla-5a94bde1.js';
+    return Object.fromEntries(['session.js', 'turn-rules.js', compatibility].map(file => [file, sha256(readFileSync(resolve(build, file)))]));
+  };
+  const report = { builds: { baseline, candidate }, node: process.version, architecture: process.arch, pairs,
     policy: 'Pinned vanilla quirks; hashing full final session/effects outside timing; plain games timed, earlyRules getter counts collected separately',
     sources: { baseline: hashes(baseline), candidate: hashes(candidate) }, results, samples };
   writeFileSync(output, JSON.stringify(report, null, 2) + '\n');

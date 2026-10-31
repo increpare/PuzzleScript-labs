@@ -26,11 +26,13 @@ test('manifest loader uses explicit expected cells and fixed seeds, independentl
     fs.writeFileSync(path.join(directory, 'game.ps'), 'authored source, not parsed by the exporter\n');
     fs.writeFileSync(path.join(directory, 'family.json'), JSON.stringify([{
       id: 'unit/example', sourceFile: 'game.ps', explanation: 'Explicit expected objects.',
+      expectedErrors: ['Movements cannot appear in late rules.'],
       cells: { P: ['background', 'player'] },
       cases: [{ name: 'first', inputs: [4, 'undo'], expected: ['P'], expectedSounds: [100, '200'], expectedPlayedSounds: [100, '200', 300] }],
     }]));
     const [fixture] = loadFixtures({ directory });
     assert.equal(fixture.seed, 'unit/example');
+    assert.deepEqual(fixture.expectedErrors, ['Movements cannot appear in late rules.']);
     assert.equal(fixture.name, 'semantic: unit/example: first');
     assert.equal(fixture.expectedBoard, 'background player:0,\n');
     assert.deepEqual(fixture.expectedPlayedSounds, [100, '200', 300]);
@@ -62,7 +64,7 @@ test('generated testdata section replaces itself without touching existing fixtu
   assert.equal(context.testdata[1][1][2], fixture.expectedBoard);
 });
 
-test('Labs exports use explicit board and sound overrides while historical fixtures stay pinned', () => {
+test('Labs exports use explicit overrides while pinned vanilla expectations stay separate', () => {
   const { loadFixtures, fixtureTuple } = require('./fixtures.cjs');
   const { renderSection } = require('./export.cjs');
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'semantic-labs-loader-'));

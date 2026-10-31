@@ -87,6 +87,19 @@ test('late suppression changes directional classification before defaults collap
   assert.equal(result.rules[0].lhs[0][0][0].qualifier, model.RuleQualifier.Unspecified);
 });
 
+test('late randomdir is rejected on either side and recovers the following object without movement', () => {
+  const { document, result } = oracle.compareFixture(fixture('late [ randomdir Player ] -> [ randomdir Player ]\n[ Player ] -> [ Player ]'));
+  assert.deepEqual(result.diagnostics.map(issue => [issue.code, issue.message,
+    document.source.slice(issue.span.start.offset, issue.span.end.offset)]), [
+    ['movement-in-late-rule', 'Movements cannot appear in late rules.', 'randomdir'],
+    ['movement-in-late-rule', 'Movements cannot appear in late rules.', 'randomdir'],
+  ]);
+  assert.equal(result.rules.length, 2);
+  for (const side of [result.rules[0].lhs, result.rules[0].rhs]) {
+    assert.equal(side[0][0][0].qualifier, model.RuleQualifier.Unspecified);
+  }
+});
+
 test('structured token diagnostics retain the exact authored problem span', () => {
   const { document, result } = oracle.compareFixture(fixture('[ > up Missing Player ] -> [ Player ]'));
   const tokenEvidence = result.diagnostics.map(issue => [issue.code,
@@ -226,14 +239,14 @@ test('every native parser/compiler/token producer is disabled during candidate w
 
 test('every retained simulation-source rule matches native syntax including errored recovery', t => {
   const fixtures = oracle.corpusFixtures();
-  assert.equal(fixtures.length, 478);
+  assert.equal(fixtures.length, 492);
   const totals = { sources: 0, captured: 0, rules: 0, loops: 0, diagnostics: 0, aborted: 0 };
   for (const item of fixtures) {
     const report = oracle.compareFixture(item);
     totals.sources++;
     for (const key of ['captured', 'rules', 'loops', 'diagnostics', 'aborted']) totals[key] += report[key];
   }
-  assert.equal(totals.rules, 16577);
-  assert.equal(totals.diagnostics, 216);
   t.diagnostic(JSON.stringify(totals));
+  assert.equal(totals.rules, 16674);
+  assert.equal(totals.diagnostics, 217);
 });

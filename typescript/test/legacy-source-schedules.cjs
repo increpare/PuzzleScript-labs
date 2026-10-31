@@ -80,16 +80,16 @@ function createSourceSchedulesOracle(types) {
     });
     return { early: schedule(parsed.rules, parsed.loopPoint, earlyOwners),
       late: schedule(parsed.lateRules, parsed.lateLoopPoint, lateOwners), rigid: parsed.rigid,
-      rigidMerges: new Map(rigid.map((group, i) => [group,
-        new Map(rigid.map((incoming, j) => [incoming, rigid[((i + 1) | (j + 1)) - 1] ?? null]))])), diagnostics, parsed };
+      rigidMerges: actualRigidTransitions(parsed), diagnostics, parsed };
   }
-  // Exercise the actual generated native replacement, with a newly affected
-  // second layer forcing the cell-wide guard to merge the first layer's owner.
-  // Only the test adapter constructs these native encodings.
+  // Exercise the actual generated native replacement with an overlapping layer
+  // and a newly affected second layer. Decode both owners from the native result;
+  // only this test adapter constructs the native encodings.
   function actualRigidTransitions(parsed) {
     const oldState = state, oldLevel = level;
     try {
       state = parsed;
+      if (parsed.rigidGroupIndex_to_GroupIndex.length === 0) return new Map();
       RebuildGameArrays();
       sfxCreateMask = new BitVec(STRIDE_OBJ); sfxDestroyMask = new BitVec(STRIDE_OBJ);
       const rigid = parsed.rigidGroupIndex_to_GroupIndex;
@@ -103,7 +103,7 @@ function createSourceSchedulesOracle(types) {
           new BitVec(STRIDE_OBJ), new BitVec(STRIDE_MOV)]);
         return pattern;
       };
-      level = new Level(0, 1, 1, parsed.collisionLayers.length, new Int32Array(STRIDE_OBJ));
+      level = new Level(0, 1, 1, Math.max(3, parsed.collisionLayers.length), new Int32Array(STRIDE_OBJ));
       const replacements = rigid.map(group => {
         const rule = parsed.rules[group].find(rule => rule.rigid);
         const first = patterns([1]), second = patterns([1, 2]);
@@ -114,7 +114,8 @@ function createSourceSchedulesOracle(types) {
         RebuildLevelArrays();
         const before = replacements[i], added = replacements[j];
         assert.equal(before.firstReplace.call(before.first, level, before.rule, 0), true, 'first native rigid attribution');
-        assert.equal(added.secondReplace.call(added.second, level, added.rule, 0), true, 'new layer enables native owner merge');
+        assert.equal(added.secondReplace.call(added.second, level, added.rule, 0), true, 'new layer receives native ownership');
+        assert.equal(level.rigidGroupIndexMask[0].getshiftor(31, 10), j + 1, 'new native layer belongs to incoming group');
         const encoded = level.rigidGroupIndexMask[0].getshiftor(31, 5);
         return [incoming, rigid[encoded - 1] ?? null];
       }))]));

@@ -150,6 +150,20 @@ test('native concrete edits require the independent lowering API', () => {
   oracle.compareFixture(item);
 });
 
+test('illegal LHS random qualifiers remove entire consecutive rules and retain subsequent valid rules', () => {
+  const { result, document } = oracle.compareFixture(fixture([
+    'right [ Player ] -> [ Player ]',
+    'right [ random Player ] -> [ random Player ]',
+    'right [ randomdir Player ] -> [ random Player ]',
+    'right [ Crate ] -> [ Crate ]',
+  ].join('\n')));
+  assert.deepEqual(result.rules.map(rule => rule.namedRule.source), [document.rules[0], document.rules[3]]);
+  assert.deepEqual(result.diagnostics.map(issue => [issue.code, issue.message, issue.span.start.line]), [
+    ['random-object-on-left', 'RANDOM cannot be matched on the left-hand side; it can only appear on the right', document.rules[1].originalLine.span.start.line],
+    ['random-direction-on-left', 'RANDOMDIR cannot be matched on the left-hand side; it can only appear on the right', document.rules[2].originalLine.span.start.line],
+  ]);
+});
+
 for (const rules of [
   'right [ ] -> [ Player ]', 'right [ Player ] -> [ ]',
   'right [ Player ] -> [ no Crate Player ]', 'right [ Player ] -> [ no Player Player ]',
@@ -249,9 +263,9 @@ const cases = [
   boundary('last overlap persists and suppresses later RHS errors',
     { lhs: [[['', 'player', '', 'player'], ['', 'crate']]], rhs: [[['', 'player'], ['', 'crate', '', 'wall']]] },
     { lhs: [[[term('player'), term('player')], [term('crate')]]], rhs: [[[term('player')], [term('crate'), term('wall')]]] }),
-  boundary('LHS random diagnoses without object or movement contributions',
+  boundary('LHS random removes the whole invalid rule',
     { lhs: [[['random', 'player']]] }, { lhs: [[[term('player', Q.RandomObject)]]] }),
-  boundary('LHS randomdir requires native up and left',
+  boundary('LHS randomdir removes the whole invalid rule',
     { lhs: [[['randomdir', 'player']]] }, { lhs: [[[term('player', Q.RandomDirection)]]] }),
   boundary('contradiction removes immediately before RHS and later cells',
     { lhs: [[['', 'player', 'no', 'player'], ['random', 'wall']]], rhs: [[['random', 'unknown'], ['', 'wall']]] },
@@ -427,9 +441,9 @@ test('cyclic malformed declarations fail before lowering in fixed-timeout childr
   assert.match(failures[1].message, /empty aggregate.*player/i);
 });
 
-test('all 478 vanilla sources match exact lowered order, fields and diagnostics', t => {
+test('all 492 vanilla sources match exact lowered order, fields and diagnostics', t => {
   const fixtures = oracle.corpusFixtures();
-  assert.equal(fixtures.length, 478);
+  assert.equal(fixtures.length, 492);
   const totals = { sources: 0, syntax: 0, named: 0, movement: 0, spawned: 0, duplicates: 0, lowered: 0, overlaps: 0, diagnostics: 0 };
   for (const item of fixtures) {
     const compared = oracle.compareFixture(item);
@@ -440,6 +454,6 @@ test('all 478 vanilla sources match exact lowered order, fields and diagnostics'
     totals.diagnostics += compared.result.diagnostics.length;
   }
   t.diagnostic(JSON.stringify(totals));
-  assert.deepEqual(totals, { sources: 478, syntax: 16577, named: 25985, movement: 30005, spawned: 106273,
-    duplicates: 99448, lowered: 99327, overlaps: 251, diagnostics: 143 });
+  assert.deepEqual(totals, { sources: 492, syntax: 16674, named: 26093, movement: 30121, spawned: 106392,
+    duplicates: 99567, lowered: 99443, overlaps: 251, diagnostics: 146 });
 });

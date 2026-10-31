@@ -192,8 +192,8 @@ test('recognized metadata preserves source order, last values, raw graphics valu
 test('screen dimensions follow finite signed-32 integer validation then native parseInt quirks', () => {
   for (const [value, expected] of [
     ['3X4', { width: 3, height: 4 }], ['1e2x2.0', { width: 1, height: 2 }],
-    ['0x10x2', undefined], ['-2x0', { width: -2, height: 0 }], ['+3x4', { width: 3, height: 4 }],
-    ['2147483648x2', undefined], ['-2147483648x2', { width: -2147483648, height: 2 }],
+    ['0x10x2', undefined], ['-2x0', undefined], ['+3x4', { width: 3, height: 4 }],
+    ['2147483648x2', undefined], ['-2147483648x2', undefined],
     ['.0x2', undefined], ['Infinityx2', undefined], ['2.5x2', undefined], ['2x3x4', undefined],
   ]) {
     const { metadata, data, diagnostics } = compile({ metadata: `flickscreen ${value}\nzoomscreen ${value}` });
@@ -204,6 +204,21 @@ test('screen dimensions follow finite signed-32 integer validation then native p
       assert.ok(diagnostics.length > 0, value);
       assert.ok(diagnostics.every(item => !item.countsAsError), value);
     }
+  }
+});
+
+test('nonpositive viewport dimensions warn in coordinate order and remove both recovery metadata entries', () => {
+  for (const value of ['0x2', '2x0', '-2x3', '3x-2', '-2x0', '-2147483648x2']) {
+    const { metadata, data, diagnostics } = compile({ metadata: `flickscreen ${value}\nzoomscreen ${value}` });
+    assert.equal(metadata.has('flickscreen'), false, value);
+    assert.equal(metadata.has('zoomscreen'), false, value);
+    assert.equal(Object.hasOwn(data.metadata, 'flickscreen'), false, value);
+    assert.equal(Object.hasOwn(data.metadata, 'zoomscreen'), false, value);
+    const expected = value.split('x').filter(coordinate => Number(coordinate) <= 0)
+      .map(coordinate => `The dimension given to me (you gave "${coordinate}") is baad - it should be greater than 0.`);
+    expected.push(`The dimensions given to me (you gave "${value}") are baad - they should be > 0.`);
+    assert.deepEqual(diagnostics.map(issue => issue.message), [...expected, ...expected], value);
+    assert.ok(diagnostics.every(issue => !issue.countsAsError), value);
   }
 });
 

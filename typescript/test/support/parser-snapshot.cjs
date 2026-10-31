@@ -107,7 +107,7 @@ function toStringMap(map) {
 function buildParserStateSnapshot(source) {
     const state = parseOnly(source);
     return {
-        schema_version: 1,
+        schema_version: 2,
         parser_state: {
             line_number: state.lineNumber,
             comment_level: state.commentLevel,
@@ -117,8 +117,9 @@ function buildParserStateSnapshot(source) {
             line_should_end_because: state.line_should_end_because || '',
             sol_after_comment: Boolean(state.sol_after_comment),
             inside_cell: Boolean(state.inside_cell),
-            bracket_balance: state.bracket_balance || 0,
+            lhs_rhs_rowcount_difference: state.lhs_rhs_rowcount_difference,
             arrow_passed: Boolean(state.arrow_passed),
+            rhs_pattern_started: Boolean(state.rhs_pattern_started),
             rule_prelude: Boolean(state.rule_prelude),
             objects_candname: state.objects_candname || '',
             objects_section: state.objects_section || 0,
@@ -126,6 +127,7 @@ function buildParserStateSnapshot(source) {
             collision_layers: Array.isArray(state.collisionLayers) ? state.collisionLayers.map(layer => layer.slice()) : [],
             token_index: state.tokenIndex || 0,
             current_line_wip_array: Array.isArray(state.current_line_wip_array) ? state.current_line_wip_array.map(String) : [],
+            current_line_mixed_case: state.current_line_mixed_case,
             metadata_pairs: Array.isArray(state.metadata) ? state.metadata.slice() : [],
             metadata_lines: toStringMap(state.metadata_lines),
             original_case_names: toStringMap(state.original_case_names),

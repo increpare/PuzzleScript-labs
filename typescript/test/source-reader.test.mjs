@@ -350,6 +350,8 @@ test('rule message literals after leading comments cannot swallow the next physi
     assert.equal(document.rules.length, 2, prefix);
     assert.equal(document.comments.length, 1, prefix);
     assert.equal(document.rules[0].commands[0].authoredPayload, 'Hello (unclosed', prefix);
+    assert.equal(document.rules[0].commands[0].legacyPayload, 'Hello (unclosed', prefix);
+    assert.equal(document.rules[0].compilerLine, source.split('\n')[document.rules[0].span.start.line - 1], prefix);
     assert.equal(document.rules[1].kind, sourceModel.SourceRuleKind.Ordinary, prefix);
     assert.ok(!diagnostics.some(diagnostic => diagnostic.code === 'unclosed-comment'), prefix);
     assert.deepEqual(document.rules.map(rule => rule.legacyCapturedText), legacy.rules.map(rule => rule.rule), prefix);
@@ -489,7 +491,7 @@ test('level messages after a closing comment still consume original literal payl
   const source = 'LEVELS\n(prefix) message Hello (Keep) [Me]\nP\n(prefix\n) message Second (Keep)\nP';
   const { document } = readSource(source);
   assert.deepEqual(document.levels.filter(level => level.kind === sourceModel.SourceLevelKind.Message).map(level => level.authoredText), ['Hello (Keep) [Me]', 'Second (Keep)']);
-  assert.deepEqual(document.levels.filter(level => level.kind === sourceModel.SourceLevelKind.Message).map(level => level.text), ['hello (keep) [me]', 'second (keep)']);
+  assert.deepEqual(document.levels.filter(level => level.kind === sourceModel.SourceLevelKind.Message).map(level => level.text), ['Hello (Keep) [Me]', 'Second (Keep)']);
   assert.equal(document.comments.length, 2);
   assert.deepEqual(document.levels.filter(level => level.kind === sourceModel.SourceLevelKind.Grid).map(level => level.rows.map(row => row.text)), [['P'], ['P']]);
 });

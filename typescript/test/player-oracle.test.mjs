@@ -15,10 +15,10 @@ const oracle = createRuntimeOracle({
   resolveMovements, findMatches, matchesRow, createRandom, nextRandom, applyRules,
 }, { editorMode: false });
 
-test('overlapping rigid responsibility can name no declared group', () => {
+test('overlapping rigid responsibility names the actual contributors in player mode', () => {
   const observed = [];
   const report = oracle.compareFixture({
-    name: 'unknown rigid responsibility',
+    name: 'first rigid responsibility in player mode',
     source: movementSource({
       rules: [
         'rigid right [ Player ] -> [ > Player ]',
@@ -31,13 +31,17 @@ test('overlapping rigid responsibility can name no declared group', () => {
       .replace('Player, Crate, Wall', 'Player\nCrate\nWall'),
     inputs: ['tick'], seed: 'unknown-rigid-owner',
   }, {
-    // The editor's diagnostic tries to print the missing group's source line
-    // and throws. Player mode exercises the retry without that editor diagnostic.
+    // Keep the historical missing-owner repro in player mode; current native
+    // ownership remains attributable even when groups 1 and 2 never match.
     resolveMovements: (game, before) => {
       observed.push(before.rigidMarks.map(({ layer, group }) => ({ layer, group })));
       return resolveMovements(game, before);
     },
   });
-  assert.deepEqual(observed[0], [{ layer: 1, group: null }, { layer: 2, group: 3 }]);
-  assert.equal(report.rigidRetries, 1);
+  assert.deepEqual(observed, [
+    [{ layer: 1, group: 0 }, { layer: 2, group: 3 }],
+    [{ layer: 1, group: 3 }, { layer: 2, group: 3 }],
+    [],
+  ]);
+  assert.equal(report.rigidRetries, 2);
 });

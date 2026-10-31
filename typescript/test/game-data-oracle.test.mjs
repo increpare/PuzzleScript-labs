@@ -73,6 +73,13 @@ test('metadata, sounds and win predicates preserve their native meanings', () =>
   oracle.compareFixture({ name: 'rich source game data', source });
 });
 
+test('nonpositive viewport dimensions match native metadata recovery', () => {
+  for (const value of ['0x2', '2x0', '-2x3', '3x-2', '-2x0', '-2147483648x2']) {
+    oracle.compareFixture({ name: 'nonpositive viewport ' + value,
+      source: movementSource({ metadata: `flickscreen ${value}\nzoomscreen ${value}` }) });
+  }
+});
+
 test('sound targets declared only in a later section remain parser-rejected', () => {
   oracle.compareFixture({ name: 'later sound target', source: movementSource({ sounds: 'Later move 123' })
     .replace('collisionlayers\n', 'legend\nLater = Player\ncollisionlayers\n') });
@@ -124,7 +131,7 @@ test('source-compiled restore policies drive typed undo and restart', () => {
 
 test('all simulation sources compile matching independent game data', () => {
   const fixtures = oracle.corpusFixtures();
-  assert.equal(fixtures.length, 478);
+  assert.equal(fixtures.length, 492);
   for (const item of fixtures) oracle.compareFixture(item);
 });
 

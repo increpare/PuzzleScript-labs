@@ -8,7 +8,7 @@ import { createBoard } from '../build/board.js';
 import { CommandKind } from '../build/commands.js';
 import { Direction, Movement } from '../build/model.js';
 import { createRandom, nextRandom } from '../build/random.js';
-import { vanillaQuirks, noQuirks } from '../build/compatibility-vanilla-5a94bde1.js';
+import { vanillaQuirks, noQuirks } from '../build/compatibility.js';
 import { compileSource, SourceCompilationKind } from '../build/source-compiler.js';
 import { applyTurnRules, PlayerMatchKind } from '../build/turn-rules.js';
 import { ObjectMatchKind, WinQuantifier } from '../build/win-conditions.js';
@@ -256,6 +256,17 @@ test('checkpoint snapshots own viewport and restart preserves RNG, message and s
   assert.deepEqual(undoSession(incoming, result.state).state.execution.board, moved.execution.board);
 });
 
+test('speculative checkpoints leave restart state, checkpoint status and storage untouched', () => {
+  const incoming = game({ earlyRules: schedule([commandRule(CommandKind.Checkpoint)]) });
+  const before = start(incoming);
+  const moved = stepSession(game(), before, Movement.Right, environment()).state;
+  const result = stepSession(incoming, moved, null, environment(), { probe: true, suppressWin: true });
+  assert.equal(result.modified, false);
+  assert.deepEqual(result.state.restartTarget, before.restartTarget);
+  assert.equal(result.state.checkpointUsed, false);
+  assert.deepEqual(persisted(result), []);
+});
+
 test('restart honours noRestart, force and recursion guard; command restart returns actual post-restart difference', () => {
   const incoming = game();
   const before = start(incoming);
@@ -321,13 +332,13 @@ test('quiet random AGAIN probe consumes the stream, retains its execution events
   assert.deepEqual(result.state.execution.commands.entries, []);
 });
 
-test('quiet AGAIN probes can checkpoint and cancelling probes emit their cancel sound', () => {
+test('quiet AGAIN probes leave the committed checkpoint alone and cancelling probes emit their cancel sound', () => {
   const outer = rule([[pattern([Player], { requiredMovements: [{ layer: 0, movement: Movement.Right }] })]], [[replacement()]], [{ kind: CommandKind.Again }]);
   const quietCheckpoint = commandRule(CommandKind.Checkpoint);
   const incoming = game({ earlyRules: schedule([outer]), lateRules: schedule([quietCheckpoint]) });
   const saved = stepSession(incoming, start(incoming), Movement.Right, environment());
   assert.equal(saved.state.checkpointUsed, true);
-  assert.equal(persisted(saved).length, 2);
+  assert.equal(persisted(saved).length, 1);
   assert.equal(saved.state.againing, false);
   const cancelIfStationary = rule([[pattern([Player], { forbiddenMovements: [{ layer: 0, movement: Movement.Right }] })]], [],
     [{ kind: CommandKind.Cancel }, { kind: CommandKind.Sound, index: 0 }], { hasReplacements: false });
@@ -769,8 +780,8 @@ test('vanilla random probes fall back when their consumed stream differs from th
   assert.equal(count(), 200);
 });
 
-test('vanilla probes fall back when restore clears deterministic late pending movements', () => {
-  const { incoming, count } = countedAgainGame();
+test('historical late-movement probes fall back when restore clears their pending requests', () => {
+  const { incoming, count } = countedAgainGame({ ...vanillaQuirks, lateMovementsCarryOver: true });
   incoming.lateRules = schedule([autoWalk([])]);
   let state = start(incoming);
   for (let turn = 0; turn < 10; turn++) {

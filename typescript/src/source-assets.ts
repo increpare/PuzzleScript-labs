@@ -66,6 +66,8 @@ export function compileObjectSprites(document: SourceDocument, declarations: Pic
     const rows = source.definitionSpriteRows;
     const pixels: SpritePixel[][] = [];
     if (rows.length === 0) {
+      if (colors.length > 1) appendSourceIssue(diagnostics, diagnostic('multiple-solid-sprite-colors',
+        `Object "${object.name.toUpperCase()}" lists several colours but doesn't have a sprite matrix; it will just be a solid square of the first colour.`, source.primaryName.span, line, true), report);
       for (let y = 0; y < 5; y++) {
         const row: SpritePixel[] = [];
         for (let x = 0; x < 5; x++) row.push({ kind: SpritePixelKind.Color, color: 0 });

@@ -11,14 +11,11 @@ const { oracle } = require(path.join(root, 'typescript/test/native-host.cjs')).l
 async function main() {
   unitTesting = true;
   compile(['loadLevel', 0], source, 'late-restore');
-  assert.equal(errorCount, 0);
-  assert.deepEqual(errorStrings, []);
-  processInput(4);
-  const pending = level.getMovements(0).getshiftor(31, 5);
-  assert.equal(pending, 8, 'The late rule leaves Right pending on Player');
-  let nativeError;
-  try { processInput(4); } catch (error) { nativeError = error; }
-  assert.ok(nativeError instanceof TypeError, 'Second Action must expose the documented native failure');
+  const diagnostic = 'Movements cannot appear in late rules.';
+  assert.equal(errorCount, 1);
+  assert.ok(errorStrings.some(message => stripHTMLTags(message).includes(diagnostic)));
+  assert.doesNotThrow(() => { processInput(4); processInput(4); });
+  assert.ok(level.getMovements(0).iszero(), 'Recovery leaves no late movement pending');
 
   // Control: early randomdir replaces the input intent before movement resolves.
   compile(['loadLevel', 0], source.replace('late [', '['), 'late-restore');
@@ -30,17 +27,15 @@ async function main() {
   const { createSession, stepSession } = await build('session');
   const { Movement } = await build('model');
   const compiled = compileSource(source);
-  assert.equal(compiled.errorCount, 0);
-  assert.deepEqual(compiled.diagnostics, []);
+  assert.equal(compiled.errorCount, 1);
+  assert.ok(compiled.diagnostics.some(issue => issue.message === diagnostic));
   const game = compiled.outcome.game;
   const environment = { nextLevelSeed() { throw new Error('Unexpected level load'); } };
   let result = createSession(game, { seed: 'late-restore' }, environment);
-  result = stepSession(game, result.state, Movement.Action, environment);
-  let candidateError;
-  try { stepSession(game, result.state, Movement.Action, environment); } catch (error) { candidateError = error; }
-  assert.match(candidateError?.message ?? '', /Unsupported movement combination: Right, Action/);
-  console.log(JSON.stringify({ revision: oracle.revision, diagnostics: [], inputs: [4, 4],
-    pendingAfterFirstAction: 'Right', native: nativeError.name + ': ' + nativeError.message,
-    typescript: candidateError.name + ': ' + candidateError.message, earlyRuleControl: 'two Actions succeed' }, null, 2));
+  for (const input of [Movement.Action, Movement.Action]) result = stepSession(game, result.state, input, environment);
+  assert.deepEqual(result.state.execution.pendingMovements, []);
+  console.log(JSON.stringify({ revision: oracle.revision, diagnostics: [diagnostic], inputs: [4, 4],
+    pendingMovements: [], native: 'two Actions succeed', typescript: 'two Actions succeed',
+    earlyRuleControl: 'two Actions succeed' }, null, 2));
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });
