@@ -9,6 +9,16 @@ export enum Direction {
   InPlace,
 }
 
+/** A turn request, including automatic turns without player intent. */
+export enum TurnInput {
+  None,
+  Up,
+  Down,
+  Left,
+  Right,
+  Action,
+}
+
 export enum Movement {
   Up,
   Down,

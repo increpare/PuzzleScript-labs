@@ -1,10 +1,11 @@
 import type { ExecutionDiagnostic, RuleExecutionState, RuleGame, RuleSchedule } from './execution-model.js';
-import { getObjectIntentLayer, type GameObject, type LayerMovements, type Movement, type MovementGame, type Position } from './model.js';
+import { getObjectIntentLayer, Movement, TurnInput, type GameObject, type LayerMovements, type MovementGame, type Position } from './model.js';
 import { cloneExecutionState } from './rules.js';
 import { resolveMovements } from './movement.js';
 import { applyRules } from './scheduling.js';
 import { movementPositions } from './scan-order.js';
 import { quirksOf } from './compatibility.js';
+import { movementInput } from './turn-input.js';
 
 export enum PlayerMatchKind { Any, All, Never }
 export interface PlayerDefinition {
@@ -26,14 +27,38 @@ export interface TurnRulesResult extends PlayerMovementResult {
   readonly rigidLimitReached: boolean;
   readonly diagnostics: readonly ExecutionDiagnostic[];
 }
-/** Add input only to actual player objects, in the engine's column-first order. */
+export interface CalculatedTurn extends TurnRulesResult {
+  readonly input: TurnInput;
+}
+
+/** Preserve the public movement-or-null component boundary. */
 export function startPlayerMovement(
   game: Pick<TurnRulesGame, 'collisionLayers' | 'player' | 'quirks'>,
   before: RuleExecutionState, input: Movement | null,
 ): PlayerMovementResult {
+  return startTurnMovement(game, before, movementInput(input));
+}
+
+function playerMovement(input: TurnInput): Movement {
+  switch (input) {
+    case TurnInput.None: throw new Error('No-input turns do not add player movement');
+    case TurnInput.Up: return Movement.Up;
+    case TurnInput.Down: return Movement.Down;
+    case TurnInput.Left: return Movement.Left;
+    case TurnInput.Right: return Movement.Right;
+    case TurnInput.Action: return Movement.Action;
+  }
+}
+
+/** Add input only to actual player objects, in the engine's column-first order. */
+function startTurnMovement(
+  game: Pick<TurnRulesGame, 'collisionLayers' | 'player' | 'quirks'>,
+  before: RuleExecutionState, input: TurnInput,
+): PlayerMovementResult {
   const state = cloneExecutionState(before);
   const playerPositions: Position[] = [];
-  if (input === null || game.player.kind === PlayerMatchKind.Never) return { state, playerPositions };
+  if (input === TurnInput.None || game.player.kind === PlayerMatchKind.Never) return { state, playerPositions };
+  const movement = playerMovement(input);
 
   const pendingMovements: LayerMovements[] = [...state.pendingMovements];
   for (const { x, y } of movementPositions(state.board, quirksOf(game).columnMajorMovementOrder)) {
@@ -57,7 +82,7 @@ export function startPlayerMovement(
       const index = pendingMovements.findIndex(entry =>
         entry.position.x === x && entry.position.y === y && entry.layer === layer);
       const movements = new Set(index < 0 ? [] : pendingMovements[index]!.movements);
-      movements.add(input);
+      movements.add(movement);
       const request = { position: { x, y }, layer, movements };
       if (index < 0) pendingMovements.push(request);
       else pendingMovements[index] = request;
@@ -68,10 +93,10 @@ export function startPlayerMovement(
 const MAX_ATTEMPTS = 50;
 
 /** Run rules and movement with explicit rigid rollback; session effects are separate. */
-export function applyTurnRules(
-  game: TurnRulesGame, before: RuleExecutionState, input: Movement | null,
-): TurnRulesResult {
-  const started = startPlayerMovement(game, {
+export function calculateTurn(
+  game: TurnRulesGame, before: RuleExecutionState, input: TurnInput,
+): CalculatedTurn {
+  const started = startTurnMovement(game, {
     ...before, bannedGroups: new Set(), commands: { entries: [], message: before.commands.message },
     createdObjects: new Set(), destroyedObjects: new Set(), canMoveSounds: [], cantMoveSounds: [],
   }, input);
@@ -107,7 +132,15 @@ export function applyTurnRules(
     }
   }
   return {
-    state, playerPositions: started.playerPositions, attempts, rigidRetries,
+    input, state, playerPositions: started.playerPositions, attempts, rigidRetries,
     rigidLimitReached: attempts >= MAX_ATTEMPTS, diagnostics,
   };
+}
+
+/** Preserve the public component result without exposing the recorded input. */
+export function applyTurnRules(
+  game: TurnRulesGame, before: RuleExecutionState, input: Movement | null,
+): TurnRulesResult {
+  const { input: _input, ...result } = calculateTurn(game, before, movementInput(input));
+  return result;
 }

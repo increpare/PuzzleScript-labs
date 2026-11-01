@@ -4,9 +4,10 @@ import assert from 'node:assert/strict';
 import { createBoard } from '../build/board.js';
 import { CommandKind } from '../build/commands.js';
 import { ExecutionDiagnosticKind } from '../build/execution-model.js';
-import { Direction, Movement } from '../build/model.js';
+import { Direction, Movement, TurnInput } from '../build/model.js';
+import { movementInput } from '../build/turn-input.js';
 import { createRandom, nextRandom } from '../build/random.js';
-import { PlayerMatchKind, startPlayerMovement, applyTurnRules } from '../build/turn-rules.js';
+import { PlayerMatchKind, startPlayerMovement, applyTurnRules, calculateTurn } from '../build/turn-rules.js';
 
 const Player = Object.freeze({ name: 'Player' });
 const Partner = Object.freeze({ name: 'Partner' });
@@ -416,6 +417,93 @@ test('historical research turns own independent carried movements and preserve i
   assertCell(second.state, [Player, Marker], 1);
   assert.deepEqual(second.state.pendingMovements, [request(1, 0, 0, Movement.Left)]);
   assert.deepEqual(second.state.bannedGroups, new Set([0]));
+  assert.deepEqual(before, beforeSnapshot);
+  assert.deepEqual(incoming, gameSnapshot);
+});
+
+for (const [input, legacyInput, x, y] of [
+  [TurnInput.None, null, 1, 1],
+  [TurnInput.Up, Movement.Up, 1, 0],
+  [TurnInput.Down, Movement.Down, 1, 2],
+  [TurnInput.Left, Movement.Left, 0, 1],
+  [TurnInput.Right, Movement.Right, 2, 1],
+  [TurnInput.Action, Movement.Action, 1, 1],
+]) {
+  test(`calculation records ${TurnInput[input]} and explicitly maps the public movement boundary`, () => {
+    const onAction = rule([[pattern([Player], {
+      requiredMovements: [{ layer: 0, movement: Movement.Action }],
+    })]], [[replacement({ addObjects: new Set([Marker]) })]]);
+    const incoming = game({ earlyRules: schedule([group([onAction])]) });
+    const before = state([[[], [], []], [[], [Player], []], [[], [], []]]);
+    const turn = calculateTurn(incoming, before, input);
+    assert.equal(typeof input, 'number');
+    assert.equal(movementInput(legacyInput), input);
+    assert.equal(turn.input, input);
+    assertCell(turn.state, input === TurnInput.Action ? [Player, Marker] : [Player], x, y);
+    assert.deepEqual(turn.playerPositions, input === TurnInput.None ? [] : [{ x: 1, y: 1 }]);
+    assert.deepEqual(turn.state.pendingMovements, []);
+    assertAttempts(turn, 1, 0);
+    assert.deepEqual(Object.keys(turn).sort(), [
+      'input', 'state', 'playerPositions', 'attempts', 'rigidRetries', 'rigidLimitReached', 'diagnostics',
+    ].sort());
+    const componentResult = applyTurnRules(incoming, before, legacyInput);
+    const { input: recordedInput, ...calculatedFields } = turn;
+    assert.equal(recordedInput, input);
+    assert.deepEqual(componentResult, calculatedFields);
+    assert.deepEqual(Object.keys(componentResult).sort(), [
+      'state', 'playerPositions', 'attempts', 'rigidRetries', 'rigidLimitReached', 'diagnostics',
+    ].sort());
+  });
+}
+
+test('None calculates early rules, existing movement and late rules without injecting player intent', () => {
+  const early = rule([[pattern([Crate])]], [[replacement({ addObjects: new Set([Marker]) })]]);
+  const late = rule([[pattern([Crate])]], [[replacement({ addObjects: new Set([Other]) })]]);
+  const incoming = game({ earlyRules: schedule([group([early])]), lateRules: schedule([group([late])]) });
+  const before = state([[[Crate], [], [Player]]], {
+    pendingMovements: [request(0, 0, 0, Movement.Right)],
+  });
+  const turn = calculateTurn(incoming, before, TurnInput.None);
+  assert.equal(turn.input, TurnInput.None);
+  assert.deepEqual(turn.playerPositions, []);
+  assertCell(turn.state, [Marker], 0);
+  assertCell(turn.state, [Crate, Other], 1);
+  assertCell(turn.state, [Player], 2);
+  assert.deepEqual(turn.state.pendingMovements, []);
+  assertAttempts(turn, 1, 0);
+});
+
+test('calculated turns own mutable state and result collections while preserving canonical identities', () => {
+  const early = blocked(0);
+  const late = rule(undefined, [[replacement({
+    addObjects: new Set([Marker]), addMovements: [{ layer: 0, movement: Movement.Left }],
+  })]], { commands: [{ kind: CommandKind.Message, text: 'calculated message' }] });
+  const incoming = game({ rigid: true, quirks: { ...vanillaQuirks, lateMovementsCarryOver: true },
+    earlyRules: schedule([group([early])]), lateRules: schedule([group([late])]) });
+  const before = state([[[Player], []]]);
+  const beforeSnapshot = structuredClone(before);
+  const gameSnapshot = structuredClone(incoming);
+  const first = calculateTurn(incoming, before, TurnInput.Right);
+  const second = calculateTurn(incoming, before, TurnInput.Right);
+  assert.deepEqual(first, second);
+  assert.equal(first.input, TurnInput.Right);
+  assertAttempts(first, 2, 1);
+  assertIndependent(first.state, before);
+  assertIndependent(second.state, first.state);
+  assert.notEqual(first.playerPositions, second.playerPositions);
+  assert.notEqual(first.playerPositions[0], second.playerPositions[0]);
+  assert.notEqual(first.diagnostics, second.diagnostics);
+  assert.equal(first.state.commands.entries[0].source, late);
+  assert.equal(first.state.commands.entries[0].command, late.commands[0]);
+  first.playerPositions[0].x = 99;
+  first.diagnostics.push({ kind: ExecutionDiagnosticKind.GroupIterationLimit, sourceLine: 99 });
+  first.state.board.rows[0][1].objects.clear();
+  first.state.pendingMovements[0].movements.clear();
+  first.state.random.permutation.reverse();
+  assert.deepEqual(second.playerPositions, [{ x: 0, y: 0 }]);
+  assert.deepEqual(second.diagnostics, []);
+  assertCell(second.state, [Player, Marker], 1);
+  assert.deepEqual(second.state.pendingMovements, [request(1, 0, 0, Movement.Left)]);
   assert.deepEqual(before, beforeSnapshot);
   assert.deepEqual(incoming, gameSnapshot);
 });
