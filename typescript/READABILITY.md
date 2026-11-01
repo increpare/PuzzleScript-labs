@@ -94,7 +94,7 @@ rows; `R` contains Player, Target, Running, Done and Red. Undo returns
 Action moves Player and Running onto Target. In the no-input continuation,
 [resolveMovements](src/movement.ts#L90) finds Crate blocked by Wall on their
 shared layer, bans the rigid mark's group, and requests retry.
-[applyTurnRules](src/turn-rules.ts#L71) restores `retrySnapshot`, retaining bans,
+[calculateTurn](src/turn-rules.ts) restores `retrySnapshot`, retaining bans,
 failure sounds and **current RNG**. The color rule runs again; failed-attempt
 creations are discarded. Late rules follow successful movement resolution.
 
@@ -103,7 +103,7 @@ The four draws select Red, Blue, Red, Red. With the current
 the first two draws and restores its board; the real continuation consumes the
 next two and commits Red. Only that actual creation (731) and sfx0 (730) play.
 This speculative RNG consumption is a compatibility quirk. The prepared-AGAIN
-optimization remains useful: [sameRuleInput](src/session.ts#L86) rejects this
+optimization remains useful: [sameRuleInput](src/prepared-again.ts) rejects this
 probe's result because RNG has advanced. With a compatible input it reuses the
 rule result, while history and effects still execute at commitment.
 
@@ -118,10 +118,10 @@ rule result, while history and effects still execute at commitment.
 
 Its manifest says `P..` → Action → `.Q.` → restart → `P..`, with only sound 760.
 `Q` contains Player and Running. The probe queues checkpoint and sound 761 but
-changes no objects. [step](src/session.ts#L280) suppresses probe command audio
-and guards `checkpoint(work)` with `options.probe !== true`. No checkpoint or
-persistence write is installed. This guard reflects the fixed pinned revision,
-including the quiet-probe path that reaches this line.
+changes no objects. [observeProbe](src/session.ts) handles that observation
+without ordinary command audio or checkpoint persistence. Checkpoints belong to
+`finishTurn`, so even a quiet probe leaves the saved restart state intact.
+This separation preserves the fixed pinned revision's behavior.
 
 [again-restart.ps](../src/tests/semantic-fixtures/interaction-session/again-restart.ps)
 instead checkpoints the pre-color board, draws a color in the continuation and
@@ -135,12 +135,60 @@ uses `late [ Red ] -> restart sfx0`. At the same seed its manifest says:
 | Undo twice | `PT.` |
 
 Here `Q` contains Player, Target and Running; `B` also adds Done and Blue.
-The Red probe's restart branch in `step` adds history even though the probe
-does not call [restart](src/session.ts#L161). Its later modified-board branch
-adds then pops another snapshot through [undo](src/session.ts#L148), leaving
+The Red probe's restart branch in `observeProbe` adds history even though the
+probe does not call [restart](src/session.ts). Its later modified-board branch
+adds then pops another snapshot through [undo](src/session.ts), leaving
 the first one. The actual second draw commits Blue and plays creation 752.
 Retained probe history and forbidden probe checkpoints are distinct policies.
 The manifest's undo operations explicitly ignore duplicate boards.
+
+## 5. A calculated turn can be inspected now and finished later
+
+[TurnInput](src/model.ts) names None, Up, Down, Left, Right and Action.
+`None` adds no player instruction; early rules, movement resolution, rigid retry
+and late rules still run. Object movement remains a separate enum.
+
+[calculateTurn](src/turn-rules.ts) is the complete simulation. Its flat
+`CalculatedTurn` records input, resulting execution, player sites, retry counts
+and diagnostics. It contains ordinary objects, movements, RNG, queued commands
+and sound evidence, with no session history or saved checkpoint. The
+[turn example](examples/turn.mjs) uses `TurnInput.Right` to produce `PC.` → `.PC`.
+The original Movement|null component/session entry points remain adapters.
+
+In [session.ts](src/session.ts), `beginTurn` chooses a reusable calculation or
+calculates afresh. `installCalculation` snapshots the still-current board,
+installs the result and reports diagnostics. `finishTurn` then visibly handles
+required player movement, cancel, restart, board/history, audio/message, victory,
+checkpoint and AGAIN in order. `WinHandling.ReportOnly` reports suppressed wins;
+it does not disable victory checks.
+
+For a deterministic walking rule which queues AGAIN:
+
+```text
+Action:  calculate x0 → x1; finish x1
+         prepareAgain calculates None: x1 → x2
+         observeProbe decides to continue; public board stays at x1
+Tick:    validate and copy the prepared x2 calculation; finish x2
+         prepare the following continuation
+```
+
+`prepareAgain` calls the same simulation through `beginTurn`, then explicitly
+observes it. It never recursively calls the general turn entry point. The
+vanilla policy observes on the live workspace; the private policy observes on
+its own workspace and publishes diagnostics only. The earlier RNG/history
+examples explain why observation can change the live workspace in vanilla.
+
+[prepared-again.ts](src/prepared-again.ts) owns the private WeakMap association,
+complete ordered-input checks and copied results. Only the public session API
+looks up/retains that association. The working session carries its pending
+record explicitly. A deterministic 100-turn chain needs 101 calculations;
+private random preparation also reuses its draw, while vanilla's changed random
+input requires the existing reevaluation path.
+
+The additional [session witnesses](test/session.test.mjs) alter viewport/history,
+restart target and win context after preparation. Actual commitment reads those
+current values, while reusing only simulation. They also cover non-null public
+probes, quiet natural victory and Cancel taking priority over Restart.
 
 ## Frontend reading path and optional refinements
 
@@ -218,22 +266,17 @@ The retained transformations and their observable behavior are documented in
 the explicit domain boundaries. The optional ideas below cover both frontend
 property-inference naming and runtime helpers; they are possible later refinements.
 
-1. **Name the session probe policy inside `step`.** Extract helpers for rollback
-   and commands that name retained history, RNG/events and committed effects.
-   Keep the prepared result and full input check. Readers could locate each
-   policy without tracing every early return. Guards: dead-probe-checkpoint,
-   again-restart, rigid-again, and prepared-AGAIN reuse/random-fallback tests.
-2. **Name property analysis before expanding variants.** Give the local predicate,
+1. **Name property analysis before expanding variants.** Give the local predicate,
    transported use and unique inferred source explicit analysis results instead
    of requiring readers to connect `transported`, `firstSite` and `expandedCells`.
    Preserve expansion order. Guards: local-property-overlap and
    unique-multirow-transfer expose the different meanings of repeated Item.
-3. **Share fixed-gap coordinate traversal.** `matchesRow` and `applyRuleAt`
+2. **Share fixed-gap coordinate traversal.** `matchesRow` and `applyRuleAt`
    separately advance through a recorded row. A helper yielding pattern indices
    and coordinates would clarify gaps while retaining live reads and ordered writes. Guards:
    two-ellipsis-relay-live and cross-layer-row-overlap protect stale matches and
    multiple writes to the same cell.
-4. **Name rigid retry restoration.** A helper in `applyTurnRules` could name the
+3. **Name rigid retry restoration.** A helper in `calculateTurn` could name the
    restored board/events and retained bans, failure sounds, message and RNG.
    Guards: rigid-again, rigid-checkpoint and rigid-cancel protect the distinction
    between attempt rollback and later session restoration.

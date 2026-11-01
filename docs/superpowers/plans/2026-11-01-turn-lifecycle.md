@@ -1,8 +1,9 @@
 # Turn calculation, inspection and commitment plan
 
-> **For agentic workers:** Use superpowers:executing-plans for implementation
-> after the proposed design is accepted. This document authorizes no production
-> change by itself. Steps use checkboxes to distinguish plans from completed work.
+> **Execution:** The user accepted this outline with “ok let’s keep going”.
+> Work used an isolated worktree, existing behavior characterization, red/green
+> input contracts and independent specification/quality reviews. Checkboxes
+> distinguish completed work from outstanding verification.
 
 **Goal:** Make the TypeScript turn structure explicit while preserving complete
 prepared-AGAIN calculation reuse and current vanilla behavior.
@@ -42,16 +43,16 @@ remain named policies with the existing strict reuse checks.
 
 ## 1. Characterize the boundaries before moving them
 
-- [ ] Read the design's probe matrix against session.ts and its native oracle;
+- [x] Read the design's probe matrix against session.ts and its native oracle;
   preserve cancel-before-restart and the current position of every early exit.
-- [ ] Build and run the existing focused session/oracle subset:
+- [x] Build and run the existing focused session/oracle subset:
 
   ```sh
   npm --prefix typescript run build
   node --test typescript/test/session.test.mjs typescript/test/session-oracle.test.mjs typescript/test/source-session-oracle.test.mjs typescript/test/turn-rules.test.mjs
   ```
 
-- [ ] Extend session.test.mjs with independent, hand-asserted context witnesses.
+- [x] Extend session.test.mjs with independent, hand-asserted context witnesses.
   Use countedAgainGame(noQuirks) and its existing rule builders, preserving real
   earlyRules reads as the simulation counter. Check these three cases:
 
@@ -61,7 +62,7 @@ remain named policies with the existing strict reuse checks.
   | Fresh restart target | Place Marker at x2, start Player at x0 on at least four cells, and queue Restart only when Player reaches Marker. First turn reaches x1 and prepares x2. Replace only restartTarget with a board whose Player is at x3. Commitment must restart to x3 with Restart audio and the correct history entry; it must not install a previously calculated session snapshot. No new rule calculation is needed when no further AGAIN survives restart. |
   | Fresh win context and seeds | Use a continuation which reaches a natural win without a queued win command. Compare cached and uncached branches with suppressWin on/off and Replay/Interactive context. Only actual unsuppressed Replay commitment requests a new level seed. Pending calculation must not retain the old context or request a future seed. |
 
-- [ ] Fill gaps in the public-probe matrix with focused assertions: non-null
+- [x] Fill gaps in the public-probe matrix with focused assertions: non-null
   require_player_movement rejection, quiet unsuppressed natural wins, and
   simultaneous Cancel+Restart. Check board, full RNG, history, command message,
   checkpoint/persistence, ordered sound/effect arrays and reported return value.
@@ -69,7 +70,7 @@ remain named policies with the existing strict reuse checks.
 
 ## 2. Expose the calculated-turn type and exact reusable artifact
 
-- [ ] Add the strict negative contract before the new modules. Use the current
+- [x] Add the strict negative contract before the new modules. Use the current
   temporary .mts + local tsc harness; first failure must be missing types, then
   unused @ts-expect-error if a boundary is weakened. The contract includes:
 
@@ -95,17 +96,17 @@ remain named policies with the existing strict reuse checks.
   The test must have no ignored diagnostics. Import all actual types explicitly
   in the .mts source.
 
-- [ ] Add TurnInput with None/Up/Down/Left/Right/Action. Preserve the existing
+- [x] Add TurnInput with None/Up/Down/Left/Right/Action. Preserve the existing
   public Movement|null and native corpus encodings through explicit boundary
   mappings. Check all six input cases; never cast enums or depend on matching
   numeric ordinals. None must skip player intent without skipping rules.
-- [ ] Implement the flat CalculatedTurn in the actual rules calculation. It is
+- [x] Implement the flat CalculatedTurn in the actual rules calculation. It is
   the existing result's fields plus input, with no nested result wrapper.
   Preserve the established algorithm and old component result shape through
   boundary adapters. copyCalculatedTurn must clone RuleExecutionState,
   playerPositions and diagnostic records while retaining canonical object/rule
   identities. Preserve attempts, rigidRetries and rigidLimitReached.
-- [ ] Move the existing PreparedTurn into PreparedAgainTurn with an ordinary
+- [x] Move the existing PreparedTurn into PreparedAgainTurn with an ordinary
   CalculatedTurn. Its private prepareAgain creator supplies TurnInput.None
   itself; preparation does not accept a caller's arbitrary calculation.
   Move WeakMap storage and every ordered-input comparison
@@ -113,74 +114,76 @@ remain named policies with the existing strict reuse checks.
   lookup still requires AGAIN, TurnInput.None and the same game/input snapshot.
   Validate that the retained turn records None at this boundary; this is a local
   invariant, not a new generic or subtype. Copy through copyCalculatedTurn.
-- [ ] Keep repeated immutable branches independent; lookup returns copied
+- [x] Keep repeated immutable branches independent; lookup returns copied
   calculations without consuming a globally shared preparation. Public state
   copies still miss naturally. Do not broaden or narrow the validation set.
-- [ ] Run the negative type contract, all session tests, the real-simulation
+- [x] Run the negative type contract, all session tests, the real-simulation
   count tests and branch/mutation/invalidation tests before further extraction.
-- [ ] Commit this verified boundary separately from session-policy extraction.
+- [x] Commit the input/calculation boundary separately from session-policy extraction.
+  The cache move belongs with the session extraction that consumes it.
 
 ## 3. Make commitment a readable sequence
 
-- [ ] Decode public probe and win flags at the session boundary. Use
+- [x] Decode public probe and win flags at the session boundary. Use
   WinHandling.Apply/ReportOnly internally; keep all public combinations valid.
   ReportOnly must retain the existing suppressed Win event behavior.
-- [ ] Obtain a fresh or valid prepared CalculatedTurn before session handling.
+- [x] Obtain a fresh or valid prepared CalculatedTurn before session handling.
   Capture the live BoardSnapshot here, then install the result and publish its
   diagnostics in the existing order. Do not copy session snapshots into the
   calculation or cache.
-- [ ] Keep player-movement rejection, cancellation, restart, object/history
+- [x] Keep player-movement rejection, cancellation, restart, object/history
   handling, ordinary outputs, victory/checkpoint and continuation preparation
   visibly ordered in one function. Keep ordinary sequencing and early returns;
   extract a helper where a real repeated operation or substantial independent
   domain task justifies it. Do not create a one-line helper for every step,
   phase-switch loop, phase field or opaque applyPolicy layer.
-- [ ] Preserve live command reads after restart and level transitions. Determine
+- [x] Preserve live command reads after restart and level transitions. Determine
   actual board change at its old point after restart handling; keep the public
   reported-change value separate from eligibility to schedule AGAIN.
-- [ ] Route level-load and restart start rules through the same commitment path
+- [x] Route level-load and restart start rules through the same commitment path
   with reported-only wins. Preserve levelStarting/restarting recursion guards,
   original restart snapshots, current message and seed behavior.
-- [ ] Run focused session/oracle checks after each extraction. Treat an order or
+- [x] Run focused session/oracle checks after each extraction. Treat an order or
   effect mismatch as a regression; do not update expected results to accommodate
   a cleaner-looking ordering. Commit the verified committed-turn sequence.
 
 ## 4. Give AGAIN inspection its own explicit path
 
-- [ ] Replace internal recursive step(..., {probe:true}) with a named operation
+- [x] Replace internal recursive step(..., {probe:true}) with a named operation
   which calculates TurnInput.None once, captures a private input snapshot/result,
   installs the calculation on the chosen workspace, and applies probe semantics.
-  It returns AgainDecision.Stop/Schedule and, when reusable, the preparation.
-- [ ] Keep public probes supported through the same probe-semantic consumer,
+  observeProbe returns AgainDecision.Stop/Schedule; prepareAgain records the
+  selected calculation explicitly on its working session.
+- [x] Keep public probes supported through the same probe-semantic consumer,
   including arbitrary input and independent WinHandling. A public probe can
   reuse an already compatible pending calculation, as it does today.
-- [ ] Name the vanilla retained-state behavior and the private workspace policy.
+- [x] Name the vanilla retained-state behavior and the private workspace policy.
   The former performs existing board rollback/history/cancel effects on the
   current machine. The latter performs them privately and publishes diagnostics
   only. Neither performs checkpoint persistence during a probe.
-- [ ] Preserve outer-message restoration and command clearing at their original
+- [x] Preserve outer-message restoration and command clearing at their original
   positions. Keep scheduling distinct from whether a stored calculation is
   still reusable after vanilla's RNG/movement/history behavior.
-- [ ] Keep the existing decisive count and semantic assertions:
+- [x] Keep the existing decisive count and semantic assertions:
   - 100 deterministic visible turns: 101 calculations in both profiles.
   - 100 private random turns: 101 calculations, one committed draw per turn.
   - 100 vanilla random turns: 200 calculations and the existing two-draw stream.
   - Prepared rigid retries are reused with their final failure sounds.
   - Cancel, Restart, Win, Message, Sound and Checkpoint commands commit at the
     existing time and in the same order; diagnostic copies remain independent.
-- [ ] Re-run context witnesses and probe-matrix tests. Inspect the resulting
+- [x] Re-run context witnesses and probe-matrix tests. Inspect the resulting
   main function and AGAIN helper for readability; reject renamed boolean soup
   or duplicated simulation. Commit the verified inspection path.
 
 ## 5. Validate behavior and document the reading path
 
-- [ ] Run the full strict suite, including original authored semantic fixtures:
+- [x] Run the full strict suite, including original authored semantic fixtures:
 
   ```sh
   npm --prefix typescript test
   ```
 
-- [ ] Run a bounded reproducible per-operation source-game campaign:
+- [x] Run a bounded reproducible per-operation source-game campaign:
 
   ```sh
   npm --prefix typescript run explore -- --seed turn-lifecycle-2026-11-01 --cases 256 --jobs 4 --out /private/tmp/ps-turn-lifecycle-findings --json /private/tmp/ps-turn-lifecycle-campaign.json
@@ -190,19 +193,19 @@ remain named policies with the existing strict reuse checks.
   Preserve the original pinned oracle and producer guards. A clean campaign is
   evidence for its generated grammar, not exhaustive language coverage.
 
-- [ ] Replay the existing source-compiled AGAIN/session corpus with unchanged
+- [x] Replay the existing source-compiled AGAIN/session corpus with unchanged
   tapes and expectations. Start with selected commands, RNG and rigid cases;
   use the existing bounded cache-audit tooling for the larger AGAIN corpus and
   record timeouts as inconclusive. Any full-corpus claim requires the full run
   to finish; avoid repeating previously documented unbounded slow runs blindly.
-- [ ] Update READABILITY.md with calculation → inspection/commitment and one
+- [x] Update READABILITY.md with calculation → inspection/commitment and one
   tiny AGAIN trace. Update the cache report to distinguish architectural reuse
   from private storage, and record actual verification in this plan. Keep the
   vanilla compatibility behavior and current Labs behavior clearly identified.
-- [ ] Review the final diff against the design and the public state/schema
+- [x] Review the final diff against the design and the public state/schema
   guards. Confirm that only TypeScript and its documentation/tests changed;
   no native expectations, JS engine, RNG default or gameplay behavior was altered.
-- [ ] If implementing later, integrate only verified work into local master
+- [ ] Integrate only verified work into local master
   under the existing authorization; do not push unrelated local commits.
 
 ## Planning evidence
@@ -239,4 +242,75 @@ npm --prefix typescript run build
 node --test --test-name-pattern='AGAIN reuses deterministic preparation|clean random AGAIN probes keep|vanilla random probes fall back|prepared AGAIN reuses completed rigid retries|clean prepared AGAIN defers command|speculative checkpoints leave' typescript/test/session.test.mjs
 ```
 
-No implementation or implementation verification is claimed by this plan.
+## Execution evidence
+
+- Worktree: `.worktrees/typescript-turn-lifecycle`; branch
+  `codex/typescript-turn-lifecycle`, based on `c383c9d5`.
+- Focused baseline: **162 passed**, before production changes;
+  `/private/tmp/ps-turn-lifecycle-baseline.log`.
+- Eleven added characterization cases passed on the original engine. The
+  session file passes **72 tests**. These cover fresh viewport/history and
+  checkpoint, restart target, four win-context cases, non-null movement
+  rejection, two quiet natural-win probes and Cancel+Restart priority.
+- Input/type red evidence: missing new exports/module before implementation.
+  Green core type/calculation checks: **34 passed**. Independent specification
+  and quality reviewers approved the core without actionable findings.
+- Flat cache extraction and the final session split each passed **182 focused
+  checks**. Logs: `/private/tmp/ps-turn-lifecycle-flat-cache.log` and
+  `/private/tmp/ps-turn-lifecycle-session-split.log`.
+- Independent full-session specification and code-quality review compared the
+  original branch order, ownership, RNG/history/effects and current commitment
+  context, finding no actionable issues. The spec reviewer independently ran
+  all **72 session tests** successfully without rebuilding.
+- Implementation code checkpoint: `6bcdbb9a`. The turn example prints
+  `Before: PC.` and `After: .PC` using TurnInput.Right.
+- Full strict suite: **2,134 passed, zero failures**, about 223 seconds.
+  Build passed first; the exact complete test set was then run with four workers
+  alongside bounded audits, without rebuilding their module graph:
+
+  ```sh
+  node --test --test-concurrency=4 typescript/test/*.test.mjs src/tests/semantic-fixtures/fixtures.test.cjs
+  ```
+
+  Log: `/private/tmp/ps-turn-lifecycle-full.log`. Original native hash checks,
+  335 compilation fixtures, 492 simulation-source compilations and all 99,192
+  executable-rule comparisons remain covered.
+- Generated campaign: **256/256 passed**, **1,822 observations/operations**,
+  **256 loads**, **254 distinct sources**, **34 rule sets**, **239 boards**.
+  Zero exclusions, comparison failures, oracle exceptions, process failures or
+  timeouts. Used seed `turn-lifecycle-2026-11-01`, two workers and a 15-second
+  per-case limit. Report: `/private/tmp/ps-turn-lifecycle-campaign.json`.
+- The bounded recorded-AGAIN audit completed all **151 selected fixtures**,
+  each running the original source, seed and input tape against the pinned
+  vanilla oracle. Raw result: **134 paired passes**, **6,565 observations per
+  build**, **137 loads**, zero baseline/candidate comparison failures, and
+  **16 timeouts on each side** under the 15-second limit. Fifteen fixtures timed
+  out on both sides. `collapse simple` passed baseline but timed out candidate;
+  `Tunnel Rat` did the reverse. The raw tool returned exit1 for the asymmetric
+  candidate timeout; it is not relabeled as a successful complete replay.
+- Follow-up of `collapse simple` used the **unchanged builds and expectations**,
+  a 60-second bound and alternating baseline/candidate/candidate/baseline order.
+  All four runs passed the full native oracle with **83 identical observations**
+  and one load each, in **8.48–8.91 seconds wall time**. The original timeout
+  did not reproduce. This supports treating that 15-second outcome as timing
+  variability rather than a semantic discrepancy. Follow-up report:
+  `/private/tmp/ps-turn-lifecycle-collapse-followup.json`.
+- Combining the completed raw pairs and that follow-up gives **135 paired
+  passes**, **6,648 observations per build** and **138 loads**. Sixteen other
+  pairs remain time-limited on at least one side; fifteen candidate replays are
+  inconclusive. Tunnel Rat's completed candidate independently passed vanilla,
+  but its baseline timeout is not counted as a completed pair. This is bounded
+  evidence, not a claim that all 492 recorded sessions were replayed.
+- Exact raw audit command and report:
+
+  ```sh
+  node typescript/tools/audit-cached-again.cjs /private/tmp/ps-turn-lifecycle-baseline-build /Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/.worktrees/typescript-turn-lifecycle/typescript/build /private/tmp/ps-turn-lifecycle-again-audit.json 2 15
+  ```
+
+  Log: `/private/tmp/ps-turn-lifecycle-again-audit.log`. The baseline graph was
+  copied before refactoring; the candidate graph stayed unchanged during both
+  audits. Native-producer, immutable-game and schema guards stayed enabled.
+- A final documentation review approved the lifecycle/ownership explanation,
+  current-versus-historical evidence and explicitly inconclusive replay cases.
+- Native sources, hashes, compiler producers and expected fixtures are unchanged.
+  Production changes are confined to TypeScript; no JS/native/UI assets changed.

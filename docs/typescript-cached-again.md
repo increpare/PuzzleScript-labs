@@ -12,6 +12,20 @@ private preparation with a returned session value; the public state shape is
 unchanged. Copies and serialization discard only the optimization. Repeated
 branches clone the preparation into independent returned containers.
 
+The readable turn refactor makes this boundary explicit. `calculateTurn` returns
+one flat `CalculatedTurn`, including its `TurnInput`; `None` runs a turn without
+player input. `finishTurn` handles actual session consequences. `prepareAgain`
+calculates None and calls `observeProbe` directly, with no recursive general
+session step or mutable capture parameter. Only the calculation is retained.
+The existing Movement|null public APIs and their result schemas remain intact.
+
+Private association, complete reuse validation and result copying live in
+`typescript/src/prepared-again.ts`. The public API passes the pending record into
+its working session explicitly. Current viewport/history, restart targets and
+win options are read during actual completion; preparation never captures them.
+See the [reading walkthrough](../typescript/READABILITY.md#5-a-calculated-turn-can-be-inspected-now-and-finished-later)
+and [implementation audit](superpowers/plans/2026-11-01-turn-lifecycle.md).
+
 Validation compares the game identity and all incoming rule inputs: board
 objects and Set order, complete RNG, pending movements, rigid marks and command
 message. Game/object/rule identities retain their existing immutable contract.
@@ -37,6 +51,14 @@ operations; diagnostics themselves never alias the private cache.
 The cache change itself left frozen sources and hashes unchanged. The separate
 reference refresh updates them to `57f9f6cb`; current verification is recorded in
 the [refresh audit](superpowers/plans/2026-10-31-typescript-vanilla-refresh.md).
+
+The subsequent turn-structure refactor passes **2,134 strict tests**, including
+the existing deterministic/private-random reuse counts, vanilla RNG fallback and
+rigid-result reuse. Eleven new session witnesses check current commitment
+context and probe branch ordering. A fresh generated campaign passes **256 games**
+and **1,822 per-operation observations**. The
+[turn audit](superpowers/plans/2026-11-01-turn-lifecycle.md) keeps this evidence
+separate from the original cache timings and its bounded recorded-game replays.
 
 ## Reproduction
 

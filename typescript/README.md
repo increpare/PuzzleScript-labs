@@ -69,6 +69,13 @@ supplies fresh level seeds through an explicit environment. Sound and persistenc
 operations are returned effects. Public operations return new state; history uses
 ordinary board snapshots and canonical object identities remain shared.
 
+The calculation core uses its own `TurnInput` enum, including `TurnInput.None`.
+`calculateTurn` runs the full rules/movement pipeline and returns a flat
+`CalculatedTurn`. `None` runs that pipeline without injecting player intent.
+The existing session/component APIs translate Movement|null explicitly at their
+boundary. [The turn walkthrough](READABILITY.md#5-a-calculated-turn-can-be-inspected-now-and-finished-later)
+explains calculation, actual session completion and prepared AGAIN reuse.
+
 The four examples that construct domain data directly remain available:
 
 ```sh
@@ -87,6 +94,7 @@ npm --prefix typescript run example:session
 | [replacement.ts](src/replacement.ts), [rules.ts](src/rules.ts) | Direct cell edits, live writes and command production |
 | [scheduling.ts](src/scheduling.ts), [turn-rules.ts](src/turn-rules.ts) | Groups, loops, rigid retries and the turn sequence |
 | [session-model.ts](src/session-model.ts), [session.ts](src/session.ts) | Input, history, restart, messages, levels, effects and wins |
+| [turn-input.ts](src/turn-input.ts), [prepared-again.ts](src/prepared-again.ts) | Input-domain conversion and validated private AGAIN calculations |
 | [random.ts](src/random.ts) | Explicit seeded random state and draws |
 | [scan-order.ts](src/scan-order.ts) | Observable coordinate order, independent of board storage |
 | [compatibility.ts](src/compatibility.ts) | Current restore and movement exceptions, plus historical research switches |
@@ -377,7 +385,9 @@ npm --prefix typescript test
 npm --prefix typescript run test:corpus -- --session
 ```
 
-The strict suite, including prepared-AGAIN, scanner, sound/win, property-layer, rule-pass and final frontend regressions, passes **2,114 tests**. Exact compilation comparison
+The strict suite, including explicit turn-input/calculation contracts, fresh
+prepared-turn commitment, probe ordering and the earlier frontend regressions,
+passes **2,134 tests**. Exact compilation comparison
 covers **335 compiler fixtures**, **492 simulation sources** and **99,192 final
 executable rules**, including diagnostics, stopping outcomes, authored source
 evidence and declaration identities. The last completed full source-compiled replay,
@@ -393,6 +403,15 @@ with **919 observations/operations** and **128 level loads**, with no exclusions
 mismatches, oracle exceptions or timeouts. Independent whole-frontend reviews
 found no remaining actionable issue. The [final audit](../docs/superpowers/plans/2026-11-01-final-frontend-audit.md)
 records domain, semantic-witness and verification evidence.
+
+The subsequent [turn lifecycle audit](../docs/superpowers/plans/2026-11-01-turn-lifecycle.md)
+passes all 2,134 strict tests and a fresh **256-game** generated campaign with
+**1,822 observations/operations**, **256 loads**, and no exclusions, mismatches,
+oracle exceptions or timeouts. Independent core and complete session reviews
+found no actionable correctness or readability issues. Its recorded-game replay
+audit completed **135 paired passes** including an unchanged-build timing
+follow-up; **16 other pairs** remain time-limited on at least one side. Completed
+comparisons and inconclusive cases are recorded separately.
 
 The earlier rule-frontend checkpoint passed a 128-game generated per-move sample
 (907 observations) and at least 218 original-game replays. Its additional exhaustive
