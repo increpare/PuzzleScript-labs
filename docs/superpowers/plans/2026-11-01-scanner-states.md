@@ -57,9 +57,10 @@ section lookup. Native visit timing remains the behavior authority.
 - [x] Update README, READABILITY and the full frontend completion checklist with
   actual results. Keep the broad goal active; sounds/wins and rule pass contracts
   remain separate required work.
-- [ ] `git diff --check`, commit this checkpoint and fast-forward local master
+- [x] `git diff --check`, commit this checkpoint and fast-forward local master
   only while primary is clean and still on the known base. Build and run a
   focused integration smoke check. Do not publish unrelated local commits.
+  Integrated as `152fa78a`; primary build and all 34 integration tests passed.
 
 ## Verification audit
 
