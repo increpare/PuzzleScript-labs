@@ -67,9 +67,10 @@ Shape-preserving later passes retain the narrowed domain; no brands or new AST.
 - [x] Request spec review, then correctness/readability review; resolve findings.
 - [x] Run complete strict suite and fresh bounded per-move sample. Update README,
   READABILITY, this audit and the broad completion checklist with actual results.
-- [ ] Commit and integrate into clean local master; build and verify focused
+- [x] Commit and integrate into clean local master; build and verify focused
   primary checks. Keep the overall goal active for the transformation/readability
   audit; preserve unrelated prepared-AGAIN runtime work.
+  Integrated as `d245dcac`; primary build and all eight integration checks passed.
 
 ## Verification audit
 
