@@ -58,8 +58,9 @@ declaration/property/compiler oracles and Node tests.
 - [x] Request spec review then correctness/readability review; resolve findings.
 - [x] Run the complete strict suite and fresh bounded differential sample. Update
   reading guides and the full goal checklist with actual evidence only.
-- [ ] Commit and fast-forward clean local master; build and run focused integration
+- [x] Commit and fast-forward clean local master; build and run focused integration
   checks. Preserve unrelated local work and keep the overall goal active.
+  Integrated as `436bb1ac`; primary build and all nine integration checks passed.
 
 ## Verification audit
 
