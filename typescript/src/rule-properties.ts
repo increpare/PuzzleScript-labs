@@ -3,17 +3,26 @@ import { PropertyLayerKind, type ResolvedDeclarations } from './declaration-mode
 import { SourceDiagnosticPhase, SourceDiagnosticSeverity, type SourceDiagnostic } from './source-model.js';
 import { RuleQualifier, type DirectedNamedRule, type NamedRuleCell, type NamedRuleRows,
   type NamedRuleTerm, type OrientedQualifier } from './source-rule-model.js';
+import { ObjectSourceKind, resolveObjectSource, sameRuleCell,
+  type ObjectSource, type RuleCellAddress } from './rule-object-sources.js';
 
-/** Private evidence records expansion sites, never a binding used by the runtime. */
-interface PropertyChoice {
-  readonly name: string;
-  readonly firstMember: string;
-  readonly expandedCells: number;
+/** A source relationship is established before any concrete member is chosen. */
+interface PropertyUse {
+  readonly property: string;
+  readonly targetCell: RuleCellAddress;
+  readonly source: ObjectSource;
+}
+
+/** Construction evidence belongs to one rule variant, never to runtime matches. */
+interface PropertySelection {
+  readonly property: string;
+  readonly sourceCell: RuleCellAddress;
+  readonly member: string;
 }
 
 interface PartialRule<Q extends OrientedQualifier> {
   readonly rule: DirectedNamedRule<Q>;
-  readonly choices: readonly PropertyChoice[];
+  readonly selections: readonly PropertySelection[];
 }
 
 interface ExpansionSite {
@@ -56,13 +65,38 @@ export function expandRuleProperties<Q extends OrientedQualifier>(rules: readonl
     });
   }
 
-  function firstSite(rule: DirectedNamedRule<Q>, transported: ReadonlySet<string>): ExpansionSite | undefined {
+  function analyzePropertyUses(lhs: NamedRuleRows<Q>, rhs: NamedRuleRows<Q>): PropertyUse[] {
+    const uses: PropertyUse[] = [];
+    for (let rowIndex = 0; rowIndex < rhs.length; rowIndex++) {
+      for (let cellIndex = 0; cellIndex < rhs[rowIndex]!.length; cellIndex++) {
+        // Preserve the native recovered-stage boundary for unequal rule shapes.
+        if (lhs[rowIndex]?.[cellIndex] === undefined) {
+          throw new TypeError('Property RHS cell has no corresponding LHS cell');
+        }
+        const targetCell = { rowIndex, cellIndex };
+        for (const property of participatingNames(rhs[rowIndex]![cellIndex]!)) {
+          const candidates: RuleCellAddress[] = [];
+          for (let sourceRow = 0; sourceRow < lhs.length; sourceRow++) {
+            for (let sourceCell = 0; sourceCell < lhs[sourceRow]!.length; sourceCell++) {
+              if (participatingNames(lhs[sourceRow]![sourceCell]!).includes(property)) {
+                candidates.push({ rowIndex: sourceRow, cellIndex: sourceCell });
+              }
+            }
+          }
+          uses.push({ property, targetCell, source: resolveObjectSource(candidates, targetCell) });
+        }
+      }
+    }
+    return uses;
+  }
+
+  function firstSite(rule: DirectedNamedRule<Q>, needsMemberChoice: ReadonlySet<string>): ExpansionSite | undefined {
     for (let rowIndex = 0; rowIndex < rule.lhs.length; rowIndex++) {
       const row = rule.lhs[rowIndex]!;
       for (let cellIndex = 0; cellIndex < row.length; cellIndex++) {
         for (const property of participatingNames(row[cellIndex]!)) {
           const analysis = properties.get(property)!.layer;
-          if (!transported.has(property)
+          if (!needsMemberChoice.has(property)
             && (analysis.kind === PropertyLayerKind.SingleLayer || analysis.kind === PropertyLayerKind.Unlayered)) continue;
           return { rowIndex, cellIndex, property };
         }
@@ -73,14 +107,25 @@ export function expandRuleProperties<Q extends OrientedQualifier>(rules: readonl
 
   function choose(parent: PartialRule<Q>, site: ExpansionSite, member: string): PartialRule<Q> {
     const { rowIndex, cellIndex, property } = site;
-    const lhs = copyRows(parent.rule.lhs), rhs = copyRows(parent.rule.rhs);
+    const lhs = copyRows(parent.rule.lhs);
     lhs[rowIndex]![cellIndex] = substitute(lhs[rowIndex]![cellIndex]!, property, member);
-    if (rhs.length > 0) rhs[rowIndex]![cellIndex] = substitute(rhs[rowIndex]![cellIndex]!, property, member);
-    const previous = parent.choices.find(choice => choice.name === property);
-    const choices = previous === undefined
-      ? [...parent.choices, { name: property, firstMember: member, expandedCells: 1 }]
-      : parent.choices.map(choice => choice.name === property ? { ...choice, expandedCells: choice.expandedCells + 1 } : choice);
-    return { rule: { ...parent.rule, lhs, rhs }, choices };
+    return { rule: { ...parent.rule, lhs }, selections: [...parent.selections,
+      { property, sourceCell: { rowIndex, cellIndex }, member }] };
+  }
+
+  function constructRightSide(partial: PartialRule<Q>, uses: readonly PropertyUse[]): DirectedNamedRule<Q> {
+    const rhs = copyRows(partial.rule.rhs);
+    for (const use of uses) {
+      if (use.source.kind !== ObjectSourceKind.Resolved) continue;
+      const sourceCell = use.source.cell;
+      const selection = partial.selections.find(candidate => candidate.property === use.property
+        && sameRuleCell(candidate.sourceCell, sourceCell));
+      // A local source can remain a property predicate when no member was chosen.
+      if (selection === undefined) continue;
+      const { rowIndex, cellIndex } = use.targetCell;
+      rhs[rowIndex]![cellIndex] = substitute(rhs[rowIndex]![cellIndex]!, use.property, selection.member);
+    }
+    return { ...partial.rule, rhs };
   }
 
   for (const input of rules) {
@@ -93,20 +138,19 @@ export function expandRuleProperties<Q extends OrientedQualifier>(rules: readonl
       }
     }
 
-    const transported = new Set<string>();
-    for (let rowIndex = 0; rowIndex < rhs.length; rowIndex++) {
-      for (let cellIndex = 0; cellIndex < rhs[rowIndex]!.length; cellIndex++) {
-        const left = participatingNames(lhs[rowIndex]![cellIndex]!);
-        for (const property of participatingNames(rhs[rowIndex]![cellIndex]!)) {
-          if (!left.includes(property)) transported.add(property);
-        }
+    // Inference sees pattern cells only. Expansion strategy is decided afterward.
+    const uses = analyzePropertyUses(lhs, rhs);
+    const needsMemberChoice = new Set<string>();
+    for (const use of uses) {
+      if (use.source.kind !== ObjectSourceKind.Resolved || !sameRuleCell(use.source.cell, use.targetCell)) {
+        needsMemberChoice.add(use.property);
       }
     }
 
-    const work: PartialRule<Q>[] = [{ rule: { ...input, lhs, rhs }, choices: [] }];
+    const work: PartialRule<Q>[] = [{ rule: { ...input, lhs, rhs }, selections: [] }];
     for (let index = 0; index < work.length;) {
       const parent = work[index]!;
-      const site = firstSite(parent.rule, transported);
+      const site = firstSite(parent.rule, needsMemberChoice);
       if (site === undefined) { index++; continue; }
       // Choose just one property in one cell per parent. Appending children
       // before removing the parent preserves duplicate paths and native order.
@@ -114,20 +158,14 @@ export function expandRuleProperties<Q extends OrientedQualifier>(rules: readonl
       work.splice(index, 1);
     }
 
-    const variants = work.map(partial => {
-      let inferred = partial.rule.rhs;
-      for (const choice of partial.choices) {
-        if (choice.expandedCells === 1) {
-          inferred = inferred.map(row => row.map(cell => substitute(cell, choice.name, choice.firstMember)));
-        }
-      }
-      return { ...partial.rule, rhs: inferred };
-    });
+    // Normalized property members are not property names, so these source links
+    // can construct the RHS once without introducing another inference problem.
+    const variants = work.map(partial => constructRightSide(partial, uses));
 
     let ambiguousProperty: string | undefined;
     for (const variant of variants) for (const row of variant.rhs) for (const cell of row) {
       for (const property of participatingNames(cell)) {
-        if (transported.has(property)) ambiguousProperty = property;
+        if (needsMemberChoice.has(property)) ambiguousProperty = property;
       }
     }
     if (ambiguousProperty !== undefined) {

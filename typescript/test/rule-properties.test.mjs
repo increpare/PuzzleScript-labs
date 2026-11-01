@@ -132,6 +132,48 @@ test('multiple expanded cells cannot infer remote properties even when selected 
   assert.equal(result.diagnostics.length, 1);
 });
 
+test('a unique property source can supply a different bracket row', () => {
+  const { result } = oracle.compareFixture(fixture('right [ Things ] [ Wall ] -> [ Player ] [ Things ]',
+    'Things = Crate or Player'));
+  assert.deepEqual(names(result.rules), [['crate', 'wall'], ['player', 'wall']]);
+  assert.deepEqual(rightNames(result.rules), [['player', 'crate'], ['player', 'player']]);
+});
+
+test('repeated property terms in one cell remain one cross-row source', () => {
+  const { result } = oracle.compareFixture(fixture('right [ Things stationary Things ] [ Wall ] -> [ Player ] [ Things ]',
+    'Things = Crate or Player'));
+  assert.deepEqual(names(result.rules), [['crate', 'crate', 'wall'], ['player', 'player', 'wall']]);
+  assert.deepEqual(rightNames(result.rules), [['player', 'crate'], ['player', 'player']]);
+});
+
+test('equal cell indices in different rows remain ambiguous remote sources', () => {
+  const { result } = oracle.compareFixture(fixture(
+    'right [ Things ] [ Things ] [ Wall ] -> [ Player ] [ Player ] [ Things ]', 'Things = Crate or Player'));
+  assert.deepEqual(result.rules, []);
+  assert.equal(result.diagnostics.length, 1);
+  assert.match(result.diagnostics[0].message, /"THINGS"/);
+});
+
+test('corresponding cells win over other property sources in different rows', () => {
+  const { result } = oracle.compareFixture(fixture('right [ Things ] [ Things ] -> [ Things ] [ Things ]',
+    'Things = Player or Background'));
+  const expected = [['player', 'player'], ['player', 'background'], ['background', 'player'], ['background', 'background']];
+  assert.deepEqual(names(result.rules), expected);
+  assert.deepEqual(rightNames(result.rules), expected);
+});
+
+for (const [description, rule] of [
+  ['missing', 'right [ Choices | Wall ] -> [ | Things ]'],
+  ['ambiguous', 'right [ Things | Things | Choices ] -> [ | | Things ]'],
+]) test(`an empty choice branch suppresses ${description} property-source diagnostics`, () => {
+  const item = fixture(rule, 'Choices = Player or Player\nPlayer = Choices\nThings = Crate or Wall');
+  item.source = item.source.replace('P = Player\n', '');
+  const { result, declarations } = oracle.compareFixture(item);
+  assert.equal(declarations.ruleNames.properties.get('choices').layer.kind, PropertyLayerKind.Empty);
+  assert.deepEqual(result.rules, []);
+  assert.deepEqual(result.diagnostics, []);
+});
+
 test('the last remaining transported property diagnoses once and later inputs continue', () => {
   const { result } = oracle.compareFixture(fixture([
     'right [ Player ] -> [ First Second First Third ]',
