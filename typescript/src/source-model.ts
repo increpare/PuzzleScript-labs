@@ -1,6 +1,8 @@
 import type { SourceObjectDeclaration, SourceAliasDeclaration, SourcePropertyDeclaration, SourceAggregateDeclaration, SourceDeclarationAdvice, SourceAliasOriginKind, SourceLegendAliasOrigin } from './source-declarations.js';
 import type { Direction } from './model.js';
 import type { RuleQualifier } from './source-rule-model.js';
+import type { AcceptedSound } from './source-sound-syntax.js';
+import type { AcceptedWinCondition } from './source-win-syntax.js';
 
 /** Every offset and column counts JavaScript UTF-16 code units. End positions are exclusive. */
 export interface SourcePosition { readonly offset: number; readonly line: number; readonly column: number }
@@ -72,30 +74,20 @@ interface SourceLegendBase extends SourceEntry {
 export type SourceLegend = SourceLegendBase & (
   { readonly kind: SourceLegendKind.Synonym } | { readonly kind: SourceLegendKind.Property } |
   { readonly kind: SourceLegendKind.Aggregate } | { readonly kind: SourceLegendKind.Invalid });
-export enum SourceSoundKind { Event, Target, Invalid }
-interface SourceSoundBase extends SourceEntry {
-  /** First token of a retained native event record, including a bare event without a seed. */
-  readonly eventDefinition: SourceLexicalToken | null;
+export interface SourceSound extends SourceEntry {
   readonly words: readonly SourceWord[];
-  readonly directions: readonly SourceWord[];
+  /** Null means the native source visits did not retain a sound record. */
+  readonly definition: AcceptedSound | null;
 }
-export type SourceSound = SourceSoundBase & (
-  { readonly kind: SourceSoundKind.Event; readonly event: SourceWord; readonly target: null; readonly action: null; readonly seed: SourceWord } |
-  { readonly kind: SourceSoundKind.Target; readonly event: null; readonly target: SourceWord; readonly action: SourceWord; readonly seed: SourceWord } |
-  { readonly kind: SourceSoundKind.Invalid; readonly event: SourceWord | null; readonly target: SourceWord | null; readonly action: SourceWord | null; readonly seed: SourceWord | null });
 export interface SourceCollisionLayer extends SourceEntry {
   readonly names: readonly SourceWord[];
   readonly words: readonly SourceWord[];
   readonly definitionNames: readonly SourceLexicalToken[];
 }
-export enum SourceWinConditionKind { Valid, Invalid }
 export interface SourceWinCondition extends SourceEntry {
-  readonly kind: SourceWinConditionKind;
   readonly words: readonly SourceWord[];
-  readonly quantifier: SourceWord | null;
-  readonly subject: SourceWord | null;
-  readonly on: SourceWord | null;
-  readonly target: SourceWord | null;
+  /** Null means the win body was never visited at logical start of line. */
+  readonly definition: AcceptedWinCondition | null;
 }
 export enum SourceRuleKind { Ordinary, StartLoop, EndLoop, Invalid }
 export enum SourceRuleCellKind { Contents, Ellipsis }

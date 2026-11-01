@@ -51,10 +51,10 @@ test('scanner characterization observes actual accepted registrations and event 
   assert.ok(alias.result.document.acceptedDeclarations.registrations.some(entry => entry.name === 'x'));
   const closed = oracle.compareFixture({ name: 'event close drops native finalization', source: game({ sounds: 'sfx0 )' }) });
   assert.deepEqual(closed.native.state.sounds, []);
-  assert.equal(closed.result.document.sounds[0].eventDefinition, null);
+  assert.equal(closed.result.document.sounds[0].definition, null);
   const incomplete = oracle.compareFixture({ name: 'incomplete event registration', source: game({ sounds: '(prefix)sfx0' }) });
   assert.equal(incomplete.native.state.sounds[0][0][0], 'sfx0');
-  assert.equal(incomplete.result.document.sounds[0].eventDefinition.value, 'sfx0');
+  assert.equal(incomplete.result.document.sounds[0].definition.event.token.value, 'sfx0');
 });
 
 test('returning to an earlier section requires its ever-visited predecessor', () => {

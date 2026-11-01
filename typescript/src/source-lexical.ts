@@ -4,6 +4,9 @@ import { collectSourceIssue, createSourceIssueCollection, type SourceIssueCollec
 import { lineSpan, lowercaseSourceRange, sourceWord, splitSourceLines, type LowercaseSourceView } from './source-text.js';
 import { SourceDeclarations, SourceAliasOriginKind, type SourceDeclaration, type SourceDeclarationAdvice, type SourceObjectAliasOrigin } from './source-declarations.js';
 import { NativeLegendExpression } from './source-legend.js';
+import { AcceptedSoundKind, SoundVerb, SoundSeedKind, acceptedSoundEvent, acceptedSoundVerb, acceptedSoundDirection,
+  type AcceptedSound } from './source-sound-syntax.js';
+import { recoverWinSyntax, type AcceptedWinCondition } from './source-win-syntax.js';
 import { sourceSectionDescriptors, PreludePhase, ObjectPhase, LegendPhase, SoundPhase, RulePhase, WinPhase, LevelPhase,
   type SourceScanState, type PreludeScanState, type ObjectScanState, type LegendScanState, type SoundScanState,
   type RuleScanState, type WinScanState, type LevelScanState } from './source-scan-state.js';
@@ -53,7 +56,8 @@ export interface SourceLexicalResult extends SourceIssueCollection {
   readonly objectNameAttempts: ReadonlyMap<number, readonly SourceLexicalToken[]>;
   readonly legendWords: ReadonlyMap<number, readonly SourceLexicalToken[]>;
   readonly collisionNames: ReadonlyMap<number, readonly SourceLexicalToken[]>;
-  readonly soundEvents: ReadonlyMap<number, SourceLexicalToken>;
+  readonly soundDefinitions: ReadonlyMap<number, AcceptedSound>;
+  readonly winDefinitions: ReadonlyMap<number, AcceptedWinCondition>;
   readonly levelMessages: ReadonlyMap<number, string>;
   /** SOUNDS registrations visible while scanning each physical rule line;
    * later headings can change the final grammar vocabulary, but not comments. */
@@ -114,7 +118,8 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
   const objects: SourceObjectLexical[] = [], metadata: SourceMetadataLexical[] = [];
   const objectLines = new Map<number, SourceObjectLineLexical>(), objectNameAttempts = new Map<number, SourceLexicalToken[]>();
   const legendWords = new Map<number, SourceLexicalToken[]>(), collisionNames = new Map<number, SourceLexicalToken[]>();
-  const retainedSoundEvents = new Map<number, SourceLexicalToken>(), ruleNamesByLine = new Map<number, ReadonlySet<string>>();
+  const soundDefinitions = new Map<number, AcceptedSound>(), winDefinitions = new Map<number, AcceptedWinCondition>();
+  const ruleNamesByLine = new Map<number, ReadonlySet<string>>();
   const levelMessages = new Map<number, string>();
   const concrete = new Map<string, SourceObjectLexical>();
   const metadataLines = new Map<string, number>();
@@ -138,9 +143,24 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
   // Only native EOL paths finalize line work; an unmatched terminal ')' skips this.
   const visitNativeEndOfLine = (): void => {
     if (scan.section === SourceSectionKind.Legend) declarations.registerLegend(legendExpression);
-    else if (scan.section === SourceSectionKind.Sounds &&
-      (scan.phase === SoundPhase.EventSeed || scan.phase === SoundPhase.End) && scan.event !== null) {
-      retainedSoundEvents.set(cursor.line.span.start.line, scan.event);
+    else if (scan.section === SourceSectionKind.Sounds) {
+      const line = cursor.line.span.start.line;
+      switch (scan.phase) {
+        case SoundPhase.EventSeed: soundDefinitions.set(line, { kind: AcceptedSoundKind.BareEvent, event: scan.event }); return;
+        case SoundPhase.Verb: soundDefinitions.set(line, { kind: AcceptedSoundKind.BareTarget, target: scan.target }); return;
+        case SoundPhase.End: soundDefinitions.set(line, scan.definition); return;
+        case SoundPhase.Seed:
+          soundDefinitions.set(line, { kind: AcceptedSoundKind.Target, target: scan.target, verb: scan.verb,
+            seed: { kind: SoundSeedKind.Recovered, token: scan.verb.token } }); return;
+        case SoundPhase.DirectionOrSeed: {
+          const lastDirection = scan.verb.directions.at(-1);
+          soundDefinitions.set(line, { kind: AcceptedSoundKind.Target, target: scan.target,
+            verb: { ...scan.verb, directions: lastDirection === undefined ? [] : scan.verb.directions.slice(0, -1) },
+            seed: { kind: SoundSeedKind.Recovered, token: lastDirection?.token ?? scan.verb.token } }); return;
+        }
+        case SoundPhase.Head:
+        case SoundPhase.Failed: return;
+      }
     }
   };
   const fallback = (): string => cursor.match(/^[^\p{Z}\s()]+[\p{Z}\s]*/u) ?? cursor.match(notComment) ?? '';
@@ -272,36 +292,44 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
     } else if (state.phase === SoundPhase.Head) {
       const event = accept(soundEvents);
       if (event === null) {
-        const match = cursor.match(namePattern);
-        if (match === null) { fallback(); fail("Was expecting a sound event (like SFX3, or ENDLEVEL) or an object name, but didn't find either.", true); }
-        else if (declarations.findDeclaration(match.trim()) === null) fail(`unexpected sound token "${match.trim()}".`);
-        else scan = { section: SourceSectionKind.Sounds, phase: SoundPhase.Verb };
-      } else scan = { section: SourceSectionKind.Sounds, phase: SoundPhase.EventSeed, event };
+        const target = accept(namePattern);
+        if (target === null) { fallback(); fail("Was expecting a sound event (like SFX3, or ENDLEVEL) or an object name, but didn't find either.", true); }
+        else if (declarations.findDeclaration(target.value) === null) fail(`unexpected sound token "${target.value}".`);
+        else scan = { section: SourceSectionKind.Sounds, phase: SoundPhase.Verb, target };
+      } else scan = { section: SourceSectionKind.Sounds, phase: SoundPhase.EventSeed, event: acceptedSoundEvent(event) };
     } else if (state.phase === SoundPhase.EventSeed) {
       const seed = accept(/^\d+\b/u);
       if (seed === null) { fallback(); fail('Was expecting a sound seed here (a number like 123123, like you generate by pressing the buttons above the console panel), but found something else.'); }
-      else scan = { section: SourceSectionKind.Sounds, phase: SoundPhase.End, previous: seed.value, event: state.event };
+      else scan = { section: SourceSectionKind.Sounds, phase: SoundPhase.End, definition: { kind: AcceptedSoundKind.Event, event: state.event, seed } };
     } else if (state.phase === SoundPhase.Verb) {
       const verb = accept(soundVerbs);
       if (verb === null) { fallback(); fail('Was expecting a soundverb here (MOVE, DESTROY, CANTMOVE, or the like), but found something else.'); }
-      else scan = { section: SourceSectionKind.Sounds,
-        phase: verb.value === 'move' || verb.value === 'cantmove' ? SoundPhase.DirectionOrSeed : SoundPhase.Seed,
-        previous: verb.value };
+      else {
+        const accepted = acceptedSoundVerb(verb);
+        scan = accepted.kind === SoundVerb.Move || accepted.kind === SoundVerb.CantMove
+          ? { section: SourceSectionKind.Sounds, phase: SoundPhase.DirectionOrSeed, target: state.target, verb: accepted }
+          : { section: SourceSectionKind.Sounds, phase: SoundPhase.Seed, target: state.target, verb: accepted };
+      }
     } else if (state.phase === SoundPhase.End) {
       const match = fallback();
-      fail(`I wasn't expecting anything after the sound declaration ${state.previous.toUpperCase()} on this line, so I don't know what to do with "${match.trim().toUpperCase()}" here.`);
+      const seed = state.definition.kind === AcceptedSoundKind.Event ? state.definition.seed : state.definition.seed.token;
+      fail(`I wasn't expecting anything after the sound declaration ${seed.value.toUpperCase()} on this line, so I don't know what to do with "${match.trim().toUpperCase()}" here.`);
     } else {
       const directional = state.phase === SoundPhase.DirectionOrSeed;
-      const direction = directional ? accept(soundDirections) : null;
-      if (direction !== null) {
-        scan = { section: SourceSectionKind.Sounds, phase: SoundPhase.DirectionOrSeed, previous: direction.value };
-        return;
+      if (state.phase === SoundPhase.DirectionOrSeed) {
+        const direction = accept(soundDirections);
+        if (direction !== null) {
+          scan = { ...state, verb: { ...state.verb, directions: [...state.verb.directions, acceptedSoundDirection(direction)] } };
+          return;
+        }
       }
       const seed = accept(/^\d+\b/u);
-      if (seed !== null) scan = { section: SourceSectionKind.Sounds, phase: SoundPhase.End, previous: seed.value, event: null };
+      if (seed !== null) scan = { section: SourceSectionKind.Sounds, phase: SoundPhase.End,
+        definition: { kind: AcceptedSoundKind.Target, target: state.target, verb: state.verb, seed: { kind: SoundSeedKind.Numeric, token: seed } } };
       else {
         const match = fallback();
-        fail(`Ah I was expecting ${directional ? 'direction or a sound seed' : 'a sound seed'} here after ${state.previous.toUpperCase()}, but I don't know what to make of "${match.trim().toUpperCase()}".`);
+        const previous = state.phase === SoundPhase.DirectionOrSeed ? state.verb.directions.at(-1)?.token ?? state.verb.token : state.verb.token;
+        fail(`Ah I was expecting ${directional ? 'direction or a sound seed' : 'a sound seed'} here after ${previous.value.toUpperCase()}, but I don't know what to make of "${match.trim().toUpperCase()}".`);
       }
     }
   };
@@ -338,7 +366,18 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
     else issue('Name "' + word + '", referred to in a rule, does not exist.');
   };
   const winToken = (state: WinScanState, sol: boolean): void => {
-    if (sol) state.phase = WinPhase.Quantifier;
+    if (sol) {
+      state.phase = WinPhase.Quantifier;
+      // Native captures the first non-'(' fragment of the entire normalized
+      // physical line, even when this body visit resumes after a comment.
+      const capture = /[^(]+/u.exec(cursor.text);
+      const tokens: SourceLexicalToken[] = [];
+      if (capture !== null) for (const word of capture[0].matchAll(/[^\p{Z}\s]+/gu)) {
+        const start = capture.index + word.index;
+        tokens.push(cursor.token(start, start + word[0].length));
+      }
+      winDefinitions.set(cursor.line.span.start.line, recoverWinSyntax(tokens));
+    }
     // Native increments before matching, including visits that report an error.
     const expected = state.phase;
     switch (expected) {
@@ -535,6 +574,7 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
   }
   return { ...issues, objects, metadata, objectLines, objectNameAttempts, legendWords, collisionNames,
     registrations: declarations.registrations, collisionLayers: declarations.collisionLayers, declarationAdvice: declarations.advice,
-    soundEvents: retainedSoundEvents, levelMessages, ruleNamesByLine,
-    ruleNames: declarations.ruleVocabulary, definedSounds: new Set([...retainedSoundEvents.values()].map(token => token.value)), stop };
+    soundDefinitions, winDefinitions, levelMessages, ruleNamesByLine,
+    ruleNames: declarations.ruleVocabulary, definedSounds: new Set([...soundDefinitions.values()].flatMap(definition =>
+      definition.kind === AcceptedSoundKind.Event || definition.kind === AcceptedSoundKind.BareEvent ? [definition.event.token.value] : [])), stop };
 }

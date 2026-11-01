@@ -93,6 +93,7 @@ npm --prefix typescript run example:session
 | [source-compiler.ts](src/source-compiler.ts) | The complete compiler's explicit pass order |
 | [source-model.ts](src/source-model.ts), [source-reader.ts](src/source-reader.ts) | Authored evidence, bound accepted declarations/assets and parsed rule syntax |
 | [source-scan-state.ts](src/source-scan-state.ts), [source-lexical.ts](src/source-lexical.ts) | Section-specific scanner phases, explicit heading predecessors and native source visits |
+| [source-sound-syntax.ts](src/source-sound-syntax.ts), [source-win-syntax.ts](src/source-win-syntax.ts) | Accepted sound and win definitions, with explicit incomplete/recovered cases |
 | [source-declarations.ts](src/source-declarations.ts), [source-legend.ts](src/source-legend.ts) | Source-order registrations, alias targets, compound members, vocabulary snapshots and layer membership |
 | [declarations.ts](src/declarations.ts) | Canonical objects, final name resolution and compiled layers |
 | [rule-lexing.ts](src/rule-lexing.ts), [source-rules.ts](src/source-rules.ts), [rule-syntax.ts](src/rule-syntax.ts) | Rule tokens, authoritative parsed syntax, then validation and domain projection |
@@ -201,8 +202,8 @@ diagnostics retain their existing checkpoints.
 The [accepted-declaration audit](../docs/superpowers/plans/2026-11-01-accepted-declarations.md)
 records this boundary and its new malformed-source/native comparisons. The broader
 [frontend completion checklist](../docs/superpowers/specs/2026-11-01-frontend-clarity-goal.md)
-remains active: sound/win grammar duplication, property-layer analysis and
-rule-pass contracts still need work.
+remains active: property-layer analysis, rule-pass contracts and the final
+transformation audit still need work.
 
 The scanner now has a section-discriminated state. A rule scanner can be in
 `Prelude`, `AfterPatternSeparator` or `MessageTail`; it cannot take an object
@@ -216,6 +217,23 @@ registration; a leading unmatched `)` can skip win quantifier initialization.
 Those recovery cases have direct native comparisons rather than a numeric-mode
 compatibility adapter. The [scanner audit](../docs/superpowers/plans/2026-11-01-scanner-states.md)
 records the boundary and its type contracts.
+
+Sound and win source visits now construct the definitions used by compilation.
+Raw entries keep authored words plus a required `definition`, with null meaning
+no definition was retained. Complete sounds, bare event/target heads and recovered
+last-term seeds have explicit cases. Directional verbs carry directions;
+non-directional verbs cannot. Win clauses carry a typed quantifier and an explicit
+Everywhere/Named target. Compiler functions resolve these definitions directly,
+without reading raw word lists, recognizing keywords or inferring target shape.
+
+Native capture and registration timing remain visible in the source helpers.
+For example, `sfx0 sounds 123` retains SFX0 after consuming a midline heading word,
+and `all Player (c) on Crate` captures only `all Player`. Source words remain exact,
+including tokens captured inside a leading comment and Unicode expansions.
+The [sound/win audit](../docs/superpowers/plans/2026-11-01-sound-win-syntax.md)
+records the native differences fixed by removing reconstruction. Reader-only
+diagnostic guesses for these constructs are removed; `parseSource` and
+`compileSource` own the actual native diagnostic visits and checkpoints.
 
 The [declaration audit](../docs/superpowers/plans/2026-11-01-source-declarations.md)
 records the full 1,937-test run and a fresh 128-game per-move sample with 920
@@ -326,7 +344,7 @@ npm --prefix typescript test
 npm --prefix typescript run test:corpus -- --session
 ```
 
-The strict suite, including prepared-AGAIN, scanner, rule-frontend and declaration regressions, passes **1,998 tests**. Exact compilation comparison
+The strict suite, including prepared-AGAIN, scanner, sound/win, rule-frontend and declaration regressions, passes **2,045 tests**. Exact compilation comparison
 covers **335 compiler fixtures**, **492 simulation sources** and **99,192 final
 executable rules**, including diagnostics, stopping outcomes, authored source
 evidence and declaration identities. The last completed full source-compiled replay,

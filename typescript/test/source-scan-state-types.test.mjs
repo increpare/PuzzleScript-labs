@@ -11,14 +11,18 @@ test('scanner states keep section phases and sound payloads together', async () 
   try {
     const statePath = relative(directory, fileURLToPath(new URL('../src/source-scan-state.js', import.meta.url)));
     const modelPath = relative(directory, fileURLToPath(new URL('../src/source-model.js', import.meta.url)));
+    const soundPath = relative(directory, fileURLToPath(new URL('../src/source-sound-syntax.js', import.meta.url)));
     const source = `
 import { PreludePhase, ObjectPhase, LegendPhase, SoundPhase, RulePhase, WinPhase, LevelPhase,
   type SourceScanState } from ${JSON.stringify(statePath)};
 import { SourceSectionKind, type SourceLexicalToken } from ${JSON.stringify(modelPath)};
+import { SoundEventKind, SoundVerb, type SoundEvent, type CompleteSound,
+  type DirectionalSoundVerb, type OtherSoundVerb } from ${JSON.stringify(soundPath)};
 
 const word = { spelling: 'SFX0', normalized: 'sfx0', span: {
   start: { offset: 0, line: 1, column: 1 }, end: { offset: 4, line: 1, column: 5 } } };
-const event = { value: 'sfx0', word };
+const token = { value: 'sfx0', word };
+const event: SoundEvent = { kind: SoundEventKind.SFX, index: 0, token };
 const rules: SourceScanState = { section: SourceSectionKind.Rules, phase: RulePhase.Prelude };
 const eventSeed: SourceScanState = { section: SourceSectionKind.Sounds, phase: SoundPhase.EventSeed, event };
 const collision: SourceScanState = { section: SourceSectionKind.CollisionLayers };
@@ -26,8 +30,12 @@ const collision: SourceScanState = { section: SourceSectionKind.CollisionLayers 
 const wrongSection: SourceScanState = { section: SourceSectionKind.Rules, phase: ObjectPhase.Colors };
 // @ts-expect-error An event seed is only possible after retaining the event token.
 const missingEvent: SourceScanState = { section: SourceSectionKind.Sounds, phase: SoundPhase.EventSeed };
-// @ts-expect-error Directional sound diagnostics require their preceding token.
-const missingPrevious: SourceScanState = { section: SourceSectionKind.Sounds, phase: SoundPhase.DirectionOrSeed };
+// @ts-expect-error Directional recovery requires the recognized target and verb.
+const missingPartial: SourceScanState = { section: SourceSectionKind.Sounds, phase: SoundPhase.DirectionOrSeed };
+// @ts-expect-error An object verb cannot be retained without its target.
+const missingTarget: SourceScanState = { section: SourceSectionKind.Sounds, phase: SoundPhase.Verb };
+// @ts-expect-error A non-directional verb cannot enter the direction phase.
+const wrongVerb: SourceScanState = { section: SourceSectionKind.Sounds, phase: SoundPhase.DirectionOrSeed, target: token, verb: { kind: SoundVerb.Create, token } };
 
 function assertNever(value: never): never { throw new Error(String(value)); }
 function inspect(state: SourceScanState): void {
@@ -44,15 +52,16 @@ function inspect(state: SourceScanState): void {
     case SourceSectionKind.Levels: state.phase satisfies LevelPhase; return;
     case SourceSectionKind.Sounds:
       switch (state.phase) {
-        case SoundPhase.EventSeed: state.event satisfies SourceLexicalToken; return;
-        case SoundPhase.DirectionOrSeed:
-        case SoundPhase.Seed: state.previous satisfies string; return;
+        case SoundPhase.EventSeed: state.event satisfies SoundEvent; return;
+        case SoundPhase.Verb: state.target satisfies SourceLexicalToken; return;
+        case SoundPhase.DirectionOrSeed: state.verb satisfies DirectionalSoundVerb; state.target satisfies SourceLexicalToken; return;
+        case SoundPhase.Seed: state.verb satisfies OtherSoundVerb; state.target satisfies SourceLexicalToken; return;
         case SoundPhase.End:
-          state.previous satisfies string;
-          state.event satisfies SourceLexicalToken | null;
+          state.definition satisfies CompleteSound;
+          // @ts-expect-error Completed sounds keep their variant, not an optional event mirror.
+          state.event;
           return;
         case SoundPhase.Head:
-        case SoundPhase.Verb:
         case SoundPhase.Failed:
           // @ts-expect-error No event has been retained in these sound phases.
           state.event;
@@ -64,7 +73,7 @@ function inspect(state: SourceScanState): void {
     default: return assertNever(state);
   }
 }
-void [rules, eventSeed, collision, wrongSection, missingEvent, missingPrevious, inspect];
+void [rules, eventSeed, collision, wrongSection, missingEvent, missingPartial, missingTarget, wrongVerb, inspect];
 `;
     const file = join(directory, 'scan-state.mts');
     const config = join(directory, 'tsconfig.json');

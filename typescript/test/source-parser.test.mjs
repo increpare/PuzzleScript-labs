@@ -226,7 +226,7 @@ test('the sixth error check waits for every diagnostic in the current token visi
   assert.equal(native.errorCount, 7);
   assert.equal(result.outcome.cursor.line, 10);
   assert.equal(result.document.sounds.length, 1);
-  assert.equal(result.document.sounds[0].eventDefinition, null);
+  assert.equal(result.document.sounds[0].definition, null);
   assert.ok(!result.rawDiagnostics.some(item => item.message.includes('notreached')));
 });
 

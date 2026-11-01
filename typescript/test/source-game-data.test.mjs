@@ -285,7 +285,7 @@ test('creation/destruction use source-ordered named objects while aggregate name
   assert.deepEqual(data.sounds.destruction.map(sound => [names(sound.objects), sound.seed]), [[['player', 'crate'], '12']]);
   assert.equal(data.movementSounds.flat().length, 0);
   assert.equal(diagnostics.filter(item => item.code === 'aggregate-sound-target').length, 2);
-  assert.ok(diagnostics.some(item => item.code === 'unknown-sound-target'));
+  assert.ok(diagnostics.every(item => item.code !== 'unknown-sound-target'), 'source rejection is not repeated by compilation');
 });
 
 test('incomplete accepted sound rows retain native compiler recovery while parser-rejected rows produce no sound', () => {

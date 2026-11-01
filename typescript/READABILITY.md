@@ -183,11 +183,21 @@ relationships. [scanner-states.test.mjs](test/scanner-states.test.mjs) checks th
 native recovery paths; [source-scan-state-types.test.mjs](test/source-scan-state-types.test.mjs)
 rejects mixed section phases and missing payloads.
 
-Next remove duplicated sound/win interpretation and strengthen property-layer and
-rule-pass types. Native probes already expose compiler differences for midline
-heading words in sounds and comment truncation in win conditions; their accepted
-syntax must become authoritative. The runtime suggestions below are separate
-from that frontend completion gate.
+[source-sound-syntax.ts](src/source-sound-syntax.ts) and
+[source-win-syntax.ts](src/source-win-syntax.ts) now carry actual accepted definitions.
+Sound phases carry partial typed definitions; native EOL visits decide retention.
+Win recovery consumes the native physical capture once. The reader binds tokens,
+and compilation consumes these definitions without interpreting raw words.
+Incomplete heads, recovered seeds and Everywhere/Named targets have explicit
+types. Both authored heading checks require logical SOL, so hiding an unmatched
+close cannot change ownership or discard accepted sounds.
+Guards include [sound-win-syntax.test.mjs](test/sound-win-syntax.test.mjs),
+[sound-win-syntax-oracle.test.mjs](test/sound-win-syntax-oracle.test.mjs) and the
+negative [type contract](test/sound-win-syntax-types.test.mjs).
+
+Next strengthen property-layer analysis and rule-pass types, then audit every
+retained frontend transformation against observable behavior. The runtime
+suggestions below are separate from that frontend completion gate.
 
 1. **Name the session probe policy inside `step`.** Extract helpers for rollback
    and commands that name retained history, RNG/events and committed effects.

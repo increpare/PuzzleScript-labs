@@ -6,6 +6,7 @@ import { resolveDeclarations } from '../build/declarations.js';
 import { movementSource } from './scenarios.mjs';
 import { createSourceRuleCompilerOracle } from './legacy-source-rule-compiler.cjs';
 import * as sourceTypes from '../build/source-model.js';
+import { AcceptedSoundKind } from '../build/source-sound-syntax.js';
 import { CommandKind } from '../build/commands.js';
 import { Ellipsis } from '../build/rule-model.js';
 import { compileGameData } from '../build/source-game-data.js';
@@ -232,9 +233,9 @@ test('documented malformed source failures are confirmed through full native loa
 
 test('sound lexical recovery keeps authored evidence for incomplete records and ASCII keyword boundaries', () => {
   const { document } = readSource(fixture('right [ Player ] -> sfx0', '', 'sFx0\nsfx1 100\nsfx2 nope\nsfx3é\nsfx4 100 extra').source);
-  assert.deepEqual(document.sounds.map(sound => sound.eventDefinition?.value ?? null), ['sfx0', 'sfx1', null, null, null]);
-  assert.equal(document.sounds[0].kind, sourceTypes.SourceSoundKind.Invalid);
-  const token = document.sounds[0].eventDefinition;
+  assert.deepEqual(document.sounds.map(sound => sound.definition?.event?.token.value ?? null), ['sfx0', 'sfx1', null, null, null]);
+  assert.equal(document.sounds[0].definition.kind, AcceptedSoundKind.BareEvent);
+  const token = document.sounds[0].definition.event.token;
   assert.equal(token.word.spelling, 'sFx0');
   assert.equal(token.word, document.sounds[0].words[0]);
   assert.equal(document.source.slice(token.word.span.start.offset, token.word.span.end.offset), 'sFx0');

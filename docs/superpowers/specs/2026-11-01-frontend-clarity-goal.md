@@ -17,9 +17,11 @@ types. Collision layers remain unnamed.
   not reconstruct acceptance or source-time member expansion from source words.
   Accepted object assets are per-primary rather than shared authored-container
   fields. Evidence: the accepted-declarations audit and 1,964-test full run.
-- [ ] Each grammar construct has one authoritative recovered interpretation.
-  Rules already have this boundary; sounds and win conditions still need it.
-  Authored-invalid evidence remains available without becoming a second grammar.
+- [x] Each grammar construct has one authoritative recovered interpretation.
+  Rules, sounds and win conditions carry their recovered definitions directly
+  into compilation. Raw sound/win word grammars and pseudo-semantic mirrors are
+  removed. Authored-invalid evidence remains available. Evidence: sound/win audit,
+  raw-read/tree-consumption contracts, native comparisons and 2,045-test full run.
 - [x] Scanner modes and their transitions are named, section-specific states.
   Shared `tokenIndex` values such as -4/-1/0/1/2 and section-enum arithmetic no
   longer stand in for unrelated language concepts. Evidence: the scanner-state

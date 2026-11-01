@@ -1,4 +1,5 @@
 import { SourceSectionKind, type SourceLexicalToken } from './source-model.js';
+import type { CompleteSound, SoundEvent, DirectionalSoundVerb, OtherSoundVerb } from './source-sound-syntax.js';
 
 /** Section order is a language relationship, independent of enum ordinals. */
 export const sourceSectionDescriptors = [
@@ -25,10 +26,11 @@ export type ObjectScanState = { section: SourceSectionKind.Objects; phase: Objec
 export type LegendScanState = { section: SourceSectionKind.Legend; phase: LegendPhase };
 export type SoundScanState =
   | { section: SourceSectionKind.Sounds; phase: SoundPhase.Head }
-  | { section: SourceSectionKind.Sounds; phase: SoundPhase.EventSeed; event: SourceLexicalToken }
-  | { section: SourceSectionKind.Sounds; phase: SoundPhase.Verb }
-  | { section: SourceSectionKind.Sounds; phase: SoundPhase.DirectionOrSeed | SoundPhase.Seed; previous: string }
-  | { section: SourceSectionKind.Sounds; phase: SoundPhase.End; previous: string; event: SourceLexicalToken | null }
+  | { section: SourceSectionKind.Sounds; phase: SoundPhase.EventSeed; event: SoundEvent }
+  | { section: SourceSectionKind.Sounds; phase: SoundPhase.Verb; target: SourceLexicalToken }
+  | { section: SourceSectionKind.Sounds; phase: SoundPhase.DirectionOrSeed; target: SourceLexicalToken; verb: DirectionalSoundVerb }
+  | { section: SourceSectionKind.Sounds; phase: SoundPhase.Seed; target: SourceLexicalToken; verb: OtherSoundVerb }
+  | { section: SourceSectionKind.Sounds; phase: SoundPhase.End; definition: CompleteSound }
   | { section: SourceSectionKind.Sounds; phase: SoundPhase.Failed };
 export type RuleScanState = { section: SourceSectionKind.Rules; phase: RulePhase };
 export type WinScanState = { section: SourceSectionKind.WinConditions; phase: WinPhase };

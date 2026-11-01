@@ -6,8 +6,10 @@ import { Movement, type GameObject, type MovementSound } from './model.js';
 import { positionsByColumn } from './scan-order.js';
 import { LevelKind, SimpleSound, type Dimensions, type ObjectSound, type SessionGame, type SessionLevel, type SessionMetadata, type SessionSounds } from './session-model.js';
 import { SourceDiagnosticPhase, SourceDiagnosticSeverity, SourceLevelKind,
-  type SourceDiagnostic, type SourceDocument, type SourceGridLevel, type SourceSpan, type SourceWord } from './source-model.js';
-import { ObjectMatchKind, WinQuantifier, type ObjectCondition, type WinCondition } from './win-conditions.js';
+  type SourceDiagnostic, type SourceDocument, type SourceGridLevel, type SourceSpan, type SourceLexicalToken } from './source-model.js';
+import { ObjectMatchKind, type ObjectCondition, type WinCondition } from './win-conditions.js';
+import { AcceptedSoundKind, SoundEventKind, SoundVerb, SoundDirectionFamily, SoundSeedKind } from './source-sound-syntax.js';
+import { WinSyntaxKind, WinTargetKind } from './source-win-syntax.js';
 
 export type CompiledGameData = Pick<SessionGame, 'collisionLayers' | 'player' | 'levels' | 'winConditions' |
   'metadata' | 'sounds' | 'movementSounds' | 'failureSounds' | 'restorePolicies'>;
@@ -61,27 +63,26 @@ function compileGrid(level: SourceGridLevel, declarations: ResolvedDeclarations,
 
 export function compileWinConditions(document: SourceDocument, declarations: ResolvedDeclarations, report: GameDataReporter): readonly WinCondition[] {
   const conditions: WinCondition[] = [];
-  function operand(word: SourceWord): ObjectCondition | null {
-    const objects = declarations.namedObjects.get(word.normalized);
+  function operand(token: SourceLexicalToken): ObjectCondition | null {
+    const objects = declarations.namedObjects.get(token.value);
     if (objects !== undefined) return { kind: ObjectMatchKind.Any, objects };
-    const aggregate = declarations.namedAggregates.get(word.normalized);
+    const aggregate = declarations.namedAggregates.get(token.value);
     if (aggregate !== undefined) return { kind: ObjectMatchKind.All, objects: aggregate };
-    report('unknown-win-operand', `Unwelcome term "${word.normalized}" found in win condition. I don't know what I'm supposed to do with this. `, word.span);
+    report('unknown-win-operand', `Unwelcome term "${token.value}" found in win condition. I don't know what I'm supposed to do with this. `, token.word.span);
     return null;
   }
   const all: ObjectCondition = { kind: ObjectMatchKind.Any, objects: new Set(declarations.objectChoiceOrder) };
   for (const source of document.winConditions) {
-    // Native parsing retains malformed word lists. Four words select an explicit
-    // target even when the third is not ON; all other lengths use the whole board.
-    if (source.words.length < 2) {
+    const definition = source.definition;
+    if (definition === null) continue;
+    if (definition.kind === WinSyntaxKind.MissingSubject) {
       report('malformed-win-condition', 'Win conditions is badly formatted - needs to look something like "No Fruit", "All Target On Crate", "Some Fruit", "Some Gold on Chest", "No Gold on Chest", or the like.', source.span);
       continue;
     }
-    const subject = operand(source.words[1]!);
-    const target = source.words.length === 4 ? operand(source.words[3]!) : all;
+    const subject = operand(definition.subjectToken);
+    const target = definition.target.kind === WinTargetKind.Named ? operand(definition.target.token) : all;
     if (subject === null || target === null) continue;
-    const quantifier = source.words[0]!.normalized;
-    conditions.push({ quantifier: quantifier === 'no' ? WinQuantifier.No : quantifier === 'all' ? WinQuantifier.All : WinQuantifier.Some, subject, target });
+    conditions.push({ quantifier: definition.quantifier, subject, target });
   }
   return conditions;
 }
@@ -148,23 +149,12 @@ export function compileMetadata(document: SourceDocument, report: GameDataReport
     noUndo: values.has('noundo'), noRestart: values.has('norestart'), ...screens } };
 }
 
-const simpleSoundEvents = new Map<string, SimpleSound>([
-  ['titlescreen', SimpleSound.TitleScreen], ['startgame', SimpleSound.StartGame], ['endgame', SimpleSound.EndGame],
-  ['startlevel', SimpleSound.StartLevel], ['endlevel', SimpleSound.EndLevel], ['undo', SimpleSound.Undo],
-  ['restart', SimpleSound.Restart], ['showmessage', SimpleSound.ShowMessage], ['closemessage', SimpleSound.CloseMessage], ['cancel', SimpleSound.Cancel],
-]);
-const soundDirections = new Map<string, readonly Movement[]>([
-  ['up', [Movement.Up]], ['down', [Movement.Down]], ['left', [Movement.Left]], ['right', [Movement.Right]],
-  ['horizontal', [Movement.Left, Movement.Right]], ['vertical', [Movement.Up, Movement.Down]],
-  ['orthogonal', [Movement.Up, Movement.Down, Movement.Left, Movement.Right]],
-]);
-const soundActions = new Set(['move', 'cantmove', 'action', 'create', 'destroy']);
-
-function leadingSoundEvent(word: string): string | null {
-  // Event tokens historically use ASCII word boundaries, unlike object names.
-  // Thus undoA remains a name, but undoé starts with an UNDO event token.
-  return /^(undo|restart|titlescreen|startgame|cancel|endgame|startlevel|endlevel|showmessage|closemessage|sfx0|sfx1|sfx2|sfx3|sfx4|sfx5|sfx6|sfx7|sfx8|sfx9|sfx10)\b/u.exec(word)?.[1] ?? null;
-}
+const soundDirections: Readonly<Record<SoundDirectionFamily, readonly Movement[]>> = {
+  [SoundDirectionFamily.Up]: [Movement.Up], [SoundDirectionFamily.Down]: [Movement.Down],
+  [SoundDirectionFamily.Left]: [Movement.Left], [SoundDirectionFamily.Right]: [Movement.Right],
+  [SoundDirectionFamily.Horizontal]: [Movement.Left, Movement.Right], [SoundDirectionFamily.Vertical]: [Movement.Up, Movement.Down],
+  [SoundDirectionFamily.Orthogonal]: [Movement.Up, Movement.Down, Movement.Left, Movement.Right],
+};
 
 export function compileSounds(document: SourceDocument, declarations: ResolvedDeclarations, report: GameDataReporter): {
   readonly sounds: SessionSounds; readonly movementSounds: readonly (readonly MovementSound[])[]; readonly failureSounds: readonly MovementSound[];
@@ -176,71 +166,41 @@ export function compileSounds(document: SourceDocument, declarations: ResolvedDe
   const movementSounds: MovementSound[][] = declarations.collisionLayers.map(() => []);
   const failureSounds: MovementSound[] = [];
   for (const source of document.sounds) {
-    const words = source.words.map(word => word.normalized);
-    const target = words[0];
-    if (target === undefined) continue;
-    if (words.length === 1) {
-      const declaration = declarations.firstDeclarationWords.get(target);
-      if (source.eventDefinition !== null || (/^[\p{L}\p{N}_]+$/u.test(target) && declaration !== undefined
-        && declaration.span.start.offset < source.span.start.offset)) report('incomplete-sound', 'incorrect sound declaration.', source.span, true);
+    const definition = source.definition;
+    if (definition === null) continue;
+    if (definition.kind === AcceptedSoundKind.BareEvent || definition.kind === AcceptedSoundKind.BareTarget) {
+      report('incomplete-sound', 'incorrect sound declaration.', source.span, true);
       continue;
     }
-    const event = leadingSoundEvent(target);
-    if (event !== null && event !== target) continue; // The remaining name text makes the event row invalid.
-    const simpleEvent = simpleSoundEvents.get(event ?? '');
-    const sfxEvent = event === null ? null : /^sfx(10|[0-9])$/u.exec(event);
-    if (simpleEvent !== undefined || sfxEvent !== null) {
-      // An event keyword takes precedence over a same-named object. Parser
-      // rejection drops the whole row when a seed is missing or followed by text.
-      if (words.length !== 2 || !/^\d+$/u.test(words[1]!)) continue;
-      const seed = words[1]!;
-      if (simpleEvent !== undefined) {
-        if (simple.has(simpleEvent)) report('duplicate-sound-event', `${target.toUpperCase()} already declared.`, source.span, true);
-        simple.set(simpleEvent, seed);
+    if (definition.kind === AcceptedSoundKind.Event) {
+      const { event, seed } = definition;
+      if (event.kind === SoundEventKind.Simple) {
+        if (simple.has(event.sound)) report('duplicate-sound-event', `${event.token.value.toUpperCase()} already declared.`, source.span, true);
+        simple.set(event.sound, seed.value);
       } else {
-        const index = Number(sfxEvent![1]) as SoundIndex;
-        if (sfx.has(index)) report('duplicate-sound-event', `${target.toUpperCase()} already declared.`, source.span, true);
-        sfx.set(index, seed);
+        if (sfx.has(event.index)) report('duplicate-sound-event', `${event.token.value.toUpperCase()} already declared.`, source.span, true);
+        sfx.set(event.index, seed.value);
       }
       continue;
     }
-    if (!/^[\p{L}\p{N}_]+$/u.test(target)) continue; // Broad map glyph aliases are not sound target tokens.
-    const declaration = declarations.firstDeclarationWords.get(target);
-    if (declaration === undefined || declaration.span.start.offset >= source.span.start.offset) {
-      report('unknown-sound-target', `Object "${target}" has not been declared at this point.`, source.words[0]!.span);
-      continue;
-    }
-    const action = words[1]!;
-    if (!soundActions.has(action)) continue;
-    const directional = action === 'move' || action === 'cantmove';
-    let seedSeen = false;
-    let accepted = true;
-    for (const word of words.slice(2)) {
-      if (seedSeen) { accepted = false; break; }
-      if (/^\d+$/u.test(word)) seedSeen = true;
-      else if (!directional || !soundDirections.has(word)) { accepted = false; break; }
-    }
-    if (!accepted) continue;
-    // Native parsing also accepts incomplete rows ending in a verb/direction.
-    // Compilation treats the final token as the seed and diagnoses its type.
-    const seed = words[words.length - 1]!;
-    if (!seedSeen) report('missing-sound-seed', `Expecting sfx data, instead found "${seed}".`, source.span);
+    const target = definition.target.value, verb = definition.verb, seed = definition.seed.token.value;
+    if (definition.seed.kind === SoundSeedKind.Recovered) report('missing-sound-seed', `Expecting sfx data, instead found "${seed}".`, source.span);
     if (declarations.namedAggregates.has(target)) {
       report('aggregate-sound-target', `cannot assign sound events to aggregate objects (declared with "and"), only to regular objects, or properties, things defined in terms of "or" ("${target}").`, source.span);
       continue;
     }
     const objects = declarations.namedObjects.get(target);
     if (objects === undefined) { report('unknown-sound-target', `Object "${target}" not found.`, source.span); continue; }
-    if (action === 'create') { creation.push({ objects, seed }); continue; }
-    if (action === 'destroy') { destruction.push({ objects, seed }); continue; }
-    const directions = words.slice(2, -1);
-    const movements = action === 'action' ? new Set([Movement.Action])
-      : new Set((directions.length === 0 ? ['orthogonal'] : directions).flatMap(direction => soundDirections.get(direction) ?? []));
+    if (verb.kind === SoundVerb.Create) { creation.push({ objects, seed }); continue; }
+    if (verb.kind === SoundVerb.Destroy) { destruction.push({ objects, seed }); continue; }
+    const directions = verb.kind === SoundVerb.Action ? [] : verb.directions.map(direction => direction.family);
+    const movements = verb.kind === SoundVerb.Action ? new Set([Movement.Action])
+      : new Set((directions.length === 0 ? [SoundDirectionFamily.Orthogonal] : directions).flatMap(direction => soundDirections[direction]));
     for (const object of declarations.soundTargets.get(target) ?? []) {
       const layer = declarations.objectLayers.get(object);
       if (layer === undefined) continue;
       const sound = { objects: new Set([object]), layer, movements, seed };
-      if (action === 'cantmove') failureSounds.push(sound);
+      if (verb.kind === SoundVerb.CantMove) failureSounds.push(sound);
       else movementSounds[layer]!.push(sound);
     }
   }

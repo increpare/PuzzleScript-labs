@@ -1,6 +1,6 @@
-import { SourceDiagnosticPhase, SourceDiagnosticSeverity, SourceLegendKind, SourceLevelKind, SourceLineKind, SourceRuleKind, SourceSectionKind, SourceSoundKind, SourceWinConditionKind,
+import { SourceDiagnosticPhase, SourceDiagnosticSeverity, SourceLegendKind, SourceLevelKind, SourceLineKind, SourceRuleKind, SourceSectionKind,
   type AcceptedSourceDeclaration, type SourceDiagnostic, type SourceDocument, type SourceEntry, type SourceGridLevel, type SourceLegend, type SourceLexicalToken, type SourceLine, type SourceObject,
-  type SourcePatternRule, type SourceReadResult, type SourceSection, type SourceSound, type SourceSpan, type SourceSpriteRow, type SourceWinCondition, type SourceWord } from './source-model.js';
+  type SourcePatternRule, type SourceReadResult, type SourceSection, type SourceSpan, type SourceSpriteRow, type SourceWord } from './source-model.js';
 import { SourceDeclarationKind, SourceAliasOriginKind, SourceDeclarationAdviceKind,
   type SourceDeclaration, type SourceDeclarationAdvice } from './source-declarations.js';
 import { leadingContent, lineSpan, readComments, sourceWord, sourceWords, splitSourceLines, trimmedRange,
@@ -9,6 +9,8 @@ import { readRule, type RuleParsingContext } from './source-rules.js';
 import { walkSourceLexically, sourceMetadataFlags as metadataFlags, sourceMetadataValues as metadataValues,
   SourceObjectLineKind, type SourceLexicalResult } from './source-lexical.js';
 import { sourceSectionDescriptors } from './source-scan-state.js';
+import { bindSoundSyntax } from './source-sound-syntax.js';
+import { bindWinSyntax } from './source-win-syntax.js';
 
 function isLevels(section: SourceSection | null): boolean { return section?.kind === SourceSectionKind.Levels; }
 
@@ -60,38 +62,6 @@ function readLegend(entry: SourceEntry, words: readonly SourceWord[], tokens: re
   }
   return { ...entry, kind, name: equals === 0 ? null : words[0] ?? null, words,
     definitionWords: bindings.reuse(tokens, words), references, operators };
-}
-
-const soundEvents = new Set(['undo', 'restart', 'titlescreen', 'startgame', 'cancel', 'endgame', 'startlevel', 'endlevel', 'showmessage', 'closemessage',
-  ...Array.from({ length: 11 }, (_, index) => `sfx${index}`)]);
-const soundActions = new Set(['move', 'action', 'create', 'destroy', 'cantmove']);
-const soundDirections = new Set(['up', 'down', 'left', 'right', 'horizontal', 'vertical', 'orthogonal']);
-
-function readSound(entry: SourceEntry, words: readonly SourceWord[], eventToken: SourceLexicalToken | undefined, bindings: SourceTokenBindings): SourceSound {
-  const eventDefinition = eventToken === undefined ? null : bindings.reuse([eventToken], words)[0]!;
-  const first = words[0] ?? null;
-  const event = first !== null && soundEvents.has(first.normalized) ? first : null;
-  const target = event === null ? first : null;
-  const action = event === null ? words[1] ?? null : null;
-  const possibleSeed = words[words.length - 1] ?? null;
-  const seed = possibleSeed !== null && /^\d+$/u.test(possibleSeed.normalized) ? possibleSeed : null;
-  const directions = event === null ? words.slice(2, seed === null ? words.length : -1) : [];
-  if (event !== null && seed !== null && words.length === 2) return { ...entry, eventDefinition, kind: SourceSoundKind.Event, words, directions, event, target: null, action: null, seed };
-  if (target !== null && action !== null && seed !== null && soundActions.has(action.normalized) &&
-    directions.every(direction => soundDirections.has(direction.normalized)) && (directions.length === 0 || ['move', 'cantmove'].includes(action.normalized))) {
-    return { ...entry, eventDefinition, kind: SourceSoundKind.Target, words, directions, event: null, target, action, seed };
-  }
-  return { ...entry, eventDefinition, kind: SourceSoundKind.Invalid, words, directions, event, target, action, seed };
-}
-
-function readWinCondition(entry: SourceEntry, words: readonly SourceWord[]): SourceWinCondition {
-  const quantifier = words[0] ?? null;
-  const subject = words[1] ?? null;
-  const on = words[2] ?? null;
-  const target = words[3] ?? null;
-  const valid = quantifier !== null && ['all', 'any', 'some', 'no'].includes(quantifier.normalized) && subject !== null &&
-    (words.length === 2 || (words.length === 4 && on?.normalized === 'on'));
-  return { ...entry, kind: valid ? SourceWinConditionKind.Valid : SourceWinConditionKind.Invalid, words, quantifier, subject, on, target };
 }
 
 function spriteRow(line: SourceLine, view: string): SourceSpriteRow {
@@ -154,7 +124,10 @@ export function readAuthoredSource(source: string, lexical: SourceLexicalResult)
     const content = leadingContent(line, comments.stack.length);
     const contentStart = content.start;
     const levelMessage = isLevels(section) ? /^message/iu.exec(line.original.slice(contentStart)) : null;
-    const activeHeading: SourceHeading | null = isLevels(section) ? null : sectionHeading(line, ' '.repeat(contentStart) + line.original.slice(contentStart));
+    // An unmatched close consumes logical SOL. A heading-shaped word after it
+    // remains section content, even though hiding comments makes it look leading.
+    const canStartHeading: boolean = content.startOfLine && !isLevels(section);
+    const activeHeading: SourceHeading | null = canStartHeading ? sectionHeading(line, ' '.repeat(contentStart) + line.original.slice(contentStart)) : null;
     const commentNames = lexical.ruleNamesByLine.get(line.span.start.line) ?? new Set<string>();
     const ruleNames = section?.kind === SourceSectionKind.Rules && activeHeading === null ? commentNames : undefined;
     const view = readComments(line, comments, diagnostics, levelMessage === null ? undefined : contentStart + levelMessage[0].length, ruleNames);
@@ -173,7 +146,7 @@ export function readAuthoredSource(source: string, lexical: SourceLexicalResult)
       line.kind = SourceLineKind.Separator;
       if (!/^[=\p{Z}\s]+$/u.test(view)) issue('separator-trailing-text', 'Only comments may follow a section separator.', line.span);
     } else {
-      const heading: SourceHeading | null = isLevels(section) ? null : sectionHeading(line, view);
+      const heading: SourceHeading | null = canStartHeading ? sectionHeading(line, view) : null;
       if (heading !== null) {
         if (document.sections.some(previous => previous.kind === heading.kind)) issue('duplicate-section', `Section ${heading.name.spelling} is repeated.`, heading.name.span);
         if (heading.trailingWords.length > 0) issue('heading-trailing-text', 'Only comments may follow a section heading.', line.span);
@@ -242,9 +215,10 @@ export function readAuthoredSource(source: string, lexical: SourceLexicalResult)
             if (operator.normalized !== 'and') issue('invalid-legend-operator', 'Expected AND throughout an aggregate declaration.', operator.span);
           }
         } else if (section.kind === SourceSectionKind.Sounds) {
-          const sound = readSound({ sectionId: section.id, order: order++, span: line.span }, words, lexical.soundEvents.get(line.span.start.line), bindings);
-          document.sounds.push(sound);
-          if (sound.kind === SourceSoundKind.Invalid) { line.kind = SourceLineKind.Invalid; issue('invalid-sound', 'Expected a sound event and seed or a target, action, optional directions and seed.', line.span); }
+          const definition = lexical.soundDefinitions.get(line.span.start.line);
+          document.sounds.push({ sectionId: section.id, order: order++, span: line.span, words,
+            definition: definition === undefined ? null : bindSoundSyntax(definition, token => bindings.token(token)) });
+          if (definition === undefined) line.kind = SourceLineKind.Invalid;
         } else if (section.kind === SourceSectionKind.CollisionLayers) {
           const names = sourceWords(line, view, /[\p{L}\p{N}_]+/gu);
           document.collisionLayers.push({ sectionId: section.id, order: order++, span: line.span, names, words,
@@ -255,9 +229,10 @@ export function readAuthoredSource(source: string, lexical: SourceLexicalResult)
           if ('lhs' in rule && rule.retained) previousRule = rule;
           if (rule.kind === SourceRuleKind.Invalid) line.kind = SourceLineKind.Invalid;
         } else if (section.kind === SourceSectionKind.WinConditions) {
-          const win = readWinCondition({ sectionId: section.id, order: order++, span: line.span }, words);
-          document.winConditions.push(win);
-          if (win.kind === SourceWinConditionKind.Invalid) { line.kind = SourceLineKind.Invalid; issue('invalid-win-condition', 'Expected a quantifier and subject, optionally followed by on and a target.', line.span); }
+          const definition = lexical.winDefinitions.get(line.span.start.line);
+          document.winConditions.push({ sectionId: section.id, order: order++, span: line.span, words,
+            definition: definition === undefined ? null : bindWinSyntax(definition, token => bindings.token(token)) });
+          if (definition === undefined) line.kind = SourceLineKind.Invalid;
         } else if (section.kind === SourceSectionKind.Levels) {
           if (levelMessage !== null) {
             const keywordEnd = contentStart + levelMessage[0].length;

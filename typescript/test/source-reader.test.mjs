@@ -4,6 +4,8 @@ import { createRequire } from 'node:module';
 import { readSource } from '../build/source-reader.js';
 import { leadingContent, leadingContentStart } from '../build/source-text.js';
 import * as sourceModel from '../build/source-model.js';
+import { AcceptedSoundKind } from '../build/source-sound-syntax.js';
+import { WinTargetKind } from '../build/source-win-syntax.js';
 const { SourceLineKind, SourceDiagnosticSeverity, SourceDiagnosticPhase } = sourceModel;
 const ruleDiagnostics = rule => rule.syntaxIssues.filter(issue => issue.kind === sourceModel.SourceRuleSyntaxIssueKind.Diagnostic)
   .map(issue => issue.diagnostic);
@@ -287,17 +289,18 @@ test('sounds, unnamed collision layers and wins retain ordered unresolved words'
   const source = 'SOUNDS\nSFX0 123\nPlayer Move Left UP 456\nPlayer Action 789\nOops Weird nonseed extra\nCOLLISIONLAYERS\nBackground\nPlayer,Crate Player\nWINCONDITIONS\nALL Crate ON Target\nno Player\nmaybe Thing toward Other extra';
   const { document } = readSource(source);
   assert.deepEqual(document.sounds[0].words.map(word => word.spelling), ['SFX0', '123']);
-  assert.equal(document.sounds[0].event.normalized, 'sfx0');
-  assert.equal(document.sounds[1].target.spelling, 'Player');
-  assert.equal(document.sounds[1].action.normalized, 'move');
-  assert.deepEqual(document.sounds[1].directions.map(word => word.normalized), ['left', 'up']);
-  assert.equal(document.sounds[2].action.normalized, 'action');
+  assert.equal(document.sounds[0].definition.kind, AcceptedSoundKind.Event);
+  assert.equal(document.sounds[0].definition.event.token.value, 'sfx0');
+  assert.deepEqual(document.sounds[1].words.map(word => word.spelling), ['Player', 'Move', 'Left', 'UP', '456']);
+  assert.equal(document.sounds[1].definition, null, 'an undeclared target stays raw evidence');
+  assert.equal(document.sounds[2].definition, null);
   assert.deepEqual(document.sounds[3].words.map(word => word.spelling), ['Oops', 'Weird', 'nonseed', 'extra']);
   assert.deepEqual(document.collisionLayers.map(layer => layer.names.map(name => name.spelling)), [['Background'], ['Player', 'Crate', 'Player']]);
   assert.ok(document.collisionLayers.every(layer => !('name' in layer)));
-  assert.equal(document.winConditions[0].quantifier.normalized, 'all');
-  assert.equal(document.winConditions[0].subject.spelling, 'Crate');
-  assert.equal(document.winConditions[0].target.spelling, 'Target');
+  assert.equal(document.winConditions[0].definition.quantifierToken.value, 'all');
+  assert.equal(document.winConditions[0].definition.subjectToken.word.spelling, 'Crate');
+  assert.equal(document.winConditions[0].definition.target.kind, WinTargetKind.Named);
+  assert.equal(document.winConditions[0].definition.target.token.word.spelling, 'Target');
   assert.deepEqual(document.winConditions[2].words.map(word => word.spelling), ['maybe', 'Thing', 'toward', 'Other', 'extra']);
   assert.ok(document.objects.length === 0);
 });
@@ -474,8 +477,8 @@ test('malformed rules and loops retain native recovery with complete raw token e
 test('authored model discriminants are numeric enums', () => {
   for (const [name, members] of Object.entries({ SourceSectionKind: ['Objects', 'Legend', 'Sounds', 'CollisionLayers', 'Rules', 'WinConditions', 'Levels'],
     SourceLineKind: ['Blank', 'Comment', 'Separator', 'Heading', 'Entry', 'Invalid'], SourceLegendKind: ['Synonym', 'Property', 'Aggregate', 'Invalid'],
-    SourceSoundKind: ['Event', 'Target', 'Invalid'], SourceRuleKind: ['Ordinary', 'StartLoop', 'EndLoop', 'Invalid'],
-    SourceRuleCellKind: ['Contents', 'Ellipsis'], SourceLevelKind: ['Grid', 'Message'], SourceWinConditionKind: ['Valid', 'Invalid'],
+    SourceRuleKind: ['Ordinary', 'StartLoop', 'EndLoop', 'Invalid'],
+    SourceRuleCellKind: ['Contents', 'Ellipsis'], SourceLevelKind: ['Grid', 'Message'],
     SourceRuleCommandKind: ['SoundEffect', 'Cancel', 'Checkpoint', 'Restart', 'Win', 'Message', 'Again'],
     SourceRuleSyntaxIssueKind: ['Diagnostic', 'DuplicateProperty'] })) {
     for (const member of members) assert.equal(typeof sourceModel[name][member], 'number', name + '.' + member);
