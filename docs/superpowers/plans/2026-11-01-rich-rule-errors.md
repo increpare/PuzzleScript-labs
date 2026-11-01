@@ -55,7 +55,7 @@ node --test --test-concurrency=4 typescript/test/*.test.mjs src/tests/semantic-f
 - [x] At least 256 generated per-operation cases pass with no exclusions,
       comparison failures, oracle exceptions or timeouts.
 - [x] Update frontend/readability/API docs with a concrete rich error example.
-- [ ] Integrate into local master, run primary build/focused smoke, verify clean
+- [x] Integrate into local master, run primary build/focused smoke, verify clean
       checkouts and completed test processes. No push or preview server.
 
 ## Rich diagnostic scope
@@ -114,4 +114,10 @@ approximately 289 seconds (`/private/tmp/ps-rich-errors-full-final.log`). All
 492 simulation and 335 compilation sources retain their final rules, recorded
 diagnostics, error counts, installation outcomes and stopping behavior. Native
 authority is unchanged: vanilla `57f9f6cba69f6aa52ed738d5aee1d709d0037648`.
-Local integration and primary-checkout smoke verification remain.
+Commit `e3fc03be` was fast-forwarded into local master. The primary checkout's
+strict build, rich error example and 328 focused recovery/evidence/type/syntax/
+reader/compiler/Unicode tests passed, with zero failures/skips
+(`/private/tmp/ps-rich-errors-master-smoke.log`). Both checkouts were clean after
+integration; this final documentation-only record completes verification. The
+existing reusable worktree remains on `codex/typescript-rich-rule-errors`.
+No push or preview server was started; all launched tests and campaigns completed.
