@@ -4,8 +4,11 @@ import { collectSourceIssue, createSourceIssueCollection, type SourceIssueCollec
 import { lineSpan, lowercaseSourceRange, sourceWord, splitSourceLines, type LowercaseSourceView } from './source-text.js';
 import { SourceDeclarations, SourceAliasOriginKind, type SourceDeclaration, type SourceDeclarationAdvice, type SourceObjectAliasOrigin } from './source-declarations.js';
 import { NativeLegendExpression } from './source-legend.js';
+import { sourceSectionDescriptors, PreludePhase, ObjectPhase, LegendPhase, SoundPhase, RulePhase, WinPhase, LevelPhase,
+  type SourceScanState, type PreludeScanState, type ObjectScanState, type LegendScanState, type SoundScanState,
+  type RuleScanState, type WinScanState, type LevelScanState } from './source-scan-state.js';
 
-export const sourceSectionNames = ['objects', 'legend', 'sounds', 'collisionlayers', 'rules', 'winconditions', 'levels'] as const;
+export const sourceSectionNames = sourceSectionDescriptors.map(section => section.name);
 export const sourceMetadataValues = new Set(['title', 'author', 'homepage', 'background_color', 'text_color', 'key_repeat_interval',
   'realtime_interval', 'again_interval', 'flickscreen', 'zoomscreen', 'color_palette', 'youtube']);
 export const sourceMetadataFlags = new Set(['run_rules_on_level_start', 'norepeat_action', 'require_player_movement', 'debug',
@@ -99,9 +102,6 @@ class SourceCursor {
   }
 }
 
-enum ObjectPart { Names, Aliases, Colors, Sprite }
-enum SoundRole { Event, Name, Verb, Direction, Seed }
-interface SoundToken { readonly value: string; readonly role: SoundRole }
 class IssueCap extends Error {}
 
 /**
@@ -119,12 +119,11 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
   const concrete = new Map<string, SourceObjectLexical>();
   const metadataLines = new Map<string, number>();
   const visited: SourceSectionKind[] = [];
-  let section: SourceSectionKind | null = null, commentDepth = 0, afterComment = false;
-  let lineShouldEnd: string | null = null, tokenIndex = 0, legendExpression = new NativeLegendExpression();
-  let objectPart = ObjectPart.Names, objectName = '', workingRows: SourceLexicalToken[][] = [];
+  let scan: SourceScanState = { section: null, phase: PreludePhase.Key };
+  let commentDepth = 0, resumeAsLineStart = false;
+  let lineShouldEnd: string | null = null, legendExpression = new NativeLegendExpression();
+  let objectName = '', workingRows: SourceLexicalToken[][] = [];
   let objectAliasOrigin: SourceObjectAliasOrigin | null = null;
-  let sounds: SoundToken[] = [], soundFailed = false;
-  let soundEvent: SourceLexicalToken | null = null;
   let gridWidth: number | null = null, gridHasRows = false, levelMessage = false;
   let cursor: SourceCursor;
   let visitStart = 0;
@@ -136,14 +135,16 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
     if (capped && stopAtLimits) throw new IssueCap();
   };
   const declarations = new SourceDeclarations(issue, keywords);
-  const endOfLine = (): void => {
-    if (section === SourceSectionKind.Legend) declarations.registerLegend(legendExpression);
-    else if (section === SourceSectionKind.Sounds && !soundFailed && soundEvent !== null) {
-      retainedSoundEvents.set(cursor.line.span.start.line, soundEvent);
+  // Only native EOL paths finalize line work; an unmatched terminal ')' skips this.
+  const visitNativeEndOfLine = (): void => {
+    if (scan.section === SourceSectionKind.Legend) declarations.registerLegend(legendExpression);
+    else if (scan.section === SourceSectionKind.Sounds &&
+      (scan.phase === SoundPhase.EventSeed || scan.phase === SoundPhase.End) && scan.event !== null) {
+      retainedSoundEvents.set(cursor.line.span.start.line, scan.event);
     }
   };
   const fallback = (): string => cursor.match(/^[^\p{Z}\s()]+[\p{Z}\s]*/u) ?? cursor.match(notComment) ?? '';
-  const objectToken = (sol: boolean): void => {
+  const objectToken = (state: ObjectScanState, sol: boolean): void => {
     const lineNumber = cursor.line.span.start.line;
     const readName = (): void => {
       const start = cursor.index;
@@ -172,21 +173,20 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
         if (!declarations.declareObjectAlias(token, objectAliasOrigin)) return;
         concrete.get(objectName)?.names.push(token);
       }
-      objectPart = ObjectPart.Aliases;
+      state.phase = ObjectPhase.Aliases;
       objectLines.get(lineNumber)!.awaitingColors = true;
     };
-    if (sol && objectPart === ObjectPart.Colors) objectPart = ObjectPart.Sprite;
-    if (sol && objectPart === ObjectPart.Aliases) objectPart = ObjectPart.Colors;
+    if (sol && state.phase === ObjectPhase.Colors) state.phase = ObjectPhase.Sprite;
+    if (sol && state.phase === ObjectPhase.Aliases) state.phase = ObjectPhase.Colors;
     if (!objectLines.has(lineNumber)) objectLines.set(lineNumber, {
-      kind: objectPart === ObjectPart.Colors ? SourceObjectLineKind.Colors
-        : objectPart === ObjectPart.Sprite && (workingRows.length > 0 || /^[.\d]/u.test(cursor.character))
+      kind: state.phase === ObjectPhase.Colors ? SourceObjectLineKind.Colors
+        : state.phase === ObjectPhase.Sprite && (workingRows.length > 0 || /^[.\d]/u.test(cursor.character))
           ? SourceObjectLineKind.Sprite : SourceObjectLineKind.Names,
       completedSprite: false, awaitingColors: false,
     });
-    if (objectPart === ObjectPart.Names || objectPart === ObjectPart.Aliases) { workingRows = []; readName(); return; }
+    if (state.phase === ObjectPhase.Names || state.phase === ObjectPhase.Aliases) { workingRows = []; readName(); return; }
     const object = concrete.get(objectName);
-    if (objectPart === ObjectPart.Colors) {
-      tokenIndex = 0;
+    if (state.phase === ObjectPhase.Colors) {
       const start = cursor.index, color = cursor.match(colorPattern);
       if (color === null) {
         const invalid = cursor.match(namePattern) ?? cursor.match(notComment);
@@ -207,35 +207,39 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
     if (row.length > 5) { issue('Sprites must be 5 wide and 5 high.', true); cursor.discard(); return; }
     if (object !== undefined) object.rows = workingRows;
     if (workingRows.length === 5 && row.length === 5) {
-      objectPart = ObjectPart.Names;
+      state.phase = ObjectPhase.Names;
       objectLines.get(lineNumber)!.completedSprite = true;
     }
     if (pixel !== '.' && Number(pixel) >= (object?.colors.length ?? 0)) issue('Trying to access color number ' + Number(pixel) +
       ' from the color palette of sprite ' + objectName.toUpperCase() + ', but there are only ' + (object?.colors.length ?? 0) + ' defined in it.');
   };
-  const legendToken = (): void => {
+  const legendToken = (state: LegendScanState): void => {
     const start = cursor.index;
     let match: string | null;
     let actualMatch = true;
-    if (tokenIndex === 0) { match = cursor.match(/^[^=\p{Z}\s(]*(\p{Z}\s)*/u); tokenIndex++; }
-    else if (tokenIndex === 1) {
+    if (state.phase === LegendPhase.Name) {
+      match = cursor.match(/^[^=\p{Z}\s(]*(\p{Z}\s)*/u);
+      state.phase = LegendPhase.Equals;
+    } else if (state.phase === LegendPhase.Equals) {
       match = cursor.match(/^=/u);
       if (match === null) {
         issue('In the legend, define new items using the equals symbol - declarations must look like "A = B", "A = B or C [ or D ...]", "A = B and C [ and D ...]".');
         cursor.discard(); match = 'ERROR'; actualMatch = false;
       }
-      cursor.space(); tokenIndex++;
-    } else if (tokenIndex >= 3 && tokenIndex % 2 === 1) {
+      cursor.space(); state.phase = LegendPhase.FirstMember;
+    } else if (state.phase === LegendPhase.FirstOperator || state.phase === LegendPhase.LaterOperator) {
       match = cursor.match(namePattern);
       if (match === null) { issue("Something bad's happening in the LEGEND"); cursor.discard(); }
       else if (match.trim() === 'and' || match.trim() === 'or') {
-        if (tokenIndex >= 5 && match.trim() !== legendExpression.firstOperator) issue("Hey! You can't go mixing ANDs and ORs in a single legend entry.");
+        if (state.phase === LegendPhase.LaterOperator && match.trim() !== legendExpression.firstOperator) issue("Hey! You can't go mixing ANDs and ORs in a single legend entry.");
       } else issue(`Expected and 'AND' or an 'OR' here, but got ${match.trim().toUpperCase()} instead. In the legend, define new items using the equals symbol - declarations must look like 'A = B' or 'A = B and C' or 'A = B or C'.`);
-      tokenIndex++;
+      // Native advances even when an operator failed to match.
+      state.phase = LegendPhase.LaterMember;
     } else {
       match = cursor.match(namePattern);
       if (match === null) { issue("Something bad's happening in the LEGEND"); cursor.discard(); }
-      else tokenIndex++;
+      // Failed members retain their expected position for comment resumption.
+      else state.phase = state.phase === LegendPhase.FirstMember ? LegendPhase.FirstOperator : LegendPhase.LaterOperator;
     }
     if (match !== null) {
       const token = actualMatch ? cursor.trimmedToken(start, start + match.length)
@@ -248,45 +252,56 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
     }
     if (cursor.end) declarations.registerLegend(legendExpression);
   };
-  const soundToken = (): void => {
-    const accept = (pattern: RegExp, role: SoundRole): boolean => {
+  const soundToken = (state: SoundScanState): void => {
+    const accept = (pattern: RegExp): SourceLexicalToken | null => {
       const start = cursor.index;
       const match = cursor.match(pattern);
-      if (match === null) return false;
-      if (role === SoundRole.Event) soundEvent = cursor.trimmedToken(start);
-      sounds.push({ value: match.trim(), role }); tokenIndex++; return true;
+      return match === null ? null : cursor.trimmedToken(start);
     };
-    const fail = (message: string, warning = false): void => { soundFailed = true; issue(message, warning); };
-    if (soundFailed) {
+    const fail = (message: string, warning = false): void => {
+      scan = { section: SourceSectionKind.Sounds, phase: SoundPhase.Failed };
+      issue(message, warning);
+    };
+    if (state.phase === SoundPhase.Failed) {
       // Native recovery tries a seed without retaining its local match. It can
       // therefore consume the following name/fallback during the same visit.
       let match = cursor.match(soundEvents) ?? cursor.match(soundVerbs) ?? cursor.match(soundDirections);
       if (match === null) cursor.match(/^\d+\b/u);
       if (match === null) match = cursor.match(namePattern);
       if (match === null) fallback();
-    } else if (sounds.length === 0) {
-      if (!accept(soundEvents, SoundRole.Event)) {
+    } else if (state.phase === SoundPhase.Head) {
+      const event = accept(soundEvents);
+      if (event === null) {
         const match = cursor.match(namePattern);
         if (match === null) { fallback(); fail("Was expecting a sound event (like SFX3, or ENDLEVEL) or an object name, but didn't find either.", true); }
         else if (declarations.findDeclaration(match.trim()) === null) fail(`unexpected sound token "${match.trim()}".`);
-        else { sounds.push({ value: match.trim(), role: SoundRole.Name }); tokenIndex++; }
-      }
-    } else if (sounds.length === 1) {
-      if (sounds[0]!.role === SoundRole.Event) {
-        if (!accept(/^\d+\b/u, SoundRole.Seed)) { fallback(); fail('Was expecting a sound seed here (a number like 123123, like you generate by pressing the buttons above the console panel), but found something else.'); }
-      } else if (!accept(soundVerbs, SoundRole.Verb)) { fallback(); fail('Was expecting a soundverb here (MOVE, DESTROY, CANTMOVE, or the like), but found something else.'); }
+        else scan = { section: SourceSectionKind.Sounds, phase: SoundPhase.Verb };
+      } else scan = { section: SourceSectionKind.Sounds, phase: SoundPhase.EventSeed, event };
+    } else if (state.phase === SoundPhase.EventSeed) {
+      const seed = accept(/^\d+\b/u);
+      if (seed === null) { fallback(); fail('Was expecting a sound seed here (a number like 123123, like you generate by pressing the buttons above the console panel), but found something else.'); }
+      else scan = { section: SourceSectionKind.Sounds, phase: SoundPhase.End, previous: seed.value, event: state.event };
+    } else if (state.phase === SoundPhase.Verb) {
+      const verb = accept(soundVerbs);
+      if (verb === null) { fallback(); fail('Was expecting a soundverb here (MOVE, DESTROY, CANTMOVE, or the like), but found something else.'); }
+      else scan = { section: SourceSectionKind.Sounds,
+        phase: verb.value === 'move' || verb.value === 'cantmove' ? SoundPhase.DirectionOrSeed : SoundPhase.Seed,
+        previous: verb.value };
+    } else if (state.phase === SoundPhase.End) {
+      const match = fallback();
+      fail(`I wasn't expecting anything after the sound declaration ${state.previous.toUpperCase()} on this line, so I don't know what to do with "${match.trim().toUpperCase()}" here.`);
     } else {
-      const last = sounds[sounds.length - 1]!;
-      if (sounds[0]!.role === SoundRole.Event || last.role === SoundRole.Seed) {
+      const directional = state.phase === SoundPhase.DirectionOrSeed;
+      const direction = directional ? accept(soundDirections) : null;
+      if (direction !== null) {
+        scan = { section: SourceSectionKind.Sounds, phase: SoundPhase.DirectionOrSeed, previous: direction.value };
+        return;
+      }
+      const seed = accept(/^\d+\b/u);
+      if (seed !== null) scan = { section: SourceSectionKind.Sounds, phase: SoundPhase.End, previous: seed.value, event: null };
+      else {
         const match = fallback();
-        fail(`I wasn't expecting anything after the sound declaration ${last.value.toUpperCase()} on this line, so I don't know what to do with "${match.trim().toUpperCase()}" here.`);
-      } else {
-        const directional = sounds[1]!.value === 'move' || sounds[1]!.value === 'cantmove';
-        if (directional && accept(soundDirections, SoundRole.Direction)) return;
-        if (!accept(/^\d+\b/u, SoundRole.Seed)) {
-          const match = fallback();
-          fail(`Ah I was expecting ${directional ? 'direction or a sound seed' : 'a sound seed'} here after ${last.value.toUpperCase()}, but I don't know what to make of "${match.trim().toUpperCase()}".`);
-        }
+        fail(`Ah I was expecting ${directional ? 'direction or a sound seed' : 'a sound seed'} here after ${state.previous.toUpperCase()}, but I don't know what to make of "${match.trim().toUpperCase()}".`);
       }
     }
   };
@@ -302,41 +317,49 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
     tokens.push(token); collisionNames.set(cursor.line.span.start.line, tokens);
     declarations.addCollisionName(token);
   };
-  const ruleToken = (sol: boolean): void => {
+  const ruleToken = (state: RuleScanState, sol: boolean): void => {
     if (!ruleNamesByLine.has(cursor.line.span.start.line)) ruleNamesByLine.set(cursor.line.span.start.line, declarations.ruleVocabulary);
-    if (sol) tokenIndex = 0;
-    if (tokenIndex === -4) { cursor.index = cursor.text.length; return; }
+    if (sol) state.phase = RulePhase.Prelude;
+    if (state.phase === RulePhase.MessageTail) { cursor.index = cursor.text.length; return; }
     if (cursor.match(/^[\p{Z}\s]*->[\p{Z}\s]*/u) !== null) return;
     if ('[|]+'.includes(cursor.character)) {
-      if (cursor.character !== '+') tokenIndex = 1;
+      if (cursor.character !== '+') state.phase = RulePhase.AfterPatternSeparator;
       cursor.next(); cursor.space(); return;
     }
     const word = cursor.match(/^[^\[|\]\p{Z}\s]*/u)!.trim();
-    if (tokenIndex === 0 && /^(startloop|endloop)$/u.test(word)) return;
-    if (tokenIndex === 0 && /^(up|down|left|right|horizontal|vertical|orthogonal|late|rigid)$/u.test(word)) { cursor.space(); return; }
-    if (tokenIndex === 1 && /^(action|up|down|left|right|\^|v|<|>|moving|stationary|parallel|perpendicular|horizontal|orthogonal|vertical|no|randomdir|random)$/u.test(word)) { cursor.space(); return; }
+    if (state.phase === RulePhase.Prelude && /^(startloop|endloop)$/u.test(word)) return;
+    if (state.phase === RulePhase.Prelude && /^(up|down|left|right|horizontal|vertical|orthogonal|late|rigid)$/u.test(word)) { cursor.space(); return; }
+    if (state.phase === RulePhase.AfterPatternSeparator && /^(action|up|down|left|right|\^|v|<|>|moving|stationary|parallel|perpendicular|horizontal|orthogonal|vertical|no|randomdir|random)$/u.test(word)) { cursor.space(); return; }
     if (declarations.isRuleName(word)) {
       if (sol) issue('Objects cannot appear outside of square brackets in rules, only directions can.');
       else cursor.space();
     } else if (word === '...' || word === 'rigid' || word === 'random') return;
-    else if (commands.has(word)) { if (word === 'message') tokenIndex = -4; }
+    else if (commands.has(word)) { if (word === 'message') state.phase = RulePhase.MessageTail; }
     else issue('Name "' + word + '", referred to in a rule, does not exist.');
   };
-  const winToken = (sol: boolean): void => {
-    if (sol) tokenIndex = -1;
-    tokenIndex++;
+  const winToken = (state: WinScanState, sol: boolean): void => {
+    if (sol) state.phase = WinPhase.Quantifier;
+    // Native increments before matching, including visits that report an error.
+    const expected = state.phase;
+    switch (expected) {
+      case WinPhase.Quantifier: state.phase = WinPhase.Subject; break;
+      case WinPhase.Subject: state.phase = WinPhase.On; break;
+      case WinPhase.On: state.phase = WinPhase.Target; break;
+      case WinPhase.Target: state.phase = WinPhase.Excess; break;
+      case WinPhase.Excess: break;
+    }
     const match = cursor.match(namePattern);
     if (match === null) { issue('incorrect format of win condition.'); cursor.discard(); return; }
     const word = match.trim();
-    if (tokenIndex === 0) {
+    if (expected === WinPhase.Quantifier) {
       if (!/^(all|any|no|some)$/u.test(word)) issue('Expecting the start of a win condition ("ALL","SOME","NO") but got "' + word.toUpperCase() + "'.");
-    } else if (tokenIndex === 2) {
+    } else if (expected === WinPhase.On) {
       if (word !== 'on') issue('Expecting the word "ON" but got "' + word.toUpperCase() + '".');
-    } else if (tokenIndex === 1 || tokenIndex === 3) {
+    } else if (expected === WinPhase.Subject || expected === WinPhase.Target) {
       if (!declarations.isRuleName(word)) issue('Error in win condition: "' + word.toUpperCase() + '" is not a valid object name.');
     } else issue("Error in win condition: I don't know what to do with " + word.toUpperCase() + '.');
   };
-  const levelToken = (sol: boolean, mixedCase: string): void => {
+  const levelToken = (state: LevelScanState, sol: boolean, mixedCase: string): void => {
     if (sol) {
       let message = cursor.match(/^[\p{Z}\s]*message\b[\p{Z}\s]*/u);
       if (message === null && cursor.match(/^[\p{Z}\s]*message[\p{Z}\s]*/u) !== null) {
@@ -345,24 +368,24 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
       }
       if (message !== null) {
         levelMessages.set(cursor.line.span.start.line, mixedCase.slice(cursor.index).trim());
-        tokenIndex = -4; levelMessage = true; return;
+        state.phase = LevelPhase.MessageTail; levelMessage = true; return;
       }
       const row = cursor.match(notComment, false)?.trim() ?? '';
-      tokenIndex = 2;
+      state.phase = LevelPhase.Grid;
       if (levelMessage) { gridWidth = row.length; gridHasRows = true; levelMessage = false; }
       else {
         if (!gridHasRows) { gridWidth = row.length; gridHasRows = true; }
         if (row.length !== gridWidth) issue('Maps must be rectangular, yo (In a level, the length of each row must be the same).', true);
       }
-    } else if (tokenIndex === -4) { cursor.index = cursor.text.length; return; }
-    if (tokenIndex === 2 && !cursor.end) {
+    } else if (state.phase === LevelPhase.MessageTail) { cursor.index = cursor.text.length; return; }
+    if (state.phase === LevelPhase.Grid && !cursor.end) {
       const glyph = cursor.next();
       if (!declarations.isLevelGlyph(glyph)) issue('Key "' + glyph.toUpperCase() + '" not found. Do you need to add it to the legend, or define a new object?');
     }
   };
-  const preludeToken = (sol: boolean, mixedCase: string): void => {
-    if (sol || afterComment) tokenIndex = 0;
-    if (tokenIndex === 0) {
+  const preludeToken = (state: PreludeScanState, sol: boolean, mixedCase: string): void => {
+    if (sol || resumeAsLineStart) state.phase = PreludePhase.Key;
+    if (state.phase === PreludePhase.Key) {
       const start = cursor.index, match = cursor.match(namePattern);
       if (match === null) {
         const text = cursor.text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -381,86 +404,120 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
           if (previous !== undefined) issue(`You've already defined a ${key.toUpperCase()} in the prelude on line <a onclick="jumpToLine(${previous});" href="javascript:void(0);">${previous}</a>.`, true);
           metadataLines.set(key, cursor.line.span.start.line);
         }
-        tokenIndex = 1;
+        state.phase = PreludePhase.Value;
       } else if (sourceMetadataFlags.has(key)) {
-        metadata.push({ key: cursor.trimmedToken(start, start + key.length), value: 'true' }); tokenIndex = -1;
+        metadata.push({ key: cursor.trimmedToken(start, start + key.length), value: 'true' }); state.phase = PreludePhase.FlagArguments;
         const value = cursor.match(notComment, false);
         if (value !== null) issue('MetaData ' + key.toUpperCase() + ' doesn\'t take any parameters, but you went and gave it "' + value.trim() + '".', true);
       } else issue('Unrecognised stuff in the prelude.');
     } else {
-      cursor.discard(); tokenIndex++;
-      if (tokenIndex > 2) issue("Error: you can't embed comments in metadata values. Anything after the comment will be ignored.", true);
+      cursor.discard();
+      if (state.phase === PreludePhase.FlagArguments) state.phase = PreludePhase.Key;
+      else if (state.phase === PreludePhase.Value) state.phase = PreludePhase.ValueTail;
+      else issue("Error: you can't embed comments in metadata values. Anything after the comment will be ignored.", true);
+    }
+  };
+  const beginPhysicalLine = (): void => {
+    legendExpression = new NativeLegendExpression();
+    lineShouldEnd = null;
+    switch (scan.section) {
+      case null: scan.phase = PreludePhase.Key; return;
+      case SourceSectionKind.Objects: return; // Object ownership and rows cross physical lines.
+      case SourceSectionKind.Legend: scan.phase = LegendPhase.Name; return;
+      case SourceSectionKind.Sounds: scan = { section: SourceSectionKind.Sounds, phase: SoundPhase.Head }; return;
+      case SourceSectionKind.CollisionLayers: return;
+      case SourceSectionKind.Rules: scan.phase = RulePhase.Prelude; return;
+      // A common precheck can consume physical SOL before the win body is visited.
+      // Native's initial zero then preincrements to Subject; logical SOL resets it.
+      case SourceSectionKind.WinConditions: scan.phase = WinPhase.Subject; return;
+      case SourceSectionKind.Levels: scan.phase = LevelPhase.Start; return;
+    }
+  };
+  const enterSection = (kind: SourceSectionKind): void => {
+    switch (kind) {
+      case SourceSectionKind.Objects: scan = { section: kind, phase: ObjectPhase.Names }; return;
+      case SourceSectionKind.Legend: scan = { section: kind, phase: LegendPhase.Name }; return;
+      case SourceSectionKind.Sounds: scan = { section: kind, phase: SoundPhase.Head }; return;
+      case SourceSectionKind.CollisionLayers: scan = { section: kind }; return;
+      case SourceSectionKind.Rules: scan = { section: kind, phase: RulePhase.Prelude }; return;
+      case SourceSectionKind.WinConditions: scan = { section: kind, phase: WinPhase.Quantifier }; return;
+      case SourceSectionKind.Levels: scan = { section: kind, phase: LevelPhase.Start }; return;
     }
   };
   const visit = (): void => {
-    const physicalSol = cursor.index === 0;
+    const physicalStart = cursor.index === 0;
     const mixedCase = cursor.line.original;
-    let sol = physicalSol;
-    if (sol) { legendExpression = new NativeLegendExpression(); sounds = []; soundFailed = false; soundEvent = null; tokenIndex = 0; lineShouldEnd = null; }
-    if (afterComment) { sol = true; afterComment = false; }
+    let sol = physicalStart;
+    if (physicalStart) beginPhysicalLine();
+    // A resumed comment supplies logical SOL without clearing physical line work.
+    if (resumeAsLineStart) { sol = true; resumeAsLineStart = false; }
     cursor.space();
     const character = cursor.character;
-    if (character === '(' && tokenIndex !== -4) { cursor.next(); commentDepth++; }
+    const messageTail = scan.section === SourceSectionKind.Rules && scan.phase === RulePhase.MessageTail
+      || scan.section === SourceSectionKind.Levels && scan.phase === LevelPhase.MessageTail;
+    if (character === '(' && !messageTail) { cursor.next(); commentDepth++; }
     else if (character === ')') {
       cursor.next();
       if (commentDepth > 0) {
         commentDepth--;
-        if (commentDepth === 0) { afterComment = true; return; }
+        if (commentDepth === 0) { resumeAsLineStart = true; return; }
       } else {
         issue("You're trying to close a comment here, but I can't find any opening bracket to match it? [This is highly suspicious; you probably want to fix it.]", true); return;
       }
     }
     if (commentDepth > 0) {
-      if (sol) afterComment = true;
+      if (sol) resumeAsLineStart = true;
       while (!cursor.end) {
         const character = cursor.next();
         if (character === '(') commentDepth++;
         else if (character === ')') commentDepth--;
         if (commentDepth === 0) break;
       }
-      if (cursor.end) endOfLine();
+      if (cursor.end) visitNativeEndOfLine();
       return;
     }
     cursor.space();
     if (sol && cursor.end) {
-      endOfLine();
-      if (section === SourceSectionKind.Levels && gridHasRows) { gridHasRows = false; gridWidth = null; }
-      if (section === SourceSectionKind.Objects) objectPart = ObjectPart.Names;
+      visitNativeEndOfLine();
+      if (scan.section === SourceSectionKind.Levels && gridHasRows) { gridHasRows = false; gridWidth = null; }
+      if (scan.section === SourceSectionKind.Objects) scan.phase = ObjectPhase.Names;
       return;
     }
     if (lineShouldEnd !== null && !cursor.end) {
       issue('Only comments should go after ' + lineShouldEnd + ' on a line.'); cursor.index = cursor.text.length; return;
     }
-    if (sol && (section !== SourceSectionKind.Levels || /^[\p{Z}\s=]*$/u.test(cursor.text.slice(cursor.index))) && cursor.match(/^=+/u) !== null) {
+    if (sol && (scan.section !== SourceSectionKind.Levels || /^[\p{Z}\s=]*$/u.test(cursor.text.slice(cursor.index))) && cursor.match(/^=+/u) !== null) {
       lineShouldEnd = "a bunch of equals signs ('===')"; return;
     }
-    if (section !== SourceSectionKind.Levels) {
+    if (scan.section !== SourceSectionKind.Levels) {
+      // Native consumes a heading-shaped word even when this is not logical SOL.
       const heading = cursor.match(/^(objects|collisionlayers|legend|sounds|rules|winconditions|levels)(?![\p{L}\p{N}_])[\p{Z}\s]*/u);
       if (sol && heading !== null) {
-        section = sourceSectionNames.indexOf(heading.trim() as typeof sourceSectionNames[number]);
-        const name = sourceSectionNames[section]!;
-        if (visited.includes(section)) issue('cannot duplicate sections (you tried to duplicate "' + name.toUpperCase() + '").');
+        const descriptor = sourceSectionDescriptors.find(section => section.name === heading.trim());
+        if (descriptor === undefined) throw new Error('Matched heading has no section descriptor.');
+        const { name, kind, predecessor } = descriptor;
+        enterSection(kind);
+        if (visited.includes(kind)) issue('cannot duplicate sections (you tried to duplicate "' + name.toUpperCase() + '").');
         lineShouldEnd = `a section name ("${name.toUpperCase()}")`;
-        visited.push(section);
-        if (section === SourceSectionKind.Objects) {
-          objectPart = ObjectPart.Names;
+        visited.push(kind);
+        if (predecessor === null) {
           if (visited.length > 1) issue('section "' + name.toUpperCase() + '" must be the first section');
-        } else if (!visited.includes(section - 1)) issue('section "' + name.toUpperCase() + '" is out of order, must follow  "' + sourceSectionNames[section - 1]!.toUpperCase() + '" (or it could be that the section "' + sourceSectionNames[section - 1]!.toUpperCase() + '"is just missing totally.  You have to include all section headings, even if the section itself is empty).');
-        if (section === SourceSectionKind.Sounds) declarations.captureRuleVocabulary();
-        else if (section === SourceSectionKind.Levels) declarations.captureLevelVocabulary();
+        } else if (!visited.includes(predecessor.kind)) issue('section "' + name.toUpperCase() + '" is out of order, must follow  "' + predecessor.name.toUpperCase() + '" (or it could be that the section "' + predecessor.name.toUpperCase() + '"is just missing totally.  You have to include all section headings, even if the section itself is empty).');
+        if (kind === SourceSectionKind.Sounds) declarations.captureRuleVocabulary();
+        else if (kind === SourceSectionKind.Levels) declarations.captureLevelVocabulary();
         return;
       }
     }
-    if (cursor.end) { endOfLine(); return; }
-    switch (section) {
-      case SourceSectionKind.Objects: objectToken(sol); return;
-      case SourceSectionKind.Legend: legendToken(); return;
-      case SourceSectionKind.Sounds: soundToken(); if (cursor.end) endOfLine(); return;
+    if (cursor.end) { visitNativeEndOfLine(); return; }
+    switch (scan.section) {
+      case SourceSectionKind.Objects: objectToken(scan, sol); return;
+      case SourceSectionKind.Legend: legendToken(scan); return;
+      case SourceSectionKind.Sounds: soundToken(scan); if (cursor.end) visitNativeEndOfLine(); return;
       case SourceSectionKind.CollisionLayers: collisionToken(sol); return;
-      case SourceSectionKind.Rules: ruleToken(sol); return;
-      case SourceSectionKind.WinConditions: winToken(sol); return;
-      case SourceSectionKind.Levels: levelToken(sol, mixedCase); return;
-      case null: preludeToken(sol, mixedCase); return;
+      case SourceSectionKind.Rules: ruleToken(scan, sol); return;
+      case SourceSectionKind.WinConditions: winToken(scan, sol); return;
+      case SourceSectionKind.Levels: levelToken(scan, sol, mixedCase); return;
+      case null: preludeToken(scan, sol, mixedCase); return;
     }
   };
   for (const line of splitSourceLines(source)) {
@@ -470,9 +527,9 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
       try { visit(); }
       catch (error) {
         if (!(error instanceof IssueCap)) throw error;
-        stop = { reason: SourceLexicalStopReason.Issues, cursor: cursor.position(), section }; break;
+        stop = { reason: SourceLexicalStopReason.Issues, cursor: cursor.position(), section: scan.section }; break;
       }
-      if (stopAtLimits && issues.errorCount > 5) { stop = { reason: SourceLexicalStopReason.Errors, cursor: cursor.position(), section }; break; }
+      if (stopAtLimits && issues.errorCount > 5) { stop = { reason: SourceLexicalStopReason.Errors, cursor: cursor.position(), section: scan.section }; break; }
     } while (!cursor.end);
     if (stop !== null) break;
   }

@@ -8,10 +8,7 @@ import { leadingContent, lineSpan, readComments, sourceWord, sourceWords, splitS
 import { readRule, type RuleParsingContext } from './source-rules.js';
 import { walkSourceLexically, sourceMetadataFlags as metadataFlags, sourceMetadataValues as metadataValues,
   SourceObjectLineKind, type SourceLexicalResult } from './source-lexical.js';
-
-const sectionKinds = new Map<string, SourceSectionKind>([['objects', SourceSectionKind.Objects], ['legend', SourceSectionKind.Legend],
-  ['sounds', SourceSectionKind.Sounds], ['collisionlayers', SourceSectionKind.CollisionLayers], ['rules', SourceSectionKind.Rules],
-  ['winconditions', SourceSectionKind.WinConditions], ['levels', SourceSectionKind.Levels]]);
+import { sourceSectionDescriptors } from './source-scan-state.js';
 
 function isLevels(section: SourceSection | null): boolean { return section?.kind === SourceSectionKind.Levels; }
 
@@ -22,8 +19,8 @@ function sectionHeading(line: SourceLine, view: string): SourceHeading | null {
   if (match === null || spelling === undefined) return null;
   const end = match[0].length;
   const name = sourceWord(line, end - spelling.length, end);
-  const kind = sectionKinds.get(name.normalized);
-  return kind === undefined ? null : { name, kind, trailingWords: sourceWords(line, ' '.repeat(end) + view.slice(end)) };
+  const descriptor = sourceSectionDescriptors.find(section => section.name === name.normalized);
+  return descriptor === undefined ? null : { name, kind: descriptor.kind, trailingWords: sourceWords(line, ' '.repeat(end) + view.slice(end)) };
 }
 
 /** Each native token acquires its authored word identity exactly once. */

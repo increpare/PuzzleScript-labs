@@ -92,6 +92,7 @@ npm --prefix typescript run example:session
 | [compatibility.ts](src/compatibility.ts) | Current restore and movement exceptions, plus historical research switches |
 | [source-compiler.ts](src/source-compiler.ts) | The complete compiler's explicit pass order |
 | [source-model.ts](src/source-model.ts), [source-reader.ts](src/source-reader.ts) | Authored evidence, bound accepted declarations/assets and parsed rule syntax |
+| [source-scan-state.ts](src/source-scan-state.ts), [source-lexical.ts](src/source-lexical.ts) | Section-specific scanner phases, explicit heading predecessors and native source visits |
 | [source-declarations.ts](src/source-declarations.ts), [source-legend.ts](src/source-legend.ts) | Source-order registrations, alias targets, compound members, vocabulary snapshots and layer membership |
 | [declarations.ts](src/declarations.ts) | Canonical objects, final name resolution and compiled layers |
 | [rule-lexing.ts](src/rule-lexing.ts), [source-rules.ts](src/source-rules.ts), [rule-syntax.ts](src/rule-syntax.ts) | Rule tokens, authoritative parsed syntax, then validation and domain projection |
@@ -200,8 +201,21 @@ diagnostics retain their existing checkpoints.
 The [accepted-declaration audit](../docs/superpowers/plans/2026-11-01-accepted-declarations.md)
 records this boundary and its new malformed-source/native comparisons. The broader
 [frontend completion checklist](../docs/superpowers/specs/2026-11-01-frontend-clarity-goal.md)
-remains active: shared numeric scanner state, sound/win grammar duplication,
-property-layer analysis and rule-pass contracts still need work.
+remains active: sound/win grammar duplication, property-layer analysis and
+rule-pass contracts still need work.
+
+The scanner now has a section-discriminated state. A rule scanner can be in
+`Prelude`, `AfterPatternSeparator` or `MessageTail`; it cannot take an object
+color phase. Sound states require the event or previous token only where needed.
+The shared numeric counter and redundant sound-token history are removed.
+Headings have explicit predecessor kinds, independent of enum ordinal values.
+
+Physical line initialization, logical comment resumption and native end-of-line
+registration remain separate operations. An unmatched terminal `)` can skip
+registration; a leading unmatched `)` can skip win quantifier initialization.
+Those recovery cases have direct native comparisons rather than a numeric-mode
+compatibility adapter. The [scanner audit](../docs/superpowers/plans/2026-11-01-scanner-states.md)
+records the boundary and its type contracts.
 
 The [declaration audit](../docs/superpowers/plans/2026-11-01-source-declarations.md)
 records the full 1,937-test run and a fresh 128-game per-move sample with 920
@@ -312,7 +326,7 @@ npm --prefix typescript test
 npm --prefix typescript run test:corpus -- --session
 ```
 
-The strict suite, including prepared-AGAIN, rule-frontend and declaration regressions, passes **1,964 tests**. Exact compilation comparison
+The strict suite, including prepared-AGAIN, scanner, rule-frontend and declaration regressions, passes **1,998 tests**. Exact compilation comparison
 covers **335 compiler fixtures**, **492 simulation sources** and **99,192 final
 executable rules**, including diagnostics, stopping outcomes, authored source
 evidence and declaration identities. The last completed full source-compiled replay,

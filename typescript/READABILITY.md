@@ -175,10 +175,19 @@ and [accepted-object-oracle.test.mjs](test/accepted-object-oracle.test.mjs).
 
 The active frontend work is tracked in the
 [completion checklist](../docs/superpowers/specs/2026-11-01-frontend-clarity-goal.md).
-Next remove shared `tokenIndex` sentinels through section-specific scanner states,
-then remove duplicated sound/win interpretation and strengthen property-layer and
-rule-pass types. The runtime suggestions below are separate from that frontend
-completion gate.
+[source-scan-state.ts](src/source-scan-state.ts) now gives each section its own
+named phase vocabulary and required sound payloads. The walker separates physical
+initialization, comment resumption and native line finalization, without a shared
+counter or sound-token history. Heading predecessors are explicit language
+relationships. [scanner-states.test.mjs](test/scanner-states.test.mjs) checks the
+native recovery paths; [source-scan-state-types.test.mjs](test/source-scan-state-types.test.mjs)
+rejects mixed section phases and missing payloads.
+
+Next remove duplicated sound/win interpretation and strengthen property-layer and
+rule-pass types. Native probes already expose compiler differences for midline
+heading words in sounds and comment truncation in win conditions; their accepted
+syntax must become authoritative. The runtime suggestions below are separate
+from that frontend completion gate.
 
 1. **Name the session probe policy inside `step`.** Extract helpers for rollback
    and commands that name retained history, RNG/events and committed effects.

@@ -20,9 +20,10 @@ types. Collision layers remain unnamed.
 - [ ] Each grammar construct has one authoritative recovered interpretation.
   Rules already have this boundary; sounds and win conditions still need it.
   Authored-invalid evidence remains available without becoming a second grammar.
-- [ ] Scanner modes and their transitions are named, section-specific states.
+- [x] Scanner modes and their transitions are named, section-specific states.
   Shared `tokenIndex` values such as -4/-1/0/1/2 and section-enum arithmetic no
-  longer stand in for unrelated language concepts.
+  longer stand in for unrelated language concepts. Evidence: the scanner-state
+  audit, native recovery comparisons, negative type contracts and 1,998-test run.
 - [ ] Property layer analysis distinguishes layered, unlayered, nonlocal and
   unresolved cases explicitly rather than using Map presence plus undefined.
 - [ ] Rule-pass input/output types express the actual guarantees of orientation,
