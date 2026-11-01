@@ -58,8 +58,9 @@ vanilla source/compiler oracles.
   fresh seed. Keep native producers/comparisons unchanged; no exhaustive replay.
 - [x] Update README, READABILITY, this audit and the broad completion checklist
   with actual evidence. Do not mark the overall goal complete.
-- [ ] Commit and fast-forward clean local master, then build and run focused
+- [x] Commit and fast-forward clean local master, then build and run focused
   integration checks. Preserve unrelated local work; do not push it.
+  Integrated as `98a79dd3`; primary build and all 48 integration tests passed.
 
 ## Verification audit
 
