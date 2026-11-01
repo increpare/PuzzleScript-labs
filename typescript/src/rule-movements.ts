@@ -113,6 +113,18 @@ function expandAt(parent: PartialRule, expansion: MovementExpansion): PartialRul
     expansions: [...parent.expansions, expansion] };
 }
 
+/** Finish one cell's families in term order. Repeated entity/family terms share a choice. */
+function chooseCellMovements(parent: PartialRule, sourceCell: RuleCellAddress): PartialRule[] {
+  const { rowIndex, cellIndex } = sourceCell;
+  const term = parent.rule.lhs[rowIndex]![cellIndex]!.find((candidate): candidate is NamedRuleTerm<MovementFamily> =>
+    isMovementFamily(candidate.qualifier));
+  if (term === undefined) return [parent];
+  return choices(term.qualifier).flatMap(chosenQualifier => {
+    const child = expandAt(parent, { entityName: term.name, family: term.qualifier, chosenQualifier, sourceCell });
+    return chooseCellMovements(child, sourceCell);
+  });
+}
+
 /** The entity/family's first choice is usable only when all its evidence comes from one cell. */
 function entityMovementSource(expansions: readonly MovementExpansion[], entityName: string,
   family: MovementFamily): MovementExpansion | undefined {
@@ -157,34 +169,23 @@ export type MovementExpansionResult = {
   readonly abortsCompilation: true;
 };
 
-/** Expand movement families in native work order, then infer remaining RHS movement. */
+/** Enumerate concrete assignments in surviving native order, then infer RHS movement. */
 export function expandRuleMovements(rules: readonly OrientedRule[], report?: SourceIssueReporter): MovementExpansionResult {
   const expanded: OrientedRule[] = [];
   const diagnostics: SourceDiagnostic[] = [];
   for (const input of rules) {
-    const pending: PartialRule[] = [{ rule: { ...input, lhs: copyRows(input.lhs), rhs: copyRows(input.rhs) }, expansions: [] }];
-    const completed: PartialRule[] = [];
-    while (pending.length > 0) {
-      const parent = pending.shift()!;
-      let producedChild = false;
-      for (const [rowIndex, row] of parent.rule.lhs.entries()) {
-        for (const [cellIndex, cell] of row.entries()) {
-          const term = cell.find((candidate): candidate is NamedRuleTerm<MovementFamily> =>
-            isMovementFamily(candidate.qualifier));
-          if (term === undefined) continue;
-          producedChild = true;
-          // Every eligible cell branches from this same unchanged parent.
-          // Only its first family term branches here; keep every duplicate path.
-          for (const chosenQualifier of choices(term.qualifier)) {
-            pending.push(expandAt(parent, { entityName: term.name, family: term.qualifier,
-              chosenQualifier, sourceCell: { rowIndex, cellIndex } }));
-          }
-        }
+    let partials: PartialRule[] = [{ rule: { ...input, lhs: copyRows(input.lhs), rhs: copyRows(input.rhs) }, expansions: [] }];
+    // Of the native interleavings, the last one finishes the last cell first.
+    // Enumerate that order directly: earlier cells' choices vary faster.
+    // Separate inputs remain separate until the final duplicate pass.
+    for (let rowIndex = input.lhs.length - 1; rowIndex >= 0; rowIndex--) {
+      for (let cellIndex = input.lhs[rowIndex]!.length - 1; cellIndex >= 0; cellIndex--) {
+        const sourceCell = { rowIndex, cellIndex };
+        partials = partials.flatMap(parent => chooseCellMovements(parent, sourceCell));
       }
-      if (!producedChild) completed.push(parent);
     }
 
-    const variants = completed.map(inferRightMovements);
+    const variants = partials.map(inferRightMovements);
     let remainingFamily: MovementFamily | undefined;
     for (const variant of variants) {
       for (const row of variant.rhs) for (const cell of row) for (const term of cell) {

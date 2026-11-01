@@ -99,6 +99,30 @@ const fixtures = [
       })));
     }),
   },
+  {
+    name: 'surviving movement-choice order controls seeded random selection',
+    source: movementSource({ rules: [
+      'right [ Wall | action Player | Crate ] -> [ Wall | right Player | up Crate ]',
+      'right [ action Player | Crate ] -> [ left Player | down Crate ]',
+      'random right [ horizontal Player | vertical Crate ] -> [ | ]',
+    ].join('\n'), level: '.......\n#PC.PC.\n.......' }),
+    input: model.Movement.Action,
+    expected: ['.......', '#..P...', '.....C.'],
+    counterfactual: ['..C....', '#.P....', '.......'],
+    withoutBehavior: game => {
+      const groups = game.earlyRules.groups;
+      assert.equal(groups.length, 3);
+      const group = groups[2];
+      assert.equal(group.random, true);
+      assert.equal(group.rules.length, 4);
+      // Player varies fastest in the native survivors. Making Crate vary fastest
+      // swaps the two matching candidates and removes the other Player/Crate pair.
+      const [leftUp, rightUp, leftDown, rightDown] = group.rules;
+      return { ...game, earlyRules: { ...game.earlyRules, groups: [
+        ...groups.slice(0, 2), { ...group, rules: [leftUp, leftDown, rightUp, rightDown] },
+      ] } };
+    },
+  },
 ];
 
 for (const fixture of fixtures) {

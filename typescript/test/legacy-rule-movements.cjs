@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { loadPuzzleScript } = require('./native-host.cjs');
+const { nativeMovementLastChoices } = require('./native-movement-last-choices.cjs');
 
 function createRuleMovementsOracle(types) {
   loadPuzzleScript({ includeTests: true });
@@ -55,7 +56,7 @@ function createRuleMovementsOracle(types) {
     parsed.invalid = false;
     const diagnostics = [];
     const originals = ['logError', 'logWarning', 'logWarningNoLine'].map(name => globalThis[name]);
-    const rules = [], owners = [];
+    const rules = [], owners = [], nativePaths = [], nativePathOwners = [];
     try {
       globalThis.logError = (message, line) => diagnostics.push({ message, line: line ?? null,
         severity: types.SourceDiagnosticSeverity.Error, countsAsError: true });
@@ -65,13 +66,16 @@ function createRuleMovementsOracle(types) {
         severity: types.SourceDiagnosticSeverity.Warning, countsAsError: true });
       named.forEach((rule, index) => {
         const variants = concretizeMovingRule(parsed, rule, rule.lineNumber);
-        rules.push(...variants);
-        owners.push(...variants.map(() => index));
+        nativePaths.push(...variants);
+        nativePathOwners.push(...variants.map(() => index));
+        const choices = nativeMovementLastChoices(variants);
+        rules.push(...choices);
+        owners.push(...choices.map(() => index));
       });
     } finally {
       ['logError', 'logWarning', 'logWarningNoLine'].forEach((name, index) => { globalThis[name] = originals[index]; });
     }
-    return { before, after: nativeView(rules), owners, diagnostics, invalidBeforeMovement,
+    return { before, after: nativeView(rules), owners, nativePaths: nativeView(nativePaths), nativePathOwners, diagnostics, invalidBeforeMovement,
       abortsCompilation: parsed.invalid === true, syntaxCount: syntax.length, captured: parsed.rules.length };
   }
 

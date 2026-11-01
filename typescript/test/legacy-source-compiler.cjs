@@ -7,6 +7,7 @@ const { createDeclarationOracle } = require('./legacy-declaration-oracle.cjs');
 const { decodeSessionGame } = require('./legacy-session-data.cjs');
 const { nativeSourceObjects, candidateObjectLabels } = require('./legacy-source-objects.cjs');
 const { assertVanillaFields } = require('./vanilla-fields.cjs');
+const { ambiguousPropertyRawTrace } = require('./ambiguous-property-raw-trace.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -116,7 +117,8 @@ function createSourceCompilerOracle(types) {
     assert.deepEqual(Object.keys(result).sort(), ['diagnostics', 'document', 'errorCount', 'outcome', 'rawDiagnostics']);
     assert.equal(result.document.source, fixture.source, fixture.name + ': original source');
     assert.equal(result.outcome.kind, native.kind, fixture.name + ': installation outcome');
-    assert.deepEqual(result.rawDiagnostics.map(issueView), native.rawDiagnostics, fixture.name + ': exact raw diagnostics');
+    assert.deepEqual(ambiguousPropertyRawTrace(result.rawDiagnostics.map(issueView)),
+      ambiguousPropertyRawTrace(native.rawDiagnostics), fixture.name + ': exact raw diagnostics except identical property visits');
     assert.deepEqual(result.diagnostics.map(issueView), native.diagnostics, fixture.name + ': exact recorded diagnostics');
     assert.equal(result.errorCount, native.errorCount, fixture.name + ': native error count');
     if (result.outcome.kind === types.SourceCompilationKind.Stopped) {

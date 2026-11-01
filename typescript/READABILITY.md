@@ -81,6 +81,16 @@ normalization, including the pinned source/error corpora; it does not assert
 meaning for fabricated cyclic dictionaries where native normalization hangs.
 Movement inference remains a separate pass with its own evidence scopes.
 
+Movement choices are enumerated once per concrete assignment. In
+`[ horizontal Player | vertical Crate ]`, they are Left/Up, Right/Up, Left/Down,
+Right/Down. The last cell's choices surround the earlier cell's choices; within
+one cell, families retain term order. Vanilla reaches the same four survivors by
+generating eight interleaved expansion histories and keeping their last copies.
+`chooseCellMovements` finishes one cell's families; `expandRuleMovements` visits
+cells from last to first. There is no history queue or early merge across source
+inputs. The [derivation and oracle boundary](../docs/superpowers/plans/2026-11-01-direct-movement-choices.md)
+distinguish concrete choices from those redundant histories.
+
 ## 2. Two ellipses record distances, then writes use the live board
 
 [two-ellipsis-relay-live.ps](../src/tests/semantic-fixtures/interaction-matching/two-ellipsis-relay-live.ps)
@@ -311,6 +321,8 @@ the explicit domain boundaries. The
 [traversal audit](../docs/superpowers/plans/2026-11-01-traversal-clarity.md)
 records the subsequent property-source collection, explicit expansion queues,
 movement evidence queries, shared recorded-row walk and named rigid restoration.
+The later direct-choice audit replaces movement's history queue with concrete
+assignment enumeration; property expansion retains its own queue.
 The two-ellipsis-relay-live and cross-layer-row-overlap fixtures guard live reads
 and ordered writes; component tests also preserve checked/unchecked gap behavior
 and lazy error order. Rigid-again, rigid-checkpoint and rigid-cancel guard the

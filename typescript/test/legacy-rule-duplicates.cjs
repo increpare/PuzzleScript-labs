@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { loadPuzzleScript } = require('./native-host.cjs');
+const { nativeMovementLastChoices } = require('./native-movement-last-choices.cjs');
 
 function createRuleDuplicatesOracle(types) {
   loadPuzzleScript({ includeTests: true });
@@ -67,7 +68,7 @@ function createRuleDuplicatesOracle(types) {
       rephraseSynonyms(parsed, rule);
     }
     const named = nativeView(orientedRules);
-    const movementRules = orientedRules.flatMap(rule => concretizeMovingRule(parsed, rule, rule.lineNumber));
+    const movementRules = orientedRules.flatMap(rule => nativeMovementLastChoices(concretizeMovingRule(parsed, rule, rule.lineNumber)));
     const movement = nativeView(movementRules);
     const propertyRules = movementRules.flatMap(rule => concretizePropertyRule(parsed, rule, rule.lineNumber));
     const properties = nativeView(propertyRules);

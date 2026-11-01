@@ -37,13 +37,22 @@ predicate retention and concrete expansion use the same source relationship.
 Only construction knows which members were selected; diagnostics still follow
 expansion so empty branches can remove otherwise unresolved uses.
 
-Property and movement expansion each use a pending FIFO queue and a completed
-list. Property expansion branches at the first eligible property site. Movement
-expansion branches at every eligible cell of the unchanged parent, using the
-first movement family in each cell. Duplicate paths remain ordered data.
+Property expansion uses a pending FIFO queue and completed list, branching at
+the first eligible property site. Movement expansion enumerates concrete
+assignments directly: last bracket row and last cell first, with each cell's
+families chosen in term order. This is the order that survives vanilla's
+keep-last removal of repeated expansion histories. Separate named inputs and
+selectors remain separate until the final duplicate pass.
 Movement RHS inference first asks whether that entity/family expanded at one
 source cell; its fallback across entity names requires exactly one family
 expansion event. Equal selected directions do not establish either uniqueness.
+
+The [direct-choice derivation](../docs/superpowers/plans/2026-11-01-direct-movement-choices.md)
+records why intermediate movement arrays may differ while final executable
+rules retain their order. Fewer histories can also produce fewer identical raw
+property-error visits. Recorded diagnostics, error counts, stopping and game
+behavior remain the compatibility contract; raw visits describe this compiler's
+actual work.
 
 ## Transformations with observable behavior
 
@@ -76,7 +85,7 @@ recovery has named boundaries (`NativeLegendExpression`, native-name lookup,
 effective message cursor and compatibility policy); it is not silently encoded
 in ordinary objects or layer masks.
 
-## Four behavioral witnesses
+## Five behavioral witnesses
 
 [frontend-transformations.test.mjs](test/frontend-transformations.test.mjs)
 independently compiles each real source with vanilla and compares every session
@@ -91,6 +100,7 @@ compiler array shape. All use seed `frontend-0`.
 | Execute `up [ Player \| Player ] -> [ random Choice \| random Choice ]`, where Choice is Crate or Wall, on two vertical Players | Crate above Wall | Source-Up edit order swaps the same two draws: Wall above Crate |
 | Retain the first selector of `random [ Player ] -> [ Crate ]` on a 2×2 Player board | Bottom-left becomes Crate | Keeping the later Right selector instead chooses top-right |
 | Keep Item as a local predicate in the existing Blue-Red-Blue overlap fixture | `B.bP` (Blue survives and is marked) | Ordered concrete variants produce `bR.P` (Red survives and is marked) |
+| Retain surviving movement-choice order for a random rule that removes one of two moving Player/Crate pairs | `....... / #..P... / .....C.` | Making the earlier cell vary slowest removes the other pair: `..C.... / #.P.... / .......` |
 
 Here `.` is background, `P` Player, `C` Crate; uppercase Red/Blue include Mark.
 The overlap source and hand-explained expected moves live in
@@ -98,6 +108,13 @@ The overlap source and hand-explained expected moves live in
 and its fixture manifest. The independent full-compiler contradiction check in
 [frontend-domain-boundaries.test.mjs](test/frontend-domain-boundaries.test.mjs)
 also confirms warning order, accepted compilation and the empty schedule.
+
+In the movement-choice witness, the first pair moves Right/Up and the second
+Left/Down. The surviving variant order puts the Right/Up match before Left/Down.
+The seed selects the first pair for removal; the other pair then moves Left/Down.
+Swapping the middle variants swaps those two random candidates and changes the
+board. Native source compilation and every session observation are compared
+before the separate counterfactual game graph is exercised.
 
 ## Validation and limits
 

@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { loadPuzzleScript } = require('./native-host.cjs');
+const { nativeMovementLastChoices } = require('./native-movement-last-choices.cjs');
 
 function createRulePropertiesOracle(types) {
   loadPuzzleScript({ includeTests: true });
@@ -49,7 +50,7 @@ function createRulePropertiesOracle(types) {
     }
     const invalidBeforeMovement = parsed.invalid === true;
     parsed.invalid = false;
-    const movement = named.flatMap(rule => concretizeMovingRule(parsed, rule, rule.lineNumber));
+    const movement = named.flatMap(rule => nativeMovementLastChoices(concretizeMovingRule(parsed, rule, rule.lineNumber)));
     const movementInvalid = parsed.invalid === true;
     const before = nativeView(movement);
     options.beforeProperties?.({ rules: before, syntaxInvalid: invalidBeforeMovement, movementInvalid });

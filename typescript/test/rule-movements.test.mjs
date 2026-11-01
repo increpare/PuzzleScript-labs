@@ -99,9 +99,9 @@ test('different entities in one cell count as separate family events', () => {
 
 test('equal concrete choices at repeated sites do not make distant inference unique', () => {
   const { result } = oracle.compareFixture(fixture('right [ horizontal Player | horizontal Player | Crate ] -> [ Player | Player | horizontal Player ]'));
-  assert.equal(result.rules.length, 8);
+  assert.equal(result.rules.length, 4);
   const equal = result.rules.filter(rule => rule.lhs[0][0][0].qualifier === rule.lhs[0][1][0].qualifier);
-  assert.equal(equal.length, 4);
+  assert.equal(equal.length, 2);
   assert.ok(equal.every(rule => rule.rhs[0][2][0].qualifier === Q.Horizontal));
   assert.equal(result.diagnostics.length, 1);
 });
@@ -123,10 +123,13 @@ test('same option sets retain distinct horizontal and parallel family identities
   assert.match(result.diagnostics[0].message, /"horizontal_par"/);
 });
 
-test('split cells retain every append/remove duplicate in the exact intermediate order', () => {
-  const { result } = oracle.compareFixture(fixture('right [ horizontal Player | vertical Crate ] -> [ horizontal Player | vertical Crate ]'));
+test('native split-cell eight-path reference compacts to four choices in last-occurrence order', () => {
+  const { result, expected } = oracle.compareFixture(fixture('right [ horizontal Player | vertical Crate ] -> [ horizontal Player | vertical Crate ]'));
+  assert.deepEqual(expected.nativePaths.map(rule => rule.lhs[0].map(cell => cell[0])), [
+    ['left', 'up'], ['left', 'down'], ['right', 'up'], ['right', 'down'],
+    ['left', 'up'], ['right', 'up'], ['left', 'down'], ['right', 'down'],
+  ]);
   assert.deepEqual(pairs(result.rules), [
-    [Q.Left, Q.Up], [Q.Left, Q.Down], [Q.Right, Q.Up], [Q.Right, Q.Down],
     [Q.Left, Q.Up], [Q.Right, Q.Up], [Q.Left, Q.Down], [Q.Right, Q.Down],
   ]);
 });
@@ -136,10 +139,9 @@ test('two families in one cell expand only its first family before the second', 
   assert.deepEqual(pairs(result.rules), [[Q.Left, Q.Up], [Q.Left, Q.Down], [Q.Right, Q.Up], [Q.Right, Q.Down]]);
 });
 
-test('cell scanning proceeds through later bracket rows from the unchanged parent', () => {
+test('later bracket rows expand first in native last-occurrence choice order', () => {
   const { result } = oracle.compareFixture(fixture('right [ horizontal Player ] [ vertical Crate ] -> [ horizontal Player ] [ vertical Crate ]'));
   assert.deepEqual(result.rules.map(rule => [rule.lhs[0][0][0].qualifier, rule.lhs[1][0][0].qualifier]), [
-    [Q.Left, Q.Up], [Q.Left, Q.Down], [Q.Right, Q.Up], [Q.Right, Q.Down],
     [Q.Left, Q.Up], [Q.Right, Q.Up], [Q.Left, Q.Down], [Q.Right, Q.Down],
   ]);
 });
@@ -222,9 +224,11 @@ test('aggregate-appended terms retain their order and authored evidence', () => 
 });
 
 for (const [name, item, corrupt] of [
-  ['Cartesian product or early dedup', fixture('right [ horizontal Player | vertical Crate ] -> [ horizontal Player | vertical Crate ]'), result => ({ ...result, rules: result.rules.slice(0, 4) })],
-  ['Cartesian-product order with all duplicate paths retained', fixture('right [ horizontal Player | vertical Crate ] -> [ horizontal Player | vertical Crate ]'), result => ({ ...result,
+  ['missing direct choice', fixture('right [ horizontal Player | vertical Crate ] -> [ horizontal Player | vertical Crate ]'), result => ({ ...result, rules: result.rules.slice(0, 3) })],
+  ['wrong surviving Cartesian order', fixture('right [ horizontal Player | vertical Crate ] -> [ horizontal Player | vertical Crate ]'), result => ({ ...result,
     rules: [...result.rules].sort((a, b) => a.lhs[0][0][0].qualifier - b.lhs[0][0][0].qualifier || a.lhs[0][1][0].qualifier - b.lhs[0][1][0].qualifier) })],
+  ['premature merging across repeated named inputs', fixture('right right [ horizontal Player | vertical Crate ] -> [ horizontal Player | vertical Crate ]'), result => ({ ...result, rules: result.rules.slice(0, 4) })],
+  ['premature merging across distinct source groups', fixture('right [ horizontal Player | vertical Crate ] -> [ horizontal Player | vertical Crate ]\nright [ horizontal Player | vertical Crate ] -> [ horizontal Player | vertical Crate ]'), result => ({ ...result, rules: result.rules.slice(0, 4) })],
   ['reordered work', fixture('right [ horizontal Player | vertical Crate ] -> [ horizontal Player | vertical Crate ]'), result => ({ ...result, rules: [...result.rules].reverse() })],
   ['merged equal-option families', fixture('right [ horizontal Player ] -> [ parallel Player ]'), result => ({ ...result, rules: rewriteRight(result.rules, q => q === Q.HorizontalParallel ? Q.Left : q) })],
   ['inference from equal values at multiple sites', fixture('right [ horizontal Player | horizontal Player | Crate ] -> [ Player | Player | horizontal Player ]'), result => ({ ...result,
@@ -277,7 +281,7 @@ test('every native parser/compiler producer is guarded during candidate executio
   assert.throws(() => oracle.independently(() => runInThisContext('new CodeMirror.StringStream("", 4)')), /Candidate called native CodeMirror.StringStream/);
 });
 
-test('all 492 pinned vanilla sources match complete movement order, duplicates, diagnostics and stage invalidity', t => {
+test('all 492 pinned vanilla sources match native last choices, diagnostics and stage invalidity', t => {
   const fixtures = oracle.corpusFixtures();
   assert.equal(fixtures.length, 492);
   const totals = { sources: 0, syntax: 0, inputs: 0, outputs: 0, diagnostics: 0, aborted: 0 };
@@ -290,6 +294,6 @@ test('all 492 pinned vanilla sources match complete movement order, duplicates, 
     totals.diagnostics += result.diagnostics.length;
     totals.aborted += Number(result.abortsCompilation);
   }
-  assert.deepEqual(totals, { sources: 492, syntax: 16674, inputs: 26093, outputs: 30121, diagnostics: 0, aborted: 0 });
+  assert.deepEqual(totals, { sources: 492, syntax: 16674, inputs: 26093, outputs: 30007, diagnostics: 0, aborted: 0 });
   t.diagnostic(JSON.stringify(totals));
 });

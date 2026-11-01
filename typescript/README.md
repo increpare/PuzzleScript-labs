@@ -62,6 +62,12 @@ formed game, declarations, sprites, palette, metadata and authored rule links.
 `Invalid` and `Stopped` expose no game. Acceptance follows vanilla's installation
 decision: some accepted games have compilation errors.
 
+`rawDiagnostics` records the port's actual issue visits. Direct movement
+expansion can visit an identical property error fewer times than vanilla;
+recorded diagnostics, error counts, stopping and game behavior remain unchanged.
+The [direct-choice audit](../docs/superpowers/plans/2026-11-01-direct-movement-choices.md)
+explains that deliberate intermediate difference.
+
 Pass an Accepted outcome's exact `game` to `createSession`. Use `Movement.Right`
 and the other actual enum values with `stepSession`; use `undoSession`,
 `restartSession` and `advanceSession` for the corresponding operations. The host
@@ -388,7 +394,8 @@ npm --prefix typescript run test:corpus -- --session
 
 The strict suite, including object-source contracts, source/member construction
 separation, turn-input/calculation contracts, fresh prepared-turn commitment,
-probe ordering and the earlier frontend regressions, passes **2,151 tests**.
+probe ordering, direct movement choices and the earlier frontend regressions,
+passes **2,173 tests**.
 Exact compilation comparison
 covers **335 compiler fixtures**, **492 simulation sources** and **99,192 final
 executable rules**, including diagnostics, stopping outcomes, authored source
@@ -422,6 +429,17 @@ intermediate property/spawn variants**, and **256 generated games** with
 is independent of layers and member choices. No generated case was excluded,
 and no discrepancy, oracle exception or timeout occurred. Source and reading
 guide reviews found no remaining actionable issues.
+
+The [direct movement-choice audit](../docs/superpowers/plans/2026-11-01-direct-movement-choices.md)
+passes all **2,173 tests** and **256 generated cases**, with **1,791 per-operation
+comparisons**, **256 loads** and no exclusions, mismatches or timeouts. The core
+enumerates concrete assignments directly in surviving native order. Corpus
+movement variants drop from 30,121 to 30,007 and property/spawn variants from
+106,392 to 106,122, while all 99,192 final executable rules remain identical.
+Recorded diagnostics and installation outcomes remain exact; raw diagnostics
+may contain fewer identical property-error visits, as explicitly permitted.
+Independent specification and quality reviews approved the algorithm, native
+adapter boundaries and the seeded random ordering witness.
 
 The earlier rule-frontend checkpoint passed a 128-game generated per-move sample
 (907 observations) and at least 218 original-game replays. Its additional exhaustive

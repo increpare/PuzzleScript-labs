@@ -466,7 +466,7 @@ test('all 492 pinned vanilla sources match complete property and spawn sequences
     totals.diagnostics += result.diagnostics.length;
     totals.movementInvalid += Number(movement.abortsCompilation);
   }
-  assert.deepEqual(totals, { sources: 492, syntax: 16674, named: 26093, movement: 30121,
-    properties: 106392, spawned: 106392, diagnostics: 0, movementInvalid: 0 });
+  assert.deepEqual(totals, { sources: 492, syntax: 16674, named: 26093, movement: 30007,
+    properties: 106122, spawned: 106122, diagnostics: 0, movementInvalid: 0 });
   t.diagnostic(JSON.stringify(totals));
 });

@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { loadPuzzleScript } = require('./native-host.cjs');
+const { nativeMovementLastChoices } = require('./native-movement-last-choices.cjs');
 const { assertVanillaFields } = require('./vanilla-fields.cjs');
 const { nativeSourceObjects, candidateObjectLabels } = require('./legacy-source-objects.cjs');
 
@@ -56,7 +57,7 @@ function createRuleLoweringOracle(types) {
       rephraseSynonyms(parsed, copy);
       named.push(copy);
     }
-    const moving = named.flatMap(rule => concretizeMovingRule(parsed, rule, rule.lineNumber));
+    const moving = named.flatMap(rule => nativeMovementLastChoices(concretizeMovingRule(parsed, rule, rule.lineNumber)));
     const properties = moving.flatMap(rule => concretizePropertyRule(parsed, rule, rule.lineNumber));
     properties.forEach(rule => makeSpawnedObjectsStationary(parsed, rule, rule.lineNumber));
     properties.forEach(rule => cacheRuleStringRep(rule));

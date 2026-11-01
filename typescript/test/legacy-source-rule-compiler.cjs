@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { nativeSourceObjects } = require('./legacy-source-objects.cjs');
 const { createSourceSchedulesOracle } = require('./legacy-source-schedules.cjs');
+const { ambiguousPropertyRawTrace } = require('./ambiguous-property-raw-trace.cjs');
 function createSourceRuleCompilerOracle(types) {
   const stages = createSourceSchedulesOracle(types);
   const gameplayProducers = [...fs.readFileSync(path.join(__dirname, './vanilla/js/engine.js'), 'utf8')
@@ -112,7 +113,7 @@ function createSourceRuleCompilerOracle(types) {
         rigid: expected.data.rigid, rigidMerges: expected.data.rigidMerges,
       }, fixture.name + ': every final predicate/edit/command/group/loop/rigid field');
     }
-    assert.deepEqual(result.diagnostics.map(issue => {
+    assert.deepEqual(ambiguousPropertyRawTrace(result.diagnostics.map(issue => {
       assert.equal(issue.phase, types.SourceDiagnosticPhase.Rules);
       assert.equal(typeof issue.code, 'string');
       if (issue.span !== null) for (const position of [issue.span.start, issue.span.end]) {
@@ -122,7 +123,7 @@ function createSourceRuleCompilerOracle(types) {
       }
       return { message: issue.message, line: issue.span?.start.line ?? null,
         severity: issue.severity, countsAsError: issue.countsAsError };
-    }), expected.diagnostics, fixture.name + ': complete raw rule diagnostics');
+    })), ambiguousPropertyRawTrace(expected.diagnostics), fixture.name + ': complete raw rule diagnostics except identical property visits');
     return { document, declarations, result, expected };
   }
   function nativeRandomApplication(source, seed) {

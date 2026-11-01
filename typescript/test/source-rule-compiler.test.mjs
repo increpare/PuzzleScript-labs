@@ -114,6 +114,17 @@ test('property ambiguity drops its input without invalidating surviving schedule
   assert.equal(result.data.earlyRules.groups.length, 1);
 });
 
+test('direct choices reduce repeated raw property visits while final rule schedules stay native', () => {
+  const { result, expected } = oracle.compareFixture(fixture(
+    'right [ horizontal Player | vertical Crate | random Things ] -> [ horizontal Player | vertical Crate | Things ]\nright [ Player ] -> win',
+    'Things = Player or Crate'));
+  assert.equal(expected.diagnostics.length, 8, 'actual native rulesToArray retains eight visits');
+  assert.equal(result.diagnostics.length, 4, 'direct expansion retains four visits');
+  assert.ok(result.diagnostics.every(issue => issue.code === 'ambiguous-rule-property'));
+  assert.notEqual(result.data, null);
+  assert.equal(result.data.earlyRules.groups[0].rules.length, 1);
+});
+
 test('successful stages preserve canonical syntax command objects and declaration objects', async () => {
   let syntax;
   await withCompilerHooks({ recoverRuleSyntax: (real, ...args) => (syntax = real(...args)) }, compileSourceRules => {

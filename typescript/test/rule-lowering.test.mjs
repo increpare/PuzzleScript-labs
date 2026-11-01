@@ -459,6 +459,6 @@ test('all 492 vanilla sources match exact lowered order, fields and diagnostics'
     totals.diagnostics += compared.result.diagnostics.length;
   }
   t.diagnostic(JSON.stringify(totals));
-  assert.deepEqual(totals, { sources: 492, syntax: 16674, named: 26093, movement: 30121, spawned: 106392,
+  assert.deepEqual(totals, { sources: 492, syntax: 16674, named: 26093, movement: 30007, spawned: 106122,
     duplicates: 99567, lowered: 99443, overlaps: 251, diagnostics: 146 });
 });

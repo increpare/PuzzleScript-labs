@@ -378,5 +378,5 @@ test('all 492 vanilla sources match every preceding sequence and ordered duplica
   }
   t.diagnostic(JSON.stringify(totals));
   assert.deepEqual(totals, { sources: 492, syntax: 16674, named: 26093,
-    movement: 30121, spawned: 106392, survivors: 99567 });
+    movement: 30007, spawned: 106122, survivors: 99567 });
 });

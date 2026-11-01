@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import { createCompiledGameComparator, compareCompiledGame } from './legacy-source-compiler.cjs';
 import * as sourceTypes from '../build/source-model.js';
 import { createSourceCompilerOracle } from './legacy-source-compiler.cjs';
+import { ambiguousPropertyRawTrace } from './ambiguous-property-raw-trace.cjs';
 import { createGameDataOracle } from './legacy-game-data-oracle.cjs';
 import * as model from '../build/model.js';
 import * as sessionModel from '../build/session-model.js';
@@ -76,7 +77,7 @@ test('all 335 pinned compilation sources match actual compile diagnostics and ac
   }
   t.diagnostic(JSON.stringify(totals));
   assert.deepEqual(totals, { sources: 335, formed: 315, invalid: 17, stopped: 3,
-    accepted: 306, declined: 9, raw: 876, recorded: 705 });
+    accepted: 306, declined: 9, raw: 872, recorded: 705 });
 });
 
 test('all 492 pinned simulation sources match complete actual compilation semantics and issues', t => {
@@ -164,6 +165,56 @@ test('constructed: explicit orphan and issue 1206 remain in the whole source res
 });
 
 const corruptResult = mutate => text => { const result = compileSource(text); mutate(result); return result; };
+
+const repeatedPropertyFixture = (distinct = false) => ({
+  name: 'constructed: direct choices repeat only the same ambiguous property visit',
+  source: movementSource({ rules: [
+    'right [ horizontal Player | vertical Crate | random Things ] -> [ horizontal Player | vertical Crate | Things ]',
+    ...(distinct ? ['right [ random Others ] -> [ Others ]'] : []),
+    'right [ Player ] -> win',
+  ].join('\n') }).replace('C = Crate', 'C = Crate\nThings = Player or Crate\nOthers = Crate or Wall'),
+});
+
+test('direct choices reduce eight identical raw property visits to four with the same displayed error and final game', () => {
+  const { result, native } = oracle.compareFixture(repeatedPropertyFixture());
+  assert.equal(native.rawDiagnostics.length, 8, 'actual unmodified native compiler still visits all eight histories');
+  assert.equal(result.rawDiagnostics.length, 4, 'direct expansion visits four choices');
+  assert.ok(result.rawDiagnostics.every(issue => issue.code === 'ambiguous-rule-property'));
+  assert.ok(native.rawDiagnostics.every(issue => JSON.stringify(issue) === JSON.stringify(native.rawDiagnostics[0])));
+  for (const issue of result.rawDiagnostics) assert.deepEqual(oracle.issueView(issue), native.rawDiagnostics[0]);
+  assert.deepEqual(result.diagnostics.map(oracle.issueView), native.diagnostics);
+  assert.equal(result.diagnostics.length, 1);
+  assert.equal(result.errorCount, 1);
+  assert.equal(native.errorCount, 1);
+  assert.equal(result.outcome.kind, SourceCompilationKind.Accepted);
+  assert.equal(native.kind, SourceCompilationKind.Accepted);
+  assert.equal(native.stopped, false);
+  const finalRules = [...result.outcome.game.earlyRules.groups, ...result.outcome.game.lateRules.groups].flatMap(group => group.rules);
+  assert.equal(finalRules.length, 1, 'the error drops only the ambiguous input');
+  assert.equal(result.outcome.ruleSources.get(finalRules[0]).originalLine.original, 'right [ Player ] -> win');
+});
+
+test('raw trace projection keeps unrelated repeats, distinct property evidence and intervening issue order', () => {
+  const property = oracle.issueView(compileSource(repeatedPropertyFixture().source).rawDiagnostics[0]);
+  const unrelated = { ...property, message: 'a different compiler issue' };
+  const otherLine = { ...property, line: property.line + 1 };
+  const otherSeverity = { ...property, severity: sourceTypes.SourceDiagnosticSeverity.Warning };
+  const otherCount = { ...property, countsAsError: false };
+  const otherUrgency = { ...property, urgent: true };
+  assert.deepEqual(ambiguousPropertyRawTrace([property, property, unrelated, unrelated, property, property,
+    otherLine, otherSeverity, otherCount, otherUrgency]),
+  [property, unrelated, unrelated, property, otherLine, otherSeverity, otherCount, otherUrgency]);
+});
+
+for (const [name, mutate] of [
+  ['missing distinct property error', result => { result.rawDiagnostics = result.rawDiagnostics.filter(issue => !issue.message.includes('"OTHERS"')); }],
+  ['reordered distinct property errors', result => { result.rawDiagnostics.reverse(); }],
+  ['changed repeated error flags', result => { result.rawDiagnostics[0] = { ...result.rawDiagnostics[0], countsAsError: false }; }],
+  ['changed repeated error line', result => { result.rawDiagnostics[0] = { ...result.rawDiagnostics[0], reportedLine: 1 }; }],
+]) test('raw property run projection rejects ' + name, () => {
+  assert.throws(() => oracle.compareFixture(repeatedPropertyFixture(true), { compileSource: corruptResult(mutate) }), /exact raw diagnostics/);
+});
+
 test('comparator rejects deliberately corrupted diagnostics, acceptance, rule semantics and source identity', () => {
   const fixture = originalFixture('Background missing');
   assert.throws(() => oracle.compareFixture(fixture, { compileSource: corruptResult(result => {
