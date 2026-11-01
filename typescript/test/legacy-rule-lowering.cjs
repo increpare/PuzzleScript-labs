@@ -175,6 +175,7 @@ function createRuleLoweringOracle(types) {
       const inputs = { document, declarations, syntax, negatives, oriented, named, moving, properties, spawned, duplicates, rules };
       freezeInput(inputs);
       const snapshot = structuredClone(inputs);
+      assert.equal(moving.abortsCompilation, false, 'lowering oracle requires successful movement expansion');
       const result = (options.lowerRules ?? types.lowerRules)(rules, declarations);
       assert.deepEqual(inputs, snapshot, 'lowering inputs are unchanged');
       return { ...inputs, result };

@@ -12,7 +12,7 @@ import { expandRuleProperties } from './rule-properties.js';
 import { inferSpawnedStationary } from './rule-spawns.js';
 import { recoverRuleSyntax } from './rule-syntax.js';
 import type { SourceDiagnostic, SourceDocument } from './source-model.js';
-import type { OrientedRule } from './source-rule-model.js';
+import type { DirectedNamedRule, MovementRule, OrientedQualifier, OrientedRule } from './source-rule-model.js';
 import { compileRuleSchedules } from './source-rule-schedules.js';
 import type { TurnRulesGame } from './turn-rules.js';
 
@@ -20,7 +20,7 @@ export type CompiledRuleData = Pick<TurnRulesGame, 'earlyRules' | 'lateRules' | 
 
 /** Compile authored rules with one canonical declaration result and native checkpoints. */
 export function expandSourceRules(document: SourceDocument, declarations: ResolvedDeclarations, report?: SourceIssueReporter): {
-  readonly rules: readonly OrientedRule[] | null;
+  readonly rules: readonly MovementRule[] | null;
   readonly loops: readonly SourceLoopMarker[];
   readonly diagnostics: readonly SourceDiagnostic[];
 } {
@@ -37,17 +37,24 @@ export function expandSourceRules(document: SourceDocument, declarations: Resolv
   }
   const movements = expandRuleMovements(namedRules, report);
   diagnostics.push(...movements.diagnostics);
-  const properties = expandRuleProperties(movements.rules, declarations, report);
-  diagnostics.push(...properties.diagnostics);
-  const spawned = inferSpawnedStationary(properties.rules, declarations);
+  function finish<Q extends OrientedQualifier>(rules: readonly DirectedNamedRule<Q>[]) {
+    const properties = expandRuleProperties(rules, declarations, report);
+    diagnostics.push(...properties.diagnostics);
+    return inferSpawnedStationary(properties.rules, declarations);
+  }
+  if (movements.abortsCompilation) {
+    finish(movements.rules);
+    return { rules: null, loops: syntax.loops, diagnostics };
+  }
+  const spawned = finish(movements.rules);
   // A retained syntax error also survives an empty selector collection. Ordinary
   // authored bracket rules supply selectors, but the final checkpoint still owns it.
-  if (syntax.abortsCompilation || movements.abortsCompilation) return { rules: null, loops: syntax.loops, diagnostics };
+  if (syntax.abortsCompilation) return { rules: null, loops: syntax.loops, diagnostics };
   return { rules: spawned, loops: syntax.loops, diagnostics };
 }
 
 export function lowerSourceRules(
-  rules: readonly OrientedRule[], declarations: ResolvedDeclarations, report?: SourceIssueReporter, quirks?: Quirks,
+  rules: readonly MovementRule[], declarations: ResolvedDeclarations, report?: SourceIssueReporter, quirks?: Quirks,
 ) {
   return lowerRules(normalizeRuleDuplicates(rules), declarations, report, quirks);
 }

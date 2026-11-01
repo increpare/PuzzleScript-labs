@@ -28,6 +28,13 @@ AtomicQualifier. These are structurally different finite domains, not aliases of
 the same broad record. One qualifier parameter is enough; do not add left/right
 side parameters for unused precision. Preserve all fields and source identities.
 
+Implementation evidence exposed overly permissive inferred variance through the
+plain nested readonly array aliases in the installed compiler. Declare covariance
+on readonly cell/rows interfaces and DirectedNamedRule explicitly, and retain
+negative tests at every nesting level. This changes only erased type declarations,
+not runtime array structure or fields. The isolated reproduction is recorded in
+the implementation audit.
+
 ## Transitions and errors
 
 Orientation visits all terms and returns OrientedRule, including recovered extra

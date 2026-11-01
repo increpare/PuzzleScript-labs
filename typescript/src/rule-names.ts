@@ -1,7 +1,7 @@
 import { appendSourceIssue, type SourceIssueReporter } from './source-diagnostics.js';
 import type { ResolvedDeclarations } from './declaration-model.js';
 import { SourceDiagnosticPhase, SourceDiagnosticSeverity, type SourceDiagnostic } from './source-model.js';
-import { RuleQualifier, type NamedRuleCell, type NamedRuleTerm, type OrientedRule } from './source-rule-model.js';
+import { RuleQualifier, type NamedRuleCell, type NamedRuleTerm, type OrientedQualifier, type OrientedRule } from './source-rule-model.js';
 
 /** Atomize ordered aggregates without entering synonym substitution. */
 export function expandRuleAggregates(rules: readonly OrientedRule[], declarations: ResolvedDeclarations, report?: SourceIssueReporter): {
@@ -10,7 +10,7 @@ export function expandRuleAggregates(rules: readonly OrientedRule[], declaration
 } {
   const diagnostics: SourceDiagnostic[] = [];
 
-  function atomize(cell: NamedRuleCell, rule: OrientedRule): NamedRuleTerm[] {
+  function atomize(cell: NamedRuleCell<OrientedQualifier>, rule: OrientedRule): NamedRuleTerm<OrientedQualifier>[] {
     const expanded = cell.map(term => ({ ...term }));
     for (let index = 0; index < expanded.length; index++) {
       const term = expanded[index]!;
@@ -48,7 +48,7 @@ export function expandRuleAggregates(rules: readonly OrientedRule[], declaration
 
 /** Substitute final synonyms once, only within the corresponding LHS boundaries. */
 export function substituteRuleSynonyms(rules: readonly OrientedRule[], declarations: ResolvedDeclarations): readonly OrientedRule[] {
-  const rephrase = (cell: NamedRuleCell): NamedRuleCell => cell.map(term => ({ ...term,
+  const rephrase = (cell: NamedRuleCell<OrientedQualifier>): NamedRuleCell<OrientedQualifier> => cell.map(term => ({ ...term,
     name: declarations.ruleNames.synonyms.get(term.name) ?? term.name }));
   return rules.map(rule => ({ ...rule, lhs: rule.lhs.map(row => row.map(rephrase)),
     rhs: rule.rhs.map((row, rowIndex) => row.map((cell, cellIndex) =>

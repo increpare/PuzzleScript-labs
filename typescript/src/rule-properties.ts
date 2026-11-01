@@ -1,7 +1,8 @@
 import { appendSourceIssue, type SourceIssueReporter } from './source-diagnostics.js';
 import { PropertyLayerKind, type ResolvedDeclarations } from './declaration-model.js';
 import { SourceDiagnosticPhase, SourceDiagnosticSeverity, type SourceDiagnostic } from './source-model.js';
-import { RuleQualifier, type NamedRuleCell, type NamedRuleRows, type NamedRuleTerm, type OrientedRule } from './source-rule-model.js';
+import { RuleQualifier, type DirectedNamedRule, type NamedRuleCell, type NamedRuleRows,
+  type NamedRuleTerm, type OrientedQualifier } from './source-rule-model.js';
 
 /** Private evidence records expansion sites, never a binding used by the runtime. */
 interface PropertyChoice {
@@ -10,8 +11,8 @@ interface PropertyChoice {
   readonly expandedCells: number;
 }
 
-interface PartialRule {
-  readonly rule: OrientedRule;
+interface PartialRule<Q extends OrientedQualifier> {
+  readonly rule: DirectedNamedRule<Q>;
   readonly choices: readonly PropertyChoice[];
 }
 
@@ -21,22 +22,25 @@ interface ExpansionSite {
   readonly property: string;
 }
 
-function copyRows(rows: NamedRuleRows): NamedRuleTerm[][][] {
+function copyRows<Q extends OrientedQualifier>(rows: NamedRuleRows<Q>): NamedRuleTerm<Q>[][][] {
   return rows.map(row => row.map(cell => cell.map(term => ({ ...term }))));
 }
 
-function substitute(cell: NamedRuleCell, property: string, member: string): NamedRuleTerm[] {
+function substitute<Q extends OrientedQualifier>(cell: NamedRuleCell<Q>, property: string, member: string): NamedRuleTerm<Q>[] {
   return cell.map(term => ({ ...term,
     name: term.name === property && term.qualifier !== RuleQualifier.RandomObject ? member : term.name }));
 }
 
-/** Expand ordered property choices, retaining local single-layer predicates. */
-export function expandRuleProperties(rules: readonly OrientedRule[], declarations: ResolvedDeclarations, report?: SourceIssueReporter): {
-  readonly rules: readonly OrientedRule[];
+/** Expand ordered property choices without changing qualifiers. Surviving ordinary
+ * properties need no further transported-property expansion; local single-layer
+ * and unlayered predicates, random properties and recovery names may remain. */
+export function expandRuleProperties<Q extends OrientedQualifier>(rules: readonly DirectedNamedRule<Q>[],
+  declarations: ResolvedDeclarations, report?: SourceIssueReporter): {
+  readonly rules: readonly DirectedNamedRule<Q>[];
   readonly diagnostics: readonly SourceDiagnostic[];
 } {
   const properties = declarations.ruleNames.properties;
-  const expanded: OrientedRule[] = [];
+  const expanded: DirectedNamedRule<Q>[] = [];
   const diagnostics: SourceDiagnostic[] = [];
 
   function participatingNames(cell: NamedRuleCell): string[] {
@@ -44,14 +48,14 @@ export function expandRuleProperties(rules: readonly OrientedRule[], declaration
       .map(term => term.name);
   }
 
-  function expandNegatives(cell: NamedRuleCell): NamedRuleTerm[] {
+  function expandNegatives(cell: NamedRuleCell<Q>): NamedRuleTerm<Q>[] {
     return cell.flatMap(term => {
       const members = term.qualifier === RuleQualifier.No ? properties.get(term.name)?.alternatives : undefined;
       return members === undefined ? [{ ...term }] : members.map(name => ({ ...term, name }));
     });
   }
 
-  function firstSite(rule: OrientedRule, transported: ReadonlySet<string>): ExpansionSite | undefined {
+  function firstSite(rule: DirectedNamedRule<Q>, transported: ReadonlySet<string>): ExpansionSite | undefined {
     for (let rowIndex = 0; rowIndex < rule.lhs.length; rowIndex++) {
       const row = rule.lhs[rowIndex]!;
       for (let cellIndex = 0; cellIndex < row.length; cellIndex++) {
@@ -66,7 +70,7 @@ export function expandRuleProperties(rules: readonly OrientedRule[], declaration
     return undefined;
   }
 
-  function choose(parent: PartialRule, site: ExpansionSite, member: string): PartialRule {
+  function choose(parent: PartialRule<Q>, site: ExpansionSite, member: string): PartialRule<Q> {
     const { rowIndex, cellIndex, property } = site;
     const lhs = copyRows(parent.rule.lhs), rhs = copyRows(parent.rule.rhs);
     lhs[rowIndex]![cellIndex] = substitute(lhs[rowIndex]![cellIndex]!, property, member);
@@ -98,7 +102,7 @@ export function expandRuleProperties(rules: readonly OrientedRule[], declaration
       }
     }
 
-    const work: PartialRule[] = [{ rule: { ...input, lhs, rhs }, choices: [] }];
+    const work: PartialRule<Q>[] = [{ rule: { ...input, lhs, rhs }, choices: [] }];
     for (let index = 0; index < work.length;) {
       const parent = work[index]!;
       const site = firstSite(parent.rule, transported);

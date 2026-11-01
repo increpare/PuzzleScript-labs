@@ -1,6 +1,6 @@
 import type { SourceObjectDeclaration, SourceAliasDeclaration, SourcePropertyDeclaration, SourceAggregateDeclaration, SourceDeclarationAdvice, SourceAliasOriginKind, SourceLegendAliasOrigin } from './source-declarations.js';
 import type { Direction } from './model.js';
-import type { RuleQualifier } from './source-rule-model.js';
+import type { SourceQualifier } from './source-rule-model.js';
 import type { AcceptedSound } from './source-sound-syntax.js';
 import type { AcceptedWinCondition } from './source-win-syntax.js';
 
@@ -93,7 +93,7 @@ export enum SourceRuleKind { Ordinary, StartLoop, EndLoop, Invalid }
 export enum SourceRuleCellKind { Contents, Ellipsis }
 export interface SourceRuleTerm {
   readonly qualifier: SourceWord | null;
-  readonly qualifierValue: RuleQualifier;
+  readonly qualifierValue: SourceQualifier;
   readonly name: SourceWord;
   /** Effective whole-line lowercase value, which can differ from name.normalized. */
   readonly nameValue: string;

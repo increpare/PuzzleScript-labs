@@ -204,9 +204,19 @@ silently become valid layer-zero lowering. Guards include
 and property semantic checks, and independent oracle controls for false layers,
 wrong classifications and unresolved reference order.
 
-Next strengthen rule-pass input/output contracts, then audit every retained
-frontend transformation against observable behavior. The runtime suggestions
-below are separate from that frontend completion gate.
+Rule stages now distinguish source, oriented and atomic qualifier domains.
+Movement success is statically lowerable; invalid movement retains families for
+property diagnostics. Generic property/spawn/duplicate helpers preserve the
+useful guarantees, without pretending all names become concrete. Explicit
+covariant readonly collections enforce the nested boundaries. Guards include
+[rule-pass-types.test.mjs](test/rule-pass-types.test.mjs),
+[rule-pass-contracts.test.mjs](test/rule-pass-contracts.test.mjs) and native
+compiler tests of the movement→property→spawn continuation before abort.
+Lowering no longer silently ignores unsupported qualifiers.
+
+Next audit every retained frontend transformation against observable behavior
+and complete an independent readability pass. The runtime suggestions below are
+separate from that frontend completion gate.
 
 1. **Name the session probe policy inside `step`.** Extract helpers for rollback
    and commands that name retained history, RNG/events and committed effects.

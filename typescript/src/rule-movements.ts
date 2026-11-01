@@ -1,6 +1,7 @@
 import { appendSourceIssue, type SourceIssueReporter } from './source-diagnostics.js';
 import { SourceDiagnosticPhase, SourceDiagnosticSeverity, type SourceDiagnostic } from './source-model.js';
-import { RuleQualifier, type NamedRuleCell, type NamedRuleRows, type NamedRuleTerm, type OrientedRule } from './source-rule-model.js';
+import { RuleQualifier, type AbsoluteMovementQualifier, type AtomicQualifier, type MovementFamily, type MovementRule,
+  type NamedRuleCell, type NamedRuleRows, type NamedRuleTerm, type OrientedQualifier, type OrientedRule } from './source-rule-model.js';
 
 interface ExpansionCell {
   readonly rowIndex: number;
@@ -10,8 +11,8 @@ interface ExpansionCell {
 /** Private evidence describes one local expansion, rather than a runtime binding. */
 interface MovementExpansion {
   readonly entityName: string;
-  readonly family: RuleQualifier;
-  readonly chosenQualifier: RuleQualifier;
+  readonly family: MovementFamily;
+  readonly chosenQualifier: AbsoluteMovementQualifier;
   readonly sourceCell: ExpansionCell;
 }
 
@@ -20,7 +21,47 @@ interface PartialRule {
   readonly expansions: readonly MovementExpansion[];
 }
 
-function choices(family: RuleQualifier): readonly RuleQualifier[] {
+function isAtomicQualifier(qualifier: OrientedQualifier): qualifier is AtomicQualifier {
+  switch (qualifier) {
+    case RuleQualifier.Unspecified:
+    case RuleQualifier.Up:
+    case RuleQualifier.Down:
+    case RuleQualifier.Left:
+    case RuleQualifier.Right:
+    case RuleQualifier.Action:
+    case RuleQualifier.Stationary:
+    case RuleQualifier.No:
+    case RuleQualifier.RandomObject:
+    case RuleQualifier.RandomDirection:
+    case RuleQualifier.Ellipsis:
+      return true;
+    case RuleQualifier.Horizontal:
+    case RuleQualifier.Vertical:
+    case RuleQualifier.Orthogonal:
+    case RuleQualifier.Moving:
+    case RuleQualifier.HorizontalParallel:
+    case RuleQualifier.VerticalParallel:
+    case RuleQualifier.HorizontalPerpendicular:
+    case RuleQualifier.VerticalPerpendicular:
+      return false;
+  }
+  const unsupported: never = qualifier;
+  throw new Error(`Unsupported oriented qualifier: ${unsupported}`);
+}
+
+function isMovementFamily(qualifier: OrientedQualifier): qualifier is MovementFamily {
+  return !isAtomicQualifier(qualifier);
+}
+
+function isMovementRows(rows: NamedRuleRows<OrientedQualifier>): rows is NamedRuleRows<AtomicQualifier> {
+  return rows.every(row => row.every(cell => cell.every(term => isAtomicQualifier(term.qualifier))));
+}
+
+function isMovementRule(rule: OrientedRule): rule is MovementRule {
+  return isMovementRows(rule.lhs) && isMovementRows(rule.rhs);
+}
+
+function choices(family: MovementFamily): readonly AbsoluteMovementQualifier[] {
   switch (family) {
     case RuleQualifier.Horizontal:
     case RuleQualifier.HorizontalParallel:
@@ -34,12 +75,12 @@ function choices(family: RuleQualifier): readonly RuleQualifier[] {
       return [RuleQualifier.Up, RuleQualifier.Down, RuleQualifier.Left, RuleQualifier.Right];
     case RuleQualifier.Moving:
       return [RuleQualifier.Up, RuleQualifier.Down, RuleQualifier.Left, RuleQualifier.Right, RuleQualifier.Action];
-    default:
-      return [];
   }
+  const unsupported: never = family;
+  throw new Error(`Unsupported movement family: ${unsupported}`);
 }
 
-function familySpelling(family: RuleQualifier): string {
+function familySpelling(family: MovementFamily): string {
   switch (family) {
     case RuleQualifier.Horizontal: return 'horizontal';
     case RuleQualifier.Vertical: return 'vertical';
@@ -49,15 +90,17 @@ function familySpelling(family: RuleQualifier): string {
     case RuleQualifier.VerticalParallel: return 'vertical_par';
     case RuleQualifier.HorizontalPerpendicular: return 'horizontal_perp';
     case RuleQualifier.VerticalPerpendicular: return 'vertical_perp';
-    default: throw new Error('Expected an oriented movement family.');
   }
+  const unsupported: never = family;
+  throw new Error(`Unsupported movement family: ${unsupported}`);
 }
 
-function copyRows(rows: NamedRuleRows): NamedRuleTerm[][][] {
+function copyRows(rows: NamedRuleRows<OrientedQualifier>): NamedRuleTerm<OrientedQualifier>[][][] {
   return rows.map(row => row.map(cell => cell.map(term => ({ ...term }))));
 }
 
-function replaceInCell(cell: NamedRuleCell, expansion: MovementExpansion, entityName: string | undefined): NamedRuleTerm[] {
+function replaceInCell(cell: NamedRuleCell<OrientedQualifier>, expansion: MovementExpansion,
+  entityName: string | undefined): NamedRuleTerm<OrientedQualifier>[] {
   return cell.map(term => ({ ...term,
     qualifier: term.qualifier === expansion.family && (entityName === undefined || term.name === entityName)
       ? expansion.chosenQualifier : term.qualifier }));
@@ -94,7 +137,7 @@ function inferRightMovements(partial: PartialRule): OrientedRule {
   }
   // Then a family may cross entity names only if there was exactly one event.
   // Equal concrete directions at several sites do not make this evidence unique.
-  const families: RuleQualifier[] = [];
+  const families: MovementFamily[] = [];
   for (const expansion of partial.expansions) {
     if (families.includes(expansion.family)) continue;
     families.push(expansion.family);
@@ -105,12 +148,18 @@ function inferRightMovements(partial: PartialRule): OrientedRule {
   return { ...partial.rule, rhs };
 }
 
-/** Expand movement families in native work order, then infer remaining RHS movement. */
-export function expandRuleMovements(rules: readonly OrientedRule[], report?: SourceIssueReporter): {
+export type MovementExpansionResult = {
+  readonly rules: readonly MovementRule[];
+  readonly diagnostics: readonly SourceDiagnostic[];
+  readonly abortsCompilation: false;
+} | {
   readonly rules: readonly OrientedRule[];
   readonly diagnostics: readonly SourceDiagnostic[];
-  readonly abortsCompilation: boolean;
-} {
+  readonly abortsCompilation: true;
+};
+
+/** Expand movement families in native work order, then infer remaining RHS movement. */
+export function expandRuleMovements(rules: readonly OrientedRule[], report?: SourceIssueReporter): MovementExpansionResult {
   const expanded: OrientedRule[] = [];
   const diagnostics: SourceDiagnostic[] = [];
   for (const input of rules) {
@@ -121,7 +170,8 @@ export function expandRuleMovements(rules: readonly OrientedRule[], report?: Sou
       for (let rowIndex = 0; rowIndex < parent.rule.lhs.length; rowIndex++) {
         const row = parent.rule.lhs[rowIndex]!;
         for (let cellIndex = 0; cellIndex < row.length; cellIndex++) {
-          const term = row[cellIndex]!.find(candidate => choices(candidate.qualifier).length > 0);
+          const term = row[cellIndex]!.find((candidate): candidate is NamedRuleTerm<MovementFamily> =>
+            isMovementFamily(candidate.qualifier));
           if (term === undefined) continue;
           producedChild = true;
           // Every eligible cell branches from this same unchanged parent.
@@ -137,10 +187,10 @@ export function expandRuleMovements(rules: readonly OrientedRule[], report?: Sou
     }
 
     const variants = work.map(inferRightMovements);
-    let remainingFamily: RuleQualifier | undefined;
+    let remainingFamily: MovementFamily | undefined;
     for (const variant of variants) {
       for (const row of variant.rhs) for (const cell of row) for (const term of cell) {
-        if (remainingFamily === undefined && choices(term.qualifier).length > 0) remainingFamily = term.qualifier;
+        if (remainingFamily === undefined && isMovementFamily(term.qualifier)) remainingFamily = term.qualifier;
       }
       if (remainingFamily !== undefined) break;
     }
@@ -152,5 +202,7 @@ export function expandRuleMovements(rules: readonly OrientedRule[], report?: Sou
     }
     expanded.push(...variants);
   }
-  return { rules: expanded, diagnostics, abortsCompilation: diagnostics.length > 0 };
+  if (diagnostics.length > 0) return { rules: expanded, diagnostics, abortsCompilation: true };
+  if (!expanded.every(isMovementRule)) throw new Error('Movement expansion succeeded with an unresolved movement family.');
+  return { rules: expanded, diagnostics, abortsCompilation: false };
 }

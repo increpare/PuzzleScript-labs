@@ -202,8 +202,7 @@ diagnostics retain their existing checkpoints.
 The [accepted-declaration audit](../docs/superpowers/plans/2026-11-01-accepted-declarations.md)
 records this boundary and its new malformed-source/native comparisons. The broader
 [frontend completion checklist](../docs/superpowers/specs/2026-11-01-frontend-clarity-goal.md)
-remains active: rule-pass contracts and the final transformation audit still
-need work.
+remains active for the final transformation and readability audit.
 
 The scanner now has a section-discriminated state. A rule scanner can be in
 `Prelude`, `AfterPatternSeparator` or `MessageTail`; it cannot take an object
@@ -244,6 +243,22 @@ own case handling, preserving the distinct recovery behavior of unlayered
 properties. Native dictionary translation lives only in the independent test
 adapter, which also validates the explicit cases against canonical members and
 layers. See the [property-layer audit](../docs/superpowers/plans/2026-11-01-property-layer-types.md).
+
+Rule passes now narrow finite qualifier domains: authored source, oriented terms
+and expanded atomic terms. Successful movement expansion returns `MovementRule`;
+invalid expansion retains unresolved families for later property diagnostics.
+Property inference preserves the qualifier domain, spawn inference can add
+Stationary, and duplicate filtering preserves the original record subtype.
+Lowering accepts only the atomic domain and has no silent movement fallback.
+The compiler still runs property and spawn passes before aborting an invalid
+movement result.
+
+Nested readonly row types declare covariance explicitly. Negative compilation
+tests check term, cell, rows and whole-rule assignments, including copied/mapped
+arrays and the complete helper pipeline. These declarations erase at runtime;
+there are no new stage fields or wrapper objects. Property output deliberately
+does not claim all names are concrete: local, random and recovered names remain
+valid. See the [rule-pass audit](../docs/superpowers/plans/2026-11-01-rule-pass-contracts.md).
 
 The [declaration audit](../docs/superpowers/plans/2026-11-01-source-declarations.md)
 records the full 1,937-test run and a fresh 128-game per-move sample with 920
@@ -354,7 +369,7 @@ npm --prefix typescript test
 npm --prefix typescript run test:corpus -- --session
 ```
 
-The strict suite, including prepared-AGAIN, scanner, sound/win, property-layer, rule-frontend and declaration regressions, passes **2,055 tests**. Exact compilation comparison
+The strict suite, including prepared-AGAIN, scanner, sound/win, property-layer, rule-pass and declaration regressions, passes **2,062 tests**. Exact compilation comparison
 covers **335 compiler fixtures**, **492 simulation sources** and **99,192 final
 executable rules**, including diagnostics, stopping outcomes, authored source
 evidence and declaration identities. The last completed full source-compiled replay,

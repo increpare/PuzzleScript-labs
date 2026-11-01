@@ -1,5 +1,5 @@
 import { CommandKind, type Command } from './commands.js';
-import { RuleQualifier, type NamedRuleRows, type OrientedRule } from './source-rule-model.js';
+import { RuleQualifier, type DirectedNamedRule, type NamedRuleRows } from './source-rule-model.js';
 
 function sameRows(first: NamedRuleRows, second: NamedRuleRows): boolean {
   if (first.length !== second.length) return false;
@@ -33,7 +33,7 @@ function sameCommands(first: readonly Command[], second: readonly Command[]): bo
   return true;
 }
 
-function sameRule(first: OrientedRule, second: OrientedRule): boolean {
+function sameRule(first: DirectedNamedRule, second: DirectedNamedRule): boolean {
   if (first.source.originalLine.span.start.line !== second.source.originalLine.span.start.line
     || first.late !== second.late || first.rigid !== second.rigid || first.random !== second.random) return false;
   if (!sameRows(first.lhs, second.lhs) || !sameRows(first.rhs, second.rhs)) return false;
@@ -43,10 +43,10 @@ function sameRule(first: OrientedRule, second: OrientedRule): boolean {
 }
 
 /** Keep the last equal variant within each contiguous source group, in source order. */
-export function normalizeRuleDuplicates(rules: readonly OrientedRule[]): readonly OrientedRule[] {
-  const survivors: OrientedRule[] = [];
+export function normalizeRuleDuplicates<T extends DirectedNamedRule>(rules: readonly T[]): readonly T[] {
+  const survivors: T[] = [];
   let group: number | undefined;
-  let retained: OrientedRule[] = [];
+  let retained: T[] = [];
   for (let index = rules.length - 1; index >= 0; index--) {
     const rule = rules[index]!;
     if (rule.sourceGroup !== group) retained = [];

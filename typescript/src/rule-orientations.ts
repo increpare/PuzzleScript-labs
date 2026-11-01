@@ -1,9 +1,10 @@
 import { Direction } from './model.js';
-import { RuleQualifier, type NamedRuleRows, type OrientedRule, type RuleSyntax } from './source-rule-model.js';
+import { RuleQualifier, type NamedRuleRows, type OrientedQualifier, type OrientedRule, type RuleSyntax,
+  type SourceQualifier } from './source-rule-model.js';
 
 /** Resolve one retained selector before the compiler visits its invalid checkpoint. */
 export function orientRule(rule: RuleSyntax, original: Direction): OrientedRule {
-  function absolute(qualifier: RuleQualifier, direction: Direction): RuleQualifier {
+  function absolute(qualifier: SourceQualifier, direction: Direction): OrientedQualifier {
     switch (qualifier) {
       case RuleQualifier.Counterclockwise:
       case RuleQualifier.Clockwise:
@@ -59,7 +60,7 @@ export function orientRule(rule: RuleSyntax, original: Direction): OrientedRule 
     }
   }
 
-  function orientSide(side: NamedRuleRows, direction: Direction, reverseRows: number): NamedRuleRows {
+  function orientSide(side: NamedRuleRows<SourceQualifier>, direction: Direction, reverseRows: number): NamedRuleRows<OrientedQualifier> {
     return side.map((row, index) => {
       const oriented = row.map(cell => cell.map(term => ({ ...term, qualifier: absolute(term.qualifier, direction) })));
       if (index < reverseRows) oriented.reverse();

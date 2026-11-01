@@ -2,7 +2,7 @@ import { appendSourceIssue, type SourceIssueReporter } from './source-diagnostic
 import { PropertyLayerKind, type ResolvedDeclarations } from './declaration-model.js';
 import type { GameObject } from './model.js';
 import { SourceDiagnosticPhase, SourceDiagnosticSeverity, type SourceDiagnostic } from './source-model.js';
-import { RuleQualifier, type NamedRuleCell, type NamedRuleTerm, type RuleSyntax } from './source-rule-model.js';
+import { RuleQualifier, type NamedRuleCell, type NamedRuleTerm, type RuleSyntax, type SourceQualifier } from './source-rule-model.js';
 
 /** Check and trim exclusions before orientation, synonym substitution or expansion. */
 export function checkEarlyNegativeTerms(rules: readonly RuleSyntax[], declarations: ResolvedDeclarations, report?: SourceIssueReporter): {
@@ -44,7 +44,7 @@ export function checkEarlyNegativeTerms(rules: readonly RuleSyntax[], declaratio
     }
   }
 
-  function trimRightCell(cell: NamedRuleCell, left: NamedRuleCell | undefined): NamedRuleTerm[] {
+  function trimRightCell(cell: NamedRuleCell<SourceQualifier>, left: NamedRuleCell | undefined): NamedRuleTerm<SourceQualifier>[] {
     const retained = [...cell];
     for (let index = 0; index < retained.length; index++) {
       const term = retained[index]!;
@@ -57,7 +57,7 @@ export function checkEarlyNegativeTerms(rules: readonly RuleSyntax[], declaratio
     return retained;
   }
 
-  function trimLeftCell(rule: RuleSyntax, cell: NamedRuleCell): NamedRuleTerm[] {
+  function trimLeftCell(rule: RuleSyntax, cell: NamedRuleCell<SourceQualifier>): NamedRuleTerm<SourceQualifier>[] {
     const requiredObjects = new Set<GameObject>();
     const requiredLayers = new Set<number>();
     const occupier = new Map<number, string>();

@@ -31,9 +31,12 @@ types. Collision layers remain unnamed.
   required analysis in one record; the separate present-undefined map is removed.
   Evidence: strict type/semantic checks, independent status corruption controls,
   the property-layer audit and 2,055-test full run.
-- [ ] Rule-pass input/output types express the actual guarantees of orientation,
+- [x] Rule-pass input/output types express the actual guarantees of orientation,
   movement expansion and property resolution. Lowering handles valid qualifiers
   exhaustively instead of silently treating unsupported ones as no movement.
+  Movement validity is a discriminant; property/spawn/duplicate passes preserve
+  the narrowed domain. Explicit covariance is checked through nested collections
+  and helper compositions. Evidence: rule-pass audit and 2,062-test full run.
 - [ ] Each retained frontend transformation is justified by observable language
   behaviour, ordering or diagnostics. Optional optimizer shortcuts are removed;
   native representation quirks are confined to named compatibility boundaries.

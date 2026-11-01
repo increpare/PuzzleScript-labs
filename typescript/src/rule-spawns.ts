@@ -1,9 +1,10 @@
 import type { ResolvedDeclarations } from './declaration-model.js';
 import type { GameObject } from './model.js';
-import { RuleQualifier, type NamedRuleCell, type OrientedRule } from './source-rule-model.js';
+import { RuleQualifier, type DirectedNamedRule, type NamedRuleCell, type OrientedQualifier } from './source-rule-model.js';
 
 /** Make a new concrete object stationary when its cell had no possible object on that layer. */
-export function inferSpawnedStationary(rules: readonly OrientedRule[], declarations: ResolvedDeclarations): readonly OrientedRule[] {
+export function inferSpawnedStationary<Q extends OrientedQualifier>(rules: readonly DirectedNamedRule<Q>[],
+  declarations: ResolvedDeclarations): readonly DirectedNamedRule<Q | RuleQualifier.Stationary>[] {
   const concrete = new Map(declarations.objects.map(object => [object.name, object]));
 
   function possibleObjects(cell: NamedRuleCell): ReadonlySet<GameObject> {

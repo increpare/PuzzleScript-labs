@@ -5,17 +5,19 @@ import type { CellReplacement, ExecutableRule } from './execution-model.js';
 import { getObjectIntentLayer, Movement, type GameObject } from './model.js';
 import { Ellipsis, type CellPattern, type LayerMovement, type PatternCell } from './rule-model.js';
 import { SourceDiagnosticPhase, SourceDiagnosticSeverity, type SourceDiagnostic } from './source-model.js';
-import { RuleQualifier as Q, type OrientedRule } from './source-rule-model.js';
+import { RuleQualifier as Q, type AbsoluteMovementQualifier, type MovementRule } from './source-rule-model.js';
 
 export interface LoweredRule {
-  readonly namedRule: OrientedRule;
+  readonly namedRule: MovementRule;
   readonly executable: ExecutableRule;
   readonly overlap: readonly [string, string] | null;
 }
 
 const allMovements = [Movement.Up, Movement.Down, Movement.Left, Movement.Right, Movement.Action];
 
-function qualifierMovements(qualifier: Q): readonly Movement[] {
+type MovementQualifier = AbsoluteMovementQualifier | Q.Unspecified | Q.RandomDirection;
+
+function qualifierMovements(qualifier: MovementQualifier): readonly Movement[] {
   switch (qualifier) {
     case Q.Up: return [Movement.Up];
     case Q.Down: return [Movement.Down];
@@ -23,8 +25,10 @@ function qualifierMovements(qualifier: Q): readonly Movement[] {
     case Q.Right: return [Movement.Right];
     case Q.Action: return [Movement.Action];
     case Q.RandomDirection: return vanilla.lhsRandomDirection;
-    default: return [];
+    case Q.Unspecified: return [];
   }
+  const unsupported: never = qualifier;
+  throw new Error(`Unsupported movement qualifier during lowering: ${unsupported}`);
 }
 
 function addMovements(target: LayerMovement[], layer: number, movements: readonly Movement[]): void {
@@ -39,7 +43,7 @@ function orderedMovements(entries: LayerMovement[]): readonly LayerMovement[] {
 
 /** Lower ordered names into static predicates and explicit cell transactions. */
 export function lowerRules(
-  rules: readonly OrientedRule[], declarations: ResolvedDeclarations, report?: SourceIssueReporter,
+  rules: readonly MovementRule[], declarations: ResolvedDeclarations, report?: SourceIssueReporter,
   quirks: vanilla.Quirks = vanilla.vanillaQuirks,
 ): {
   readonly rules: readonly LoweredRule[];

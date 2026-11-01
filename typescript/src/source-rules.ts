@@ -4,10 +4,10 @@ import { SourceDiagnosticPhase, SourceDiagnosticSeverity, SourceRuleCellKind, So
   type SourceRuleRow, type SourceRuleSyntaxIssue, type SourceRuleTerm, type SourceSpan, type SourceWord } from './source-model.js';
 import { compilerMessagePayload, scanRuleTokens } from './rule-lexing.js';
 import { lineSpan, trimmedRange } from './source-text.js';
-import { RuleQualifier } from './source-rule-model.js';
+import { RuleQualifier, type SourceQualifier } from './source-rule-model.js';
 import { Direction } from './model.js';
 
-const qualifiers = new Map<string, RuleQualifier>([
+const qualifiers = new Map<string, SourceQualifier>([
   ['up', RuleQualifier.Up], ['down', RuleQualifier.Down], ['left', RuleQualifier.Left], ['right', RuleQualifier.Right],
   ['action', RuleQualifier.Action], ['stationary', RuleQualifier.Stationary], ['no', RuleQualifier.No],
   ['random', RuleQualifier.RandomObject], ['randomdir', RuleQualifier.RandomDirection],
@@ -76,7 +76,7 @@ export function readRule(line: SourceLine, compilerLine: string, entry: SourceEn
   let openingBracket: SourceWord | null = null;
   let cellWords: SourceWord[] = [];
   let cellStart: SourcePosition = line.span.start;
-  let pending: { readonly value: RuleQualifier; readonly word: SourceWord } | null = null;
+  let pending: { readonly value: SourceQualifier; readonly word: SourceWord } | null = null;
 
   function problem(code: string, message: string, token?: SourceLexicalToken, warning = false, span: SourceSpan | null = token?.word.span ?? line.span): void {
     syntaxIssues.push({ kind: SourceRuleSyntaxIssueKind.Diagnostic, diagnostic: { code, message, span, phase: SourceDiagnosticPhase.Rules,

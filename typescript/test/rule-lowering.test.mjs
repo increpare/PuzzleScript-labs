@@ -41,6 +41,11 @@ const orphanFixture = (rules, legend = '') => {
   return item;
 };
 
+test('the standalone lowering oracle requires successful movement expansion', () => {
+  const item = fixture('right [ Player ] -> [ horizontal Crate ]');
+  assert.throws(() => oracle.candidateStages(item.source), /lowering oracle requires successful movement expansion/);
+});
+
 for (const [rules, legend] of [
   ['right [ Player ] -> [ Player ]', ''],
   ['right [ no Player ] -> [ Crate ]', ''],

@@ -3,9 +3,9 @@ import { CommandKind, type Command, type SoundIndex } from './commands.js';
 import type { ResolvedDeclarations } from './declaration-model.js';
 import { SourceDiagnosticPhase, SourceDiagnosticSeverity, SourceRuleCommandKind, SourceRuleSyntaxIssueKind,
   type SourceDiagnostic, type SourceDocument, type SourceLoopMarker, type SourceRuleCommand, type SourceRuleRow } from './source-model.js';
-import type { NamedRuleRows, RuleSyntax, RuleSyntaxResult } from './source-rule-model.js';
+import type { NamedRuleRows, RuleSyntax, RuleSyntaxResult, SourceQualifier } from './source-rule-model.js';
 
-function projectRows(rows: readonly SourceRuleRow[]): NamedRuleRows {
+function projectRows(rows: readonly SourceRuleRow[]): NamedRuleRows<SourceQualifier> {
   return rows.map(row => row.cells.map(cell => cell.terms.map(term => ({
     qualifier: term.qualifierValue, name: term.nameValue, origin: term.span,
   }))));
