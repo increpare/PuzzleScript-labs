@@ -1,7 +1,7 @@
 import { createBoard } from '../build/board.js';
-import { Direction, Movement } from '../build/model.js';
+import { Direction, Movement, TurnInput } from '../build/model.js';
 import { createRandom } from '../build/random.js';
-import { applyTurnRules, PlayerMatchKind } from '../build/turn-rules.js';
+import { calculateTurn, PlayerMatchKind } from '../build/turn-rules.js';
 
 const Player = Object.freeze({ name: 'Player' });
 const Crate = Object.freeze({ name: 'Crate' });
@@ -52,8 +52,8 @@ function draw(board) {
   ).join('')).join('\n');
 }
 
-const result = applyTurnRules(game, before, Movement.Right);
+const result = calculateTurn(game, before, TurnInput.Right);
 console.log('Before: ' + draw(before.board));
-console.log('Input:  ' + Movement[Movement.Right]);
+console.log('Input:  ' + TurnInput[result.input]);
 console.log('Rule:   right [ > Player | Crate ] -> [ > Player | > Crate ]');
 console.log('After:  ' + draw(result.state.board));
