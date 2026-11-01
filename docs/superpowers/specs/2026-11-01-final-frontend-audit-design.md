@@ -15,6 +15,12 @@ the rule parser, type the authored index as SoundIndex and remove the assertion.
 Keep contextual name precedence, source evidence, diagnostics and invalid SFX11
 handling unchanged. Do not invent a second index validator or generated regex.
 
+Remove the unused Message command `legacyPayload` mirror. Authored payload and
+actual native compiler text already have separate honest roles; the unused
+authored-or-space field can disagree with actual text under Unicode cursor
+recovery. Keep authored payload/span evidence and actual text, migrating only
+obsolete mirror assertions.
+
 Metadata compilation repeats scanner vocabulary and rejects keys/empty values
 again after source.accepted. Remove that duplicate acceptance filter: source
 visits own acceptance; compilation owns dimensions and session/domain settings.

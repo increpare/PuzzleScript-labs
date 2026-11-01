@@ -22,6 +22,9 @@ observable normalization behavior using real source and controlled experiments.
 - [ ] Export a readonly finite sound-effect lookup from `source-sound-syntax.ts`,
   reuse it in `source-rules.ts`, type `source-model.ts` command index SoundIndex
   and remove the projection assertion in `rule-syntax.ts`. No native changes.
+- [ ] Remove unused Message `legacyPayload` from source-model/source-rules and
+  migrate obsolete reader assertions, retaining authored evidence and actual
+  compiler text. Add a type guard against reintroducing the false mirror.
 - [ ] Remove duplicate metadata vocabulary/acceptance checks in source-game-data;
   replace NaN failure state in coordinate parsing with number|null, retaining
   diagnostics/order and domain validation.
