@@ -1,6 +1,7 @@
 # A calculated turn and its commitment
 
-Status: proposed design for user review. No production changes are part of this
+Status: revised proposed design for user review, following comparison of the
+generic and concrete type alternatives. No production changes are part of this
 document. The aim is conceptual clarity in the separate TypeScript reference,
 with the existing pinned-vanilla behavior and prepared-AGAIN reuse preserved.
 
@@ -54,7 +55,7 @@ rules on an isolated session workspace. Shared domain helpers preserve command
 and restoration order without a general phase dispatcher.
 
 This matches the existing cache's real boundary, makes that boundary teachable,
-and permits finite types to distinguish any-input calculations from null-input
+and permits concrete types to distinguish general calculations from no-input
 preparations. It requires carefully extracting the current early exits rather
 than merely moving the old boolean checks behind a new name.
 
@@ -66,6 +67,31 @@ viewport, restart/checkpoint targets, Replay/Interactive behavior, win options
 and potentially fresh level-seed requests. Those values must be consulted at
 commitment. It would greatly expand invalidation and complicate vanilla's
 partial probe restoration. We should retain the narrower existing boundary.
+
+## Alternatives for expressing the calculated result
+
+The calculate/handle boundary and the choice of TypeScript notation are separate
+decisions. The earlier draft parameterized the result as TurnCalculation<Input>.
+That is valid but is no longer the recommended surface form.
+
+| Representation | Benefits | Costs |
+| --- | --- | --- |
+| Generic TurnCalculation<Input> | One shape preserves an exact input type through general helpers; inference can establish the no-input case automatically. | Readers must interpret a type parameter and null specialization. Most consumers do not vary by the precise input type, so there is little general behavior to justify parameterizing. |
+| CalculatedTurn plus concrete NoInputTurn — recommended | The guarantee has a readable name and the same useful static distinction. A no-input calculation is still an ordinary calculated turn. No extra runtime tag is needed. | Adds a type name. A named no-input helper is needed to return the narrower type without overloads or assertions. |
+| Explicit PlayerInput/NoInput variants | Enum tags support clear exhaustive cases and different payloads. Good if the two cases acquire substantially different data or behavior. | Currently duplicates the common result payload and replaces the already meaningful null distinction with another tag. NoInput still does not identify the reason for running the turn. |
+| One common result plus a dedicated prepareAgain function | Fewest result types; the preparation API can accept only game/state and supply no input itself. | An arbitrary calculated result stored inside the owning module has no type-level input distinction. Constructor ownership and behavioral tests carry that guarantee. |
+
+Use the concrete refinement together with the dedicated preparation API.
+The type names explain the guarantee; the function explains why the work is
+being done. This is slightly more definition text than the generic but requires
+less interpretation at ordinary call sites. The generic remains appropriate if
+future code actually needs a family of input-dependent operations; that need is
+not present in the current turn pipeline.
+
+NoInput means no player instruction is injected. Rules can still request and
+resolve movements. AGAIN, timer ticks and level-start rules can all run without
+player input; none of these type representations alone proves AGAIN provenance.
+The preparation operation supplies that purpose and performs the actual work.
 
 ## Phase, purpose and pending state
 
@@ -82,15 +108,19 @@ those events without governing execution.
 Proposed calculation data, using existing domain types:
 
 ```typescript
-interface TurnCalculation<Input extends Movement | null = Movement | null> {
-    readonly input: Input;
+interface CalculatedTurn {
+    readonly input: Movement | null;
     readonly result: TurnRulesResult;
+}
+
+interface NoInputTurn extends CalculatedTurn {
+    readonly input: null;
 }
 
 interface PreparedAgainTurn {
     readonly game: SessionGame;
     readonly before: RuleExecutionState;
-    readonly calculation: TurnCalculation<null>;
+    readonly calculation: NoInputTurn;
 }
 
 enum AgainDecision {
@@ -105,9 +135,17 @@ enum WinHandling {
 ```
 
 `calculateTurn` wraps the established `applyTurnRules` calculation and records
-its actual input. Keep `applyTurnRules` available for component oracles. The
-generic input prevents a player-input calculation from becoming a prepared
-AGAIN turn. This is a domain relationship, without brands or runtime phase tags.
+its actual input. `calculateWithoutInput` takes game/state, supplies null and
+returns NoInputTurn. Both invoke the same rules-and-movement implementation
+exactly once; there are no separate simulation algorithms. Keep `applyTurnRules`
+available for component oracles. `prepareAgain` accepts game/state, uses the
+no-input helper and captures the private input/result evidence. It does not
+accept an arbitrary calculated turn from its caller.
+
+The concrete input refinement prevents a general player-input calculation from
+being stored as prepared AGAIN work. It expresses a domain relationship without
+generics, brands or runtime phase tags. Computation and snapshot validation still
+need their behavioral tests; the input field's type is not proof of execution.
 WinHandling.ReportOnly still reports a suppressed Win effect when reached; it
 does not mean "skip checking whether the game was won."
 

@@ -19,8 +19,9 @@ remain named policies with the existing strict reuse checks.
 
 ## File responsibilities
 
-- Create `typescript/src/turn-calculation.ts`: TurnCalculation<Input>,
-  calculateTurn and result copying. Delegate computation to existing
+- Create `typescript/src/turn-calculation.ts`: CalculatedTurn, concrete
+  NoInputTurn, calculateTurn, calculateWithoutInput and copyTurnResult.
+  Delegate computation to existing
   applyTurnRules; this module has no session environment or effect handling.
 - Create `typescript/src/prepared-again.ts`: PreparedAgainTurn, private WeakMap,
   snapshot validation, lookup/retention and independent cached-result copies.
@@ -74,7 +75,7 @@ remain named policies with the existing strict reuse checks.
   ```typescript
   declare const game: SessionGame;
   declare const execution: RuleExecutionState;
-  const automatic = calculateTurn(game, execution, null);
+  const automatic: NoInputTurn = calculateWithoutInput(game, execution);
   const player = calculateTurn(game, execution, Movement.Right);
   const prepared: PreparedAgainTurn = {
       game, before: execution, calculation: automatic,
@@ -85,21 +86,28 @@ remain named policies with the existing strict reuse checks.
       calculation: player,
   };
   // @ts-expect-error A raw execution snapshot is not a calculated turn.
-  const missingCalculation: TurnCalculation = execution;
+  const missingCalculation: CalculatedTurn = execution;
   void [prepared, wrong, missingCalculation];
   ```
 
   The test must have no ignored diagnostics. Import all actual types explicitly
   in the .mts source.
 
-- [ ] Implement TurnCalculation<Input> and calculateTurn with the exact generic
-  result in the design. copyCalculation must clone RuleExecutionState,
+- [ ] Implement CalculatedTurn and concrete NoInputTurn as in the revised
+  design. calculateTurn returns the general record; calculateWithoutInput
+  supplies null and returns the narrower record. Both call the same
+  applyTurnRules implementation once. Use no overloads or type assertions.
+  copyTurnResult must clone RuleExecutionState,
   playerPositions and diagnostic records while retaining canonical object/rule
   identities. Preserve attempts, rigidRetries and rigidLimitReached.
 - [ ] Move the existing PreparedTurn into PreparedAgainTurn with a
-  TurnCalculation<null>. Move WeakMap storage and every ordered-input comparison
+  NoInputTurn. Its private prepareAgain creator takes game/state and supplies
+  no player input itself; it does not accept an arbitrary calculation.
+  Move WeakMap storage and every ordered-input comparison
   into prepared-again.ts. Retention still checks the actual returned state;
   lookup still requires AGAIN, null input and the same game/input snapshot.
+  Copy a prepared calculation by explicitly constructing its no-input record
+  around copyTurnResult; do not introduce a generic copy helper for this case.
 - [ ] Keep repeated immutable branches independent; lookup returns copied
   calculations without consuming a globally shared preparation. Public state
   copies still miss naturally. Do not broaden or narrow the validation set.
@@ -112,7 +120,7 @@ remain named policies with the existing strict reuse checks.
 - [ ] Decode public probe and win flags at the session boundary. Use
   WinHandling.Apply/ReportOnly internally; keep all public combinations valid.
   ReportOnly must retain the existing suppressed Win event behavior.
-- [ ] Obtain a fresh or valid prepared TurnCalculation before session handling.
+- [ ] Obtain a fresh or valid prepared CalculatedTurn before session handling.
   Capture the live BoardSnapshot here, then install the result and publish its
   diagnostics in the existing order. Do not copy session snapshots into the
   calculation or cache.
@@ -198,6 +206,14 @@ The supplied main-branch optimization already separates full rule/movement
 simulation from session command/effect handling. The TypeScript cache already
 retains only the former; its default vanilla RNG fallback is intentional. This
 plan changes how that behavior is expressed, not which behavior is authoritative.
+
+The representation comparison revised the original generic proposal to a
+concrete CalculatedTurn/NoInputTurn refinement and a dedicated preparation API.
+A temporary strict TypeScript program using the project's actual Movement and
+TurnRulesResult types confirmed that both generic and concrete representations
+reject a player-input result in a no-input preparation. It also checked enum
+variants and the no-input preparation function's argument boundary. These were
+type-design experiments outside the repository, not new production tests.
 
 At planning time the existing TypeScript build and **12 focused session tests**
 passed: deterministic reuse in both profiles, private random reuse, all six
