@@ -18,9 +18,10 @@ right [ Item no Mark | Item no Mark ] -> [ Item Mark | ]
 
 Its [manifest](../src/tests/semantic-fixtures/interaction-matching.json) says
 `rbrbP` → tick → `R.R.P`; capitals add Mark. The two Item predicates can match
-different members. [expandRuleProperties](src/rule-properties.ts#L34)'s
-`firstSite` leaves a single-layer property local unless transported to another
-RHS cell. [lowerRules](src/rule-lowering.ts#L41) records its members in
+different members. [resolveObjectSource](src/rule-object-sources.ts) selects
+the corresponding LHS cell for each RHS property use. Separately,
+[expandRuleProperties](src/rule-properties.ts) leaves these single-layer local
+properties as predicates. [lowerRules](src/rule-lowering.ts#L41) records their members in
 `anyObjects`; [matchesCell](src/matching.ts#L5) requires one at each cell.
 The RHS keeps the first member, adds Mark, and empties the second cell.
 Removing x1 invalidates the x1–x2 pair; x2–x3 still applies.
@@ -38,13 +39,45 @@ right [ Item Origin ] [ Target no Item ] [ action Player ] -> [ Origin ] [ Targe
 | Action again | `s.s.RBP` |
 
 Here lowercase colors also contain Origin; `s` is bare Origin, `t` bare Target,
-and uppercase colors contain Target. `transported` detects the new RHS location.
-`expandRuleProperties` emits Red then Blue variants in property-member order;
-its single expanded LHS occurrence supplies that variant's member to the RHS.
+and uppercase colors contain Target. Source analysis resolves RHS Item at
+`{rowIndex: 1, cellIndex: 0}` to the sole LHS Item at
+`{rowIndex: 0, cellIndex: 0}`. It does not choose Red or Blue.
+Rule construction then emits Red followed by Blue in property-member order;
+each variant records the member selected at that source cell and supplies it
+to the linked RHS use.
 This is compile-time inference, not a runtime variable shared by every Item.
 [matchTuples](src/matching.ts#L112) combines independently located bracket rows.
 The first successful tuple removes Player's action request; live rechecks reject
 the remaining tuples, so Red transfers before the spatially earlier Blue.
+
+The resolver has three outcomes:
+
+| Result | Data carried |
+| --- | --- |
+| Resolved | One source cell, preferring the corresponding cell |
+| Missing | No source cell |
+| Ambiguous | The distinct candidate source cells, in order |
+
+It receives candidate addresses and the target address, without layers or member
+values. Repeated terms in one cell count once; equal cell indices in different
+bracket rows remain distinct. Two sources choosing Red still cannot supply a
+unique remote Item. Different property names also retain distinct identities
+even when their member lists are equal.
+
+In `rule-properties.ts`, negative properties are expanded before source analysis;
+random-object terms supply no source. `analyzePropertyUses` records the source
+relationships, then the existing layer analysis and remote uses determine which
+properties need concrete choices. Ordered expansion records per-cell selections.
+`constructRightSide` uses those selections and source links once, preserving a
+local predicate when no member was selected. There are no first-member/count
+summaries or runtime bindings. Missing/Ambiguous uses are diagnosed only after
+expansion, since an empty branch can erase a whole rule family first.
+
+RHS construction relies on the final declaration vocabulary having expanded
+property-to-property member references. This holds for terminating native
+normalization, including the pinned source/error corpora; it does not assert
+meaning for fabricated cyclic dictionaries where native normalization hangs.
+Movement inference remains a separate pass with its own evidence scopes.
 
 ## 2. Two ellipses record distances, then writes use the live board
 
@@ -263,20 +296,15 @@ Lowering no longer silently ignores unsupported qualifiers.
 
 The retained transformations and their observable behavior are documented in
 [FRONTEND.md](FRONTEND.md). The final audit records those semantic witnesses and
-the explicit domain boundaries. The optional ideas below cover both frontend
-property-inference naming and runtime helpers; they are possible later refinements.
+the explicit domain boundaries. The optional ideas below cover runtime helpers;
+they are possible later refinements.
 
-1. **Name property analysis before expanding variants.** Give the local predicate,
-   transported use and unique inferred source explicit analysis results instead
-   of requiring readers to connect `transported`, `firstSite` and `expandedCells`.
-   Preserve expansion order. Guards: local-property-overlap and
-   unique-multirow-transfer expose the different meanings of repeated Item.
-2. **Share fixed-gap coordinate traversal.** `matchesRow` and `applyRuleAt`
+1. **Share fixed-gap coordinate traversal.** `matchesRow` and `applyRuleAt`
    separately advance through a recorded row. A helper yielding pattern indices
    and coordinates would clarify gaps while retaining live reads and ordered writes. Guards:
    two-ellipsis-relay-live and cross-layer-row-overlap protect stale matches and
    multiple writes to the same cell.
-3. **Name rigid retry restoration.** A helper in `calculateTurn` could name the
+2. **Name rigid retry restoration.** A helper in `calculateTurn` could name the
    restored board/events and retained bans, failure sounds, message and RNG.
    Guards: rigid-again, rigid-checkpoint and rigid-cancel protect the distinction
    between attempt rollback and later session restoration.

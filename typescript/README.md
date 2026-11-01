@@ -106,6 +106,7 @@ npm --prefix typescript run example:session
 | [declarations.ts](src/declarations.ts) | Canonical objects, final name resolution and compiled layers |
 | [rule-lexing.ts](src/rule-lexing.ts), [source-rules.ts](src/source-rules.ts), [rule-syntax.ts](src/rule-syntax.ts) | Rule tokens, authoritative parsed syntax, then validation and domain projection |
 | [source-rule-compiler.ts](src/source-rule-compiler.ts) and `rule-*.ts` | Syntax, ordered movement/property inference, lowering and schedules |
+| [rule-object-sources.ts](src/rule-object-sources.ts), [rule-properties.ts](src/rule-properties.ts) | Source-cell resolution followed by ordered member selection and RHS construction |
 | [source-assets.ts](src/source-assets.ts), [source-game-data.ts](src/source-game-data.ts) | Sprites, colors, levels, metadata, sounds and win conditions |
 
 There are two source maps. TypeScript's generated `.js.map` files point back to
@@ -385,9 +386,10 @@ npm --prefix typescript test
 npm --prefix typescript run test:corpus -- --session
 ```
 
-The strict suite, including explicit turn-input/calculation contracts, fresh
-prepared-turn commitment, probe ordering and the earlier frontend regressions,
-passes **2,134 tests**. Exact compilation comparison
+The strict suite, including object-source contracts, source/member construction
+separation, turn-input/calculation contracts, fresh prepared-turn commitment,
+probe ordering and the earlier frontend regressions, passes **2,151 tests**.
+Exact compilation comparison
 covers **335 compiler fixtures**, **492 simulation sources** and **99,192 final
 executable rules**, including diagnostics, stopping outcomes, authored source
 evidence and declaration identities. The last completed full source-compiled replay,
@@ -412,6 +414,14 @@ found no actionable correctness or readability issues. Its recorded-game replay
 audit completed **135 paired passes** including an unchanged-build timing
 follow-up; **16 other pairs** remain time-limited on at least one side. Completed
 comparisons and inconclusive cases are recorded separately.
+
+The [property-source inference audit](../docs/superpowers/plans/2026-11-01-property-source-inference.md)
+then passes all **2,151 tests**, including native comparison of **106,392
+intermediate property/spawn variants**, and **256 generated games** with
+**1,780 observations/operations** and **256 loads**. Its three-case source result
+is independent of layers and member choices. No generated case was excluded,
+and no discrepancy, oracle exception or timeout occurred. Source and reading
+guide reviews found no remaining actionable issues.
 
 The earlier rule-frontend checkpoint passed a 128-game generated per-move sample
 (907 observations) and at least 218 original-game replays. Its additional exhaustive

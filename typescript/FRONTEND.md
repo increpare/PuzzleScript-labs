@@ -9,7 +9,8 @@ raw words.
 ```text
 source visits → accepted definitions + authored evidence
 rules: source qualifiers → oriented qualifiers → atomic movement success
-       → property inference → stationary inference → executable transactions
+       → property source links → ordered member construction
+       → stationary inference → executable transactions
 ```
 
 Accepted declarations own their assets and exact source tokens. Final name
@@ -24,6 +25,16 @@ oriented and atomic rule qualifiers are separate finite types. Invalid movement
 results keep their families for property diagnostics; only successful atomic
 results reach lowering. Property inference preserves that movement guarantee,
 while legitimately retaining local, random and recovered names.
+
+[Object-source resolution](src/rule-object-sources.ts) receives candidate rule-cell
+addresses and a target address. It returns Resolved(cell), Missing or
+Ambiguous(cells), with corresponding-cell preference and full row/cell identity.
+It knows no concrete member, layer or expansion policy. The property pass first
+expands negatives and resolves RHS source links, then chooses members in the
+existing work order and constructs RHS terms from per-cell selections. Local
+predicate retention and concrete expansion use the same source relationship.
+Only construction knows which members were selected; diagnostics still follow
+expansion so empty branches can remove otherwise unresolved uses.
 
 ## Transformations with observable behavior
 
@@ -42,7 +53,7 @@ these frontend stages.
 | Early exclusion checking and trimming | Diagnose contradictions/redundancies and preserve native recovery before alias/property expansion. Namespace priority and warning order matter. | early-negative/native tests, compiler pass-order negative controls |
 | Aggregate atomization, then synonym substitution | Ordered member slots, duplicates and substitution boundaries determine later inference and diagnostics. | rule-name tests and swapped-pass rejection |
 | Movement-family choices and inference | Ordered alternatives plus source-cell evidence determine what a remote RHS family can infer. Equal values do not replace unique-site evidence. | movement/native tests, ambiguity continuation and strict type contracts |
-| Local property predicates and transported-property expansion | One local predicate scans occurrences in board order; separate concrete variants would scan in alternative order. Remote inference needs actual unique-cell evidence. | local-property witness below, unique-multirow-transfer fixture and property/native tests |
+| Property source links and ordered member construction | Corresponding-cell or unique-source relationships are resolved before member selection. One local predicate scans occurrences in board order; separate variants scan in alternative order. | pure source/type contracts, cross-row/empty-branch native checks, local-property witness and unique-multirow-transfer |
 | Spawned stationary inference | A newly supplied layer must not inherit a previous object's movement. Possible LHS layers, property membership and unlayered recovery determine the result. | property/spawn/native tests |
 | Keep-last duplicate normalization per contiguous source group | Random selection observes candidate multiplicity and order. Equality does not cross source lines or independent group boundaries. | duplicate witness below, duplicate/native boundary tests |
 | Diagnosed impossible-rule removal | Report the native contradiction warning and omit the unsatisfiable rule from the accepted schedule. This is explicit compiler recovery. | full-compiler contradiction witness |

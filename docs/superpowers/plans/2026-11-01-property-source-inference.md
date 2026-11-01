@@ -71,56 +71,56 @@ Files: new `typescript/src/rule-object-sources.ts`,
   repeated addresses, different bracket rows, different cells and frozen inputs.
 - [x] Verify strict temporary TypeScript programs require each case's payload
   and reject reading a resolved cell from Missing. Build and **11 checks pass**.
-- [ ] Independently review actual helper and its contracts.
+- [x] Independently review actual helper and its contracts.
 
 ### 3. Integrate source analysis with rule construction
 
 Files: `typescript/src/rule-properties.ts`,
 `typescript/test/rule-properties.test.mjs`.
 
-- [ ] Add source-compiled characterization fixtures for unique cross-row source,
+- [x] Add source-compiled characterization fixtures for unique cross-row source,
   repeated terms in one cell, same cell indices in distinct rows, and empty
   branches suppressing Missing/Ambiguous RHS diagnostics. Run against the old
   implementation before integration; keep native expected data unchanged.
-- [ ] After the existing negative sweep, collect property-specific LHS candidate
+- [x] After the existing negative sweep, collect property-specific LHS candidate
   addresses and RHS use records `{property, targetCell, source}`. Resolve all
   uses with the helper, preserving RHS term order and raw property identity.
-- [ ] Derive the need for concrete expansion from the source links: any remote,
+- [x] Derive the need for concrete expansion from the source links: any remote,
   Missing or Ambiguous use requires member choices. Existing property-layer
   analysis supplies the other expansion conditions.
-- [ ] Preserve first eligible property/cell selection, append/remove worklist
+- [x] Preserve first eligible property/cell selection, append/remove worklist
   order and duplicate alternatives. Replace firstMember/expandedCells summaries
   with ordered selections `{property, sourceCell, member}` per variant.
-- [ ] Construct RHS rows once from their original terms and resolved links.
+- [x] Construct RHS rows once from their original terms and resolved links.
   A selected source supplies its member; an unexpanded local source remains a
   property predicate. Resolution itself has no predicate-versus-choice cases.
-- [ ] Diagnose remaining remote properties after all variants are constructed.
+- [x] Diagnose remaining remote properties after all variants are constructed.
   Empty branches can erase the family first. Preserve native last-ambiguity
   selection, messages, source spans, qualifier domains, origins and recovery.
-- [ ] Run focused native property/spawn and rule-pass checks, including complete
+- [x] Run focused native property/spawn and rule-pass checks, including complete
   ordered sequences, immutability and corruption controls. Preserve the missing
   corresponding-LHS-cell TypeError category.
-- [ ] Independently review specification compliance and then code quality.
+- [x] Independently review specification compliance and then code quality.
 
 ### 4. Verify, document and integrate
 
-- [ ] Run the full strict suite once source is stable:
+- [x] Run the full strict suite once source is stable:
 
   ```sh
   npm --prefix typescript run build
   node --test --test-concurrency=4 typescript/test/*.test.mjs src/tests/semantic-fixtures/fixtures.test.cjs
   ```
 
-- [ ] Run a reproducible 256-game per-operation campaign:
+- [x] Run a reproducible 256-game per-operation campaign:
 
   ```sh
   node typescript/bin/explore.mjs --seed property-source-inference-2026-11-01 --cases 256 --jobs 2 --timeout-ms 15000 --out /private/tmp/ps-property-sources-findings --json /private/tmp/ps-property-sources-campaign.json
   ```
 
-- [ ] Reuse the authored local-property-overlap and unique-multirow-transfer
+- [x] Reuse the authored local-property-overlap and unique-multirow-transfer
   full-session witnesses, which run in the strict semantic suite. Do not repeat
   the unrelated expensive recorded AGAIN audit from the previous slice.
-- [ ] Update `typescript/READABILITY.md` and `typescript/FRONTEND.md` to explain
+- [x] Update `typescript/READABILITY.md` and `typescript/FRONTEND.md` to explain
   source resolution followed by construction. Record actual verification here,
   keeping the prior turn audit and historical replays distinct.
 - [ ] Commit verified work and fast-forward local master. Build and run focused
@@ -134,3 +134,42 @@ property pass must show which LHS cell supplies each RHS use without requiring a
 reader to decode occurrence counters. Source data never leaks into executable
 rules or terms. Compatibility is checked by independent native producers, not
 by having the candidate derive its expected output.
+
+## Execution evidence
+
+- Helper/type red: missing module/exports before implementation. The new
+  three-case helper and strict negative payload/readonly contracts pass
+  **11 tests**. It receives no layer, property name or chosen member.
+- Six additional source-compiled characterization cases passed the original
+  property implementation before integration: unique cross-row source,
+  repeated terms in one source cell, different rows sharing a cell index,
+  corresponding-cell preference, and empty-branch suppression of both Missing
+  and Ambiguous diagnostics. The focused property file passed **77 checks**.
+  Log: `/private/tmp/ps-property-sources-characterization.log`.
+- After integration, **152 focused checks passed**, including movement/property
+  oracles, source contracts and finite rule-pass contracts. Log:
+  `/private/tmp/ps-property-sources-focused.log`.
+- Independent design audit validated finite native normalization and the
+  recovery/ordering boundaries. Independent implementation specification and
+  code-quality reviews approved the actual helper, source links, construction,
+  tests and native behavior without actionable source findings.
+- Documentation review approved the source/selection distinction, local
+  preference, normalization scope and unchanged movement inference. Its one
+  stale optional-work sentence was corrected to name only runtime helpers.
+- Code checkpoint: `9db4f91b`. Full strict suite: **2,151 passed**, no failures,
+  about 257 seconds with four workers. Log:
+  `/private/tmp/ps-property-sources-full.log`.
+- The unchanged native property oracle compares all **492 play-source fixtures**,
+  **30,121 incoming movement variants**, **106,392 complete property variants**
+  and their **106,392 spawned-stationary variants**, including sequence,
+  qualifiers, raw names, diagnostics, source origins and ownership. The full
+  suite also preserves all **335 compilation fixtures** and **99,192 final
+  executable-rule comparisons**.
+- Generated campaign: **256/256 passed**, **1,780 observations/operations**,
+  **256 loads**, **250 distinct sources**, **35 rule sets**, **234 boards**.
+  Zero exclusions, discrepancies, oracle exceptions, process failures or
+  timeouts. Seed: `property-source-inference-2026-11-01`. Report:
+  `/private/tmp/ps-property-sources-campaign.json`.
+- Native producers/expectations/hashes and all runtime/JavaScript code are
+  unchanged. No new bit representation, generated matcher or runtime binding
+  was introduced. No preview server or unrelated recorded-AGAIN replay was run.
