@@ -1,0 +1,217 @@
+# A calculated turn and its commitment
+
+Status: proposed design for user review. No production changes are part of this
+document. The aim is conceptual clarity in the separate TypeScript reference,
+with the existing pinned-vanilla behavior and prepared-AGAIN reuse preserved.
+
+## What the code currently does
+
+`typescript/src/turn-rules.ts:applyTurnRules` already performs the complete
+rules-and-movement calculation: initialize turn bookkeeping, apply player intent,
+run early rules, resolve movements, retry failed rigid groups, and run late rules.
+Its `TurnRulesResult` contains the resulting execution state, commands, movement
+and creation/destruction sound evidence, diagnostics and original player sites.
+It does not execute session commands, update undo history, save checkpoints or
+advance levels.
+
+`typescript/src/session.ts:step` obtains that result, installs it, and handles
+session consequences. An AGAIN check currently calls this same function with
+`probe: true`, capturing the calculation before session handling. A private
+WeakMap retains that calculation, its incoming execution snapshot and game
+identity. A later null input can reuse it while running session handling fresh.
+
+Current Labs JS has a related, clearer boundary in `simulateInput`,
+`prepareAgainTurn`, `takeAgainTurn` and `processCommandQueue`. Its preparation
+uses a private board and cloned RNG. The TypeScript port already supports
+private preparation when `againProbeHasSideEffects` is off. Its default remains
+the pinned vanilla behavior, in which probes can advance RNG, retain execution
+events/history and emit cancel audio. This can make the saved calculation
+incompatible with the next input, requiring recalculation. The architectural
+idea is reusable without changing that semantic authority.
+
+## Alternatives considered
+
+### One dispatcher with a TurnMode or TurnPhase parameter
+
+Replace `probe?: boolean` with an enum and extract small functions from `step`.
+This is the smallest change and retains one source for session ordering. It
+still lets the dispatcher intertwine calculation, speculative observation,
+rollback and commitment. Renaming Normal/Probe to phases would also obscure
+that one describes an invocation's purpose, not a position in a sequence.
+
+This is a reasonable migration step, but an insufficient final design.
+
+### A calculated-turn value with two consumers — recommended
+
+Calculate all rules and movement once. Return ordinary typed data. An ordinary
+turn commits that value immediately. AGAIN calculates a null-input turn, inspects
+it, and retains it when appropriate. When the continuation is taken, validate
+and commit the saved calculation, or calculate afresh if it is no longer valid.
+
+The two consumers are actual session commitment and explicit probe semantics.
+Vanilla probe behavior has a named home; private preparation uses those probe
+rules on an isolated session workspace. Shared domain helpers preserve command
+and restoration order without a general phase dispatcher.
+
+This matches the existing cache's real boundary, makes that boundary teachable,
+and permits finite types to distinguish any-input calculations from null-input
+preparations. It requires carefully extracting the current early exits rather
+than merely moving the old boolean checks behind a new name.
+
+### Calculate and cache an entire SessionResult, including its effects
+
+Run the full session operation privately and later install its state and effects.
+This offers an attractive single evaluator. However, it would capture history,
+viewport, restart/checkpoint targets, Replay/Interactive behavior, win options
+and potentially fresh level-seed requests. Those values must be consulted at
+commitment. It would greatly expand invalidation and complicate vanilla's
+partial probe restoration. We should retain the narrower existing boundary.
+
+## Phase, purpose and pending state
+
+The conceptual phases are **calculation** and **session handling**. Session
+handling either commits a turn or performs probe observation. Normal/Probe are
+purposes; Ready/Waiting describe a pending continuation. They are different axes.
+
+Use separate functions and data types to express the phase boundary. Do not add
+a `TurnPhase` property or switch loop to encode the current program counter.
+No part of this change requires suspending halfway through calculation or
+session handling. If traces later need phase names, a phase enum can describe
+those events without governing execution.
+
+Proposed calculation data, using existing domain types:
+
+```typescript
+interface TurnCalculation<Input extends Movement | null = Movement | null> {
+    readonly input: Input;
+    readonly result: TurnRulesResult;
+}
+
+interface PreparedAgainTurn {
+    readonly game: SessionGame;
+    readonly before: RuleExecutionState;
+    readonly calculation: TurnCalculation<null>;
+}
+
+enum AgainDecision {
+    Stop,
+    Schedule,
+}
+
+enum WinHandling {
+    Apply,
+    ReportOnly,
+}
+```
+
+`calculateTurn` wraps the established `applyTurnRules` calculation and records
+its actual input. Keep `applyTurnRules` available for component oracles. The
+generic input prevents a player-input calculation from becoming a prepared
+AGAIN turn. This is a domain relationship, without brands or runtime phase tags.
+WinHandling.ReportOnly still reports a suppressed Win effect when reached; it
+does not mean "skip checking whether the game was won."
+
+Keep `StepSessionOptions` working at the public boundary, including direct
+non-null probes and independently selectable win suppression. Decode these
+options once. Internal automatic AGAIN inspection always uses null input and
+reported-only wins; the public probe API has a broader existing contract.
+
+## Main flow
+
+```text
+ordinary turn:
+    obtain calculation (fresh, or a valid saved null-input calculation)
+    install calculation and report its diagnostics
+    handle session consequences in their established order
+    if AGAIN applies, calculate and inspect the next null-input turn
+    retain an eligible, reusable calculation for the waiting continuation
+
+waiting continuation:
+    validate saved calculation against current rule input and game
+    commit a private copy of the saved calculation, or calculate afresh
+    read current session context while handling its consequences
+```
+
+The committed-session sequence remains visible as named function calls with
+ordinary early returns:
+
+1. Clear pending AGAIN and reject non-board screens.
+2. Snapshot the current board/viewport; obtain and install the calculation.
+3. Publish rule/rigid-limit diagnostics.
+4. Enforce require_player_movement, including its restore/message reset exit.
+5. Handle cancel, then restart; preserve actual command/output/history order.
+6. Determine object-board changes after restart handling and record input
+   history at the established boundary.
+7. Play ordinary sounds and output commands; these may affect message screens.
+8. Check victory when the resulting screen permits it.
+9. If permitted, apply checkpoint and inspect a requested AGAIN continuation.
+10. Restore the outer command message after inspection, clear commands, and
+    finalize the existing public return value.
+
+This is a behavior map, not a proposal to execute every numbered operation on
+every branch. Actual helpers must retain the current live reads: restart can
+run level-start rules and replace commands, and victory can load another level.
+Do not precompute a global command plan and replay it after those changes.
+
+## Probe observation is explicit behavior
+
+| Probe path | Continuation decision | Current observable behavior to retain |
+| --- | --- | --- |
+| require_player_movement rejects the input | Stop | Forced undo and message/screen reset; relevant to public non-null probes |
+| cancel alone | Stop | Forced undo and Cancel sound |
+| cancel plus another queued command | Schedule | Forced undo and Cancel sound; ordinary command output suppressed |
+| changed objects, without cancel | Schedule | Modified-board rollback and early return before ordinary sounds, wins or checkpoint |
+| queued restart | Schedule | Restart history entry retained; actual restart suppressed; changed-board rollback may also occur |
+| quiet queued win | Schedule | Early return with queued commands; no committed win |
+| quiet calculation without win/restart | Stop | Execution/RNG/events survive in vanilla; possible reported-only natural victory; no checkpoint write |
+
+For simultaneous commands, the earlier path wins: cancel precedes restart;
+restart history handling precedes the changed-board check. The outer operation
+restores its message and clears commands at the existing positions. Current
+restore compatibility governs pending movements; probe rollback is not a full
+execution-state transaction.
+
+The private policy runs this observation on its own workspace, retaining only
+diagnostics in the outer operation. The vanilla policy runs it on the existing
+workspace. Only the latter can change subsequent rule inputs and force a cache
+miss. Preserve public quiet probes with unsuppressed natural wins as well;
+automatic AGAIN inspection always requests reported-only wins.
+
+Scheduling eligibility is distinct from reuse eligibility. A vanilla random
+probe can schedule AGAIN but invalidate its own calculation by consuming RNG.
+Likewise `SessionResult.modified` is a historical reported-change result: cancel
+plus another command or a quiet probe with win/restart can return true without
+different objects. Keep these meanings distinct from object-board comparison.
+
+## Ownership and validation
+
+Keep preparation private and associated with the returned SessionState. Its
+absence after spread/serialization remains an ordinary fresh-calculation path.
+Repeated calls from the same immutable session may reuse the same preparation
+through independent copies; there is no global single-use token.
+
+Retain every existing reuse check: exact game identity, board shape/objects and
+Set iteration order, full RNG state, pending movements, rigid marks and owners,
+and command message. State fields that calculation resets remain reset as now.
+Do not replace these checks with an identity-only shortcut. Game/object/rule
+identities retain their existing immutable contract.
+
+Capture a fresh BoardSnapshot and read history, viewport, restart target,
+run mode and win handling at commitment. Preparation owns no session history,
+effects, saved checkpoint or future level seed. Clone cached result containers
+and diagnostics before exposing them. Keep diagnostics observable at discovery
+and, when applicable, again at actual commitment, as in the current API.
+
+## Scope and acceptance
+
+Refactor the TypeScript runtime only. Preserve existing JS, pinned vanilla files,
+hashes, expected data, public session shape, default quirks and all cache guards.
+Do not add a state-machine framework, mutable phase field, bit representations,
+buffer pools or new performance shortcuts. Preserve the useful prepared-result
+reuse as the direct consequence of retaining a calculated turn.
+
+Success means the main flow reads as calculation followed by session handling;
+AGAIN visibly retains that same complete calculation; probe exceptions have
+named behavior; and a reader need not follow a recursively invoked general
+`step` function to discover what speculation does. Finite type contracts and
+per-operation oracle comparisons must protect that explanation.
