@@ -205,7 +205,7 @@ remain named policies with the existing strict reuse checks.
 - [x] Review the final diff against the design and the public state/schema
   guards. Confirm that only TypeScript and its documentation/tests changed;
   no native expectations, JS engine, RNG default or gameplay behavior was altered.
-- [ ] Integrate only verified work into local master
+- [x] Integrate only verified work into local master
   under the existing authorization; do not push unrelated local commits.
 
 ## Planning evidence
@@ -314,3 +314,7 @@ node --test --test-name-pattern='AGAIN reuses deterministic preparation|clean ra
   current-versus-historical evidence and explicitly inconclusive replay cases.
 - Native sources, hashes, compiler producers and expected fixtures are unchanged.
   Production changes are confined to TypeScript; no JS/native/UI assets changed.
+- Local master fast-forwarded to `b069056d`, built successfully, and passed all
+  **182 focused integration checks**. The turn example again printed `PC.` →
+  `.PC`. Log: `/private/tmp/ps-turn-lifecycle-master-smoke.log`. Both checkouts
+  were clean; no push, preview server or unbounded replay was started.
