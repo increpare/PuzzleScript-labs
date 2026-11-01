@@ -2,6 +2,8 @@ import { SourceDiagnosticPhase, SourceDiagnosticSeverity, SourceSectionKind, typ
   type SourceLine, type SourcePosition } from './source-model.js';
 import { collectSourceIssue, createSourceIssueCollection, type SourceIssueCollection } from './source-diagnostics.js';
 import { lineSpan, lowercaseSourceRange, sourceWord, splitSourceLines, type LowercaseSourceView } from './source-text.js';
+import { SourceDeclarations } from './source-declarations.js';
+import { NativeLegendExpression } from './source-legend.js';
 
 export const sourceSectionNames = ['objects', 'legend', 'sounds', 'collisionlayers', 'rules', 'winconditions', 'levels'] as const;
 export const sourceMetadataValues = new Set(['title', 'author', 'homepage', 'background_color', 'text_color', 'key_repeat_interval',
@@ -21,9 +23,6 @@ const namePattern = /^[\p{L}\p{N}_]+[\p{Z}\s]*/u;
 const colorPattern = /^(black|white|gray|darkgray|lightgray|grey|darkgrey|lightgrey|red|darkred|lightred|brown|darkbrown|lightbrown|orange|yellow|green|darkgreen|lightgreen|blue|lightblue|darkblue|purple|pink|transparent|#(?:[0-9a-f]{3}){1,2})\s*/u;
 const notComment = /^[^(]+/u;
 const spaces = /^[\p{Z}\s]*/u;
-// The native raw object dictionary inherits Object.prototype. Lowercasing
-// leaves these inherited names visible to lookups, but not own-name snapshots.
-const inheritedObjectNames = new Set(Object.getOwnPropertyNames(Object.prototype).filter(name => name === name.toLowerCase()));
 
 /** Lexical acceptance stays separate from the full authored object and its physical rows. */
 export interface SourceObjectLexical {
@@ -98,16 +97,14 @@ class SourceCursor {
 }
 
 enum ObjectPart { Names, Aliases, Colors, Sprite }
-enum NameKind { Object, Synonym, Aggregate, Property, Undeclared }
-interface LegendEntry { readonly name: string; readonly members: string[]; readonly line: number }
-interface FoundName { readonly kind: NameKind; readonly name: string; readonly entry?: LegendEntry }
 enum SoundRole { Event, Name, Verb, Direction, Seed }
 interface SoundToken { readonly value: string; readonly role: SoundRole }
 class IssueCap extends Error {}
 
 /**
  * The common native lexical walk. Authored reading requests all visits; parsing
- * obeys the native compilation limits. Neither path constructs game declarations.
+ * obeys the native compilation limits. Source registration stays separate from
+ * the retained lexical object assets and final compiler declarations.
  */
 export function walkSourceLexically(source: string, stopAtLimits: boolean): SourceLexicalResult {
   const issues = createSourceIssueCollection();
@@ -117,13 +114,10 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
   const retainedSoundEvents = new Map<number, SourceLexicalToken>(), ruleNamesByLine = new Map<number, ReadonlySet<string>>();
   const levelMessages = new Map<number, string>();
   const concrete = new Map<string, SourceObjectLexical>();
-  const synonyms: LegendEntry[] = [], aggregates: LegendEntry[] = [], properties: LegendEntry[] = [];
-  const names = new Set<string>(), glyphs = new Set<string>();
   const metadataLines = new Map<string, number>();
-  const layers: string[][] = [];
   const visited: SourceSectionKind[] = [];
   let section: SourceSectionKind | null = null, commentDepth = 0, afterComment = false;
-  let lineShouldEnd: string | null = null, tokenIndex = 0, words: string[] = [];
+  let lineShouldEnd: string | null = null, tokenIndex = 0, legendExpression = new NativeLegendExpression();
   let objectPart = ObjectPart.Names, objectName = '', workingRows: SourceLexicalToken[][] = [];
   let sounds: SoundToken[] = [], soundFailed = false;
   let soundEvent: SourceLexicalToken | null = null;
@@ -137,94 +131,9 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
       phase: SourceDiagnosticPhase.Reader, span: { start: cursor.position(visitStart), end: cursor.position() } });
     if (capped && stopAtLimits) throw new IssueCap();
   };
-  const declared = (name: string): { line: number | undefined } | null => {
-    const object = concrete.get(name);
-    if (inheritedObjectNames.has(name)) return { line: undefined };
-    return object === undefined ? aggregates.find(entry => entry.name === name) ?? properties.find(entry => entry.name === name)
-      ?? synonyms.find(entry => entry.name === name) ?? null : { line: object.primary.word.span.start.line };
-  };
-  const lookup = (name: string, path = new Set<string>()): FoundName => {
-    if (concrete.has(name) || inheritedObjectNames.has(name)) return { kind: NameKind.Object, name };
-    if (path.has(name)) return { kind: NameKind.Undeclared, name };
-    path.add(name);
-    const synonym = synonyms.find(entry => entry.name === name);
-    if (synonym !== undefined) return lookup(synonym.members[0]!, path);
-    const aggregate = aggregates.find(entry => entry.name === name);
-    if (aggregate !== undefined) return { kind: NameKind.Aggregate, name, entry: aggregate };
-    const property = properties.find(entry => entry.name === name);
-    return property === undefined ? { kind: NameKind.Undeclared, name } : { kind: NameKind.Property, name, entry: property };
-  };
-  const keywordWarning = (name: string, includeSingleCharacter = false): void => {
-    if ((includeSingleCharacter || name.length > 1) && keywords.has(name)) issue('You named an object "' + name.toUpperCase() + '", but this is a keyword. Don\'t do that!', true);
-  };
-  const processLegend = (): void => {
-    let okay = true;
-    if (words.length === 0) return;
-    if (words.length === 1) {
-      issue('Incorrect format of legend - should be one of "A = B", "A = B or C [ or D ...]", "A = B and C [ and D ...]".');
-      return;
-    }
-    if (words.length % 2 === 0) {
-      issue(`Incorrect format of legend - should be one of "A = B", "A = B or C [ or D ...]", "A = B and C [ and D ...]", but it looks like you have a dangling "${words[words.length - 1]!.toUpperCase()}"?`);
-      return;
-    }
-    const name = words[0]!, previous = declared(name);
-    if (previous !== null) {
-      issue(`Name "${name.toUpperCase()}" already in use (on line <a onclick="jumpToLine(${previous.line});" href="javascript:void(0);"><span class="errorTextLineNumber">line ${previous.line}</span></a>).`);
-      okay = false;
-    }
-    keywordWarning(name);
-    for (let index = 2; index < words.length; index += 2) {
-      const member = words[index]!;
-      if (member === name) {
-        issue("You can't define object " + name.toUpperCase() + ' in terms of itself!');
-        okay = false;
-        let found = words.indexOf(name, 2);
-        while (found >= 2) { words.splice(found >= 4 ? found - 1 : found, 2); found = words.indexOf(name, 2); }
-      }
-      for (let earlier = 2; earlier < index; earlier += 2) if (words[earlier] === member) {
-        issue("You're repeating the object " + member.toUpperCase() + " here multiple times on the RHS.  This makes no sense.  Don't do that.", true);
-      }
-    }
-    for (let index = 2; index < words.length; index += 2) if (words[index] !== name && declared(words[index]!) === null) {
-      issue(`You're talking about ${words[index]!.toUpperCase()} but it's not defined anywhere.`);
-    }
-    const line = cursor.line.span.start.line;
-    if (words.length === 3) synonyms.push({ name, members: [words[2]!], line });
-    else if (words[3] === 'and') {
-      const substitute = (member: string): string[] => {
-        const found = lookup(member);
-        switch (found.kind) {
-          case NameKind.Object: return [found.name];
-          case NameKind.Aggregate: return found.entry!.members.flatMap(substitute);
-          case NameKind.Property:
-            issue("Cannot define an aggregate (using 'and') in terms of properties (something that uses 'or').");
-            okay = false;
-            return [found.name];
-          default: return [found.name];
-        }
-      };
-      aggregates.push({ name, members: words.filter((_, index) => index >= 2 && index % 2 === 0).flatMap(substitute), line });
-    } else if (words[3] === 'or') {
-      const substitute = (member: string): string[] => {
-        const found = lookup(member);
-        switch (found.kind) {
-          case NameKind.Object: return [found.name];
-          case NameKind.Aggregate:
-            issue(`Cannot define a property (something defined in terms of 'or') in terms of an aggregate (something that uses 'and').  In this case, you can't define "${name.toUpperCase()}" in terms of "${found.name.toUpperCase()}".`);
-            return [];
-          case NameKind.Property: return found.entry!.members.filter(member => member !== found.name).flatMap(substitute);
-          default: return [found.name];
-        }
-      };
-      if (words.every((word, index) => index < 5 || index % 2 === 0 || word === 'or')) {
-        const members = words.filter((_, index) => index >= 2 && index % 2 === 0).flatMap(substitute);
-        if (members.length > 0) properties.push({ name, members, line });
-      }
-    } else if (okay) issue('This legend-entry is incorrectly-formatted - it should be one of A = B, A = B or C ( or D ...), A = B and C (and D ...)');
-  };
+  const declarations = new SourceDeclarations(issue, keywords);
   const endOfLine = (): void => {
-    if (section === SourceSectionKind.Legend) processLegend();
+    if (section === SourceSectionKind.Legend) declarations.registerLegend(legendExpression, cursor.line.span.start.line);
     else if (section === SourceSectionKind.Sounds && !soundFailed && soundEvent !== null) {
       retainedSoundEvents.set(cursor.line.span.start.line, soundEvent);
     }
@@ -244,15 +153,13 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
       const token = cursor.trimmedToken(start);
       const attempts = objectNameAttempts.get(lineNumber) ?? [];
       attempts.push(token); objectNameAttempts.set(lineNumber, attempts);
-      if (concrete.has(name) || inheritedObjectNames.has(name)) { issue('Object "' + name.toUpperCase() + '" defined multiple times.'); return; }
-      for (const entry of synonyms) if (entry.name === name) issue('Name "' + name.toUpperCase() + '" already in use.');
-      keywordWarning(name, sol);
       if (sol) {
+        if (!declarations.declareObject(name, lineNumber)) return;
         objectName = name;
         const object: SourceObjectLexical = { primary: token, names: [token], colors: [], rows: [] };
         concrete.set(name, object); objects.push(object);
       } else {
-        synonyms.push({ name, members: [objectName], line: cursor.line.span.start.line });
+        if (!declarations.declareObjectAlias(name, objectName, lineNumber)) return;
         concrete.get(objectName)?.names.push(token);
       }
       objectPart = ObjectPart.Aliases;
@@ -312,7 +219,7 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
       match = cursor.match(namePattern);
       if (match === null) { issue("Something bad's happening in the LEGEND"); cursor.discard(); }
       else if (match.trim() === 'and' || match.trim() === 'or') {
-        if (tokenIndex >= 5 && match.trim() !== words[3]) issue("Hey! You can't go mixing ANDs and ORs in a single legend entry.");
+        if (tokenIndex >= 5 && match.trim() !== legendExpression.firstOperator) issue("Hey! You can't go mixing ANDs and ORs in a single legend entry.");
       } else issue(`Expected and 'AND' or an 'OR' here, but got ${match.trim().toUpperCase()} instead. In the legend, define new items using the equals symbol - declarations must look like 'A = B' or 'A = B and C' or 'A = B or C'.`);
       tokenIndex++;
     } else {
@@ -320,12 +227,12 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
       if (match === null) { issue("Something bad's happening in the LEGEND"); cursor.discard(); }
       else tokenIndex++;
     }
-    if (match !== null) words.push(match.trim());
+    if (match !== null) legendExpression.append(match.trim());
     if (match !== null && actualMatch && match.trim() !== '') {
       const tokens = legendWords.get(cursor.line.span.start.line) ?? [];
       tokens.push(cursor.trimmedToken(start, start + match.length)); legendWords.set(cursor.line.span.start.line, tokens);
     }
-    if (cursor.end) processLegend();
+    if (cursor.end) declarations.registerLegend(legendExpression, cursor.line.span.start.line);
   };
   const soundToken = (): void => {
     const accept = (pattern: RegExp, role: SoundRole): boolean => {
@@ -347,7 +254,7 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
       if (!accept(soundEvents, SoundRole.Event)) {
         const match = cursor.match(namePattern);
         if (match === null) { fallback(); fail("Was expecting a sound event (like SFX3, or ENDLEVEL) or an object name, but didn't find either.", true); }
-        else if (declared(match.trim()) === null) fail(`unexpected sound token "${match.trim()}".`);
+        else if (declarations.findDeclaration(match.trim()) === null) fail(`unexpected sound token "${match.trim()}".`);
         else { sounds.push({ value: match.trim(), role: SoundRole.Name }); tokenIndex++; }
       }
     } else if (sounds.length === 1) {
@@ -370,7 +277,7 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
     }
   };
   const collisionToken = (sol: boolean): void => {
-    if (sol) { layers.push([]); words = []; tokenIndex = 0; }
+    if (sol) declarations.beginCollisionLayer();
     const start = cursor.index, match = cursor.match(namePattern);
     if (match === null) {
       if (cursor.match(/^[ ,]*/u) === '') { issue('error detected - unexpected character ' + cursor.character); cursor.next(); }
@@ -379,31 +286,10 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
     const name = match.trim();
     const tokens = collisionNames.get(cursor.line.span.start.line) ?? [];
     tokens.push(cursor.trimmedToken(start)); collisionNames.set(cursor.line.span.start.line, tokens);
-    const substitute = (member: string): string[] => {
-      const found = lookup(member);
-      switch (found.kind) {
-        case NameKind.Object: return [found.name];
-        case NameKind.Aggregate:
-          issue('"' + found.name + '" is an aggregate (defined using "and"), and cannot be added to a single layer because its constituent objects must be able to coexist.'); return [];
-        case NameKind.Property: return found.entry!.members.filter(member => member !== found.name).flatMap(substitute);
-        default: issue('Cannot add "' + name.toUpperCase() + '" to a collision layer; it has not been declared.'); return [];
-      }
-    };
-    if (name === 'background') {
-      if ((layers[layers.length - 1]?.length ?? 0) > 0) issue('Background must be in a layer by itself.');
-      tokenIndex = 1;
-    } else if (tokenIndex !== 0) issue('Background must be in a layer by itself.');
-    const members = substitute(name), current = layers[layers.length - 1];
-    if (current === undefined) { issue('no layers found.'); return; }
-    const others: number[] = [];
-    for (const member of members) for (let index = 0; index < layers.length - 1; index++) if (layers[index]!.includes(member)) others.push(index);
-    if (others.length > 0) issue('Object "' + name.toUpperCase() + '" included in multiple collision layers ( layers ' +
-      others.map(index => '#' + (index + 1) + ', ').join('') + '#' + layers.length + ' ). You should fix this! (The compiler will just pick one layer to assign it to).', true);
-    if (words.includes(name)) issue('Object "' + name.toUpperCase() + '" included explicitly multiple times in the same layer. Don\'t do that innit.', true);
-    words.push(name); current.push(...members);
+    declarations.addCollisionName(name);
   };
   const ruleToken = (sol: boolean): void => {
-    if (!ruleNamesByLine.has(cursor.line.span.start.line)) ruleNamesByLine.set(cursor.line.span.start.line, new Set(names));
+    if (!ruleNamesByLine.has(cursor.line.span.start.line)) ruleNamesByLine.set(cursor.line.span.start.line, declarations.ruleVocabulary);
     if (sol) tokenIndex = 0;
     if (tokenIndex === -4) { cursor.index = cursor.text.length; return; }
     if (cursor.match(/^[\p{Z}\s]*->[\p{Z}\s]*/u) !== null) return;
@@ -415,7 +301,7 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
     if (tokenIndex === 0 && /^(startloop|endloop)$/u.test(word)) return;
     if (tokenIndex === 0 && /^(up|down|left|right|horizontal|vertical|orthogonal|late|rigid)$/u.test(word)) { cursor.space(); return; }
     if (tokenIndex === 1 && /^(action|up|down|left|right|\^|v|<|>|moving|stationary|parallel|perpendicular|horizontal|orthogonal|vertical|no|randomdir|random)$/u.test(word)) { cursor.space(); return; }
-    if (names.has(word)) {
+    if (declarations.isRuleName(word)) {
       if (sol) issue('Objects cannot appear outside of square brackets in rules, only directions can.');
       else cursor.space();
     } else if (word === '...' || word === 'rigid' || word === 'random') return;
@@ -433,7 +319,7 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
     } else if (tokenIndex === 2) {
       if (word !== 'on') issue('Expecting the word "ON" but got "' + word.toUpperCase() + '".');
     } else if (tokenIndex === 1 || tokenIndex === 3) {
-      if (!names.has(word)) issue('Error in win condition: "' + word.toUpperCase() + '" is not a valid object name.');
+      if (!declarations.isRuleName(word)) issue('Error in win condition: "' + word.toUpperCase() + '" is not a valid object name.');
     } else issue("Error in win condition: I don't know what to do with " + word.toUpperCase() + '.');
   };
   const levelToken = (sol: boolean, mixedCase: string): void => {
@@ -457,7 +343,7 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
     } else if (tokenIndex === -4) { cursor.index = cursor.text.length; return; }
     if (tokenIndex === 2 && !cursor.end) {
       const glyph = cursor.next();
-      if (!glyphs.has(glyph)) issue('Key "' + glyph.toUpperCase() + '" not found. Do you need to add it to the legend, or define a new object?');
+      if (!declarations.isLevelGlyph(glyph)) issue('Key "' + glyph.toUpperCase() + '" not found. Do you need to add it to the legend, or define a new object?');
     }
   };
   const preludeToken = (sol: boolean, mixedCase: string): void => {
@@ -496,7 +382,7 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
     const physicalSol = cursor.index === 0;
     const mixedCase = cursor.line.original;
     let sol = physicalSol;
-    if (sol) { words = []; sounds = []; soundFailed = false; soundEvent = null; tokenIndex = 0; lineShouldEnd = null; }
+    if (sol) { legendExpression = new NativeLegendExpression(); sounds = []; soundFailed = false; soundEvent = null; tokenIndex = 0; lineShouldEnd = null; }
     if (afterComment) { sol = true; afterComment = false; }
     cursor.space();
     const character = cursor.character;
@@ -546,13 +432,8 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
           objectPart = ObjectPart.Names;
           if (visited.length > 1) issue('section "' + name.toUpperCase() + '" must be the first section');
         } else if (!visited.includes(section - 1)) issue('section "' + name.toUpperCase() + '" is out of order, must follow  "' + sourceSectionNames[section - 1]!.toUpperCase() + '" (or it could be that the section "' + sourceSectionNames[section - 1]!.toUpperCase() + '"is just missing totally.  You have to include all section headings, even if the section itself is empty).');
-        if (section === SourceSectionKind.Sounds) {
-          for (const name of concrete.keys()) names.add(name);
-          for (const entries of [synonyms, aggregates, properties]) for (const entry of entries) names.add(entry.name);
-        } else if (section === SourceSectionKind.Levels) {
-          for (const name of concrete.keys()) if (name.length === 1) glyphs.add(name);
-          for (const entries of [synonyms, aggregates]) for (const entry of entries) if (entry.name.length === 1) glyphs.add(entry.name);
-        }
+        if (section === SourceSectionKind.Sounds) declarations.captureRuleVocabulary();
+        else if (section === SourceSectionKind.Levels) declarations.captureLevelVocabulary();
         return;
       }
     }
@@ -583,5 +464,5 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
   }
   return { ...issues, objects, metadata, objectLines, objectNameAttempts, legendWords, collisionNames,
     soundEvents: retainedSoundEvents, levelMessages, ruleNamesByLine,
-    ruleNames: new Set(names), definedSounds: new Set([...retainedSoundEvents.values()].map(token => token.value)), stop };
+    ruleNames: declarations.ruleVocabulary, definedSounds: new Set([...retainedSoundEvents.values()].map(token => token.value)), stop };
 }

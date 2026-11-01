@@ -91,7 +91,9 @@ npm --prefix typescript run example:session
 | [scan-order.ts](src/scan-order.ts) | Observable coordinate order, independent of board storage |
 | [compatibility.ts](src/compatibility.ts) | Current restore and movement exceptions, plus historical research switches |
 | [source-compiler.ts](src/source-compiler.ts) | The complete compiler's explicit pass order |
-| [source-model.ts](src/source-model.ts), [source-reader.ts](src/source-reader.ts), [declarations.ts](src/declarations.ts) | Authored source evidence and canonical names/objects/layers |
+| [source-model.ts](src/source-model.ts), [source-reader.ts](src/source-reader.ts) | Authored source evidence and parsed rule syntax |
+| [source-declarations.ts](src/source-declarations.ts), [source-legend.ts](src/source-legend.ts) | Source-order registrations, alias targets, compound members, vocabulary snapshots and layer membership |
+| [declarations.ts](src/declarations.ts) | Canonical objects, final name resolution and compiled layers |
 | [rule-lexing.ts](src/rule-lexing.ts), [source-rules.ts](src/source-rules.ts), [rule-syntax.ts](src/rule-syntax.ts) | Rule tokens, authoritative parsed syntax, then validation and domain projection |
 | [source-rule-compiler.ts](src/source-rule-compiler.ts) and `rule-*.ts` | Syntax, ordered movement/property inference, lowering and schedules |
 | [source-assets.ts](src/source-assets.ts), [source-game-data.ts](src/source-game-data.ts) | Sprites, colors, levels, metadata, sounds and win conditions |
@@ -133,10 +135,57 @@ because promoted aliases depend on the final declaration namespace. Message
 commands retain their authored payload separately from the effective legacy
 UTF-16 cursor result.
 
-The whole frontend is not yet separated this way. `source-lexical.ts` still
-combines historical parser visits with declaration lookup, legend expansion and
-layer checks. Its rule visits also preserve earlier parser diagnostics and their
-stop cursor. Extracting that declaration work is the next frontend task.
+The source walker delegates declaration registration, reference expansion and
+layer membership to `SourceDeclarations`. It retains cursor/layout visits,
+comment handling, lexical asset rows and the synchronous issue collector. Its
+rule visits also preserve earlier parser diagnostics and their stop cursor, so
+it still does more than a pure lexer.
+
+## Source declarations and final names
+
+Source declarations have numeric kind discriminants and required payloads:
+objects name themselves, aliases have one `target`, properties have
+`alternatives`, and aggregates have `constituents`. Compounds retain their
+recovered source `references` separately from expanded members. For example:
+
+```puzzlescript
+Movable = Player or Crate
+Double = Movable or Player
+```
+
+`Double` records references `movable, player` and alternatives
+`player, crate, player`. Repeated alternatives remain explicit because their
+order and multiplicity can affect later behaviour. Lookup likewise returns a
+discriminated result: an unknown name has no optional compound payload to assume.
+
+Source registration and final compiler normalization are distinct operations.
+Even within source registration, vanilla uses two lookup orders:
+
+| Operation | Name precedence |
+| --- | --- |
+| Find an existing declaration for a diagnostic | Object, aggregate, property, alias |
+| Expand a reference | Object, alias chain, aggregate, property |
+
+`SourceDeclarations` names those operations separately. It also captures rule
+and level vocabulary at their actual section checkpoints and checks unnamed
+layer membership. It stores ordinary arrays and sets, with direct traversal;
+there are no lookup caches or packed representations.
+
+`NativeLegendExpression` isolates positional malformed-source recovery, including
+mutation after comment reentry. Its removal and kind-selection mechanics are
+shared with compiler legend recovery; authored tokens remain unchanged. Native
+inherited object-name lookup is confined to `source-native-names.ts` and never
+creates an actual registration or canonical object.
+
+The next duplication to remove is `prepareDeclarations` reconstructing the initial
+namespace before final compiler normalization. Replacing that reconstruction
+should consume the accepted registration model directly, while retaining canonical
+object identities and source provenance.
+
+The [declaration audit](../docs/superpowers/plans/2026-11-01-source-declarations.md)
+records the full 1,937-test run and a fresh 128-game per-move sample with 920
+observations. New tests check source-order behaviour, native diagnostic visits
+and TypeScript rejection of impossible declaration payloads.
 
 ## Execution order and historical exceptions
 
@@ -242,7 +291,7 @@ npm --prefix typescript test
 npm --prefix typescript run test:corpus -- --session
 ```
 
-The strict suite, including prepared-AGAIN and rule-frontend regressions, passes **1,902 tests**. Exact compilation comparison
+The strict suite, including prepared-AGAIN, rule-frontend and declaration regressions, passes **1,937 tests**. Exact compilation comparison
 covers **335 compiler fixtures**, **492 simulation sources** and **99,192 final
 executable rules**, including diagnostics, stopping outcomes, authored source
 evidence and declaration identities. The last completed full source-compiled replay,

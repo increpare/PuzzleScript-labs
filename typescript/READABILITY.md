@@ -153,10 +153,21 @@ blocks text access during compilation and changes a parsed row to verify that
 the compiler consumes it. The native syntax/compiler corpora guard recovery,
 grouping, contextual names, Unicode evidence and diagnostic timing.
 
-The next frontend slice should extract declaration registration and semantic
-checks from `source-lexical.ts`, keeping section/layout scanning explicit. Rule
-vocabulary is now a named input to parsing, which makes that later extraction
-possible without reintroducing a second rule grammar.
+Declaration registration, expansion and layer membership now live in
+[source-declarations.ts](src/source-declarations.ts), outside the source walker.
+Its numeric declaration union gives aliases a target, properties alternatives,
+and aggregates constituents. A separate expansion union makes unknown names
+explicit. Source registration and expansion deliberately use different precedence
+orders, and the source walker receives immediate diagnostics at its cursor.
+[source-declarations.test.mjs](test/source-declarations.test.mjs) checks that
+language behaviour; [source-declaration-types.test.mjs](test/source-declaration-types.test.mjs)
+checks that invalid payloads fail TypeScript compilation.
+
+The remaining frontend duplication is `prepareDeclarations` rebuilding the initial
+accepted namespace. Its replacement should use the typed registrations directly,
+rather than add another cached model alongside the current reconstruction. Final
+compiler normalization must remain a separate named operation because it uses
+different replacement and member-order rules.
 
 1. **Name the session probe policy inside `step`.** Extract helpers for rollback
    and commands that name retained history, RNG/events and committed effects.
