@@ -44,6 +44,11 @@ function createSourceOracle(types) {
         assert.equal(node.normalized, node.spelling.toLowerCase(), fixture.name + ': normalized source word');
       }
       for (const [key, value] of Object.entries(node)) {
+        // Stored rule diagnostics may deliberately have no reported source
+        // line. Authored evidence spans and every non-null issue span still
+        // undergo the same strict provenance checks.
+        if (key === 'span' && value === null && node.phase === types.SourceDiagnosticPhase.Rules
+          && typeof node.code === 'string' && typeof node.countsAsError === 'boolean') continue;
         if (key === 'span' || key.endsWith('Span')) checkSpan(value);
         visit(value);
       }

@@ -50,9 +50,13 @@ export interface SourceLexicalResult extends SourceIssueCollection {
   readonly collisionNames: ReadonlyMap<number, readonly SourceLexicalToken[]>;
   readonly soundEvents: ReadonlyMap<number, SourceLexicalToken>;
   readonly levelMessages: ReadonlyMap<number, string>;
-  /** Full source-ordered vocabulary for authored rules. Native parser name
-   * recognition separately uses its SOUNDS-entry snapshot. */
+  /** SOUNDS registrations visible while scanning each physical rule line;
+   * later headings can change the final grammar vocabulary, but not comments. */
   readonly ruleNamesByLine: ReadonlyMap<number, ReadonlySet<string>>;
+  /** Final accumulated SOUNDS-entry registrations used by every rule's grammar. */
+  readonly ruleNames: ReadonlySet<string>;
+  /** Accepted event names, including malformed definitions retained by native recovery. */
+  readonly definedSounds: ReadonlySet<string>;
   readonly stop: SourceLexicalStop | null;
 }
 
@@ -399,8 +403,7 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
     words.push(name); current.push(...members);
   };
   const ruleToken = (sol: boolean): void => {
-    if (!ruleNamesByLine.has(cursor.line.span.start.line)) ruleNamesByLine.set(cursor.line.span.start.line,
-      new Set([...concrete.keys(), ...synonyms.map(entry => entry.name), ...aggregates.map(entry => entry.name), ...properties.map(entry => entry.name)]));
+    if (!ruleNamesByLine.has(cursor.line.span.start.line)) ruleNamesByLine.set(cursor.line.span.start.line, new Set(names));
     if (sol) tokenIndex = 0;
     if (tokenIndex === -4) { cursor.index = cursor.text.length; return; }
     if (cursor.match(/^[\p{Z}\s]*->[\p{Z}\s]*/u) !== null) return;
@@ -579,5 +582,6 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
     if (stop !== null) break;
   }
   return { ...issues, objects, metadata, objectLines, objectNameAttempts, legendWords, collisionNames,
-    soundEvents: retainedSoundEvents, levelMessages, ruleNamesByLine, stop };
+    soundEvents: retainedSoundEvents, levelMessages, ruleNamesByLine,
+    ruleNames: new Set(names), definedSounds: new Set([...retainedSoundEvents.values()].map(token => token.value)), stop };
 }

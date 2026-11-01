@@ -1,3 +1,6 @@
+import type { Direction } from './model.js';
+import type { RuleQualifier } from './source-rule-model.js';
+
 /** Every offset and column counts JavaScript UTF-16 code units. End positions are exclusive. */
 export interface SourcePosition { readonly offset: number; readonly line: number; readonly column: number }
 export interface SourceSpan { readonly start: SourcePosition; readonly end: SourcePosition }
@@ -97,10 +100,13 @@ export interface SourceWinCondition extends SourceEntry {
   readonly target: SourceWord | null;
 }
 export enum SourceRuleKind { Ordinary, StartLoop, EndLoop, Invalid }
-export enum SourceRuleCellKind { Contents, Ellipsis, Invalid }
+export enum SourceRuleCellKind { Contents, Ellipsis }
 export interface SourceRuleTerm {
   readonly qualifier: SourceWord | null;
-  readonly name: SourceWord | null;
+  readonly qualifierValue: RuleQualifier;
+  readonly name: SourceWord;
+  /** Effective whole-line lowercase value, which can differ from name.normalized. */
+  readonly nameValue: string;
   readonly words: readonly SourceWord[];
   readonly span: SourceSpan;
 }
@@ -112,22 +118,32 @@ export interface SourceRuleCell {
 }
 export interface SourceRuleRow {
   readonly cells: readonly SourceRuleCell[];
-  readonly openingBracket: SourceWord;
-  readonly closingBracket: SourceWord | null;
+  /** Native nested-bracket recovery can emit another row without a fresh opener. */
+  readonly openingBracket: SourceWord | null;
+  readonly closingBracket: SourceWord;
   readonly span: SourceSpan;
 }
 export enum SourceRuleCommandKind { SoundEffect, Cancel, Checkpoint, Restart, Win, Message, Again }
 export type SourceRuleCommand =
-  { readonly kind: SourceRuleCommandKind.Message; readonly word: SourceWord; readonly authoredPayload: string; readonly legacyPayload: string; readonly payloadSpan: SourceSpan } |
-  { readonly kind: Exclude<SourceRuleCommandKind, SourceRuleCommandKind.Message>; readonly word: SourceWord };
+  { readonly kind: SourceRuleCommandKind.Message; readonly word: SourceWord; readonly authoredPayload: string; readonly legacyPayload: string;
+    readonly text: string; readonly payloadSpan: SourceSpan } |
+  { readonly kind: SourceRuleCommandKind.SoundEffect; readonly word: SourceWord; readonly index: number } |
+  { readonly kind: Exclude<SourceRuleCommandKind, SourceRuleCommandKind.Message | SourceRuleCommandKind.SoundEffect>; readonly word: SourceWord };
+/** Syntax issues are replayed only when compilation reaches the Rules checkpoint. */
+export enum SourceRuleSyntaxIssueKind { Diagnostic, DuplicateProperty }
+export type SourceRuleSyntaxIssue =
+  { readonly kind: SourceRuleSyntaxIssueKind.Diagnostic; readonly diagnostic: SourceDiagnostic } |
+  { readonly kind: SourceRuleSyntaxIssueKind.DuplicateProperty; readonly name: string };
 interface SourceRuleBase extends SourceEntry {
   readonly originalLine: SourceLine;
-  /** Full compiler input: leading-comment reentry captures an already lowercased line; originalLine stays authored. */
+  /** Full authored compiler input, retaining its original case even after comment reentry. */
   readonly compilerLine: string;
   /** The compiler historically receives the first run of non-'(' text, lowercased, on this physical line. */
   readonly legacyCapturedText: string;
   readonly legacyCapturedSpan: SourceSpan;
   readonly tokens: readonly SourceWord[];
+  /** Canonical effective scanner output, including fragments discarded by recovery. */
+  readonly lexicalTokens: readonly SourceLexicalToken[];
 }
 export interface SourcePatternRule extends SourceRuleBase {
   readonly kind: SourceRuleKind.Ordinary | SourceRuleKind.Invalid;
@@ -137,6 +153,14 @@ export interface SourcePatternRule extends SourceRuleBase {
   readonly arrow: SourceWord | null;
   readonly commands: readonly SourceRuleCommand[];
   readonly trailingWords: readonly SourceWord[];
+  readonly retained: boolean;
+  readonly abortsCompilation: boolean;
+  readonly syntaxIssues: readonly SourceRuleSyntaxIssue[];
+  readonly sourceGroup: number;
+  readonly directions: readonly Direction[];
+  readonly late: boolean;
+  readonly rigid: boolean;
+  readonly random: boolean;
 }
 export interface SourceLoopMarker extends SourceRuleBase {
   readonly kind: SourceRuleKind.StartLoop | SourceRuleKind.EndLoop;

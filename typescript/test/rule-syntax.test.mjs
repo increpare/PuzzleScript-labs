@@ -71,12 +71,12 @@ test('known checkpoint is an ordered name before it can be a command', () => {
   assert.deepEqual(result.rules[0].commands, []);
 });
 
-test('recovery keeps named evidence and authored invalid partial rows', () => {
+test('recovery keeps named evidence and raw tokens for an unfinished row', () => {
   const { document, result } = oracle.compareFixture(fixture('[ > Missing Player ] -> win [ Player'));
   const term = result.rules[0].lhs[0][0][0];
   assert.equal(term.qualifier, model.RuleQualifier.Forward);
   assert.equal(document.source.slice(term.origin.start.offset, term.origin.end.offset), '> Missing Player');
-  assert.equal(document.rules[0].rhs[0].closingBracket, null);
+  assert.deepEqual(document.rules[0].tokens.slice(-2).map(word => word.spelling), ['[', 'Player']);
   assert.deepEqual(result.rules[0].rhs, []);
   assert.equal(result.rules[0].source, document.rules[0]);
 });
@@ -169,6 +169,18 @@ test('a later SOUNDS snapshot also supplies names to rules captured before the d
   assert.deepEqual(result.diagnostics, []);
 });
 
+for (const registration of ['missing', 'before rule', 'after rule']) {
+  test('message comment scanning uses the vocabulary visible on its physical line: ' + registration, () => {
+    const item = fixture('[ Player ] -> message Hello (unclosed\n[ Player ] -> [ Player ]');
+    item.source = item.source.replaceAll('Wall', 'Message');
+    if (registration !== 'before rule') item.source = item.source.replace('\nsounds\n', '\n');
+    if (registration === 'after rule') item.source = item.source.replace('\nwinconditions\n', '\nsounds\n\nwinconditions\n');
+    const { document, captured } = oracle.compareFixture(item);
+    assert.equal(document.rules.length, captured);
+    assert.equal(captured, registration === 'before rule' ? 1 : 2);
+  });
+}
+
 test('snapshot membership keeps its first registration while property meaning remains final', () => {
   const item = fixture('[ Pair Pair ] -> [ Pair ]');
   item.source = item.source.replace('C = Crate', 'C = Crate\nPair = Player')
@@ -207,13 +219,13 @@ test('Unicode named terms retain authored spans while using compiler lowercase i
   assert.deepEqual(result.rules[0].lhs[0].map(cell => document.source.slice(cell[0].origin.start.offset, cell[0].origin.end.offset)), ['> Player', '^ 𐐀', 'v ΟΣ']);
 });
 
-test('effective syntax never trusts authored term grouping or Invalid rule classification', () => {
-  oracle.compareFixture(fixture('[ > up Player ] -> [ Player ]'), { readSource: source => {
+test('oracle rejects corruption of authoritative parsed rule rows and commands', () => {
+  assert.throws(() => oracle.compareFixture(fixture('[ > up Player ] -> [ Player ]'), { readSource: source => {
     const { document, diagnostics } = readSource(source);
     return { diagnostics, document: { ...document, rules: document.rules.map(rule => ({ ...rule,
       kind: sourceTypes.SourceRuleKind.Invalid, lhs: [], rhs: [], prefixWords: [], commands: [],
     })) } };
-  } });
+  } }), /effective rule syntax/);
 });
 
 for (const [name, line, corrupt] of [

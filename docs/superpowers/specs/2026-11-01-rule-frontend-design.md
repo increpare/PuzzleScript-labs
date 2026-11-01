@@ -21,9 +21,10 @@ from a discarded rule, and records the compilation-abort condition separately.
 
 The parser receives an explicit contextual vocabulary: final accumulated SOUNDS
 name registrations and accepted sound-event names. This is a PuzzleScript
-grammar dependency, not object/property resolution. Existing per-line name
-registrations remain solely for comment/message scanning. Later SOUNDS headings
+grammar dependency, not object/property resolution. Per-line vocabulary snapshots
+remain solely for comment/message scanning. Later SOUNDS headings
 can affect earlier rules, so grammar parsing uses the completed context.
+They cannot retroactively change the comments scanned on those earlier lines.
 
 `rule-syntax.ts` consumes the parsed tree and reports its issues at the existing
 Rules checkpoint. It projects source terms/commands to domain enums without

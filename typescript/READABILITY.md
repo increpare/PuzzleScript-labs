@@ -144,6 +144,20 @@ The manifest's undo operations explicitly ignore duplicate boards.
 
 ## Prioritized clarity improvements
 
+The frontend now takes priority over the runtime suggestions below. Its first
+slice gives rules one authoritative parse: [rule-lexing.ts](src/rule-lexing.ts)
+scans source-mapped tokens, [source-rules.ts](src/source-rules.ts) builds the
+recovered source tree, and [rule-syntax.ts](src/rule-syntax.ts) validates/projects
+that tree without reading rule text. [rule-frontend.test.mjs](test/rule-frontend.test.mjs)
+blocks text access during compilation and changes a parsed row to verify that
+the compiler consumes it. The native syntax/compiler corpora guard recovery,
+grouping, contextual names, Unicode evidence and diagnostic timing.
+
+The next frontend slice should extract declaration registration and semantic
+checks from `source-lexical.ts`, keeping section/layout scanning explicit. Rule
+vocabulary is now a named input to parsing, which makes that later extraction
+possible without reintroducing a second rule grammar.
+
 1. **Name the session probe policy inside `step`.** Extract helpers for rollback
    and commands that name retained history, RNG/events and committed effects.
    Keep the prepared result and full input check. Readers could locate each

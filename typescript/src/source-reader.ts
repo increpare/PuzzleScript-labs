@@ -1,9 +1,9 @@
 import { SourceDiagnosticPhase, SourceDiagnosticSeverity, SourceLegendKind, SourceLevelKind, SourceLineKind, SourceRuleKind, SourceSectionKind, SourceSoundKind, SourceWinConditionKind,
   type SourceDiagnostic, type SourceDocument, type SourceEntry, type SourceGridLevel, type SourceLegend, type SourceLexicalToken, type SourceLine, type SourceObject,
-  type SourceReadResult, type SourceSection, type SourceSound, type SourceSpan, type SourceSpriteRow, type SourceWinCondition, type SourceWord } from './source-model.js';
+  type SourcePatternRule, type SourceReadResult, type SourceSection, type SourceSound, type SourceSpan, type SourceSpriteRow, type SourceWinCondition, type SourceWord } from './source-model.js';
 import { leadingContent, lineSpan, readComments, sourceWord, sourceWords, splitSourceLines, trimmedRange,
   type CommentState } from './source-text.js';
-import { readRule } from './source-rules.js';
+import { readRule, type RuleParsingContext } from './source-rules.js';
 import { walkSourceLexically, sourceMetadataFlags as metadataFlags, sourceMetadataValues as metadataValues,
   SourceObjectLineKind, type SourceLexicalResult } from './source-lexical.js';
 
@@ -126,6 +126,8 @@ export function readAuthoredSource(source: string, lexical: SourceLexicalResult)
   let section: SourceSection | null = null;
   let grid: SourceGridLevel | null = null;
   let objectReading = emptyObjectReadingState();
+  const ruleContext: RuleParsingContext = { ruleNames: lexical.ruleNames, definedSounds: lexical.definedSounds };
+  let previousRule: SourcePatternRule | undefined;
   let order = 0;
   for (const line of document.lines) {
     const startsInsideComment = comments.stack.length > 0;
@@ -133,8 +135,8 @@ export function readAuthoredSource(source: string, lexical: SourceLexicalResult)
     const contentStart = content.start;
     const levelMessage = isLevels(section) ? /^message/iu.exec(line.original.slice(contentStart)) : null;
     const activeHeading: SourceHeading | null = isLevels(section) ? null : sectionHeading(line, ' '.repeat(contentStart) + line.original.slice(contentStart));
-    const declaredNames = lexical.ruleNamesByLine.get(line.span.start.line) ?? new Set<string>();
-    const ruleNames = section?.kind === SourceSectionKind.Rules && activeHeading === null ? declaredNames : undefined;
+    const commentNames = lexical.ruleNamesByLine.get(line.span.start.line) ?? new Set<string>();
+    const ruleNames = section?.kind === SourceSectionKind.Rules && activeHeading === null ? commentNames : undefined;
     const view = readComments(line, comments, diagnostics, levelMessage === null ? undefined : contentStart + levelMessage[0].length, ruleNames);
     const words = sourceWords(line, view);
     const first = words[0];
@@ -227,8 +229,9 @@ export function readAuthoredSource(source: string, lexical: SourceLexicalResult)
           document.collisionLayers.push({ sectionId: section.id, order: order++, span: line.span, names, words,
             definitionNames: reuseLexicalWords(lexical.collisionNames.get(line.span.start.line) ?? [], names) });
         } else if (section.kind === SourceSectionKind.Rules) {
-          const rule = readRule(line, line.original, { sectionId: section.id, order: order++, span: line.span }, declaredNames, issue);
+          const rule = readRule(line, line.original, { sectionId: section.id, order: order++, span: line.span }, ruleContext, previousRule);
           document.rules.push(rule);
+          if ('lhs' in rule && rule.retained) previousRule = rule;
           if (rule.kind === SourceRuleKind.Invalid) line.kind = SourceLineKind.Invalid;
         } else if (section.kind === SourceSectionKind.WinConditions) {
           const win = readWinCondition({ sectionId: section.id, order: order++, span: line.span }, words);

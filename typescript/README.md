@@ -92,6 +92,7 @@ npm --prefix typescript run example:session
 | [compatibility.ts](src/compatibility.ts) | Current restore and movement exceptions, plus historical research switches |
 | [source-compiler.ts](src/source-compiler.ts) | The complete compiler's explicit pass order |
 | [source-model.ts](src/source-model.ts), [source-reader.ts](src/source-reader.ts), [declarations.ts](src/declarations.ts) | Authored source evidence and canonical names/objects/layers |
+| [rule-lexing.ts](src/rule-lexing.ts), [source-rules.ts](src/source-rules.ts), [rule-syntax.ts](src/rule-syntax.ts) | Rule tokens, authoritative parsed syntax, then validation and domain projection |
 | [source-rule-compiler.ts](src/source-rule-compiler.ts) and `rule-*.ts` | Syntax, ordered movement/property inference, lowering and schedules |
 | [source-assets.ts](src/source-assets.ts), [source-game-data.ts](src/source-game-data.ts) | Sprites, colors, levels, metadata, sounds and win conditions |
 
@@ -100,6 +101,42 @@ There are two source maps. TypeScript's generated `.js.map` files point back to
 `ruleSources` Map links each executable rule identity to its actual authored
 PuzzleScript rule, including cases where one source rule expands into many.
 The trace uses that Map when projecting queued commands.
+
+## Rule frontend boundaries
+
+Rule text follows one path:
+
+```text
+captured source line → source-mapped tokens → parsed rule → validation → expansion → lowering
+```
+
+`scanRuleTokens` preserves both authored words and effective lowercase values.
+`readRule` recognizes headers, bracket rows, cells, qualifiers and commands. The
+source document stores its recovered tree and token stream; malformed fragments
+remain visible in the tokens even when recovery discards them. `recoverRuleSyntax`
+consumes that tree. It does not tokenize the line again or reconstruct brackets.
+Expansion still owns orientations, movement families, properties and implicit
+stationary terms; lowering constructs executable predicates and replacements.
+
+PuzzleScript's grammar has contextual names: an accepted name such as `checkpoint`
+can take precedence over a command. The rule parser receives explicit name and
+sound vocabulary from the completed source walk. Vanilla registers rule names
+on entering SOUNDS, so a later SOUNDS heading can affect an earlier rule. This
+context identifies names without resolving them to objects, layers or property
+members. Comment recognition uses the registrations visible on each physical
+line; later headings do not retroactively change those comment boundaries.
+
+Parsing records syntax issues in encounter order. Compilation reports them when
+it reaches its existing Rules checkpoint, preserving diagnostic caps and stopping
+behaviour. The supplementary duplicate-property note is resolved at that point
+because promoted aliases depend on the final declaration namespace. Message
+commands retain their authored payload separately from the effective legacy
+UTF-16 cursor result.
+
+The whole frontend is not yet separated this way. `source-lexical.ts` still
+combines historical parser visits with declaration lookup, legend expansion and
+layer checks. Its rule visits also preserve earlier parser diagnostics and their
+stop cursor. Extracting that declaration work is the next frontend task.
 
 ## Execution order and historical exceptions
 
@@ -205,15 +242,22 @@ npm --prefix typescript test
 npm --prefix typescript run test:corpus -- --session
 ```
 
-The refreshed strict suite, including prepared-AGAIN regressions, passes **1,890 tests**. Exact compilation comparison
+The strict suite, including prepared-AGAIN and rule-frontend regressions, passes **1,902 tests**. Exact compilation comparison
 covers **335 compiler fixtures**, **492 simulation sources** and **99,192 final
 executable rules**, including diagnostics, stopping outcomes, authored source
-evidence and declaration identities. Full source-compiled replay passes all
+evidence and declaration identities. The last completed full source-compiled replay,
+before the rule-frontend refactor, passed all
 **492 games**, **20,076 session observations/operations** and **539 level loads**,
 including every recorded input and AGAIN step. All **203 authored fixtures**
 also pass, with 563 observations. Independent review found no actionable issues.
 The [refresh audit](../docs/superpowers/plans/2026-10-31-typescript-vanilla-refresh.md)
 records the authority and verification separately from historical runs.
+
+The rule-frontend refactor also passes a fresh 128-game generated per-move sample
+(907 observations) and at least 218 original-game replays. Its additional exhaustive
+playback run was stopped because large direct-runtime cases were slow; it did not
+complete all 492 games. All 827 compilation comparisons and the full strict suite
+completed. See the [frontend audit](../docs/superpowers/plans/2026-11-01-rule-frontend.md).
 
 Historical verification at the previous `5a94bde1` pin: the strict suite passed
 **1,749 tests** and complete compilation comparison passed **312 compiler

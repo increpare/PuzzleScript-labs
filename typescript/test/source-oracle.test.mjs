@@ -117,3 +117,13 @@ test('compilation fixtures preserve recoverable source and valid spans without t
   // diagnostic counts/messages or its executable output.
   for (const item of fixtures) oracle.checkPreservation(item);
 });
+
+test('stored syntax diagnostic spans retain strict provenance checks', () => {
+  const item = { name: 'corrupt syntax issue span', source: movementSource({ rules: '[ > up Player ] -> [ Player ]' }) };
+  assert.throws(() => oracle.checkPreservation(item, { readSource: source => {
+    const result = readSource(source);
+    const diagnostic = result.document.rules[0].syntaxIssues.find(issue => 'diagnostic' in issue).diagnostic;
+    diagnostic.span = { start: { offset: -1, line: 1, column: 1 }, end: { offset: 0, line: 1, column: 2 } };
+    return result;
+  } }), /source span offset/);
+});
