@@ -90,7 +90,7 @@ node --test --test-concurrency=4 typescript/test/*.test.mjs src/tests/semantic-f
       timeouts counted as passes; compare all final flags, RNG, history and effects.
 - [x] Update `typescript/FRONTEND.md`, `READABILITY.md`, `README.md` and this record
       to explain direct choice order and any intentional diagnostic-trace change.
-- [ ] Integrate into local master after passing checks; rebuild and run focused
+- [x] Integrate into local master after passing checks; rebuild and run focused
       smoke tests there. Preserve unrelated work and do not push.
 
 ## Evidence
@@ -161,4 +161,13 @@ tests, zero failures/skips**, in approximately 189 seconds. Log:
 totals plus actual final compilation for all 492 simulation and 335 compilation
 sources, including final rules, recorded diagnostics, error counts and stopping
 outcomes. The frozen native sources, authority manifest and pinned revision are
-unchanged. Local integration and primary-checkout smoke verification remain.
+unchanged.
+
+Commit `df2dcd7c` was fast-forwarded into local master. The primary checkout's
+strict build and 238 focused direct-choice, behavioral witness, movement,
+property, type and final compiler tests passed with zero failures/skips
+(`/private/tmp/ps-direct-movement-master-smoke.log`). Both checkouts were clean
+after integration; this documentation-only record completes the audit. The
+existing reusable worktree is retained on
+`codex/typescript-direct-movement-expansion`. No push or preview server was
+started, and the launched test/campaign processes completed.
