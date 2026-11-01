@@ -1,5 +1,5 @@
 import { appendSourceIssue, type SourceIssueReporter } from './source-diagnostics.js';
-import type { ResolvedDeclarations } from './declaration-model.js';
+import { PropertyLayerKind, type ResolvedDeclarations } from './declaration-model.js';
 import type { GameObject } from './model.js';
 import { SourceDiagnosticPhase, SourceDiagnosticSeverity, type SourceDiagnostic } from './source-model.js';
 import { RuleQualifier, type NamedRuleCell, type NamedRuleTerm, type RuleSyntax } from './source-rule-model.js';
@@ -79,11 +79,14 @@ export function checkEarlyNegativeTerms(rules: readonly RuleSyntax[], declaratio
       if (term.qualifier === RuleQualifier.No) continue;
       const name = term.name;
       // Namespace priority is significant when invalid declarations reuse names.
-      if (declarations.ruleNames.singleLayerProperties.has(name)) {
-        const layer = declarations.ruleNames.singleLayerProperties.get(name);
-        requiredLayers.add(layer ?? 0);
-        if (layer !== undefined) occupier.set(layer, name);
-        for (const member of declarations.ruleNames.properties.get(name) ?? []) {
+      const property = declarations.ruleNames.properties.get(name);
+      if (property !== undefined
+        && (property.layer.kind === PropertyLayerKind.SingleLayer || property.layer.kind === PropertyLayerKind.Unlayered)) {
+        if (property.layer.kind === PropertyLayerKind.SingleLayer) {
+          requiredLayers.add(property.layer.layer);
+          occupier.set(property.layer.layer, name);
+        } else requiredLayers.add(0);
+        for (const member of property.alternatives) {
           const object = concrete.get(member);
           if (object !== undefined) requireObjects(object);
         }

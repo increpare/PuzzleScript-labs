@@ -8,6 +8,8 @@ import { checkEarlyNegativeTerms } from '../build/rule-negatives.js';
 import { orientRules } from '../build/rule-orientations.js';
 import { expandRuleNames } from '../build/rule-names.js';
 import { expandRuleMovements } from '../build/rule-movements.js';
+import { lowerRules } from '../build/rule-lowering.js';
+import { PropertyLayerKind } from '../build/declaration-model.js';
 import * as sourceTypes from '../build/source-model.js';
 import { CommandKind } from '../build/commands.js';
 import { RuleQualifier as Q } from '../build/source-rule-model.js';
@@ -159,7 +161,9 @@ test('empty properties erase negative terms and remove an eligible empty choice 
     return { ...item, source: item.source.replace('P = Player\n', '') };
   };
   const negative = oracle.compareFixture(empty('right [ no Choices ] -> [ Wall ]'));
-  assert.deepEqual(negative.declarations.ruleNames.properties.get('choices'), []);
+  assert.deepEqual(negative.declarations.ruleNames.properties.get('choices'), {
+    alternatives: [], layer: { kind: PropertyLayerKind.Empty },
+  });
   assert.deepEqual(names(negative.result.rules), [[]]);
   const rightNegative = oracle.compareFixture(empty('right [ Wall ] -> [ no Choices ]'));
   assert.deepEqual(rightNegative.movement.rules[0].rhs[0][0].map(term => [term.qualifier, term.name]), [[Q.No, 'choices']]);
@@ -210,12 +214,37 @@ test('command-only and late rules still expand properties', () => {
   assert.ok(result.rules.every(rule => rule.rhs.length === 0 && rule.commands[0].text === 'Keep PROPERTY'));
 });
 
-test('present undefined single-layer entries retain unlayered local properties', () => {
+test('unlayered analysis retains local properties', () => {
   const { declarations, result } = oracle.compareFixture(fixture('right [ Things ] -> [ Things ]',
     'Things = Crate or Wall', 'Player'));
-  assert.ok(declarations.ruleNames.singleLayerProperties.has('things'));
-  assert.equal(declarations.ruleNames.singleLayerProperties.get('things'), undefined);
+  assert.deepEqual(declarations.ruleNames.properties.get('things'), {
+    alternatives: ['crate', 'wall'], layer: { kind: PropertyLayerKind.Unlayered },
+  });
   assert.deepEqual(names(result.rules), [['things']]);
+});
+
+test('unlayered properties stay local for inference but have no numeric layer when lowered', () => {
+  const item = fixture('right [ Things ] -> [ Things ]', 'Things = Crate or Wall', 'Player');
+  const { document } = readSource(item.source);
+  const { declarations } = resolveDeclarations(document);
+  const syntax = recoverRuleSyntax(document, declarations);
+  const negatives = checkEarlyNegativeTerms(syntax.rules, declarations);
+  const oriented = orientRules(negatives.rules);
+  const named = expandRuleNames(oriented, declarations);
+  const movement = expandRuleMovements(named.rules);
+  const result = properties.expandRuleProperties(movement.rules, declarations);
+  assert.deepEqual(declarations.ruleNames.properties.get('things'), {
+    alternatives: ['crate', 'wall'], layer: { kind: PropertyLayerKind.Unlayered },
+  });
+  assert.deepEqual(names(result.rules), [['things']]);
+  assert.deepEqual(rightNames(result.rules), [['things']]);
+  const lowered = lowerRules(result.rules, declarations);
+  assert.deepEqual(lowered.diagnostics.map(issue => [issue.code, issue.message]), [
+    ['rule-object-without-layer', 'Oops! THINGS not assigned to a layer.'],
+    ['rule-object-without-layer', 'Oops! THINGS not assigned to a layer.'],
+  ]);
+  assert.deepEqual(lowered.rules[0].executable.rows[0][0].anyObjects, []);
+  assert.deepEqual(lowered.rules[0].executable.replacements, [[null]]);
 });
 
 for (const [rule, expected] of [

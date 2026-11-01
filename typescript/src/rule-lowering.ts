@@ -1,6 +1,6 @@
 import { appendSourceIssue, type SourceIssueReporter } from './source-diagnostics.js';
 import * as vanilla from './compatibility.js';
-import type { ResolvedDeclarations } from './declaration-model.js';
+import { PropertyLayerKind, type ResolvedDeclarations } from './declaration-model.js';
 import type { CellReplacement, ExecutableRule } from './execution-model.js';
 import { getObjectIntentLayer, Movement, type GameObject } from './model.js';
 import { Ellipsis, type CellPattern, type LayerMovement, type PatternCell } from './rule-model.js';
@@ -52,7 +52,9 @@ export function lowerRules(
   // changes the final named object set. Unlayered concrete names recover to zero.
   const layerOf = (name: string): number | undefined => {
     const object = concrete.get(name);
-    return object === undefined ? declarations.ruleNames.singleLayerProperties.get(name) : declarations.objectLayers.get(object) ?? 0;
+    if (object !== undefined) return declarations.objectLayers.get(object) ?? 0;
+    const analysis = declarations.ruleNames.properties.get(name)?.layer;
+    return analysis?.kind === PropertyLayerKind.SingleLayer ? analysis.layer : undefined;
   };
   const include = (target: Set<GameObject>, objects: ReadonlySet<GameObject>): void => {
     for (const object of objects) target.add(object);
@@ -142,7 +144,7 @@ export function lowerRules(
               continue;
             }
             include(randomObjects, namedObjects(name));
-            const values = declarations.ruleNames.properties.get(name) ?? [name];
+            const values = declarations.ruleNames.properties.get(name)?.alternatives ?? [name];
             if (values.length === 1) {
               issue('single-random-rule-object', `In this rule you're asking me to spawn a random ${name.toUpperCase()} for you, but that's already a concrete single object. You wanna be using random with properties (things defined in terms of OR in the legend) so there's some things to select between.`, SourceDiagnosticSeverity.Warning);
             }

@@ -4,7 +4,7 @@ import { readSource } from '../build/source-reader.js';
 import { resolveDeclarations } from '../build/declarations.js';
 import { compileGameData } from '../build/source-game-data.js';
 import * as sourceTypes from '../build/source-model.js';
-import { ResolvedNameKind } from '../build/declaration-model.js';
+import { ResolvedNameKind, PropertyLayerKind } from '../build/declaration-model.js';
 import { Movement } from '../build/model.js';
 import { LevelKind, SimpleSound } from '../build/session-model.js';
 import { PlayerMatchKind } from '../build/turn-rules.js';
@@ -19,7 +19,7 @@ import { createRuleSyntaxOracle } from './legacy-rule-syntax.cjs';
 import { movementSource } from './scenarios.mjs';
 
 const types = { readSource, resolveDeclarations, compileGameData, ...sourceTypes,
-  ResolvedNameKind, Movement, LevelKind, SimpleSound, PlayerMatchKind, ObjectMatchKind, WinQuantifier, hasWon,
+  ResolvedNameKind, PropertyLayerKind, Movement, LevelKind, SimpleSound, PlayerMatchKind, ObjectMatchKind, WinQuantifier, hasWon,
   CommandKind, ...syntax };
 const sourceOracle = createSourceOracle(types);
 // One pinned host supplies every projection; native lexical globals cannot be

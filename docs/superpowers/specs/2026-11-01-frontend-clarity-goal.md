@@ -26,8 +26,11 @@ types. Collision layers remain unnamed.
   Shared `tokenIndex` values such as -4/-1/0/1/2 and section-enum arithmetic no
   longer stand in for unrelated language concepts. Evidence: the scanner-state
   audit, native recovery comparisons, negative type contracts and 1,998-test run.
-- [ ] Property layer analysis distinguishes layered, unlayered, nonlocal and
-  unresolved cases explicitly rather than using Map presence plus undefined.
+- [x] Property layer analysis distinguishes layered, unlayered, nonlocal,
+  unresolved and empty cases explicitly. Properties carry alternatives and their
+  required analysis in one record; the separate present-undefined map is removed.
+  Evidence: strict type/semantic checks, independent status corruption controls,
+  the property-layer audit and 2,055-test full run.
 - [ ] Rule-pass input/output types express the actual guarantees of orientation,
   movement expansion and property resolution. Lowering handles valid qualifiers
   exhaustively instead of silently treating unsupported ones as no movement.

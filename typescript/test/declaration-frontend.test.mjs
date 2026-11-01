@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readSource } from '../build/source-reader.js';
 import { resolveDeclarations } from '../build/declarations.js';
-import { ResolvedNameKind } from '../build/declaration-model.js';
+import { ResolvedNameKind, PropertyLayerKind } from '../build/declaration-model.js';
 import { PlayerMatchKind } from '../build/turn-rules.js';
 import * as sourceTypes from '../build/source-model.js';
 import * as parser from '../build/source-parser.js';
@@ -11,7 +11,7 @@ import { createDeclarationOracle } from './legacy-declaration-oracle.cjs';
 import { movementSource } from './scenarios.mjs';
 
 const parsing = createSourceParserOracle({ ...sourceTypes, ...parser });
-const declarations = createDeclarationOracle({ readSource, resolveDeclarations, ResolvedNameKind, PlayerMatchKind },
+const declarations = createDeclarationOracle({ readSource, resolveDeclarations, ResolvedNameKind, PlayerMatchKind, PropertyLayerKind },
   { nativeAlreadyLoaded: true });
 
 function sourceWith(legend, layers = 'Player, Crate, Wall') {

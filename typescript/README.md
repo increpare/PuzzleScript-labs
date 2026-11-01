@@ -202,8 +202,8 @@ diagnostics retain their existing checkpoints.
 The [accepted-declaration audit](../docs/superpowers/plans/2026-11-01-accepted-declarations.md)
 records this boundary and its new malformed-source/native comparisons. The broader
 [frontend completion checklist](../docs/superpowers/specs/2026-11-01-frontend-clarity-goal.md)
-remains active: property-layer analysis, rule-pass contracts and the final
-transformation audit still need work.
+remains active: rule-pass contracts and the final transformation audit still
+need work.
 
 The scanner now has a section-discriminated state. A rule scanner can be in
 `Prelude`, `AfterPatternSeparator` or `MessageTail`; it cannot take an object
@@ -234,6 +234,16 @@ The [sound/win audit](../docs/superpowers/plans/2026-11-01-sound-win-syntax.md)
 records the native differences fixed by removing reconstruction. Reader-only
 diagnostic guesses for these constructs are removed; `parseSource` and
 `compileSource` own the actual native diagnostic visits and checkpoints.
+
+Each rule property now has one record containing its ordered `alternatives` and
+an explicit layer analysis: SingleLayer, Unlayered, MultipleLayers, Unresolved or
+Empty. Only SingleLayer has a numeric layer; Unresolved retains its unknown raw
+references. There is no separate property-layer dictionary or present-undefined
+convention in production. Inference, early negatives and lowering state their
+own case handling, preserving the distinct recovery behavior of unlayered
+properties. Native dictionary translation lives only in the independent test
+adapter, which also validates the explicit cases against canonical members and
+layers. See the [property-layer audit](../docs/superpowers/plans/2026-11-01-property-layer-types.md).
 
 The [declaration audit](../docs/superpowers/plans/2026-11-01-source-declarations.md)
 records the full 1,937-test run and a fresh 128-game per-move sample with 920
@@ -344,7 +354,7 @@ npm --prefix typescript test
 npm --prefix typescript run test:corpus -- --session
 ```
 
-The strict suite, including prepared-AGAIN, scanner, sound/win, rule-frontend and declaration regressions, passes **2,045 tests**. Exact compilation comparison
+The strict suite, including prepared-AGAIN, scanner, sound/win, property-layer, rule-frontend and declaration regressions, passes **2,055 tests**. Exact compilation comparison
 covers **335 compiler fixtures**, **492 simulation sources** and **99,192 final
 executable rules**, including diagnostics, stopping outcomes, authored source
 evidence and declaration identities. The last completed full source-compiled replay,

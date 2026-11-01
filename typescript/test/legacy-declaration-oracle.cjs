@@ -10,7 +10,7 @@ const { nativeSourceObjects, candidateObjectLabels, orphanLabel } = require('./l
 // this same pinned host with tests; candidate producer guards still run below.
 function createDeclarationOracle(types, { nativeAlreadyLoaded = false } = {}) {
   if (!nativeAlreadyLoaded) loadPuzzleScript({ includeTests: true });
-  const { ResolvedNameKind, PlayerMatchKind } = types;
+  const { ResolvedNameKind, PlayerMatchKind, PropertyLayerKind } = types;
 
   function nativeDeclarations(source) {
     resetParserErrorState();
@@ -93,7 +93,7 @@ function createDeclarationOracle(types, { nativeAlreadyLoaded = false } = {}) {
   }
 
   function candidateView(fixture, document, declarations) {
-    assert.deepEqual(Object.keys(declarations.ruleNames).sort(), ['aggregates', 'properties', 'singleLayerProperties', 'synonyms'], 'plain rule vocabulary fields');
+    assert.deepEqual(Object.keys(declarations.ruleNames).sort(), ['aggregates', 'properties', 'synonyms'], 'plain rule vocabulary fields');
     const canonical = new Set(declarations.objects);
     const nameOf = candidateObjectLabels(declarations, fixture.name);
     assert.equal(canonical.size, declarations.objects.length, fixture.name + ': unique canonical declarations');
@@ -146,13 +146,49 @@ function createDeclarationOracle(types, { nativeAlreadyLoaded = false } = {}) {
     assert.notEqual(declarations.rawObjectLookups, undefined, 'meaningful raw object lookups must exist');
     const lookupView = lookup => [...lookup].map(nameOf).sort();
     assert.deepEqual([...declarations.rawObjectLookups.keys()], declarations.objects, 'one raw lookup per canonical object');
+    const concrete = new Map(declarations.objects.map(object => [object.name, object]));
+    const properties = [], singleLayerProperties = [];
+    for (const [name, property] of declarations.ruleNames.properties) {
+      const label = fixture.name + ': property layer analysis for ' + name;
+      assert.deepEqual(Object.keys(property).sort(), ['alternatives', 'layer'], label + ': plain property fields');
+      assert.ok(Array.isArray(property.alternatives) && property.alternatives.every(member => typeof member === 'string'), label + ': ordered names');
+      const analysis = property.layer;
+      assert.ok(analysis && typeof analysis === 'object', label + ': required analysis');
+      const unknown = property.alternatives.filter(member => !concrete.has(member));
+      const layers = property.alternatives.filter(member => concrete.has(member))
+        .map(member => declarations.objectLayers.get(concrete.get(member)));
+      // These facts come from canonical declarations whose identities, membership
+      // and actual native layers are independently compared below. Validate even
+      // statuses that have no entry in the native single-layer dictionary.
+      if (property.alternatives.length === 0) {
+        assert.equal(analysis.kind, PropertyLayerKind.Empty, label + ': empty alternatives');
+        assert.deepEqual(Object.keys(analysis), ['kind'], label + ': empty fields');
+      } else if (unknown.length > 0) {
+        assert.equal(analysis.kind, PropertyLayerKind.Unresolved, label + ': unknown concrete members');
+        assert.deepEqual(Object.keys(analysis).sort(), ['kind', 'references'], label + ': unresolved fields');
+        assert.deepEqual(analysis.references, unknown, label + ': unresolved order and duplicates');
+      } else if (layers.every(layer => layer === undefined)) {
+        assert.equal(analysis.kind, PropertyLayerKind.Unlayered, label + ': all members unlayered');
+        assert.deepEqual(Object.keys(analysis), ['kind'], label + ': unlayered fields');
+        singleLayerProperties.push([name, undefined]);
+      } else if (layers.every(layer => layer === layers[0])) {
+        assert.equal(analysis.kind, PropertyLayerKind.SingleLayer, label + ': one concrete layer');
+        assert.deepEqual(Object.keys(analysis).sort(), ['kind', 'layer'], label + ': single-layer fields');
+        assert.equal(analysis.layer, layers[0], label + ': actual canonical layer');
+        singleLayerProperties.push([name, analysis.layer]);
+      } else {
+        assert.equal(analysis.kind, PropertyLayerKind.MultipleLayers, label + ': mixed layers or assignments');
+        assert.deepEqual(Object.keys(analysis), ['kind'], label + ': multiple-layer fields');
+      }
+      properties.push([name, [...property.alternatives]]);
+    }
     return {
       objects, names, choice, orphanedObject: declarations.orphanedObject === null ? null : nameOf(declarations.orphanedObject),
       ruleNames: {
         synonyms: [...declarations.ruleNames.synonyms],
-        properties: [...declarations.ruleNames.properties],
+        properties,
         aggregates: [...declarations.ruleNames.aggregates],
-        singleLayerProperties: [...declarations.ruleNames.singleLayerProperties],
+        singleLayerProperties,
       },
       layers: declarations.collisionLayers.map(layer => layer.map(nameOf)),
       objectLayers: [...declarations.objectLayers].map(([object, layer]) => [nameOf(object), layer])

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readSource } from '../build/source-reader.js';
 import { resolveDeclarations } from '../build/declarations.js';
-import { ResolvedNameKind } from '../build/declaration-model.js';
+import { PropertyLayerKind, ResolvedNameKind } from '../build/declaration-model.js';
 import { PlayerMatchKind } from '../build/turn-rules.js';
 import { SourceDiagnosticPhase, SourceDiagnosticSeverity, SourceLegendKind } from '../build/source-model.js';
 import { spawnSync } from 'node:child_process';
@@ -13,6 +13,7 @@ function read(objects, legend = '', layers = '') {
 const names = objects => objects.map(object => object.name);
 const simpleObjects = 'A X\nRed\n\nB\nBlue\n\nC\nGreen\n\nD\nYellow';
 const members = (declarations, name) => names(declarations.names.get(name).members);
+const singleLayerProperty = (alternatives, layer) => ({ alternatives, layer: { kind: PropertyLayerKind.SingleLayer, layer } });
 
 test('concrete names and aliases share canonical immutable objects without changing source', () => {
   const document = read('Background .\nBlack\n\nPlayer P @\nWhite', '', 'Background\nPlayer');
@@ -479,12 +480,13 @@ test('rule vocabulary keeps object aliases and distinct property and aggregate a
   assert.ok(declarations.ruleNames, 'resolved declarations expose rule vocabulary');
   assert.deepEqual([...declarations.ruleNames.synonyms], [['x', 'a'], ['objectalias', 'a']]);
   assert.deepEqual([...declarations.ruleNames.properties], [
-    ['p', ['b', 'a', 'b']], ['equivalent', ['b', 'a', 'b']], ['propertyalias', ['b', 'a', 'b']],
+    ['p', singleLayerProperty(['b', 'a', 'b'], 0)], ['equivalent', singleLayerProperty(['b', 'a', 'b'], 0)],
+    ['propertyalias', singleLayerProperty(['b', 'a', 'b'], 0)],
   ]);
   assert.deepEqual([...declarations.ruleNames.aggregates], [
     ['pair', ['a', 'b', 'a']], ['aggregatealias', ['a', 'b', 'a']],
   ]);
-  assert.deepEqual([...declarations.ruleNames.singleLayerProperties], [['p', 0], ['equivalent', 0], ['propertyalias', 0]]);
+  assert.equal(Object.hasOwn(declarations.ruleNames, 'singleLayerProperties'), false);
 });
 
 test('rule vocabulary preserves colliding namespaces even when resolved names prefer one meaning', () => {
@@ -493,8 +495,9 @@ test('rule vocabulary preserves colliding namespaces even when resolved names pr
   assert.equal(declarations.names.get('a').kind, ResolvedNameKind.Object);
   assert.equal(declarations.names.get('p').kind, ResolvedNameKind.Property);
   assert.deepEqual([...declarations.ruleNames.synonyms], [['p', 'c']]);
-  assert.deepEqual([...declarations.ruleNames.properties], [['p', ['b', 'd']], ['a', ['b', 'd']], ['x', ['b', 'd']]]);
-  assert.deepEqual([...declarations.ruleNames.singleLayerProperties], [['p', 1], ['a', 1], ['x', 1]]);
+  assert.deepEqual([...declarations.ruleNames.properties], [
+    ['p', singleLayerProperty(['b', 'd'], 1)], ['a', singleLayerProperty(['b', 'd'], 1)], ['x', singleLayerProperty(['b', 'd'], 1)],
+  ]);
 });
 
 test('rule vocabulary retains unresolved final string targets in forward synonym chains', () => {
@@ -513,20 +516,36 @@ test('rule vocabulary enumerates integer-index names before ordinary names in ev
   for (const [operator, dictionary] of [['or', 'properties'], ['and', 'aggregates']]) {
     const { ruleNames } = resolveDeclarations(read(simpleObjects,
       `3 = B ${operator} A\n2 = C ${operator} B\n1 = D ${operator} A`, 'A, B, C, D')).declarations;
-    assert.deepEqual([...ruleNames[dictionary]], [['1', ['d', 'a']], ['2', ['c', 'b']], ['3', ['b', 'a']]]);
-    if (operator === 'or') assert.deepEqual([...ruleNames.singleLayerProperties], [['1', 0], ['2', 0], ['3', 0]]);
+    const expected = [['1', ['d', 'a']], ['2', ['c', 'b']], ['3', ['b', 'a']]];
+    assert.deepEqual([...ruleNames[dictionary]], operator === 'or'
+      ? expected.map(([name, alternatives]) => [name, singleLayerProperty(alternatives, 0)]) : expected);
   }
 });
 
-test('single-layer rule properties require known members and preserve present unlayered keys', () => {
+test('rule property records distinguish assigned, unlayered, mixed and unresolved alternatives', () => {
   const { ruleNames } = resolveDeclarations(read(`${simpleObjects}\n\nE\nPurple`,
-    'Same = A or B\nRepeated = A or A\nMixed = A or C\nUnlayered = D or E\nPartial = A or D\nUnknown = Missing or D\nUnknownTail = D or Missing',
+    'Same = A or B\nRepeated = A or A\nMixed = A or C\nUnlayered = D or E\nPartial = A or D\nUnknown = Missing or D\nUnknownTail = D or Missing\nUnknownRepeated = Missing or D or Missing or Lost',
     'A, B\nC')).declarations;
   assert.deepEqual([...ruleNames.properties], [
-    ['same', ['a', 'b']], ['repeated', ['a', 'a']], ['mixed', ['a', 'c']],
-    ['unlayered', ['d', 'e']], ['partial', ['a', 'd']], ['unknown', ['missing', 'd']], ['unknowntail', ['d', 'missing']],
+    ['same', singleLayerProperty(['a', 'b'], 0)], ['repeated', singleLayerProperty(['a', 'a'], 0)],
+    ['mixed', { alternatives: ['a', 'c'], layer: { kind: PropertyLayerKind.MultipleLayers } }],
+    ['unlayered', { alternatives: ['d', 'e'], layer: { kind: PropertyLayerKind.Unlayered } }],
+    ['partial', { alternatives: ['a', 'd'], layer: { kind: PropertyLayerKind.MultipleLayers } }],
+    ['unknown', { alternatives: ['missing', 'd'], layer: { kind: PropertyLayerKind.Unresolved, references: ['missing'] } }],
+    ['unknowntail', { alternatives: ['d', 'missing'], layer: { kind: PropertyLayerKind.Unresolved, references: ['missing'] } }],
+    ['unknownrepeated', { alternatives: ['missing', 'd', 'missing', 'lost'],
+      layer: { kind: PropertyLayerKind.Unresolved, references: ['missing', 'missing', 'lost'] } }],
   ]);
-  assert.deepEqual([...ruleNames.singleLayerProperties], [['same', 0], ['repeated', 0], ['unlayered', undefined]]);
-  assert.equal(ruleNames.singleLayerProperties.has('unlayered'), true);
-  for (const name of ['mixed', 'partial', 'unknown', 'unknowntail']) assert.equal(ruleNames.singleLayerProperties.has(name), false, name);
+  assert.equal(ruleNames.properties.get('notaproperty'), undefined);
+  assert.equal(Object.hasOwn(ruleNames, 'singleLayerProperties'), false);
+});
+
+test('empty normalized properties remain present with an explicit analysis', () => {
+  const { ruleNames } = resolveDeclarations(read(simpleObjects,
+    'Choices = A or A\nA = Choices', 'A, B\nC\nD')).declarations;
+  assert.deepEqual([...ruleNames.properties], [
+    ['choices', { alternatives: [], layer: { kind: PropertyLayerKind.Empty } }],
+    ['a', { alternatives: [], layer: { kind: PropertyLayerKind.Empty } }],
+    ['x', { alternatives: [], layer: { kind: PropertyLayerKind.Empty } }],
+  ]);
 });

@@ -3,12 +3,12 @@ import test from 'node:test';
 import { runInThisContext } from 'node:vm';
 import { readSource } from '../build/source-reader.js';
 import { resolveDeclarations } from '../build/declarations.js';
-import { ResolvedNameKind } from '../build/declaration-model.js';
+import { ResolvedNameKind, PropertyLayerKind } from '../build/declaration-model.js';
 import { PlayerMatchKind } from '../build/turn-rules.js';
 import { createDeclarationOracle } from './legacy-declaration-oracle.cjs';
 import { movementSource } from './scenarios.mjs';
 
-const oracle = createDeclarationOracle({ readSource, resolveDeclarations, ResolvedNameKind, PlayerMatchKind });
+const oracle = createDeclarationOracle({ readSource, resolveDeclarations, ResolvedNameKind, PlayerMatchKind, PropertyLayerKind });
 const fixture = { name: 'declaration oracle', source: movementSource() };
 const vocabularyAliases = { name: 'rule vocabulary aliases and duplicates', source: movementSource()
   .replace('C = Crate', 'C = Crate\nObjectAlias = Player\nMovable = Crate or Player or Crate or Wall\nEquivalent = Crate or Player or Crate or Wall\nPropertyAlias = Movable\nPair = Player and Wall and Player\nAggregateAlias = Pair') };
@@ -217,26 +217,102 @@ test('dropping a colliding rule synonym namespace is rejected', () => {
 test('reversing rule property member order is rejected', () => {
   assert.throws(corruptRuleVocabulary(vocabularyAliases, ruleNames => {
     const properties = new Map(ruleNames.properties);
-    properties.set('movable', [...properties.get('movable')].reverse());
+    const property = properties.get('movable');
+    properties.set('movable', { ...property, alternatives: [...property.alternatives].reverse() });
     return { ...ruleNames, properties };
   }), /resolved declaration data/);
 });
 
 test('reversing rule dictionary entries is rejected', () => {
-  for (const dictionary of ['synonyms', 'properties', 'aggregates', 'singleLayerProperties']) {
+  for (const dictionary of ['synonyms', 'properties', 'aggregates']) {
     assert.throws(corruptRuleVocabulary(vocabularyAliases,
       ruleNames => ({ ...ruleNames, [dictionary]: new Map([...ruleNames[dictionary]].reverse()) })), /resolved declaration data/, dictionary);
   }
 });
 
-test('dropping a present undefined single-layer property is rejected', () => {
+test('dropping an explicitly unlayered property is rejected', () => {
   assert.throws(corruptRuleVocabulary(unlayeredVocabulary, ruleNames => {
-    assert.equal(ruleNames.singleLayerProperties.has('unlayered'), true);
-    assert.equal(ruleNames.singleLayerProperties.get('unlayered'), undefined);
-    const singleLayerProperties = new Map(ruleNames.singleLayerProperties);
-    singleLayerProperties.delete('unlayered');
-    return { ...ruleNames, singleLayerProperties };
+    assert.equal(ruleNames.properties.get('unlayered').layer.kind, PropertyLayerKind.Unlayered);
+    const properties = new Map(ruleNames.properties);
+    properties.delete('unlayered');
+    return { ...ruleNames, properties };
   }), /resolved declaration data/);
+});
+
+test('relabeling an unlayered property as layer zero is rejected', () => {
+  assert.throws(corruptRuleVocabulary(unlayeredVocabulary, ruleNames => {
+    const properties = new Map(ruleNames.properties);
+    properties.set('unlayered', { ...properties.get('unlayered'), layer: { kind: PropertyLayerKind.SingleLayer, layer: 0 } });
+    return { ...ruleNames, properties };
+  }), /property layer analysis/);
+});
+
+test('a false property layer cannot pass the independent canonical-layer check', () => {
+  assert.throws(corruptRuleVocabulary(vocabularyAliases, ruleNames => {
+    const properties = new Map(ruleNames.properties);
+    const property = properties.get('movable');
+    assert.equal(property.layer.kind, PropertyLayerKind.SingleLayer);
+    properties.set('movable', { ...property, layer: { kind: PropertyLayerKind.SingleLayer, layer: property.layer.layer + 1 } });
+    return { ...ruleNames, properties };
+  }), /property layer analysis/);
+});
+
+test('a layer payload hidden on an unlayered property is rejected', () => {
+  assert.throws(corruptRuleVocabulary(unlayeredVocabulary, ruleNames => {
+    const properties = new Map(ruleNames.properties);
+    properties.set('unlayered', { ...properties.get('unlayered'), layer: { kind: PropertyLayerKind.Unlayered, layer: 0 } });
+    return { ...ruleNames, properties };
+  }), /property layer analysis/);
+});
+
+test('an unknown property analysis kind cannot vanish in native dictionary projection', () => {
+  assert.throws(corruptRuleVocabulary(vocabularyAliases, ruleNames => {
+    const properties = new Map(ruleNames.properties);
+    properties.set('movable', { ...properties.get('movable'), layer: { kind: 99 } });
+    return { ...ruleNames, properties };
+  }), /property layer analysis/);
+});
+
+test('multiple-layer analysis cannot be replaced with another absent native case', () => {
+  const item = { name: 'multiple property layers', source: movementSource()
+    .replace('C = Crate', 'C = Crate\nAcross = Background or Player') };
+  oracle.compareFixture(item);
+  assert.throws(corruptRuleVocabulary(item, ruleNames => {
+    const properties = new Map(ruleNames.properties);
+    const property = properties.get('across');
+    assert.equal(property.layer.kind, PropertyLayerKind.MultipleLayers);
+    properties.set('across', { ...property, layer: { kind: PropertyLayerKind.Empty } });
+    return { ...ruleNames, properties };
+  }), /property layer analysis/);
+});
+
+test('unresolved property references retain their actual order and multiplicity', () => {
+  const item = { name: 'unresolved property references', source: movementSource()
+    .replace('C = Crate', 'C = Crate\nWall = Missing or Crate or Unknown or Missing')
+    .replace('# = Wall\n', '').replace('Player, Crate, Wall', 'Player, Wall') };
+  oracle.compareFixture(item);
+  assert.throws(corruptRuleVocabulary(item, ruleNames => {
+    const properties = new Map(ruleNames.properties);
+    const property = properties.get('wall');
+    assert.equal(property.layer.kind, PropertyLayerKind.Unresolved);
+    assert.deepEqual(property.layer.references, ['missing', 'unknown', 'missing']);
+    properties.set('wall', { ...property, layer: { kind: PropertyLayerKind.Unresolved, references: ['unknown', 'missing'] } });
+    return { ...ruleNames, properties };
+  }), /property layer analysis/);
+});
+
+test('empty property analysis cannot disappear in the absent native projection', () => {
+  const item = { name: 'empty normalized property', source: movementSource()
+    .replace('C = Crate', 'C = Crate\nChoices = Player or Player\nPlayer = Choices')
+    .replace('P = Player\n', '') };
+  oracle.compareFixture(item);
+  assert.throws(corruptRuleVocabulary(item, ruleNames => {
+    const properties = new Map(ruleNames.properties);
+    const property = properties.get('choices');
+    assert.equal(property.layer.kind, PropertyLayerKind.Empty);
+    properties.set('choices', { ...property, layer: { kind: PropertyLayerKind.Unresolved, references: [] } });
+    return { ...ruleNames, properties };
+  }), /property layer analysis/);
 });
 
 test('the independent resolver agrees on declaration data for every simulation source', () => {

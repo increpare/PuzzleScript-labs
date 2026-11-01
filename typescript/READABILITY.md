@@ -195,9 +195,18 @@ Guards include [sound-win-syntax.test.mjs](test/sound-win-syntax.test.mjs),
 [sound-win-syntax-oracle.test.mjs](test/sound-win-syntax-oracle.test.mjs) and the
 negative [type contract](test/sound-win-syntax-types.test.mjs).
 
-Next strengthen property-layer analysis and rule-pass types, then audit every
-retained frontend transformation against observable behavior. The runtime
-suggestions below are separate from that frontend completion gate.
+Rule vocabulary properties now carry `alternatives` plus an explicit
+`PropertyLayerAnalysis`, rather than an array coupled to a second map. Five
+numeric cases distinguish one layer, unlayered, multiple layers, unresolved and
+empty. Consumers handle their own recovery cases, so unlayered inference cannot
+silently become valid layer-zero lowering. Guards include
+[property-layer-types.test.mjs](test/property-layer-types.test.mjs), declaration
+and property semantic checks, and independent oracle controls for false layers,
+wrong classifications and unresolved reference order.
+
+Next strengthen rule-pass input/output contracts, then audit every retained
+frontend transformation against observable behavior. The runtime suggestions
+below are separate from that frontend completion gate.
 
 1. **Name the session probe policy inside `step`.** Extract helpers for rollback
    and commands that name retained history, RNG/events and committed effects.

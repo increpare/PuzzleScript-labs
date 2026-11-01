@@ -1,5 +1,5 @@
 import { appendSourceIssue, type SourceIssueReporter } from './source-diagnostics.js';
-import type { ResolvedDeclarations } from './declaration-model.js';
+import { PropertyLayerKind, type ResolvedDeclarations } from './declaration-model.js';
 import { SourceDiagnosticPhase, SourceDiagnosticSeverity, type SourceDiagnostic } from './source-model.js';
 import { RuleQualifier, type NamedRuleCell, type NamedRuleRows, type NamedRuleTerm, type OrientedRule } from './source-rule-model.js';
 
@@ -46,7 +46,7 @@ export function expandRuleProperties(rules: readonly OrientedRule[], declaration
 
   function expandNegatives(cell: NamedRuleCell): NamedRuleTerm[] {
     return cell.flatMap(term => {
-      const members = term.qualifier === RuleQualifier.No ? properties.get(term.name) : undefined;
+      const members = term.qualifier === RuleQualifier.No ? properties.get(term.name)?.alternatives : undefined;
       return members === undefined ? [{ ...term }] : members.map(name => ({ ...term, name }));
     });
   }
@@ -56,8 +56,9 @@ export function expandRuleProperties(rules: readonly OrientedRule[], declaration
       const row = rule.lhs[rowIndex]!;
       for (let cellIndex = 0; cellIndex < row.length; cellIndex++) {
         for (const property of participatingNames(row[cellIndex]!)) {
-          // Presence matters: undefined is a valid unlayered recovery value.
-          if (declarations.ruleNames.singleLayerProperties.has(property) && !transported.has(property)) continue;
+          const analysis = properties.get(property)!.layer;
+          if (!transported.has(property)
+            && (analysis.kind === PropertyLayerKind.SingleLayer || analysis.kind === PropertyLayerKind.Unlayered)) continue;
           return { rowIndex, cellIndex, property };
         }
       }
@@ -104,7 +105,7 @@ export function expandRuleProperties(rules: readonly OrientedRule[], declaration
       if (site === undefined) { index++; continue; }
       // Choose just one property in one cell per parent. Appending children
       // before removing the parent preserves duplicate paths and native order.
-      for (const member of properties.get(site.property)!) work.push(choose(parent, site, member));
+      for (const member of properties.get(site.property)!.alternatives) work.push(choose(parent, site, member));
       work.splice(index, 1);
     }
 

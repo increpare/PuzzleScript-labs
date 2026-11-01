@@ -2,12 +2,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readSource } from '../build/source-reader.js';
 import { prepareDeclarations, resolveDeclarations } from '../build/declarations.js';
-import { ResolvedNameKind } from '../build/declaration-model.js';
+import { ResolvedNameKind, PropertyLayerKind } from '../build/declaration-model.js';
 import { PlayerMatchKind } from '../build/turn-rules.js';
 import { createDeclarationOracle } from './legacy-declaration-oracle.cjs';
 import { movementSource } from './scenarios.mjs';
 
-const oracle = createDeclarationOracle({ readSource, resolveDeclarations, ResolvedNameKind, PlayerMatchKind });
+const oracle = createDeclarationOracle({ readSource, resolveDeclarations, ResolvedNameKind, PlayerMatchKind, PropertyLayerKind });
 const sourceWithLegend = legend => movementSource({ rules: '[ Player ] -> [ Player ]' })
   .replace('C = Crate', 'C = Crate\n' + legend);
 

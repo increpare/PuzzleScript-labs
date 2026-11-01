@@ -1,5 +1,6 @@
 import type { SourceIssueReporter } from './source-diagnostics.js';
-import { ResolvedNameKind, type ResolvedDeclarations, type ResolvedName, type RuleVocabulary } from './declaration-model.js';
+import { PropertyLayerKind, ResolvedNameKind, type PropertyLayerAnalysis, type ResolvedDeclarations,
+  type ResolvedName, type RuleProperty, type RuleVocabulary } from './declaration-model.js';
 import type { GameObject } from './model.js';
 import { SourceDiagnosticPhase, SourceDiagnosticSeverity,
   type SourceDiagnostic, type SourceDocument, type SourceLegend, type SourceObject, type SourceSpan, type SourceWord } from './source-model.js';
@@ -33,6 +34,19 @@ function dictionaryIterationNames<T>(dictionary: ReadonlyMap<string, T>): readon
   }
   indexed.sort((a, b) => a.index - b.index);
   return [...indexed.map(entry => entry.name), ...ordinary];
+}
+
+/** Classify normalized alternatives using raw concrete names and their actual layers. */
+function analyzePropertyLayers(alternatives: readonly string[], concrete: ReadonlyMap<string, GameObject>,
+  objectLayers: ReadonlyMap<GameObject, number>): PropertyLayerAnalysis {
+  if (alternatives.length === 0) return { kind: PropertyLayerKind.Empty };
+  const references = alternatives.filter(name => !concrete.has(name));
+  if (references.length > 0) return { kind: PropertyLayerKind.Unresolved, references };
+  const layer = objectLayers.get(concrete.get(alternatives[0]!)!);
+  if (alternatives.some(name => objectLayers.get(concrete.get(name)!) !== layer)) {
+    return { kind: PropertyLayerKind.MultipleLayers };
+  }
+  return layer === undefined ? { kind: PropertyLayerKind.Unlayered } : { kind: PropertyLayerKind.SingleLayer, layer };
 }
 
 /** Accepted authored namespaces and one canonical object construction. */
@@ -334,23 +348,14 @@ export function completeDeclarations(prepared: PreparedDeclarations, report?: So
     }
     return null;
   }
-  const ruleProperties = new Map(dictionaryIterationNames(propertyValues).map(name => [name, [...propertyValues.get(name)!]]));
-  const singleLayerProperties = new Map<string, number | undefined>();
-  for (const [name, members] of ruleProperties) {
-    if (members.length === 0) continue;
-    const first = concrete.get(members[0]!);
-    if (first === undefined) continue;
-    const layer = objectLayers.get(first);
-    if (members.every(member => {
-      const object = concrete.get(member);
-      return object !== undefined && objectLayers.get(object) === layer;
-    })) singleLayerProperties.set(name, layer);
-  }
+  const ruleProperties = new Map<string, RuleProperty>(dictionaryIterationNames(propertyValues).map(name => {
+    const alternatives = [...propertyValues.get(name)!];
+    return [name, { alternatives, layer: analyzePropertyLayers(alternatives, concrete, objectLayers) }];
+  }));
   const ruleNames: RuleVocabulary = {
     synonyms: new Map(dictionaryIterationNames(synonymValues).map(name => [name, synonymValues.get(name)!])),
     properties: ruleProperties,
     aggregates: new Map(dictionaryIterationNames(aggregateValues).map(name => [name, [...aggregateValues.get(name)!]])),
-    singleLayerProperties,
   };
   const names = new Map<string, ResolvedName>();
   for (const name of authoredNames) {

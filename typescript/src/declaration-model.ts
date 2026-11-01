@@ -14,13 +14,24 @@ export type ResolvedName = ResolvedNameSource & (
   { readonly kind: ResolvedNameKind.Aggregate; readonly members: readonly GameObject[] } |
   { readonly kind: ResolvedNameKind.Unresolved; readonly references: readonly SourceWord[]; readonly reason: string });
 
+export enum PropertyLayerKind { SingleLayer, Unlayered, MultipleLayers, Unresolved, Empty }
+export type PropertyLayerAnalysis =
+  { readonly kind: PropertyLayerKind.SingleLayer; readonly layer: number } |
+  { readonly kind: PropertyLayerKind.Unlayered } |
+  { readonly kind: PropertyLayerKind.MultipleLayers } |
+  { readonly kind: PropertyLayerKind.Unresolved; readonly references: readonly string[] } |
+  { readonly kind: PropertyLayerKind.Empty };
+
+export interface RuleProperty {
+  readonly alternatives: readonly string[];
+  readonly layer: PropertyLayerAnalysis;
+}
+
 /** Final rule-language namespaces, retaining identifier and member order. */
 export interface RuleVocabulary {
   readonly synonyms: ReadonlyMap<string, string>;
-  readonly properties: ReadonlyMap<string, readonly string[]>;
+  readonly properties: ReadonlyMap<string, RuleProperty>;
   readonly aggregates: ReadonlyMap<string, readonly string[]>;
-  /** A present undefined value means every member is a known, unlayered object. */
-  readonly singleLayerProperties: ReadonlyMap<string, number | undefined>;
 }
 
 export interface ResolvedDeclarations {

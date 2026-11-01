@@ -140,7 +140,7 @@ function createRulePropertiesOracle(types) {
             const origins = original.flatMap(term => {
               // Only the negative-property sweep changes the slot count.
               const members = stage === 'property' && term.qualifier === types.RuleQualifier.No
-                ? declarations.ruleNames.properties.get(term.name) : undefined;
+                ? declarations.ruleNames.properties.get(term.name)?.alternatives : undefined;
               return members === undefined ? [term.origin] : members.map(() => term.origin);
             });
             assert.equal(cell.length, origins.length, 'preserved expanded term count');

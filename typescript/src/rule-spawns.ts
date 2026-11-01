@@ -13,7 +13,7 @@ export function inferSpawnedStationary(rules: readonly OrientedRule[], declarati
       // concrete name has priority over an overlapping property namespace.
       const object = concrete.get(term.name);
       if (object !== undefined) possible.add(object);
-      else for (const member of declarations.ruleNames.properties.get(term.name) ?? []) {
+      else for (const member of declarations.ruleNames.properties.get(term.name)?.alternatives ?? []) {
         const memberObject = concrete.get(member);
         if (memberObject !== undefined) possible.add(memberObject);
       }
