@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { compileSource, SourceCompilationKind, SourceCompilationStopReason } from '../build/source-compiler.js';
+import { compileSource, SourceCompilationKind, SourceCompilationStopReason, SourceCompilationFailureKind } from '../build/source-compiler.js';
 import { createSession } from '../build/session.js';
 import { movementSource } from './scenarios.mjs';
 import { readFileSync } from 'node:fs';
@@ -103,7 +103,9 @@ test('original errorful accepted, no-layer invalid, formed declined and urgent n
   const accepted = oracle.compareFixture(originalFixture('Background missing')).result;
   assert.equal(accepted.outcome.kind, SourceCompilationKind.Accepted); assert.equal(accepted.errorCount, 2);
   const invalid = oracle.compareFixture(originalFixture('no collision layers defined')).result;
-  assert.deepEqual(invalid.outcome, { kind: SourceCompilationKind.Invalid });
+  assert.equal(invalid.outcome.kind, SourceCompilationKind.Invalid);
+  assert.equal(invalid.outcome.failure.kind, SourceCompilationFailureKind.MissingCollisionLayers);
+  assert.equal(invalid.outcome.failure.diagnostic, invalid.rawDiagnostics.find(issue => issue.code === 'missing-collision-layers'));
   const declined = oracle.compareFixture(originalFixture("#815 problem with dead rule elimination and 'Rules with overlapping objects' test")).result;
   assert.equal(declined.outcome.kind, SourceCompilationKind.Declined); assert.equal(declined.errorCount, 10);
   assert.ok(declined.outcome.game.levels.length > 0);

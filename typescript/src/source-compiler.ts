@@ -6,14 +6,19 @@ import type { Dimensions, SessionGame } from './session-model.js';
 import { compileObjectSprites, compileDisplayColors, type ColorPalette, type ObjectSprite } from './source-assets.js';
 import { collectSourceIssue, SourceIssueLimit, type SourceIssueCollection, type SourceIssueReporter } from './source-diagnostics.js';
 import { compileLevels, compileWinConditions, compileMetadata, compileSounds, compileRestorePolicies, formatHomepage, gameDataReporter } from './source-game-data.js';
-import { SourceDiagnosticSeverity, SourceDiagnosticPhase, type SourceDocument, type SourcePatternRule, type SourcePosition } from './source-model.js';
+import { SourceDiagnosticSeverity, SourceDiagnosticPhase, type SourceDiagnostic, type SourceDocument, type SourcePatternRule, type SourcePosition } from './source-model.js';
 import { parseSource, SourceParserOutcomeKind, SourceParserStopReason } from './source-parser.js';
 import { expandSourceRules, lowerSourceRules } from './source-rule-compiler.js';
 import { compileRuleGroups, compileRuleLoops } from './source-rule-schedules.js';
 import { vanillaQuirks, type Quirks } from './compatibility.js';
+import { RuleExpansionKind, type RuleCompilationFailure } from './rule-recovery.js';
 
 export enum SourceCompilationKind { Accepted, Declined, Invalid, Stopped }
 export enum SourceCompilationStopReason { ParserErrors, IssueLimit }
+export enum SourceCompilationFailureKind { MissingCollisionLayers, RuleCompilation }
+export type SourceCompilationFailure =
+  { readonly kind: SourceCompilationFailureKind.MissingCollisionLayers; readonly diagnostic: SourceDiagnostic } |
+  ({ readonly kind: SourceCompilationFailureKind.RuleCompilation } & RuleCompilationFailure);
 export interface CompiledSourceData {
   readonly game: SessionGame;
   readonly declarations: ResolvedDeclarations;
@@ -25,7 +30,7 @@ export interface CompiledSourceData {
 }
 export type SourceCompilationOutcome =
   (CompiledSourceData & { readonly kind: SourceCompilationKind.Accepted | SourceCompilationKind.Declined }) |
-  { readonly kind: SourceCompilationKind.Invalid } |
+  { readonly kind: SourceCompilationKind.Invalid; readonly failure: SourceCompilationFailure } |
   { readonly kind: SourceCompilationKind.Stopped; readonly reason: SourceCompilationStopReason; readonly cursor?: SourcePosition };
 export interface SourceCompilationResult extends SourceIssueCollection {
   readonly document: SourceDocument;
@@ -49,11 +54,14 @@ export function compileSource(source: string, options: CompileSourceOptions = {}
   const report: SourceIssueReporter = issue => {
     if (collectSourceIssue(issues, issue)) throw new SourceIssueLimit();
   };
-  function error(code: string, message: string, urgent = false, phase = SourceDiagnosticPhase.Declarations): void {
-    report({ code, message, span: null, severity: SourceDiagnosticSeverity.Error,
-      countsAsError: true, phase, urgent });
+  function error(code: string, message: string, urgent = false, phase = SourceDiagnosticPhase.Declarations): SourceDiagnostic {
+    const diagnostic: SourceDiagnostic = { code, message, span: null, severity: SourceDiagnosticSeverity.Error,
+      countsAsError: true, phase, urgent };
+    report(diagnostic);
+    return diagnostic;
   }
-  const invalid = (): SourceCompilationResult => ({ document, ...issues, outcome: { kind: SourceCompilationKind.Invalid } });
+  const invalid = (failure: SourceCompilationFailure): SourceCompilationResult =>
+    ({ document, ...issues, outcome: { kind: SourceCompilationKind.Invalid, failure } });
   try {
     const prepared = prepareDeclarations(document);
     for (const name of ['player', 'background']) {
@@ -61,8 +69,8 @@ export function compileSource(source: string, options: CompileSourceOptions = {}
         `Error, didn't find any object called ${name}, either in the objects section, or the legends section. There must be a ${name}!`);
     }
     if (prepared.rawLayers.length === 0) {
-      error('missing-collision-layers', 'No collision layers defined.  All objects need to be in collision layers.');
-      return invalid();
+      const diagnostic = error('missing-collision-layers', 'No collision layers defined.  All objects need to be in collision layers.');
+      return invalid({ kind: SourceCompilationFailureKind.MissingCollisionLayers, diagnostic });
     }
     const assets = compileObjectSprites(document, prepared, report);
     const { declarations } = completeDeclarations(prepared, report);
@@ -71,7 +79,7 @@ export function compileSource(source: string, options: CompileSourceOptions = {}
     const dataReport = gameDataReporter([], report);
     const levels = compileLevels(document, declarations, dataReport);
     const expanded = expandSourceRules(document, declarations, report);
-    if (expanded.rules === null) return invalid();
+    if (expanded.kind === RuleExpansionKind.Blocked) return invalid({ kind: SourceCompilationFailureKind.RuleCompilation, ...expanded.failure });
     const lowered = lowerSourceRules(expanded.rules, declarations, report, quirks);
     const groups = compileRuleGroups(lowered.rules, report, quirks);
     const winConditions = compileWinConditions(document, declarations, dataReport);

@@ -1,10 +1,11 @@
 import { appendSourceIssue, type SourceIssueReporter } from './source-diagnostics.js';
 import { PropertyLayerKind, type ResolvedDeclarations } from './declaration-model.js';
-import { SourceDiagnosticPhase, SourceDiagnosticSeverity, type SourceDiagnostic } from './source-model.js';
+import { SourceDiagnosticPhase, SourceDiagnosticSeverity, type SourceDiagnostic, type SourceSpan } from './source-model.js';
 import { RuleQualifier, type DirectedNamedRule, type NamedRuleCell, type NamedRuleRows,
   type NamedRuleTerm, type OrientedQualifier } from './source-rule-model.js';
 import { ObjectSourceKind, resolveObjectSource, sameRuleCell,
   type ObjectSource, type RuleCellAddress } from './rule-object-sources.js';
+import { RuleProblemKind, type RuleProblem } from './rule-problems.js';
 
 /** A source relationship is established before any concrete member is chosen. */
 interface PropertyUse {
@@ -38,6 +39,18 @@ function copyRows<Q extends OrientedQualifier>(rows: NamedRuleRows<Q>): NamedRul
 function substitute<Q extends OrientedQualifier>(cell: NamedRuleCell<Q>, property: string, member: string): NamedRuleTerm<Q>[] {
   return cell.map(term => ({ ...term,
     name: term.name === property && term.qualifier !== RuleQualifier.RandomObject ? member : term.name }));
+}
+
+function propertyProblem(lhs: NamedRuleRows, use: PropertyUse, targetSpan: SourceSpan): RuleProblem {
+  const cells = use.source.kind === ObjectSourceKind.Resolved ? [use.source.cell]
+    : use.source.kind === ObjectSourceKind.Ambiguous ? use.source.cells : [];
+  const candidates = cells.map(cell => {
+    const term = lhs[cell.rowIndex]![cell.cellIndex]!.find(candidate => candidate.name === use.property
+      && candidate.qualifier !== RuleQualifier.RandomObject)!;
+    return { cell, span: term.origin };
+  });
+  return { kind: RuleProblemKind.PropertyInference, property: use.property,
+    target: { cell: use.targetCell, span: targetSpan }, source: use.source, candidates };
 }
 
 /** Expand ordered property choices without changing qualifiers. Surviving ordinary
@@ -168,20 +181,28 @@ export function expandRuleProperties<Q extends OrientedQualifier>(rules: readonl
     // can construct the RHS once without introducing another inference problem.
     const variants = completed.map(partial => constructRightSide(partial, uses));
 
-    let ambiguousProperty: string | undefined;
+    let ambiguity: { readonly use: PropertyUse; readonly span: SourceSpan } | undefined;
     for (const variant of variants) {
-      for (const cell of variant.rhs.flat()) {
-        for (const property of participatingNames(cell)) {
-          // Native diagnostics name the last unresolved property in variant order.
-          if (needsMemberChoice.has(property)) ambiguousProperty = property;
+      for (const [rowIndex, row] of variant.rhs.entries()) {
+        for (const [cellIndex, cell] of row.entries()) {
+          for (const term of cell) {
+            if (term.qualifier === RuleQualifier.RandomObject || !properties.has(term.name)
+              || !needsMemberChoice.has(term.name)) continue;
+            // Keep the last unresolved use, including its actual target evidence.
+            const use = uses.find(candidate => candidate.property === term.name
+              && sameRuleCell(candidate.targetCell, { rowIndex, cellIndex }))!;
+            ambiguity = { use, span: term.origin };
+          }
         }
       }
     }
-    if (ambiguousProperty !== undefined) {
+    if (ambiguity !== undefined) {
+      const ambiguousProperty = ambiguity.use.property;
       appendSourceIssue(diagnostics, { code: 'ambiguous-rule-property',
         message: `This rule has a property on the right-hand side, "${ambiguousProperty.toUpperCase()}", that can't be inferred from the left-hand side.  (either for every property on the right there has to be a corresponding one on the left in the same cell, OR, if there's a single occurrence of a particular property name on the left, all properties of the same name on the right are assumed to be the same).`,
         span: input.source.originalLine.span, phase: SourceDiagnosticPhase.Rules,
-        severity: SourceDiagnosticSeverity.Error, countsAsError: true }, report);
+        severity: SourceDiagnosticSeverity.Error, countsAsError: true,
+        problem: propertyProblem(lhs, ambiguity.use, ambiguity.span) }, report);
       // This pass rejects the original input's entire family of variants.
       continue;
     }

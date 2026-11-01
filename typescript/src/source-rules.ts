@@ -1,5 +1,5 @@
 import { SourceDiagnosticPhase, SourceDiagnosticSeverity, SourceRuleCellKind, SourceRuleCommandKind, SourceRuleKind, SourceRuleSyntaxIssueKind,
-  type SourceEntry, type SourceLexicalToken, type SourceLine, type SourcePatternRule, type SourcePosition,
+  type SourceDiagnostic, type SourceEntry, type SourceLexicalToken, type SourceLine, type SourcePatternRule, type SourcePosition,
   type SourceRule, type SourceRuleCell, type SourceRuleCommand,
   type SourceRuleRow, type SourceRuleSyntaxIssue, type SourceRuleTerm, type SourceSpan, type SourceWord } from './source-model.js';
 import { compilerMessagePayload, scanRuleTokens } from './rule-lexing.js';
@@ -7,6 +7,8 @@ import { lineSpan, trimmedRange } from './source-text.js';
 import { RuleQualifier, type SourceQualifier } from './source-rule-model.js';
 import { Direction } from './model.js';
 import { soundEffectIndices } from './source-sound-syntax.js';
+import { RuleRecoveryKind, type RuleRecovery } from './rule-recovery.js';
+import { RuleProblemKind, type RuleProblem } from './rule-problems.js';
 
 const qualifiers = new Map<string, SourceQualifier>([
   ['up', RuleQualifier.Up], ['down', RuleQualifier.Down], ['left', RuleQualifier.Left], ['right', RuleQualifier.Right],
@@ -72,21 +74,30 @@ export function readRule(line: SourceLine, compilerLine: string, entry: SourceEn
   let late = false, rigid = false, random = false, hasPlus = false;
   let arrow: SourceWord | null = null;
   let header = true, onRight = false, insideRow = false;
-  let bracketBalance = 0, abortsCompilation = false;
+  let bracketBalance = 0;
+  const blockingIssues: SourceDiagnostic[] = [];
   let row: SourceRuleCell[] = [], cell: SourceRuleTerm[] = [];
   let openingBracket: SourceWord | null = null;
   let cellWords: SourceWord[] = [];
   let cellStart: SourcePosition = line.span.start;
   let pending: { readonly value: SourceQualifier; readonly word: SourceWord } | null = null;
 
-  function problem(code: string, message: string, token?: SourceLexicalToken, warning = false, span: SourceSpan | null = token?.word.span ?? line.span): void {
-    syntaxIssues.push({ kind: SourceRuleSyntaxIssueKind.Diagnostic, diagnostic: { code, message, span, phase: SourceDiagnosticPhase.Rules,
-      severity: warning ? SourceDiagnosticSeverity.Warning : SourceDiagnosticSeverity.Error, countsAsError: !warning } });
+  function problem(code: string, message: string, { token, warning = false, span, details }: {
+    readonly token?: SourceLexicalToken;
+    readonly warning?: boolean;
+    readonly span?: SourceSpan | null;
+    readonly details?: RuleProblem;
+  } = {}): SourceDiagnostic {
+    const diagnostic: SourceDiagnostic = { code, message,
+      span: span === undefined ? token?.word.span ?? line.span : span, phase: SourceDiagnosticPhase.Rules,
+      severity: warning ? SourceDiagnosticSeverity.Warning : SourceDiagnosticSeverity.Error, countsAsError: !warning,
+      ...(details === undefined ? {} : { problem: details }) };
+    syntaxIssues.push({ kind: SourceRuleSyntaxIssueKind.Diagnostic, diagnostic });
+    return diagnostic;
   }
-  function finish(retained: boolean): SourcePatternRule {
-    const invalid = syntaxIssues.some(issue => issue.kind === SourceRuleSyntaxIssueKind.Diagnostic && issue.diagnostic.severity === SourceDiagnosticSeverity.Error);
-    return { ...base, kind: invalid ? SourceRuleKind.Invalid : SourceRuleKind.Ordinary,
-      prefixWords, lhs, rhs, arrow, commands, trailingWords, retained, abortsCompilation, syntaxIssues,
+  function finish(recovery: RuleRecovery): SourcePatternRule {
+    return { ...base, kind: SourceRuleKind.Pattern,
+      prefixWords, lhs, rhs, arrow, commands, trailingWords, recovery, syntaxIssues,
       sourceGroup, directions, late, rigid, random };
   }
   function appendName(token: SourceLexicalToken): void {
@@ -105,14 +116,14 @@ export function readRule(line: SourceLine, compilerLine: string, entry: SourceEn
   }
   function unfinishedCell(token: SourceLexicalToken): void {
     if ((cell[0]?.qualifierValue ?? pending?.value) === RuleQualifier.Ellipsis) {
-      problem('unfinished-ellipsis', 'Cannot end a rule with ellipses.', token);
-    } else problem('unfinished-movement', 'In a rule, if you specify a movement, it has to act on an object.', token);
+      problem('unfinished-ellipsis', 'Cannot end a rule with ellipses.', { token });
+    } else problem('unfinished-movement', 'In a rule, if you specify a movement, it has to act on an object.', { token });
   }
 
   if (lexicalTokens.length === 0) problem('empty-rule', 'Spooky error!  Empty line passed to rule function.');
   if (compilerLine.includes('(') && !base.legacyCapturedText.includes('->')) {
-    problem('comment-before-arrow', "You can't have comments inside rules, sorry. In PuzzleScript, '(' starts a comment, so everything after the first '(' on this line was ignored before your rule was parsed.");
-    return finish(false);
+    const cause = problem('comment-before-arrow', "You can't have comments inside rules, sorry. In PuzzleScript, '(' starts a comment, so everything after the first '(' on this line was ignored before your rule was parsed.");
+    return finish({ kind: RuleRecoveryKind.Discard, cause });
   }
   if (!lexicalTokens.some(token => token.value === '->')) {
     problem('missing-rule-arrow', "A rule has to have an arrow in it.  There's no arrow here! Consider reading up about rules - you're clearly doing something weird");
@@ -129,34 +140,34 @@ export function readRule(line: SourceLine, compilerLine: string, entry: SourceEn
         hasPlus = true;
         if (sourceGroup === lineNumber) {
           if (previous === undefined) {
-            problem('group-without-previous-rule', 'The "+" symbol, for joining a rule with the group of the previous rule, needs a previous rule to be applied to.', token);
+            problem('group-without-previous-rule', 'The "+" symbol, for joining a rule with the group of the previous rule, needs a previous rule to be applied to.', { token });
             hasPlus = false;
           }
-          if (index !== 0) problem('misplaced-group-join', 'The "+" symbol, for joining a rule with the group of the previous rule, must be the first symbol on the line ', token);
+          if (index !== 0) problem('misplaced-group-join', 'The "+" symbol, for joining a rule with the group of the previous rule, must be the first symbol on the line ', { token });
           if (hasPlus) sourceGroup = previous!.sourceGroup;
-        } else problem('repeated-group-join', 'Two "+"s (the "append to previous rule group" symbol) applied to the same rule.', token);
+        } else problem('repeated-group-join', 'Two "+"s (the "append to previous rule group" symbol) applied to the same rule.', { token });
       } else if (qualifier !== undefined && relative.has(qualifier)) {
-        problem('relative-rule-direction', 'You cannot use relative directions ("^v<>") to indicate in which direction(s) a rule applies.  Use absolute directions indicators (Up, Down, Left, Right, Horizontal, or Vertical, for instance), or, if you want the rule to apply in all four directions, do not specify directions', token);
+        problem('relative-rule-direction', 'You cannot use relative directions ("^v<>") to indicate in which direction(s) a rule applies.  Use absolute directions indicators (Up, Down, Left, Right, Horizontal, or Vertical, for instance), or, if you want the rule to apply in all four directions, do not specify directions', { token });
       } else if (directionFamilies.has(value)) directions.push(...directionFamilies.get(value)!);
       else if (value === 'late') late = true;
       else if (value === 'rigid') rigid = true;
       else if (value === 'random') {
         random = true;
-        if (hasPlus) problem('random-group-join', `A rule-group can only be marked random by the opening rule in the group (aka, a '+' and 'random' can't appear as rule modifiers on the same line).  Why? Well, you see "random" isn't a property of individual rules, but of whole rule groups.  It indicates that a single possible application of some rule from the whole group should be applied at random.`, token);
+        if (hasPlus) problem('random-group-join', `A rule-group can only be marked random by the opening rule in the group (aka, a '+' and 'random' can't appear as rule modifiers on the same line).  Why? Well, you see "random" isn't a property of individual rules, but of whole rule groups.  It indicates that a single possible application of some rule from the whole group should be applied at random.`, { token });
       } else if (absoluteDirections.has(value)) directions.push(absoluteDirections.get(value)!);
       else if (value === '[') {
         if (directions.length === 0) directions.push(...orthogonal);
         header = false;
         index--; // The first bracket belongs to the body reducer too.
-      } else problem('invalid-rule-prefix', "The start of a rule must consist of some number of directions (possibly 0), before the first bracket, specifying in what directions to look (with no direction specified, it applies in all four directions).  It seems you've just entered \"" + value.toUpperCase() + '\".', token);
+      } else problem('invalid-rule-prefix', "The start of a rule must consist of some number of directions (possibly 0), before the first bracket, specifying in what directions to look (with no direction specified, it applies in all four directions).  It seems you've just entered \"" + value.toUpperCase() + '\".', { token });
       continue;
     }
 
     if (insideRow && !['[', ']', '|'].includes(value)) cellWords.push(token.word);
     if (value === '[') {
       bracketBalance++;
-      if (bracketBalance > 1) problem('nested-rule-bracket', "Multiple opening brackets without closing brackets.  Something fishy here.  Every '[' has to be closed by a ']', and you can't nest them.", token, true);
-      if (cell.length > 0 || pending !== null) problem('cell-before-opening-bracket', 'Error, malformed cell rule - encountered a "["" before previous bracket was closed', token);
+      if (bracketBalance > 1) problem('nested-rule-bracket', "Multiple opening brackets without closing brackets.  Something fishy here.  Every '[' has to be closed by a ']', and you can't nest them.", { token, warning: true });
+      if (cell.length > 0 || pending !== null) problem('cell-before-opening-bracket', 'Error, malformed cell rule - encountered a "["" before previous bracket was closed', { token });
       openingBracket ??= token.word;
       insideRow = true;
       cell = [];
@@ -164,20 +175,20 @@ export function readRule(line: SourceLine, compilerLine: string, entry: SourceEn
       cellStart = token.word.span.end;
       pending = null;
     } else if (qualifier !== undefined) {
-      if (pending !== null) problem('multiple-rule-qualifiers', "Error, an item can only have one direction/action at a time, but you're looking for several at once!", token);
-      else if (!insideRow) problem('qualifier-outside-row', 'Invalid syntax. Directions should be placed at the start of a rule.', token, true);
+      if (pending !== null) problem('multiple-rule-qualifiers', "Error, an item can only have one direction/action at a time, but you're looking for several at once!", { token });
+      else if (!insideRow) problem('qualifier-outside-row', 'Invalid syntax. Directions should be placed at the start of a rule.', { token, warning: true });
       else if (late && qualifier !== RuleQualifier.No && qualifier !== RuleQualifier.RandomObject) {
-        problem('movement-in-late-rule', 'Movements cannot appear in late rules.', token);
+        problem('movement-in-late-rule', 'Movements cannot appear in late rules.', { token });
       } else pending = { value: qualifier, word: token.word };
     } else if (value === '|') {
-      if (!insideRow) problem('pipe-outside-row', 'Janky syntax.  "|" should only be used inside cell rows (the square brackety bits).', token, true);
-      else if (pending !== null) problem('unfinished-movement', 'In a rule, if you specify a movement, it has to act on an object.', token);
+      if (!insideRow) problem('pipe-outside-row', 'Janky syntax.  "|" should only be used inside cell rows (the square brackety bits).', { token, warning: true });
+      else if (pending !== null) problem('unfinished-movement', 'In a rule, if you specify a movement, it has to act on an object.', { token });
       else { appendCell(token.word.span.start); cellStart = token.word.span.end; }
     } else if (value === ']') {
       bracketBalance--;
       if (bracketBalance < 0) {
-        problem('excess-closing-bracket', "Multiple closing brackets without corresponding opening brackets.  Something fishy here.  Every '[' has to be closed by a ']', and you can't nest them.", token, true);
-        return finish(false);
+        const cause = problem('excess-closing-bracket', "Multiple closing brackets without corresponding opening brackets.  Something fishy here.  Every '[' has to be closed by a ']', and you can't nest them.", { token, warning: true });
+        return finish({ kind: RuleRecoveryKind.Discard, cause });
       }
       if (pending !== null) unfinishedCell(token);
       else appendCell(token.word.span.start);
@@ -189,31 +200,31 @@ export function readRule(line: SourceLine, compilerLine: string, entry: SourceEn
       insideRow = false;
     } else if (value === '->') {
       if (sourceGroup !== lineNumber && previous!.late !== late) {
-        problem('mixed-late-rule-group', 'Oh gosh you can mix late and non-late rules in a rule-group if you really want to, but gosh why would you want to do that?  What do you expect to accomplish?', token, true);
+        problem('mixed-late-rule-group', 'Oh gosh you can mix late and non-late rules in a rule-group if you really want to, but gosh why would you want to do that?  What do you expect to accomplish?', { token, warning: true });
       }
-      if (insideRow) problem('arrow-inside-row', 'Encountered an unexpected "->" inside square brackets.  It\'s used to separate states, it has no place inside them >:| .', token, true);
+      if (insideRow) problem('arrow-inside-row', 'Encountered an unexpected "->" inside square brackets.  It\'s used to separate states, it has no place inside them >:| .', { token, warning: true });
       else if (onRight) {
-        problem('multiple-rule-arrows', 'Error, you can only use "->" once in a rule; it\'s used to separate before and after states.', token);
-        return finish(false);
+        const cause = problem('multiple-rule-arrows', 'Error, you can only use "->" once in a rule; it\'s used to separate before and after states.', { token });
+        return finish({ kind: RuleRecoveryKind.Discard, cause });
       } else { onRight = true; arrow = token.word; }
     } else if (context.ruleNames.has(value)) {
       if (!insideRow) {
         trailingWords.push(token.word);
-        problem('name-outside-row', 'Invalid token ' + value.toUpperCase() + '. Object names should only be used within cells (square brackets).', token, true);
+        problem('name-outside-row', 'Invalid token ' + value.toUpperCase() + '. Object names should only be used within cells (square brackets).', { token, warning: true });
       } else {
         for (const existing of cell) {
           if (existing.nameValue !== value) continue;
           if (existing.qualifierValue === RuleQualifier.No && pending?.value === RuleQualifier.No) {
-            problem('duplicate-negative-name', `I notice that you have NO ${value.toUpperCase()} more than once in a single cell. That's redundant innit.`, token, true);
+            problem('duplicate-negative-name', `I notice that you have NO ${value.toUpperCase()} more than once in a single cell. That's redundant innit.`, { token, warning: true });
           } else {
-            problem('duplicate-cell-name', `You cannot specify the same object more than once in a single cell (in this case ${value.toUpperCase()} occurs multiple times).`, token);
+            problem('duplicate-cell-name', `You cannot specify the same object more than once in a single cell (in this case ${value.toUpperCase()} occurs multiple times).`, { token });
             syntaxIssues.push({ kind: SourceRuleSyntaxIssueKind.DuplicateProperty, name: value });
           }
         }
         appendName(token);
       }
     } else if (value === '...') {
-      if (!insideRow) problem('ellipsis-outside-row', 'Invalid syntax, ellipses should only be used within cells (square brackets).', token, true);
+      if (!insideRow) problem('ellipsis-outside-row', 'Invalid syntax, ellipses should only be used within cells (square brackets).', { token, warning: true });
       else if (pending === null) {
         cell.push({ qualifier: token.word, qualifierValue: RuleQualifier.Ellipsis, name: token.word, nameValue: value, words: [token.word], span: token.word.span });
       } else {
@@ -223,8 +234,8 @@ export function readRule(line: SourceLine, compilerLine: string, entry: SourceEn
       }
     } else if (controlCommands.has(value) || soundIndex !== undefined || value === 'message') {
       const placementMessage = 'Commands should only appear at the end of rules, not in or before the pattern-detection/-replacement sections.';
-      if (!onRight) problem('command-before-rhs', placementMessage, token);
-      else if (insideRow || lexicalTokens.slice(index).some(later => later.value === ']')) problem('command-before-pattern-end', placementMessage, token, true);
+      if (!onRight) problem('command-before-rhs', placementMessage, { token });
+      else if (insideRow || lexicalTokens.slice(index).some(later => later.value === ']')) problem('command-before-pattern-end', placementMessage, { token, warning: true });
       if (value === 'message') {
         const range = trimmedRange(line.original, token.word.span.end.column - 1);
         const authoredPayload = line.original.slice(range.start, range.end);
@@ -234,28 +245,32 @@ export function readRule(line: SourceLine, compilerLine: string, entry: SourceEn
         break;
       } else if (controlCommands.has(value)) commands.push({ kind: controlCommands.get(value)!, word: token.word });
       else if (soundIndex !== undefined) {
-        if (!context.definedSounds.has(value)) problem('undefined-rule-sound', `Sound effect "${value}" not defined.`, token, true);
+        if (!context.definedSounds.has(value)) problem('undefined-rule-sound', `Sound effect "${value}" not defined.`, { token, warning: true });
         commands.push({ kind: SourceRuleCommandKind.SoundEffect, word: token.word, index: soundIndex });
       }
     } else {
       if (!insideRow) trailingWords.push(token.word);
-      problem('unknown-rule-token', 'Error, malformed cell rule - was looking for cell contents, but found "' + value + '".  What am I supposed to do with this, eh, please tell me that.', token);
+      problem('unknown-rule-token', 'Error, malformed cell rule - was looking for cell contents, but found "' + value + '".  What am I supposed to do with this, eh, please tell me that.', { token });
     }
   }
 
   if (late && rigid) problem('late-rigid-rule', "Late rules cannot be marked as rigid (rigid rules are all about dealing with the consequences of unresolvable movements, and late rules can't even have movements).");
   if (lhs.length !== rhs.length) {
     if (commands.length === 0 || rhs.length !== 0) {
-      problem('unequal-rule-row-count', 'Error, when specifying a rule, the number of matches (square bracketed bits) on the left hand side of the arrow must equal the number on the right', undefined, true);
-      return finish(false);
+      const cause = problem('unequal-rule-row-count', 'Error, when specifying a rule, the number of matches (square bracketed bits) on the left hand side of the arrow must equal the number on the right',
+        { warning: true, details: { kind: RuleProblemKind.RowCountMismatch, leftRowCount: lhs.length, rightRowCount: rhs.length,
+          leftRows: lhs.map(row => row.span), rightRows: rhs.map(row => row.span) } });
+      return finish({ kind: RuleRecoveryKind.Discard, cause });
     }
   } else {
     for (let index = 0; index < lhs.length; index++) {
       if (lhs[index]!.cells.length !== rhs[index]!.cells.length) {
-        problem('unequal-rule-cell-count', 'In a rule, each pattern to match on the left must have a corresponding pattern on the right of equal length (number of cells).');
-        abortsCompilation = true;
+        blockingIssues.push(problem('unequal-rule-cell-count', 'In a rule, each pattern to match on the left must have a corresponding pattern on the right of equal length (number of cells).',
+          { details: { kind: RuleProblemKind.CellCountMismatch, rowIndex: index,
+            leftCellCount: lhs[index]!.cells.length, rightCellCount: rhs[index]!.cells.length,
+            leftSpan: lhs[index]!.span, rightSpan: rhs[index]!.span } }));
       }
-      if (lhs[index]!.cells.length === 0) problem('empty-rule-pattern', "You have an totally empty pattern on the left-hand side.  This will match *everything*.  You certainly don't want this.", undefined, false, null);
+      if (lhs[index]!.cells.length === 0) problem('empty-rule-pattern', "You have an totally empty pattern on the left-hand side.  This will match *everything*.  You certainly don't want this.", { span: null });
     }
   }
   if (lhs.length === 0) problem('rule-without-pattern', 'This rule refers to nothing.  What the heck? :O');
@@ -263,5 +278,6 @@ export function readRule(line: SourceLine, compilerLine: string, entry: SourceEn
     || [...lhs, ...rhs].some(row => row.cells.some(cell => cell.terms.some(term => relative.has(term.qualifierValue))));
   // Even a one-cell rule's first selector determines match traversal order.
   if (!directional && directions.length > 1) directions = directions.slice(0, 1);
-  return finish(true);
+  return finish(blockingIssues.length === 0 ? { kind: RuleRecoveryKind.Keep }
+    : { kind: RuleRecoveryKind.KeepForDiagnostics, causes: blockingIssues });
 }

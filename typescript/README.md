@@ -62,6 +62,21 @@ formed game, declarations, sprites, palette, metadata and authored rule links.
 `Invalid` and `Stopped` expose no game. Acceptance follows vanilla's installation
 decision: some accepted games have compilation errors.
 
+An `Invalid` outcome carries a typed `failure`: either a missing collision layer
+declaration with its diagnostic, or a rule compilation failure with its
+`checkpoint` and diagnostic `causes`. `Stopped` still distinguishes parser/error
+limits. Diagnostic severity, rule retention and compilation stopping are separate.
+
+Rule shape and inference diagnostics have an optional typed `problem` payload.
+`RuleProblemKind` distinguishes row counts, cell counts, property inference and
+movement inference. Counts, candidate cells and authored spans can be inspected
+directly; `message` and the primary reporting span retain vanilla behavior.
+Build, then run the [rich error example](examples/errors.mjs):
+
+```sh
+npm --prefix typescript run example:errors
+```
+
 `rawDiagnostics` records the port's actual issue visits. Direct movement
 expansion can visit an identical property error fewer times than vanilla;
 recorded diagnostics, error counts, stopping and game behavior remain unchanged.
@@ -112,6 +127,7 @@ npm --prefix typescript run example:session
 | [declarations.ts](src/declarations.ts) | Canonical objects, final name resolution and compiled layers |
 | [rule-lexing.ts](src/rule-lexing.ts), [source-rules.ts](src/source-rules.ts), [rule-syntax.ts](src/rule-syntax.ts) | Rule tokens, authoritative parsed syntax, then validation and domain projection |
 | [source-rule-compiler.ts](src/source-rule-compiler.ts) and `rule-*.ts` | Syntax, ordered movement/property inference, lowering and schedules |
+| [rule-recovery.ts](src/rule-recovery.ts), [rule-problems.ts](src/rule-problems.ts) | Retention decisions, typed diagnostic facts, stopping checkpoints and causes |
 | [rule-object-sources.ts](src/rule-object-sources.ts), [rule-properties.ts](src/rule-properties.ts) | Source-cell resolution followed by ordered member selection and RHS construction |
 | [source-assets.ts](src/source-assets.ts), [source-game-data.ts](src/source-game-data.ts) | Sprites, colors, levels, metadata, sounds and win conditions |
 
@@ -136,6 +152,13 @@ remain visible in the tokens even when recovery discards them. `recoverRuleSynta
 consumes that tree. It does not tokenize the line again or reconstruct brackets.
 Expansion still owns orientations, movement families, properties and implicit
 stationary terms; lowering constructs executable predicates and replacements.
+
+Pattern rules have one structural kind and a `RuleRecovery` result: Keep,
+Discard(cause), or KeepForDiagnostics(causes). Kept rules may have errors;
+discarded rules may have only warnings. `recoverRuleSyntax` carries actual
+blocking issues forward. Rule expansion returns `Ready` atomic rules or
+`Blocked` with the actual checkpoint and causes, so blocked recovery cannot be
+passed to lowering. See the [recovery inventory](../docs/superpowers/plans/2026-11-01-rich-rule-errors.md).
 
 PuzzleScript's grammar has contextual names: an accepted name such as `checkpoint`
 can take precedence over a command. The rule parser receives explicit name and
@@ -395,7 +418,7 @@ npm --prefix typescript run test:corpus -- --session
 The strict suite, including object-source contracts, source/member construction
 separation, turn-input/calculation contracts, fresh prepared-turn commitment,
 probe ordering, direct movement choices and the earlier frontend regressions,
-passes **2,173 tests**.
+passes **2,195 tests**.
 Exact compilation comparison
 covers **335 compiler fixtures**, **492 simulation sources** and **99,192 final
 executable rules**, including diagnostics, stopping outcomes, authored source
@@ -440,6 +463,15 @@ Recorded diagnostics and installation outcomes remain exact; raw diagnostics
 may contain fewer identical property-error visits, as explicitly permitted.
 Independent specification and quality reviews approved the algorithm, native
 adapter boundaries and the seeded random ordering witness.
+
+The [rich rule-error audit](../docs/superpowers/plans/2026-11-01-rich-rule-errors.md)
+passes all **2,195 tests** and **256 generated cases**, with **1,754 per-operation
+comparisons**, **256 loads** and no exclusions, mismatches or timeouts. Rule
+retention and compilation failures carry their actual diagnostic causes; shape
+and inference problems expose counts, target/candidate cells and authored spans.
+Native final games, recorded diagnostics, counts and stopping remain unchanged.
+Independent specification and quality reviews approved the source, schema checks,
+type contracts and runnable error example.
 
 The earlier rule-frontend checkpoint passed a 128-game generated per-move sample
 (907 observations) and at least 218 original-game replays. Its additional exhaustive

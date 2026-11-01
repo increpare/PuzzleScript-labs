@@ -28,7 +28,10 @@ import { inferSpawnedStationary } from ${modulePath('rule-spawns')};
 import { normalizeRuleDuplicates } from ${modulePath('rule-duplicates')};
 import { lowerRules, type LoweredRule } from ${modulePath('rule-lowering')};
 import { expandSourceRules, lowerSourceRules } from ${modulePath('source-rule-compiler')};
-import type { SourceDocument } from ${modulePath('source-model')};
+import { RuleRecoveryKind, RuleExpansionKind, RuleCompilationCheckpoint,
+  type RuleRecovery, type RuleCompilationFailure } from ${modulePath('rule-recovery')};
+import { SourceRuleKind, type SourceDocument, type SourceDiagnostic } from ${modulePath('source-model')};
+import { SourceCompilationKind, SourceCompilationFailureKind, compileSource } from ${modulePath('source-compiler')};
 
 declare const origin: SourceSpan;
 declare const authored: SourcePatternRule;
@@ -127,7 +130,49 @@ const earlier: DirectedNamedRule<SourceQualifier> & { readonly evidence: 'retain
 };
 const sameRecords: readonly (typeof earlier)[] = normalizeRuleDuplicates([earlier]);
 const expandedSource = expandSourceRules(document, declarations);
-if (expandedSource.rules !== null) lowerRules(expandedSource.rules, declarations);
+// @ts-expect-error Expansion has not established a successful lowerable result.
+lowerRules(expandedSource.rules, declarations);
+if (expandedSource.kind === RuleExpansionKind.Ready) lowerRules(expandedSource.rules, declarations);
+else {
+  const failure: RuleCompilationFailure = expandedSource.failure;
+  // @ts-expect-error Blocked rules cannot enter lowering.
+  lowerRules(expandedSource.rules, declarations);
+  void failure;
+}
+declare const cause: SourceDiagnostic;
+const keep: RuleRecovery = { kind: RuleRecoveryKind.Keep };
+const discard: RuleRecovery = { kind: RuleRecoveryKind.Discard, cause };
+const diagnosticOnly: RuleRecovery = { kind: RuleRecoveryKind.KeepForDiagnostics, causes: [cause] };
+// @ts-expect-error A discarded pattern must identify its syntax diagnostic.
+const noCause: RuleRecovery = { kind: RuleRecoveryKind.Discard };
+// @ts-expect-error A diagnostic-only pattern must identify its blocking causes.
+const noBlockers: RuleRecovery = { kind: RuleRecoveryKind.KeepForDiagnostics };
+// @ts-expect-error Keep does not combine contradictory recovery flags or causes.
+const unsupported: RuleRecovery = { kind: RuleRecoveryKind.Keep, cause };
+const pattern: SourceRuleKind.Pattern = authored.kind;
+// @ts-expect-error Severity no longer implies a structural Invalid pattern kind.
+SourceRuleKind.Invalid;
+// @ts-expect-error Recovery replaces the separate retained boolean.
+authored.retained;
+// @ts-expect-error Recovery replaces the separate abort boolean.
+authored.abortsCompilation;
+const compilation = compileSource('');
+if (compilation.outcome.kind === SourceCompilationKind.Invalid) {
+  switch (compilation.outcome.failure.kind) {
+    case SourceCompilationFailureKind.MissingCollisionLayers: {
+      const diagnostic: SourceDiagnostic = compilation.outcome.failure.diagnostic;
+      void diagnostic; break;
+    }
+    case SourceCompilationFailureKind.RuleCompilation: {
+      const checkpoint: RuleCompilationCheckpoint = compilation.outcome.failure.checkpoint;
+      const causes: readonly SourceDiagnostic[] = compilation.outcome.failure.causes;
+      // @ts-expect-error Complete failures expose the checkpoint directly without a redundant failure wrapper.
+      compilation.outcome.failure.failure;
+      void [checkpoint, causes]; break;
+    }
+  }
+}
+void [keep, discard, diagnosticOnly, pattern];
 void [absolute, atomic, sourceFamily, family, relative, sourceQualifier, orientedQualifier,
   inPlace, upOrStationary, sameRecords, sound0, sound10, authoredPayload, effectiveText];
 `;

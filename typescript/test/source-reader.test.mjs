@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { RuleRecoveryKind } from '../build/rule-recovery.js';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readSource } from '../build/source-reader.js';
@@ -274,8 +275,8 @@ test('a rejected empty property does not shadow a rule command', () => {
   assert.deepEqual(rule.tokens.slice(-4).map(word => word.spelling), ['[', 'Player', 'message', ']']);
   assert.equal(rule.legacyCapturedText, '[ player ] -> [ player message ]');
   assert.equal(rule.originalLine.original, source.split('\n').at(-1));
-  assert.equal(rule.kind, sourceModel.SourceRuleKind.Ordinary);
-  assert.equal(rule.retained, true);
+  assert.equal(rule.kind, sourceModel.SourceRuleKind.Pattern);
+  assert.equal(rule.recovery.kind, RuleRecoveryKind.Keep);
   assert.ok(ruleDiagnostics(rule).some(diagnostic => diagnostic.code === 'command-before-pattern-end'));
 });
 
@@ -342,7 +343,9 @@ test('rules retain their first-comment capture without reconnecting physical fra
   assert.equal(document.rules[0].originalLine.original, line);
   assert.equal(document.rules[0].legacyCapturedText, '[ player ] ');
   assert.equal(document.rules[0].rhs.length, 0);
-  assert.equal(document.rules[0].kind, 3);
+  assert.equal(document.rules[0].kind, sourceModel.SourceRuleKind.Pattern);
+  assert.equal(document.rules[0].recovery.kind, RuleRecoveryKind.Discard);
+  assert.equal(document.lines[document.rules[0].span.start.line - 1].kind, sourceModel.SourceLineKind.Invalid);
   assert.deepEqual(document.rules[1].commands, []);
   assert.ok(ruleDiagnostics(document.rules[0]).some(diagnostic => diagnostic.code === 'comment-before-arrow'));
 });
@@ -358,7 +361,7 @@ test('rule message literals after leading comments cannot swallow the next physi
     assert.equal(document.rules[0].commands[0].authoredPayload, 'Hello (unclosed', prefix);
     assert.equal(document.rules[0].commands[0].text, 'Hello (unclosed', prefix);
     assert.equal(document.rules[0].compilerLine, source.split('\n')[document.rules[0].span.start.line - 1], prefix);
-    assert.equal(document.rules[1].kind, sourceModel.SourceRuleKind.Ordinary, prefix);
+    assert.equal(document.rules[1].kind, sourceModel.SourceRuleKind.Pattern, prefix);
     assert.ok(!diagnostics.some(diagnostic => diagnostic.code === 'unclosed-comment'), prefix);
     assert.deepEqual(document.rules.map(rule => rule.legacyCapturedText), legacy.rules.map(rule => rule.rule), prefix);
     for (const rule of document.rules) assert.equal(document.source.slice(rule.legacyCapturedSpan.start.offset, rule.legacyCapturedSpan.end.offset).toLowerCase(), rule.legacyCapturedText);
@@ -369,8 +372,8 @@ test('bracketless malformed message rules still protect literal parentheses from
   for (const line of ['message Hello (unclosed', '-> message Hi (unclosed']) {
     const { document, diagnostics } = readSource(rulesSource(line + '\n[ Player ] -> [ Player ]'));
     assert.equal(document.rules.length, 2, line);
-    assert.equal(document.rules[0].kind, sourceModel.SourceRuleKind.Invalid, line);
-    assert.equal(document.rules[1].kind, sourceModel.SourceRuleKind.Ordinary, line);
+    assert.equal(document.rules[0].kind, sourceModel.SourceRuleKind.Pattern, line);
+    assert.equal(document.rules[1].kind, sourceModel.SourceRuleKind.Pattern, line);
     assert.equal(document.comments.length, 0, line);
     assert.ok(!diagnostics.some(diagnostic => diagnostic.code === 'unclosed-comment'), line);
   }
@@ -418,7 +421,7 @@ test('commands inside replacement cells remain ordered commands and warn without
   const source = rulesSource('[ Player ] -> [ Player ' + names.join(' ') + ' ]').replace('SOUNDS\n', 'SOUNDS\nsfx0 123\n');
   const { document, diagnostics } = readSource(source);
   const rule = document.rules[0];
-  assert.equal(rule.kind, sourceModel.SourceRuleKind.Ordinary);
+  assert.equal(rule.kind, sourceModel.SourceRuleKind.Pattern);
   assert.deepEqual(rule.commands.map(command => command.word.normalized), names);
   assert.deepEqual(rule.rhs[0].cells[0].terms.map(term => term.name.normalized), ['player']);
   assert.deepEqual(rule.rhs[0].cells[0].words.map(word => word.normalized), ['player', ...names]);
@@ -438,7 +441,7 @@ test('commands inside replacement cells remain ordered commands and warn without
 
 test('a command inside a detection cell is retained with an error while declared command names stay objects', () => {
   const first = readSource(rulesSource('[ Player win ] -> [ Player ]'));
-  assert.equal(first.document.rules[0].kind, sourceModel.SourceRuleKind.Invalid);
+  assert.equal(first.document.rules[0].kind, sourceModel.SourceRuleKind.Pattern);
   assert.deepEqual(first.document.rules[0].commands.map(command => command.word.normalized), ['win']);
   assert.deepEqual(first.document.rules[0].lhs[0].cells[0].terms.map(term => term.name.normalized), ['player']);
   assert.ok(ruleDiagnostics(first.document.rules[0]).some(diagnostic => diagnostic.code === 'command-before-rhs' && diagnostic.countsAsError));
@@ -466,7 +469,7 @@ test('malformed declarations remain authored evidence without shadowing a later 
 test('malformed rules and loops retain native recovery with complete raw token evidence', () => {
   const { document } = readSource(rulesSource('startloop extra\n[ no ] -> [ Player\n[ Player ] -> [ Crate ] -> [ Player ]\nNonsense\n[ ... Player ] -> [ ... ]'));
   assert.equal(document.rules.length, 5);
-  assert.deepEqual(document.rules.map(rule => rule.retained), [true, false, false, true, true]);
+  assert.deepEqual(document.rules.map(rule => rule.recovery.kind !== RuleRecoveryKind.Discard), [true, false, false, true, true]);
   assert.deepEqual(document.rules[1].lhs[0].cells, [], 'unfinished qualifier prevents committing the cell');
   assert.deepEqual(document.rules[1].tokens.map(word => word.spelling), ['[', 'no', ']', '->', '[', 'Player']);
   assert.deepEqual(document.rules[4].lhs[0].cells[0].terms.map(term => term.nameValue), ['...', 'player']);
@@ -477,7 +480,7 @@ test('malformed rules and loops retain native recovery with complete raw token e
 test('authored model discriminants are numeric enums', () => {
   for (const [name, members] of Object.entries({ SourceSectionKind: ['Objects', 'Legend', 'Sounds', 'CollisionLayers', 'Rules', 'WinConditions', 'Levels'],
     SourceLineKind: ['Blank', 'Comment', 'Separator', 'Heading', 'Entry', 'Invalid'], SourceLegendKind: ['Synonym', 'Property', 'Aggregate', 'Invalid'],
-    SourceRuleKind: ['Ordinary', 'StartLoop', 'EndLoop', 'Invalid'],
+    SourceRuleKind: ['Pattern', 'StartLoop', 'EndLoop'],
     SourceRuleCellKind: ['Contents', 'Ellipsis'], SourceLevelKind: ['Grid', 'Message'],
     SourceRuleCommandKind: ['SoundEffect', 'Cancel', 'Checkpoint', 'Restart', 'Win', 'Message', 'Again'],
     SourceRuleSyntaxIssueKind: ['Diagnostic', 'DuplicateProperty'] })) {
@@ -528,7 +531,7 @@ test('legend equality punctuation keeps raw malformed evidence and captures a va
 
 test('a rule without a replacement or command is discarded with the native warning', () => {
   const { document, diagnostics } = readSource(rulesSource('[ Player ] ->'));
-  assert.equal(document.rules[0].retained, false);
+  assert.equal(document.rules[0].recovery.kind, RuleRecoveryKind.Discard);
   assert.ok(ruleDiagnostics(document.rules[0]).some(diagnostic => diagnostic.code === 'unequal-rule-row-count'
     && diagnostic.severity === SourceDiagnosticSeverity.Warning && !diagnostic.countsAsError));
 });

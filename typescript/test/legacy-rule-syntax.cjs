@@ -2,6 +2,7 @@
 
 const assert = require('node:assert/strict');
 const { loadPuzzleScript } = require('./native-host.cjs');
+const { checkRuleProblem, checkRuleRecovery } = require('./support/rule-errors.cjs');
 
 // The native parser supplies its own tuples; no candidate tokens or authored
 // term arrays are ever supplied to processRuleString.
@@ -75,6 +76,11 @@ function createRuleSyntaxOracle(types, { nativeAlreadyLoaded = false } = {}) {
   }
 
   function candidateView(document, result) {
+    assert.deepEqual(Object.keys(result).sort(), ['blockingIssues', 'diagnostics', 'loops', 'rules']);
+    document.rules.forEach(rule => checkRuleRecovery(document, rule));
+    const blockers = document.rules.filter(rule => 'lhs' in rule && rule.recovery.kind === 2).flatMap(rule => rule.recovery.causes);
+    assert.deepEqual(result.blockingIssues, blockers);
+    result.blockingIssues.forEach((issue, index) => assert.equal(issue, blockers[index], 'blocking syntax issue identity'));
     const rows = side => side.map(row => row.map(cell => cell.flatMap(term => {
       assert.ok(Number.isInteger(term.qualifier) && qualifierNames[term.qualifier] !== undefined, 'numeric qualifier');
       const { start, end } = term.origin;
@@ -99,8 +105,9 @@ function createRuleSyntaxOracle(types, { nativeAlreadyLoaded = false } = {}) {
         assert.ok(document.rules.includes(loop), 'preserve authored loop identity');
         return { line: loop.originalLine.span.start.line, bracket: loop.kind === types.SourceRuleKind.StartLoop ? 1 : -1 };
       }),
-      abortsCompilation: result.abortsCompilation,
+      abortsCompilation: result.blockingIssues.length > 0,
       diagnostics: result.diagnostics.map(issue => {
+        checkRuleProblem(document, issue);
         assert.equal(issue.phase, types.SourceDiagnosticPhase.Rules, 'rule diagnostic phase');
         assert.ok(issue.code.length > 0, 'structured diagnostic code');
         if (issue.span !== null) {
@@ -132,7 +139,7 @@ function createRuleSyntaxOracle(types, { nativeAlreadyLoaded = false } = {}) {
       diagnostics: expected.diagnostics }, fixture.name + ': effective rule syntax');
     assert.deepEqual(document, before, fixture.name + ': authored AST is unchanged');
     return { document, result, captured: expected.captured, rules: result.rules.length, loops: result.loops.length,
-      diagnostics: result.diagnostics.length, aborted: result.abortsCompilation ? 1 : 0 };
+      diagnostics: result.diagnostics.length, aborted: result.blockingIssues.length > 0 ? 1 : 0 };
   }
   return { compareFixture, independently, corpusFixtures: () => testdata.map(([name, data]) => ({ name, source: data[0] })) };
 }

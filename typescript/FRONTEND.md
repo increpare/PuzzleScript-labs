@@ -26,6 +26,21 @@ results keep their families for property diagnostics; only successful atomic
 results reach lowering. Property inference preserves that movement guarantee,
 while legitimately retaining local, random and recovered names.
 
+Rule recovery is a separate decision from severity. Pattern syntax carries Keep,
+Discard(cause), or KeepForDiagnostics(causes). Warning-only syntax can be discarded;
+syntax with errors can be kept. Syntax recovery carries actual blocking issues,
+and rule expansion returns Ready atomic rules or Blocked with a checkpoint and
+causes. Aggregate diagnostics still precede the syntax stop; property/spawn
+analysis still follows movement ambiguity before compilation stops.
+
+[rule-problems.ts](src/rule-problems.ts) defines structured row/cell mismatches
+and inference evidence. The original displayed message and primary span stay
+unchanged. Additional counts, exact RHS targets and candidate LHS spans are
+ordinary data. Cell coordinates describe the rule at the reporting pass;
+authored spans retain original text even when orientation reverses a row.
+The [rich error example](examples/errors.mjs) prints both mismatched brackets and
+the actual stopping checkpoint without reading the message text.
+
 [Object-source resolution](src/rule-object-sources.ts) receives candidate rule-cell
 addresses and a target address. It returns Resolved(cell), Missing or
 Ambiguous(cells), with corresponding-cell preference and full row/cell identity.

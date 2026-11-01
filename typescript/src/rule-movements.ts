@@ -3,6 +3,7 @@ import { SourceDiagnosticPhase, SourceDiagnosticSeverity, type SourceDiagnostic 
 import { RuleQualifier, type AbsoluteMovementQualifier, type AtomicQualifier, type MovementFamily, type MovementRule,
   type NamedRuleCell, type NamedRuleRows, type NamedRuleTerm, type OrientedQualifier, type OrientedRule } from './source-rule-model.js';
 import { sameRuleCell, type RuleCellAddress } from './rule-object-sources.js';
+import { RuleProblemKind, type MovementProblemSource, type RuleProblem, type RuleProblemLocation } from './rule-problems.js';
 
 /** Private evidence describes one local expansion, rather than a runtime binding. */
 interface MovementExpansion {
@@ -159,6 +160,23 @@ function inferRightMovements(partial: PartialRule): OrientedRule {
   return { ...partial.rule, rhs };
 }
 
+function movementProblem(input: OrientedRule, term: NamedRuleTerm<MovementFamily>, target: RuleProblemLocation): RuleProblem {
+  const familySources: MovementProblemSource[] = [];
+  for (const [rowIndex, row] of input.lhs.entries()) {
+    for (const [cellIndex, cell] of row.entries()) {
+      const seenEntities = new Set<string>();
+      for (const source of cell) {
+        if (source.qualifier !== term.qualifier || seenEntities.has(source.name)) continue;
+        seenEntities.add(source.name);
+        familySources.push({ entityName: source.name, cell: { rowIndex, cellIndex }, span: source.origin });
+      }
+    }
+  }
+  return { kind: RuleProblemKind.MovementInference, entityName: term.name, family: term.qualifier,
+    target, entitySources: familySources.filter(source => source.entityName === term.name)
+      .map(({ cell, span }) => ({ cell, span })), familySources };
+}
+
 export type MovementExpansionResult = {
   readonly rules: readonly MovementRule[];
   readonly diagnostics: readonly SourceDiagnostic[];
@@ -186,18 +204,26 @@ export function expandRuleMovements(rules: readonly OrientedRule[], report?: Sou
     }
 
     const variants = partials.map(inferRightMovements);
-    let remainingFamily: MovementFamily | undefined;
+    let ambiguity: { readonly term: NamedRuleTerm<MovementFamily>; readonly target: RuleProblemLocation } | undefined;
     for (const variant of variants) {
-      for (const row of variant.rhs) for (const cell of row) for (const term of cell) {
-        if (remainingFamily === undefined && isMovementFamily(term.qualifier)) remainingFamily = term.qualifier;
+      for (const [rowIndex, row] of variant.rhs.entries()) {
+        for (const [cellIndex, cell] of row.entries()) {
+          for (const term of cell) {
+            if (ambiguity === undefined && isMovementFamily(term.qualifier)) {
+              ambiguity = { term: { ...term, qualifier: term.qualifier },
+                target: { cell: { rowIndex, cellIndex }, span: term.origin } };
+            }
+          }
+        }
       }
-      if (remainingFamily !== undefined) break;
+      if (ambiguity !== undefined) break;
     }
-    if (remainingFamily !== undefined) {
+    if (ambiguity !== undefined) {
       appendSourceIssue(diagnostics, { code: 'ambiguous-rule-movement',
-        message: `This rule has an ambiguous movement on the right-hand side, "${familySpelling(remainingFamily)}", that can't be inferred from the left-hand side.  (either for every ambiguous movement associated to an entity on the right there has to be a corresponding one on the left attached to the same entity, OR, if there's a single occurrence of a particular ambiguous movement on the left, all properties of the same movement attached to the same object on the right are assumed to be the same (or something like that)).`,
+        message: `This rule has an ambiguous movement on the right-hand side, "${familySpelling(ambiguity.term.qualifier)}", that can't be inferred from the left-hand side.  (either for every ambiguous movement associated to an entity on the right there has to be a corresponding one on the left attached to the same entity, OR, if there's a single occurrence of a particular ambiguous movement on the left, all properties of the same movement attached to the same object on the right are assumed to be the same (or something like that)).`,
         span: input.source.originalLine.span, phase: SourceDiagnosticPhase.Rules,
-        severity: SourceDiagnosticSeverity.Error, countsAsError: true }, report);
+        severity: SourceDiagnosticSeverity.Error, countsAsError: true,
+        problem: movementProblem(input, ambiguity.term, ambiguity.target) }, report);
     }
     expanded.push(...variants);
   }

@@ -224,7 +224,7 @@ test('isolated invalid stage-input boundary preserves the native missing-cell Ty
   assert.deepEqual(nativeBoundary.rules[0].rhs, [[['', 'player']]]);
   const { document } = readSource(item.source);
   const { declarations } = resolveDeclarations(document);
-  assert.equal(recoverRuleSyntax(document, declarations).abortsCompilation, true);
+  assert.ok(recoverRuleSyntax(document, declarations).blockingIssues.length > 0);
   assert.throws(() => oracle.candidateStages(item.source), TypeError);
 });
 

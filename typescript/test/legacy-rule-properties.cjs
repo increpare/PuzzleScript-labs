@@ -1,4 +1,5 @@
 'use strict';
+const { checkRuleProblem } = require('./support/rule-errors.cjs');
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -158,6 +159,7 @@ function createRulePropertiesOracle(types) {
 
   function diagnosticView(document, diagnostics) {
     return diagnostics.map(issue => {
+      checkRuleProblem(document, issue);
       assert.equal(issue.phase, types.SourceDiagnosticPhase.Rules, 'property diagnostic phase');
       assert.equal(issue.code, 'ambiguous-rule-property', 'property diagnostic code');
       assert.notEqual(issue.span, null, 'property diagnostic has evidence');

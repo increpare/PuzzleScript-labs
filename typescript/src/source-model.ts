@@ -4,6 +4,8 @@ import type { SourceQualifier } from './source-rule-model.js';
 import type { SoundIndex } from './commands.js';
 import type { AcceptedSound } from './source-sound-syntax.js';
 import type { AcceptedWinCondition } from './source-win-syntax.js';
+import type { RuleRecovery } from './rule-recovery.js';
+import type { RuleProblem } from './rule-problems.js';
 
 /** Every offset and column counts JavaScript UTF-16 code units. End positions are exclusive. */
 export interface SourcePosition { readonly offset: number; readonly line: number; readonly column: number }
@@ -90,7 +92,7 @@ export interface SourceWinCondition extends SourceEntry {
   /** Null means the win body was never visited at logical start of line. */
   readonly definition: AcceptedWinCondition | null;
 }
-export enum SourceRuleKind { Ordinary, StartLoop, EndLoop, Invalid }
+export enum SourceRuleKind { Pattern, StartLoop, EndLoop }
 export enum SourceRuleCellKind { Contents, Ellipsis }
 export interface SourceRuleTerm {
   readonly qualifier: SourceWord | null;
@@ -137,15 +139,14 @@ interface SourceRuleBase extends SourceEntry {
   readonly lexicalTokens: readonly SourceLexicalToken[];
 }
 export interface SourcePatternRule extends SourceRuleBase {
-  readonly kind: SourceRuleKind.Ordinary | SourceRuleKind.Invalid;
+  readonly kind: SourceRuleKind.Pattern;
   readonly prefixWords: readonly SourceWord[];
   readonly lhs: readonly SourceRuleRow[];
   readonly rhs: readonly SourceRuleRow[];
   readonly arrow: SourceWord | null;
   readonly commands: readonly SourceRuleCommand[];
   readonly trailingWords: readonly SourceWord[];
-  readonly retained: boolean;
-  readonly abortsCompilation: boolean;
+  readonly recovery: RuleRecovery;
   readonly syntaxIssues: readonly SourceRuleSyntaxIssue[];
   readonly sourceGroup: number;
   readonly directions: readonly Direction[];
@@ -179,6 +180,7 @@ export type SourceLevel = SourceGridLevel | SourceMessageLevel;
 export enum SourceDiagnosticSeverity { Warning, Error }
 export enum SourceDiagnosticPhase { Reader, Declarations, GameData, Rules, Assets }
 export interface SourceDiagnostic {
+  readonly problem?: RuleProblem;
   readonly code: string;
   readonly message: string;
   readonly severity: SourceDiagnosticSeverity;

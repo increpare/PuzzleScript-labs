@@ -203,7 +203,10 @@ test('the reported renamed movement rule retains native pending-qualifier recove
   const { declarations } = resolveDeclarations(document);
   assert.equal(declarations.firstDeclarationWords.has('i\u0307'), false);
   assert.equal(declarations.firstDeclarationWords.get('i'), document.objects[1].primaryName);
-  assert.equal(result.abortsCompilation, true);
+  assert.deepEqual(result.blockingIssues.map(issue => issue.code), ['unequal-rule-cell-count']);
+  assert.equal(result.blockingIssues[0], result.diagnostics.at(-1));
+  assert.equal(result.blockingIssues[0].problem.leftCellCount, 2);
+  assert.equal(result.blockingIssues[0].problem.rightCellCount, 3);
   assert.deepEqual(result.rules[0].lhs[0].map(cell => cell.map(term => [term.qualifier, term.name])),
     [[[RuleQualifier.Forward, '𐐨']], [[RuleQualifier.Clockwise, 'ος']]]);
   assert.deepEqual(result.rules[0].rhs[0].map(cell => cell.map(term => term.name)), [[], ['𐐨'], ['ος']]);

@@ -59,5 +59,5 @@ export interface RuleSyntaxResult {
   readonly rules: readonly RuleSyntax[];
   readonly loops: readonly SourceLoopMarker[];
   readonly diagnostics: readonly SourceDiagnostic[];
-  readonly abortsCompilation: boolean;
+  readonly blockingIssues: readonly SourceDiagnostic[];
 }

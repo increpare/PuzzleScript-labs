@@ -1,9 +1,10 @@
 import { appendSourceIssue, type SourceIssueReporter } from './source-diagnostics.js';
 import { CommandKind, type Command } from './commands.js';
 import type { ResolvedDeclarations } from './declaration-model.js';
-import { SourceDiagnosticPhase, SourceDiagnosticSeverity, SourceRuleCommandKind, SourceRuleSyntaxIssueKind,
+import { SourceDiagnosticPhase, SourceDiagnosticSeverity, SourceRuleCommandKind, SourceRuleKind, SourceRuleSyntaxIssueKind,
   type SourceDiagnostic, type SourceDocument, type SourceLoopMarker, type SourceRuleCommand, type SourceRuleRow } from './source-model.js';
 import type { NamedRuleRows, RuleSyntax, RuleSyntaxResult, SourceQualifier } from './source-rule-model.js';
+import { RuleRecoveryKind } from './rule-recovery.js';
 
 function projectRows(rows: readonly SourceRuleRow[]): NamedRuleRows<SourceQualifier> {
   return rows.map(row => row.cells.map(cell => cell.terms.map(term => ({
@@ -28,9 +29,9 @@ export function recoverRuleSyntax(document: SourceDocument, declarations: Resolv
   const rules: RuleSyntax[] = [];
   const loops: SourceLoopMarker[] = [];
   const diagnostics: SourceDiagnostic[] = [];
-  let abortsCompilation = false;
+  const blockingIssues: SourceDiagnostic[] = [];
   for (const source of document.rules) {
-    if (!('lhs' in source)) { loops.push(source); continue; }
+    if (source.kind !== SourceRuleKind.Pattern) { loops.push(source); continue; }
     for (const issue of source.syntaxIssues) {
       if (issue.kind === SourceRuleSyntaxIssueKind.Diagnostic) appendSourceIssue(diagnostics, issue.diagnostic, report);
       else if (declarations.ruleNames.properties.has(issue.name)) {
@@ -41,10 +42,10 @@ export function recoverRuleSyntax(document: SourceDocument, declarations: Resolv
           span: null, phase: SourceDiagnosticPhase.Rules, severity: SourceDiagnosticSeverity.Warning, countsAsError: true }, report);
       }
     }
-    abortsCompilation ||= source.abortsCompilation;
-    if (source.retained) rules.push({ source, sourceGroup: source.sourceGroup, directions: source.directions,
+    if (source.recovery.kind === RuleRecoveryKind.KeepForDiagnostics) blockingIssues.push(...source.recovery.causes);
+    if (source.recovery.kind !== RuleRecoveryKind.Discard) rules.push({ source, sourceGroup: source.sourceGroup, directions: source.directions,
       lhs: projectRows(source.lhs), rhs: projectRows(source.rhs), late: source.late, rigid: source.rigid,
       random: source.random, commands: source.commands.map(projectCommand) });
   }
-  return { rules, loops, diagnostics, abortsCompilation };
+  return { rules, loops, diagnostics, blockingIssues };
 }

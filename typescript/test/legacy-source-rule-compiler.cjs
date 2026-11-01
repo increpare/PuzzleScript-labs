@@ -5,6 +5,7 @@ const path = require('node:path');
 const { nativeSourceObjects } = require('./legacy-source-objects.cjs');
 const { createSourceSchedulesOracle } = require('./legacy-source-schedules.cjs');
 const { ambiguousPropertyRawTrace } = require('./ambiguous-property-raw-trace.cjs');
+const { checkRuleProblem, checkRuleFailure } = require('./support/rule-errors.cjs');
 function createSourceRuleCompilerOracle(types) {
   const stages = createSourceSchedulesOracle(types);
   const gameplayProducers = [...fs.readFileSync(path.join(__dirname, './vanilla/js/engine.js'), 'utf8')
@@ -71,7 +72,8 @@ function createSourceRuleCompilerOracle(types) {
       assert.deepEqual({ document, declarations }, before, 'compiler inputs are unchanged');
     });
     assert.equal(result.data === null, expected.data === null, fixture.name + ': native invalid checkpoint');
-    assert.deepEqual(Object.keys(result).sort(), ['data', 'diagnostics']);
+    assert.deepEqual(Object.keys(result).sort(), result.data === null ? ['data', 'diagnostics', 'failure'] : ['data', 'diagnostics']);
+    if (result.data === null) checkRuleFailure(document, result.failure, result.diagnostics);
     if (result.data !== null) {
       assert.deepEqual(Object.keys(result.data).sort(), ['earlyRules', 'lateRules', 'rigid', 'rigidMerges']);
       const candidateSchedule = schedule => {
@@ -114,6 +116,7 @@ function createSourceRuleCompilerOracle(types) {
       }, fixture.name + ': every final predicate/edit/command/group/loop/rigid field');
     }
     assert.deepEqual(ambiguousPropertyRawTrace(result.diagnostics.map(issue => {
+      checkRuleProblem(document, issue);
       assert.equal(issue.phase, types.SourceDiagnosticPhase.Rules);
       assert.equal(typeof issue.code, 'string');
       if (issue.span !== null) for (const position of [issue.span.start, issue.span.end]) {

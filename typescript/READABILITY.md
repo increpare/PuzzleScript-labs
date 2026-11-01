@@ -244,7 +244,40 @@ restart target and win context after preparation. Actual commitment reads those
 current values, while reusing only simulation. They also cover non-null public
 probes, quiet natural victory and Cancel taking priority over Restart.
 
-## Frontend reading path and optional refinements
+## 6. Recovery, severity and stopping are separate
+
+`[ Player ] ] -> [ Player ]` has a warning and is discarded.
+`[ > up Missing Player ] -> [ Player ]` has errors and is retained.
+[RuleRecovery](src/rule-recovery.ts) describes Keep, Discard(cause) and
+KeepForDiagnostics(causes), independently of severity. Pattern rules have one
+structural kind. Every cause is the original diagnostic object from the syntax
+issues, preserving source evidence and report order.
+
+For `right [ Player | Crate ] -> [ Player ]`, the shape problem carries row
+index zero, left cell count two, right count one, and the exact spans of the two
+brackets. The legacy diagnostic still reports the whole line. Syntax recovery
+retains this rule for early checks; compilation blocks after aggregate expansion,
+before synonyms. A movement ambiguity instead blocks after property/spawn
+analysis, so those later diagnostics still appear.
+
+[RuleExpansionResult](src/source-rule-compiler.ts) distinguishes Ready atomic
+rules from Blocked(checkpoint, causes). The complete compiler exposes the same
+failure directly on `outcome.failure`. The [error example](examples/errors.mjs)
+prints both bracket locations and `AfterAggregateExpansion` from data rather than
+parsing the message.
+
+Property and movement problems expose their exact RHS target and LHS candidate
+locations. Property inference retains Resolved/Missing/Ambiguous source data.
+Movement inference keeps same-entity source cells separate from family events:
+two different entities in one cell are two family events. Candidate coordinates
+refer to the oriented rule at the reporting pass; authored spans still point to
+the original text. Empty branches suppress property diagnostics as before.
+
+The [recovery inventory and validation](../docs/superpowers/plans/2026-11-01-rich-rule-errors.md)
+cover warning/error independence, predecessor grouping, cause identity, limits,
+first movement/last property selection and strict native parity.
+
+## Frontend reading path
 
 Rules have one authoritative parse: [rule-lexing.ts](src/rule-lexing.ts)
 scans source-mapped tokens, [source-rules.ts](src/source-rules.ts) builds the

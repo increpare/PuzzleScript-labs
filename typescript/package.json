@@ -15,7 +15,8 @@
     "trace": "node --enable-source-maps bin/trace.mjs",
     "explore": "npm run build && node bin/explore.mjs",
     "quirk-impact": "npm run build && node test/quirk-impact.mjs",
-    "example:source": "node --enable-source-maps examples/source.mjs"
+    "example:source": "node --enable-source-maps examples/source.mjs",
+    "example:errors": "node --enable-source-maps examples/errors.mjs"
   },
   "devDependencies": {
     "typescript": "6.0.2"

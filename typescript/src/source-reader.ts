@@ -1,4 +1,4 @@
-import { SourceDiagnosticPhase, SourceDiagnosticSeverity, SourceLegendKind, SourceLevelKind, SourceLineKind, SourceRuleKind, SourceSectionKind,
+import { SourceDiagnosticPhase, SourceDiagnosticSeverity, SourceLegendKind, SourceLevelKind, SourceLineKind, SourceRuleKind, SourceRuleSyntaxIssueKind, SourceSectionKind,
   type AcceptedSourceDeclaration, type SourceDiagnostic, type SourceDocument, type SourceEntry, type SourceGridLevel, type SourceLegend, type SourceLexicalToken, type SourceLine, type SourceObject,
   type SourcePatternRule, type SourceReadResult, type SourceSection, type SourceSpan, type SourceSpriteRow, type SourceWord } from './source-model.js';
 import { SourceDeclarationKind, SourceAliasOriginKind, SourceDeclarationAdviceKind,
@@ -11,6 +11,7 @@ import { walkSourceLexically, sourceMetadataFlags as metadataFlags, sourceMetada
 import { sourceSectionDescriptors } from './source-scan-state.js';
 import { bindSoundSyntax } from './source-sound-syntax.js';
 import { bindWinSyntax } from './source-win-syntax.js';
+import { RuleRecoveryKind } from './rule-recovery.js';
 
 function isLevels(section: SourceSection | null): boolean { return section?.kind === SourceSectionKind.Levels; }
 
@@ -226,8 +227,11 @@ export function readAuthoredSource(source: string, lexical: SourceLexicalResult)
         } else if (section.kind === SourceSectionKind.Rules) {
           const rule = readRule(line, line.original, { sectionId: section.id, order: order++, span: line.span }, ruleContext, previousRule);
           document.rules.push(rule);
-          if ('lhs' in rule && rule.retained) previousRule = rule;
-          if (rule.kind === SourceRuleKind.Invalid) line.kind = SourceLineKind.Invalid;
+          if (rule.kind === SourceRuleKind.Pattern) {
+            if (rule.recovery.kind !== RuleRecoveryKind.Discard) previousRule = rule;
+            if (rule.syntaxIssues.some(issue => issue.kind === SourceRuleSyntaxIssueKind.Diagnostic
+              && issue.diagnostic.severity === SourceDiagnosticSeverity.Error)) line.kind = SourceLineKind.Invalid;
+          }
         } else if (section.kind === SourceSectionKind.WinConditions) {
           const definition = lexical.winDefinitions.get(line.span.start.line);
           document.winConditions.push({ sectionId: section.id, order: order++, span: line.span, words,

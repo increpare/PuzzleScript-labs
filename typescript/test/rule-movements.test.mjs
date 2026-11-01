@@ -198,7 +198,7 @@ test('late syntax suppresses movement before this pass, while randomdir and spaw
 test('earlier native invalid state stays separate from this stage abort signal', () => {
   const { expected, result, syntax } = oracle.compareFixture(fixture('right [ Player ] -> [ Player | Crate ]\nright [ horizontal Player ] -> [ horizontal Player ]'));
   assert.equal(expected.invalidBeforeMovement, true);
-  assert.equal(syntax.abortsCompilation, true);
+  assert.ok(syntax.blockingIssues.length > 0);
   assert.equal(expected.abortsCompilation, false);
   assert.equal(result.abortsCompilation, false);
   assert.equal(result.rules.length, 3);

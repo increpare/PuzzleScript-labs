@@ -8,6 +8,7 @@ const { decodeSessionGame } = require('./legacy-session-data.cjs');
 const { nativeSourceObjects, candidateObjectLabels } = require('./legacy-source-objects.cjs');
 const { assertVanillaFields } = require('./vanilla-fields.cjs');
 const { ambiguousPropertyRawTrace } = require('./ambiguous-property-raw-trace.cjs');
+const { checkRuleProblem, checkRuleRecovery, checkRuleFailure } = require('./support/rule-errors.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -102,7 +103,7 @@ function createSourceCompilerOracle(types) {
     }
   }
   const issueView = issue => {
-    assertVanillaFields('source diagnostic', issue, ['code', 'message', 'reportedLine', 'severity', 'countsAsError', 'urgent', 'span', 'phase']);
+    assertVanillaFields('source diagnostic', issue, ['code', 'message', 'reportedLine', 'severity', 'countsAsError', 'urgent', 'span', 'phase', 'problem']);
     assert.equal(typeof issue.code, 'string');
     assert.equal(typeof issue.phase, 'number');
     assert.ok(Object.values(types.SourceDiagnosticPhase).includes(issue.phase));
@@ -117,6 +118,8 @@ function createSourceCompilerOracle(types) {
     assert.deepEqual(Object.keys(result).sort(), ['diagnostics', 'document', 'errorCount', 'outcome', 'rawDiagnostics']);
     assert.equal(result.document.source, fixture.source, fixture.name + ': original source');
     assert.equal(result.outcome.kind, native.kind, fixture.name + ': installation outcome');
+    result.document.rules.forEach(rule => checkRuleRecovery(result.document, rule));
+    result.rawDiagnostics.forEach(issue => checkRuleProblem(result.document, issue));
     assert.deepEqual(ambiguousPropertyRawTrace(result.rawDiagnostics.map(issueView)),
       ambiguousPropertyRawTrace(native.rawDiagnostics), fixture.name + ': exact raw diagnostics except identical property visits');
     assert.deepEqual(result.diagnostics.map(issueView), native.diagnostics, fixture.name + ': exact recorded diagnostics');
@@ -129,7 +132,18 @@ function createSourceCompilerOracle(types) {
         assert.deepEqual(Object.keys(result.outcome.cursor).sort(), ['column', 'line', 'offset'], 'exact stopping cursor fields');
         assert.deepEqual(result.outcome.cursor, native.cursor, 'actual native stopping cursor');
       }
-    } else if (result.outcome.kind === types.SourceCompilationKind.Invalid) assert.deepEqual(Object.keys(result.outcome), ['kind']);
+    } else if (result.outcome.kind === types.SourceCompilationKind.Invalid) {
+      assert.deepEqual(Object.keys(result.outcome).sort(), ['failure', 'kind']);
+      const failure = result.outcome.failure;
+      if (failure.kind === 0) {
+        assert.deepEqual(Object.keys(failure).sort(), ['diagnostic', 'kind']);
+        assert.equal(failure.diagnostic.code, 'missing-collision-layers');
+        assert.ok(result.rawDiagnostics.includes(failure.diagnostic), 'missing-layer failure diagnostic identity');
+      } else {
+        assert.equal(failure.kind, 1, 'finite complete compilation failure kind');
+        checkRuleFailure(result.document, failure, result.rawDiagnostics, true);
+      }
+    }
     if (native.kind === types.SourceCompilationKind.Accepted || native.kind === types.SourceCompilationKind.Declined) {
       assert.deepEqual(Object.keys(result.outcome).sort(), ['kind', 'game', 'declarations', 'sprites', 'palette', 'displayColors', 'metadata', 'ruleSources'].sort());
       const correspondence = compareGame(fixture, native.formed, result, native.levelLines);

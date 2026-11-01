@@ -1,4 +1,5 @@
 'use strict';
+const { checkRuleProblem } = require('./support/rule-errors.cjs');
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -154,6 +155,7 @@ function createRuleMovementsOracle(types) {
 
   function diagnosticView(document, diagnostics) {
     return diagnostics.map(issue => {
+      checkRuleProblem(document, issue);
       assert.equal(issue.phase, types.SourceDiagnosticPhase.Rules, 'movement diagnostic phase');
       assert.equal(issue.code, 'ambiguous-rule-movement', 'movement diagnostic code');
       assert.notEqual(issue.span, null, 'movement diagnostic has evidence');

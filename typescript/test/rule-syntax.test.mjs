@@ -223,7 +223,7 @@ test('oracle rejects corruption of authoritative parsed rule rows and commands',
   assert.throws(() => oracle.compareFixture(fixture('[ > up Player ] -> [ Player ]'), { readSource: source => {
     const { document, diagnostics } = readSource(source);
     return { diagnostics, document: { ...document, rules: document.rules.map(rule => ({ ...rule,
-      kind: sourceTypes.SourceRuleKind.Invalid, lhs: [], rhs: [], prefixWords: [], commands: [],
+      kind: sourceTypes.SourceRuleKind.Pattern, lhs: [], rhs: [], prefixWords: [], commands: [],
     })) } };
   } }), /effective rule syntax/);
 });
