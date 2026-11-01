@@ -123,7 +123,7 @@ Files: `typescript/src/rule-properties.ts`,
 - [x] Update `typescript/READABILITY.md` and `typescript/FRONTEND.md` to explain
   source resolution followed by construction. Record actual verification here,
   keeping the prior turn audit and historical replays distinct.
-- [ ] Commit verified work and fast-forward local master. Build and run focused
+- [x] Commit verified work and fast-forward local master. Build and run focused
   primary-checkout integration checks. Preserve unrelated commits, native
   references, expected fixtures, runtime code and JavaScript implementation.
 
@@ -173,3 +173,7 @@ by having the candidate derive its expected output.
 - Native producers/expectations/hashes and all runtime/JavaScript code are
   unchanged. No new bit representation, generated matcher or runtime binding
   was introduced. No preview server or unrelated recorded-AGAIN replay was run.
+- Local master fast-forwarded to `ebcb8fda`, built successfully and passed all
+  **152 focused integration checks**. Log:
+  `/private/tmp/ps-property-sources-master-smoke.log`. Both checkouts were clean;
+  the final verification record adds documentation only. No push was made.
