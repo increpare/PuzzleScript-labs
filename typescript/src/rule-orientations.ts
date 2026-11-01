@@ -71,6 +71,8 @@ export function orientRule(rule: RuleSyntax, original: Direction): OrientedRule 
   // Native only inspects the first term's name in each LHS cell.
   const hasEllipsis = rule.lhs.some(row => row.some(cell => cell[0]?.name === '...'));
   const { directions, ...header } = rule;
+  // Up/Left fixed rows use Down/Right execution order, including RHS writes and random
+  // draws. Ellipses retain the source scan direction and their gap traversal.
   const reverse = !hasEllipsis && (original === Direction.Up || original === Direction.Left);
   const direction = reverse ? original === Direction.Up ? Direction.Down : Direction.Right : original;
   const reverseRows = reverse ? rule.lhs.length : 0;

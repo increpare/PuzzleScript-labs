@@ -164,7 +164,7 @@ for (const [line, payload] of [
     if (line.startsWith('İİ')) {
       const command = rule.commands.find(command => command.kind === SourceRuleCommandKind.Message);
       assert.equal(command.authoredPayload, 'HELLO');
-      assert.equal(command.legacyPayload, 'HELLO');
+      assert.equal(command.text, 'ELLO');
       assert.equal(source.slice(command.payloadSpan.start.offset, command.payloadSpan.end.offset), 'HELLO');
     }
     assert.deepEqual(document, before);
@@ -188,7 +188,7 @@ test('a rule entered after a leading comment preserves native and authored messa
   const index = values.indexOf('message');
   assert.equal(nativePayload(native, values, index), 'HeLLo (literal)');
   assert.equal(rule.commands[0].authoredPayload, 'HeLLo (literal)');
-  assert.equal(rule.commands[0].legacyPayload, 'HeLLo (literal)');
+  assert.equal(rule.commands[0].text, 'HeLLo (literal)');
   const tokens = compilerTokens(rule);
   freezeSource(tokens, source);
   assert.equal(compilerPayload(rule, tokens, index), 'HeLLo (literal)');

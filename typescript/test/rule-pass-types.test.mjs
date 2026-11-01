@@ -18,7 +18,8 @@ import { RuleQualifier as Q, type AbsoluteMovementQualifier, type AtomicQualifie
   type DirectedNamedRule, type RuleSyntax, type OrientedRule, type MovementRule }
   from ${modulePath('source-rule-model')};
 import { Direction } from ${modulePath('model')};
-import type { SourcePatternRule, SourceRuleTerm, SourceSpan } from ${modulePath('source-model')};
+import { SourceRuleCommandKind, type SourceRuleCommand, type SourcePatternRule,
+  type SourceRuleTerm, type SourceSpan, type SourceWord } from ${modulePath('source-model')};
 import type { ResolvedDeclarations } from ${modulePath('declaration-model')};
 import { orientRule } from ${modulePath('rule-orientations')};
 import { expandRuleMovements } from ${modulePath('rule-movements')};
@@ -33,6 +34,16 @@ declare const origin: SourceSpan;
 declare const authored: SourcePatternRule;
 declare const declarations: ResolvedDeclarations;
 declare const document: SourceDocument;
+declare const word: SourceWord;
+const sound0: SourceRuleCommand = { kind: SourceRuleCommandKind.SoundEffect, word, index: 0 };
+const sound10: SourceRuleCommand = { kind: SourceRuleCommandKind.SoundEffect, word, index: 10 };
+// @ts-expect-error Authored sound commands use only the finite SFX0 through SFX10 domain.
+const sound11: SourceRuleCommand = { kind: SourceRuleCommandKind.SoundEffect, word, index: 11 };
+declare const message: Extract<SourceRuleCommand, { kind: SourceRuleCommandKind.Message }>;
+const authoredPayload: string = message.authoredPayload;
+const effectiveText: string = message.text;
+// @ts-expect-error Authored evidence and effective text have no unused legacy payload mirror.
+const falsePayloadMirror = message.legacyPayload;
 const absolute: AbsoluteMovementQualifier = Q.Action;
 const atomic: AtomicQualifier = Q.RandomObject;
 const sourceFamily: SourceMovementFamily = Q.Moving;
@@ -118,7 +129,7 @@ const sameRecords: readonly (typeof earlier)[] = normalizeRuleDuplicates([earlie
 const expandedSource = expandSourceRules(document, declarations);
 if (expandedSource.rules !== null) lowerRules(expandedSource.rules, declarations);
 void [absolute, atomic, sourceFamily, family, relative, sourceQualifier, orientedQualifier,
-  inPlace, upOrStationary, sameRecords];
+  inPlace, upOrStationary, sameRecords, sound0, sound10, authoredPayload, effectiveText];
 `;
     const file = join(directory, 'rule-passes.mts');
     const config = join(directory, 'tsconfig.json');

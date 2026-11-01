@@ -1,6 +1,6 @@
 # Frontend clarity completion checklist
 
-The active goal covers the TypeScript lexer, parser and compiler as a whole.
+This goal covers the TypeScript lexer, parser and compiler as a whole.
 Completing one refactor or matching the existing corpus is progress, not proof
 that the entire frontend is now a pleasant conceptual reference implementation.
 
@@ -37,18 +37,26 @@ types. Collision layers remain unnamed.
   Movement validity is a discriminant; property/spawn/duplicate passes preserve
   the narrowed domain. Explicit covariance is checked through nested collections
   and helper compositions. Evidence: rule-pass audit and 2,062-test full run.
-- [ ] Each retained frontend transformation is justified by observable language
+- [x] Each retained frontend transformation is justified by observable language
   behaviour, ordering or diagnostics. Optional optimizer shortcuts are removed;
   native representation quirks are confined to named compatibility boundaries.
-- [ ] Documentation describes the actual data flow and remaining exceptions.
+  Evidence: FRONTEND.md inventory, four independently native-validated source
+  witnesses with separate behavioral counterfactuals, and exact contradiction
+  warning/accepted-schedule comparison.
+- [x] Documentation describes the actual data flow and remaining exceptions.
   An independent final audit finds no outstanding issue against these criteria.
+  Both the whole-frontend audit re-review and fresh completion review approved;
+  final strict suite: 2,114 passed; bounded sample: 128 games/919 observations.
 
 ## Current evidence and scope
 
 Current production frontend code has no bitsets, packed cell arrays or generated
-matchers. Source-time declaration types and the single rule grammar are already
-in place. Major remaining work is listed above; mere module splitting is not a
-substitute for those changes.
+matchers. The accepted-definition paths, explicit states/domains and semantic
+transformations above are implemented and independently audited. Final cleanup
+also removes duplicate metadata acceptance, the false message mirror, the sound
+index assertion and private NaN failure state. The completed evidence lives in
+`plans/2026-11-01-final-frontend-audit.md`; these are behavior/model changes rather
+than module splitting alone.
 
 The existing local prepared-AGAIN runtime cache belongs to separate work and sits
 outside this frontend scope. Preserve it during this goal; do not remove unrelated

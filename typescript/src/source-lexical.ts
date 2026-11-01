@@ -4,7 +4,7 @@ import { collectSourceIssue, createSourceIssueCollection, type SourceIssueCollec
 import { lineSpan, lowercaseSourceRange, sourceWord, splitSourceLines, type LowercaseSourceView } from './source-text.js';
 import { SourceDeclarations, SourceAliasOriginKind, type SourceDeclaration, type SourceDeclarationAdvice, type SourceObjectAliasOrigin } from './source-declarations.js';
 import { NativeLegendExpression } from './source-legend.js';
-import { AcceptedSoundKind, SoundVerb, SoundSeedKind, acceptedSoundEvent, acceptedSoundVerb, acceptedSoundDirection,
+import { AcceptedSoundKind, SoundVerb, SoundSeedKind, acceptedSoundEvent, acceptedSoundVerb, acceptedSoundDirection, soundEffectIndices,
   type AcceptedSound } from './source-sound-syntax.js';
 import { recoverWinSyntax, type AcceptedWinCondition } from './source-win-syntax.js';
 import { sourceSectionDescriptors, PreludePhase, ObjectPhase, LegendPhase, SoundPhase, RulePhase, WinPhase, LevelPhase,
@@ -16,7 +16,7 @@ export const sourceMetadataValues = new Set(['title', 'author', 'homepage', 'bac
   'realtime_interval', 'again_interval', 'flickscreen', 'zoomscreen', 'color_palette', 'youtube']);
 export const sourceMetadataFlags = new Set(['run_rules_on_level_start', 'norepeat_action', 'require_player_movement', 'debug',
   'verbose_logging', 'throttle_movement', 'noundo', 'noaction', 'nohack', 'norestart', 'scanline']);
-const commands = new Set(['sfx0', 'sfx1', 'sfx2', 'sfx3', 'sfx4', 'sfx5', 'sfx6', 'sfx7', 'sfx8', 'sfx9', 'sfx10',
+const commands = new Set([...soundEffectIndices.keys(),
   'cancel', 'checkpoint', 'restart', 'win', 'message', 'again']);
 const soundEvents = /^(undo|restart|titlescreen|startgame|cancel|endgame|startlevel|endlevel|showmessage|closemessage|sfx[0-9]|sfx10)\b[\p{Z}\s]*/u;
 const soundVerbs = /^(move|action|create|destroy|cantmove)\b[\p{Z}\s]*/u;

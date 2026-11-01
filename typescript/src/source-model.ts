@@ -1,6 +1,7 @@
 import type { SourceObjectDeclaration, SourceAliasDeclaration, SourcePropertyDeclaration, SourceAggregateDeclaration, SourceDeclarationAdvice, SourceAliasOriginKind, SourceLegendAliasOrigin } from './source-declarations.js';
 import type { Direction } from './model.js';
 import type { SourceQualifier } from './source-rule-model.js';
+import type { SoundIndex } from './commands.js';
 import type { AcceptedSound } from './source-sound-syntax.js';
 import type { AcceptedWinCondition } from './source-win-syntax.js';
 
@@ -115,9 +116,9 @@ export interface SourceRuleRow {
 }
 export enum SourceRuleCommandKind { SoundEffect, Cancel, Checkpoint, Restart, Win, Message, Again }
 export type SourceRuleCommand =
-  { readonly kind: SourceRuleCommandKind.Message; readonly word: SourceWord; readonly authoredPayload: string; readonly legacyPayload: string;
+  { readonly kind: SourceRuleCommandKind.Message; readonly word: SourceWord; readonly authoredPayload: string;
     readonly text: string; readonly payloadSpan: SourceSpan } |
-  { readonly kind: SourceRuleCommandKind.SoundEffect; readonly word: SourceWord; readonly index: number } |
+  { readonly kind: SourceRuleCommandKind.SoundEffect; readonly word: SourceWord; readonly index: SoundIndex } |
   { readonly kind: Exclude<SourceRuleCommandKind, SourceRuleCommandKind.Message | SourceRuleCommandKind.SoundEffect>; readonly word: SourceWord };
 /** Syntax issues are replayed only when compilation reaches the Rules checkpoint. */
 export enum SourceRuleSyntaxIssueKind { Diagnostic, DuplicateProperty }

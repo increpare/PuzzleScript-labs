@@ -33,7 +33,8 @@ function substitute<Q extends OrientedQualifier>(cell: NamedRuleCell<Q>, propert
 
 /** Expand ordered property choices without changing qualifiers. Surviving ordinary
  * properties need no further transported-property expansion; local single-layer
- * and unlayered predicates, random properties and recovery names may remain. */
+ * and unlayered predicates, random properties and recovery names may remain.
+ * Local predicates keep live matches in board order across their alternatives. */
 export function expandRuleProperties<Q extends OrientedQualifier>(rules: readonly DirectedNamedRule<Q>[],
   declarations: ResolvedDeclarations, report?: SourceIssueReporter): {
   readonly rules: readonly DirectedNamedRule<Q>[];

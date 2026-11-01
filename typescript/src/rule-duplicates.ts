@@ -42,7 +42,7 @@ function sameRule(first: DirectedNamedRule, second: DirectedNamedRule): boolean 
   return sameCommands(first.commands, second.commands);
 }
 
-/** Keep the last equal variant within each contiguous source group, in source order. */
+/** Keep the last equal variant per contiguous source group; random selection observes candidate order and multiplicity. */
 export function normalizeRuleDuplicates<T extends DirectedNamedRule>(rules: readonly T[]): readonly T[] {
   const survivors: T[] = [];
   let group: number | undefined;

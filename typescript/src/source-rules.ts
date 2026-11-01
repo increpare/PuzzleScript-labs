@@ -6,6 +6,7 @@ import { compilerMessagePayload, scanRuleTokens } from './rule-lexing.js';
 import { lineSpan, trimmedRange } from './source-text.js';
 import { RuleQualifier, type SourceQualifier } from './source-rule-model.js';
 import { Direction } from './model.js';
+import { soundEffectIndices } from './source-sound-syntax.js';
 
 const qualifiers = new Map<string, SourceQualifier>([
   ['up', RuleQualifier.Up], ['down', RuleQualifier.Down], ['left', RuleQualifier.Left], ['right', RuleQualifier.Right],
@@ -121,6 +122,7 @@ export function readRule(line: SourceLine, compilerLine: string, entry: SourceEn
     const token = lexicalTokens[index]!;
     const value = token.value;
     const qualifier = qualifiers.get(value);
+    const soundIndex = soundEffectIndices.get(value);
     if (header) {
       if (value !== '[') prefixWords.push(token.word);
       if (value === '+') {
@@ -219,7 +221,7 @@ export function readRule(line: SourceLine, compilerLine: string, entry: SourceEn
         appendName(token);
         pending = { value: RuleQualifier.Ellipsis, word: token.word };
       }
-    } else if (controlCommands.has(value) || /^sfx(?:[0-9]|10)$/.test(value) || value === 'message') {
+    } else if (controlCommands.has(value) || soundIndex !== undefined || value === 'message') {
       const placementMessage = 'Commands should only appear at the end of rules, not in or before the pattern-detection/-replacement sections.';
       if (!onRight) problem('command-before-rhs', placementMessage, token);
       else if (insideRow || lexicalTokens.slice(index).some(later => later.value === ']')) problem('command-before-pattern-end', placementMessage, token, true);
@@ -227,13 +229,13 @@ export function readRule(line: SourceLine, compilerLine: string, entry: SourceEn
         const range = trimmedRange(line.original, token.word.span.end.column - 1);
         const authoredPayload = line.original.slice(range.start, range.end);
         commands.push({ kind: SourceRuleCommandKind.Message, word: token.word, authoredPayload,
-          legacyPayload: authoredPayload || ' ', payloadSpan: lineSpan(line, range.start, range.end),
+          payloadSpan: lineSpan(line, range.start, range.end),
           text: compilerMessagePayload(base, lexicalTokens, index) });
         break;
       } else if (controlCommands.has(value)) commands.push({ kind: controlCommands.get(value)!, word: token.word });
-      else {
+      else if (soundIndex !== undefined) {
         if (!context.definedSounds.has(value)) problem('undefined-rule-sound', `Sound effect "${value}" not defined.`, token, true);
-        commands.push({ kind: SourceRuleCommandKind.SoundEffect, word: token.word, index: Number(value.slice(3)) });
+        commands.push({ kind: SourceRuleCommandKind.SoundEffect, word: token.word, index: soundIndex });
       }
     } else {
       if (!insideRow) trailingWords.push(token.word);
@@ -259,6 +261,7 @@ export function readRule(line: SourceLine, compilerLine: string, entry: SourceEn
   if (lhs.length === 0) problem('rule-without-pattern', 'This rule refers to nothing.  What the heck? :O');
   const directional = lhs.some(row => row.cells.length > 1)
     || [...lhs, ...rhs].some(row => row.cells.some(cell => cell.terms.some(term => relative.has(term.qualifierValue))));
+  // Even a one-cell rule's first selector determines match traversal order.
   if (!directional && directions.length > 1) directions = directions.slice(0, 1);
   return finish(true);
 }

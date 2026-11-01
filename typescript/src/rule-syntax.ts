@@ -1,5 +1,5 @@
 import { appendSourceIssue, type SourceIssueReporter } from './source-diagnostics.js';
-import { CommandKind, type Command, type SoundIndex } from './commands.js';
+import { CommandKind, type Command } from './commands.js';
 import type { ResolvedDeclarations } from './declaration-model.js';
 import { SourceDiagnosticPhase, SourceDiagnosticSeverity, SourceRuleCommandKind, SourceRuleSyntaxIssueKind,
   type SourceDiagnostic, type SourceDocument, type SourceLoopMarker, type SourceRuleCommand, type SourceRuleRow } from './source-model.js';
@@ -13,7 +13,7 @@ function projectRows(rows: readonly SourceRuleRow[]): NamedRuleRows<SourceQualif
 
 function projectCommand(command: SourceRuleCommand): Command {
   switch (command.kind) {
-    case SourceRuleCommandKind.SoundEffect: return { kind: CommandKind.Sound, index: command.index as SoundIndex };
+    case SourceRuleCommandKind.SoundEffect: return { kind: CommandKind.Sound, index: command.index };
     case SourceRuleCommandKind.Cancel: return { kind: CommandKind.Cancel };
     case SourceRuleCommandKind.Checkpoint: return { kind: CommandKind.Checkpoint };
     case SourceRuleCommandKind.Restart: return { kind: CommandKind.Restart };

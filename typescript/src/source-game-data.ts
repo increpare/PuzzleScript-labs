@@ -87,33 +87,31 @@ export function compileWinConditions(document: SourceDocument, declarations: Res
   return conditions;
 }
 
-const valuedMetadata = new Set(['title', 'author', 'homepage', 'background_color', 'text_color', 'key_repeat_interval',
-  'realtime_interval', 'again_interval', 'flickscreen', 'zoomscreen', 'color_palette', 'youtube']);
-const flagMetadata = new Set(['run_rules_on_level_start', 'norepeat_action', 'require_player_movement', 'debug',
-  'verbose_logging', 'throttle_movement', 'noundo', 'noaction', 'nohack', 'norestart', 'scanline']);
-
 function parseDimensions(value: string, span: SourceSpan, report: GameDataReporter): Dimensions | null {
   const coordinates = value.split('x');
   if (coordinates.length !== 2) {
     report('invalid-dimensions', 'Dimensions must be of the form AxB.', span, true);
     return null;
   }
-  const parsed = coordinates.map(coordinate => {
+  function parseCoordinate(coordinate: string): number | null {
     const number = Number.parseFloat(coordinate);
     // Legacy isInt tested the signed 32-bit numeric range before parseInt.
     // Keep that validation explicit without a bitwise coercion.
     if (!Number.isFinite(Number(coordinate)) || !Number.isInteger(number) || number < -2147483648 || number > 2147483647) {
       report('invalid-dimension', `Wasn't able to make sense of "${coordinate}" as a (whole number) dimension.`, span, true);
-      return NaN;
+      return null;
     }
     const result = Number.parseInt(coordinate);
-    if (Number.isNaN(result)) report('invalid-dimension', `Wasn't able to make sense of "${coordinate}" as a dimension.`, span, true);
+    if (Number.isNaN(result)) {
+      report('invalid-dimension', `Wasn't able to make sense of "${coordinate}" as a dimension.`, span, true);
+      return null;
+    }
     if (result <= 0) report('nonpositive-dimension', `The dimension given to me (you gave "${coordinate}") is baad - it should be greater than 0.`, span, true);
     return result;
-  });
-  const width = parsed[0]!;
-  const height = parsed[1]!;
-  if (Number.isNaN(width) || Number.isNaN(height)) {
+  }
+  const width = parseCoordinate(coordinates[0]!);
+  const height = parseCoordinate(coordinates[1]!);
+  if (width === null || height === null) {
     report('invalid-dimensions', `Couldn't understand the dimensions given to me (you gave "${value}") - should be of the form AxB.`, span, true);
     return null;
   }
@@ -132,8 +130,6 @@ export function compileMetadata(document: SourceDocument, report: GameDataReport
   for (const source of document.metadata) {
     if (!source.accepted) continue;
     const key = source.key.normalized;
-    if (!valuedMetadata.has(key) && !flagMetadata.has(key)) continue; // The reader diagnoses unknown keys.
-    if (valuedMetadata.has(key) && source.value === '') continue;
     values.set(key, source.value);
     spans.set(key, source.span);
   }

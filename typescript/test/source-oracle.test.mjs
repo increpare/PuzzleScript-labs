@@ -16,6 +16,27 @@ test('the independent source reader agrees on common authored data', () => {
   assert.equal(report.levels, 1);
 });
 
+const unicodeMessage = { name: 'effective native message after Unicode alias',
+  source: movementSource({ rules: 'right [ İİ ] -> message HELLO' }).replace('Player\nwhite', 'Player İİ\nwhite') };
+
+test('effective native message text is distinct from authored evidence after Unicode expansion', () => {
+  const { document } = readSource(unicodeMessage.source);
+  const command = document.rules[0].commands[0];
+  assert.equal(command.authoredPayload, 'HELLO');
+  assert.notEqual(command.text, command.authoredPayload);
+  assert.equal(unicodeMessage.source.slice(command.payloadSpan.start.offset, command.payloadSpan.end.offset), 'HELLO');
+  oracle.compareFixture(unicodeMessage);
+});
+
+test('restoring authored message text over the effective native payload is rejected', () => {
+  assert.throws(() => oracle.compareFixture(unicodeMessage, { readSource: source => {
+    const result = readSource(source);
+    const command = result.document.rules[0].commands[0];
+    command.text = command.authoredPayload;
+    return result;
+  } }), /authored rule structure/);
+});
+
 test('a recovered self-referential declaration takes precedence over a command word', () => {
   oracle.compareFixture({ name: 'recovered command-name aggregate',
     source: movementSource({ rules: '[ Player ] -> [ Player message ]' })

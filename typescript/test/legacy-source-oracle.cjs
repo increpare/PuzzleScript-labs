@@ -139,7 +139,7 @@ function createSourceOracle(types) {
           late: prefixes.includes('late'), rigid: prefixes.includes('rigid'), random: prefixes.includes('random'),
           lhs: cells(actual.lhs), rhs: cells(actual.rhs),
           commands: actual.commands.map(command => command.kind === types.SourceRuleCommandKind.Message
-            ? [command.word.normalized, command.legacyPayload] : [command.word.normalized]),
+            ? [command.word.normalized, command.text] : [command.word.normalized]),
         }, { directions: rule.directions, late: rule.late, rigid: rule.rigid, random: rule.randomRule,
           lhs: rule.lhs, rhs: rule.rhs, commands: rule.commands }, fixture.name + ': authored rule structure line ' + line);
       }

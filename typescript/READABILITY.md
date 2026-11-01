@@ -142,10 +142,9 @@ the first one. The actual second draw commits Blue and plays creation 752.
 Retained probe history and forbidden probe checkpoints are distinct policies.
 The manifest's undo operations explicitly ignore duplicate boards.
 
-## Prioritized clarity improvements
+## Frontend reading path and optional refinements
 
-The frontend now takes priority over the runtime suggestions below. Its first
-slice gives rules one authoritative parse: [rule-lexing.ts](src/rule-lexing.ts)
+Rules have one authoritative parse: [rule-lexing.ts](src/rule-lexing.ts)
 scans source-mapped tokens, [source-rules.ts](src/source-rules.ts) builds the
 recovered source tree, and [rule-syntax.ts](src/rule-syntax.ts) validates/projects
 that tree without reading rule text. [rule-frontend.test.mjs](test/rule-frontend.test.mjs)
@@ -173,7 +172,7 @@ replacement and member-order rules. Guards include
 [accepted-declaration-oracle.test.mjs](test/accepted-declaration-oracle.test.mjs)
 and [accepted-object-oracle.test.mjs](test/accepted-object-oracle.test.mjs).
 
-The active frontend work is tracked in the
+The audited frontend boundaries are tracked in the
 [completion checklist](../docs/superpowers/specs/2026-11-01-frontend-clarity-goal.md).
 [source-scan-state.ts](src/source-scan-state.ts) now gives each section its own
 named phase vocabulary and required sound payloads. The walker separates physical
@@ -214,9 +213,10 @@ covariant readonly collections enforce the nested boundaries. Guards include
 compiler tests of the movement→property→spawn continuation before abort.
 Lowering no longer silently ignores unsupported qualifiers.
 
-Next audit every retained frontend transformation against observable behavior
-and complete an independent readability pass. The runtime suggestions below are
-separate from that frontend completion gate.
+The retained transformations and their observable behavior are documented in
+[FRONTEND.md](FRONTEND.md). The final audit records those semantic witnesses and
+the explicit domain boundaries. The optional ideas below cover both frontend
+property-inference naming and runtime helpers; they are possible later refinements.
 
 1. **Name the session probe policy inside `step`.** Extract helpers for rollback
    and commands that name retained history, RNG/events and committed effects.

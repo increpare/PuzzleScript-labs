@@ -200,9 +200,9 @@ facts, while native source errors retain their synchronous visits and compiler
 diagnostics retain their existing checkpoints.
 
 The [accepted-declaration audit](../docs/superpowers/plans/2026-11-01-accepted-declarations.md)
-records this boundary and its new malformed-source/native comparisons. The broader
+records this boundary and its new malformed-source/native comparisons. The
 [frontend completion checklist](../docs/superpowers/specs/2026-11-01-frontend-clarity-goal.md)
-remains active for the final transformation and readability audit.
+records the completed boundaries and independent whole-frontend reviews.
 
 The scanner now has a section-discriminated state. A rule scanner can be in
 `Prelude`, `AfterPatternSeparator` or `MessageTail`; it cannot take an object
@@ -259,6 +259,14 @@ arrays and the complete helper pipeline. These declarations erase at runtime;
 there are no new stage fields or wrapper objects. Property output deliberately
 does not claim all names are concrete: local, random and recovered names remain
 valid. See the [rule-pass audit](../docs/superpowers/plans/2026-11-01-rule-pass-contracts.md).
+
+[FRONTEND.md](FRONTEND.md) explains the complete reading path and every retained
+transformation. Four real source fixtures pass the native per-move oracle;
+separate experimental graphs demonstrate why edit order, selector choice,
+duplicate candidates and local property predicates change observable boards.
+The final domain cleanup removes the stale message mirror, sound-index assertion,
+duplicate metadata acceptance and NaN parse-result sentinel. SFX recognition shares
+one finite lookup, including the lexical command vocabulary.
 
 The [declaration audit](../docs/superpowers/plans/2026-11-01-source-declarations.md)
 records the full 1,937-test run and a fresh 128-game per-move sample with 920
@@ -369,7 +377,7 @@ npm --prefix typescript test
 npm --prefix typescript run test:corpus -- --session
 ```
 
-The strict suite, including prepared-AGAIN, scanner, sound/win, property-layer, rule-pass and declaration regressions, passes **2,062 tests**. Exact compilation comparison
+The strict suite, including prepared-AGAIN, scanner, sound/win, property-layer, rule-pass and final frontend regressions, passes **2,114 tests**. Exact compilation comparison
 covers **335 compiler fixtures**, **492 simulation sources** and **99,192 final
 executable rules**, including diagnostics, stopping outcomes, authored source
 evidence and declaration identities. The last completed full source-compiled replay,
@@ -380,7 +388,13 @@ also pass, with 563 observations. Independent review found no actionable issues.
 The [refresh audit](../docs/superpowers/plans/2026-10-31-typescript-vanilla-refresh.md)
 records the authority and verification separately from historical runs.
 
-The rule-frontend refactor also passes a fresh 128-game generated per-move sample
+The final frontend audit passes a fresh **128-game** generated per-move sample
+with **919 observations/operations** and **128 level loads**, with no exclusions,
+mismatches, oracle exceptions or timeouts. Independent whole-frontend reviews
+found no remaining actionable issue. The [final audit](../docs/superpowers/plans/2026-11-01-final-frontend-audit.md)
+records domain, semantic-witness and verification evidence.
+
+The earlier rule-frontend checkpoint passed a 128-game generated per-move sample
 (907 observations) and at least 218 original-game replays. Its additional exhaustive
 playback run was stopped because large direct-runtime cases were slow; it did not
 complete all 492 games. All 827 compilation comparisons and the full strict suite

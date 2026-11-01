@@ -356,7 +356,7 @@ test('rule message literals after leading comments cannot swallow the next physi
     assert.equal(document.rules.length, 2, prefix);
     assert.equal(document.comments.length, 1, prefix);
     assert.equal(document.rules[0].commands[0].authoredPayload, 'Hello (unclosed', prefix);
-    assert.equal(document.rules[0].commands[0].legacyPayload, 'Hello (unclosed', prefix);
+    assert.equal(document.rules[0].commands[0].text, 'Hello (unclosed', prefix);
     assert.equal(document.rules[0].compilerLine, source.split('\n')[document.rules[0].span.start.line - 1], prefix);
     assert.equal(document.rules[1].kind, sourceModel.SourceRuleKind.Ordinary, prefix);
     assert.ok(!diagnostics.some(diagnostic => diagnostic.code === 'unclosed-comment'), prefix);
@@ -388,16 +388,16 @@ test('parentheses inside a rule word are authored spelling rather than comment b
   }
 });
 
-test('rule messages use the original line with case and punctuation and keep the legacy empty payload', () => {
+test('rule messages retain authored evidence and effective case, punctuation and empty text', () => {
   const { document } = readSource(rulesSource('[ Player ] -> message Hello (Keep) [This] | -> 😀\n[ Player ] -> message'));
   const message = document.rules[0].commands[0];
   assert.equal(message.authoredPayload, 'Hello (Keep) [This] | -> 😀');
-  assert.equal(message.legacyPayload, message.authoredPayload);
+  assert.equal(message.text, 'Hello (Keep) [This] | -> 😀');
   assert.equal(document.rules[0].legacyCapturedText, '[ player ] -> message hello ');
   assert.equal(document.rules[0].commands.length, 1);
   assert.equal(document.comments.length, 0);
   assert.equal(document.rules[1].commands[0].authoredPayload, '');
-  assert.equal(document.rules[1].commands[0].legacyPayload, ' ');
+  assert.equal(document.rules[1].commands[0].text, ' ');
   const payloadStart = message.payloadSpan.start.offset;
   assert.equal(document.source.slice(payloadStart, message.payloadSpan.end.offset), message.authoredPayload);
 });

@@ -31,7 +31,7 @@ const events = new Map<string, SimpleSound>([
   ['startlevel', SimpleSound.StartLevel], ['endlevel', SimpleSound.EndLevel], ['undo', SimpleSound.Undo],
   ['restart', SimpleSound.Restart], ['showmessage', SimpleSound.ShowMessage], ['closemessage', SimpleSound.CloseMessage], ['cancel', SimpleSound.Cancel],
 ]);
-const indices = new Map<string, SoundIndex>([
+export const soundEffectIndices: ReadonlyMap<string, SoundIndex> = new Map([
   ['sfx0', 0], ['sfx1', 1], ['sfx2', 2], ['sfx3', 3], ['sfx4', 4], ['sfx5', 5], ['sfx6', 6],
   ['sfx7', 7], ['sfx8', 8], ['sfx9', 9], ['sfx10', 10],
 ]);
@@ -39,7 +39,7 @@ const indices = new Map<string, SoundIndex>([
 export function acceptedSoundEvent(token: SourceLexicalToken): SoundEvent {
   const sound = events.get(token.value);
   if (sound !== undefined) return { kind: SoundEventKind.Simple, sound, token };
-  const index = indices.get(token.value);
+  const index = soundEffectIndices.get(token.value);
   if (index !== undefined) return { kind: SoundEventKind.SFX, index, token };
   throw new Error('Accepted sound event has no event kind.');
 }
