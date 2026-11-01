@@ -19,10 +19,12 @@ remain named policies with the existing strict reuse checks.
 
 ## File responsibilities
 
-- Create `typescript/src/turn-calculation.ts`: CalculatedTurn, concrete
-  NoInputTurn, calculateTurn, calculateWithoutInput and copyTurnResult.
-  Delegate computation to existing
-  applyTurnRules; this module has no session environment or effect handling.
+- Modify `typescript/src/model.ts`: numeric TurnInput enum including None,
+  distinct from object Movement. Use explicit member conversions at boundaries.
+- Modify `typescript/src/turn-rules.ts`: evolve the actual calculation into
+  calculateTurn and the flat CalculatedTurn record, recording TurnInput alongside
+  the existing result fields. Keep the old component API as a boundary adapter;
+  do not add a new file containing a name-only wrapper or an input/result shell.
 - Create `typescript/src/prepared-again.ts`: PreparedAgainTurn, private WeakMap,
   snapshot validation, lookup/retention and independent cached-result copies.
   Move the current sameRuleInput/sameRuleBoard/ordered-container checks intact.
@@ -30,8 +32,7 @@ remain named policies with the existing strict reuse checks.
   named probe handling, explicit AgainDecision and WinHandling, and the
   public-options adapter. Ordinary helpers continue to own their existing
   history, restore, commands, checkpoint, screen and level semantics.
-- Keep `typescript/src/turn-rules.ts` computation and its component API intact.
-  Keep `typescript/src/session-model.ts` public state/options shape intact.
+- Keep `typescript/src/session-model.ts` public state/options shape intact.
 - Modify `typescript/test/session.test.mjs`: extend its existing fixtures and
   real-rule counters for context-at-commitment and probe-path coverage.
 - Create `typescript/test/turn-calculation-types.test.mjs`: strict temporary
@@ -75,39 +76,43 @@ remain named policies with the existing strict reuse checks.
   ```typescript
   declare const game: SessionGame;
   declare const execution: RuleExecutionState;
-  const automatic: NoInputTurn = calculateWithoutInput(game, execution);
-  const player = calculateTurn(game, execution, Movement.Right);
+  const automatic = calculateTurn(game, execution, TurnInput.None);
+  const player = calculateTurn(game, execution, TurnInput.Right);
   const prepared: PreparedAgainTurn = {
-      game, before: execution, calculation: automatic,
+      game, before: execution, turn: automatic,
   };
-  const wrong: PreparedAgainTurn = {
-      game, before: execution,
-      // @ts-expect-error A player-input calculation cannot be prepared as AGAIN.
-      calculation: player,
-  };
+  // @ts-expect-error Turn inputs and per-layer movements are separate domains.
+  const movement: Movement = TurnInput.None;
+  // @ts-expect-error Core calculation uses explicit None instead of null.
+  calculateTurn(game, execution, null);
+  // @ts-expect-error Object Movement is not the input enum.
+  calculateTurn(game, execution, Movement.Right);
   // @ts-expect-error A raw execution snapshot is not a calculated turn.
   const missingCalculation: CalculatedTurn = execution;
-  void [prepared, wrong, missingCalculation];
+  void [prepared, player, movement, missingCalculation];
   ```
 
   The test must have no ignored diagnostics. Import all actual types explicitly
   in the .mts source.
 
-- [ ] Implement CalculatedTurn and concrete NoInputTurn as in the revised
-  design. calculateTurn returns the general record; calculateWithoutInput
-  supplies null and returns the narrower record. Both call the same
-  applyTurnRules implementation once. Use no overloads or type assertions.
-  copyTurnResult must clone RuleExecutionState,
+- [ ] Add TurnInput with None/Up/Down/Left/Right/Action. Preserve the existing
+  public Movement|null and native corpus encodings through explicit boundary
+  mappings. Check all six input cases; never cast enums or depend on matching
+  numeric ordinals. None must skip player intent without skipping rules.
+- [ ] Implement the flat CalculatedTurn in the actual rules calculation. It is
+  the existing result's fields plus input, with no nested result wrapper.
+  Preserve the established algorithm and old component result shape through
+  boundary adapters. copyCalculatedTurn must clone RuleExecutionState,
   playerPositions and diagnostic records while retaining canonical object/rule
   identities. Preserve attempts, rigidRetries and rigidLimitReached.
-- [ ] Move the existing PreparedTurn into PreparedAgainTurn with a
-  NoInputTurn. Its private prepareAgain creator takes game/state and supplies
-  no player input itself; it does not accept an arbitrary calculation.
+- [ ] Move the existing PreparedTurn into PreparedAgainTurn with an ordinary
+  CalculatedTurn. Its private prepareAgain creator supplies TurnInput.None
+  itself; preparation does not accept a caller's arbitrary calculation.
   Move WeakMap storage and every ordered-input comparison
   into prepared-again.ts. Retention still checks the actual returned state;
-  lookup still requires AGAIN, null input and the same game/input snapshot.
-  Copy a prepared calculation by explicitly constructing its no-input record
-  around copyTurnResult; do not introduce a generic copy helper for this case.
+  lookup still requires AGAIN, TurnInput.None and the same game/input snapshot.
+  Validate that the retained turn records None at this boundary; this is a local
+  invariant, not a new generic or subtype. Copy through copyCalculatedTurn.
 - [ ] Keep repeated immutable branches independent; lookup returns copied
   calculations without consuming a globally shared preparation. Public state
   copies still miss naturally. Do not broaden or narrow the validation set.
@@ -124,11 +129,12 @@ remain named policies with the existing strict reuse checks.
   Capture the live BoardSnapshot here, then install the result and publish its
   diagnostics in the existing order. Do not copy session snapshots into the
   calculation or cache.
-- [ ] Extract named operations for player-movement rejection, cancellation,
-  restart, object/history handling, ordinary outputs, victory/checkpoint and
-  continuation preparation. Keep ordinary sequencing and early returns; add no
-  phase-switch loop or phase field. Each extraction must expose its meaningful
-  input and decision rather than use an opaque applyPolicy helper.
+- [ ] Keep player-movement rejection, cancellation, restart, object/history
+  handling, ordinary outputs, victory/checkpoint and continuation preparation
+  visibly ordered in one function. Keep ordinary sequencing and early returns;
+  extract a helper where a real repeated operation or substantial independent
+  domain task justifies it. Do not create a one-line helper for every step,
+  phase-switch loop, phase field or opaque applyPolicy layer.
 - [ ] Preserve live command reads after restart and level transitions. Determine
   actual board change at its old point after restart handling; keep the public
   reported-change value separate from eligibility to schedule AGAIN.
@@ -142,7 +148,7 @@ remain named policies with the existing strict reuse checks.
 ## 4. Give AGAIN inspection its own explicit path
 
 - [ ] Replace internal recursive step(..., {probe:true}) with a named operation
-  which calculates null input once, captures a private input snapshot/result,
+  which calculates TurnInput.None once, captures a private input snapshot/result,
   installs the calculation on the chosen workspace, and applies probe semantics.
   It returns AgainDecision.Stop/Schedule and, when reusable, the preparation.
 - [ ] Keep public probes supported through the same probe-semantic consumer,
@@ -207,13 +213,20 @@ simulation from session command/effect handling. The TypeScript cache already
 retains only the former; its default vanilla RNG fallback is intentional. This
 plan changes how that behavior is expressed, not which behavior is authoritative.
 
-The representation comparison revised the original generic proposal to a
-concrete CalculatedTurn/NoInputTurn refinement and a dedicated preparation API.
+The earlier representation comparison considered a generic proposal and a
+concrete CalculatedTurn/NoInputTurn refinement with a dedicated preparation API.
 A temporary strict TypeScript program using the project's actual Movement and
 TurnRulesResult types confirmed that both generic and concrete representations
 reject a player-input result in a no-input preparation. It also checked enum
 variants and the no-input preparation function's argument boundary. These were
 type-design experiments outside the repository, not new production tests.
+
+The user's subsequent TurnInput.None proposal simplifies the selected outline
+further: one input enum, one flat CalculatedTurn and one PreparedAgainTurn.
+The old generic/subtype contracts above are historical experiments, not
+requirements of the selected outline. Current planned type tests enforce input
+versus movement domains; preparation behavior and reuse validation establish
+the None invariant.
 
 At planning time the existing TypeScript build and **12 focused session tests**
 passed: deterministic reuse in both profiles, private random reuse, all six

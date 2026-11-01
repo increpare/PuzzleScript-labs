@@ -1,7 +1,7 @@
 # A calculated turn and its commitment
 
-Status: revised proposed design for user review, following comparison of the
-generic and concrete type alternatives. No production changes are part of this
+Status: revised proposed outline for user review, using explicit TurnInput.None
+and one flat calculated-turn record. No production changes are part of this
 document. The aim is conceptual clarity in the separate TypeScript reference,
 with the existing pinned-vanilla behavior and prepared-AGAIN reuse preserved.
 
@@ -55,8 +55,8 @@ rules on an isolated session workspace. Shared domain helpers preserve command
 and restoration order without a general phase dispatcher.
 
 This matches the existing cache's real boundary, makes that boundary teachable,
-and permits concrete types to distinguish general calculations from no-input
-preparations. It requires carefully extracting the current early exits rather
+and gives ordinary and no-input turns one shared result representation.
+It requires carefully extracting the current early exits rather
 than merely moving the old boolean checks behind a new name.
 
 ### Calculate and cache an entire SessionResult, including its effects
@@ -71,24 +71,27 @@ partial probe restoration. We should retain the narrower existing boundary.
 ## Alternatives for expressing the calculated result
 
 The calculate/handle boundary and the choice of TypeScript notation are separate
-decisions. The earlier draft parameterized the result as TurnCalculation<Input>.
-That is valid but is no longer the recommended surface form.
+decisions. Earlier drafts parameterized the result as TurnCalculation<Input>,
+then proposed a NoInputTurn refinement. The user identified a simpler domain
+model: None is an ordinary, explicit turn input. That is now the recommended
+surface form.
 
 | Representation | Benefits | Costs |
 | --- | --- | --- |
 | Generic TurnCalculation<Input> | One shape preserves an exact input type through general helpers; inference can establish the no-input case automatically. | Readers must interpret a type parameter and null specialization. Most consumers do not vary by the precise input type, so there is little general behavior to justify parameterizing. |
-| CalculatedTurn plus concrete NoInputTurn — recommended | The guarantee has a readable name and the same useful static distinction. A no-input calculation is still an ordinary calculated turn. No extra runtime tag is needed. | Adds a type name. A named no-input helper is needed to return the narrower type without overloads or assertions. |
+| CalculatedTurn plus concrete NoInputTurn | The guarantee has a readable name and the same useful static distinction. A no-input calculation is still an ordinary calculated turn. No extra runtime tag is needed. | Adds a type name. A named no-input helper is needed to return the narrower type without overloads or assertions. |
 | Explicit PlayerInput/NoInput variants | Enum tags support clear exhaustive cases and different payloads. Good if the two cases acquire substantially different data or behavior. | Currently duplicates the common result payload and replaces the already meaningful null distinction with another tag. NoInput still does not identify the reason for running the turn. |
 | One common result plus a dedicated prepareAgain function | Fewest result types; the preparation API can accept only game/state and supply no input itself. | An arbitrary calculated result stored inside the owning module has no type-level input distinction. Constructor ownership and behavioral tests carry that guarantee. |
+| Flat CalculatedTurn with TurnInput.None, plus prepareAgain — recommended | Directly names the valid no-input request, uses one result shape and makes AGAIN's supplied input visible. | Preparation must actually supply None; the general result type does not certify that distinction. Validate that boundary and preserve its behavior tests. |
 
-Use the concrete refinement together with the dedicated preparation API.
-The type names explain the guarantee; the function explains why the work is
-being done. This is slightly more definition text than the generic but requires
-less interpretation at ordinary call sites. The generic remains appropriate if
-future code actually needs a family of input-dependent operations; that need is
-not present in the current turn pipeline.
+Use the flat result and the dedicated preparation API. A local condition or
+assertion can validate that a prepared turn records TurnInput.None; no subtype,
+generic parameter or extra phase tag is needed for this one boundary. Keep
+TurnInput separate from Movement so None cannot become a per-layer movement
+request. Conversion names enum members explicitly rather than relying on their
+numeric values lining up.
 
-NoInput means no player instruction is injected. Rules can still request and
+None means no player instruction is injected. Rules can still request and
 resolve movements. AGAIN, timer ticks and level-start rules can all run without
 player input; none of these type representations alone proves AGAIN provenance.
 The preparation operation supplies that purpose and performs the actual work.
@@ -108,19 +111,29 @@ those events without governing execution.
 Proposed calculation data, using existing domain types:
 
 ```typescript
-interface CalculatedTurn {
-    readonly input: Movement | null;
-    readonly result: TurnRulesResult;
+enum TurnInput {
+    None,
+    Up,
+    Down,
+    Left,
+    Right,
+    Action,
 }
 
-interface NoInputTurn extends CalculatedTurn {
-    readonly input: null;
+interface CalculatedTurn {
+    readonly input: TurnInput;
+    readonly state: RuleExecutionState;
+    readonly playerPositions: readonly Position[];
+    readonly attempts: number;
+    readonly rigidRetries: number;
+    readonly rigidLimitReached: boolean;
+    readonly diagnostics: readonly ExecutionDiagnostic[];
 }
 
 interface PreparedAgainTurn {
     readonly game: SessionGame;
     readonly before: RuleExecutionState;
-    readonly calculation: NoInputTurn;
+    readonly turn: CalculatedTurn;
 }
 
 enum AgainDecision {
@@ -134,24 +147,28 @@ enum WinHandling {
 }
 ```
 
-`calculateTurn` wraps the established `applyTurnRules` calculation and records
-its actual input. `calculateWithoutInput` takes game/state, supplies null and
-returns NoInputTurn. Both invoke the same rules-and-movement implementation
-exactly once; there are no separate simulation algorithms. Keep `applyTurnRules`
-available for component oracles. `prepareAgain` accepts game/state, uses the
-no-input helper and captures the private input/result evidence. It does not
-accept an arbitrary calculated turn from its caller.
+`calculateTurn` is the actual rules-and-movement calculation, with its input
+recorded in the returned flat result. Evolve the existing applyTurnRules body
+rather than adding a name-only wrapper or an input/result envelope. Preserve
+existing entry points as boundary adapters where current component oracles and
+public callers still use Movement|null. Core code uses TurnInput; the adapter
+maps each input explicitly and preserves the existing public result schema.
 
-The concrete input refinement prevents a general player-input calculation from
-being stored as prepared AGAIN work. It expresses a domain relationship without
-generics, brands or runtime phase tags. Computation and snapshot validation still
-need their behavioral tests; the input field's type is not proof of execution.
+`prepareAgain` accepts the current game/session work, captures the incoming rule
+state, calls calculateTurn with TurnInput.None once, and performs the established
+probe observation. Keep snapshot ownership and diagnostic/effect behavior
+visible. The calculation is saved only when scheduling and reuse permit it.
+
+CalculatedTurn is the existing TurnRulesResult data plus its input, not a new
+object containing another result object. None establishes a legitimate input
+case rather than a family of special turn types. Computation and snapshot
+validation keep their behavioral tests.
 WinHandling.ReportOnly still reports a suppressed Win effect when reached; it
 does not mean "skip checking whether the game was won."
 
-Keep `StepSessionOptions` working at the public boundary, including direct
-non-null probes and independently selectable win suppression. Decode these
-options once. Internal automatic AGAIN inspection always uses null input and
+Keep `StepSessionOptions` and the input encoding working at the public boundary,
+including direct non-null probes and independently selectable win suppression.
+Decode these options once. Internal automatic AGAIN inspection uses TurnInput.None and
 reported-only wins; the public probe API has a broader existing contract.
 
 ## Main flow
@@ -228,6 +245,14 @@ absence after spread/serialization remains an ordinary fresh-calculation path.
 Repeated calls from the same immutable session may reuse the same preparation
 through independent copies; there is no global single-use token.
 
+For the existing immutable API, keep WeakMap association at the public boundary.
+Pass the pending record explicitly into the working session; simulation and
+session handling must not perform hidden identity-map lookups. This preserves
+the API without pretending private preparation is serialized game state.
+The calculated data is readonly to its consumers; local working state may use
+straightforward mutation. Copies are explicit at the input/output/cache ownership
+boundaries, with no new per-phase cloning or automatic freeze machinery.
+
 Retain every existing reuse check: exact game identity, board shape/objects and
 Set iteration order, full RNG state, pending movements, rigid marks and owners,
 and command message. State fields that calculation resets remain reset as now.
@@ -239,6 +264,63 @@ run mode and win handling at commitment. Preparation owns no session history,
 effects, saved checkpoint or future level seed. Clone cached result containers
 and diagnostics before exposing them. Keep diagnostics observable at discovery
 and, when applicable, again at actual commitment, as in the current API.
+
+## Review lenses and a concrete code outline
+
+The user requested considering Linus Torvalds and Casey Muratori as reviewers.
+The following are our review questions, not invented quotations or claims that
+either has reviewed or endorsed this code. The Linux kernel's
+[function guidance](https://docs.kernel.org/process/coding-style.html#functions)
+emphasizes understandable functions and allows longer straightforward sequences.
+Muratori's [Semantic Compression](https://caseymuratori.com/blog_0015) starts
+from concrete operations and shares code after actual repeated cases emerge.
+
+Apply those ideas to the current proposal:
+
+- The calculated result should be actual data, not a new envelope around an
+  existing result or a hierarchy of phase/input specializations.
+- Keep the rules/movement retry loop and the session branch ordering visible.
+  Extract repeated or substantial operations; do not replace every line with
+  another function name merely to make the coordinator look short.
+- Every clone and mutation has a named ownership boundary. Readonly types alone
+  do not protect private cached Sets/arrays from escaped JavaScript references.
+- Explicit None-to-no-intent conversion and cache validation must be correct,
+  independently of whether a stronger type could express an internal invariant.
+- Prepared AGAIN work is one real stored calculation, used when compatible.
+  Its evidence is private and its effects/history are handled at actual use.
+
+An implementation should have this approximate reading path:
+
+```text
+stepSession / compatibility boundary
+    obtain a private working session and decode TurnInput
+    choose a compatible saved calculation, otherwise calculateTurn
+    finishTurn using the selected calculation
+
+calculateTurn
+    initialize bookkeeping and inject player intent unless input is None
+    repeat early rules + movement resolution while rigid retry is needed
+    run late rules after successful resolution
+    return CalculatedTurn
+
+finishTurn
+    report diagnostics and enforce player-movement requirements
+    handle cancel, restart, board/history, sounds/messages, victory, checkpoint
+    when AGAIN applies, call prepareAgain at the established point
+    finalize commands and the public result
+
+prepareAgain
+    capture the incoming execution snapshot
+    calculateTurn(..., TurnInput.None) once
+    observe the probe on the vanilla or private workspace
+    retain eligible compatible work; preserve outer-message restoration
+```
+
+The main remaining design risk is duplicating session decisions between
+finishTurn and probe observation. During implementation compare their actual
+cases before extracting shared code. A shared cancel/restore operation can be
+useful; a generic session-policy framework would obscure the important order.
+Preserve the native probe matrix, especially history, RNG and cancel effects.
 
 ## Scope and acceptance
 
