@@ -30,11 +30,20 @@ while legitimately retaining local, random and recovered names.
 addresses and a target address. It returns Resolved(cell), Missing or
 Ambiguous(cells), with corresponding-cell preference and full row/cell identity.
 It knows no concrete member, layer or expansion policy. The property pass first
-expands negatives and resolves RHS source links, then chooses members in the
-existing work order and constructs RHS terms from per-cell selections. Local
+expands negatives, collects LHS source cells by property name, and resolves RHS
+source links in authored order. It then chooses members and constructs RHS terms
+from per-cell selections. Local
 predicate retention and concrete expansion use the same source relationship.
 Only construction knows which members were selected; diagnostics still follow
 expansion so empty branches can remove otherwise unresolved uses.
+
+Property and movement expansion each use a pending FIFO queue and a completed
+list. Property expansion branches at the first eligible property site. Movement
+expansion branches at every eligible cell of the unchanged parent, using the
+first movement family in each cell. Duplicate paths remain ordered data.
+Movement RHS inference first asks whether that entity/family expanded at one
+source cell; its fallback across entity names requires exactly one family
+expansion event. Equal selected directions do not establish either uniqueness.
 
 ## Transformations with observable behavior
 

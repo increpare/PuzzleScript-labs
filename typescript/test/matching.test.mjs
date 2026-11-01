@@ -214,6 +214,26 @@ test('rechecking rejects missing rows, wrong gap counts, invalid gaps and out-of
   assert.equal(matchesRow(pattern, -1, input, match(0, 0, 0)), false);
 });
 
+test('rechecking requires a nonempty row and integer origins even for zero-step rows', () => {
+  const input = state(['AAA']);
+  for (const direction of [Direction.Right, Direction.InPlace]) {
+    assert.equal(matchesRow(rule(direction, []), 0, input, match(0, 0)), false);
+    const pattern = rule(direction, [has(A)]);
+    for (const [x, y] of [[0.5, 0], [0, 0.5], [NaN, 0], [0, Infinity]]) {
+      assert.equal(matchesRow(pattern, 0, input, match(x, y)), false);
+    }
+  }
+});
+
+test('rechecking two ellipses requires exactly two nonnegative integer gaps', () => {
+  const input = state(['AAA']);
+  const pattern = rule(Direction.Right, [has(A), Ellipsis, has(A), Ellipsis, has(A)]);
+  assert.equal(matchesRow(pattern, 0, input, match(0, 0, 0, 0)), true);
+  for (const gaps of [[0], [0, 0, 0], [0, -1], [0, 0.5], [0, NaN], [0, Infinity]]) {
+    assert.equal(matchesRow(pattern, 0, input, match(0, 0, ...gaps)), false);
+  }
+});
+
 test('tuples keep the first row varying fastest across three independent rows', () => {
   const a = match(0, 0), b = match(1, 0), c = match(2, 0), d = match(3, 0), e = match(4, 0), f = match(5, 0);
   assert.deepEqual(matchTuples([[a, b], [c, d], [e, f]]), [

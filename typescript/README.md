@@ -90,7 +90,7 @@ npm --prefix typescript run example:session
 | Start with | Meaning |
 | --- | --- |
 | [model.ts](src/model.ts), [board.ts](src/board.ts), [movement.ts](src/movement.ts) | Objects, cells, unnamed layers, movement requests and collision |
-| [rule-model.ts](src/rule-model.ts), [matching.ts](src/matching.ts) | Predicates, bracket rows, ellipses and ordered matches |
+| [rule-model.ts](src/rule-model.ts), [matching.ts](src/matching.ts), [rule-path.ts](src/rule-path.ts) | Predicates, ordered match search and the shared walk through recorded gaps |
 | [replacement.ts](src/replacement.ts), [rules.ts](src/rules.ts) | Direct cell edits, live writes and command production |
 | [scheduling.ts](src/scheduling.ts), [turn-rules.ts](src/turn-rules.ts) | Groups, loops, rigid retries and the turn sequence |
 | [session-model.ts](src/session-model.ts), [session.ts](src/session.ts) | Input, history, restart, messages, levels, effects and wins |

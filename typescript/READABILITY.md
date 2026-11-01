@@ -22,7 +22,7 @@ different members. [resolveObjectSource](src/rule-object-sources.ts) selects
 the corresponding LHS cell for each RHS property use. Separately,
 [expandRuleProperties](src/rule-properties.ts) leaves these single-layer local
 properties as predicates. [lowerRules](src/rule-lowering.ts#L41) records their members in
-`anyObjects`; [matchesCell](src/matching.ts#L5) requires one at each cell.
+`anyObjects`; [matchesCell](src/matching.ts) requires one at each cell.
 The RHS keeps the first member, adds Mark, and empties the second cell.
 Removing x1 invalidates the x1–x2 pair; x2–x3 still applies.
 
@@ -46,7 +46,7 @@ Rule construction then emits Red followed by Blue in property-member order;
 each variant records the member selected at that source cell and supplies it
 to the linked RHS use.
 This is compile-time inference, not a runtime variable shared by every Item.
-[matchTuples](src/matching.ts#L112) combines independently located bracket rows.
+[matchTuples](src/matching.ts) combines independently located bracket rows.
 The first successful tuple removes Player's action request; live rechecks reject
 the remaining tuples, so Red transfers before the spatially earlier Blue.
 
@@ -66,8 +66,10 @@ even when their member lists are equal.
 
 In `rule-properties.ts`, negative properties are expanded before source analysis;
 random-object terms supply no source. `analyzePropertyUses` records the source
-relationships, then the existing layer analysis and remote uses determine which
-properties need concrete choices. Ordered expansion records per-cell selections.
+cells once by property name and resolves RHS relationships in authored order.
+The existing layer analysis and remote uses then determine which properties
+need concrete choices. A FIFO pending queue branches at the first eligible
+property site; completed variants record per-cell selections in that order.
 `constructRightSide` uses those selections and source links once, preserving a
 local predicate when no member was selected. There are no first-member/count
 summaries or runtime bindings. Missing/Ambiguous uses are diagnosed only after
@@ -94,19 +96,26 @@ right [ Item Origin | ... | Relay | ... | Target no Item ] -> [ Origin | ... | S
 | Tick / 0 | `ssxRtxBtP` |
 | Tick / 1 (`rbktt.ttP`) | `sbxRt.ttP` |
 
-`k` is Relay and `x` is Spent. [findMatches](src/matching.ts#L58) records a start
+`k` is Relay and `x` is Spent. [findMatches](src/matching.ts) records a start
 coordinate and ordered gaps in each [RowMatch](src/rule-model.ts#L26). Recursive
 loops enumerate the first gap before the second, each from zero upward. Red at x0
 uses relay x2 and target x3, gaps `[1, 0]`; its write clears the source, spends x2
 and fills x3. Blue must use relay x5 and target x6, gaps `[3, 0]`.
 
-[tryApplyRule](src/rules.ts#L185) finds candidates once per rule invocation.
-[applyRuleAt](src/rules.ts#L118) checks later tuples with
-[matchesRow](src/matching.ts#L92) against the current state before writing.
-It visits pattern cells in order, passing each current cell to
+[tryApplyRule](src/rules.ts) finds candidates once per rule invocation.
+[applyRuleAt](src/rules.ts) checks later tuples with
+[matchesRow](src/matching.ts) against the current state before writing.
+Both use [recordedRowCells](src/rule-path.ts) to visit concrete pattern cells
+through the recorded gaps. Search remains in `findMatches`; the recorded walk
+does not search again. Replacement consumes that walk lazily, passing each live cell to
 [applyCellEdits](src/replacement.ts#L24). A recorded source, relay or endpoint
 may no longer qualify. With one relay, Blue stays stranded despite unused targets.
 This ordering is language execution logic, not a storage compatibility exception.
+
+Rechecking validates the origin and complete gap tuple before walking. Unchecked
+replacement retains the component API's recovery behavior: it ignores unused
+gaps, permits negative/fractional gaps, and reports a missing gap only when the
+walk reaches it. A preceding replacement error therefore still comes first.
 
 ## 3. Rigid retry restores objects, while the random stream advances
 
@@ -127,8 +136,10 @@ rows; `R` contains Player, Target, Running, Done and Red. Undo returns
 Action moves Player and Running onto Target. In the no-input continuation,
 [resolveMovements](src/movement.ts#L90) finds Crate blocked by Wall on their
 shared layer, bans the rigid mark's group, and requests retry.
-[calculateTurn](src/turn-rules.ts) restores `retrySnapshot`, retaining bans,
-failure sounds and **current RNG**. The color rule runs again; failed-attempt
+[restoreForRigidRetry](src/turn-rules.ts) restores the post-input `retrySnapshot`,
+retaining bans, failure sounds, the latest message and **current RNG**. Command
+entries are discarded; diagnostics accumulate outside the retry state.
+The color rule runs again; failed-attempt
 creations are discarded. Late rules follow successful movement resolution.
 
 The four draws select Red, Blue, Red, Red. With the current
@@ -296,15 +307,11 @@ Lowering no longer silently ignores unsupported qualifiers.
 
 The retained transformations and their observable behavior are documented in
 [FRONTEND.md](FRONTEND.md). The final audit records those semantic witnesses and
-the explicit domain boundaries. The optional ideas below cover runtime helpers;
-they are possible later refinements.
-
-1. **Share fixed-gap coordinate traversal.** `matchesRow` and `applyRuleAt`
-   separately advance through a recorded row. A helper yielding pattern indices
-   and coordinates would clarify gaps while retaining live reads and ordered writes. Guards:
-   two-ellipsis-relay-live and cross-layer-row-overlap protect stale matches and
-   multiple writes to the same cell.
-2. **Name rigid retry restoration.** A helper in `calculateTurn` could name the
-   restored board/events and retained bans, failure sounds, message and RNG.
-   Guards: rigid-again, rigid-checkpoint and rigid-cancel protect the distinction
-   between attempt rollback and later session restoration.
+the explicit domain boundaries. The
+[traversal audit](../docs/superpowers/plans/2026-11-01-traversal-clarity.md)
+records the subsequent property-source collection, explicit expansion queues,
+movement evidence queries, shared recorded-row walk and named rigid restoration.
+The two-ellipsis-relay-live and cross-layer-row-overlap fixtures guard live reads
+and ordered writes; component tests also preserve checked/unchecked gap behavior
+and lazy error order. Rigid-again, rigid-checkpoint and rigid-cancel guard the
+distinction between attempt rollback and later session restoration.

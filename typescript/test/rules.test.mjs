@@ -173,6 +173,95 @@ test('the first tuple can apply without rechecking its recorded pattern', () => 
   assert.equal(result.changed, true);
 });
 
+test('tuple shape errors reject checked applications and throw for unchecked applications', () => {
+  const before = state();
+  const incoming = rule();
+  for (const tuple of [[], [match(), match()], [undefined]]) {
+    const result = applyRuleAt(game, incoming, before, tuple, true);
+    assert.equal(result.state, before);
+    assert.equal(result.changed, false);
+  }
+  for (const tuple of [[], [match(), match()]]) {
+    assert.throws(() => applyRuleAt(game, incoming, before, tuple, false), {
+      message: 'Rule tuple must contain one match per rule row',
+    });
+  }
+  assert.throws(() => applyRuleAt(game, incoming, before, [undefined], false), {
+    message: 'Rule tuple is missing row 0',
+  });
+});
+
+test('checked applications reject malformed gaps in later rows before any writes or draws', () => {
+  const before = state([[[A], [A]]]);
+  const incoming = rule([[pattern([A])], [pattern([A]), Ellipsis, pattern([A])]], [
+    [replacement({ randomObjects: [{ object: B, layer: 0 }] })],
+    [null, null, replacement({ addObjects: new Set([C]) })],
+  ]);
+  for (const gaps of [[], [0, 0], [-1], [0.5]]) {
+    const result = applyRuleAt(game, incoming, before, [match(), match(0, 0, gaps)], true);
+    assert.equal(result.state, before);
+    assert.equal(result.changed, false);
+  }
+  assertCell(before, [A]);
+  assert.deepEqual(before.random, createRandom('rule tests'));
+});
+
+test('unused recorded gaps are ignored without rechecking and rejected with rechecking', () => {
+  const before = state();
+  const incoming = rule(undefined, [[replacement({ addObjects: new Set([C]) })]]);
+  const tuple = [match(0, 0, [9])];
+  const checked = applyRuleAt(game, incoming, before, tuple, true);
+  assert.equal(checked.state, before);
+  assert.equal(checked.changed, false);
+  const unchecked = applyRuleAt(game, incoming, before, tuple, false);
+  assertCell(unchecked.state, [A, C]);
+  assert.equal(unchecked.changed, true);
+});
+
+test('unchecked negative gaps revisit a live cell including its previous movement writes', () => {
+  const before = state();
+  const incoming = rule([[pattern([A]), Ellipsis, pattern([A])]], [[
+    replacement({ removeObjects: new Set([A]), addObjects: new Set([B]),
+      addMovements: [{ layer: 0, movement: Movement.Up }] }),
+    null,
+    replacement({ removeObjects: new Set([B]), addObjects: new Set([C]),
+      addMovements: [{ layer: 0, movement: Movement.Action }] }),
+  ]]);
+  const result = applyRuleAt(game, incoming, before, [match(0, 0, [-1])], false);
+  assertCell(result.state, [C]);
+  assert.deepEqual(movementSet(result.state), new Set([Movement.Up, Movement.Action]));
+  assert.deepEqual(result.state.createdObjects, new Set([B, C]));
+  assert.deepEqual(result.state.destroyedObjects, new Set([A, B]));
+  assertCell(before, [A]);
+});
+
+test('unchecked traversal checks bounds only where a replacement exists', () => {
+  const before = state();
+  const incoming = rule([[pattern(), Ellipsis, pattern()]], [[null, null, null]]);
+  for (const tuple of [[match(-1, 0, [0])], [match(0, 0, [0.5])]]) {
+    const result = applyRuleAt(game, incoming, before, tuple, false);
+    assert.deepEqual(result.state, before);
+    assert.equal(result.changed, false);
+  }
+  const withReplacement = { ...incoming, replacements: [[null, null, replacement()]] };
+  assert.throws(() => applyRuleAt(game, withReplacement, before, [match(0, 0, [0.5])], false), {
+    message: 'Rule replacement cell (1.5, 0) is out of bounds',
+  });
+});
+
+test('unchecked replacement errors occur before a later missing recorded gap', () => {
+  const before = state();
+  const incoming = rule([[pattern(), Ellipsis, pattern()]], [[replacement(), null, replacement()]]);
+  assert.throws(() => applyRuleAt(game, incoming, before, [match(1)], false), {
+    message: 'Rule replacement cell (1, 0) is out of bounds',
+  });
+  const withoutFirstReplacement = { ...incoming, replacements: [[null, null, replacement()]] };
+  assert.throws(() => applyRuleAt(game, withoutFirstReplacement, before, [match(1)], false), {
+    message: 'Rule tuple row 0 is missing gap 0',
+  });
+  assertCell(before, [A]);
+});
+
 for (const [direction, start, target] of [
   [Direction.Right, [0, 1], [1, 1]], [Direction.Left, [2, 1], [1, 1]],
   [Direction.Down, [1, 0], [1, 1]], [Direction.Up, [1, 2], [1, 1]],

@@ -1,5 +1,6 @@
 import { Direction, type GameObject, type Position } from './model.js';
 import { Ellipsis, type CellPattern, type LayerMovement, type MatchingState, type RowMatch, type RulePattern } from './rule-model.js';
+import { directionStep, recordedRowCells } from './rule-path.js';
 import { matchingPositions } from './scan-order.js';
 
 export function matchesCell(pattern: CellPattern, objects: ReadonlySet<GameObject>, movements: readonly LayerMovement[]): boolean {
@@ -22,16 +23,6 @@ export function matchesCell(pattern: CellPattern, objects: ReadonlySet<GameObjec
   if (!pattern.requiredMovements.every(hasMovement)) return false;
   if (pattern.forbiddenMovements.some(hasMovement)) return false;
   return true;
-}
-
-function directionStep(direction: Direction): Position {
-  switch (direction) {
-    case Direction.Up: return { x: 0, y: -1 };
-    case Direction.Down: return { x: 0, y: 1 };
-    case Direction.Left: return { x: -1, y: 0 };
-    case Direction.Right: return { x: 1, y: 0 };
-    case Direction.InPlace: return { x: 0, y: 0 };
-  }
 }
 
 function advance(position: Position, step: Position, distance = 1): Position {
@@ -93,20 +84,18 @@ export function matchesRow(rule: RulePattern, rowIndex: number, before: Matching
   const row = rule.rows[rowIndex];
   if (row === undefined || row.length === 0) return false;
   if (!Number.isInteger(match.start.x) || !Number.isInteger(match.start.y) || !inBounds(before, match.start)) return false;
-  const step = directionStep(rule.direction);
-  let position = match.start;
-  let gapIndex = 0;
+  let gapCount = 0;
   for (const pattern of row) {
-    if (pattern === Ellipsis) {
-      const gap = match.gaps[gapIndex++];
-      if (gap === undefined || !Number.isInteger(gap) || gap < 0) return false;
-      position = advance(position, step, gap);
-    } else {
-      if (!matchesAt(pattern, before, position)) return false;
-      position = advance(position, step);
-    }
+    if (pattern === Ellipsis) gapCount++;
   }
-  return gapIndex === match.gaps.length;
+  if (match.gaps.length !== gapCount) return false;
+  for (const gap of match.gaps) {
+    if (!Number.isInteger(gap) || gap < 0) return false;
+  }
+  for (const { pattern, position } of recordedRowCells(rule, rowIndex, match)) {
+    if (!matchesAt(pattern, before, position)) return false;
+  }
+  return true;
 }
 
 export function matchTuples(matches: readonly (readonly RowMatch[])[]): RowMatch[][] {

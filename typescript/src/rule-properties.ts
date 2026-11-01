@@ -66,24 +66,28 @@ export function expandRuleProperties<Q extends OrientedQualifier>(rules: readonl
   }
 
   function analyzePropertyUses(lhs: NamedRuleRows<Q>, rhs: NamedRuleRows<Q>): PropertyUse[] {
+    const sources = new Map<string, RuleCellAddress[]>();
+    for (const [rowIndex, row] of lhs.entries()) {
+      for (const [cellIndex, cell] of row.entries()) {
+        // Repeated terms in one cell still identify just one source cell.
+        for (const property of new Set(participatingNames(cell))) {
+          const cells = sources.get(property) ?? [];
+          cells.push({ rowIndex, cellIndex });
+          sources.set(property, cells);
+        }
+      }
+    }
+
     const uses: PropertyUse[] = [];
-    for (let rowIndex = 0; rowIndex < rhs.length; rowIndex++) {
-      for (let cellIndex = 0; cellIndex < rhs[rowIndex]!.length; cellIndex++) {
+    for (const [rowIndex, row] of rhs.entries()) {
+      for (const [cellIndex, cell] of row.entries()) {
         // Preserve the native recovered-stage boundary for unequal rule shapes.
         if (lhs[rowIndex]?.[cellIndex] === undefined) {
           throw new TypeError('Property RHS cell has no corresponding LHS cell');
         }
         const targetCell = { rowIndex, cellIndex };
-        for (const property of participatingNames(rhs[rowIndex]![cellIndex]!)) {
-          const candidates: RuleCellAddress[] = [];
-          for (let sourceRow = 0; sourceRow < lhs.length; sourceRow++) {
-            for (let sourceCell = 0; sourceCell < lhs[sourceRow]!.length; sourceCell++) {
-              if (participatingNames(lhs[sourceRow]![sourceCell]!).includes(property)) {
-                candidates.push({ rowIndex: sourceRow, cellIndex: sourceCell });
-              }
-            }
-          }
-          uses.push({ property, targetCell, source: resolveObjectSource(candidates, targetCell) });
+        for (const property of participatingNames(cell)) {
+          uses.push({ property, targetCell, source: resolveObjectSource(sources.get(property) ?? [], targetCell) });
         }
       }
     }
@@ -91,10 +95,9 @@ export function expandRuleProperties<Q extends OrientedQualifier>(rules: readonl
   }
 
   function firstSite(rule: DirectedNamedRule<Q>, needsMemberChoice: ReadonlySet<string>): ExpansionSite | undefined {
-    for (let rowIndex = 0; rowIndex < rule.lhs.length; rowIndex++) {
-      const row = rule.lhs[rowIndex]!;
-      for (let cellIndex = 0; cellIndex < row.length; cellIndex++) {
-        for (const property of participatingNames(row[cellIndex]!)) {
+    for (const [rowIndex, row] of rule.lhs.entries()) {
+      for (const [cellIndex, cell] of row.entries()) {
+        for (const property of participatingNames(cell)) {
           const analysis = properties.get(property)!.layer;
           if (!needsMemberChoice.has(property)
             && (analysis.kind === PropertyLayerKind.SingleLayer || analysis.kind === PropertyLayerKind.Unlayered)) continue;
@@ -147,25 +150,31 @@ export function expandRuleProperties<Q extends OrientedQualifier>(rules: readonl
       }
     }
 
-    const work: PartialRule<Q>[] = [{ rule: { ...input, lhs, rhs }, selections: [] }];
-    for (let index = 0; index < work.length;) {
-      const parent = work[index]!;
+    const pending: PartialRule<Q>[] = [{ rule: { ...input, lhs, rhs }, selections: [] }];
+    const completed: PartialRule<Q>[] = [];
+    while (pending.length > 0) {
+      const parent = pending.shift()!;
       const site = firstSite(parent.rule, needsMemberChoice);
-      if (site === undefined) { index++; continue; }
-      // Choose just one property in one cell per parent. Appending children
-      // before removing the parent preserves duplicate paths and native order.
-      for (const member of properties.get(site.property)!.alternatives) work.push(choose(parent, site, member));
-      work.splice(index, 1);
+      if (site === undefined) {
+        completed.push(parent);
+        continue;
+      }
+      // Branch at the first eligible property site. FIFO order keeps duplicate
+      // paths; a property with no alternatives contributes no completed variant.
+      for (const member of properties.get(site.property)!.alternatives) pending.push(choose(parent, site, member));
     }
 
     // Normalized property members are not property names, so these source links
     // can construct the RHS once without introducing another inference problem.
-    const variants = work.map(partial => constructRightSide(partial, uses));
+    const variants = completed.map(partial => constructRightSide(partial, uses));
 
     let ambiguousProperty: string | undefined;
-    for (const variant of variants) for (const row of variant.rhs) for (const cell of row) {
-      for (const property of participatingNames(cell)) {
-        if (needsMemberChoice.has(property)) ambiguousProperty = property;
+    for (const variant of variants) {
+      for (const cell of variant.rhs.flat()) {
+        for (const property of participatingNames(cell)) {
+          // Native diagnostics name the last unresolved property in variant order.
+          if (needsMemberChoice.has(property)) ambiguousProperty = property;
+        }
       }
     }
     if (ambiguousProperty !== undefined) {

@@ -2,18 +2,14 @@ import { appendSourceIssue, type SourceIssueReporter } from './source-diagnostic
 import { SourceDiagnosticPhase, SourceDiagnosticSeverity, type SourceDiagnostic } from './source-model.js';
 import { RuleQualifier, type AbsoluteMovementQualifier, type AtomicQualifier, type MovementFamily, type MovementRule,
   type NamedRuleCell, type NamedRuleRows, type NamedRuleTerm, type OrientedQualifier, type OrientedRule } from './source-rule-model.js';
-
-interface ExpansionCell {
-  readonly rowIndex: number;
-  readonly cellIndex: number;
-}
+import { sameRuleCell, type RuleCellAddress } from './rule-object-sources.js';
 
 /** Private evidence describes one local expansion, rather than a runtime binding. */
 interface MovementExpansion {
   readonly entityName: string;
   readonly family: MovementFamily;
   readonly chosenQualifier: AbsoluteMovementQualifier;
-  readonly sourceCell: ExpansionCell;
+  readonly sourceCell: RuleCellAddress;
 }
 
 interface PartialRule {
@@ -99,10 +95,9 @@ function copyRows(rows: NamedRuleRows<OrientedQualifier>): NamedRuleTerm<Oriente
   return rows.map(row => row.map(cell => cell.map(term => ({ ...term }))));
 }
 
-function replaceInCell(cell: NamedRuleCell<OrientedQualifier>, expansion: MovementExpansion,
-  entityName: string | undefined): NamedRuleTerm<OrientedQualifier>[] {
+function replaceInCell(cell: NamedRuleCell<OrientedQualifier>, expansion: MovementExpansion): NamedRuleTerm<OrientedQualifier>[] {
   return cell.map(term => ({ ...term,
-    qualifier: term.qualifier === expansion.family && (entityName === undefined || term.name === entityName)
+    qualifier: term.qualifier === expansion.family && term.name === expansion.entityName
       ? expansion.chosenQualifier : term.qualifier }));
 }
 
@@ -110,41 +105,45 @@ function expandAt(parent: PartialRule, expansion: MovementExpansion): PartialRul
   const lhs = copyRows(parent.rule.lhs);
   const rhs = copyRows(parent.rule.rhs);
   const { rowIndex, cellIndex } = expansion.sourceCell;
-  lhs[rowIndex]![cellIndex] = replaceInCell(lhs[rowIndex]![cellIndex]!, expansion, expansion.entityName);
+  lhs[rowIndex]![cellIndex] = replaceInCell(lhs[rowIndex]![cellIndex]!, expansion);
   if (rhs.length > 0) {
-    rhs[rowIndex]![cellIndex] = replaceInCell(rhs[rowIndex]![cellIndex]!, expansion, expansion.entityName);
+    rhs[rowIndex]![cellIndex] = replaceInCell(rhs[rowIndex]![cellIndex]!, expansion);
   }
   return { rule: { ...parent.rule, lhs, rhs },
-    expansions: [...parent.expansions.map(previous => ({ ...previous, sourceCell: { ...previous.sourceCell } })),
-      { ...expansion, sourceCell: { ...expansion.sourceCell } }] };
+    expansions: [...parent.expansions, expansion] };
+}
+
+/** The entity/family's first choice is usable only when all its evidence comes from one cell. */
+function entityMovementSource(expansions: readonly MovementExpansion[], entityName: string,
+  family: MovementFamily): MovementExpansion | undefined {
+  let first: MovementExpansion | undefined;
+  for (const expansion of expansions) {
+    if (expansion.entityName !== entityName || expansion.family !== family) continue;
+    if (first === undefined) first = expansion;
+    else if (!sameRuleCell(first.sourceCell, expansion.sourceCell)) return undefined;
+  }
+  return first;
+}
+
+/** Crossing entity names requires exactly one expansion event for this family. */
+function singleFamilyExpansion(expansions: readonly MovementExpansion[], family: MovementFamily): MovementExpansion | undefined {
+  let source: MovementExpansion | undefined;
+  for (const expansion of expansions) {
+    if (expansion.family !== family) continue;
+    if (source !== undefined) return undefined;
+    source = expansion;
+  }
+  return source;
 }
 
 function inferRightMovements(partial: PartialRule): OrientedRule {
-  let rhs = partial.rule.rhs;
-  const encountered: MovementExpansion[] = [];
-  // First use each entity/family's first choice, only when it expanded in one cell.
-  for (const expansion of partial.expansions) {
-    if (encountered.some(previous => previous.entityName === expansion.entityName && previous.family === expansion.family)) continue;
-    encountered.push(expansion);
-    const cells: ExpansionCell[] = [];
-    for (const event of partial.expansions) {
-      if (event.entityName !== expansion.entityName || event.family !== expansion.family) continue;
-      if (!cells.some(cell => cell.rowIndex === event.sourceCell.rowIndex && cell.cellIndex === event.sourceCell.cellIndex)) {
-        cells.push(event.sourceCell);
-      }
-    }
-    if (cells.length === 1) rhs = rhs.map(row => row.map(cell => replaceInCell(cell, expansion, expansion.entityName)));
-  }
-  // Then a family may cross entity names only if there was exactly one event.
-  // Equal concrete directions at several sites do not make this evidence unique.
-  const families: MovementFamily[] = [];
-  for (const expansion of partial.expansions) {
-    if (families.includes(expansion.family)) continue;
-    families.push(expansion.family);
-    if (partial.expansions.filter(event => event.family === expansion.family).length === 1) {
-      rhs = rhs.map(row => row.map(cell => replaceInCell(cell, expansion, undefined)));
-    }
-  }
+  const rhs = partial.rule.rhs.map(row => row.map(cell => cell.map(term => {
+    if (!isMovementFamily(term.qualifier)) return term;
+    // Matching same-cell terms were already replaced during local expansion.
+    const source = entityMovementSource(partial.expansions, term.name, term.qualifier)
+      ?? singleFamilyExpansion(partial.expansions, term.qualifier);
+    return source === undefined ? term : { ...term, qualifier: source.chosenQualifier };
+  })));
   return { ...partial.rule, rhs };
 }
 
@@ -163,30 +162,29 @@ export function expandRuleMovements(rules: readonly OrientedRule[], report?: Sou
   const expanded: OrientedRule[] = [];
   const diagnostics: SourceDiagnostic[] = [];
   for (const input of rules) {
-    const work: PartialRule[] = [{ rule: { ...input, lhs: copyRows(input.lhs), rhs: copyRows(input.rhs) }, expansions: [] }];
-    for (let index = 0; index < work.length;) {
-      const parent = work[index]!;
+    const pending: PartialRule[] = [{ rule: { ...input, lhs: copyRows(input.lhs), rhs: copyRows(input.rhs) }, expansions: [] }];
+    const completed: PartialRule[] = [];
+    while (pending.length > 0) {
+      const parent = pending.shift()!;
       let producedChild = false;
-      for (let rowIndex = 0; rowIndex < parent.rule.lhs.length; rowIndex++) {
-        const row = parent.rule.lhs[rowIndex]!;
-        for (let cellIndex = 0; cellIndex < row.length; cellIndex++) {
-          const term = row[cellIndex]!.find((candidate): candidate is NamedRuleTerm<MovementFamily> =>
+      for (const [rowIndex, row] of parent.rule.lhs.entries()) {
+        for (const [cellIndex, cell] of row.entries()) {
+          const term = cell.find((candidate): candidate is NamedRuleTerm<MovementFamily> =>
             isMovementFamily(candidate.qualifier));
           if (term === undefined) continue;
           producedChild = true;
           // Every eligible cell branches from this same unchanged parent.
-          // Keep all duplicate paths; appending and removing controls their order.
+          // Only its first family term branches here; keep every duplicate path.
           for (const chosenQualifier of choices(term.qualifier)) {
-            work.push(expandAt(parent, { entityName: term.name, family: term.qualifier,
+            pending.push(expandAt(parent, { entityName: term.name, family: term.qualifier,
               chosenQualifier, sourceCell: { rowIndex, cellIndex } }));
           }
         }
       }
-      if (producedChild) work.splice(index, 1);
-      else index++;
+      if (!producedChild) completed.push(parent);
     }
 
-    const variants = work.map(inferRightMovements);
+    const variants = completed.map(inferRightMovements);
     let remainingFamily: MovementFamily | undefined;
     for (const variant of variants) {
       for (const row of variant.rhs) for (const cell of row) for (const term of cell) {

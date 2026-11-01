@@ -3,9 +3,10 @@ import { queueCommands } from './commands.js';
 import * as vanilla from './compatibility.js';
 import type { ExecutableRule, RuleExecutionResult, RuleExecutionState, RuleGame } from './execution-model.js';
 import { findMatches, matchesRow, matchTuples } from './matching.js';
-import { Direction, Movement, type Cell, type LayerMovements, type Position, type RigidMark } from './model.js';
+import { Movement, type Cell, type LayerMovements, type Position, type RigidMark } from './model.js';
 import { applyCellEdits } from './replacement.js';
-import { Ellipsis, type LayerMovement, type RowMatch } from './rule-model.js';
+import type { LayerMovement, RowMatch } from './rule-model.js';
+import { recordedRowCells } from './rule-path.js';
 
 /** Copy state containers while keeping the immutable object and rule identities. */
 export function cloneExecutionState(before: RuleExecutionState): RuleExecutionState {
@@ -26,16 +27,6 @@ export function cloneExecutionState(before: RuleExecutionState): RuleExecutionSt
     commands: { entries, message: before.commands.message },
     createdObjects: new Set(before.createdObjects), destroyedObjects: new Set(before.destroyedObjects),
   };
-}
-
-function directionStep(direction: Direction): Position {
-  switch (direction) {
-    case Direction.Up: return { x: 0, y: -1 };
-    case Direction.Down: return { x: 0, y: 1 };
-    case Direction.Left: return { x: -1, y: 0 };
-    case Direction.Right: return { x: 1, y: 0 };
-    case Direction.InPlace: return { x: 0, y: 0 };
-  }
 }
 
 function samePosition(first: Position, second: Position): boolean {
@@ -139,21 +130,11 @@ export function applyRuleAt(
   const destroyedObjects = new Set(before.destroyedObjects);
   let random = before.random;
   let changed = false;
-  const step = directionStep(rule.direction);
 
   for (let rowIndex = 0; rowIndex < rule.rows.length; rowIndex++) {
-    const row = rule.rows[rowIndex]!;
     const match = tuple[rowIndex];
     if (match === undefined) throw new Error(`Rule tuple is missing row ${rowIndex}`);
-    let position = { ...match.start };
-    let gapIndex = 0;
-    for (let cellIndex = 0; cellIndex < row.length; cellIndex++) {
-      if (row[cellIndex] === Ellipsis) {
-        const gap = match.gaps[gapIndex++];
-        if (gap === undefined) throw new Error(`Rule tuple row ${rowIndex} is missing gap ${gapIndex - 1}`);
-        position = { x: position.x + step.x * gap, y: position.y + step.y * gap };
-        continue;
-      }
+    for (const { cellIndex, position } of recordedRowCells(rule, rowIndex, match)) {
       const replacement = rule.replacements[rowIndex]?.[cellIndex];
       if (replacement !== null && replacement !== undefined) {
         const currentRow = rows[position.y];
@@ -170,7 +151,6 @@ export function applyRuleAt(
         if (result.changed) changed = true;
         if (rule.rigidGroup !== null && markRigidLayers(game, rigidMarks, position, replacement.rigidLayers, rule.rigidGroup)) changed = true;
       }
-      position = { x: position.x + step.x, y: position.y + step.y };
     }
   }
   return {

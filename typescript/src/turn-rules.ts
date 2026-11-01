@@ -92,6 +92,19 @@ function startTurnMovement(
 }
 const MAX_ATTEMPTS = 50;
 
+/** Restore post-input board, intents, marks, events and success sounds. A failed
+ * attempt retains bans, failure sounds, advanced RNG and its latest message.
+ * Command entries are discarded; diagnostics accumulate in calculateTurn. */
+function restoreForRigidRetry(snapshot: RuleExecutionState, failed: RuleExecutionState): RuleExecutionState {
+  return {
+    ...cloneExecutionState(snapshot),
+    bannedGroups: failed.bannedGroups,
+    cantMoveSounds: failed.cantMoveSounds,
+    random: failed.random,
+    commands: { entries: [], message: failed.commands.message },
+  };
+}
+
 /** Run rules and movement with explicit rigid rollback; session effects are separate. */
 export function calculateTurn(
   game: TurnRulesGame, before: RuleExecutionState, input: TurnInput,
@@ -114,11 +127,7 @@ export function calculateTurn(
     state = { ...early.state, ...movement };
     if (retry) {
       rigidRetries++;
-      state = {
-        ...cloneExecutionState(retrySnapshot),
-        bannedGroups: state.bannedGroups, cantMoveSounds: state.cantMoveSounds,
-        random: state.random, commands: { entries: [], message: state.commands.message },
-      };
+      state = restoreForRigidRetry(retrySnapshot, state);
     } else {
       // JS late scheduling receives no early ban list. Keep the list only for tracing.
       const bannedGroups = state.bannedGroups;

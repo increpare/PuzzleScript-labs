@@ -37,16 +37,17 @@ export function expandSourceRules(document: SourceDocument, declarations: Resolv
   }
   const movements = expandRuleMovements(namedRules, report);
   diagnostics.push(...movements.diagnostics);
-  function finish<Q extends OrientedQualifier>(rules: readonly DirectedNamedRule<Q>[]) {
+  function inferPropertiesAndSpawns<Q extends OrientedQualifier>(rules: readonly DirectedNamedRule<Q>[]) {
     const properties = expandRuleProperties(rules, declarations, report);
     diagnostics.push(...properties.diagnostics);
     return inferSpawnedStationary(properties.rules, declarations);
   }
   if (movements.abortsCompilation) {
-    finish(movements.rules);
+    // Property diagnostics still run with unresolved movement families.
+    inferPropertiesAndSpawns(movements.rules);
     return { rules: null, loops: syntax.loops, diagnostics };
   }
-  const spawned = finish(movements.rules);
+  const spawned = inferPropertiesAndSpawns(movements.rules);
   // A retained syntax error also survives an empty selector collection. Ordinary
   // authored bracket rules supply selectors, but the final checkpoint still owns it.
   if (syntax.abortsCompilation) return { rules: null, loops: syntax.loops, diagnostics };

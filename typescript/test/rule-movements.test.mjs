@@ -202,6 +202,13 @@ test('earlier native invalid state stays separate from this stage abort signal',
   assert.equal(result.rules.length, 3);
 });
 
+test('a recovered missing RHS cell retains the native movement TypeError', () => {
+  const item = fixture('right [ Player | horizontal Crate ] -> [ Player ]');
+  assert.throws(() => oracle.nativeStages(item.source), error => error instanceof TypeError
+    && /concretizeMovingRule|concretizeMovingInCell/.test(error.stack));
+  assert.throws(() => oracle.candidateStages(item.source), TypeError);
+});
+
 test('properties retain named string identities without property expansion', () => {
   const { result } = oracle.compareFixture(fixture('right [ moving Things | Player ] -> [ Things | moving Things ]', 'Things = Wall or Crate'));
   assert.equal(result.rules.length, 5);
