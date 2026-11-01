@@ -886,3 +886,119 @@ test('prepared AGAIN reuses completed rigid retries and their final failure soun
   assert.deepEqual(sounds(next), ['blocked rigid move']);
   assert.deepEqual(next.state.execution.bannedGroups, new Set([1]));
 });
+
+test('prepared AGAIN checkpoints the current viewport and preserves amended history', () => {
+  const { incoming, count } = countedAgainGame(noQuirks);
+  incoming.earlyRules.groups[0].rules[0] = autoWalk([CommandKind.Again, CommandKind.Checkpoint]);
+  const pending = stepSession(incoming, start(incoming), Movement.Action, environment()).state;
+  pending.viewport = { left: 1, top: 0, right: 4, bottom: 1 };
+  pending.history = [...pending.history, { board: pending.execution.board, viewport: null }];
+  const history = structuredClone(pending.history);
+  const beforeCount = count();
+  const result = stepSession(incoming, pending, null, environment());
+  assert.equal(count() - beforeCount, 1, 'Only the following lookahead calculates again');
+  assert.ok(cell(result.state, 2).has(Player));
+  assert.deepEqual(result.state.history, history);
+  assert.deepEqual(result.state.restartTarget.viewport, pending.viewport);
+  assert.equal(persisted(result).length, 1);
+  assert.deepEqual(persisted(result)[0].snapshot.viewport, pending.viewport);
+  assert.notEqual(persisted(result)[0].snapshot.viewport, pending.viewport);
+  assert.deepEqual(pending.history, history);
+  assert.deepEqual(result, stepSession(incoming, { ...pending }, null, environment()));
+});
+
+test('prepared AGAIN executes restart against the current restart target', () => {
+  const onMarker = rule([[pattern([Player, Marker])]], [], [{ kind: CommandKind.Restart }], { hasReplacements: false });
+  const incoming = game({ quirks: noQuirks, earlyRules: schedule([autoWalk()]), lateRules: schedule([onMarker]),
+    levels: [grid(board([[Player], [], [Marker], []]))] });
+  const early = incoming.earlyRules;
+  let simulations = 0;
+  Object.defineProperty(incoming, 'earlyRules', { get() { simulations++; return early; } });
+  const pending = stepSession(incoming, start(incoming), Movement.Action, environment()).state;
+  assert.equal(pending.againing, true);
+  pending.restartTarget = { board: board([[], [], [Marker], [Player]]), viewport: null };
+  const beforeCount = simulations;
+  const result = stepSession(incoming, pending, null, environment());
+  assert.equal(simulations - beforeCount, 0, 'Commit the existing calculation without rerunning its rules');
+  assert.ok(cell(result.state, 3).has(Player));
+  assert.deepEqual(sounds(result), ['Restart']);
+  assert.equal(result.modified, true);
+  assert.equal(result.state.againing, false);
+  assert.equal(result.state.history.length, 2);
+  assert.ok(result.state.history[1].board.rows[0][1].objects.has(Player));
+  assert.deepEqual(result, stepSession(incoming, { ...pending }, null, environment()));
+});
+
+for (const runMode of [RunMode.Replay, RunMode.Interactive]) for (const suppressWin of [false, true]) {
+  test(`prepared AGAIN reads current win context: ${RunMode[runMode]}, suppress=${suppressWin}`, () => {
+    const incoming = game({ quirks: noQuirks, earlyRules: schedule([autoWalk()]), winConditions: [onTarget],
+      levels: [grid(board([[Player], [], [Marker], []])), grid()] });
+    const early = incoming.earlyRules;
+    let simulations = 0;
+    Object.defineProperty(incoming, 'earlyRules', { get() { simulations++; return early; } });
+    const pending = stepSession(incoming, start(incoming), Movement.Action, environment()).state;
+    assert.equal(pending.againing, true);
+    pending.runMode = runMode;
+    const env = environment('next level');
+    const beforeCount = simulations;
+    const result = stepSession(incoming, pending, null, env, { suppressWin });
+    assert.equal(simulations - beforeCount, suppressWin ? 1 : 0);
+    const advances = !suppressWin && runMode === RunMode.Replay;
+    assert.deepEqual(env.calls, advances ? ['next level'] : []);
+    assert.equal(result.state.levelIndex, advances ? 1 : 0);
+    assert.equal(result.state.winning, !suppressWin && runMode === RunMode.Interactive);
+    assert.equal(result.state.againing, suppressWin);
+    assert.deepEqual(result.effects.filter(effect => effect.kind === SessionEffectKind.Win),
+      [{ kind: SessionEffectKind.Win, levelIndex: 0, suppressed: suppressWin }]);
+    assert.deepEqual(result, stepSession(incoming, { ...pending }, null, environment('next level'), { suppressWin }));
+  });
+}
+
+test('a public non-null probe enforces required player movement before its commands', () => {
+  const incoming = game({ levels: [grid(board([[Player], [Wall]]))],
+    metadata: { ...game().metadata, requirePlayerMovement: true },
+    earlyRules: schedule([commandRule(CommandKind.Checkpoint)]) });
+  const before = start(incoming);
+  before.execution.commands.message = 'previous message';
+  const result = stepSession(incoming, before, Movement.Right, environment(), { probe: true });
+  assert.equal(result.modified, false);
+  assert.deepEqual(result.state.execution.board, before.execution.board);
+  assert.deepEqual(result.state.execution.random, before.execution.random);
+  assert.deepEqual(result.state.history, []);
+  assert.equal(result.state.execution.commands.message, '');
+  assert.equal(result.state.screen.kind, ScreenKind.Board);
+  assert.equal(result.state.checkpointUsed, false);
+  assert.deepEqual(result.effects, []);
+});
+
+for (const suppressWin of [false, true]) {
+  test(`a quiet public probe retains natural victory handling, suppress=${suppressWin}`, () => {
+    const incoming = game({ levels: [grid(board([[Player, Marker]])), grid()], winConditions: [onTarget],
+      earlyRules: schedule([commandRule(CommandKind.Checkpoint)]) });
+    const env = environment('probe victory');
+    const result = stepSession(incoming, start(incoming), null, env, { probe: true, suppressWin });
+    assert.equal(result.modified, false);
+    assert.equal(result.state.levelIndex, suppressWin ? 0 : 1);
+    assert.deepEqual(env.calls, suppressWin ? [] : ['probe victory']);
+    assert.equal(result.state.checkpointUsed, false);
+    assert.deepEqual(persisted(result).map(effect => effect.operation), suppressWin ? [] : [PersistenceKind.Progress]);
+    assert.deepEqual(result.effects.filter(effect => effect.kind === SessionEffectKind.Win),
+      [{ kind: SessionEffectKind.Win, levelIndex: 0, suppressed: suppressWin }]);
+  });
+}
+
+for (const probe of [false, true]) {
+  test(`cancel takes priority over simultaneous restart, probe=${probe}`, () => {
+    const incoming = game({ earlyRules: schedule([commandRule(CommandKind.Cancel, CommandKind.Restart,
+      { kind: CommandKind.Sound, index: 0 }, { kind: CommandKind.Message, text: 'both' })]) });
+    const before = start(incoming, { runMode: RunMode.Interactive });
+    const result = stepSession(incoming, before, Movement.Right, environment(), { probe });
+    assert.equal(result.modified, true);
+    assert.deepEqual(result.state.execution.board, before.execution.board);
+    assert.deepEqual(result.state.history, []);
+    assert.equal(result.state.execution.commands.message, 'both');
+    assert.deepEqual(sounds(result), probe ? ['Cancel'] : ['sfx0', 'ShowMessage', 'Cancel']);
+    assert.deepEqual(result.state.screen, probe ? { kind: ScreenKind.Board }
+      : { kind: ScreenKind.TemporaryMessage, text: 'both' });
+  });
+}
