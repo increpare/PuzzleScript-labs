@@ -29,6 +29,13 @@ target; properties alternatives; aggregates constituents. Remove the common
 normalization is a separate named operation because it intentionally has different
 precedence, replacement and ordering rules. Mutable normalization receives copies.
 
+Each accepted object also owns its own color tokens and sprite rows. Several
+accepted primaries can belong to one malformed authored grouping; that grouping
+cannot own a single shared asset definition. The compiler consumes assets from
+AcceptedSourceObjectDeclaration, and obsolete raw definitionColors and
+definitionSpriteRows mirrors are removed. A bound object alias's owner type
+retains its bound source and accepted assets.
+
 ## Diagnostics and source evidence
 
 Native source diagnostics remain synchronous at the current cursor visits, so

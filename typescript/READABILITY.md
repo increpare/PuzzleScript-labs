@@ -163,11 +163,22 @@ orders, and the source walker receives immediate diagnostics at its cursor.
 language behaviour; [source-declaration-types.test.mjs](test/source-declaration-types.test.mjs)
 checks that invalid payloads fail TypeScript compilation.
 
-The remaining frontend duplication is `prepareDeclarations` rebuilding the initial
-accepted namespace. Its replacement should use the typed registrations directly,
-rather than add another cached model alongside the current reconstruction. Final
-compiler normalization must remain a separate named operation because it uses
-different replacement and member-order rules.
+`prepareDeclarations` now consumes `document.acceptedDeclarations` directly.
+Accepted objects own independent colors and sprite rows; bound aliases retain
+their accepted owner, even when malformed authored grouping disagrees. Raw object
+asset mirrors and compiler legend recovery are removed. Final compiler name
+normalization remains a separate named operation because it has different
+replacement and member-order rules. Guards include
+[accepted-declarations.test.mjs](test/accepted-declarations.test.mjs),
+[accepted-declaration-oracle.test.mjs](test/accepted-declaration-oracle.test.mjs)
+and [accepted-object-oracle.test.mjs](test/accepted-object-oracle.test.mjs).
+
+The active frontend work is tracked in the
+[completion checklist](../docs/superpowers/specs/2026-11-01-frontend-clarity-goal.md).
+Next remove shared `tokenIndex` sentinels through section-specific scanner states,
+then remove duplicated sound/win interpretation and strengthen property-layer and
+rule-pass types. The runtime suggestions below are separate from that frontend
+completion gate.
 
 1. **Name the session probe policy inside `step`.** Extract helpers for rollback
    and commands that name retained history, RNG/events and committed effects.

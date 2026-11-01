@@ -12,9 +12,11 @@ types. Collision layers remain unnamed.
 
 ## Required end state
 
-- [ ] One accepted declaration construction flows from source registration into
+- [x] One accepted declaration construction flows from source registration into
   canonical object construction and final name normalization. The compiler does
   not reconstruct acceptance or source-time member expansion from source words.
+  Accepted object assets are per-primary rather than shared authored-container
+  fields. Evidence: the accepted-declarations audit and 1,964-test full run.
 - [ ] Each grammar construct has one authoritative recovered interpretation.
   Rules already have this boundary; sounds and win conditions still need it.
   Authored-invalid evidence remains available without becoming a second grammar.

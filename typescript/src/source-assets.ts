@@ -1,3 +1,4 @@
+import { SourceDeclarationKind } from './source-declarations.js';
 import { appendSourceIssue, type SourceIssueReporter } from './source-diagnostics.js';
 import type { ResolvedDeclarations } from './declaration-model.js';
 import type { GameObject } from './model.js';
@@ -36,6 +37,8 @@ export function compileObjectSprites(document: SourceDocument, declarations: Pic
   // Object keys that are canonical integer indices precede ordinary names in
   // the native dictionary. Keep that visible ordering for raw diagnostics.
   const entries = [...declarations.objectSources];
+  const definitions = new Map(document.acceptedDeclarations.registrations
+    .filter(entry => entry.kind === SourceDeclarationKind.Object).map(entry => [entry.name, entry]));
   const index = (name: string): number | null => {
     const value = Number(name);
     return Number.isInteger(value) && value >= 0 && value < 4294967295 && String(value) === name ? value : null;
@@ -47,12 +50,15 @@ export function compileObjectSprites(document: SourceDocument, declarations: Pic
     if (b === null) return -1;
     return a - b;
   });
-  for (const [object, source] of entries) {
-    const line = source.primaryName.span.start.line;
+  for (const [object] of entries) {
+    const definition = definitions.get(object.name);
+    if (definition === undefined) throw new Error('A canonical object needs its accepted primary definition.');
+    const primary = definition.nameToken.word;
+    const line = primary.span.start.line;
     const colors: string[] = [];
-    if (source.definitionColors.length > 10) appendSourceIssue(diagnostics, diagnostic('too-many-sprite-colors',
-      'a sprite cannot have more than 10 colors.  Why you would want more than 10 is beyond me.', source.colorLine?.span ?? source.primaryName.span, line + 1), report);
-    for (const token of source.definitionColors) {
+    if (definition.colors.length > 10) appendSourceIssue(diagnostics, diagnostic('too-many-sprite-colors',
+      'a sprite cannot have more than 10 colors.  Why you would want more than 10 is beyond me.', definition.colors[0]!.word.span, line + 1), report);
+    for (const token of definition.colors) {
       if (isColor(token.value)) colors.push(colorToHex(palette.colors, token.value));
       else {
         appendSourceIssue(diagnostics, diagnostic('invalid-object-color', `Invalid color specified for object "${object.name}", namely "${token.value}".`, token.word.span, line + 1), report);
@@ -60,14 +66,14 @@ export function compileObjectSprites(document: SourceDocument, declarations: Pic
       }
     }
     if (colors.length === 0) {
-      appendSourceIssue(diagnostics, diagnostic('missing-object-color', `color not specified for object "${object.name}".`, source.primaryName.span, line), report);
+      appendSourceIssue(diagnostics, diagnostic('missing-object-color', `color not specified for object "${object.name}".`, primary.span, line), report);
       colors.push('#ff00ff');
     }
-    const rows = source.definitionSpriteRows;
+    const rows = definition.spriteRows;
     const pixels: SpritePixel[][] = [];
     if (rows.length === 0) {
       if (colors.length > 1) appendSourceIssue(diagnostics, diagnostic('multiple-solid-sprite-colors',
-        `Object "${object.name.toUpperCase()}" lists several colours but doesn't have a sprite matrix; it will just be a solid square of the first colour.`, source.primaryName.span, line, true), report);
+        `Object "${object.name.toUpperCase()}" lists several colours but doesn't have a sprite matrix; it will just be a solid square of the first colour.`, primary.span, line, true), report);
       for (let y = 0; y < 5; y++) {
         const row: SpritePixel[] = [];
         for (let x = 0; x < 5; x++) row.push({ kind: SpritePixelKind.Color, color: 0 });
@@ -75,7 +81,7 @@ export function compileObjectSprites(document: SourceDocument, declarations: Pic
       }
     } else {
       if (rows.length !== 5 || rows.some(row => row.length !== 5)) appendSourceIssue(diagnostics, diagnostic('invalid-sprite-dimensions',
-        'Sprite graphics must be 5 wide and 5 high exactly.', source.primaryName.span, line, true), report);
+        'Sprite graphics must be 5 wide and 5 high exactly.', primary.span, line, true), report);
       // Vanilla uses accepted ROW COUNT for both dimensions, including malformed
       // input. Missing positions explicitly represent its parseInt('') NaN.
       for (let y = 0; y < rows.length; y++) {

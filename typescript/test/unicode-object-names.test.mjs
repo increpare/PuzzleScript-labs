@@ -250,18 +250,13 @@ test('effective token provenance must attach the same word to the correct lexica
   const fixture = { name: 'wrong token value for authored evidence', source: objectSource('İ Player') };
   assert.throws(() => declarationOracle.compareFixture(fixture, { readSource: source => {
     const { document, diagnostics } = readSource(source);
-    const objects = document.objects.map((object, index) => index === 1 ? { ...object,
-      definitionNames: object.definitionNames.map((token, tokenIndex) => tokenIndex === 1 ? { ...token, value: 'other' } : token),
-    } : object);
-    return { diagnostics, document: { ...document, objects } };
-  }, resolveDeclarations: document => {
-    const result = resolveDeclarations(document);
-    // The source and exact expanded word remain correct, but no source token
-    // carries this claimed lexical value. Matching only the word would miss it.
-    const names = new Map(result.declarations.names);
-    names.set('\u0307', { ...names.get('other'), name: '\u0307' });
-    names.delete('other');
-    return { ...result, declarations: { ...result.declarations, names } };
+    const object = document.objects[1];
+    const token = object.definitionNames[1];
+    object.definitionNames.splice(1, 1, { ...token, value: 'other' });
+    // Accepted registrations still retain the source and exact expanded word,
+    // but the supplied authored token evidence no longer carries that value.
+    // Matching only the word would miss this inconsistent reader result.
+    return { diagnostics, document };
   } }), /name provenance/);
 });
 

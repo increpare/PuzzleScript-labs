@@ -1,6 +1,8 @@
 import { SourceDiagnosticPhase, SourceDiagnosticSeverity, SourceLegendKind, SourceLevelKind, SourceLineKind, SourceRuleKind, SourceSectionKind, SourceSoundKind, SourceWinConditionKind,
-  type SourceDiagnostic, type SourceDocument, type SourceEntry, type SourceGridLevel, type SourceLegend, type SourceLexicalToken, type SourceLine, type SourceObject,
+  type AcceptedSourceDeclaration, type SourceDiagnostic, type SourceDocument, type SourceEntry, type SourceGridLevel, type SourceLegend, type SourceLexicalToken, type SourceLine, type SourceObject,
   type SourcePatternRule, type SourceReadResult, type SourceSection, type SourceSound, type SourceSpan, type SourceSpriteRow, type SourceWinCondition, type SourceWord } from './source-model.js';
+import { SourceDeclarationKind, SourceAliasOriginKind, SourceDeclarationAdviceKind,
+  type SourceDeclaration, type SourceDeclarationAdvice } from './source-declarations.js';
 import { leadingContent, lineSpan, readComments, sourceWord, sourceWords, splitSourceLines, trimmedRange,
   type CommentState } from './source-text.js';
 import { readRule, type RuleParsingContext } from './source-rules.js';
@@ -24,12 +26,29 @@ function sectionHeading(line: SourceLine, view: string): SourceHeading | null {
   return kind === undefined ? null : { name, kind, trailingWords: sourceWords(line, ' '.repeat(end) + view.slice(end)) };
 }
 
-function reuseLexicalWords(tokens: readonly SourceLexicalToken[], words: readonly SourceWord[]): SourceLexicalToken[] {
-  return tokens.map(token => ({ value: token.value, word: words.find(word => word.span.start.offset === token.word.span.start.offset &&
-    word.span.end.offset === token.word.span.end.offset) ?? token.word }));
+/** Each native token acquires its authored word identity exactly once. */
+class SourceTokenBindings {
+  private readonly bound = new Map<SourceLexicalToken, SourceLexicalToken>();
+  private readonly authored = new Map<string, SourceWord>();
+  private key(word: SourceWord): string { return `${word.span.start.offset}:${word.span.end.offset}`; }
+  remember(words: readonly SourceWord[]): void {
+    for (const word of words) this.authored.set(this.key(word), word);
+  }
+  reuse(tokens: readonly SourceLexicalToken[], words: readonly SourceWord[]): SourceLexicalToken[] {
+    this.remember(words);
+    return tokens.map(token => this.token(token));
+  }
+  token(token: SourceLexicalToken): SourceLexicalToken {
+    const previous = this.bound.get(token);
+    if (previous !== undefined) return previous;
+    const word = this.authored.get(this.key(token.word)) ?? token.word;
+    const bound = { value: token.value, word };
+    this.bound.set(token, bound);
+    return bound;
+  }
 }
 
-function readLegend(entry: SourceEntry, words: readonly SourceWord[], tokens: readonly SourceLexicalToken[]): SourceLegend {
+function readLegend(entry: SourceEntry, words: readonly SourceWord[], tokens: readonly SourceLexicalToken[], bindings: SourceTokenBindings): SourceLegend {
   const equals = words.findIndex(word => word.normalized === '=');
   const members = equals < 0 ? [] : words.slice(equals + 1);
   const references = members.filter((_, index) => index % 2 === 0);
@@ -43,7 +62,7 @@ function readLegend(entry: SourceEntry, words: readonly SourceWord[], tokens: re
     else if (operators[0]?.normalized === 'and') kind = SourceLegendKind.Aggregate;
   }
   return { ...entry, kind, name: equals === 0 ? null : words[0] ?? null, words,
-    definitionWords: reuseLexicalWords(tokens, words), references, operators };
+    definitionWords: bindings.reuse(tokens, words), references, operators };
 }
 
 const soundEvents = new Set(['undo', 'restart', 'titlescreen', 'startgame', 'cancel', 'endgame', 'startlevel', 'endlevel', 'showmessage', 'closemessage',
@@ -51,8 +70,8 @@ const soundEvents = new Set(['undo', 'restart', 'titlescreen', 'startgame', 'can
 const soundActions = new Set(['move', 'action', 'create', 'destroy', 'cantmove']);
 const soundDirections = new Set(['up', 'down', 'left', 'right', 'horizontal', 'vertical', 'orthogonal']);
 
-function readSound(entry: SourceEntry, words: readonly SourceWord[], eventToken: SourceLexicalToken | undefined): SourceSound {
-  const eventDefinition = eventToken === undefined ? null : reuseLexicalWords([eventToken], words)[0]!;
+function readSound(entry: SourceEntry, words: readonly SourceWord[], eventToken: SourceLexicalToken | undefined, bindings: SourceTokenBindings): SourceSound {
+  const eventDefinition = eventToken === undefined ? null : bindings.reuse([eventToken], words)[0]!;
   const first = words[0] ?? null;
   const event = first !== null && soundEvents.has(first.normalized) ? first : null;
   const target = event === null ? first : null;
@@ -116,7 +135,11 @@ export function readSource(source: string): SourceReadResult {
 
 /** Build full authored evidence around a complete or stopped shared lexical walk. */
 export function readAuthoredSource(source: string, lexical: SourceLexicalResult): SourceReadResult {
-  const document: SourceDocument = { source, lines: splitSourceLines(source), sections: [], metadata: [], comments: [], levels: [],
+  const bindings = new SourceTokenBindings();
+  const registrations: AcceptedSourceDeclaration[] = [];
+  const advice: SourceDeclarationAdvice[] = [];
+  const document: SourceDocument = { source,
+    acceptedDeclarations: { registrations, collisionLayers: lexical.collisionLayers, advice }, lines: splitSourceLines(source), sections: [], metadata: [], comments: [], levels: [],
     objects: [], legend: [], sounds: [], collisionLayers: [], winConditions: [], rules: [] };
   const diagnostics: SourceDiagnostic[] = [];
   const comments: CommentState = { comments: document.comments, stack: [] };
@@ -139,6 +162,7 @@ export function readAuthoredSource(source: string, lexical: SourceLexicalResult)
     const ruleNames = section?.kind === SourceSectionKind.Rules && activeHeading === null ? commentNames : undefined;
     const view = readComments(line, comments, diagnostics, levelMessage === null ? undefined : contentStart + levelMessage[0].length, ruleNames);
     const words = sourceWords(line, view);
+    bindings.remember(words);
     const first = words[0];
     line.sectionId = section?.id ?? null;
     if (first === undefined) {
@@ -205,29 +229,29 @@ export function readAuthoredSource(source: string, lexical: SourceLexicalResult)
             const primaryName = primaryPrefix === undefined ? first : sourceWord(line, first.span.start.column - 1, first.span.start.column - 1 + primaryPrefix.length);
             const aliases = words.slice(1);
             if (primaryName.span.end.offset < first.span.end.offset) aliases.unshift(sourceWord(line, primaryName.span.end.column - 1, first.span.end.column - 1));
-            const definitionNames = reuseLexicalWords(lexical.objectNameAttempts.get(line.span.start.line) ?? [], [primaryName, ...aliases]);
+            const definitionNames = bindings.reuse(lexical.objectNameAttempts.get(line.span.start.line) ?? [], [primaryName, ...aliases]);
             const sourceObject: SourceObject = { sectionId: section.id, order: order++, span: line.span, primaryName, validPrimaryName,
-              aliases, definitionNames, nameLine: line, colorLine: null, colors: [], definitionColors: [], spriteRows: null, definitionSpriteRows: [] };
+              aliases, definitionNames, nameLine: line, colorLine: null, colors: [], spriteRows: null };
             document.objects.push(sourceObject);
             objectReading = { part: ObjectReadingPart.Colors, source: sourceObject };
             if (!validPrimaryName) { line.kind = SourceLineKind.Invalid; issue('invalid-object-name', 'Primary object names must contain letters, numbers or underscores.', first.span); }
           }
         } else if (section.kind === SourceSectionKind.Legend) {
           const legend = readLegend({ sectionId: section.id, order: order++, span: line.span }, sourceWords(line, view, /[^=\p{Z}\s]+|=/gu),
-            lexical.legendWords.get(line.span.start.line) ?? []);
+            lexical.legendWords.get(line.span.start.line) ?? [], bindings);
           document.legend.push(legend);
           if (legend.kind === SourceLegendKind.Invalid) { line.kind = SourceLineKind.Invalid; issue('invalid-legend', 'Expected a name, =, and a synonym or an expression using only and or only or.', line.span); }
           if (legend.kind === SourceLegendKind.Aggregate) for (const operator of legend.operators) {
             if (operator.normalized !== 'and') issue('invalid-legend-operator', 'Expected AND throughout an aggregate declaration.', operator.span);
           }
         } else if (section.kind === SourceSectionKind.Sounds) {
-          const sound = readSound({ sectionId: section.id, order: order++, span: line.span }, words, lexical.soundEvents.get(line.span.start.line));
+          const sound = readSound({ sectionId: section.id, order: order++, span: line.span }, words, lexical.soundEvents.get(line.span.start.line), bindings);
           document.sounds.push(sound);
           if (sound.kind === SourceSoundKind.Invalid) { line.kind = SourceLineKind.Invalid; issue('invalid-sound', 'Expected a sound event and seed or a target, action, optional directions and seed.', line.span); }
         } else if (section.kind === SourceSectionKind.CollisionLayers) {
           const names = sourceWords(line, view, /[\p{L}\p{N}_]+/gu);
           document.collisionLayers.push({ sectionId: section.id, order: order++, span: line.span, names, words,
-            definitionNames: reuseLexicalWords(lexical.collisionNames.get(line.span.start.line) ?? [], names) });
+            definitionNames: bindings.reuse(lexical.collisionNames.get(line.span.start.line) ?? [], names) });
         } else if (section.kind === SourceSectionKind.Rules) {
           const rule = readRule(line, line.original, { sectionId: section.id, order: order++, span: line.span }, ruleContext, previousRule);
           document.rules.push(rule);
@@ -269,16 +293,75 @@ export function readAuthoredSource(source: string, lexical: SourceLexicalResult)
     comment.span = { start: comment.span.start, end: finalLine.span.end };
     issue('unclosed-comment', 'Comment has no closing parenthesis.', comment.span);
   }
+  // Native recovery can accept a primary on a line retained as another
+  // authored object's color or sprite evidence. Bind that exact token to its
+  // containing authored object, without changing the authored grouping.
+  const objectsByAnchor = new Map<number, SourceObject>();
   for (const object of document.objects) {
-    const accepted = lexical.objects.find(entry => entry.primary.word.span.start.offset === object.primaryName.span.start.offset);
-    if (accepted === undefined) {
-      if (lexical.stop !== null) object.definitionNames.splice(0);
-      continue;
-    }
     const words = [object.primaryName, ...object.aliases, ...object.colors, ...(object.spriteRows ?? []).flatMap(row => row.glyphs)];
-    object.definitionNames.splice(0, object.definitionNames.length, ...reuseLexicalWords(accepted.names, words));
-    object.definitionColors.push(...reuseLexicalWords(accepted.colors, words));
-    object.definitionSpriteRows.push(...accepted.rows.map(row => reuseLexicalWords(row, words)));
+    bindings.remember(words);
+    for (const word of words) objectsByAnchor.set(word.span.start.offset, object);
+    if (lexical.stop !== null) object.definitionNames.splice(0);
+  }
+  const objectSource = (anchor: SourceLexicalToken): SourceObject => {
+    const source = objectsByAnchor.get(anchor.word.span.start.offset);
+    if (source === undefined) throw new Error('Accepted primary has no authored object anchor.');
+    return source;
+  };
+  const objectAssets = new Map<SourceLexicalToken, { colors: SourceLexicalToken[]; spriteRows: SourceLexicalToken[][] }>();
+  const acceptedContainers = new Set<SourceObject>();
+  for (const accepted of lexical.objects) {
+    const object = objectSource(accepted.primary);
+    const colors = bindings.reuse(accepted.colors, []), spriteRows = accepted.rows.map(row => bindings.reuse(row, []));
+    objectAssets.set(accepted.primary, { colors, spriteRows });
+    if (!acceptedContainers.has(object)) { object.definitionNames.splice(0); acceptedContainers.add(object); }
+    object.definitionNames.push(...bindings.reuse(accepted.names, []));
+  }
+  const legendsByLine = new Map(document.legend.map(legend => [legend.span.start.line, legend]));
+  const boundRegistrations = new Map<SourceDeclaration, AcceptedSourceDeclaration>();
+  const legendSource = (entry: SourceDeclaration): SourceLegend => {
+    const source = legendsByLine.get(entry.nameToken.word.span.start.line);
+    if (source === undefined) throw new Error('Accepted legend has no authored entry.');
+    return source;
+  };
+  for (const entry of lexical.registrations) {
+    const nameToken = bindings.token(entry.nameToken);
+    let bound: AcceptedSourceDeclaration;
+    switch (entry.kind) {
+      case SourceDeclarationKind.Object: {
+        const assets = objectAssets.get(entry.nameToken);
+        if (assets === undefined) throw new Error('An accepted primary needs its own lexical assets.');
+        bound = { ...entry, nameToken, source: objectSource(entry.nameToken), ...assets };
+        break;
+      }
+      case SourceDeclarationKind.Alias: {
+        const origin = entry.origin;
+        if (origin.kind === SourceAliasOriginKind.Object) {
+          const owner = boundRegistrations.get(origin.owner);
+          if (owner?.kind !== SourceDeclarationKind.Object) throw new Error('An accepted alias needs its accepted primary owner.');
+          bound = { ...entry, nameToken, source: owner.source, origin: { kind: origin.kind, owner } };
+        } else if (origin.kind === SourceAliasOriginKind.UnownedObject) {
+          bound = { ...entry, nameToken, source: objectSource(origin.attemptedPrimary),
+            origin: { kind: origin.kind, attemptedPrimary: bindings.token(origin.attemptedPrimary) } };
+        } else {
+          bound = { ...entry, nameToken, source: legendSource(entry), origin: { kind: origin.kind, target: bindings.token(origin.target) } };
+        }
+        break;
+      }
+      case SourceDeclarationKind.Property:
+      case SourceDeclarationKind.Aggregate:
+        bound = { ...entry, nameToken, referenceTokens: entry.referenceTokens.map(token => bindings.token(token)), source: legendSource(entry) };
+        break;
+    }
+    boundRegistrations.set(entry, bound);
+    registrations.push(bound);
+  }
+  for (const fact of lexical.declarationAdvice) {
+    const token = bindings.token(fact.token);
+    if (fact.kind === SourceDeclarationAdviceKind.SelfReference) advice.push({ ...fact, token, name: bindings.token(fact.name) });
+    else if (fact.kind === SourceDeclarationAdviceKind.CrossKindReference) {
+      advice.push({ ...fact, token, referenced: bindings.token(fact.referenced) });
+    } else advice.push({ ...fact, token });
   }
   return { document, diagnostics };
 }

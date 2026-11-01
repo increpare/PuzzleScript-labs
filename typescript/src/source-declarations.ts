@@ -1,14 +1,25 @@
 import { NativeLegendExpression } from './source-legend.js';
-import { SourceLegendKind } from './source-model.js';
+import { SourceLegendKind, type SourceLexicalToken } from './source-model.js';
 import { isNativeInheritedObjectName } from './source-native-names.js';
 
 export enum SourceDeclarationKind { Object, Alias, Property, Aggregate, InheritedObject }
-interface SourceDeclarationBase { readonly name: string; readonly line: number }
+interface SourceDeclarationBase { readonly name: string; readonly nameToken: SourceLexicalToken; readonly line: number }
 export interface SourceObjectDeclaration extends SourceDeclarationBase { readonly kind: SourceDeclarationKind.Object }
-export interface SourceAliasDeclaration extends SourceDeclarationBase { readonly kind: SourceDeclarationKind.Alias; readonly target: string }
+export enum SourceAliasOriginKind { Object, UnownedObject, Legend }
+export type SourceObjectAliasOrigin =
+  { readonly kind: SourceAliasOriginKind.Object; readonly owner: SourceObjectDeclaration } |
+  { readonly kind: SourceAliasOriginKind.UnownedObject; readonly attemptedPrimary: SourceLexicalToken };
+export interface SourceLegendAliasOrigin { readonly kind: SourceAliasOriginKind.Legend; readonly target: SourceLexicalToken }
+export type SourceAliasOrigin = SourceObjectAliasOrigin | SourceLegendAliasOrigin;
+export interface SourceAliasDeclaration extends SourceDeclarationBase {
+  readonly kind: SourceDeclarationKind.Alias;
+  readonly target: string;
+  readonly origin: SourceAliasOrigin;
+}
 interface SourceCompoundDeclarationBase extends SourceDeclarationBase {
   /** Operands after native self recovery, before source-time expansion. */
   readonly references: readonly string[];
+  readonly referenceTokens: readonly SourceLexicalToken[];
 }
 export interface SourcePropertyDeclaration extends SourceCompoundDeclarationBase {
   readonly kind: SourceDeclarationKind.Property;
@@ -30,6 +41,20 @@ export type SourceExpansion =
   { readonly kind: SourceExpansionKind.Property; readonly name: string; readonly alternatives: readonly string[] } |
   { readonly kind: SourceExpansionKind.Aggregate; readonly name: string; readonly constituents: readonly string[] } |
   { readonly kind: SourceExpansionKind.Undeclared; readonly name: string };
+/** Semantic advice is evidence from source visits, separate from native issue reporting. */
+export enum SourceDeclarationAdviceKind {
+  DuplicateObject, DuplicateName, SelfReference, UndefinedReference, RepeatedReference,
+  CrossKindReference, BackgroundLayerAlone, UndefinedLayerName, AggregateInLayer, MultipleLayers, RepeatedLayerName,
+}
+export type SourceDeclarationAdvice =
+  { readonly kind: SourceDeclarationAdviceKind.DuplicateObject | SourceDeclarationAdviceKind.DuplicateName |
+      SourceDeclarationAdviceKind.UndefinedReference | SourceDeclarationAdviceKind.RepeatedReference |
+      SourceDeclarationAdviceKind.BackgroundLayerAlone | SourceDeclarationAdviceKind.UndefinedLayerName |
+      SourceDeclarationAdviceKind.AggregateInLayer | SourceDeclarationAdviceKind.MultipleLayers | SourceDeclarationAdviceKind.RepeatedLayerName;
+    readonly token: SourceLexicalToken } |
+  { readonly kind: SourceDeclarationAdviceKind.SelfReference; readonly token: SourceLexicalToken; readonly name: SourceLexicalToken } |
+  { readonly kind: SourceDeclarationAdviceKind.CrossKindReference; readonly token: SourceLexicalToken;
+    readonly referenced: SourceLexicalToken; readonly referencedKind: SourceDeclarationKind.Property | SourceDeclarationKind.Aggregate };
 export type SourceDeclarationIssue = (message: string, warning?: boolean) => void;
 
 /** The source-time namespaces preserve insertion order, duplicate registrations,
@@ -40,6 +65,7 @@ export class SourceDeclarations {
   private readonly properties: SourcePropertyDeclaration[] = [];
   private readonly aggregates: SourceAggregateDeclaration[] = [];
   private readonly ordered: SourceDeclaration[] = [];
+  private readonly adviceFacts: SourceDeclarationAdvice[] = [];
   private readonly ruleNames = new Set<string>();
   private readonly levelNames = new Set<string>();
   private readonly layers: string[][] = [];
@@ -49,6 +75,7 @@ export class SourceDeclarations {
   constructor(private readonly issue: SourceDeclarationIssue, private readonly keywords: ReadonlySet<string> = new Set()) {}
 
   get registrations(): readonly SourceDeclaration[] { return [...this.ordered]; }
+  get advice(): readonly SourceDeclarationAdvice[] { return [...this.adviceFacts]; }
   get ruleVocabulary(): ReadonlySet<string> { return new Set(this.ruleNames); }
   get levelVocabulary(): ReadonlySet<string> { return new Set(this.levelNames); }
   get collisionLayers(): readonly (readonly string[])[] { return this.layers.map(layer => [...layer]); }
@@ -84,38 +111,59 @@ export class SourceDeclarations {
     }
   }
 
-  private acceptObjectName(name: string, primary: boolean): boolean {
+  private acceptObjectName(token: SourceLexicalToken, primary: boolean): boolean {
+    const name = token.value;
     if (this.objects.some(object => object.name === name) || isNativeInheritedObjectName(name)) {
+      this.adviceFacts.push({ kind: primary ? SourceDeclarationAdviceKind.DuplicateObject : SourceDeclarationAdviceKind.DuplicateName, token });
       this.issue('Object "' + name.toUpperCase() + '" defined multiple times.'); return false;
+    }
+    if ([...this.aliases, ...this.properties, ...this.aggregates].some(entry => entry.name === name)) {
+      this.adviceFacts.push({ kind: SourceDeclarationAdviceKind.DuplicateName, token });
     }
     for (const alias of this.aliases) if (alias.name === name) this.issue('Name "' + name.toUpperCase() + '" already in use.');
     this.keywordWarning(name, primary);
     return true;
   }
 
-  declareObject(name: string, line: number): boolean {
-    if (!this.acceptObjectName(name, true)) return false;
-    const object: SourceObjectDeclaration = { kind: SourceDeclarationKind.Object, name, line };
-    this.objects.push(object); this.ordered.push(object); return true;
+  declareObject(nameToken: SourceLexicalToken): SourceObjectDeclaration | null {
+    if (!this.acceptObjectName(nameToken, true)) return null;
+    const object: SourceObjectDeclaration = { kind: SourceDeclarationKind.Object,
+      name: nameToken.value, nameToken, line: nameToken.word.span.start.line };
+    this.objects.push(object); this.ordered.push(object); return object;
   }
 
-  declareObjectAlias(name: string, target: string, line: number): boolean {
-    if (!this.acceptObjectName(name, false)) return false;
-    this.declareAlias(name, target, line); return true;
+  declareObjectAlias(nameToken: SourceLexicalToken, origin: SourceObjectAliasOrigin): boolean {
+    if (!this.acceptObjectName(nameToken, false)) return false;
+    const target = origin.kind === SourceAliasOriginKind.Object ? origin.owner.name : '';
+    this.acceptAlias(nameToken, target, origin); return true;
   }
 
-  /** Register an accepted alias, retaining its one source-time target. */
-  declareAlias(name: string, target: string, line: number): void {
-    const alias: SourceAliasDeclaration = { kind: SourceDeclarationKind.Alias, name, target, line };
+  /** Register an accepted legend alias, retaining its one recovered target. */
+  declareAlias(nameToken: SourceLexicalToken, target: SourceLexicalToken): void {
+    this.acceptAlias(nameToken, target.value, { kind: SourceAliasOriginKind.Legend, target });
+  }
+
+  private acceptAlias(nameToken: SourceLexicalToken, target: string, origin: SourceAliasOrigin): void {
+    const alias: SourceAliasDeclaration = { kind: SourceDeclarationKind.Alias,
+      name: nameToken.value, nameToken, target, origin, line: nameToken.word.span.start.line };
     this.aliases.push(alias); this.ordered.push(alias);
   }
 
-  declareProperty(name: string, references: readonly string[], line: number): void {
+  private crossKindAdvice(token: SourceLexicalToken, name: string, referencedKind: SourceDeclarationKind.Property | SourceDeclarationKind.Aggregate): void {
+    const referenced = this.findDeclaration(name);
+    if (referenced !== null && referenced.kind !== SourceDeclarationKind.InheritedObject) {
+      this.adviceFacts.push({ kind: SourceDeclarationAdviceKind.CrossKindReference, token, referenced: referenced.nameToken, referencedKind });
+    }
+  }
+
+  declareProperty(nameToken: SourceLexicalToken, referenceTokens: readonly SourceLexicalToken[]): void {
+    const name = nameToken.value, references = referenceTokens.map(token => token.value);
     const substitute = (reference: string): string[] => {
       const found = this.expandName(reference);
       switch (found.kind) {
         case SourceExpansionKind.Object: return [found.name];
         case SourceExpansionKind.Aggregate:
+          this.crossKindAdvice(nameToken, found.name, SourceDeclarationKind.Aggregate);
           this.issue(`Cannot define a property (something defined in terms of 'or') in terms of an aggregate (something that uses 'and').  In this case, you can't define "${name.toUpperCase()}" in terms of "${found.name.toUpperCase()}".`);
           return [];
         case SourceExpansionKind.Property: return found.alternatives.filter(alternative => alternative !== found.name).flatMap(substitute);
@@ -124,30 +172,34 @@ export class SourceDeclarations {
     };
     const alternatives = references.flatMap(substitute);
     if (alternatives.length === 0) return;
-    const property: SourcePropertyDeclaration = { kind: SourceDeclarationKind.Property, name, references: [...references], alternatives, line };
+    const property: SourcePropertyDeclaration = { kind: SourceDeclarationKind.Property, name, nameToken,
+      references, referenceTokens: [...referenceTokens], alternatives, line: nameToken.word.span.start.line };
     this.properties.push(property); this.ordered.push(property);
   }
 
-  declareAggregate(name: string, references: readonly string[], line: number): void {
+  declareAggregate(nameToken: SourceLexicalToken, referenceTokens: readonly SourceLexicalToken[]): void {
+    const name = nameToken.value, references = referenceTokens.map(token => token.value);
     const substitute = (reference: string): string[] => {
       const found = this.expandName(reference);
       switch (found.kind) {
         case SourceExpansionKind.Object: return [found.name];
         case SourceExpansionKind.Aggregate: return found.constituents.flatMap(substitute);
         case SourceExpansionKind.Property:
+          this.crossKindAdvice(nameToken, found.name, SourceDeclarationKind.Property);
           this.issue("Cannot define an aggregate (using 'and') in terms of properties (something that uses 'or').");
           return [found.name];
         case SourceExpansionKind.Undeclared: return [found.name];
       }
     };
     const constituents = references.flatMap(substitute);
-    const aggregate: SourceAggregateDeclaration = { kind: SourceDeclarationKind.Aggregate, name, references: [...references], constituents, line };
+    const aggregate: SourceAggregateDeclaration = { kind: SourceDeclarationKind.Aggregate, name, nameToken,
+      references, referenceTokens: [...referenceTokens], constituents, line: nameToken.word.span.start.line };
     this.aggregates.push(aggregate); this.ordered.push(aggregate);
   }
 
   /** Diagnostics are synchronous visits. In particular no registration or self
    * removal occurs after the reporter interrupts a native issue-cap visit. */
-  registerLegend(expression: NativeLegendExpression, line: number): void {
+  registerLegend(expression: NativeLegendExpression): void {
     if (expression.empty) return;
     if (expression.nameOnly) {
       this.issue('Incorrect format of legend - should be one of "A = B", "A = B or C [ or D ...]", "A = B and C [ and D ...]".'); return;
@@ -156,28 +208,36 @@ export class SourceDeclarations {
     if (dangling !== null) {
       this.issue(`Incorrect format of legend - should be one of "A = B", "A = B or C [ or D ...]", "A = B and C [ and D ...]", but it looks like you have a dangling "${dangling.toUpperCase()}"?`); return;
     }
-    const name = expression.name, previous = this.findDeclaration(name);
+    const nameToken = expression.nameToken;
+    if (nameToken === undefined) return;
+    const name = nameToken.value, previous = this.findDeclaration(name);
     let okay = true;
     if (previous !== null) {
+      this.adviceFacts.push({ kind: SourceDeclarationAdviceKind.DuplicateName, token: nameToken });
       this.issue(`Name "${name.toUpperCase()}" already in use (on line <a onclick="jumpToLine(${previous.line});" href="javascript:void(0);"><span class="errorTextLineNumber">line ${previous.line}</span></a>).`);
       okay = false;
     }
     this.keywordWarning(name);
-    expression.recoverReferences(() => {
+    expression.recoverReferences(token => {
+      this.adviceFacts.push({ kind: SourceDeclarationAdviceKind.SelfReference, token, name: nameToken });
       this.issue("You can't define object " + name.toUpperCase() + ' in terms of itself!'); okay = false;
-    }, member => this.issue("You're repeating the object " + member.toUpperCase() + " here multiple times on the RHS.  This makes no sense.  Don't do that.", true));
-    for (const reference of expression.references) if (reference !== name && this.findDeclaration(reference) === null) {
-      this.issue(`You're talking about ${reference.toUpperCase()} but it's not defined anywhere.`);
+    }, token => {
+      this.adviceFacts.push({ kind: SourceDeclarationAdviceKind.RepeatedReference, token });
+      this.issue("You're repeating the object " + token.value.toUpperCase() + " here multiple times on the RHS.  This makes no sense.  Don't do that.", true);
+    });
+    for (const token of expression.referenceTokens) if (token.value !== name && this.findDeclaration(token.value) === null) {
+      this.adviceFacts.push({ kind: SourceDeclarationAdviceKind.UndefinedReference, token });
+      this.issue(`You're talking about ${token.value.toUpperCase()} but it's not defined anywhere.`);
     }
-    const references = expression.references;
+    const references = expression.referenceTokens;
     switch (expression.kind) {
       case SourceLegendKind.Synonym: {
         const target = references[0];
-        if (target !== undefined) this.declareAlias(name, target, line);
+        if (target !== undefined) this.declareAlias(nameToken, target);
         return;
       }
-      case SourceLegendKind.Property: this.declareProperty(name, references, line); return;
-      case SourceLegendKind.Aggregate: this.declareAggregate(name, references, line); return;
+      case SourceLegendKind.Property: this.declareProperty(nameToken, references); return;
+      case SourceLegendKind.Aggregate: this.declareAggregate(nameToken, references); return;
       case null:
         // Native silently drops a malformed OR tail; other malformed expressions
         // report their format only if no preceding semantic error suppressed it.
@@ -201,34 +261,49 @@ export class SourceDeclarations {
     this.layers.push([]); this.explicitLayerNames = []; this.backgroundInCurrentLayer = false;
   }
 
-  private collisionMembers(reference: string, authoredName: string): string[] {
+  private collisionMembers(reference: string, token: SourceLexicalToken): string[] {
     const found = this.expandName(reference);
     switch (found.kind) {
       case SourceExpansionKind.Object: return [found.name];
       case SourceExpansionKind.Aggregate:
+        this.adviceFacts.push({ kind: SourceDeclarationAdviceKind.AggregateInLayer, token });
         this.issue('"' + found.name + '" is an aggregate (defined using "and"), and cannot be added to a single layer because its constituent objects must be able to coexist.'); return [];
       case SourceExpansionKind.Property:
-        return found.alternatives.filter(alternative => alternative !== found.name).flatMap(alternative => this.collisionMembers(alternative, authoredName));
+        return found.alternatives.filter(alternative => alternative !== found.name).flatMap(alternative => this.collisionMembers(alternative, token));
       case SourceExpansionKind.Undeclared:
-        this.issue('Cannot add "' + authoredName.toUpperCase() + '" to a collision layer; it has not been declared.'); return [];
+        this.adviceFacts.push({ kind: SourceDeclarationAdviceKind.UndefinedLayerName, token });
+        this.issue('Cannot add "' + token.value.toUpperCase() + '" to a collision layer; it has not been declared.'); return [];
     }
   }
 
-  addCollisionName(name: string): void {
+  addCollisionName(token: SourceLexicalToken): void {
+    const name = token.value;
     const current = this.layers[this.layers.length - 1];
     if (name === 'background') {
-      if ((current?.length ?? 0) > 0) this.issue('Background must be in a layer by itself.');
+      if ((current?.length ?? 0) > 0) {
+        this.adviceFacts.push({ kind: SourceDeclarationAdviceKind.BackgroundLayerAlone, token });
+        this.issue('Background must be in a layer by itself.');
+      }
       this.backgroundInCurrentLayer = true;
-    } else if (this.backgroundInCurrentLayer) this.issue('Background must be in a layer by itself.');
-    const members = this.collisionMembers(name, name);
+    } else if (this.backgroundInCurrentLayer) {
+      this.adviceFacts.push({ kind: SourceDeclarationAdviceKind.BackgroundLayerAlone, token });
+      this.issue('Background must be in a layer by itself.');
+    }
+    const members = this.collisionMembers(name, token);
     if (current === undefined) { this.issue('no layers found.'); return; }
     const otherLayers: number[] = [];
     for (const member of members) for (let index = 0; index < this.layers.length - 1; index++) {
       if (this.layers[index]?.includes(member)) otherLayers.push(index);
     }
-    if (otherLayers.length > 0) this.issue('Object "' + name.toUpperCase() + '" included in multiple collision layers ( layers ' +
-      otherLayers.map(index => '#' + (index + 1) + ', ').join('') + '#' + this.layers.length + ' ). You should fix this! (The compiler will just pick one layer to assign it to).', true);
-    if (this.explicitLayerNames.includes(name)) this.issue('Object "' + name.toUpperCase() + '" included explicitly multiple times in the same layer. Don\'t do that innit.', true);
+    if (otherLayers.length > 0) {
+      this.adviceFacts.push({ kind: SourceDeclarationAdviceKind.MultipleLayers, token });
+      this.issue('Object "' + name.toUpperCase() + '" included in multiple collision layers ( layers ' +
+        otherLayers.map(index => '#' + (index + 1) + ', ').join('') + '#' + this.layers.length + ' ). You should fix this! (The compiler will just pick one layer to assign it to).', true);
+    }
+    if (this.explicitLayerNames.includes(name)) {
+      this.adviceFacts.push({ kind: SourceDeclarationAdviceKind.RepeatedLayerName, token });
+      this.issue('Object "' + name.toUpperCase() + '" included explicitly multiple times in the same layer. Don\'t do that innit.', true);
+    }
     this.explicitLayerNames.push(name); current.push(...members);
   }
 }

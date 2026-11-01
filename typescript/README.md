@@ -91,7 +91,7 @@ npm --prefix typescript run example:session
 | [scan-order.ts](src/scan-order.ts) | Observable coordinate order, independent of board storage |
 | [compatibility.ts](src/compatibility.ts) | Current restore and movement exceptions, plus historical research switches |
 | [source-compiler.ts](src/source-compiler.ts) | The complete compiler's explicit pass order |
-| [source-model.ts](src/source-model.ts), [source-reader.ts](src/source-reader.ts) | Authored source evidence and parsed rule syntax |
+| [source-model.ts](src/source-model.ts), [source-reader.ts](src/source-reader.ts) | Authored evidence, bound accepted declarations/assets and parsed rule syntax |
 | [source-declarations.ts](src/source-declarations.ts), [source-legend.ts](src/source-legend.ts) | Source-order registrations, alias targets, compound members, vocabulary snapshots and layer membership |
 | [declarations.ts](src/declarations.ts) | Canonical objects, final name resolution and compiled layers |
 | [rule-lexing.ts](src/rule-lexing.ts), [source-rules.ts](src/source-rules.ts), [rule-syntax.ts](src/rule-syntax.ts) | Rule tokens, authoritative parsed syntax, then validation and domain projection |
@@ -172,15 +172,36 @@ layer membership. It stores ordinary arrays and sets, with direct traversal;
 there are no lookup caches or packed representations.
 
 `NativeLegendExpression` isolates positional malformed-source recovery, including
-mutation after comment reentry. Its removal and kind-selection mechanics are
-shared with compiler legend recovery; authored tokens remain unchanged. Native
+mutation after comment reentry. Compiler legend recovery has been removed;
+compilation consumes the actual accepted registrations. Authored tokens remain unchanged. Native
 inherited object-name lookup is confined to `source-native-names.ts` and never
 creates an actual registration or canonical object.
 
-The next duplication to remove is `prepareDeclarations` reconstructing the initial
-namespace before final compiler normalization. Replacing that reconstruction
-should consume the accepted registration model directly, while retaining canonical
-object identities and source provenance.
+The declaration path is:
+
+```text
+source visits → accepted registrations/assets → bound document → canonical objects → final name normalization
+```
+
+`prepareDeclarations` translates the accepted stream without looking up declarations
+or recovering legend text again. Each accepted object owns its color tokens and
+sprite rows; a malformed authored grouping can contain several accepted primaries
+without sharing their assets. Aliases retain explicit owner or legend origins,
+and bound owners have their authored source in the type system. Source words bind
+once, preserving identity and effective Unicode values. The remaining
+`SourceObject.definitionNames` array is only a token-provenance index over an
+authored grouping; it is not a namespace or asset input.
+
+`normalizeCompilerNames` names the distinct final overwrite/ordering operation and
+works on copied arrays. Declaration-helper advice comes from structured source
+facts, while native source errors retain their synchronous visits and compiler
+diagnostics retain their existing checkpoints.
+
+The [accepted-declaration audit](../docs/superpowers/plans/2026-11-01-accepted-declarations.md)
+records this boundary and its new malformed-source/native comparisons. The broader
+[frontend completion checklist](../docs/superpowers/specs/2026-11-01-frontend-clarity-goal.md)
+remains active: shared numeric scanner state, sound/win grammar duplication,
+property-layer analysis and rule-pass contracts still need work.
 
 The [declaration audit](../docs/superpowers/plans/2026-11-01-source-declarations.md)
 records the full 1,937-test run and a fresh 128-game per-move sample with 920
@@ -291,7 +312,7 @@ npm --prefix typescript test
 npm --prefix typescript run test:corpus -- --session
 ```
 
-The strict suite, including prepared-AGAIN, rule-frontend and declaration regressions, passes **1,937 tests**. Exact compilation comparison
+The strict suite, including prepared-AGAIN, rule-frontend and declaration regressions, passes **1,964 tests**. Exact compilation comparison
 covers **335 compiler fixtures**, **492 simulation sources** and **99,192 final
 executable rules**, including diagnostics, stopping outcomes, authored source
 evidence and declaration identities. The last completed full source-compiled replay,

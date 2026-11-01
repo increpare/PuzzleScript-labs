@@ -1,20 +1,22 @@
 import type { SourceIssueReporter } from './source-diagnostics.js';
 import { ResolvedNameKind, type ResolvedDeclarations, type ResolvedName, type RuleVocabulary } from './declaration-model.js';
 import type { GameObject } from './model.js';
-import { SourceDiagnosticPhase, SourceDiagnosticSeverity, SourceLegendKind,
+import { SourceDiagnosticPhase, SourceDiagnosticSeverity,
   type SourceDiagnostic, type SourceDocument, type SourceLegend, type SourceObject, type SourceSpan, type SourceWord } from './source-model.js';
 import { PlayerMatchKind } from './turn-rules.js';
-import { recoverLegendExpression } from './source-legend.js';
+import { SourceDeclarationKind as DeclarationKind, SourceAliasOriginKind, SourceDeclarationAdviceKind } from './source-declarations.js';
 
-enum DeclarationKind { Object, Synonym, Property, Aggregate }
-interface Declaration {
+interface DeclarationBase {
   readonly name: string;
   readonly word: SourceWord;
   readonly source: SourceObject | SourceLegend;
-  readonly kind: DeclarationKind;
   readonly references: readonly SourceWord[];
-  readonly values: readonly string[];
 }
+interface ObjectDeclaration extends DeclarationBase { readonly kind: DeclarationKind.Object; readonly source: SourceObject }
+interface AliasDeclaration extends DeclarationBase { readonly kind: DeclarationKind.Alias; readonly target: string }
+interface PropertyDeclaration extends DeclarationBase { readonly kind: DeclarationKind.Property; readonly source: SourceLegend; readonly alternatives: readonly string[] }
+interface AggregateDeclaration extends DeclarationBase { readonly kind: DeclarationKind.Aggregate; readonly source: SourceLegend; readonly constituents: readonly string[] }
+type Declaration = ObjectDeclaration | AliasDeclaration | PropertyDeclaration | AggregateDeclaration;
 interface ResolutionProblem {
   readonly code: 'cyclic-reference' | 'undefined-reference' | 'cross-kind-reference' | 'unresolved-name';
   readonly message: string;
@@ -39,10 +41,10 @@ export interface PreparedDeclarations {
   readonly objects: GameObject[];
   readonly objectSources: Map<GameObject, SourceObject>;
   readonly concrete: Map<string, GameObject>;
-  readonly concreteDeclarations: Map<string, Declaration>;
-  readonly synonyms: Declaration[];
-  readonly properties: Declaration[];
-  readonly aggregates: Declaration[];
+  readonly concreteDeclarations: Map<string, ObjectDeclaration>;
+  readonly aliases: AliasDeclaration[];
+  readonly properties: PropertyDeclaration[];
+  readonly aggregates: AggregateDeclaration[];
   readonly diagnostics: SourceDiagnostic[];
   readonly authoredNames: Set<string>;
   readonly firstDeclarationWords: Map<string, SourceWord>;
@@ -53,144 +55,77 @@ export function prepareDeclarations(document: SourceDocument): PreparedDeclarati
   const objects: GameObject[] = [];
   const objectSources = new Map<GameObject, SourceObject>();
   const concrete = new Map<string, GameObject>();
-  const concreteDeclarations = new Map<string, Declaration>();
-  const synonyms: Declaration[] = [];
-  const properties: Declaration[] = [];
-  const aggregates: Declaration[] = [];
-  const diagnostics: SourceDiagnostic[] = [];
+  const concreteDeclarations = new Map<string, ObjectDeclaration>();
+  const aliases: AliasDeclaration[] = [];
+  const properties: PropertyDeclaration[] = [];
+  const aggregates: AggregateDeclaration[] = [];
   const authoredNames = new Set<string>();
   const firstDeclarationWords = new Map<string, SourceWord>();
-  const rawLayers: GameObject[][] = [];
-  function registerName(word: SourceWord, name: string): void {
+  for (const accepted of document.acceptedDeclarations.registrations) {
+    const { name, source, nameToken: { word } } = accepted;
     authoredNames.add(name);
     if (!firstDeclarationWords.has(name)) firstDeclarationWords.set(name, word);
+    switch (accepted.kind) {
+      case DeclarationKind.Object: {
+        const object = Object.freeze({ name });
+        objects.push(object); concrete.set(name, object); objectSources.set(object, accepted.source);
+        concreteDeclarations.set(name, { name, word, source: accepted.source, kind: DeclarationKind.Object, references: [] });
+        break;
+      }
+      case DeclarationKind.Alias: {
+        const reference = accepted.origin.kind === SourceAliasOriginKind.Legend ? accepted.origin.target.word
+          : accepted.origin.kind === SourceAliasOriginKind.Object ? accepted.origin.owner.nameToken.word : accepted.origin.attemptedPrimary.word;
+        aliases.push({ name, word, source, kind: DeclarationKind.Alias, target: accepted.target, references: [reference] });
+        break;
+      }
+      case DeclarationKind.Property:
+        properties.push({ name, word, source: accepted.source, kind: DeclarationKind.Property, alternatives: accepted.alternatives,
+          references: accepted.referenceTokens.map(token => token.word) });
+        break;
+      case DeclarationKind.Aggregate:
+        aggregates.push({ name, word, source: accepted.source, kind: DeclarationKind.Aggregate, constituents: accepted.constituents,
+          references: accepted.referenceTokens.map(token => token.word) });
+        break;
+    }
   }
-  function issue(code: string, message: string, span: SourceSpan | null, warning = false): void {
-    diagnostics.push({ code, message, span, severity: warning ? SourceDiagnosticSeverity.Warning : SourceDiagnosticSeverity.Error,
+  // Inherited native object lookups can occupy layers, but have no canonical object.
+  const rawLayers = document.acceptedDeclarations.collisionLayers.map(layer => layer.flatMap(name => {
+    const object = concrete.get(name);
+    return object === undefined ? [] : [object];
+  }));
+  const diagnostics: SourceDiagnostic[] = [];
+  function issue(code: string, message: string, word: SourceWord, warning = false): void {
+    diagnostics.push({ code, message, span: word.span, severity: warning ? SourceDiagnosticSeverity.Warning : SourceDiagnosticSeverity.Error,
       countsAsError: !warning, phase: SourceDiagnosticPhase.Declarations });
   }
-  function parserLookup(name: string, visiting = new Set<string>()): Declaration | undefined {
-    if (concrete.has(name)) return concreteDeclarations.get(name);
-    if (visiting.has(name)) return undefined;
-    visiting.add(name);
-    const alias = synonyms.find(entry => entry.name === name);
-    if (alias !== undefined) return parserLookup(alias.values[0]!, visiting);
-    return aggregates.find(entry => entry.name === name) ?? properties.find(entry => entry.name === name);
-  }
-  function declared(name: string): boolean {
-    return concrete.has(name) || [...synonyms, ...properties, ...aggregates].some(entry => entry.name === name);
-  }
-  function duplicate(word: SourceWord): void {
-    issue('duplicate-name', `Name "${word.spelling}" is already in use.`, word.span);
-  }
-  let previousObject: GameObject | undefined;
-  function registerObjectAliases(source: SourceObject, object: GameObject): void {
-    for (const { value: name, word } of source.definitionNames.slice(1)) {
-      if (declared(name)) duplicate(word);
-      if (concrete.has(name)) continue;
-      synonyms.push({ name, word, source, kind: DeclarationKind.Synonym,
-        references: [objectSources.get(object)!.primaryName], values: [object.name] });
-      registerName(word, name);
+  for (const fact of document.acceptedDeclarations.advice) {
+    const word = fact.token.word;
+    switch (fact.kind) {
+      case SourceDeclarationAdviceKind.DuplicateObject:
+        issue('duplicate-object', `Object "${word.spelling}" is defined multiple times.`, word); break;
+      case SourceDeclarationAdviceKind.DuplicateName:
+        issue('duplicate-name', `Name "${word.spelling}" is already in use.`, word); break;
+      case SourceDeclarationAdviceKind.SelfReference:
+        issue('self-reference', `Cannot define "${fact.name.word.spelling}" in terms of itself.`, word); break;
+      case SourceDeclarationAdviceKind.UndefinedReference:
+        issue('undefined-reference', `Name "${word.spelling}" has not been declared at this point.`, word); break;
+      case SourceDeclarationAdviceKind.RepeatedReference:
+        issue('repeated-reference', `Name "${word.spelling}" is repeated in this declaration.`, word, true); break;
+      case SourceDeclarationAdviceKind.CrossKindReference:
+        issue('cross-kind-reference', `Cannot define "${word.spelling}" using a ${fact.referencedKind === DeclarationKind.Property ? 'property' : 'aggregate'} named "${fact.referenced.word.spelling}".`, word); break;
+      case SourceDeclarationAdviceKind.BackgroundLayerAlone:
+        issue('background-layer-alone', 'Background must be in a layer by itself.', word); break;
+      case SourceDeclarationAdviceKind.UndefinedLayerName:
+        issue('undefined-layer-name', `Cannot add undeclared name "${word.spelling}" to a collision layer.`, word); break;
+      case SourceDeclarationAdviceKind.AggregateInLayer:
+        issue('aggregate-in-layer', `Aggregate "${word.spelling}" cannot be added to a single collision layer.`, word); break;
+      case SourceDeclarationAdviceKind.MultipleLayers:
+        issue('multiple-layers', `Name "${word.spelling}" is included in multiple collision layers.`, word, true); break;
+      case SourceDeclarationAdviceKind.RepeatedLayerName:
+        issue('repeated-layer-name', `Name "${word.spelling}" is explicitly repeated in this collision layer.`, word, true); break;
     }
   }
-  const entries = [...document.objects, ...document.legend, ...document.collisionLayers].sort((a, b) => a.order - b.order);
-  for (const source of entries) {
-    if ('names' in source) {
-      const layer: GameObject[] = [];
-      const explicit = new Set<string>();
-      let backgroundSeen = false;
-      function expandLayer(name: string, word: SourceWord, visiting = new Set<string>()): GameObject[] {
-        if (visiting.has(name)) { issue('cyclic-reference', `Cyclic layer reference "${word.spelling}".`, word.span); return []; }
-        const found = parserLookup(name);
-        if (found === undefined) { issue('undefined-layer-name', `Cannot add undeclared name "${word.spelling}" to a collision layer.`, word.span); return []; }
-        const object = concrete.get(found.name);
-        if (object !== undefined) return [object];
-        if (found.kind === DeclarationKind.Aggregate) {
-          issue('aggregate-in-layer', `Aggregate "${word.spelling}" cannot be added to a single collision layer.`, word.span);
-          return [];
-        }
-        const next = new Set(visiting).add(name);
-        return found.values.filter(value => value !== found.name).flatMap(value => expandLayer(value, word, next));
-      }
-      for (const { value: name, word } of source.definitionNames) {
-        if ((name === 'background' && layer.length > 0) || (name !== 'background' && backgroundSeen)) {
-          issue('background-layer-alone', 'Background must be in a layer by itself.', word.span);
-        }
-        if (name === 'background') backgroundSeen = true;
-        const members = expandLayer(name, word);
-        if (rawLayers.some(prior => members.some(object => prior.includes(object)))) {
-          issue('multiple-layers', `Name "${word.spelling}" is included in multiple collision layers.`, word.span, true);
-        }
-        if (explicit.has(name)) issue('repeated-layer-name', `Name "${word.spelling}" is explicitly repeated in this collision layer.`, word.span, true);
-        explicit.add(name);
-        layer.push(...members);
-      }
-      rawLayers.push(layer);
-      continue;
-    }
-    if ('primaryName' in source) {
-      const primary = source.definitionNames[0];
-      if (primary === undefined) continue;
-      const { value: name, word } = primary;
-      if (concrete.has(name)) {
-        issue('duplicate-object', `Object "${word.spelling}" is defined multiple times.`, word.span);
-        if (previousObject !== undefined) registerObjectAliases(source, previousObject);
-        continue;
-      }
-      if (declared(name)) duplicate(word);
-      const object = Object.freeze({ name });
-      concrete.set(object.name, object);
-      objects.push(object);
-      objectSources.set(object, source);
-      previousObject = object;
-      const declaration = { name: object.name, word, source, kind: DeclarationKind.Object, references: [], values: [object.name] };
-      concreteDeclarations.set(object.name, declaration);
-      registerName(word, name);
-      registerObjectAliases(source, object);
-      continue;
-    }
-    if (source.name === null) continue;
-    const word = source.name;
-    const expression = recoverLegendExpression(source);
-    const selfReferences = expression?.selfReferences ?? source.definitionWords.filter((reference, index) =>
-      index >= 2 && index % 2 === 0 && reference.value === source.definitionWords[0]?.value);
-    for (const reference of selfReferences) issue('self-reference', `Cannot define "${word.spelling}" in terms of itself.`, reference.word.span);
-    if (expression === null) continue;
-    const name = expression.name.value;
-    if (declared(name)) duplicate(word);
-    const references = expression.references;
-    for (let index = 0; index < references.length; index++) {
-      const reference = references[index]!;
-      if (!declared(reference.value)) issue('undefined-reference', `Name "${reference.word.spelling}" has not been declared at this point.`, reference.word.span);
-      if (references.slice(0, index).some(prior => prior.value === reference.value)) {
-        issue('repeated-reference', `Name "${reference.word.spelling}" is repeated in this declaration.`, reference.word.span, true);
-      }
-    }
-    const kind = expression.kind === SourceLegendKind.Synonym ? DeclarationKind.Synonym
-      : expression.kind === SourceLegendKind.Property ? DeclarationKind.Property : DeclarationKind.Aggregate;
-    function substitute(name: string, visiting = new Set<string>()): string[] {
-      if (visiting.has(name)) return [name];
-      const found = parserLookup(name);
-      if (found === undefined) return [name];
-      if (concrete.has(found.name)) return [found.name];
-      if (found.kind !== kind) {
-        issue('cross-kind-reference', `Cannot define "${word.spelling}" using a ${found.kind === DeclarationKind.Property ? 'property' : 'aggregate'} named "${found.word.spelling}".`, word.span);
-        return kind === DeclarationKind.Property ? [] : [found.name];
-      }
-      const next = new Set(visiting).add(name);
-      return found.values.filter(value => value !== found.name).flatMap(value => substitute(value, next));
-    }
-    // Vanilla expands every operand while parsing. Retain duplicates from
-    // flattening here; compiler dictionary expansion has separate recovery rules.
-    const values = kind === DeclarationKind.Synonym ? [references[0]!.value]
-      : references.flatMap(reference => substitute(reference.value));
-    if (kind === DeclarationKind.Property && values.length === 0) continue;
-    const entry = { name, word, source, kind, references: source.references, values };
-    (kind === DeclarationKind.Synonym ? synonyms : kind === DeclarationKind.Property ? properties : aggregates).push(entry);
-    registerName(word, name);
-  }
-
-  return { document, objects, objectSources, concrete, concreteDeclarations, synonyms, properties, aggregates,
+  return { document, objects, objectSources, concrete, concreteDeclarations, aliases, properties, aggregates,
     diagnostics, authoredNames, firstDeclarationWords, rawLayers };
 }
 
@@ -198,7 +133,7 @@ export function prepareDeclarations(document: SourceDocument): PreparedDeclarati
 export function completeDeclarations(prepared: PreparedDeclarations, report?: SourceIssueReporter): {
   readonly declarations: ResolvedDeclarations; readonly diagnostics: readonly SourceDiagnostic[];
 } {
-  const { objects, objectSources, concrete, concreteDeclarations, synonyms, properties, aggregates,
+  const { objects, objectSources, concrete, concreteDeclarations, aliases, properties, aggregates,
     authoredNames, firstDeclarationWords, rawLayers } = prepared;
   const diagnostics = [...prepared.diagnostics];
   function issue(code: string, message: string, span: SourceSpan | null, warning = false): void {
@@ -235,7 +170,8 @@ export function completeDeclarations(prepared: PreparedDeclarations, report?: So
     return objectLayers.has(object) ? object : unlayeredLookup;
   }
   for (const object of objects) if (!objectLayers.has(object)) {
-    issue('unlayered-object', `Object "${objectSources.get(object)!.primaryName.spelling}" has not been assigned to a collision layer.`, objectSources.get(object)!.primaryName.span);
+    const word = concreteDeclarations.get(object.name)!.word;
+    issue('unlayered-object', `Object "${word.spelling}" has not been assigned to a collision layer.`, word.span);
   }
 
   const availableGlyphs = new Map<string, ReadonlySet<GameObject>>();
@@ -250,17 +186,17 @@ export function completeDeclarations(prepared: PreparedDeclarations, report?: So
   let glyphAdded = true;
   while (glyphAdded) {
     glyphAdded = false;
-    for (const entry of synonyms) {
-      const target = availableGlyphs.get(entry.values[0]!);
+    for (const entry of aliases) {
+      const target = availableGlyphs.get(entry.target);
       if (!availableGlyphs.has(entry.name) && target !== undefined) {
         addGlyph(entry, target);
         glyphAdded = true;
       }
     }
     for (const entry of aggregates) {
-      if (availableGlyphs.has(entry.name) || !entry.values.every(value => availableGlyphs.has(value))) continue;
+      if (availableGlyphs.has(entry.name) || !entry.constituents.every(value => availableGlyphs.has(value))) continue;
       const byLayer = new Map<number, GameObject>();
-      for (const value of entry.values) {
+      for (const value of entry.constituents) {
         const object = concrete.get(value);
         if (object === undefined) continue;
         const layer = objectLayers.get(object);
@@ -280,103 +216,123 @@ export function completeDeclarations(prepared: PreparedDeclarations, report?: So
   glyphOrder.sort((a, b) => a.line - b.line);
   const glyphs = new Map(glyphOrder.map(entry => [entry.name, availableGlyphs.get(entry.name)!]));
 
-  // Parser lookup is intentionally separate from these final compiler dictionaries.
-  // The compiler keeps the last property/synonym declaration, whereas parsing
-  // and glyph construction can have already used an earlier synonym.
-  const propertyValues = new Map(properties.map(entry => [entry.name, [...entry.values]]));
-  const aggregateValues = new Map(aggregates.map(entry => [entry.name, [...entry.values]]));
-  const synonymValues = new Map<string, string>();
-  const propertySources = new Map(properties.map(entry => [entry.name, entry]));
-  const aggregateSources = new Map(aggregates.map(entry => [entry.name, entry]));
-  const synonymSources = new Map<string, Declaration>();
-  for (const entry of synonyms) {
-    const target = entry.values[0]!;
-    if (aggregateValues.has(target)) {
-      aggregateValues.set(entry.name, aggregateValues.get(target)!);
-      aggregateSources.set(entry.name, entry);
-    } else if (propertyValues.has(target)) {
-      propertyValues.set(entry.name, propertyValues.get(target)!);
-      propertySources.set(entry.name, entry);
-    } else if (entry.name !== target) {
-      synonymValues.set(entry.name, target);
-      synonymSources.set(entry.name, entry);
+  /** Final dictionaries intentionally replace earlier aliases/compounds and
+   * enumerate integer keys first. Their mutable arrays are detached from source. */
+  function normalizeCompilerNames() {
+    const propertyValues = new Map(properties.map(entry => [entry.name, [...entry.alternatives]]));
+    const aggregateValues = new Map(aggregates.map(entry => [entry.name, [...entry.constituents]]));
+    const synonymValues = new Map<string, string>();
+    const propertySources = new Map<string, Declaration>(properties.map(entry => [entry.name, entry]));
+    const aggregateSources = new Map<string, Declaration>(aggregates.map(entry => [entry.name, entry]));
+    const synonymSources = new Map<string, Declaration>();
+    for (const entry of aliases) {
+      const target = entry.target;
+      if (aggregateValues.has(target)) {
+        aggregateValues.set(entry.name, aggregateValues.get(target)!);
+        aggregateSources.set(entry.name, entry);
+      } else if (propertyValues.has(target)) {
+        propertyValues.set(entry.name, propertyValues.get(target)!);
+        propertySources.set(entry.name, entry);
+      } else if (entry.name !== target) {
+        synonymValues.set(entry.name, target);
+        synonymSources.set(entry.name, entry);
+      }
     }
+    interface CompoundSnapshot { readonly name: string; readonly members: readonly string[] }
+    interface NormalizationState {
+      readonly aliases: readonly { readonly name: string; readonly target: string }[];
+      readonly properties: readonly CompoundSnapshot[];
+      readonly aggregates: readonly CompoundSnapshot[];
+    }
+    function captureNormalization(): NormalizationState {
+      const compounds = (dictionary: ReadonlyMap<string, readonly string[]>): CompoundSnapshot[] =>
+        dictionaryIterationNames(dictionary).map(name => ({ name, members: [...dictionary.get(name)!] }));
+      return { aliases: dictionaryIterationNames(synonymValues).map(name => ({ name, target: synonymValues.get(name)! })),
+        properties: compounds(propertyValues), aggregates: compounds(aggregateValues) };
+    }
+    function sameCompounds(a: readonly CompoundSnapshot[], b: readonly CompoundSnapshot[]): boolean {
+      return a.length === b.length && a.every((entry, index) => {
+        const other = b[index]!;
+        return entry.name === other.name && entry.members.length === other.members.length
+          && entry.members.every((member, index) => member === other.members[index]);
+      });
+    }
+    function sameNormalization(a: NormalizationState, b: NormalizationState): boolean {
+      return a.aliases.length === b.aliases.length && a.aliases.every((entry, index) => {
+        const other = b.aliases[index]!;
+        return entry.name === other.name && entry.target === other.target;
+      }) && sameCompounds(a.properties, b.properties) && sameCompounds(a.aggregates, b.aggregates);
+    }
+    const previousNormalizations: NormalizationState[] = [];
+    let modified = true;
+    while (modified) {
+      // Native self-removal can make graph cycles terminate. Perform its ordinary
+      // transformations first; repeated semantic state identifies a real loop.
+      const before = captureNormalization();
+      if (previousNormalizations.some(previous => sameNormalization(previous, before))) break;
+      previousNormalizations.push(before);
+      modified = false;
+      for (const name of dictionaryIterationNames(synonymValues)) {
+        const target = synonymValues.get(name)!;
+        if (propertyValues.has(target)) {
+          propertyValues.set(name, propertyValues.get(target)!);
+          propertySources.set(name, synonymSources.get(name)!);
+          synonymValues.delete(name);
+          modified = true;
+        } else if (aggregateValues.has(target)) {
+          aggregateValues.set(name, aggregateValues.get(target)!);
+          aggregateSources.set(name, synonymSources.get(name)!);
+          synonymValues.delete(name);
+          modified = true;
+        } else if (synonymValues.has(target)) {
+          // This substitution alone does not request another native outer pass.
+          synonymValues.set(name, synonymValues.get(target)!);
+        }
+      }
+      for (const dictionary of [propertyValues, aggregateValues]) {
+        for (const name of dictionaryIterationNames(dictionary)) {
+          const values = dictionary.get(name)!;
+          for (let index = 0; index < values.length; index++) {
+            const value = values[index]!;
+            if (synonymValues.has(value)) { values[index] = synonymValues.get(value)!; modified = true; }
+            else if (dictionary.has(value)) {
+              values.splice(index, 1);
+              for (const member of dictionary.get(value)!) if (!values.includes(member)) values.push(member);
+              modified = true;
+            }
+            const conflicting = dictionary === propertyValues ? aggregateValues : propertyValues;
+            if (conflicting.has(value)) nativeIssue('cross-kind-legend',
+              `Trying to define ${dictionary === propertyValues ? 'property' : 'aggregate'} "${name.toUpperCase()}" in terms of ${dictionary === propertyValues ? 'aggregate' : 'property'} "${value.toUpperCase()}".`, null);
+          }
+        }
+      }
+    }
+    return { propertyValues, aggregateValues, synonymValues, propertySources, aggregateSources, synonymSources };
   }
-  function problem(name: string, visiting = new Set<string>(), expected?: DeclarationKind): ResolutionProblem | null {
+  const { propertyValues, aggregateValues, synonymValues, propertySources, aggregateSources, synonymSources } = normalizeCompilerNames();
+  function problem(name: string, visiting = new Set<string>(), expected?: DeclarationKind.Property | DeclarationKind.Aggregate): ResolutionProblem | null {
     if (visiting.has(name)) return { code: 'cyclic-reference', message: `Cyclic reference involving "${name}".` };
     // A final synonym can collide with a concrete name. Expansion still follows
     // that synonym, so concrete-name preference must not conceal alias cycles.
     if (concrete.has(name) && !synonymValues.has(name)) return null;
-    const kind = aggregateValues.has(name) ? DeclarationKind.Aggregate : propertyValues.has(name) ? DeclarationKind.Property : DeclarationKind.Synonym;
-    if (expected !== undefined && kind !== DeclarationKind.Synonym && kind !== expected) {
+    const aggregate = aggregateValues.get(name), property = propertyValues.get(name);
+    if (aggregate === undefined && property === undefined) {
+      const target = synonymValues.get(name);
+      return target === undefined ? { code: 'undefined-reference', message: `Missing declaration "${name}".` }
+        : problem(target, new Set(visiting).add(name), expected);
+    }
+    const kind = aggregate === undefined ? DeclarationKind.Property : DeclarationKind.Aggregate;
+    if (expected !== undefined && kind !== expected) {
       return { code: 'cross-kind-reference', message: `Cross-kind reference to "${name}".` };
     }
-    const values = kind === DeclarationKind.Aggregate ? aggregateValues.get(name) : kind === DeclarationKind.Property ? propertyValues.get(name)
-      : synonymValues.has(name) ? [synonymValues.get(name)!] : undefined;
-    if (values === undefined) return { code: 'undefined-reference', message: `Missing declaration "${name}".` };
-    if (values.length === 0) return { code: 'unresolved-name', message: `No concrete members could be resolved for "${name}".` };
+    const members = aggregate ?? property!;
+    if (members.length === 0) return { code: 'unresolved-name', message: `No concrete members could be resolved for "${name}".` };
     const next = new Set(visiting).add(name);
-    for (const value of values) {
-      const error = problem(value, next, kind === DeclarationKind.Synonym ? expected : kind);
+    for (const member of members) {
+      const error = problem(member, next, kind);
       if (error !== null) return error;
     }
     return null;
-  }
-  interface NormalizationEntry { readonly name: string; readonly values: readonly string[] }
-  type NormalizationState = readonly (readonly NormalizationEntry[])[];
-  function captureNormalization(): NormalizationState {
-    return [dictionaryIterationNames(synonymValues).map(name => ({ name, values: [synonymValues.get(name)!] })),
-      ...[propertyValues, aggregateValues].map(dictionary => dictionaryIterationNames(dictionary).map(name => ({ name, values: [...dictionary.get(name)!] })))];
-  }
-  function sameNormalization(a: NormalizationState, b: NormalizationState): boolean {
-    return a.every((dictionary, index) => dictionary.length === b[index]!.length && dictionary.every((entry, entryIndex) => {
-      const other = b[index]![entryIndex]!;
-      return entry.name === other.name && entry.values.length === other.values.length && entry.values.every((value, valueIndex) => value === other.values[valueIndex]);
-    }));
-  }
-  const previousNormalizations: NormalizationState[] = [];
-  let modified = true;
-  while (modified) {
-    // Native self-removal can make graph cycles terminate. Perform its ordinary
-    // transformations first; repeated semantic state identifies a real loop.
-    const before = captureNormalization();
-    if (previousNormalizations.some(previous => sameNormalization(previous, before))) break;
-    previousNormalizations.push(before);
-    modified = false;
-    for (const name of dictionaryIterationNames(synonymValues)) {
-      const target = synonymValues.get(name)!;
-      if (propertyValues.has(target)) {
-        propertyValues.set(name, propertyValues.get(target)!);
-        propertySources.set(name, synonymSources.get(name)!);
-        synonymValues.delete(name);
-        modified = true;
-      } else if (aggregateValues.has(target)) {
-        aggregateValues.set(name, aggregateValues.get(target)!);
-        aggregateSources.set(name, synonymSources.get(name)!);
-        synonymValues.delete(name);
-        modified = true;
-      } else if (synonymValues.has(target)) {
-        // This substitution alone does not request another native outer pass.
-        synonymValues.set(name, synonymValues.get(target)!);
-      }
-    }
-    for (const dictionary of [propertyValues, aggregateValues]) {
-      for (const name of dictionaryIterationNames(dictionary)) {
-        const values = dictionary.get(name)!;
-        for (let index = 0; index < values.length; index++) {
-          const value = values[index]!;
-          if (synonymValues.has(value)) { values[index] = synonymValues.get(value)!; modified = true; }
-          else if (dictionary.has(value)) {
-            values.splice(index, 1);
-            for (const member of dictionary.get(value)!) if (!values.includes(member)) values.push(member);
-            modified = true;
-          }
-          const conflicting = dictionary === propertyValues ? aggregateValues : propertyValues;
-          if (conflicting.has(value)) nativeIssue('cross-kind-legend',
-            `Trying to define ${dictionary === propertyValues ? 'property' : 'aggregate'} "${name.toUpperCase()}" in terms of ${dictionary === propertyValues ? 'aggregate' : 'property'} "${value.toUpperCase()}".`, null);
-        }
-      }
-    }
   }
   const ruleProperties = new Map(dictionaryIterationNames(propertyValues).map(name => [name, [...propertyValues.get(name)!]]));
   const singleLayerProperties = new Map<string, number | undefined>();
@@ -484,15 +440,16 @@ export function completeDeclarations(prepared: PreparedDeclarations, report?: So
     namedObjects.set(object.name, members);
     rawObjectLookups.set(object, members);
   }
-  const lookupEntries = [...synonyms, ...properties].sort((a, b) => a.word.span.start.line - b.word.span.start.line);
+  const lookupEntries = [...aliases, ...properties].sort((a, b) => a.word.span.start.line - b.word.span.start.line);
   for (const entry of lookupEntries) {
-    if (entry.values.length === 1) {
-      const target = namedObjects.get(entry.values[0]!);
-      if (target !== undefined) {
-        namedObjects.set(entry.name, target);
-      }
+    if (entry.kind === DeclarationKind.Alias) {
+      const target = namedObjects.get(entry.target);
+      if (target !== undefined) namedObjects.set(entry.name, target);
+    } else if (entry.alternatives.length === 1) {
+      const target = namedObjects.get(entry.alternatives[0]!);
+      if (target !== undefined) namedObjects.set(entry.name, target);
     } else {
-      namedObjects.set(entry.name, new Set(entry.values.flatMap(name => [...namedObjects.get(name) ?? []])));
+      namedObjects.set(entry.name, new Set(entry.alternatives.flatMap(name => [...namedObjects.get(name) ?? []])));
     }
   }
   const namedAggregates = new Map<string, ReadonlySet<GameObject>>();
@@ -545,7 +502,7 @@ export function reportUnlayeredObjects(declarations: ResolvedDeclarations, repor
     const object = byName.get(name)!;
     if (declarations.objectLayers.has(object)) continue;
     report({ code: 'unlayered-object', message: `Object "${name.toUpperCase()}" has been defined, but not assigned to a layer.`,
-      span: declarations.objectSources.get(object)!.primaryName.span, severity: SourceDiagnosticSeverity.Error,
+      span: declarations.names.get(name)!.word.span, severity: SourceDiagnosticSeverity.Error,
       countsAsError: true, phase: SourceDiagnosticPhase.Declarations });
   }
 }

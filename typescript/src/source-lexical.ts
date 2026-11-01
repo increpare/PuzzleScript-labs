@@ -2,7 +2,7 @@ import { SourceDiagnosticPhase, SourceDiagnosticSeverity, SourceSectionKind, typ
   type SourceLine, type SourcePosition } from './source-model.js';
 import { collectSourceIssue, createSourceIssueCollection, type SourceIssueCollection } from './source-diagnostics.js';
 import { lineSpan, lowercaseSourceRange, sourceWord, splitSourceLines, type LowercaseSourceView } from './source-text.js';
-import { SourceDeclarations } from './source-declarations.js';
+import { SourceDeclarations, SourceAliasOriginKind, type SourceDeclaration, type SourceDeclarationAdvice, type SourceObjectAliasOrigin } from './source-declarations.js';
 import { NativeLegendExpression } from './source-legend.js';
 
 export const sourceSectionNames = ['objects', 'legend', 'sounds', 'collisionlayers', 'rules', 'winconditions', 'levels'] as const;
@@ -42,6 +42,9 @@ export enum SourceLexicalStopReason { Errors, Issues }
 export interface SourceLexicalStop { readonly reason: SourceLexicalStopReason; readonly cursor: SourcePosition; readonly section: SourceSectionKind | null }
 export interface SourceLexicalResult extends SourceIssueCollection {
   readonly objects: SourceObjectLexical[];
+  readonly registrations: readonly SourceDeclaration[];
+  readonly collisionLayers: readonly (readonly string[])[];
+  readonly declarationAdvice: readonly SourceDeclarationAdvice[];
   readonly metadata: SourceMetadataLexical[];
   readonly objectLines: ReadonlyMap<number, SourceObjectLineLexical>;
   readonly objectNameAttempts: ReadonlyMap<number, readonly SourceLexicalToken[]>;
@@ -119,6 +122,7 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
   let section: SourceSectionKind | null = null, commentDepth = 0, afterComment = false;
   let lineShouldEnd: string | null = null, tokenIndex = 0, legendExpression = new NativeLegendExpression();
   let objectPart = ObjectPart.Names, objectName = '', workingRows: SourceLexicalToken[][] = [];
+  let objectAliasOrigin: SourceObjectAliasOrigin | null = null;
   let sounds: SoundToken[] = [], soundFailed = false;
   let soundEvent: SourceLexicalToken | null = null;
   let gridWidth: number | null = null, gridHasRows = false, levelMessage = false;
@@ -133,7 +137,7 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
   };
   const declarations = new SourceDeclarations(issue, keywords);
   const endOfLine = (): void => {
-    if (section === SourceSectionKind.Legend) declarations.registerLegend(legendExpression, cursor.line.span.start.line);
+    if (section === SourceSectionKind.Legend) declarations.registerLegend(legendExpression);
     else if (section === SourceSectionKind.Sounds && !soundFailed && soundEvent !== null) {
       retainedSoundEvents.set(cursor.line.span.start.line, soundEvent);
     }
@@ -154,12 +158,18 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
       const attempts = objectNameAttempts.get(lineNumber) ?? [];
       attempts.push(token); objectNameAttempts.set(lineNumber, attempts);
       if (sol) {
-        if (!declarations.declareObject(name, lineNumber)) return;
+        const accepted = declarations.declareObject(token);
+        if (accepted === null) {
+          objectAliasOrigin ??= { kind: SourceAliasOriginKind.UnownedObject, attemptedPrimary: token };
+          return;
+        }
+        objectAliasOrigin = { kind: SourceAliasOriginKind.Object, owner: accepted };
         objectName = name;
         const object: SourceObjectLexical = { primary: token, names: [token], colors: [], rows: [] };
         concrete.set(name, object); objects.push(object);
       } else {
-        if (!declarations.declareObjectAlias(name, objectName, lineNumber)) return;
+        if (objectAliasOrigin === null) throw new Error('An object alias needs its preceding primary visit.');
+        if (!declarations.declareObjectAlias(token, objectAliasOrigin)) return;
         concrete.get(objectName)?.names.push(token);
       }
       objectPart = ObjectPart.Aliases;
@@ -227,12 +237,16 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
       if (match === null) { issue("Something bad's happening in the LEGEND"); cursor.discard(); }
       else tokenIndex++;
     }
-    if (match !== null) legendExpression.append(match.trim());
-    if (match !== null && actualMatch && match.trim() !== '') {
-      const tokens = legendWords.get(cursor.line.span.start.line) ?? [];
-      tokens.push(cursor.trimmedToken(start, start + match.length)); legendWords.set(cursor.line.span.start.line, tokens);
+    if (match !== null) {
+      const token = actualMatch ? cursor.trimmedToken(start, start + match.length)
+        : { value: match, word: cursor.trimmedToken(start).word };
+      legendExpression.append(token);
+      if (actualMatch && match.trim() !== '') {
+        const tokens = legendWords.get(cursor.line.span.start.line) ?? [];
+        tokens.push(token); legendWords.set(cursor.line.span.start.line, tokens);
+      }
     }
-    if (cursor.end) declarations.registerLegend(legendExpression, cursor.line.span.start.line);
+    if (cursor.end) declarations.registerLegend(legendExpression);
   };
   const soundToken = (): void => {
     const accept = (pattern: RegExp, role: SoundRole): boolean => {
@@ -283,10 +297,10 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
       if (cursor.match(/^[ ,]*/u) === '') { issue('error detected - unexpected character ' + cursor.character); cursor.next(); }
       return;
     }
-    const name = match.trim();
+    const token = cursor.trimmedToken(start);
     const tokens = collisionNames.get(cursor.line.span.start.line) ?? [];
-    tokens.push(cursor.trimmedToken(start)); collisionNames.set(cursor.line.span.start.line, tokens);
-    declarations.addCollisionName(name);
+    tokens.push(token); collisionNames.set(cursor.line.span.start.line, tokens);
+    declarations.addCollisionName(token);
   };
   const ruleToken = (sol: boolean): void => {
     if (!ruleNamesByLine.has(cursor.line.span.start.line)) ruleNamesByLine.set(cursor.line.span.start.line, declarations.ruleVocabulary);
@@ -463,6 +477,7 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
     if (stop !== null) break;
   }
   return { ...issues, objects, metadata, objectLines, objectNameAttempts, legendWords, collisionNames,
+    registrations: declarations.registrations, collisionLayers: declarations.collisionLayers, declarationAdvice: declarations.advice,
     soundEvents: retainedSoundEvents, levelMessages, ruleNamesByLine,
     ruleNames: declarations.ruleVocabulary, definedSounds: new Set([...retainedSoundEvents.values()].map(token => token.value)), stop };
 }

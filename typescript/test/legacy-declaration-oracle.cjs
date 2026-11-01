@@ -101,8 +101,17 @@ function createDeclarationOracle(types, { nativeAlreadyLoaded = false } = {}) {
     const objects = declarations.objects.map(object => {
       const source = declarations.objectSources.get(object);
       assert.ok(document.objects.includes(source), fixture.name + ': canonical object must retain authored source identity');
-      assert.equal(source.definitionNames[0]?.value, object.name, fixture.name + ': canonical object source name');
-      return { name: nameOf(object), line: source.primaryName.span.start.line };
+      const declaration = declarations.names.get(object.name);
+      assert.ok(declaration?.kind === ResolvedNameKind.Object && declaration.object === object,
+        fixture.name + ': canonical identity and canonical object source name provenance');
+      assert.equal(declaration.source, source, fixture.name + ': canonical object source provenance');
+      assert.ok(source.definitionNames.some(token => token.value === object.name && token.word === declaration.word),
+        fixture.name + ': canonical object source name provenance must retain its accepted token');
+      // Recovery can accept a color word as a primary inside an invalid authored
+      // object. Its accepted name token, rather than the container's raw primary,
+      // supplies the native object declaration line. The expected native line is
+      // still checked unchanged in the view comparison.
+      return { name: nameOf(object), line: declaration.word.span.start.line };
     });
     const names = [...declarations.names].map(([name, meaning]) => {
       assert.equal(meaning.name, name, fixture.name + ': resolved name key');

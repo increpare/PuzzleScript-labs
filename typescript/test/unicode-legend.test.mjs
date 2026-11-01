@@ -8,8 +8,7 @@ import { Movement } from '../build/model.js';
 import { LevelKind, SimpleSound } from '../build/session-model.js';
 import { PlayerMatchKind } from '../build/turn-rules.js';
 import { ObjectMatchKind, WinQuantifier, hasWon } from '../build/win-conditions.js';
-import { SourceLegendKind } from '../build/source-model.js';
-import { recoverLegendExpression } from '../build/source-legend.js';
+import { SourceDeclarationKind } from '../build/source-declarations.js';
 import { createGameDataOracle } from './legacy-game-data-oracle.cjs';
 import { buildParserStateSnapshot, collectParserPhaseDiagnostics } from './support/parser-snapshot.cjs';
 
@@ -20,6 +19,13 @@ const reproduction = readFileSync(new URL('./repros/legend-unicode-expansion.puz
 
 function sourceWithLegend(legend, objects = '') {
   return reproduction.replace('X = İ or Crate', legend).replace('Crate C\nblue', 'Crate C\nblue' + objects);
+}
+
+function acceptedLegend(document) {
+  return document.acceptedDeclarations.registrations.find(entry => entry.source === document.legend[0]);
+}
+function operands(entry) {
+  return entry.kind === SourceDeclarationKind.Alias ? [entry.origin.target] : entry.referenceTokens;
 }
 
 function freezeSource(value, source) {
@@ -59,9 +65,9 @@ test('a partial lowercase expansion points to the complete unchanged authored wo
   assert.equal(document.comments[0].span.end.offset - document.comments[0].span.start.offset, '(İ 😀)'.length);
   const before = structuredClone(document);
   freezeSource(document, source);
-  const expression = recoverLegendExpression(legend);
-  assert.equal(expression.kind, SourceLegendKind.Synonym);
-  assert.equal(expression.references[0], token);
+  const expression = acceptedLegend(document);
+  assert.equal(expression.kind, SourceDeclarationKind.Alias);
+  assert.equal(operands(expression)[0], token);
   const { declarations } = resolveDeclarations(document);
   assert.equal(declarations.names.get('x').word, legend.name);
   assert.equal(declarations.names.get('x').source, legend);
@@ -72,19 +78,19 @@ test('a partial lowercase expansion points to the complete unchanged authored wo
 
 test('lowercase expansion preserves native bad-prefix discard and comment resumption', () => {
   for (const [legend, kind, values] of [
-    ['X = Aİ! or Crate', SourceLegendKind.Synonym, ['ai']],
-    ['X = İ! (comment) or Crate', SourceLegendKind.Property, ['i', 'crate']],
-    ['X = İ (nested (İ 😀)) or Crate!', SourceLegendKind.Property, ['i', 'crate']],
-    ['X = İ! (comment) and Crate', SourceLegendKind.Aggregate, ['i', 'crate']],
+    ['X = Aİ! or Crate', SourceDeclarationKind.Alias, ['ai']],
+    ['X = İ! (comment) or Crate', SourceDeclarationKind.Property, ['i', 'crate']],
+    ['X = İ (nested (İ 😀)) or Crate!', SourceDeclarationKind.Property, ['i', 'crate']],
+    ['X = İ! (comment) and Crate', SourceDeclarationKind.Aggregate, ['i', 'crate']],
   ]) {
     const source = sourceWithLegend(legend, '\n\nAi\nyellow').replace('Player, I, Crate', 'Player, I, Crate\nAi');
     oracle.compareFixture({ name: legend, source });
-    const expression = recoverLegendExpression(readSource(source).document.legend[0]);
+    const expression = acceptedLegend(readSource(source).document);
     assert.equal(expression.kind, kind, legend);
-    assert.deepEqual(expression.references.map(token => token.value), values, legend);
+    assert.deepEqual(operands(expression).map(token => token.value), values, legend);
     const native = buildParserStateSnapshot(source).parser_state;
-    const entries = kind === SourceLegendKind.Synonym ? native.legend_synonyms
-      : kind === SourceLegendKind.Property ? native.legend_properties : native.legend_aggregates;
+    const entries = kind === SourceDeclarationKind.Alias ? native.legend_synonyms
+      : kind === SourceDeclarationKind.Property ? native.legend_properties : native.legend_aggregates;
     assert.deepEqual(entries.find(entry => entry.name === 'x').items, values, legend);
   }
 });
@@ -100,8 +106,8 @@ test('Greek sigma uses physical-line context even when a name ends before a case
       .replace('Player, I, Crate', 'Player, I, Crate\nοσ, ος');
     oracle.compareFixture({ name: legend, source });
     const { document } = readSource(source);
-    const expression = recoverLegendExpression(document.legend[0]);
-    const token = expression.references[0];
+    const expression = acceptedLegend(document);
+    const token = operands(expression)[0];
     assert.equal(token.value, expected, legend);
     assert.equal(token.word.spelling, spelling, legend);
     assert.equal(token.word.normalized, spelling.toLowerCase(), legend);
@@ -144,7 +150,7 @@ test('a discarded expanded self-reference still diagnoses the authored word', ()
   const { document } = readSource(source);
   const { diagnostics } = resolveDeclarations(document);
   const word = document.legend[0].definitionWords[2].word;
-  assert.equal(recoverLegendExpression(document.legend[0]), null);
+  assert.equal(acceptedLegend(document), undefined);
   assert.equal(word.normalized, 'i\u0307');
   assert.equal(diagnostics.find(problem => problem.code === 'self-reference')?.span, word.span);
 });

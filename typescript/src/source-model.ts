@@ -1,3 +1,4 @@
+import type { SourceObjectDeclaration, SourceAliasDeclaration, SourcePropertyDeclaration, SourceAggregateDeclaration, SourceDeclarationAdvice, SourceAliasOriginKind, SourceLegendAliasOrigin } from './source-declarations.js';
 import type { Direction } from './model.js';
 import type { RuleQualifier } from './source-rule-model.js';
 
@@ -51,16 +52,13 @@ export interface SourceObject extends SourceEntry {
   readonly primaryName: SourceWord;
   readonly validPrimaryName: boolean;
   readonly aliases: readonly SourceWord[];
-  /** Effective primary and aliases, including suffix names accepted after sprite completion. */
+  /** Name evidence for accepted registrations owned by this authored container.
+   * Recovery can give one container several accepted primaries. */
   readonly definitionNames: SourceLexicalToken[];
   readonly nameLine: SourceLine;
   colorLine: SourceLine | null;
   readonly colors: SourceWord[];
-  /** Accepted native colors beside unchanged authored chunks. */
-  readonly definitionColors: SourceLexicalToken[];
   spriteRows: SourceSpriteRow[] | null;
-  /** Accepted pixel tokens, after junk/oversize recovery, beside authored rows. */
-  readonly definitionSpriteRows: SourceLexicalToken[][];
 }
 export enum SourceLegendKind { Synonym, Property, Aggregate, Invalid }
 interface SourceLegendBase extends SourceEntry {
@@ -199,8 +197,31 @@ export interface SourceDiagnostic {
   /** Absent means false. Urgent native visits bypass duplicate suppression. */
   readonly urgent?: boolean;
 }
+/** One accepted primary and its own assets, independent of authored grouping. */
+export interface AcceptedSourceObjectDeclaration extends SourceObjectDeclaration {
+  readonly source: SourceObject;
+  readonly colors: readonly SourceLexicalToken[];
+  readonly spriteRows: readonly (readonly SourceLexicalToken[])[];
+}
+export type AcceptedSourceObjectAliasOrigin =
+  { readonly kind: SourceAliasOriginKind.Object; readonly owner: AcceptedSourceObjectDeclaration } |
+  { readonly kind: SourceAliasOriginKind.UnownedObject; readonly attemptedPrimary: SourceLexicalToken };
+/** Accepted source-time semantics, bound once to the authored tree. */
+export type AcceptedSourceDeclaration =
+  AcceptedSourceObjectDeclaration |
+  (Omit<SourceAliasDeclaration, 'origin'> & { readonly origin: AcceptedSourceObjectAliasOrigin; readonly source: SourceObject }) |
+  (Omit<SourceAliasDeclaration, 'origin'> & { readonly origin: SourceLegendAliasOrigin; readonly source: SourceLegend }) |
+  (SourcePropertyDeclaration & { readonly source: SourceLegend }) |
+  (SourceAggregateDeclaration & { readonly source: SourceLegend });
+export interface AcceptedSourceDeclarations {
+  readonly registrations: readonly AcceptedSourceDeclaration[];
+  /** Expanded at the native source visit, including repeated members and empty layers. */
+  readonly collisionLayers: readonly (readonly string[])[];
+  readonly advice: readonly SourceDeclarationAdvice[];
+}
 export interface SourceDocument {
   readonly source: string;
+  readonly acceptedDeclarations: AcceptedSourceDeclarations;
   readonly lines: SourceLine[];
   readonly sections: SourceSection[];
   readonly metadata: SourceMetadata[];

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readSource } from '../build/source-reader.js';
+import { SourceDeclarationKind } from '../build/source-declarations.js';
 import { resolveDeclarations } from '../build/declarations.js';
 import * as sourceTypes from '../build/source-model.js';
 import { createSourceAssetsOracle } from './legacy-source-assets.cjs';
@@ -16,6 +17,9 @@ const colors = await import('../build/colors.js').catch(error => {
   return {};
 });
 const oracle = createSourceAssetsOracle({ readSource, resolveDeclarations, ...sourceTypes, ...assets, ...colors });
+function acceptedObject(document, name = 'background') {
+  return document.acceptedDeclarations.registrations.find(entry => entry.kind === SourceDeclarationKind.Object && entry.name === name);
+}
 test('independent source assets match the actual native producers', () => {
   assert.equal(typeof assets.compileObjectSprites, 'function');
   assert.equal(typeof assets.compileDisplayColors, 'function');
@@ -51,7 +55,7 @@ test('the fifth accepted pixel of row five immediately turns the suffix into a c
   const source = document.objects[0], row = source.spriteRows[4];
   assert.equal(row.text, '000000');
   assert.equal(row.glyphs.length, 6);
-  assert.equal(source.definitionSpriteRows[4].length, 5);
+  assert.equal(acceptedObject(document).spriteRows[4].length, 5);
   const alias = source.definitionNames.find(token => token.value === '0');
   assert.equal(alias.word, row.glyphs[5]);
   assert.equal(alias.word.span.start.line, entry.aliases.find(alias => alias.name === '0').line);
@@ -103,15 +107,15 @@ for (const [continuation, colors, rows] of [
     assert.deepEqual(entry.rows.background, rows);
     const { document, native } = oracle.compareFixture(item);
     const background = document.objects[0];
-    assert.deepEqual(background.definitionColors.map(token => token.value), colors);
-    background.definitionColors.forEach((token, index) => assert.equal(token.word, background.colors[index], 'accepted colors link to this physical line'));
+    assert.deepEqual(acceptedObject(document).colors.map(token => token.value), colors);
+    acceptedObject(document).colors.forEach((token, index) => assert.equal(token.word, background.colors[index], 'accepted colors link to this physical line'));
     assert.deepEqual(native.raw.find(object => object.name === 'background').colors, colors);
     assert.equal(background.colorLine.original, 'Black');
     for (const word of background.colors) assert.equal(item.source.slice(word.span.start.offset, word.span.end.offset), word.spelling);
     assert.equal(background.spriteRows[4].text, '000000');
     if (rows.length === 1) {
       assert.equal(background.spriteRows[5].text, '1');
-      assert.equal(background.definitionSpriteRows[0][0].word, background.spriteRows[5].glyphs[0]);
+      assert.equal(acceptedObject(document).spriteRows[0][0].word, background.spriteRows[5].glyphs[0]);
     }
   });
 }
@@ -134,7 +138,7 @@ test('junk before a midline comment resumes the prior accepted row using its exi
   assert.deepEqual(entry.rows.background, ['000000', '00000', '00000', '00000']);
   const { document, result } = oracle.compareFixture(item);
   assert.deepEqual(document.objects[0].spriteRows.map(row => row.text), ['00000', 'A00000', '00000', '00000', '00000']);
-  const continuation = document.objects[0].definitionSpriteRows[0][5];
+  const continuation = acceptedObject(document).spriteRows[0][5];
   assert.equal(continuation.word, document.objects[0].spriteRows[1].glyphs[1]);
   const sprite = result.sprites.values().next().value;
   assert.equal(sprite.pixels.length, 4);
@@ -230,7 +234,9 @@ test('invalid effective colors diagnose after the ten-color limit and retain the
     afterParse: parsed => { parsed.objects.background.colors = [...values]; },
     afterRead: document => {
       const object = document.objects[0], word = object.colors[0];
-      object.definitionColors.splice(0, object.definitionColors.length, ...values.map(value => ({ value, word })));
+      const tokens = values.map(value => ({ value, word }));
+      const accepted = acceptedObject(document);
+      accepted.colors.splice(0, accepted.colors.length, ...tokens);
     },
   });
   assert.deepEqual(result.diagnostics.map(issue => issue.code), ['too-many-sprite-colors', 'invalid-object-color', 'multiple-solid-sprite-colors']);
@@ -243,7 +249,9 @@ test('explicit invalid pixels model native nonnumeric compiler input without a n
     afterParse: parsed => { parsed.objects.background.spritematrix = rows; },
     afterRead: document => {
       const source = document.objects[0], word = source.colors[0];
-      source.definitionSpriteRows.push(...rows.map(row => [...row].map(value => ({ value, word }))));
+      const tokens = rows.map(row => [...row].map(value => ({ value, word })));
+      const accepted = acceptedObject(document);
+      accepted.spriteRows.push(...tokens);
     },
   });
   const pixels = result.sprites.values().next().value.pixels;
@@ -276,8 +284,8 @@ test('authored junk suffix stays intact while only accepted prefix supplies pixe
   const source = document.objects[0], row = source.spriteRows[0];
   assert.equal(row.text, '11A11');
   assert.deepEqual(row.glyphs.map(glyph => glyph.spelling), ['1', '1', 'A', '1', '1']);
-  assert.equal(source.definitionSpriteRows[0].map(token => token.value).join(''), '11');
-  for (const token of source.definitionSpriteRows[0]) assert.ok(row.glyphs.includes(token.word), 'accepted pixels link to unchanged authored glyphs');
+  assert.equal(acceptedObject(document).spriteRows[0].map(token => token.value).join(''), '11');
+  for (const token of acceptedObject(document).spriteRows[0]) assert.ok(row.glyphs.includes(token.word), 'accepted pixels link to unchanged authored glyphs');
   assert.equal(result.sprites.values().next().value.pixels[0][2].kind, assets.SpritePixelKind.Invalid);
   assert.ok(native.parserDiagnostics.some(issue => issue.message === 'Unknown junk in spritematrix for object BACKGROUND.'));
 });

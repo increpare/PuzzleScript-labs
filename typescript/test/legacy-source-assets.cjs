@@ -151,9 +151,18 @@ function createSourceAssetsOracle(types) {
       display = (options.compileDisplayColors ?? types.compileDisplayColors)(document, result.palette);
       assert.deepEqual(result.palette, paletteBefore, 'display palette unchanged');
     });
-    const raw = [...declarations.objectSources].map(([object, source]) => ({ name: object.name,
-      line: source.primaryName.span.start.line, colors: source.definitionColors.map(token => token.value),
-      rows: source.definitionSpriteRows.map(row => row.map(token => token.value).join('')) }));
+    const raw = [...declarations.objectSources].map(([object, source]) => {
+      const word = declarations.names.get(object.name).word;
+      const definition = document.acceptedDeclarations.registrations.find(entry =>
+        entry.name === object.name && entry.nameToken.word === word);
+      assert.ok(definition && Array.isArray(definition.colors) && Array.isArray(definition.spriteRows),
+        fixture.name + ': every canonical object has its accepted asset definition');
+      assert.equal(definition.source, source, fixture.name + ': accepted asset source identity');
+      return { name: object.name, line: word.span.start.line,
+        colors: array('accepted colors', definition.colors).map(token => token.value),
+        rows: array('accepted sprite rows', definition.spriteRows).map(row =>
+          array('accepted sprite pixels', row).map(token => token.value).join('')) };
+    });
     const byName = values => [...values].sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
     assert.deepEqual(byName(raw), byName(native.raw), fixture.name + ': accepted asset tokens');
     assert.deepEqual({ name: result.palette.name, colors: [...result.palette.colors] }, native.palette, fixture.name + ': selected palette');

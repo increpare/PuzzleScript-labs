@@ -248,7 +248,7 @@ test('the global cap can interrupt an object visit before the name is accepted',
   assert.equal(result.diagnostics.length, 101);
   assert.equal(result.document.objects[0].primaryName.spelling, 'Up');
   assert.deepEqual(result.document.objects[0].definitionNames, []);
-  assert.deepEqual(result.document.objects[0].definitionColors, []);
+  assert.deepEqual(result.document.acceptedDeclarations.registrations, []);
 });
 
 test('an effective lowercase cursor maps to valid authored positions after Unicode expansion', () => {
