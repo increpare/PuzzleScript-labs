@@ -49,10 +49,10 @@ observable normalization behavior using real source and controlled experiments.
   goal checklist, including small-helper ergonomics and honest remaining quirks.
 - [x] Run complete strict suite, bounded per-move sample and required focused
   checks; update README/READABILITY and the audit with actual evidence.
-- [ ] Commit/integrate into clean local master and verify the primary checkout.
+- [x] Commit/integrate into clean local master and verify the primary checkout.
   Preserve unrelated local commits; no automatic push or worktree cleanup while
   active work depends on it.
-- [ ] Mark the active goal complete only if its full checklist and reviews pass;
+- [x] Verify the completion gate: the full checklist, reviews and integration pass;
   report the concrete improvements and verification without overclaiming future
   correctness outside covered behavior.
 
@@ -96,3 +96,8 @@ observable normalization behavior using real source and controlled experiments.
   graphs never supply oracle input/expected data. Original JS and unrelated
   prepared-AGAIN runtime work remain untouched. No exhaustive gameplay replay,
   preview server or automatic push was started.
+- Integration completed at code checkpoint `5d9addf4`. The clean primary master
+  checkout built successfully and passed **66 focused integration checks**;
+  `/private/tmp/ps-final-frontend-master-smoke.log`. All required checklist items
+  and independent review gates are satisfied; the active goal can be recorded
+  complete after this verification record is integrated.
