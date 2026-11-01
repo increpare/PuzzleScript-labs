@@ -41,7 +41,7 @@ to the JS engine.
 - [x] Strict build and full TS/semantic fixture suite pass against unchanged
       pinned vanilla authority; generated per-operation campaign has no mismatch.
 - [x] Reading docs and verification evidence describe the final implementation.
-- [ ] Local master integration, primary build/smoke and clean status verified;
+- [x] Local master integration, primary build/smoke and clean status verified;
       no push and no leftover test servers/processes.
 
 ## Verification
@@ -104,4 +104,11 @@ sources and 335 compilation sources, 30,121 movement variants, 106,392
 property/spawn variants and 99,192 final executable rules. No oracle producer,
 adapter, schema, manifest, expectation or quirk setting changed.
 
-Local integration and primary-checkout smoke verification are pending.
+Commit `5eee6c50` was fast-forwarded into local `master`. The primary checkout's
+strict build then passed, followed by 256 focused property, movement, source/type,
+matching, application and turn tests, with zero failures/skips
+(`/private/tmp/ps-traversal-master-smoke.log`). Both checkouts were clean after
+integration; this final documentation update records that verification.
+The existing reusable worktree is retained on
+`codex/typescript-traversal-clarity`. No push or preview server was started, and
+all launched test/campaign processes completed.
