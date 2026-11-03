@@ -59,11 +59,11 @@ function createRulePropertiesOracle(types) {
     const loggerNames = ['logError', 'logWarning', 'logWarningNoLine'];
     const originals = loggerNames.map(name => globalThis[name]);
     try {
-      globalThis.logError = (message, line) => diagnostics.push({ message, line: line ?? null,
+      globalThis.logError = (message, line) => diagnostics.push({ message: String(message), line: line ?? null,
         severity: types.SourceDiagnosticSeverity.Error, countsAsError: true });
-      globalThis.logWarning = (message, line) => diagnostics.push({ message, line: line ?? null,
+      globalThis.logWarning = (message, line) => diagnostics.push({ message: String(message), line: line ?? null,
         severity: types.SourceDiagnosticSeverity.Warning, countsAsError: line === undefined });
-      globalThis.logWarningNoLine = message => diagnostics.push({ message, line: null,
+      globalThis.logWarningNoLine = message => diagnostics.push({ message: String(message), line: null,
         severity: types.SourceDiagnosticSeverity.Warning, countsAsError: true });
       movement.forEach((rule, index) => {
         const variants = concretizePropertyRule(parsed, rule, rule.lineNumber);

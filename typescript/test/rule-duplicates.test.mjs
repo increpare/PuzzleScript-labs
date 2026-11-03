@@ -363,9 +363,9 @@ test('every native parser/compiler producer is disabled for candidate execution'
   assert.throws(() => oracle.independently(() => runInThisContext('new CodeMirror.StringStream("", 4)')), /Candidate called native CodeMirror.StringStream/);
 });
 
-test('all 492 vanilla sources match every preceding sequence and ordered duplicate survivors', t => {
+test('all 528 vanilla sources match every preceding sequence and ordered duplicate survivors', t => {
   const fixtures = oracle.corpusFixtures();
-  assert.equal(fixtures.length, 492);
+  assert.equal(fixtures.length, 528);
   const totals = { sources: 0, syntax: 0, named: 0, movement: 0, spawned: 0, survivors: 0 };
   for (const item of fixtures) {
     const { syntax, named, movement, spawned, result } = oracle.compareFixture(item);
@@ -377,6 +377,6 @@ test('all 492 vanilla sources match every preceding sequence and ordered duplica
     totals.survivors += result.length;
   }
   t.diagnostic(JSON.stringify(totals));
-  assert.deepEqual(totals, { sources: 492, syntax: 16674, named: 26093,
-    movement: 30007, spawned: 106122, survivors: 99567 });
+  assert.deepEqual(totals, { sources: 528, syntax: 16718, named: 26143,
+    movement: 30057, spawned: 106189, survivors: 99630 });
 });

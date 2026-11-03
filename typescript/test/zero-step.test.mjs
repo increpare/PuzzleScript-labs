@@ -20,10 +20,17 @@ loadPuzzleScript({ messageSink: messages });
 function nativeFixture(rules = 'moving [ Player | Crate ] -> sfx0') {
   messages.length = 0;
   resetParserErrorState();
-  const source = movementSource({ rules, sounds: 'sfx0 123', level: 'XX\nXX' })
+  const source = movementSource({ rules: rules.replace(/^moving /, 'orthogonal '), sounds: 'sfx0 123', level: 'XX\nXX' })
     .replace('C = Crate', 'C = Crate\nX = Player and Crate')
     .replace('Player, Crate, Wall', 'Player\nCrate\nWall');
   compile(['loadLevel', 0], source + '\n', 'zero-step');
+  // A source header no longer creates InPlace rules. Exercise this lower-level
+  // execution domain directly using the native Rule constructor at the boundary.
+  const sourceRule = state.rules.flat().at(-1);
+  state.rules.at(-1).push(new Rule([16, sourceRule.patterns, sourceRule.hasReplacements,
+    sourceRule.lineNumber, sourceRule.ellipsisCount, sourceRule.groupNumber, sourceRule.rigid,
+    sourceRule.commands, sourceRule.isRandom, sourceRule.cellRowMasks, sourceRule.cellRowMasks_Movements]));
+  state.rules.at(-1).at(-1).generate_all_MatchFunctions();
   state.calculateRowColMasks(level);
   const objects = state.idDict.map(name => Object.freeze({ name }));
   const context = { Direction, Movement, Ellipsis, legacyEllipsis: ellipsisPattern,
@@ -89,9 +96,9 @@ function nativeExecutionFrame(decoded) {
     cantMoveSounds: seedsToPlay_CantMove, message: messagetext, created: sfxCreateMask, destroyed: sfxDestroyMask });
 }
 
-test('native recovery retains Action as a zero-step rule orientation', t => {
+test('the native Rule boundary retains Action as a zero-step rule orientation', t => {
   const fixture = nativeFixture();
-  assert.ok(messages.some(message => message.includes('Name "moving", referred to in a rule, does not exist.')));
+  assert.ok(messages.every(message => !message.includes('referred to in a rule, does not exist.')));
   assert.deepEqual(fixture.rules.map(rule => rule.direction), [2, 2, 8, 8, 16]);
   const native = fixture.rules[4];
   assert.equal(level.delta_index(native.direction), 0);

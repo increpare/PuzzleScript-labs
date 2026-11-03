@@ -1,7 +1,7 @@
 # Small source-game exploration
 
 This test tool generates complete readable PuzzleScript games and compares the
-independent TypeScript implementation against pinned vanilla `57f9f6cb`. It uses
+independent TypeScript implementation against pinned vanilla `caa90212`. It uses
 ordinary object names, unnamed collision layers, properties, rule text and cell
 occupant arrays. It never records an engine's output as an expected board.
 

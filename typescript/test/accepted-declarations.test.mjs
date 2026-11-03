@@ -105,15 +105,16 @@ test('final normalization leaves accepted source memberships and repeated comple
 });
 
 
-test('an alias after an initially rejected primary records an explicit missing owner', () => {
+test('Object.prototype names are accepted as ordinary primary objects and aliases', () => {
   const document = readSource('OBJECTS\nconstructor Ghost').document;
-  const alias = document.acceptedDeclarations.registrations[0];
+  const [object, alias] = document.acceptedDeclarations.registrations;
+  assert.equal(object.kind, SourceDeclarationKind.Object);
+  assert.equal(object.name, 'constructor');
   assert.equal(alias.kind, SourceDeclarationKind.Alias);
-  assert.equal(alias.target, '');
-  assert.equal(alias.origin.kind, SourceAliasOriginKind.UnownedObject);
-  assert.equal(alias.origin.attemptedPrimary.word, document.objects[0].primaryName);
-  assert.equal(alias.nameToken.word, document.objects[0].aliases[0]);
-  assert.deepEqual(prepareDeclarations(document).objects, []);
+  assert.equal(alias.target, 'constructor');
+  assert.equal(alias.origin.kind, SourceAliasOriginKind.Object);
+  assert.equal(alias.origin.owner, object);
+  assert.deepEqual(prepareDeclarations(document).objects.map(object => object.name), ['constructor']);
 });
 
 

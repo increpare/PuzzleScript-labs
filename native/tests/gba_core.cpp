@@ -66,6 +66,18 @@ ps_gba_kernel_result commandOnlyWinKernel(uint32_t*, uint32_t,
     return {true, false, false, false, false, false, false, false};
 }
 
+ps_gba_kernel_result checkpointStartupKernel(uint32_t* board, uint32_t,
+    uint32_t*, uint32_t*, uint32_t, uint32_t*, uint32_t, uint16_t, uint16_t,
+    uint16_t, ps_input input, ps_gba_rng_state*, bool, bool levelStart) {
+    if (levelStart) ++board[0];
+    ps_gba_kernel_result result{};
+    result.handled = true;
+    result.changed = levelStart;
+    result.checkpoint = !levelStart && input == PS_INPUT_ACTION;
+    result.restarted = !levelStart && input == PS_INPUT_LEFT;
+    return result;
+}
+
 } // namespace
 
 int main() {
@@ -151,5 +163,23 @@ int main() {
     const ps_step_result commandOnlyWin = ps_gba_step(commandOnlySession, PS_INPUT_ACTION);
     require(commandOnlyWin.changed && commandOnlyWin.won && commandOnlyWin.transitioned,
         "command-only win is reported as a visible change");
+
+    ps_gba_game_view checkpointGame = commandOnlyGame;
+    checkpointGame.turn_kernel = checkpointStartupKernel;
+    std::vector<uint8_t> checkpointArena(ps_gba_session_required_bytes(&checkpointGame));
+    auto* checkpointSession = ps_gba_session_init(checkpointArena.data(), checkpointArena.size(), &checkpointGame);
+    require(checkpointSession && ps_gba_load_level(checkpointSession, 0), "checkpoint startup session loads");
+    const uint32_t initialized = ps_gba_board_words(checkpointSession)[0];
+    require(ps_gba_restart(checkpointSession) && ps_gba_board_words(checkpointSession)[0] == initialized,
+        "fresh restart initializes the raw target");
+    require(ps_gba_step(checkpointSession, PS_INPUT_LEFT).restarted
+        && ps_gba_board_words(checkpointSession)[0] == initialized,
+        "rule restart initializes the raw target");
+    ps_gba_step(checkpointSession, PS_INPUT_ACTION);
+    require(ps_gba_restart(checkpointSession) && ps_gba_board_words(checkpointSession)[0] == initialized,
+        "checkpoint restart must not initialize the saved board twice");
+    require(ps_gba_step(checkpointSession, PS_INPUT_LEFT).restarted
+        && ps_gba_board_words(checkpointSession)[0] == initialized,
+        "rule checkpoint restart must not initialize the saved board twice");
     return 0;
 }

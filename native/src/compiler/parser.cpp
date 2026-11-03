@@ -1573,6 +1573,19 @@ void parseLegendLine(ParserState& state, DiagnosticSink& diagnostics, std::strin
             // parser.js splices out the self RHS so splits.length !== 3 and the synonym is not stored.
             return;
         }
+        std::string resolved = rhs;
+        std::unordered_set<std::string> visited;
+        while (visited.insert(resolved).second) {
+            const auto synonym = std::find_if(state.legendSynonyms.begin(), state.legendSynonyms.end(),
+                [&](const auto& candidate) { return candidate.name == resolved && !candidate.items.empty(); });
+            if (synonym == state.legendSynonyms.end()) break;
+            resolved = synonym->items.front();
+        }
+        if (resolved == candname) {
+            diagnostics.error(DiagnosticCode::GenericError, state.lineNumber,
+                "You can't define object " + toUpperCopy(candname) + " in terms of itself!");
+            return;
+        }
         entry.items.push_back(rhs);
         state.legendSynonyms.push_back(std::move(entry));
         return;
@@ -1908,10 +1921,15 @@ void parseSoundsLine(ParserState& state, DiagnosticSink& diagnostics, std::strin
             std::string nm;
             if (consumeSoundNameToken(lowered, pos, nm)) {
                 if (!soundLeadingTokenAcceptable(state, nm)) {
-                    diagnostics.error(
-                        DiagnosticCode::GenericError,
-                        state.lineNumber,
-                        "unexpected sound token \"" + nm + "\".");
+                    std::string message;
+                    if (isExactToken(nm, kSoundVerbs, std::size(kSoundVerbs))) {
+                        message = "Sound verb \"" + toUpperCopy(nm) + "\" needs an entity before it, e.g. \"Player " + toUpperCopy(nm) + " 12345\".";
+                    } else if (isExactToken(nm, kSoundDirections, std::size(kSoundDirections))) {
+                        message = "Sound direction \"" + toUpperCopy(nm) + "\" needs an entity and MOVE or CANTMOVE before it, e.g. \"Player MOVE " + toUpperCopy(nm) + " 12345\".";
+                    } else {
+                        message = "unexpected sound token \"" + nm + "\".";
+                    }
+                    diagnostics.error(DiagnosticCode::GenericError, state.lineNumber, std::move(message));
                     pushError();
                     break;
                 }
@@ -1952,7 +1970,8 @@ void parseSoundsLine(ParserState& state, DiagnosticSink& diagnostics, std::strin
             diagnostics.error(
                 DiagnosticCode::GenericError,
                 state.lineNumber,
-                "Was expecting a soundverb here (MOVE, DESTROY, CANTMOVE, or the like), but found something else.");
+                "Was expecting a sound verb here (e.g. MOVE, DESTROY, CANTMOVE, or the like), but found something else. Try \""
+                    + toUpperCopy(wip[0].first) + " MOVE 12345\" or \"" + toUpperCopy(wip[0].first) + " ACTION 12345\".");
             (void)bad;
             pushError();
             break;
@@ -2038,6 +2057,7 @@ void parseCollisionLayersLine(ParserState& state, DiagnosticSink& diagnostics, s
     state.collisionLayers.push_back({});
 
     std::unordered_set<std::string> expandingCollision;
+    std::string authoredCollisionName;
     std::function<std::vector<std::string>(const std::string&)> expand;
     expand = [&](const std::string& name) -> std::vector<std::string> {
         const std::string lowered = toLowerCopy(name);
@@ -2072,7 +2092,7 @@ void parseCollisionLayersLine(ParserState& state, DiagnosticSink& diagnostics, s
                 return result;
             }
         }
-        diagnostics.error(DiagnosticCode::GenericError, state.lineNumber, "Cannot add \"" + toUpperCopy(name) + "\" to a collision layer; it has not been declared.");
+        diagnostics.error(DiagnosticCode::GenericError, state.lineNumber, "Cannot add \"" + toUpperCopy(authoredCollisionName) + "\" to a collision layer; it has not been declared.");
         return {};
     };
 
@@ -2094,6 +2114,7 @@ void parseCollisionLayersLine(ParserState& state, DiagnosticSink& diagnostics, s
             diagnostics.error(DiagnosticCode::GenericError, state.lineNumber, "Background must be in a layer by itself.");
         }
 
+        authoredCollisionName = candname;
         const std::vector<std::string> ar = expand(candname);
         if (state.collisionLayers.empty()) {
             diagnostics.error(DiagnosticCode::GenericError, state.lineNumber, "no layers found.");

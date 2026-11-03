@@ -141,15 +141,13 @@ test('legend lexical errors retain the native definition prefix and exact source
   }
 });
 
-test('cyclic aliases stay unresolved while terminating property self-removal recovers native members', () => {
+test('closing alias links are rejected while terminating property self-removal recovers native members', () => {
   const { declarations, diagnostics } = resolveDeclarations(read(simpleObjects,
     'One = Two\nTwo = One\nLoop = Later or A\nLater = Loop or B'));
-  for (const name of ['one', 'two']) {
-    assert.equal(declarations.names.get(name).kind, ResolvedNameKind.Unresolved, name);
-    assert.match(declarations.names.get(name).reason, /cycl/i);
-  }
+  assert.equal(declarations.names.get('one').kind, ResolvedNameKind.Unresolved);
+  assert.equal(declarations.names.has('two'), false);
   for (const name of ['loop', 'later']) assert.deepEqual(members(declarations, name), ['a', 'b']);
-  assert.ok(diagnostics.some(item => item.code === 'cyclic-reference'));
+  assert.ok(diagnostics.some(item => item.message.includes('in terms of itself')));
 });
 
 test('unnamed layers expand properties, retain empty layers, and reject aggregates', () => {

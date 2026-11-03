@@ -131,7 +131,7 @@ test('source-compiled restore policies drive typed undo and restart', () => {
 
 test('all simulation sources compile matching independent game data', () => {
   const fixtures = oracle.corpusFixtures();
-  assert.equal(fixtures.length, 492);
+  assert.equal(fixtures.length, 528);
   for (const item of fixtures) oracle.compareFixture(item);
 });
 

@@ -251,7 +251,7 @@ test('every native parser/compiler/token producer is disabled during candidate w
 
 test('every retained simulation-source rule matches native syntax including errored recovery', t => {
   const fixtures = oracle.corpusFixtures();
-  assert.equal(fixtures.length, 492);
+  assert.equal(fixtures.length, 528);
   const totals = { sources: 0, captured: 0, rules: 0, loops: 0, diagnostics: 0, aborted: 0 };
   for (const item of fixtures) {
     const report = oracle.compareFixture(item);
@@ -259,6 +259,6 @@ test('every retained simulation-source rule matches native syntax including erro
     for (const key of ['captured', 'rules', 'loops', 'diagnostics', 'aborted']) totals[key] += report[key];
   }
   t.diagnostic(JSON.stringify(totals));
-  assert.equal(totals.rules, 16674);
+  assert.equal(totals.rules, 16718);
   assert.equal(totals.diagnostics, 217);
 });

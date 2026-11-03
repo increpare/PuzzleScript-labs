@@ -71,7 +71,7 @@ function createSourceCompilerOracle(types) {
         return processor;
       };
       globalThis.logIssue = function(message, line, urgent, className, countsAsError, printUrgent) {
-        const issue = { message, line: line ?? null, severity: className === 'warningText'
+        const issue = { message: String(message), line: line ?? null, severity: className === 'warningText'
           ? types.SourceDiagnosticSeverity.Warning : types.SourceDiagnosticSeverity.Error, countsAsError, urgent: urgent ?? false };
         rawDiagnostics.push(issue);
         const before = errorStrings.length;

@@ -60,7 +60,7 @@ function decodeExecution(legacy, context) {
   for (const source of new Set([...legacy.rules.flat(), ...legacy.lateRules.flat()])) {
     assertVanillaFields('rule', source, ['direction', 'patterns', 'hasReplacements', 'lineNumber', 'ellipsisCount',
       'groupNumber', 'rigid', 'commands', 'isRandom', 'cellRowMasks', 'cellRowMasks_Movements', 'ruleMask',
-      'applyAt', 'cellRowMatches', 'findMatches']);
+      'applyAt', 'cellRowMatches', 'findMatches', 'loopStartLine', 'loopEndLine']);
     const rigidIndex = legacy.groupNumber_to_RigidGroupIndex[source.groupNumber];
     rules.set(source, {
       ...decoder.rule(source),

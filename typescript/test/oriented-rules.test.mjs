@@ -151,16 +151,16 @@ test('one synonym lookup does not chase a name introduced by that lookup', () =>
   assert.deepEqual(result.rules[0].rhs[0][0].map(term => term.name), ['third']);
 });
 
-test('moving selector without relative terms preserves the fifth InPlace variant', () => {
-  const { result } = oracle.compareFixture(fixture('moving [ Player | Crate ] -> [ Player | Crate ]'));
-  assert.deepEqual(result.rules.map(rule => rule.direction), [Direction.Down, Direction.Down, Direction.Right, Direction.Right, Direction.InPlace]);
-  assert.deepEqual(result.rules[4].lhs[0].map(cell => cell[0].name), ['player', 'crate']);
+test('movement-only header words report invalid selectors and retain orthogonal rule recovery', () => {
+  for (const prefix of ['moving', 'horizontal_par', 'vertical_par', 'horizontal_perp', 'vertical_perp']) {
+    const { result } = oracle.compareFixture(fixture(prefix + ' [ Player | Crate ] -> [ Player | Crate ]'));
+    assert.deepEqual(result.rules.map(rule => rule.direction), [Direction.Down, Direction.Down, Direction.Right, Direction.Right]);
+  }
 });
 
-test('native and candidate independently preserve the InPlace-relative TypeError category', () => {
+test('an invalid moving header recovers relative qualifiers without an InPlace orientation', () => {
   const item = fixture('moving [ > Player ] -> [ Player ]');
-  assert.throws(() => oracle.nativeStages(item.source), TypeError);
-  assert.throws(() => oracle.candidateStages(item.source), error => error instanceof TypeError && /InPlace.*relative/i.test(error.message));
+  oracle.compareFixture(item);
 });
 
 const emptyAggregate = () => {
@@ -274,9 +274,9 @@ test('every native producer including orientation and name functions is guarded'
   assert.throws(() => oracle.independently(() => runInThisContext('new codeMirrorFn().startState()')), /Candidate called native codeMirrorFn/);
 });
 
-test('all 492 retained simulation sources match orientations, names, order and new diagnostics', t => {
+test('all 528 retained simulation sources match orientations, names, order and new diagnostics', t => {
   const fixtures = oracle.corpusFixtures();
-  assert.equal(fixtures.length, 492);
+  assert.equal(fixtures.length, 528);
   const totals = { sources: 0, captured: 0, before: 0, oriented: 0, diagnostics: 0 };
   for (const item of fixtures) {
     const report = oracle.compareFixture(item);

@@ -1469,6 +1469,7 @@ static void ps_gbc_finish_turn(
     bool level_start,
     ps_step_result* result
 ) {
+    ps_gbc_commands completed_commands;
     PS_GBC_PERF_BEGIN(PS_GBC_PERF_COMMANDS);
     if ((commands->flags & PS_GBC_COMMAND_CANCEL) != 0U) {
         (void)session->snapshots.read(
@@ -1520,6 +1521,8 @@ static void ps_gbc_finish_turn(
         }
         changed = true;
         result->restarted = true;
+        memset(&completed_commands, 0, sizeof(completed_commands));
+        commands = &completed_commands;
 #if PS_GBC_HAS_AUDIO
         ps_gbc_audio_append_named(session, PS_GBC_SOUND_RESTART);
 #endif
@@ -1652,6 +1655,7 @@ static void ps_gbc_run_rules_on_level_start(ps_gbc_session* session) {
     ps_step_result ignored;
     if (session == NULL
         || session->mode != (uint8_t)PS_FULL_STATE_MODE_LEVEL
+        || session->checkpoint_valid
         || !session->game->run_rules_on_level_start) {
         return;
     }

@@ -90,15 +90,16 @@ test('rule and level vocabularies accumulate only at their explicit checkpoints 
   assert.equal(levels.has('y'), false);
 });
 
-test('inherited native object names remain compatibility lookups and never become registrations or vocabulary', () => {
+test('prototype names require actual declarations and join vocabulary after registration', () => {
   const { declarations, issues } = registry();
-  assert.notEqual(declarations.findDeclaration('constructor'), null);
-  assert.deepEqual(declarations.expandName('constructor'), { kind: SourceExpansionKind.Object, name: 'constructor' });
-  assert.equal(declarations.declareObject(token('constructor', 10)), null);
+  assert.equal(declarations.findDeclaration('constructor'), null);
+  assert.deepEqual(declarations.expandName('constructor'), { kind: SourceExpansionKind.Undeclared, name: 'constructor' });
+  const object = declarations.declareObject(token('constructor', 10));
+  assert.equal(object.name, 'constructor');
   declarations.captureRuleVocabulary();
-  assert.equal(declarations.ruleVocabulary.has('constructor'), false);
-  assert.equal(declarations.registrations.some(item => item.name === 'constructor'), false);
-  assert.match(issues[0].message, /defined multiple times/);
+  assert.equal(declarations.ruleVocabulary.has('constructor'), true);
+  assert.equal(declarations.findDeclaration('constructor'), object);
+  assert.deepEqual(issues, []);
 });
 
 test('layers expand properties and keep duplicate-layer warning multiplicity and visit order', () => {

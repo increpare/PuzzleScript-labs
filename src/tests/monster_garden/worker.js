@@ -125,7 +125,7 @@ allCode += '\n' + [
     '    winning: { get: function() { return winning; }, set: function(v) { winning = v; }, configurable: true },',
     '    messageselected: { get: function() { return messageselected; }, set: function(v) { messageselected = v; }, configurable: true },',
     '    messagetext: { get: function() { return messagetext; }, set: function(v) { messagetext = v; }, configurable: true },',
-    '    hasUsedCheckpoint: { get: function() { return hasUsedCheckpoint; }, set: function(v) { hasUsedCheckpoint = v; }, configurable: true },',
+    '    restartTargetIsCheckpoint: { get: function() { return restartTargetIsCheckpoint; }, set: function(v) { restartTargetIsCheckpoint = v; }, configurable: true },',
     '    loadedLevelSeed: { get: function() { return loadedLevelSeed; }, set: function(v) { loadedLevelSeed = v; }, configurable: true },',
     '    againing: { get: function() { return againing; }, set: function(v) { againing = v; }, configurable: true },',
     '    backups: { get: function() { return backups; }, set: function(v) { backups = v; }, configurable: true },',
@@ -142,8 +142,8 @@ vm.runInThisContext(allCode, { filename: 'monster_garden_worker.js' });
 
 const originalLoadLevelFromLevelDat = global.loadLevelFromLevelDat;
 let activeEngineSeed = null;
-global.loadLevelFromLevelDat = function(state, leveldat, randomseed, clearinputhistory) {
-    return originalLoadLevelFromLevelDat(state, leveldat, randomseed || activeEngineSeed, clearinputhistory);
+global.loadLevelFromLevelDat = function(state, leveldat, randomseed, clearinputhistory, checkpoint) {
+    return originalLoadLevelFromLevelDat(state, leveldat, randomseed || activeEngineSeed, clearinputhistory, checkpoint);
 };
 
 function emit(result) {
@@ -161,7 +161,7 @@ function resetWorkerRuntime() {
     global.messageselected = false;
     global.textMode = true;
     global.titleScreen = true;
-    global.hasUsedCheckpoint = false;
+    global.restartTargetIsCheckpoint = false;
     global.curlevelTarget = null;
 }
 
@@ -218,7 +218,7 @@ function snapshotEngine() {
         winning: global.winning,
         messageselected: global.messageselected,
         messagetext: global.messagetext,
-        hasUsedCheckpoint: global.hasUsedCheckpoint,
+        restartTargetIsCheckpoint: global.restartTargetIsCheckpoint,
         backups: (global.backups || []).slice(),
         rng: snapshotRng(),
         width: level ? level.width : 0,
@@ -244,7 +244,7 @@ function restoreEngine(snap) {
     global.winning = snap.winning;
     global.messageselected = snap.messageselected;
     global.messagetext = snap.messagetext;
-    global.hasUsedCheckpoint = snap.hasUsedCheckpoint;
+    global.restartTargetIsCheckpoint = snap.restartTargetIsCheckpoint;
     global.backups = snap.backups.slice();
     restoreRng(snap.rng);
     if (global.level) {
@@ -329,7 +329,8 @@ function compilerDiagnosticKind() {
 }
 
 function stripErrorTags(text) {
-    return String(text).replace(/<[^>]+>/g, '');
+    return String(text).replace(/<\/?[a-zA-Z][^>]*>/g, '')
+        .replace(/&(amp|lt|gt|quot|#39);/g, (_, entity) => ({amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'"})[entity]);
 }
 
 function diagnosticFingerprint(diagnosticKind) {

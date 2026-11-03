@@ -213,9 +213,9 @@ test('native scheduled rule decoder retains its unknown-field check', () => {
     /Unsupported vanilla scheduled rule field: unsupportedField/);
 });
 
-test('all 492 native sources match final schedules, rigid transitions and raw schedule diagnostics', t => {
+test('all 528 native sources match final schedules, rigid transitions and raw schedule diagnostics', t => {
   const fixtures = oracle.corpusFixtures();
-  assert.equal(fixtures.length, 492);
+  assert.equal(fixtures.length, 528);
   const totals = { sources: 0, lowered: 0, final: 0, earlyGroups: 0, lateGroups: 0, rigidGroups: 0, transitions: 0, loops: 0, diagnostics: 0 };
   for (const item of fixtures) {
     const { schedule, inputs } = oracle.compareFixture(item);
@@ -228,13 +228,13 @@ test('all 492 native sources match final schedules, rigid transitions and raw sc
     totals.diagnostics += schedule.diagnostics.length;
   }
   t.diagnostic(JSON.stringify(totals));
-  assert.equal(totals.sources, 492); assert.equal(totals.lowered, 99443); assert.equal(totals.final, 99192);
+  assert.equal(totals.sources, 528); assert.equal(totals.lowered, 99506); assert.equal(totals.final, 99254);
 });
 
 
-test('recovered InPlace variants retain commands and executable patterns', () => {
+test('invalid moving headers retain commands and executable orthogonal patterns', () => {
   const { schedule } = oracle.compareFixture(fixture('moving [ Player | Crate ] -> win'));
-  assert.ok(schedule.early.groups[0].rules.some(rule => rule.direction === Direction.InPlace));
+  assert.ok(schedule.early.groups[0].rules.every(rule => rule.direction !== Direction.InPlace));
 });
 test('stage-boundary: overlapping recovered loop pairs preserve existing-map overwrites', () => {
   const item = boundaryFixture('loop-pair overwrite',

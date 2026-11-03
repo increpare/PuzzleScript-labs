@@ -65,14 +65,14 @@ test('the global issue cap counts recorded issues and interrupts only after reco
 
 test('all existing compilation sources match actual native parser visits and post-token exits', () => {
   const fixtures = oracle.compilationFixtures();
-  assert.equal(fixtures.length, 335);
+  assert.equal(fixtures.length, 370);
   let raw = 0, recorded = 0, exits = 0;
   for (const fixture of fixtures) {
     const { native } = oracle.compareFixture(fixture);
     raw += native.raw.length; recorded += native.recorded.length;
     if (native.reason !== null) exits++;
   }
-  assert.deepEqual({ raw, recorded, exits }, { raw: 234, recorded: 210, exits: 3 });
+  assert.deepEqual({ raw, recorded, exits }, { raw: 282, recorded: 254, exits: 3 });
 });
 
 test('collector deduplication uses displayed line and severity while ignoring code, phase and authored location', () => {
@@ -95,7 +95,7 @@ test('collector deduplication uses displayed line and severity while ignoring co
 
 test('all original simulation sources retain their native nonzero parser issues without rejecting the game', () => {
   const fixtures = oracle.corpusFixtures();
-  assert.equal(fixtures.length, 492);
+  assert.equal(fixtures.length, 528);
   let raw = 0, recorded = 0, errors = 0, sourcesWithIssues = 0;
   for (const fixture of fixtures) {
     const { native } = oracle.compareFixture(fixture);

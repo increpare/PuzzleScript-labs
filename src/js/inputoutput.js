@@ -199,7 +199,7 @@ function printLevel() {
 		const glyphMasks = [];
 
 		for (const glyphName in state.glyphDict) {
-			if (state.glyphDict.hasOwnProperty(glyphName) && glyphName.length === 1) {
+			if (Object.hasOwn(state.glyphDict, glyphName) && glyphName.length === 1) {
 				const glyph = state.glyphDict[glyphName];
 				const glyphmask = new BitVec(STRIDE_OBJ);
 				for (let i = 0; i < glyph.length; i++) {
@@ -620,7 +620,9 @@ function pollGamepads() {
 
 	function keyPressed(keycode) {
     	if(keybuffer.indexOf(keycode) === -1) {
-			pressKey({keyCode: keycode}, true);
+			// A message or level transition can clear keybuffer while the
+			// physical button stays down. Only a new physical press is fresh.
+			pressKey({keyCode: keycode}, gamepadKeys.indexOf(keycode) === -1);
 		}
 
 		newGamepadKeys.splice(0, 0, keycode);
@@ -817,6 +819,7 @@ function checkKey(e, justPressed) {
 						printLevel();
 					}
 					restartTarget = backupLevel();
+					restartTargetIsCheckpoint = false;
 					canvasResize();
 				}
 				return prevent(e);
@@ -995,7 +998,11 @@ function update() {
 				ignoreNotJustPressedAction = true;
 				titleSelection = 0;
 				canvasResize();
-				checkWin();
+				if (level.commandQueue.includes('restart')) {
+					DoRestart(true);
+				} else {
+					checkWin();
+				}
 			}
 		}
 	}

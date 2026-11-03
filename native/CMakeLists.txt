@@ -534,6 +534,14 @@ add_test(
   COMMAND puzzlescript_cpp_player_api_tests
 )
 
+add_executable(upstream_sync_regressions tests/upstream_sync_regressions.cpp)
+target_include_directories(upstream_sync_regressions PRIVATE src)
+target_link_libraries(upstream_sync_regressions PRIVATE puzzlescript_compiler puzzlescript_native)
+if(PS_COMPILED_RULES_SOURCE_ABS_LIST)
+  target_sources(upstream_sync_regressions PRIVATE ${PS_COMPILED_RULES_SOURCE_ABS_LIST})
+endif()
+add_test(NAME upstream_sync_regressions COMMAND upstream_sync_regressions)
+
 add_executable(puzzlescript_gba_core_tests
   tests/gba_core.cpp
 )

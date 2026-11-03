@@ -27,7 +27,7 @@ function createSourceParserOracle(types) {
     try {
       compiling = true;
       globalThis.logIssue = function(message, line, urgent, className, countsAsError, printUrgent) {
-        const issue = { message, line: line ?? null, severity: className === 'warningText' ? 0 : 1,
+        const issue = { message: String(message), line: line ?? null, severity: className === 'warningText' ? 0 : 1,
           countsAsError, urgent: Boolean(urgent) };
         raw.push(issue);
         const length = errorStrings.length;

@@ -2,14 +2,22 @@
 
 function displayError(message) {
 	var errorText = document.getElementById("errormessage");
-	errorText.innerHTML="ERROR "+message+"<br>";
+	errorText.textContent="ERROR "+message;
+	errorText.appendChild(document.createElement("br"));
 
 }
 function getParameterByName(name) {
     name = name.replace(/[\[]/, "\\\[").replace(/[\]]/, "\\\]");
     var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
         results = regex.exec(location.search);
-    return results == null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
+    if (results == null) {
+        return "";
+    }
+    try {
+        return decodeURIComponent(results[1].replace(/\+/g, " "));
+    } catch (error) {
+        return "";
+    }
 }
 
 // be careful about modifying this (cf  // https://github.com/increpare/PuzzleScript/issues/829 )
@@ -24,7 +32,8 @@ function getData(){
 		displayError("No ID specified in URL.")
 		return;
 	}
-	github_load(id, function(code, e) {
+	var isPreservedPushingIt = id === "2fe3172d2b9fe684977d184f1b6226d5";
+	function gameLoaded(code, e) {
 		if (e!==null) {
 			displayError(e);
 			return;
@@ -34,15 +43,7 @@ function getData(){
 		if (state.metadata.homepage!==undefined) {
 			var homepage=state.metadata.homepage;
 			var homepageLink = document.getElementById("homepagelink");
-            if (id==="2fe3172d2b9fe684977d184f1b6226d5"){
-                // https://github.com/increpare/PuzzleScript/issues/829
-                // Supporting vulnerability on legacy grounds to enable Pushing It:
-                // https://www.puzzlescript.net/play.html?p=2fe3172d2b9fe684977d184f1b6226d5
-			    homepageLink.innerHTML=strip_http(homepage);
-            } else {
-                //sanitize tags from title
-                homepageLink.textContent=strip_http(homepage);
-            }
+			homepageLink.textContent=strip_http(homepage);
 
  			if (!homepage.match(/^https?:\/\//)) {
  				homepage = "https://" + homepage;
@@ -62,7 +63,34 @@ function getData(){
 		url=qualifyURL(url);
 
 		hacklink.href=url;
-	});
+
+		if (isPreservedPushingIt) {
+			var runtime = document.createElement("script");
+			runtime.src = "legacy/pushing-it/runtime.js";
+			runtime.onerror = function() {
+				displayError("Unable to load preserved Pushing It runtime.");
+			};
+			document.body.appendChild(runtime);
+		}
+	}
+
+	if (isPreservedPushingIt) {
+		var request = new XMLHttpRequest();
+		request.open("GET", "legacy/pushing-it/script.txt");
+		request.onload = function() {
+			if (request.status === 200) {
+				gameLoaded(request.responseText, null);
+			} else {
+				gameLoaded(null, "Unable to load preserved Pushing It source.");
+			}
+		};
+		request.onerror = function() {
+			gameLoaded(null, "Unable to load preserved Pushing It source.");
+		};
+		request.send();
+	} else {
+		github_load(id, gameLoaded);
+	}
 }
 
 getData();

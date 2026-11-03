@@ -127,13 +127,13 @@ test('the native parser lexical binding is guarded too', () => {
 
 test('all simulation sources retain common authored data independently of JS', () => {
   const fixtures = oracle.corpusFixtures();
-  assert.equal(fixtures.length, 492);
+  assert.equal(fixtures.length, 528);
   for (const item of fixtures) oracle.compareFixture(item);
 });
 
 test('compilation fixtures preserve recoverable source and valid spans without throwing', () => {
   const fixtures = oracle.compilationFixtures();
-  assert.equal(fixtures.length, 335);
+  assert.equal(fixtures.length, 370);
   // This checks syntax preservation/recovery, not the later compiler's exact
   // diagnostic counts/messages or its executable output.
   for (const item of fixtures) oracle.checkPreservation(item);

@@ -59,11 +59,11 @@ function createRuleMovementsOracle(types) {
     const originals = ['logError', 'logWarning', 'logWarningNoLine'].map(name => globalThis[name]);
     const rules = [], owners = [], nativePaths = [], nativePathOwners = [];
     try {
-      globalThis.logError = (message, line) => diagnostics.push({ message, line: line ?? null,
+      globalThis.logError = (message, line) => diagnostics.push({ message: String(message), line: line ?? null,
         severity: types.SourceDiagnosticSeverity.Error, countsAsError: true });
-      globalThis.logWarning = (message, line) => diagnostics.push({ message, line: line ?? null,
+      globalThis.logWarning = (message, line) => diagnostics.push({ message: String(message), line: line ?? null,
         severity: types.SourceDiagnosticSeverity.Warning, countsAsError: line === undefined });
-      globalThis.logWarningNoLine = message => diagnostics.push({ message, line: null,
+      globalThis.logWarningNoLine = message => diagnostics.push({ message: String(message), line: null,
         severity: types.SourceDiagnosticSeverity.Warning, countsAsError: true });
       named.forEach((rule, index) => {
         const variants = concretizeMovingRule(parsed, rule, rule.lineNumber);

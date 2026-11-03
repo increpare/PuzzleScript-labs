@@ -644,6 +644,7 @@ function serializePreparedSession() {
             layer_count: currentLevel.layerCount,
             objects: Array.from(currentLevel.objects || []),
         },
+        restart_target_is_checkpoint: typeof restartTargetIsCheckpoint !== 'undefined' && Boolean(restartTargetIsCheckpoint),
         restart_target: restartTarget ? {
             width: restartTarget.width,
             height: restartTarget.height,

@@ -217,7 +217,7 @@ test('an AGAIN probe cannot install a checkpoint reached only without input', ()
     return result;
   } });
   assert.equal(report.snapshots, 3);
-  assert.equal(outcomes[0].state.checkpointUsed, false);
+  assert.equal(outcomes[0].state.restartTargetIsCheckpoint, false);
   assert.equal(outcomes[0].effects.some(effect => effect.kind === sessionTypes.SessionEffectKind.Persistence), false);
   const objects = outcomes[0].state.restartTarget.board.rows[0].map(cell => [...cell.objects].map(object => object.name));
   assert.ok(objects[0].includes('player'));

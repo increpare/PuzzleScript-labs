@@ -1376,11 +1376,14 @@ void prepareSolverChildMetaFromParent(
     } else {
         child.restart.objects.clear();
         child.restart.oldFlickscreenDat.clear();
+        child.restart.isCheckpoint = false;
     }
     child.serializedLevel.clear();
     child.undoStack.clear();
     child.pendingAgain = false;
     child.suppressRuleMessages = parent.suppressRuleMessages;
+    child.messageRestartPending = false;
+    child.messageWinPending = false;
 }
 
 bool gameHasRuleCommand(const Game& game, std::string_view commandName) {

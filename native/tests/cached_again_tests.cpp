@@ -393,7 +393,9 @@ void effects(const std::string& name) {
         if (name == "message" && !compact) require(state->meta.textMode && state->meta.messageText == "committed", "message not committed: " + std::to_string(compact) + " text=" + state->meta.messageText + " mode=" + std::to_string(state->meta.textMode));
         if (name == "checkpoint") require(state->meta.restart.objects == state->levelState.board.objects && state->meta.restart.objects != beforeRestart, "checkpoint not committed");
         if (name == "win") require(committed.won, "win not committed");
-        if (name == "restart") require(committed.restarted && state->levelState.board.objects == beforeRestart, "restart not committed");
+        if (name == "restart") require(committed.restarted && !committed.won
+            && !state->meta.restart.isCheckpoint && state->levelState.board.objects == beforeRestart,
+            "restart did not discard its outer win/checkpoint commands");
         if (name == "cancel") require(state->levelState.board.objects == visible, "cancel did not restore visible board");
     }
 }

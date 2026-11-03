@@ -2,8 +2,10 @@
 
 
 function isColor(str) {
+    if (typeof str !== 'string')
+        return false;
     str = str.trim();
-    if (str in colorPalettes.arnecolors)
+    if (Object.hasOwn(colorPalettes.arnecolors, str))
         return true;
     if (REGEX_HEX.test(str))
         return true;
@@ -14,7 +16,7 @@ function isColor(str) {
 
 function colorToHex(palette, str) {
     str = str.trim();
-    if (str in palette) {
+    if (Object.hasOwn(palette, str)) {
         return palette[str];
     }
 
@@ -141,10 +143,10 @@ function generateExtraMembers(state) {
         let key = state.metadata[i];
         let val = state.metadata[i + 1];
         if (key === 'color_palette') {
-            if (val in colorPalettesAliases) {
+            if (Object.hasOwn(colorPalettesAliases, val)) {
                 val = colorPalettesAliases[val];
             }
-            if (colorPalettes[val] === undefined) {
+            if (!Object.hasOwn(colorPalettes, val)) {
                 logError('Palette "' + val + '" not found, defaulting to arnecolors.', 0);
             } else {
                 colorPalette = colorPalettes[val];
@@ -165,7 +167,7 @@ function generateExtraMembers(state) {
     }
 
     let glyphOrder = [];
-    let glyphDict = {};
+    let glyphDict = Object.create(null);
 
     //convert colors to hex
     const state_object_keys = Object.keys(state.objects);
@@ -292,14 +294,14 @@ function generateExtraMembers(state) {
     state.glyphDict = glyphDict;
     state.glyphOrder = glyphOrder;
 
-    let aggregatesDict = {};
+    let aggregatesDict = Object.create(null);
     for (let i = 0; i < state.legend_aggregates.length; i++) {
         let entry = state.legend_aggregates[i];
         aggregatesDict[entry[0]] = entry.slice(1);
     }
     state.aggregatesDict = aggregatesDict;
 
-    let propertiesDict = {};
+    let propertiesDict = Object.create(null);
     for (let i = 0; i < state.legend_properties.length; i++) {
         let entry = state.legend_properties[i];
         propertiesDict[entry[0]] = entry.slice(1);
@@ -307,7 +309,7 @@ function generateExtraMembers(state) {
     state.propertiesDict = propertiesDict;
 
     //calculate lookup dictionaries
-    let synonymsDict = {};
+    let synonymsDict = Object.create(null);
     for (let i = 0; i < state.legend_synonyms.length; i++) {
         let entry = state.legend_synonyms[i];
         let key = entry[0];
@@ -336,7 +338,7 @@ function generateExtraMembers(state) {
                 propertiesDict[n] = propertiesDict[value];
                 modified = true;
             } else if (value in aggregatesDict) {
-                delete aggregatesDict[n];
+                delete synonymsDict[n];
                 aggregatesDict[n] = aggregatesDict[value];
                 modified = true;
             } else if (value in synonymsDict) {
@@ -349,7 +351,7 @@ function generateExtraMembers(state) {
     }
 
     /* determine which properties specify objects all on one layer */
-    state.propertiesSingleLayer = {};
+    state.propertiesSingleLayer = Object.create(null);
     const propertiesDict_keys = Object.keys(propertiesDict);
     const propertiesDict_keys_l = propertiesDict_keys.length;
     for (let k_i = 0; k_i < propertiesDict_keys_l; k_i++) {
@@ -678,7 +680,7 @@ function processRuleString(rule, state, curRules) {
                     } else if (token === 'parallel' || token === 'perpendicular') {
                         logError('PARALLEL and PERPENDICULAR are relative directions for objects inside a rule, and cannot be used to indicate the direction in which a whole rule applies.', lineNumber);
                         return null;
-                    } else if (token in directionaggregates) {
+                    } else if (reg_ruledirectionindicators.test(token) && Object.hasOwn(directionaggregates, token)) {
                         authoredDirections.push(token);
                         directions = directions.concat(directionaggregates[token]);
                     } else if (token === 'late') {
@@ -795,7 +797,7 @@ function processRuleString(rule, state, curRules) {
                                     } else {
                                         logError(`You cannot specify the same object more than once in a single cell (in this case ${token.toUpperCase()} occurs multiple times).`, lineNumber);
                                         if (token in state.propertiesDict){
-                                            logWarningNoLine(`( However, noticing that you're committing this crime with <i>properties</i>, and not being able to help but acknowledge that you <i>may</i> be trying to do something esoteric and <i>clever</i> with the property inference system,  I might be brought to suggest that you consider this: you can have multiple equivalent properties with different names. )`);
+                                            logWarningNoLine(diagnosticHTML`( However, noticing that you're committing this crime with <i>properties</i>, and not being able to help but acknowledge that you <i>may</i> be trying to do something esoteric and <i>clever</i> with the property inference system,  I might be brought to suggest that you consider this: you can have multiple equivalent properties with different names. )`);
                                         }
                                     }
                                 }
@@ -955,7 +957,7 @@ function checkRHSConflicts(state, rule){
 				let item = cell[l];
 				if (!item.startsWith("no")){
 					let no_name = cell[l+1];
-					if (state.objects.hasOwnProperty(no_name)){
+					if (Object.hasOwn(state.objects, no_name)){
 						objects_present.push(no_name);
 						objects_present_mask.ibitset(state.objects[no_name].id);
 					}
@@ -1033,7 +1035,7 @@ function trimSuperfluousLHSNegations(state, rule){
 				}
 				let entity_name = cell[l+1]
 				//if it's a single-layer property
-				if (state.propertiesSingleLayer.hasOwnProperty(entity_name)){
+				if (Object.hasOwn(state.propertiesSingleLayer, entity_name)){
 					let layer = state.propertiesSingleLayer[entity_name];
 					required_layers.ibitset(layer);
 					let property_obs = state.propertiesDict[entity_name];
@@ -1046,7 +1048,7 @@ function trimSuperfluousLHSNegations(state, rule){
 						}
 					}
 					occupier[layer]=entity_name;
-				} else if (state.objects.hasOwnProperty(entity_name)){
+				} else if (Object.hasOwn(state.objects, entity_name)){
 					let object_data = state.objects[entity_name];
 					if (object_data === undefined || object_data.layer === undefined || typeof object_data.id !== 'number') {
 						continue;
@@ -1056,7 +1058,7 @@ function trimSuperfluousLHSNegations(state, rule){
 					required_layers.ibitset(layer);
 					required_objects.ibitset(ob_id);
 					occupier[layer]=entity_name;
-				} else if (state.aggregatesDict.hasOwnProperty(entity_name)){
+				} else if (Object.hasOwn(state.aggregatesDict, entity_name)){
 					let aggregate_obs = state.aggregatesDict[entity_name];
 					for (let m=0;m<aggregate_obs.length;m++){
 						let object_info = state.objects[aggregate_obs[m]];
@@ -1078,7 +1080,7 @@ function trimSuperfluousLHSNegations(state, rule){
 				let item = cell[l];
 				if (item.startsWith("no")){
 					let no_name = cell[l+1]
-					if (!state.objectMasks.hasOwnProperty(no_name)){
+					if (!Object.hasOwn(state.objectMasks, no_name)){
 						continue;//error, should have been caught earlier - e.g. You cannot use 'no' to exclude the aggregate objec
 					}
 					let no_object_mask = state.objectMasks[no_name];
@@ -1150,7 +1152,7 @@ First, let's check for 'X no X' on the RHS.
                     if (!item.startsWith("no")){
                         let no_name = cell[l+1];
                         //properties (single-layer or not) are deliberately not added to the present mask
-                        if (state.objects.hasOwnProperty(no_name)){
+                        if (Object.hasOwn(state.objects, no_name)){
                             objects_present.push(no_name);
                             objects_present_mask.ibitset(state.objects[no_name].id);
                         }
@@ -1227,7 +1229,7 @@ First, let's check for 'X no X' on the RHS.
                     }
                     let entity_name = cell[l+1]
                     //if it's a single-layer property
-                    if (state.propertiesSingleLayer.hasOwnProperty(entity_name)){
+                    if (Object.hasOwn(state.propertiesSingleLayer, entity_name)){
                         let layer = state.propertiesSingleLayer[entity_name];
                         required_layers.ibitset(layer);
                         let property_obs = state.propertiesDict[entity_name];
@@ -1238,13 +1240,13 @@ First, let's check for 'X no X' on the RHS.
                             required_objects.ibitset(object_data.id);
                         }
                         occupier[layer]=entity_name;
-                    } else if (state.objects.hasOwnProperty(entity_name)){
+                    } else if (Object.hasOwn(state.objects, entity_name)){
                         let layer = state.objects[entity_name].layer;
                         let ob_id = state.objects[entity_name].id;
                         required_layers.ibitset(layer);
                         required_objects.ibitset(ob_id);
                         occupier[layer]=entity_name;
-                    } else if (state.aggregatesDict.hasOwnProperty(entity_name)){
+                    } else if (Object.hasOwn(state.aggregatesDict, entity_name)){
                         let aggregate_obs = state.aggregatesDict[entity_name];
                         for (let m=0;m<aggregate_obs.length;m++){
                             let object_info = state.objects[aggregate_obs[m]];
@@ -1478,8 +1480,8 @@ function getPropertiesFromCell(state, cell) {
 }
 
 function isLayerCoupledProperty(state, name) {
-    return state.propertiesDict.hasOwnProperty(name) &&
-        !state.propertiesSingleLayer.hasOwnProperty(name);
+    return Object.hasOwn(state.propertiesDict, name) &&
+        !Object.hasOwn(state.propertiesSingleLayer, name);
 }
 
 const LAYER_COUPLED_MOVEMENT_DIRS = {
@@ -1488,10 +1490,10 @@ const LAYER_COUPLED_MOVEMENT_DIRS = {
 };
 
 function objectOrSingleLayerPropertyLayer(state, name) {
-    if (state.objects.hasOwnProperty(name)) {
+    if (Object.hasOwn(state.objects, name)) {
         return state.objects[name].layer | 0;
     }
-    if (state.propertiesSingleLayer.hasOwnProperty(name)) {
+    if (Object.hasOwn(state.propertiesSingleLayer, name)) {
         return state.propertiesSingleLayer[name];
     }
     return null;
@@ -1622,7 +1624,7 @@ function getMovings(state, cell, safeAggregates, safeAggregatePropertyAttachment
     for (let j = 0; j < cell.length; j += 2) {
         let dir = cell[j];
         let name = cell[j + 1];
-        if (dir in directionaggregates) {
+        if (Object.hasOwn(directionaggregates, dir)) {
             if (safeAggregates && safeAggregates.has(dir)) {
                 const isLayerCoupled = !state.objects[name] && isLayerCoupledProperty(state, name);
                 const safePropertyAttachment = safeAggregatePropertyAttachments &&
@@ -1713,7 +1715,7 @@ function computeAggregateCoalescingPlan(state, rule) {
                 const cell = row[c];
                 for (let i = 0; i < cell.length; i += 2) {
                     const dir = cell[i];
-                    if (!(dir in directionaggregates)) continue;
+                    if (!(Object.hasOwn(directionaggregates, dir))) continue;
                     const name = cell[i + 1];
                     const isLayerCoupled = !state.objects[name] && isLayerCoupledProperty(state, name);
                     const rawLayer = state.objects[name]
@@ -1816,8 +1818,8 @@ function computeAggregateCoalescingPlan(state, rule) {
         // Inference case: single LHS occurrence + concrete-object attachments.
         if (!inferenceAllowed || nonCoupledLhs.length !== 1) continue;
         const source = nonCoupledLhs[0];
-        if (!state.objects.hasOwnProperty(source.name)) continue;
-        const allRhsConcrete = rhsList.every(p => state.objects.hasOwnProperty(p.name));
+        if (!Object.hasOwn(state.objects, source.name)) continue;
+        const allRhsConcrete = rhsList.every(p => Object.hasOwn(state.objects, p.name));
         if (!allRhsConcrete) continue;
         if (source.layer === null) continue;
         if (rhsList.some(p => p.layer === null)) continue;
@@ -1925,7 +1927,7 @@ function computePropertyCoalescingPlan(state, rule) {
         if (rhsList.length === 0) continue;
 
         const findAggregateSink = (p) => {
-            if (!(p.dir in directionaggregates) || !rule.aggregateSinks) return null;
+            if (!(Object.hasOwn(directionaggregates, p.dir)) || !rule.aggregateSinks) return null;
             const sinkList = rule.aggregateSinks.get(p.dir);
             if (!sinkList) return null;
             for (let si = 0; si < sinkList.length; si++) {
@@ -2011,7 +2013,7 @@ function computePropertyCoalescingPlan(state, rule) {
         // deferred — they need composition with 7B-2b or extra capture
         // machinery.
         const aggregateSinkMatches = (p) => {
-            if (!(p.dir in directionaggregates) || !rule.aggregateSinks) return false;
+            if (!(Object.hasOwn(directionaggregates, p.dir)) || !rule.aggregateSinks) return false;
             const sinkList = rule.aggregateSinks.get(p.dir);
             if (!sinkList) return false;
             return findAggregateSink(p) !== null;
@@ -2038,7 +2040,7 @@ function computePropertyCoalescingPlan(state, rule) {
         } else if (source.dir !== '' && dirMasks.hasOwnProperty(source.dir)) {
             sourceMovementMode = 2;
             sourceMovementMask = dirMasks[source.dir];
-        } else if (source.dir in directionaggregates) {
+        } else if (Object.hasOwn(directionaggregates, source.dir)) {
             sourceMovementMode = 3;
             const concretes = directionaggregates[source.dir];
             for (let cdi = 0; cdi < concretes.length; cdi++) {
@@ -2186,9 +2188,9 @@ function getCoalescingPlan(state, rule, ambiguousProperties) {
                     const tailDir = cell_r[tail];
                     const tailName = cell_r[tail + 1];
                     const handleable =
-                        (tailDir === 'no' && state.objectMasks.hasOwnProperty(tailName)) ||
+                        (tailDir === 'no' && Object.hasOwn(state.objectMasks, tailName)) ||
                         (LAYER_COUPLED_MOVEMENT_DIRS[tailDir] &&
-                            state.objects.hasOwnProperty(tailName));
+                            Object.hasOwn(state.objects, tailName));
                     if (!handleable) {
                         movementValid = preservedValid = false;
                         break;
@@ -2232,7 +2234,7 @@ function getCoalescingPlan(state, rule, ambiguousProperties) {
                     if (dir_l !== 'no' && dir_l !== 'random') {
                         if (!LAYER_COUPLED_MOVEMENT_DIRS[dir_l]) {
                             commandOnlyValid = false;
-                        } else if (!(state.objects.hasOwnProperty(name_l) || state.propertiesDict.hasOwnProperty(name_l))) {
+                        } else if (!(Object.hasOwn(state.objects, name_l) || Object.hasOwn(state.propertiesDict, name_l))) {
                             commandOnlyValid = false;
                         } else if (isLayerCoupledProperty(state, name_l)) {
                             if (cellHasNoTermOverlappingProperty(state, cell_l, name_l)) {
@@ -2256,7 +2258,7 @@ function getCoalescingPlan(state, rule, ambiguousProperties) {
                         !LAYER_COUPLED_MOVEMENT_DIRS[dir_l] ||
                         !LAYER_COUPLED_MOVEMENT_DIRS[dir_r]) {
                         movementValid = false;
-                    } else if (!(state.objects.hasOwnProperty(name_l) || state.propertiesDict.hasOwnProperty(name_l))) {
+                    } else if (!(Object.hasOwn(state.objects, name_l) || Object.hasOwn(state.propertiesDict, name_l))) {
                         movementValid = false;
                     } else if (isLayerCoupledProperty(state, name_l)) {
                         sawLayerCoupledProperty = true;
@@ -2273,8 +2275,8 @@ function getCoalescingPlan(state, rule, ambiguousProperties) {
                 if (rewriteValid) {
                     if (dir_l !== '' || dir_r !== '') {
                         rewriteValid = false;
-                    } else if (state.propertiesDict.hasOwnProperty(name_l)) {
-                        if (!state.objects.hasOwnProperty(name_r)) {
+                    } else if (Object.hasOwn(state.propertiesDict, name_l)) {
+                        if (!Object.hasOwn(state.objects, name_r)) {
                             rewriteValid = false;
                         } else {
                             rewritePropertyTerms.push({
@@ -2284,7 +2286,7 @@ function getCoalescingPlan(state, rule, ambiguousProperties) {
                             });
                             propertyRewriteCount++;
                         }
-                    } else if (state.objects.hasOwnProperty(name_l)) {
+                    } else if (Object.hasOwn(state.objects, name_l)) {
                         if (name_l !== name_r) {
                             rewriteValid = false;
                         } else {
@@ -2298,8 +2300,8 @@ function getCoalescingPlan(state, rule, ambiguousProperties) {
                 // --- Mixed mode ---
                 if (mixedValid) {
                     if (dir_l === '' && dir_r === '' &&
-                        state.propertiesDict.hasOwnProperty(name_l) &&
-                        state.objects.hasOwnProperty(name_r)) {
+                        Object.hasOwn(state.propertiesDict, name_l) &&
+                        Object.hasOwn(state.objects, name_r)) {
                         mixedPropertyTerms.push({
                             name: name_l,
                             destinationLayer: state.objects[name_r].layer | 0,
@@ -2315,8 +2317,8 @@ function getCoalescingPlan(state, rule, ambiguousProperties) {
                             mixedMovementTerms.push(name_l);
                             sawLayerCoupledMovement = true;
                         }
-                    } else if (state.objects.hasOwnProperty(name_l) ||
-                               state.propertiesSingleLayer.hasOwnProperty(name_l)) {
+                    } else if (Object.hasOwn(state.objects, name_l) ||
+                               Object.hasOwn(state.propertiesSingleLayer, name_l)) {
                         const fl = objectOrSingleLayerPropertyLayer(state, name_l);
                         if (fl !== null) mixedFixedLayers[fl] = true;
                     } else {
@@ -2330,7 +2332,11 @@ function getCoalescingPlan(state, rule, ambiguousProperties) {
                         ambiguousProperties[name_l] !== true &&
                         cell_r[i] === '' &&
                         cell_r[i + 1] === name_l &&
-                        !cellHasNoTermOverlappingProperty(state, cell_l, name_l);
+                        !cellHasNoTermOverlappingProperty(state, cell_l, name_l) &&
+                        // Keep impossible alternatives on the expansion path so
+                        // the ordinary overlap diagnostic lists every conflict.
+                        !layerSetIsEmpty(propertyAliasLayerSet(state, name_l,
+                            buildLayerCoupledExcludedLayers(state, cell_l, i)));
                     if (!canPreserve || preservedSeenInCell[name_l]) {
                         preservedCandidateStatus[name_l] = false;
                     } else {
@@ -2423,7 +2429,7 @@ function getCoalescingPlan(state, rule, ambiguousProperties) {
 
 //entries are flat arrays, so a per-entry slice is a deep-enough copy
 function cloneReplacementDict(src) {
-    const result = {};
+    const result = Object.create(null);
     const keys = Object.keys(src);
     const keys_l = keys.length;
     for (let k_i = 0; k_i < keys_l; k_i++) {
@@ -2436,7 +2442,7 @@ function cloneReplacementDict(src) {
 function concretizePropertyRule(state, rule, lineNumber) {
 
     // we can't manage this if they're being used to disambiguate
-    let ambiguousProperties = {};
+    let ambiguousProperties = Object.create(null);
 
     for (let j = 0; j < rule.rhs.length; j++) {
         let row_l = rule.lhs[j];
@@ -2485,7 +2491,7 @@ function concretizePropertyRule(state, rule, lineNumber) {
                     for (let prop_n = 0; prop_n < properties.length; ++prop_n) {
                         let property = properties[prop_n];
 
-                        if (state.propertiesSingleLayer.hasOwnProperty(property) &&
+                        if (Object.hasOwn(state.propertiesSingleLayer, property) &&
                             ambiguousProperties[property] !== true) {
                             // we don't need to explode this property
                             continue;
@@ -2518,7 +2524,7 @@ function concretizePropertyRule(state, rule, lineNumber) {
                         for (let l = 0; l < aliases.length; l++) {
                             let concreteType = aliases[l];
                             let newrule = deepCloneRule(cur_rule);
-                            newrule.propertyReplacement = cur_rule.propertyReplacement ? cloneReplacementDict(cur_rule.propertyReplacement) : {};
+                            newrule.propertyReplacement = cur_rule.propertyReplacement ? cloneReplacementDict(cur_rule.propertyReplacement) : Object.create(null);
 
                             concretizePropertyInCell(newrule.lhs[j][k], property, concreteType);
                             if (newrule.rhs.length > 0) {
@@ -2586,7 +2592,7 @@ function concretizePropertyRule(state, rule, lineNumber) {
                     // are intentionally left un-split — the runtime will infer
                     // each RHS occurrence from the captured LHS alias.
                     if (propertyPlan.safe.has(propName)) continue;
-                    if (ambiguousProperties.hasOwnProperty(propName)) {
+                    if (Object.hasOwn(ambiguousProperties, propName)) {
                         rhsPropertyRemains = propName;
                     }
                 }
@@ -2984,7 +2990,7 @@ function dirToMovementMasks(dir) {
 }
 
 function aggregateDirectionMask(dir) {
-    if (!(dir in directionaggregates)) {
+    if (!(Object.hasOwn(directionaggregates, dir))) {
         return 0;
     }
     let mask = 0;
@@ -3006,9 +3012,9 @@ function buildLayerCoupledExcludedLayers(state, cell, coupledTermIndex) {
             continue;
         }
         const name = cell[i + 1];
-        if (state.objects.hasOwnProperty(name)) {
+        if (Object.hasOwn(state.objects, name)) {
             excludedLayers[state.objects[name].layer | 0] = true;
-        } else if (state.propertiesSingleLayer.hasOwnProperty(name)) {
+        } else if (Object.hasOwn(state.propertiesSingleLayer, name)) {
             excludedLayers[state.propertiesSingleLayer[name]] = true;
         }
     }
@@ -3220,7 +3226,7 @@ function rulesToMask(state) {
                             anyObjectsPresent.push(objectMask);
                         }
 
-                        if (object_dir in directionaggregates) {
+                        if (Object.hasOwn(directionaggregates, object_dir)) {
                             const aggregateBits = new BitVec(STRIDE_MOV);
                             const concretes = directionaggregates[object_dir];
                             for (let cd = 0; cd < concretes.length; cd++) {
@@ -3349,7 +3355,7 @@ function rulesToMask(state) {
                             const mask = state.objectMasks[object_name];
                             rhsBitVectors.randomMask_r.ior(mask);
                             
-                            const values = state.propertiesDict.hasOwnProperty(object_name) ? 
+                            const values = Object.hasOwn(state.propertiesDict, object_name) ?
                                 state.propertiesDict[object_name] : [object_name];
                             
                             if (values.length === 1) {
@@ -3433,7 +3439,7 @@ function rulesToMask(state) {
                             }
                         }
                         let localAggregateSink = null;
-                        if (object_dir in directionaggregates && rule.aggregateSinks) {
+                        if (Object.hasOwn(directionaggregates, object_dir) && rule.aggregateSinks) {
                             const aggregateSinkList = rule.aggregateSinks.get(object_dir);
                             if (aggregateSinkList) {
                                 for (let ai = 0; ai < aggregateSinkList.length; ai++) {
@@ -3461,7 +3467,7 @@ function rulesToMask(state) {
                             object_dir === '' ||
                             object_dir === 'stationary' ||
                             (LAYER_COUPLED_MOVEMENT_DIRS[object_dir] && dirMasks.hasOwnProperty(object_dir)) ||
-                            (object_dir in directionaggregates && rule.aggregateSinks);
+                            (Object.hasOwn(directionaggregates, object_dir) && rule.aggregateSinks);
                         if (sinkDirOk && rule.propertySinks) {
                             const sinkList = rule.propertySinks.get(object_name);
                             if (sinkList) {
@@ -3487,7 +3493,7 @@ function rulesToMask(state) {
                                             dirMode,
                                             dirMask,
                                         });
-                                        if (object_dir in directionaggregates && rule.aggregateSinks) {
+                                        if (Object.hasOwn(directionaggregates, object_dir) && rule.aggregateSinks) {
                                             const aggregateSinkList = rule.aggregateSinks.get(object_dir);
                                             if (aggregateSinkList) {
                                                 for (let ai = 0; ai < aggregateSinkList.length; ai++) {
@@ -3553,7 +3559,7 @@ function rulesToMask(state) {
                         // matched concrete movement bit flows through unchanged — we still
                         // need to write the object, but skip every movement-bit shift below.
                         let preservedAggregate = false;
-                        if (object_dir in directionaggregates && cell_l) {
+                        if (Object.hasOwn(directionaggregates, object_dir) && cell_l) {
                             for (let li = 0; li < cell_l.length; li += 2) {
                                 if (cell_l[li] === object_dir && cell_l[li + 1] === object_name) {
                                     preservedAggregate = true;
@@ -3569,7 +3575,7 @@ function rulesToMask(state) {
                         // through the standard branch below; movement bits skip.
                         let inferredAggregateSink = false;
                         if (!preservedAggregate &&
-                            object_dir in directionaggregates &&
+                            Object.hasOwn(directionaggregates, object_dir) &&
                             rule.aggregateSinks) {
                             const sinkList = rule.aggregateSinks.get(object_dir);
                             if (sinkList) {
@@ -3614,7 +3620,7 @@ function rulesToMask(state) {
                                 const lhs_name = cell_l[i + 1];
                                 if (lhs_dir === '' &&
                                     object_dir === '' &&
-                                    state.propertiesDict.hasOwnProperty(lhs_name)) {
+                                    Object.hasOwn(state.propertiesDict, lhs_name)) {
                                     applyPropertyObjectRewriteClears(state, rhsBitVectors, lhs_name, layerIndex);
                                 }
                             }
@@ -4555,7 +4561,7 @@ function generateMasks(state) {
     }
     state.layerMasks = layerMasks;
 
-    let objectMask = {};
+    let objectMask = Object.create(null);
 
     const object_keys = Object.keys(state.objects);
     const object_keys_l = object_keys.length;
@@ -4610,7 +4616,7 @@ function generateMasks(state) {
     state.objectMasks = objectMask;
 
 
-    state.aggregateMasks = {};
+    state.aggregateMasks = Object.create(null);
 
     //set aggregate masks similarly
     for (let aggregateName of Object.keys(state.aggregatesDict)) {
@@ -4775,7 +4781,7 @@ function printCellRow(cellRow) {
             if (direction === "...") {
                 result += direction + " ";
             } else {
-                result += direction + " " + object + " ";
+                result += escapeDiagnosticText(direction) + " " + escapeDiagnosticText(object) + " ";
             }
         }
     }
@@ -4799,7 +4805,7 @@ function cacheRuleStringRep(rule) {
     }
 
     if (directed){
-        result += rule.direction.toString().toUpperCase() + " ";
+        result += escapeDiagnosticText(rule.direction.toString().toUpperCase()) + " ";
     }
     if (rule.rigid) {
         result = "RIGID " + result + " ";
@@ -4822,9 +4828,9 @@ function cacheRuleStringRep(rule) {
     for (let i = 0; i < rule.commands.length; i++) {
         let command = rule.commands[i];
         if (command.length === 1) {
-            result = result + command[0].toString();
+            result = result + escapeDiagnosticText(command[0]);
         } else {
-            result = result + '(' + command[0].toString() + ", " + command[1].toString() + ') ';
+            result = result + '(' + escapeDiagnosticText(command[0]) + ", " + escapeDiagnosticText(command[1]) + ') ';
         }
     }
     //print commands next
@@ -4967,6 +4973,8 @@ function calculateLoopPoints(state, rulegroup_collection) {
             if (rule_in_loop) {
                 if (init_group_index === -1) {
                     init_group_index = group_i
+                    firstRule.loopStartLine = loop_start_line;
+                    firstRule.loopEndLine = loop_end_line;
                 }
                 // only the last rulegroup in a loop should be the loop point - 
                 // this is a bit lazy, but basically we look back, and if the 
@@ -5412,6 +5420,7 @@ function compile(command, text, randomseed) {
         consoleError(error.message+"\n"+error.stack,true);
         console.error(error);
         UnitTestingThrow(error);
+        return;
     } finally {
         compiling = false;
     }
@@ -5429,7 +5438,7 @@ function compile(command, text, randomseed) {
         const advice = IDE === false
             ? '  If this is an older game, and you think it just broke because of recent changes in the puzzlescript engine, please consider dropping an email to analytic@gmail.com with a link to the game and I\'ll try make sure it\'s back working ASAP.'
             : '';
-        consoleError('<span class="systemMessage">' + summary + advice + '</span>');
+        consoleError(diagnosticHTML`<span class="systemMessage">${summary}${advice}</span>`);
         if (errorCount > MAX_ERRORS) {
             return;
         }

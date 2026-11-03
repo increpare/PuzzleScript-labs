@@ -451,9 +451,9 @@ test('every native parser/compiler producer is guarded during candidate executio
   assert.throws(() => oracle.independently(() => runInThisContext('new CodeMirror.StringStream("", 4)')), /Candidate called native CodeMirror.StringStream/);
 });
 
-test('all 492 pinned vanilla sources match complete property and spawn sequences', t => {
+test('all 528 pinned vanilla sources match complete property and spawn sequences', t => {
   const fixtures = oracle.corpusFixtures();
-  assert.equal(fixtures.length, 492);
+  assert.equal(fixtures.length, 528);
   const totals = { sources: 0, syntax: 0, named: 0, movement: 0, properties: 0, spawned: 0, diagnostics: 0, movementInvalid: 0 };
   for (const item of fixtures) {
     const { expected, movement, result, spawned } = oracle.compareFixture(item);
@@ -466,7 +466,7 @@ test('all 492 pinned vanilla sources match complete property and spawn sequences
     totals.diagnostics += result.diagnostics.length;
     totals.movementInvalid += Number(movement.abortsCompilation);
   }
-  assert.deepEqual(totals, { sources: 492, syntax: 16674, named: 26093, movement: 30007,
-    properties: 106122, spawned: 106122, diagnostics: 0, movementInvalid: 0 });
+  assert.deepEqual(totals, { sources: 528, syntax: 16718, named: 26143, movement: 30057,
+    properties: 106189, spawned: 106189, diagnostics: 0, movementInvalid: 0 });
   t.diagnostic(JSON.stringify(totals));
 });

@@ -1,8 +1,8 @@
 # Vanilla PuzzleScript sync
 
 The authoritative checkpoint is [`.upstream-sync.json`](../.upstream-sync.json).
-Vanilla `master` has been reviewed through **`57f9f6cb` (30 October 2026)**;
-the port was made on 31 October onto Labs `7828b7ec`.
+Vanilla `master` has been reviewed through **`caa90212` (3 November 2026)**;
+the port was made on 3 November onto Labs `3d27de13`.
 
 This is a selective source port. The checkpoint means every commit through that
 revision has a disposition, not that Labs has the same tree or Git ancestry as
@@ -40,6 +40,115 @@ a separate contract.
 Additional branch features are recorded under `additionalPorts` in the JSON.
 The local `codex/cached-again` port is described in
 [cached AGAIN](cached-again.md); it does not advance the vanilla master cursor.
+
+## 3 November port: `57f9f6cb..caa90212`
+
+All 33 new commits were reviewed. The JavaScript and C++ implementations retain
+Labs optimizations and extensions; TypeScript's separate immutable vanilla oracle
+is refreshed to the exact reviewed head, with all 22 source/corpus hashes checked.
+
+| Upstream commits | Disposition |
+| --- | --- |
+| `07047cb7`, `333785bf`, `25b8429d` | Imported gameplay coverage for overlapping properties, recovery and declaration-order behavior, preserving Labs fixtures and duplicate names. |
+| `a2a22975`, `cd8dbbce` | Ported checkpoint provenance so saved/loaded checkpoint restarts skip initialization rules; fresh restarts still initialize. Adapted solver snapshots and replay wrappers. Imported restart/command coverage. |
+| `ddec525b`, `446579f8` | Fixed forward aggregate resolution and rejected the closing synonym-cycle link. Native maps/recursion guards already avoid the hangs; adapted diagnostics and recovery in C++ and TypeScript. |
+| `2b65e350`, `5ef36ef5` | Entirely transparent pasted sprites now declare transparent; pasted names remain unique beyond 99 objects. |
+| `743b0a46` | Ported horizontal/vertical transform suffix matching. |
+| `9b93f2f3` | Declared GIF encoder globals so source files work under strict mode. Labs file-drop code already scopes its variables. |
+| `b1d17e8a`, `67290e18` | Ported single-test expansion and worker execution with main-thread diagnostic decoding, preserved pending-row focus/selection, and short fallback batches; adapted Labs stream and plugin-hook dependencies. |
+| `65b7d0cd` | Ported actionable sound-verb/direction diagnostics across JS, C++ and TypeScript. |
+| `10b95614` | Deferred initial gist/demo/file requests until editor scripts initialize; compile loaded text without waiting for unrelated images. Preserved imported-source and Labs file-query precedence. |
+| `c680603e` | Controller freshness now follows physical button presses across message/level transitions. |
+| `0b00eb5d` | Deferred rule restart until its message closes, retained explicit message wins, and kept speculative AGAIN command queues private. Adapted full native/TypeScript session paths. |
+| `f281634e` | Ported legacy touch Undo hold/release and compatibility-click handling. |
+| `d4d497b2`, `15c38ce2`, `fe815dcc` | Corrected exact-limit rule-group warning and imported loop-limit cases. |
+| `83c8d761`, `4db6aabc` | Skipped empty console batches, used text line breaks, and added linked loop-jump diagnostics. |
+| `5b9d6b96`, `3d450428` | Ported text/HTML diagnostic boundaries, escaped debug assembly and filenames, and inert player errors; adapted headless diagnostic decoders. |
+| `3529667a` | Preserved Pushing It with reviewed local source/runtime instead of executable remote homepage markup. |
+| `421b97e1`, `ae0572a2` | Ported standalone homepage URL/attribute escaping and literal display-text replacement; invalid color/rule-prefix failures no longer continue compilation. |
+| `672c1001`, `cfa7a8ca`, `17bda1cf`, `caa90212` | Ported prototype-safe dictionaries, own-property color/palette checks and invalid movement-prefix diagnostics. Applied autocomplete fixes in Labs' shared CM6 engine. Native/TypeScript Maps already provide own-key storage. |
+| `7b698b9a`, `5f10710e` | Rebuilt Labs generated bundles/standalone assets and native WASM rather than copying vanilla build output or release numbers. |
+
+Imported **36 simulation** and **35 diagnostic** tuples, plus the revised existing
+sound diagnostic. The wholly impossible expanded-property fixture exposed a Labs
+optimization suppressing diagnostics; preserved-property coalescing now expands
+that invalid case while keeping the valid fast path. Existing Labs tuples and
+semantic-fixture provenance are preserved.
+
+No upstream commits were omitted wholesale. CM5-only autocomplete edits were
+adapted to the shared completion engine. Speculative AGAIN already uses isolated
+scratch levels in Labs, so its command queues remain private through that design.
+Native compact solver APIs retain their existing message-suppression contract.
+GBA/CGB restarts now also preserve checkpoint provenance; GBA rule restarts of
+fresh levels rerun initialization through the same guarded path as manual restarts.
+No server deployment or public preview was started.
+Standalone UI harness edits are left uncommitted in `puzzlescript_testdump`,
+which already contained unrelated work; all tests, fixtures and dependencies
+remain in that separate collection.
+
+### Verification (3 November port)
+
+- Core JavaScript: **1,110/1,110** (731 simulation, 379 diagnostics), plus
+  random replay, stale frontier, sparse paths and cached AGAIN RNG checks.
+  Before fixes, the imported cases reproduced five gameplay failures,
+  18 diagnostic failures and a forward aggregate timeout.
+- Actual browser-worker import list: **1,110/1,110** in a worker-like VM.
+- CM6: **216/216**. Canonicalizer/decanonicalizer checks and **94/94**
+  source round trips pass. Property rewrite coalescing and inferred RHS binding
+  suites pass; **35/35** checkpoint static-analysis runtime contracts pass.
+- TypeScript strict suite: **2,208/2,208**, with no skipped or cancelled tests.
+  Complete compilation: **898/898 sources**, **99,254 final rules**. All **36**
+  new recorded sessions pass **106** observations/operations and **38** loads.
+  All six examples pass. Original TypeScript production failed **16/71** new
+  compile fixtures against the refreshed oracle; the port passes all.
+- Native: **731/731** gameplay and **379/379** diagnostics, including poisoned
+  answers, independent source canaries and renamed identifiers. **8/8** targeted
+  CTests pass, covering generated cached AGAIN and GBA/CGB checkpoint behavior.
+  Native checkpoint undo now retains the session restart target; this resolves
+  the prior sync's recorded failure. Startup restart/RNG ordering and AGAIN
+  restart undo snapshots also match the newly imported histories. Immediate
+  restart now discards its old win/checkpoint commands in the host, compact and
+  CGB paths; independent review exposed and reproduced that additional edge.
+
+- Standalone browser collection: **699 distinct selected checks** covered across
+  Chromium, Firefox and WebKit (232 per browser plus three Labs file-query startup
+  checks). Initial harness failures used retired CM5 inspection methods; the
+  test adapters now inspect CM6's public view API and content element. WebKit
+  completed the initial slow replay in 179ms, below its unchanged >200ms workload
+  prerequisite. Increasing the fixture from 200,000 to 500,000 ticks made the
+  workload meaningful; the complete test-page rerun passes **18/18** with the
+  same frame-budget, focus, selection and fallback assertions.
+- `make mis_tests` passes against the final rebuilt native WASM. Independent
+  code review and an exact linked generated four-source regression run pass.
+  Release/standalone assets are rebuilt from Labs sources; Brotli validation
+  verifies all **447** emitted sidecars. The preserved raw Pushing It script
+  matches upstream byte for byte; its valid `=======` PuzzleScript headings are
+  the only exceptions to Git's conflict-marker whitespace check.
+
+The native corpus used JSON tuples exported by the JavaScript VM, preserving
+all fixture fields and semantic pushes. Its old direct JavaScript-array loader
+cannot parse the current template-literal fixture source; that loader limitation
+is unchanged.
+
+Limits and retained differences:
+
+- TypeScript's exhaustive historical-gallery session replay was stopped after
+  **40 complete fixtures**, with no reported mismatch. This is not a completed
+  528-game replay; the complete compilation comparison and all 36 new session
+  replays did finish. See [the TypeScript audit](../typescript/UPSTREAM-2026-11-03.md).
+- Vanilla's cached-diagnostic repeat-count browser assertion expects `(x2)`.
+  Labs already deduplicates urgent loop errors to avoid exhausting the error
+  budget. That unchanged expectation remains visibly separate from the selected
+  passing browser matrix; it was not rebaselined.
+- Ancillary layer-coupled tests still have the same two `no`-constraint warning
+  failures on both the original and ported checkout. The standalone runtime
+  contract unit suite likewise fails the same pre-existing `Player`/`player`
+  label assertion on both. These are not counted as passing checks.
+- Monster garden passes the five focused changed compiler/restart checks. Its
+  full run reached **157/158**, with the unchanged 1ms subprocess test failing
+  on `write EPIPE`; the same race was reproduced on original Labs (trial 942).
+  The broad static-analysis corpus run was interrupted; only the completed
+  checkpoint subset is counted above.
 
 ## 31 October port: `b44aa265..57f9f6cb`
 
@@ -80,7 +189,7 @@ and three sound histories explicitly carry current-Labs overrides after #1207;
 their original expectations, sources and frozen corpus remain intact for pinned
 reference verification. See [the semantic fixture guide](../src/tests/semantic-fixtures/README.md).
 
-## Verification
+## Verification (31 October port)
 
 - Core JS: **976/976**, plus random replay, stale-frontier and sparse-path checks.
   Imported fixtures exposed 18 failures before the fixes.

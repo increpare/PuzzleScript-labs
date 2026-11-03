@@ -2,8 +2,10 @@
 
 
 function isColor(str) {
+    if (typeof str !== 'string')
+        return false;
     str = str.trim();
-    if (str in colorPalettes.arnecolors)
+    if (Object.hasOwn(colorPalettes.arnecolors, str))
         return true;
     if (REGEX_HEX.test(str))
         return true;
@@ -14,7 +16,7 @@ function isColor(str) {
 
 function colorToHex(palette, str) {
     str = str.trim();
-    if (str in palette) {
+    if (Object.hasOwn(palette, str)) {
         return palette[str];
     }
 
@@ -136,10 +138,10 @@ function generateExtraMembers(state) {
         let key = state.metadata[i];
         let val = state.metadata[i + 1];
         if (key === 'color_palette') {
-            if (val in colorPalettesAliases) {
+            if (Object.hasOwn(colorPalettesAliases, val)) {
                 val = colorPalettesAliases[val];
             }
-            if (colorPalettes[val] === undefined) {
+            if (!Object.hasOwn(colorPalettes, val)) {
                 logError('Palette "' + val + '" not found, defaulting to arnecolors.', 0);
             } else {
                 colorPalette = colorPalettes[val];
@@ -160,7 +162,7 @@ function generateExtraMembers(state) {
     }
 
     let glyphOrder = [];
-    let glyphDict = {};
+    let glyphDict = Object.create(null);
 
     //convert colors to hex
     const state_object_keys = Object.keys(state.objects);
@@ -279,14 +281,14 @@ function generateExtraMembers(state) {
     state.glyphDict = glyphDict;
     state.glyphOrder = glyphOrder;
 
-    let aggregatesDict = {};
+    let aggregatesDict = Object.create(null);
     for (let i = 0; i < state.legend_aggregates.length; i++) {
         let entry = state.legend_aggregates[i];
         aggregatesDict[entry[0]] = entry.slice(1);
     }
     state.aggregatesDict = aggregatesDict;
 
-    let propertiesDict = {};
+    let propertiesDict = Object.create(null);
     for (let i = 0; i < state.legend_properties.length; i++) {
         let entry = state.legend_properties[i];
         propertiesDict[entry[0]] = entry.slice(1);
@@ -294,7 +296,7 @@ function generateExtraMembers(state) {
     state.propertiesDict = propertiesDict;
 
     //calculate lookup dictionaries
-    let synonymsDict = {};
+    let synonymsDict = Object.create(null);
     for (let i = 0; i < state.legend_synonyms.length; i++) {
         let entry = state.legend_synonyms[i];
         let key = entry[0];
@@ -323,7 +325,7 @@ function generateExtraMembers(state) {
                 propertiesDict[n] = propertiesDict[value];
                 modified = true;
             } else if (value in aggregatesDict) {
-                delete aggregatesDict[n];
+                delete synonymsDict[n];
                 aggregatesDict[n] = aggregatesDict[value];
                 modified = true;
             } else if (value in synonymsDict) {
@@ -336,7 +338,7 @@ function generateExtraMembers(state) {
     }
 
     /* determine which properties specify objects all on one layer */
-    state.propertiesSingleLayer = {};
+    state.propertiesSingleLayer = Object.create(null);
     const propertiesDict_keys = Object.keys(propertiesDict);
     const propertiesDict_keys_l = propertiesDict_keys.length;
     for (let k_i = 0; k_i < propertiesDict_keys_l; k_i++) {
@@ -666,7 +668,7 @@ function processRuleString(rule, state, curRules) {
                         }
                     } else if (relativeDirections.includes(token)) {
                         logError('You cannot use relative directions (\"^v<>\") to indicate in which direction(s) a rule applies.  Use absolute directions indicators (Up, Down, Left, Right, Horizontal, or Vertical, for instance), or, if you want the rule to apply in all four directions, do not specify directions', lineNumber);
-                    } else if (token in directionaggregates) {
+                    } else if (reg_ruledirectionindicators.test(token) && Object.hasOwn(directionaggregates, token)) {
                         directions = directions.concat(directionaggregates[token]);
                     } else if (token === 'late') {
                         late = true;
@@ -781,7 +783,7 @@ function processRuleString(rule, state, curRules) {
                                     } else {
                                         logError(`You cannot specify the same object more than once in a single cell (in this case ${token.toUpperCase()} occurs multiple times).`, lineNumber);
                                         if (token in state.propertiesDict){
-                                            logWarningNoLine(`( However, noticing that you're committing this crime with <i>properties</i>, and not being able to help but acknowledge that you <i>may</i> be trying to do something esoteric and <i>clever</i> with the property inference system,  I might be brought to suggest that you consider this: you can have multiple equivalent properties with different names. )`);
+                                            logWarningNoLine(diagnosticHTML`( However, noticing that you're committing this crime with <i>properties</i>, and not being able to help but acknowledge that you <i>may</i> be trying to do something esoteric and <i>clever</i> with the property inference system,  I might be brought to suggest that you consider this: you can have multiple equivalent properties with different names. )`);
                                         }
                                     }
                                 }
@@ -942,7 +944,7 @@ First, let's check for 'X no X' on the RHS.
                     if (!item.startsWith("no")){
                         let no_name = cell[l+1];
                         //properties (single-layer or not) are deliberately not added to the present mask
-                        if (state.objects.hasOwnProperty(no_name)){
+                        if (Object.hasOwn(state.objects, no_name)){
                             objects_present.push(no_name);
                             objects_present_mask.ibitset(state.objects[no_name].id);
                         }
@@ -1020,7 +1022,7 @@ First, let's check for 'X no X' on the RHS.
                     }
                     let entity_name = cell[l+1]
                     //if it's a single-layer property
-                    if (state.propertiesSingleLayer.hasOwnProperty(entity_name)){
+                    if (Object.hasOwn(state.propertiesSingleLayer, entity_name)){
                         let layer = state.propertiesSingleLayer[entity_name];
                         required_layers.ibitset(layer);
                         let property_obs = state.propertiesDict[entity_name];
@@ -1034,13 +1036,13 @@ First, let's check for 'X no X' on the RHS.
                             required_objects.ibitset(object_data.id);
                         }
                         occupier[layer]=entity_name;
-                    } else if (state.objects.hasOwnProperty(entity_name)){
+                    } else if (Object.hasOwn(state.objects, entity_name)){
                         let layer = state.objects[entity_name].layer;
                         let ob_id = state.objects[entity_name].id;
                         required_layers.ibitset(layer);
                         required_objects.ibitset(ob_id);
                         occupier[layer]=entity_name;
-                    } else if (state.aggregatesDict.hasOwnProperty(entity_name)){
+                    } else if (Object.hasOwn(state.aggregatesDict, entity_name)){
                         let aggregate_obs = state.aggregatesDict[entity_name];
                         for (let m=0;m<aggregate_obs.length;m++){
                             let object_info = state.objects[aggregate_obs[m]];
@@ -1245,7 +1247,7 @@ function getMovings(state, cell) {
     for (let j = 0; j < cell.length; j += 2) {
         let dir = cell[j];
         let name = cell[j + 1];
-        if (dir in directionaggregates) {
+        if (Object.hasOwn(directionaggregates, dir)) {
             result.push([name, dir]);
         }
     }
@@ -1299,7 +1301,7 @@ function expandNoPrefixedProperties(state, cell) {
 
 //entries are flat arrays, so a per-entry slice is a deep-enough copy
 function cloneReplacementDict(src) {
-    const result = {};
+    const result = Object.create(null);
     const keys = Object.keys(src);
     const keys_l = keys.length;
     for (let k_i = 0; k_i < keys_l; k_i++) {
@@ -1326,7 +1328,7 @@ function concretizePropertyRule(state, rule, lineNumber) {
     // 		doesn't need to be split up (assuming single-layer player/block aggregates)
 
     // we can't manage this if they're being used to disambiguate
-    let ambiguousProperties = {};
+    let ambiguousProperties = Object.create(null);
 
     for (let j = 0; j < rule.rhs.length; j++) {
         let row_l = rule.lhs[j];
@@ -1360,7 +1362,7 @@ function concretizePropertyRule(state, rule, lineNumber) {
                     for (let prop_n = 0; prop_n < properties.length; ++prop_n) {
                         let property = properties[prop_n];
 
-                        if (state.propertiesSingleLayer.hasOwnProperty(property) &&
+                        if (Object.hasOwn(state.propertiesSingleLayer, property) &&
                             ambiguousProperties[property] !== true) {
                             // we don't need to explode this property
                             continue;
@@ -1376,7 +1378,7 @@ function concretizePropertyRule(state, rule, lineNumber) {
                         for (let l = 0; l < aliases.length; l++) {
                             let concreteType = aliases[l];
                             let newrule = deepCloneRule(cur_rule);
-                            newrule.propertyReplacement = cur_rule.propertyReplacement ? cloneReplacementDict(cur_rule.propertyReplacement) : {};
+                            newrule.propertyReplacement = cur_rule.propertyReplacement ? cloneReplacementDict(cur_rule.propertyReplacement) : Object.create(null);
 
                             concretizePropertyInCell(newrule.lhs[j][k], property, concreteType);
                             if (newrule.rhs.length > 0) {
@@ -1439,7 +1441,7 @@ function concretizePropertyRule(state, rule, lineNumber) {
                 let cur_cell = cur_rulerow[k];
                 let properties = getPropertiesFromCell(state, cur_cell);
                 for (let prop_n = 0; prop_n < properties.length; prop_n++) {
-                    if (ambiguousProperties.hasOwnProperty(properties[prop_n])) {
+                    if (Object.hasOwn(ambiguousProperties, properties[prop_n])) {
                         rhsPropertyRemains = properties[prop_n];
                     }
                 }
@@ -1941,7 +1943,7 @@ function rulesToMask(state) {
                             const mask = state.objectMasks[object_name];
                             rhsBitVectors.randomMask_r.ior(mask);
                             
-                            const values = state.propertiesDict.hasOwnProperty(object_name) ? 
+                            const values = Object.hasOwn(state.propertiesDict, object_name) ?
                                 state.propertiesDict[object_name] : [object_name];
                             
                             if (values.length === 1) {
@@ -2315,7 +2317,7 @@ function generateMasks(state) {
     }
     state.layerMasks = layerMasks;
 
-    let objectMask = {};
+    let objectMask = Object.create(null);
 
     const object_keys = Object.keys(state.objects);
     const object_keys_l = object_keys.length;
@@ -2367,7 +2369,7 @@ function generateMasks(state) {
     state.objectMasks = objectMask;
 
 
-    state.aggregateMasks = {};
+    state.aggregateMasks = Object.create(null);
 
     //set aggregate masks similarly
     for (let aggregateName of Object.keys(state.aggregatesDict)) {
@@ -2532,7 +2534,7 @@ function printCellRow(cellRow) {
             if (direction === "...") {
                 result += direction + " ";
             } else {
-                result += direction + " " + object + " ";
+                result += escapeDiagnosticText(direction) + " " + escapeDiagnosticText(object) + " ";
             }
         }
     }
@@ -2554,7 +2556,7 @@ function cacheRuleStringRep(rule) {
     }
 
     if (directed){
-        result += rule.direction.toString().toUpperCase() + " ";
+        result += escapeDiagnosticText(rule.direction.toString().toUpperCase()) + " ";
     }
     if (rule.rigid) {
         result = "RIGID " + result + " ";
@@ -2577,9 +2579,9 @@ function cacheRuleStringRep(rule) {
     for (let i = 0; i < rule.commands.length; i++) {
         let command = rule.commands[i];
         if (command.length === 1) {
-            result = result + command[0].toString();
+            result = result + escapeDiagnosticText(command[0]);
         } else {
-            result = result + '(' + command[0].toString() + ", " + command[1].toString() + ') ';
+            result = result + '(' + escapeDiagnosticText(command[0]) + ", " + escapeDiagnosticText(command[1]) + ') ';
         }
     }
     //print commands next
@@ -2721,6 +2723,8 @@ function calculateLoopPoints(state, rulegroup_collection) {
             if (rule_in_loop) {
                 if (init_group_index === -1) {
                     init_group_index = group_i
+                    firstRule.loopStartLine = loop_start_line;
+                    firstRule.loopEndLine = loop_end_line;
                 }
                 // only the last rulegroup in a loop should be the loop point - 
                 // this is a bit lazy, but basically we look back, and if the 
@@ -3151,6 +3155,7 @@ function compile(command, text, randomseed) {
         consoleError(error.message+"\n"+error.stack,true);
         console.error(error);
         UnitTestingThrow(error);
+        return;
     } finally {
         compiling = false;
     }
@@ -3168,7 +3173,7 @@ function compile(command, text, randomseed) {
         const advice = IDE === false
             ? '  If this is an older game, and you think it just broke because of recent changes in the puzzlescript engine, please consider dropping an email to analytic@gmail.com with a link to the game and I\'ll try make sure it\'s back working ASAP.'
             : '';
-        consoleError('<span class="systemMessage">' + summary + advice + '</span>');
+        consoleError(diagnosticHTML`<span class="systemMessage">${summary}${advice}</span>`);
         if (errorCount > MAX_ERRORS) {
             return;
         }

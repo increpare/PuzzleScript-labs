@@ -544,7 +544,7 @@ function drawMessageScreen() {
 
 let loadedLevelSeed = 0;
 
-function loadLevelFromLevelDat(state, leveldat, randomseed, clearinputhistory) {
+function loadLevelFromLevelDat(state, leveldat, randomseed, clearinputhistory, checkpoint) {
 	if (!randomseed) {
 		randomseed = (Math.random() + Date.now()).toString();
 	}
@@ -589,10 +589,17 @@ function loadLevelFromLevelDat(state, leveldat, randomseed, clearinputhistory) {
 		}
 
 		backups = []
-		restartTarget = backupLevel();
+		if (checkpoint) {
+			restartTarget = checkpoint;
+			restartTargetIsCheckpoint = true;
+			restoreLevel(checkpoint);
+		} else {
+			restartTarget = backupLevel();
+			restartTargetIsCheckpoint = false;
+		}
 		keybuffer = [];
 
-		if ('run_rules_on_level_start' in state.metadata) {
+		if (!restartTargetIsCheckpoint && 'run_rules_on_level_start' in state.metadata) {
 			runrulesonlevelstart_phase = true;
 			processInput(-1, true);
 			runrulesonlevelstart_phase = false;
@@ -620,9 +627,7 @@ function loadLevelFromStateTarget(state, levelindex, target, randomseed) {
 			tryPlayStartLevelSound();
 		}
 	}
-	loadLevelFromLevelDat(state, state.levels[levelindex], randomseed);
-	restoreLevel(target);
-	restartTarget = target;
+	loadLevelFromLevelDat(state, state.levels[levelindex], randomseed, undefined, target);
 }
 
 function loadLevelFromState(state, levelindex, randomseed) {
@@ -717,6 +722,8 @@ function tryPlayCloseMessageSound() {
 
 let backups = [];
 let restartTarget;
+// Checkpoints contain an already initialized board; fresh restart targets do not.
+let restartTargetIsCheckpoint = false;
 let turnObjectsModified = false;
 
 function backupLevel() {
@@ -1188,7 +1195,7 @@ function DoRestart(force) {
 	restoreLevel(restartTarget);
 	tryPlayRestartSound();
 
-	if ('run_rules_on_level_start' in state.metadata) {
+	if (!restartTargetIsCheckpoint && 'run_rules_on_level_start' in state.metadata) {
 		processInput(-1, true);
 	}
 
@@ -3229,7 +3236,7 @@ function applyRuleGroupUnconditional(ruleGroup) {
 		// writes leave all match predicates unchanged. Replacements are fixed.
         if (onePassGroup) break;
     }
-    if (loopcount >= MAX_LOOP_COUNT) {
+    if (loopcount > MAX_LOOP_COUNT) {
         logErrorCacheable("Got caught looping lots in a rule group :O", ruleGroup[0].lineNumber, true);
     }
     return hasChanges;
@@ -3400,7 +3407,7 @@ function applyRuleGroup(ruleGroup) {
         }
     }
 
-    if (loopcount >= MAX_LOOP_COUNT) {
+    if (loopcount > MAX_LOOP_COUNT) {
         logErrorCacheable("Got caught looping lots in a rule group :O",
                           ruleGroup[0].lineNumber, true);
     }
@@ -3451,6 +3458,8 @@ function applyRules(rules, loopPoint, bannedGroup) {
             }
 
             if (verbose_logging) {
+                const { loopStartLine, loopEndLine } = rules[ruleGroupIndex][0];
+                consolePrint(`Jumping from <a onclick="jumpToLine(${loopEndLine});" href="javascript:void(0);">ENDLOOP</a> to <a onclick="jumpToLine(${loopStartLine});" href="javascript:void(0);">STARTLOOP</a>.`);
                 debugger_turnIndex++;
                 addToDebugTimeline(level, -2);
             }
@@ -3470,6 +3479,10 @@ function applyRules(rules, loopPoint, bannedGroup) {
             if (loopCount > 200) {
                 logErrorCacheable("got caught in an endless startloop...endloop vortex, escaping!", rules[ruleGroupIndex][0].lineNumber, true);
                 break;
+            }
+            if (verbose_logging) {
+                const { loopStartLine, loopEndLine } = rules[ruleGroupIndex][0];
+                consolePrint(`Jumping from <a onclick="jumpToLine(${loopEndLine});" href="javascript:void(0);">ENDLOOP</a> to <a onclick="jumpToLine(${loopStartLine});" href="javascript:void(0);">STARTLOOP</a>.`);
             }
         }
 
@@ -3946,17 +3959,16 @@ function processCommandQueue(bak, dontModify, dontDoWin, inputDir, skipAgainProb
 	// Process RESTART command
 	const restartIndex = level.commandQueue.indexOf('restart');
 	if (restartIndex >= 0) {
-		if (verbose_logging && runrulesonlevelstart_phase) {
-			let r = level.commandQueueSourceRules[restartIndex];
-			logWarning(
-				'A "restart" command is being triggered in the "run_rules_on_level_start" section of level creation, which would cause an infinite loop if it was actually triggered, but it\'s being ignored.',
-				r.lineNumber,
-				true
-			);
-		}
+		const deferRestart = !unitTesting && !restarting && level.commandQueue.includes('message');
 		if (verbose_logging) {
 			let r = level.commandQueueSourceRules[restartIndex];
-			consolePrintFromRule('RESTART command executed, reverting to restart state.', r);
+			if (restarting) {
+				logWarning('RESTART command ignored because a restart is already in progress.', r.lineNumber, true);
+			} else if (deferRestart) {
+				consolePrintFromRule('RESTART command will execute after its message is dismissed.', r);
+			} else {
+				consolePrintFromRule('RESTART command executed, reverting to restart state.', r);
+			}
 			consoleCacheDump();
 		}
 		if (!dontModify) {
@@ -3964,6 +3976,10 @@ function processCommandQueue(bak, dontModify, dontDoWin, inputDir, skipAgainProb
 		}
 		addUndoState(bak);
 		if (!dontModify) {
+			if (deferRestart) {
+				// Keep the restart queued while its message is displayed.
+				return true;
+			}
 			DoRestart(true);
 		}
 	}
@@ -4022,7 +4038,7 @@ function processCommandQueue(bak, dontModify, dontDoWin, inputDir, skipAgainProb
 				consolePrintFromRule('CHECKPOINT command executed, saving current state to the restart state.', r);
 			}
 			restartTarget = level4Serialization();
-			hasUsedCheckpoint = true;
+			restartTargetIsCheckpoint = true;
 			let backupStr = JSON.stringify(restartTarget);
 			storage_set(document.URL + '_checkpoint', backupStr);
 			storage_set(document.URL, curlevel);
@@ -4058,8 +4074,17 @@ function processCommandQueue(bak, dontModify, dontDoWin, inputDir, skipAgainProb
 		consolePrint('Turn complete');
 	}
 
-	level.commandQueue = [];
-	level.commandQueueSourceRules = [];
+	// Dismissing a rule message checks this queue for its explicit win.
+	// Suppressed wins (including initialization and editor turns) must expire now.
+	let winIndex = level.commandQueue.indexOf('win');
+	if (!dontModify && !dontDoWin && !levelEditorOpened && textMode &&
+		level.commandQueue.includes('message') && winIndex >= 0) {
+		level.commandQueueSourceRules = [level.commandQueueSourceRules[winIndex]];
+		level.commandQueue = ['win'];
+	} else {
+		level.commandQueue = [];
+		level.commandQueueSourceRules = [];
+	}
 	return modified;
 }
 
@@ -4201,10 +4226,6 @@ function nextLevel() {
 			loadLevelFromState(state, curlevel);
 		}
 	} else {
-		if (hasUsedCheckpoint) {
-			curlevelTarget = null;
-			hasUsedCheckpoint = false;
-		}
 		if (curlevel < (state.levels.length - 1)) {
 			curlevel++;
 			curlevelTarget = null;
@@ -4236,6 +4257,7 @@ function nextLevel() {
 		storage_set(document.URL, curlevel);
 		if (curlevelTarget !== null) {
 			restartTarget = level4Serialization();
+			restartTargetIsCheckpoint = true;
 			let backupStr = JSON.stringify(restartTarget);
 			storage_set(document.URL + '_checkpoint', backupStr);
 		} else {

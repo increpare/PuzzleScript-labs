@@ -34,3 +34,9 @@ export function appendSourceIssue(diagnostics: SourceDiagnostic[], issue: Source
 }
 
 export class SourceIssueLimit extends Error {}
+
+/** Escape interpolated text inside the few retained source-owned diagnostic links. */
+export function escapeDiagnosticText(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}

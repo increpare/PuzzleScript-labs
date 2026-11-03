@@ -49,7 +49,7 @@ function createSessionValidator(types) {
   }
   function state(value) {
     fields(value, ['execution', 'levelIndex', 'levelTarget', 'restartTarget', 'history', 'viewport',
-      'screen', 'winning', 'againing', 'restarting', 'levelStarting', 'checkpointUsed', 'loadedLevelSeed', 'runMode'], 'session state');
+      'screen', 'winning', 'againing', 'restarting', 'levelStarting', 'restartTargetIsCheckpoint', 'loadedLevelSeed', 'runMode'], 'session state');
     frame(value.execution);
     snapshot(value.levelTarget); snapshot(value.restartTarget); value.history.forEach(snapshot);
     viewport(value.viewport);

@@ -1,7 +1,7 @@
 # Readable TypeScript reference port
 
 A separate, headless port of **vanilla PuzzleScript**, pinned to
-[increpare/PuzzleScript at 57f9f6cb](https://github.com/increpare/PuzzleScript/commit/57f9f6cba69f6aa52ed738d5aee1d709d0037648).
+[increpare/PuzzleScript at caa90212](https://github.com/increpare/PuzzleScript/commit/caa902120185b354f8b9bdb7bf67a9424be0665d).
 The existing labs JavaScript editor and player are unchanged.
 
 The implementation describes actual objects, cells, movements and unnamed
@@ -17,6 +17,9 @@ compatibility behavior and research switches for bugs fixed by the pinned revisi
 `compileSource(source)` uses `vanillaQuirks`, whose defaults match that revision;
 `compileSource(source, { quirks: noQuirks })` gives the clean model. See
 [Quirk switches](#quirk-switches).
+
+The [3 November refresh audit](UPSTREAM-2026-11-03.md) records the exact oracle
+update, intentional behavior changes and current verification limits.
 
 ## Try the source example
 
@@ -83,7 +86,10 @@ recorded diagnostics, error counts, stopping and game behavior remain unchanged.
 The [direct-choice audit](../docs/superpowers/plans/2026-11-01-direct-movement-choices.md)
 explains that deliberate intermediate difference.
 
-Pass an Accepted outcome's exact `game` to `createSession`. Use `Movement.Right`
+Pass an Accepted outcome's exact `game` to `createSession`. A saved checkpoint
+can be supplied as `options.checkpoint`; its board is already initialized.
+`SessionState.restartTargetIsCheckpoint` controls whether restart runs level-start
+rules again. Use `Movement.Right`
 and the other actual enum values with `stepSession`; use `undoSession`,
 `restartSession` and `advanceSession` for the corresponding operations. The host
 supplies fresh level seeds through an explicit environment. Sound and persistence
@@ -213,9 +219,9 @@ there are no lookup caches or packed representations.
 
 `NativeLegendExpression` isolates positional malformed-source recovery, including
 mutation after comment reentry. Compiler legend recovery has been removed;
-compilation consumes the actual accepted registrations. Authored tokens remain unchanged. Native
-inherited object-name lookup is confined to `source-native-names.ts` and never
-creates an actual registration or canonical object.
+compilation consumes the actual accepted registrations. Authored tokens remain unchanged. Source names such as `constructor` and
+`__proto__` are ordinary declarations; inherited JavaScript properties never
+create a registration or canonical object.
 
 The declaration path is:
 
@@ -414,6 +420,9 @@ for that oracle; production TypeScript and examples do not load native fixtures.
 npm --prefix typescript test
 npm --prefix typescript run test:corpus -- --session
 ```
+
+The following historical checkpoints use the former `57f9f6cb` authority.
+Current verification is recorded in [the 3 November audit](UPSTREAM-2026-11-03.md).
 
 The strict suite, including object-source contracts, source/member construction
 separation, turn-input/calculation contracts, fresh prepared-turn commitment,

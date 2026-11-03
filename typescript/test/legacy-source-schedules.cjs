@@ -12,11 +12,11 @@ function createSourceSchedulesOracle(types) {
     const names = ['logError', 'logWarning', 'logWarningNoLine'];
     const originals = names.map(name => globalThis[name]);
     try {
-      globalThis.logError = (message, line) => diagnostics.push({ message, line: line ?? null,
+      globalThis.logError = (message, line) => diagnostics.push({ message: String(message), line: line ?? null,
         severity: types.SourceDiagnosticSeverity.Error, countsAsError: true });
-      globalThis.logWarning = (message, line) => diagnostics.push({ message, line: line ?? null,
+      globalThis.logWarning = (message, line) => diagnostics.push({ message: String(message), line: line ?? null,
         severity: types.SourceDiagnosticSeverity.Warning, countsAsError: line === undefined });
-      globalThis.logWarningNoLine = message => diagnostics.push({ message, line: null,
+      globalThis.logWarningNoLine = message => diagnostics.push({ message: String(message), line: null,
         severity: types.SourceDiagnosticSeverity.Warning, countsAsError: true });
       callback();
     } finally { names.forEach((name, index) => { globalThis[name] = originals[index]; }); }
@@ -57,7 +57,7 @@ function createSourceSchedulesOracle(types) {
       groups: groups.map((group, index) => ({ random: Boolean(group[0].isRandom), rules: group.map((rule, ri) => {
         assertVanillaFields('scheduled rule', rule, ['direction', 'patterns', 'hasReplacements', 'lineNumber',
           'ellipsisCount', 'groupNumber', 'rigid', 'commands', 'isRandom', 'cellRowMasks',
-          'cellRowMasks_Movements', 'ruleMask', 'applyAt', 'cellRowMatches', 'findMatches']);
+          'cellRowMasks_Movements', 'ruleMask', 'applyAt', 'cellRowMatches', 'findMatches', 'loopStartLine', 'loopEndLine']);
         const input = inputs[owners[index][ri]];
         assert.equal(rule.direction, dirMasks[input.direction], 'collapsed native direction');
         assert.deepEqual(rule.patterns, input.lhs, 'collapsed native pattern values');

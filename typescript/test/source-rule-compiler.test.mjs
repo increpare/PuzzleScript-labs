@@ -35,9 +35,9 @@ for (const sounds of ['', 'sfx0 123', 'sfx0', 'sfx0 rubbish', 'sfx0 123 extra', 
   });
 }
 
-test('all 492 pinned simulation sources match actual final schedules and complete raw rule diagnostics', t => {
+test('all 528 pinned simulation sources match actual final schedules and complete raw rule diagnostics', t => {
   const fixtures = oracle.corpusFixtures();
-  assert.equal(fixtures.length, 492);
+  assert.equal(fixtures.length, 528);
   const totals = { sources: 0, finalRules: 0, earlyGroups: 0, lateGroups: 0, loops: 0, diagnostics: 0, invalid: 0 };
   for (const item of fixtures) {
     const { result } = oracle.compareFixture(item);
@@ -49,8 +49,8 @@ test('all 492 pinned simulation sources match actual final schedules and complet
     totals.finalRules += [...earlyRules.groups, ...lateRules.groups].reduce((sum, group) => sum + group.rules.length, 0);
   }
   t.diagnostic(JSON.stringify(totals));
-  assert.equal(totals.finalRules, 99192);
-  assert.equal(totals.earlyGroups, 11145); assert.equal(totals.lateGroups, 4502); assert.equal(totals.loops, 89);
+  assert.equal(totals.finalRules, 99254);
+  assert.equal(totals.earlyGroups, 11177); assert.equal(totals.lateGroups, 4514); assert.equal(totals.loops, 94);
   assert.equal(totals.diagnostics, 402); assert.equal(totals.invalid, 0);
 });
 
@@ -88,7 +88,7 @@ test('syntax invalid still checks every negative and the first aggregate, before
   await withCompilerHooks(tracingHooks(visits), compileSourceRules => {
     const { result } = oracle.compareFixture(item, { compileSourceRules });
     assert.equal(result.data, null);
-    assert.deepEqual(result.diagnostics.map(issue => issue.code), ['unequal-rule-cell-count', 'duplicate-cell-name', 'contradictory-rhs-exclusion',
+    assert.deepEqual(result.diagnostics.map(issue => issue.code), ['invalid-rule-prefix', 'unequal-rule-cell-count', 'duplicate-cell-name', 'contradictory-rhs-exclusion',
       'redundant-lhs-exclusion', 'negative-rule-aggregate']);
   });
   assert.deepEqual(visits, ['recoverRuleSyntax', 'checkEarlyNegativeTerms', 'orientRule', 'expandRuleAggregates']);
@@ -230,7 +230,8 @@ test('documented malformed source failures are confirmed through full native loa
   const inPlace = fixture('moving [ > Player | Crate ] -> win');
   const empty = fixture('right [ Player ] -> [ Player ]', 'Pair = Player and Player\nPlayer = Pair');
   empty.source = empty.source.replace('P = Player\n', '');
-  for (const item of [inPlace, empty]) {
+  oracle.compareFixture(inPlace);
+  for (const item of [empty]) {
     assert.equal(oracle.nativeLoadFailure(item.source).name, 'TypeError');
     oracle.independently(() => {
       const { document } = readSource(item.source);

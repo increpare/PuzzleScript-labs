@@ -1,8 +1,8 @@
+import { escapeDiagnosticText } from './source-diagnostics.js';
 import { NativeLegendExpression } from './source-legend.js';
 import { SourceLegendKind, type SourceLexicalToken } from './source-model.js';
-import { isNativeInheritedObjectName } from './source-native-names.js';
 
-export enum SourceDeclarationKind { Object, Alias, Property, Aggregate, InheritedObject }
+export enum SourceDeclarationKind { Object, Alias, Property, Aggregate }
 interface SourceDeclarationBase { readonly name: string; readonly nameToken: SourceLexicalToken; readonly line: number }
 export interface SourceObjectDeclaration extends SourceDeclarationBase { readonly kind: SourceDeclarationKind.Object }
 export enum SourceAliasOriginKind { Object, UnownedObject, Legend }
@@ -30,11 +30,6 @@ export interface SourceAggregateDeclaration extends SourceCompoundDeclarationBas
   readonly constituents: readonly string[];
 }
 export type SourceDeclaration = SourceObjectDeclaration | SourceAliasDeclaration | SourcePropertyDeclaration | SourceAggregateDeclaration;
-export interface SourceInheritedObjectName {
-  readonly kind: SourceDeclarationKind.InheritedObject;
-  readonly name: string;
-  readonly line: undefined;
-}
 export enum SourceExpansionKind { Object, Property, Aggregate, Undeclared }
 export type SourceExpansion =
   { readonly kind: SourceExpansionKind.Object; readonly name: string } |
@@ -83,8 +78,7 @@ export class SourceDeclarations {
   isLevelGlyph(name: string): boolean { return this.levelNames.has(name); }
 
   /** Existence checks do not follow aliases and prefer compounds over aliases. */
-  findDeclaration(name: string): SourceDeclaration | SourceInheritedObjectName | null {
-    if (isNativeInheritedObjectName(name)) return { kind: SourceDeclarationKind.InheritedObject, name, line: undefined };
+  findDeclaration(name: string): SourceDeclaration | null {
     return this.objects.find(object => object.name === name) ?? this.aggregates.find(aggregate => aggregate.name === name)
       ?? this.properties.find(property => property.name === name) ?? this.aliases.find(alias => alias.name === name) ?? null;
   }
@@ -93,7 +87,7 @@ export class SourceDeclarations {
   expandName(name: string): SourceExpansion { return this.followAliasTarget(name, new Set()); }
 
   private followAliasTarget(name: string, path: Set<string>): SourceExpansion {
-    if (this.objects.some(object => object.name === name) || isNativeInheritedObjectName(name)) return { kind: SourceExpansionKind.Object, name };
+    if (this.objects.some(object => object.name === name)) return { kind: SourceExpansionKind.Object, name };
     if (path.has(name)) return { kind: SourceExpansionKind.Undeclared, name };
     path.add(name);
     const alias = this.aliases.find(alias => alias.name === name);
@@ -113,7 +107,7 @@ export class SourceDeclarations {
 
   private acceptObjectName(token: SourceLexicalToken, primary: boolean): boolean {
     const name = token.value;
-    if (this.objects.some(object => object.name === name) || isNativeInheritedObjectName(name)) {
+    if (this.objects.some(object => object.name === name)) {
       this.adviceFacts.push({ kind: primary ? SourceDeclarationAdviceKind.DuplicateObject : SourceDeclarationAdviceKind.DuplicateName, token });
       this.issue('Object "' + name.toUpperCase() + '" defined multiple times.'); return false;
     }
@@ -151,7 +145,7 @@ export class SourceDeclarations {
 
   private crossKindAdvice(token: SourceLexicalToken, name: string, referencedKind: SourceDeclarationKind.Property | SourceDeclarationKind.Aggregate): void {
     const referenced = this.findDeclaration(name);
-    if (referenced !== null && referenced.kind !== SourceDeclarationKind.InheritedObject) {
+    if (referenced !== null) {
       this.adviceFacts.push({ kind: SourceDeclarationAdviceKind.CrossKindReference, token, referenced: referenced.nameToken, referencedKind });
     }
   }
@@ -214,7 +208,7 @@ export class SourceDeclarations {
     let okay = true;
     if (previous !== null) {
       this.adviceFacts.push({ kind: SourceDeclarationAdviceKind.DuplicateName, token: nameToken });
-      this.issue(`Name "${name.toUpperCase()}" already in use (on line <a onclick="jumpToLine(${previous.line});" href="javascript:void(0);"><span class="errorTextLineNumber">line ${previous.line}</span></a>).`);
+      this.issue(`Name "${escapeDiagnosticText(name.toUpperCase())}" already in use (on line <a onclick="jumpToLine(${previous.line});" href="javascript:void(0);"><span class="errorTextLineNumber">line ${previous.line}</span></a>).`);
       okay = false;
     }
     this.keywordWarning(name);
@@ -233,7 +227,12 @@ export class SourceDeclarations {
     switch (expression.kind) {
       case SourceLegendKind.Synonym: {
         const target = references[0];
-        if (target !== undefined) this.declareAlias(nameToken, target);
+        if (target !== undefined) {
+          if (this.expandName(target.value).name === name) {
+            this.adviceFacts.push({ kind: SourceDeclarationAdviceKind.SelfReference, token: target, name: nameToken });
+            this.issue("You can't define object " + name.toUpperCase() + ' in terms of itself!');
+          } else this.declareAlias(nameToken, target);
+        }
         return;
       }
       case SourceLegendKind.Property: this.declareProperty(nameToken, references); return;

@@ -132,7 +132,7 @@ test('deterministic command-only rules run even though they make no changes', ()
   assert.deepEqual(result.state.random, before.random);
 });
 
-for (const [width, reachesLimit] of [[199, false], [200, true], [201, true]]) {
+for (const [width, reachesLimit] of [[199, false], [200, false], [201, true]]) {
   test(`group pass limit preserves the postincrement boundary at width ${width}`, () => {
     const before = state([[ [A], ...Array.from({ length: width - 1 }, () => []) ]]);
     const grow = rule([[pattern([A]), pattern([], { forbiddenObjects: new Set([A]) })]],

@@ -157,6 +157,8 @@ struct RestartSnapshot {
     /// Cell-major object masks (same layout as `PersistentBoardState::objects`).
     MaskVector objects;
     std::vector<int32_t> oldFlickscreenDat;
+    // Checkpoints already include the effects of level-start rules.
+    bool isCheckpoint = false;
 };
 
 struct UndoSnapshot;
@@ -186,6 +188,8 @@ struct MetaGameState {
     std::vector<UndoSnapshot> undoStack;
     bool pendingAgain = false;
     bool suppressRuleMessages = false;
+    bool messageRestartPending = false;
+    bool messageWinPending = false;
 };
 
 struct LayerCoupledMovementLayerTerm {
@@ -835,8 +839,8 @@ struct TurnOptions {
     // ignore non-solver-relevant commands like checkpoint.
     bool solverMode = false;
     AgainPolicy againPolicy = AgainPolicy::Yield;
-    // Level-start rules use normal rule evaluation but suppress terminal
-    // restart/win commands, matching PuzzleScript's load-level semantics.
+    // Restart initialization suppresses nested restarts; all level-start
+    // passes suppress wins. Fresh initialization may restart once.
     bool ignoreRestartCommand = false;
     bool ignoreWin = false;
 };

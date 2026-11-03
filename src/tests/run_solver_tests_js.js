@@ -726,7 +726,7 @@ function captureSnapshot() {
         winning,
         againing,
         loadedLevelSeed,
-        hasUsedCheckpoint,
+        restartTargetIsCheckpoint,
     };
 }
 
@@ -751,7 +751,7 @@ function restoreSnapshot(snapshot) {
     winning = snapshot.winning;
     againing = snapshot.againing;
     loadedLevelSeed = snapshot.loadedLevelSeed;
-    hasUsedCheckpoint = snapshot.hasUsedCheckpoint;
+    restartTargetIsCheckpoint = snapshot.restartTargetIsCheckpoint;
     if (level) {
         level.commandQueue = [];
         level.commandQueueSourceRules = [];
@@ -3213,7 +3213,7 @@ function createSolverLevelSpecialization(options = {}) {
         flags = ((flags * 31 + (titleSelection | 0)) | 0);
         flags = ((flags * 31 + (titleSelected ? 1 : 0)) | 0);
         flags = ((flags * 31 + (messageselected ? 1 : 0)) | 0);
-        flags = ((flags * 31 + (hasUsedCheckpoint ? 1 : 0)) | 0);
+        flags = ((flags * 31 + (restartTargetIsCheckpoint ? 1 : 0)) | 0);
         flags = ((flags * 31 + (loadedLevelSeed | 0)) | 0);
         flags = ((flags * 31 + (winning ? 1 : 0)) | 0);
         flags = ((flags * 31 + (againing ? 1 : 0)) | 0);
@@ -3256,7 +3256,7 @@ function createSolverLevelSpecialization(options = {}) {
             winning,
             againing,
             loadedLevelSeed,
-            hasUsedCheckpoint,
+            restartTargetIsCheckpoint,
             zobristTableId,
             zobristLo: level.solverZobristLo | 0,
             zobristHi: level.solverZobristHi | 0,
@@ -3310,7 +3310,7 @@ function createSolverLevelSpecialization(options = {}) {
                 winning: snapshot.winning,
                 againing: snapshot.againing,
                 loadedLevelSeed: snapshot.loadedLevelSeed,
-                hasUsedCheckpoint: snapshot.hasUsedCheckpoint,
+                restartTargetIsCheckpoint: snapshot.restartTargetIsCheckpoint,
             });
             if (turnBackupScratch) {
                 level.solverExternalBackup = turnBackupScratch;
@@ -3360,7 +3360,7 @@ function createSolverLevelSpecialization(options = {}) {
         winning = snapshot.winning;
         againing = snapshot.againing;
         loadedLevelSeed = snapshot.loadedLevelSeed;
-        hasUsedCheckpoint = snapshot.hasUsedCheckpoint;
+        restartTargetIsCheckpoint = snapshot.restartTargetIsCheckpoint;
         level.commandQueue = [];
         level.commandQueueSourceRules = [];
         //row/col masks were already rebuilt by restoreObjectsAndMasks (fused
@@ -3398,7 +3398,7 @@ function createSolverLevelSpecialization(options = {}) {
             titleSelection === snapshot.titleSelection &&
             titleSelected === snapshot.titleSelected &&
             messageselected === snapshot.messageselected &&
-            hasUsedCheckpoint === snapshot.hasUsedCheckpoint &&
+            restartTargetIsCheckpoint === snapshot.restartTargetIsCheckpoint &&
             loadedLevelSeed === snapshot.loadedLevelSeed &&
             (!textMode || messagetext === snapshot.messagetext) &&
             winning === snapshot.winning &&
@@ -3847,6 +3847,8 @@ function runNaivePsPlusSolver(game, levelIndex, timeoutMs, compileMs, options, r
     }
     const initialCurlevel = curlevel;
     const initialTitleScreen = titleScreen;
+    const initialRestartTarget = restartTarget;
+    const initialRestartTargetIsCheckpoint = restartTargetIsCheckpoint;
     const distanceTable = createDistanceTable(level.n_tiles, level.height);
     const getScore = createPsPlusGetScore(state, level, distanceTable, _o10);
     const actions = solverActionsForGame().slice();
@@ -3855,7 +3857,8 @@ function runNaivePsPlusSolver(game, levelIndex, timeoutMs, compileMs, options, r
         curlevel = initialCurlevel;
         titleScreen = initialTitleScreen;
         textMode = false;
-        hasUsedCheckpoint = false;
+        restartTarget = initialRestartTarget;
+        restartTargetIsCheckpoint = initialRestartTargetIsCheckpoint;
     };
     runNaiveSolver({
         deadline,
@@ -3863,10 +3866,12 @@ function runNaivePsPlusSolver(game, levelIndex, timeoutMs, compileMs, options, r
         level,
         getScore,
         stepAction(action) {
+            const beforeRestartTarget = restartTarget;
             const stepResult = stepSolverAction(action, modeResult);
             return {
                 changed: stepResult.changed,
-                solved: stepResult.solved || Boolean(winning || hasUsedCheckpoint),
+                solved: stepResult.solved || Boolean(winning ||
+                    (restartTargetIsCheckpoint && restartTarget !== beforeRestartTarget)),
             };
         },
         restoreObjects: restoreNaiveSnapshot,

@@ -236,7 +236,8 @@ vm.runInThisContext(allCode, { filename: 'combined_sources.js' });
 // Only strip actual HTML tags (starting with <letter or </letter), not
 // literal < characters that appear in error message text.
 global.stripHTMLTags = function(html_str) {
-    return html_str.replace(/<\/?[a-zA-Z][^>]*>/g, '').trim();
+    return html_str.replace(/<\/?[a-zA-Z][^>]*>/g, '')
+        .replace(/&(amp|lt|gt|quot|#39);/g, (_, entity) => ({ amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'" })[entity]).trim();
 };
 
 // ---- Run tests ----
@@ -364,14 +365,15 @@ function runOnePass() {
             const name = global.errormessage_testdata[i][0];
             if (filterArg && !name.toLowerCase().includes(filterArg.toLowerCase())) continue;
             try {
-                if (global.runCompilationTest(global.errormessage_testdata[i][1], name)) {
+                const compilation = global.compileTest(global.errormessage_testdata[i][1], name);
+                if (compilation !== null && global.compareCompilationTest(global.errormessage_testdata[i][1], compilation)) {
                     p++;
                 } else {
                     f++;
                     if (verbose) {
                         const td = global.errormessage_testdata[i][1];
-                        _origLog(`  actual errorCount: ${global.errorCount}, expected: ${td[2]}`);
-                        const stripped = global.errorStrings.map(global.stripHTMLTags);
+                        _origLog(`  actual errorCount: ${compilation && compilation.errorCount}, expected: ${td[2]}`);
+                        const stripped = compilation ? compilation.messages.map(global.stripHTMLTags) : [];
                         _origLog(`  actual errors: ${JSON.stringify(stripped)}`);
                         _origLog(`  expected errors: ${JSON.stringify(td[1])}`);
                     }

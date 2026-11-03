@@ -239,7 +239,7 @@ test('checkpoint snapshots own viewport and restart preserves RNG, message and s
   const env = environment();
   const before = start(incoming);
   const saved = stepSession(incoming, { ...before, viewport: { left: 1, top: 0, right: 3, bottom: 1 } }, Movement.Right, env);
-  assert.equal(saved.state.checkpointUsed, true);
+  assert.equal(saved.state.restartTargetIsCheckpoint, true);
   assert.equal(persisted(saved)[0].operation, PersistenceKind.Checkpoint);
   assert.notEqual(persisted(saved)[0].snapshot, saved.state.restartTarget);
   const moved = stepSession({ ...incoming, earlyRules: schedule() }, saved.state, Movement.Right, env).state;
@@ -249,7 +249,7 @@ test('checkpoint snapshots own viewport and restart preserves RNG, message and s
   assert.deepEqual(result.state.viewport, saved.state.viewport);
   assert.deepEqual(result.state.execution.random, withMessage.execution.random);
   assert.equal(result.state.execution.commands.message, 'preserved');
-  assert.equal(result.state.checkpointUsed, true);
+  assert.equal(result.state.restartTargetIsCheckpoint, true);
   assert.deepEqual(sounds(result), ['Restart']);
   assert.deepEqual(env.calls, []);
   assert.equal(result.state.history.length, withMessage.history.length + 1);
@@ -263,7 +263,7 @@ test('speculative checkpoints leave restart state, checkpoint status and storage
   const result = stepSession(incoming, moved, null, environment(), { probe: true, suppressWin: true });
   assert.equal(result.modified, false);
   assert.deepEqual(result.state.restartTarget, before.restartTarget);
-  assert.equal(result.state.checkpointUsed, false);
+  assert.equal(result.state.restartTargetIsCheckpoint, false);
   assert.deepEqual(persisted(result), []);
 });
 
@@ -337,7 +337,7 @@ test('quiet AGAIN probes leave the committed checkpoint alone and cancelling pro
   const quietCheckpoint = commandRule(CommandKind.Checkpoint);
   const incoming = game({ earlyRules: schedule([outer]), lateRules: schedule([quietCheckpoint]) });
   const saved = stepSession(incoming, start(incoming), Movement.Right, environment());
-  assert.equal(saved.state.checkpointUsed, true);
+  assert.equal(saved.state.restartTargetIsCheckpoint, true);
   assert.equal(persisted(saved).length, 1);
   assert.equal(saved.state.againing, false);
   const cancelIfStationary = rule([[pattern([Player], { forbiddenMovements: [{ layer: 0, movement: Movement.Right }] })]], [],
@@ -356,7 +356,7 @@ test('changed probes suppress ordinary sounds, return before wins/checkpoints, a
   assert.equal(result.modified, true);
   assert.deepEqual(result.state.execution.board, before.execution.board);
   assert.deepEqual(result.effects, []);
-  assert.equal(result.state.checkpointUsed, false);
+  assert.equal(result.state.restartTargetIsCheckpoint, false);
   for (const kind of [CommandKind.Restart, CommandKind.Win]) {
     const quiet = { ...incoming, earlyRules: schedule([commandRule(kind)]) };
     const probed = stepSession(quiet, before, null, environment(), { probe: true });
@@ -417,8 +417,8 @@ test('Interactive temporary messages delay win checks until closed; Replay only 
   const closed = advanceSession(incoming, shown.state, env);
   assert.equal(closed.state.screen.kind, ScreenKind.Board);
   assert.equal(closed.state.execution.commands.message, '');
-  assert.equal(closed.state.winning, false, 'queued win was cleared at turn end');
-  assert.deepEqual(sounds(closed), ['CloseMessage']);
+  assert.equal(closed.state.winning, true, 'explicit win survives until message dismissal');
+  assert.deepEqual(sounds(closed), ['CloseMessage', 'EndLevel']);
   const predicate = { ...incoming, winConditions: [onTarget], levels: [grid(board([[Player, Marker]]))] };
   const delayed = stepSession(predicate, start(predicate, { runMode: RunMode.Interactive }), null, env);
   assert.equal(advanceSession(predicate, delayed.state, env).state.winning, true);
@@ -440,7 +440,7 @@ test('advancing level messages and final wins clears checkpoint progress and ent
   const title = stepSession(winGame, saved, null, env);
   assert.equal(title.state.screen.kind, ScreenKind.Title);
   assert.equal(title.state.levelIndex, 0);
-  assert.equal(title.state.checkpointUsed, false);
+  assert.equal(title.state.restartTargetIsCheckpoint, true);
   assert.equal(title.state.levelTarget, null);
   assert.equal(title.state.execution.commands.message, '');
   assert.deepEqual(sounds(title), ['EndLevel', 'EndGame']);
@@ -505,7 +505,7 @@ function legacySession(source, inputs, interactive = false) {
   return vm.runInThisContext(String.raw`(() => {
     unitTesting = !__sessionInteractive;
     lazyFunctionGeneration = false;
-    seedsToPlay_CanMove = []; seedsToPlay_CantMove = []; messagetext = ''; hasUsedCheckpoint = false;
+    seedsToPlay_CanMove = []; seedsToPlay_CantMove = []; messagetext = ''; restartTargetIsCheckpoint = false;
     const emitted = [];
     playSound = (seed, simple) => emitted.push([String(seed), simple === true]);
     compile(['loadLevel', 0], __sessionSource + '\n', 'session tests');
@@ -526,7 +526,7 @@ function legacySession(source, inputs, interactive = false) {
       modified, board: names(level.objects, level.width, level.height),
       history: backups.map(entry => names(entry.dat, entry.width, entry.height)),
       restart: names(restartTarget.dat, restartTarget.width, restartTarget.height),
-      message: messagetext, againing, winning, checkpointUsed: hasUsedCheckpoint,
+      message: messagetext, againing, winning, restartTargetIsCheckpoint: restartTargetIsCheckpoint,
       random: { i: RandomGen._state.i, j: RandomGen._state.j, permutation: [...RandomGen._state.s] },
       sounds: emitted.splice(0),
     });
@@ -535,6 +535,7 @@ function legacySession(source, inputs, interactive = false) {
       let modified;
       if (input === 'undo') { DoUndo(false, true); modified = null; }
       else if (input === 'restart') { DoRestart(); modified = null; }
+      else if (input === 'load-checkpoint') { loadLevelFromStateTarget(state, curlevel, restartTarget, 'session tests'); modified = null; }
       else if (input === 'probe') modified = processInput(-1, true, true);
       else if (input === 'advance') {
         checkKey({ keyCode: 88 }, true);
@@ -552,7 +553,7 @@ function comparable(result, modified = result.modified) {
   const names = board => board.rows.map(row => row.map(cell => [...cell.objects].map(object => object.name.toLowerCase()).sort()));
   return { modified, board: names(state.execution.board), history: state.history.map(entry => names(entry.board)),
     restart: names(state.restartTarget.board), message: state.execution.commands.message,
-    againing: state.againing, winning: state.winning, checkpointUsed: state.checkpointUsed,
+    againing: state.againing, winning: state.winning, restartTargetIsCheckpoint: state.restartTargetIsCheckpoint,
     random: { i: state.execution.random.i, j: state.execution.random.j, permutation: [...state.execution.random.permutation] },
     sounds: result.effects.filter(effect => effect.kind === SessionEffectKind.Sound).map(effect => [effect.seed, effect.simple]) };
 }
@@ -716,7 +717,7 @@ for (const kind of [CommandKind.Sound, CommandKind.Message, CommandKind.Win, Com
     const first = stepSession(incoming, start(incoming, { runMode: RunMode.Interactive }), Movement.Action, environment());
     assert.equal(first.state.againing, true);
     assert.deepEqual(first.effects, []);
-    assert.equal(first.state.checkpointUsed, false);
+    assert.equal(first.state.restartTargetIsCheckpoint, false);
     assert.equal(first.state.winning, false);
     assert.equal(first.state.screen.kind, ScreenKind.Board);
     const next = stepSession(incoming, first.state, null, environment());
@@ -967,7 +968,7 @@ test('a public non-null probe enforces required player movement before its comma
   assert.deepEqual(result.state.history, []);
   assert.equal(result.state.execution.commands.message, '');
   assert.equal(result.state.screen.kind, ScreenKind.Board);
-  assert.equal(result.state.checkpointUsed, false);
+  assert.equal(result.state.restartTargetIsCheckpoint, false);
   assert.deepEqual(result.effects, []);
 });
 
@@ -980,7 +981,7 @@ for (const suppressWin of [false, true]) {
     assert.equal(result.modified, false);
     assert.equal(result.state.levelIndex, suppressWin ? 0 : 1);
     assert.deepEqual(env.calls, suppressWin ? [] : ['probe victory']);
-    assert.equal(result.state.checkpointUsed, false);
+    assert.equal(result.state.restartTargetIsCheckpoint, false);
     assert.deepEqual(persisted(result).map(effect => effect.operation), suppressWin ? [] : [PersistenceKind.Progress]);
     assert.deepEqual(result.effects.filter(effect => effect.kind === SessionEffectKind.Win),
       [{ kind: SessionEffectKind.Win, levelIndex: 0, suppressed: suppressWin }]);
@@ -1002,3 +1003,58 @@ for (const probe of [false, true]) {
       : { kind: ScreenKind.TemporaryMessage, text: 'both' });
   });
 }
+
+
+function compareSourceSession(source, inputs, interactive = true) {
+  const native = legacySession(source, inputs, interactive);
+  const compiled = compileSource(source);
+  assert.equal(compiled.outcome.kind, SourceCompilationKind.Accepted);
+  const game = compiled.outcome.game;
+  const env = { nextLevelSeed: () => 'session tests' };
+  let actual = createSession(game, { seed: 'session tests', runMode: interactive ? RunMode.Interactive : RunMode.Replay }, env);
+  const observe = result => {
+    const view = comparable(result);
+    const clean = board => board.map(row => row.map(cell => cell.filter(name => name !== 'background')));
+    return { ...view, board: clean(view.board), restart: clean(view.restart), history: view.history.map(clean) };
+  };
+  assert.deepEqual(observe(actual), native[0]);
+  const results = [actual];
+  for (const [index, input] of inputs.entries()) {
+    if (input === 'advance') actual = advanceSession(game, actual.state, env);
+    else if (input === 'restart') actual = restartSession(game, actual.state, env);
+    else if (input === 'undo') actual = undoSession(game, actual.state, { ignoreDuplicates: true });
+    else if (input === 'load-checkpoint') actual = createSession(game, { seed: 'session tests',
+      runMode: interactive ? RunMode.Interactive : RunMode.Replay, checkpoint: actual.state.restartTarget }, env);
+    else actual = stepSession(game, actual.state, input === 'tick' ? null
+      : [Movement.Up, Movement.Left, Movement.Down, Movement.Right, Movement.Action][input], env);
+    const view = observe(actual);
+    if (typeof input === 'string' && input !== 'tick') view.modified = null;
+    assert.deepEqual(view, native[index + 1], 'source session input ' + index + ': ' + input);
+    results.push(actual);
+  }
+  return results;
+}
+
+for (const rules of [
+  'right [ action Player ] -> [ Player ] win message Victory',
+  'right [ action Player ] -> [ Player ] restart message Restarting',
+  'right [ action Player ] -> [ Player ] restart win message Restarting',
+  'right [ > Player ] -> [ > Player ] again message Moving\nright [ stationary Player ] -> win',
+]) test('current vanilla interactive command lifetime: ' + rules, () => {
+  compareSourceSession(movementSource({ rules, level: 'P..' }), [rules.includes('again') ? 3 : 4, 'advance', 'tick']);
+});
+
+test('checkpoint restarts and checkpoint loads skip level-start rules', () => {
+  const source = movementSource({ metadata: 'run_rules_on_level_start', rules:
+    'right [ Player ] -> [ > Player ]\nlate [ Player ] -> checkpoint', level: 'P....' });
+  const frames = compareSourceSession(source, [3, 'restart', 'load-checkpoint', 'restart'], false);
+  assert.equal(frames[0].state.restartTargetIsCheckpoint, true);
+  for (const frame of frames.slice(2)) assert.deepEqual(frame.state.execution.board, frames[1].state.execution.board);
+});
+
+test('suppressed initialization wins expire when their message is dismissed', () => {
+  const source = movementSource({ metadata: 'run_rules_on_level_start', rules: '[ Player ] -> win message Initializing', level: 'P..' });
+  const frames = compareSourceSession(source, ['advance']);
+  assert.equal(frames[0].state.execution.commands.entries.length, 0);
+  assert.equal(frames[1].state.winning, false);
+});

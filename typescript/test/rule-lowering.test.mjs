@@ -446,9 +446,9 @@ test('cyclic malformed declarations fail before lowering in fixed-timeout childr
   assert.match(failures[1].message, /empty aggregate.*player/i);
 });
 
-test('all 492 vanilla sources match exact lowered order, fields and diagnostics', t => {
+test('all 528 vanilla sources match exact lowered order, fields and diagnostics', t => {
   const fixtures = oracle.corpusFixtures();
-  assert.equal(fixtures.length, 492);
+  assert.equal(fixtures.length, 528);
   const totals = { sources: 0, syntax: 0, named: 0, movement: 0, spawned: 0, duplicates: 0, lowered: 0, overlaps: 0, diagnostics: 0 };
   for (const item of fixtures) {
     const compared = oracle.compareFixture(item);
@@ -459,6 +459,6 @@ test('all 492 vanilla sources match exact lowered order, fields and diagnostics'
     totals.diagnostics += compared.result.diagnostics.length;
   }
   t.diagnostic(JSON.stringify(totals));
-  assert.deepEqual(totals, { sources: 492, syntax: 16674, named: 26093, movement: 30007, spawned: 106122,
-    duplicates: 99567, lowered: 99443, overlaps: 251, diagnostics: 146 });
+  assert.deepEqual(totals, { sources: 528, syntax: 16718, named: 26143, movement: 30057, spawned: 106189,
+    duplicates: 99630, lowered: 99506, overlaps: 252, diagnostics: 146 });
 });

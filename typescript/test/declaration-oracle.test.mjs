@@ -317,7 +317,7 @@ test('empty property analysis cannot disappear in the absent native projection',
 
 test('the independent resolver agrees on declaration data for every simulation source', () => {
   const fixtures = oracle.corpusFixtures();
-  assert.equal(fixtures.length, 492);
+  assert.equal(fixtures.length, 528);
   for (const item of fixtures) oracle.compareFixture(item);
 });
 

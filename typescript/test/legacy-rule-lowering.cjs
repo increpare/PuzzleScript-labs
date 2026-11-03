@@ -73,11 +73,11 @@ function createRuleLoweringOracle(types) {
     const names = ['logError', 'logWarning', 'logWarningNoLine'];
     const originals = names.map(name => globalThis[name]);
     try {
-      globalThis.logError = (message, line) => diagnostics.push({ message, line: line ?? null,
+      globalThis.logError = (message, line) => diagnostics.push({ message: String(message), line: line ?? null,
         severity: types.SourceDiagnosticSeverity.Error, countsAsError: true });
-      globalThis.logWarning = (message, line) => diagnostics.push({ message, line: line ?? null,
+      globalThis.logWarning = (message, line) => diagnostics.push({ message: String(message), line: line ?? null,
         severity: types.SourceDiagnosticSeverity.Warning, countsAsError: line === undefined });
-      globalThis.logWarningNoLine = message => diagnostics.push({ message, line: null,
+      globalThis.logWarningNoLine = message => diagnostics.push({ message: String(message), line: null,
         severity: types.SourceDiagnosticSeverity.Warning, countsAsError: true });
       rulesToMask(parsed);
     } finally { names.forEach((name, index) => { globalThis[name] = originals[index]; }); }

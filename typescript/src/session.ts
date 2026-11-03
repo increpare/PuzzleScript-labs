@@ -18,6 +18,7 @@ import { hasWon } from './win-conditions.js';
 
 enum WinHandling { Apply, ReportOnly }
 enum AgainDecision { Stop, Schedule }
+enum TurnPurpose { Input, AgainProbe }
 
 type WorkingState = { -readonly [Key in keyof SessionState]: SessionState[Key] };
 /** Only this local machine changes during a public operation, including nested probes. */
@@ -124,7 +125,7 @@ function restart(work: Machine, force: boolean): boolean {
   if (!force) addHistory(work, snapshot(work.state));
   restore(work, work.state.restartTarget);
   simpleSound(work, SimpleSound.Restart);
-  if (work.game.metadata.runRulesOnLevelStart) step(work, TurnInput.None, WinHandling.ReportOnly);
+  if (!work.state.restartTargetIsCheckpoint && work.game.metadata.runRulesOnLevelStart) step(work, TurnInput.None, WinHandling.ReportOnly);
   clearCommands(work);
   work.state.restarting = false;
   return true;
@@ -162,7 +163,7 @@ function emptyExecution(board: Board, seed: string): RuleExecutionState {
     canMoveSounds: [], cantMoveSounds: [], commands: { entries: [], message: '' }, createdObjects: new Set(), destroyedObjects: new Set(),
   };
 }
-function load(work: Machine, levelIndex: number, seed?: string): void {
+function load(work: Machine, levelIndex: number, seed?: string, checkpoint?: BoardSnapshot): void {
   const level = work.game.levels[levelIndex];
   if (level?.kind === LevelKind.Grid) simpleSound(work, SimpleSound.StartLevel);
   const actualSeed = seed || work.environment.nextLevelSeed();
@@ -188,8 +189,10 @@ function load(work: Machine, levelIndex: number, seed?: string): void {
     commands: { entries: [], message: execution.commands.message } };
   initializeViewport(work, level.board);
   work.state.history = [];
-  work.state.restartTarget = snapshot(work.state);
-  if (work.game.metadata.runRulesOnLevelStart) {
+  work.state.restartTarget = checkpoint === undefined ? snapshot(work.state) : copySnapshot(checkpoint);
+  work.state.restartTargetIsCheckpoint = checkpoint !== undefined;
+  if (checkpoint !== undefined) restore(work, checkpoint);
+  if (!work.state.restartTargetIsCheckpoint && work.game.metadata.runRulesOnLevelStart) {
     work.state.levelStarting = true;
     step(work, TurnInput.None, WinHandling.ReportOnly);
     work.state.levelStarting = false;
@@ -206,7 +209,6 @@ function nextLevel(work: Machine): void {
     work.state.levelTarget = null;
     load(work, 0);
   } else {
-    work.state.checkpointUsed = false;
     work.state.levelTarget = null;
     if (work.state.levelIndex < work.game.levels.length - 1) {
       load(work, work.state.levelIndex + 1);
@@ -233,16 +235,16 @@ function checkWin(work: Machine, handling: WinHandling): void {
 }
 function checkpoint(work: Machine): void {
   work.state.restartTarget = snapshot(work.state);
-  work.state.checkpointUsed = true;
+  work.state.restartTargetIsCheckpoint = true;
   work.effects.push({ kind: SessionEffectKind.Persistence, operation: PersistenceKind.Checkpoint,
     levelIndex: work.state.levelIndex, snapshot: copySnapshot(work.state.restartTarget) });
 }
 /** Choose complete rules/movement work; the incoming execution is still intact. */
-function beginTurn(work: Machine, input: TurnInput): CalculatedTurn | undefined {
+function beginTurn(work: Machine, input: TurnInput, purpose = TurnPurpose.Input): CalculatedTurn | undefined {
   const prepared = work.preparedAgain;
   work.preparedAgain = undefined;
   work.state.againing = false;
-  if (work.state.screen.kind !== ScreenKind.Board) return undefined;
+  if (purpose === TurnPurpose.Input && work.state.screen.kind !== ScreenKind.Board) return undefined;
   return reusableAgainTurn(work.game, work.state.execution, input, prepared)
     ?? calculateTurn(work.game, work.state.execution, input);
 }
@@ -296,6 +298,7 @@ function finishTurn(work: Machine, before: BoardSnapshot, turn: CalculatedTurn, 
   if (queued(work, CommandKind.Restart)) {
     outputCommands(work);
     addHistory(work, before);
+    if (!work.state.restarting && work.state.runMode === RunMode.Interactive && queued(work, CommandKind.Message)) return true;
     restart(work, true);
   }
   const modified = !sameBoard(work.state.execution.board, before.board);
@@ -308,7 +311,11 @@ function finishTurn(work: Machine, before: BoardSnapshot, turn: CalculatedTurn, 
     if (queued(work, CommandKind.Checkpoint)) checkpoint(work);
     if (queued(work, CommandKind.Again) && modified) prepareAgain(work);
   }
-  clearCommands(work);
+  if (wins === WinHandling.Apply && work.state.screen.kind === ScreenKind.TemporaryMessage && queued(work, CommandKind.Message)) {
+    const execution = work.state.execution;
+    work.state.execution = { ...execution, commands: { ...execution.commands,
+      entries: execution.commands.entries.filter(entry => entry.command.kind === CommandKind.Win) } };
+  } else clearCommands(work);
   if (work.state.winning) work.state.againing = false;
   return modified;
 }
@@ -339,9 +346,9 @@ function observeProbe(work: Machine, before: BoardSnapshot, turn: CalculatedTurn
 
 /** Calculate the continuation once and keep its pre-session result for later use. */
 function prepareAgain(work: Machine): void {
-  const message = work.state.execution.commands.message;
+  const commands = work.state.execution.commands;
   const probe = vanilla.quirksOf(work.game).againProbeHasSideEffects ? work : probeMachine(work);
-  const turn = beginTurn(probe, TurnInput.None);
+  const turn = beginTurn(probe, TurnInput.None, TurnPurpose.AgainProbe);
   if (turn !== undefined) {
     const prepared: PreparedAgainTurn = {
       game: work.game, before: cloneExecutionState(probe.state.execution), turn: copyCalculatedTurn(turn),
@@ -355,7 +362,7 @@ function prepareAgain(work: Machine): void {
   if (probe !== work) {
     for (const effect of probe.effects) if (effect.kind === SessionEffectKind.Diagnostic) work.effects.push(effect);
   }
-  setMessage(work, message);
+  work.state.execution = { ...work.state.execution, commands };
 }
 
 function step(work: Machine, input: TurnInput, wins: WinHandling): boolean {
@@ -373,10 +380,10 @@ export function createSession(game: SessionGame, options: CreateSessionOptions, 
     execution, levelIndex: options.level ?? 0, levelTarget: null,
     restartTarget: { board: createBoard([]), viewport: null }, history: [], viewport: null,
     screen: { kind: ScreenKind.Board }, winning: false, againing: false, restarting: false, levelStarting: false,
-    checkpointUsed: false, loadedLevelSeed: seed, runMode: options.runMode ?? RunMode.Replay,
+    restartTargetIsCheckpoint: false, loadedLevelSeed: seed, runMode: options.runMode ?? RunMode.Replay,
   };
   const work = machine(game, state, environment);
-  load(work, state.levelIndex, seed);
+  load(work, state.levelIndex, seed, options.checkpoint);
   return result(work, false);
 }
 export function stepSession(game: SessionGame, before: SessionState, input: Movement | null,
@@ -411,7 +418,8 @@ export function advanceSession(game: SessionGame, before: SessionState, environm
     simpleSound(work, SimpleSound.CloseMessage);
     setMessage(work, '');
     work.state.screen = { kind: ScreenKind.Board };
-    checkWin(work, WinHandling.Apply);
+    if (queued(work, CommandKind.Restart)) restart(work, true);
+    else checkWin(work, WinHandling.Apply);
   } else if (work.state.screen.kind === ScreenKind.LevelMessage) {
     if (work.state.runMode === RunMode.Interactive) simpleSound(work, SimpleSound.CloseMessage);
     nextLevel(work);

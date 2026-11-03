@@ -260,7 +260,7 @@ function compareSources(fixtures) {
 }
 
 test('compiler lexing compares every retained simulation-source rule with native producers', t => {
-  assert.equal(globalThis.testdata.length, 492);
+  assert.equal(globalThis.testdata.length, 528);
   const report = compareSources(globalThis.testdata);
   assert.ok(report.rules > 0);
   assert.ok(report.messages > 0);
@@ -268,7 +268,7 @@ test('compiler lexing compares every retained simulation-source rule with native
 });
 
 test('compiler lexing compares every retained compilation-source rule with native producers', t => {
-  assert.equal(globalThis.errormessage_testdata.length, 335);
+  assert.equal(globalThis.errormessage_testdata.length, 370);
   const report = compareSources(globalThis.errormessage_testdata);
   assert.ok(report.rules > 0);
   t.diagnostic(JSON.stringify(report));

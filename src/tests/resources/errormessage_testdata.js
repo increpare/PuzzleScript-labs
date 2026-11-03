@@ -589,7 +589,7 @@ var errormessage_testdata = [
     ],
     [
         "Was expecting a soundverb here",
-        ["title Was expecting a soundverb here\nauthor David Skinner\nhomepage www.puzzlescript.net\n\n========\nOBJECTS\n========\n\nBackground\nlightgreen green\n11111\n01111\n11101\n11111\n10111\n\nTarget\ndarkblue\n.....\n.000.\n.0.0.\n.000.\n.....\n\nWall\nbrown darkbrown\n00010\n11111\n01000\n11111\n00010\n\nPlayer\nblack orange white blue\n.000.\n.111.\n22222\n.333.\n.3.3.\n\nCrate\norange\n00000\n0...0\n0...0\n0...0\n00000\n\n=======\nLEGEND\n=======\n\n. = Background\n# = Wall\nP = Player\n* = Crate\n@ = Crate and Target\nO = Target\n\n=======\nSOUNDS\n=======\n\nCrate asdfasd 36772507\n\n================\nCOLLISIONLAYERS\n================\n\nBackground\nTarget\nPlayer, Wall, Crate\n\n======\nRULES\n======\n\n[ > Player | Crate ] -> [ > Player | > Crate ] \n\n==============\nWINCONDITIONS\n==============\n\nall Target on Crate\n\n=======\nLEVELS\n=======\n\n####..\n#.O#..\n#..###\n#@P..#\n#..*.#\n#..###\n####..\n\n######\n#....#\n#.#P.#\n#.*@.#\n#.O@.#\n#....#\n######\n\n", ["line 64 : Was expecting a soundverb here (MOVE, DESTROY, CANTMOVE, or the like), but found something else."], 1]
+        ["title Was expecting a soundverb here\nauthor David Skinner\nhomepage www.puzzlescript.net\n\n========\nOBJECTS\n========\n\nBackground\nlightgreen green\n11111\n01111\n11101\n11111\n10111\n\nTarget\ndarkblue\n.....\n.000.\n.0.0.\n.000.\n.....\n\nWall\nbrown darkbrown\n00010\n11111\n01000\n11111\n00010\n\nPlayer\nblack orange white blue\n.000.\n.111.\n22222\n.333.\n.3.3.\n\nCrate\norange\n00000\n0...0\n0...0\n0...0\n00000\n\n=======\nLEGEND\n=======\n\n. = Background\n# = Wall\nP = Player\n* = Crate\n@ = Crate and Target\nO = Target\n\n=======\nSOUNDS\n=======\n\nCrate asdfasd 36772507\n\n================\nCOLLISIONLAYERS\n================\n\nBackground\nTarget\nPlayer, Wall, Crate\n\n======\nRULES\n======\n\n[ > Player | Crate ] -> [ > Player | > Crate ] \n\n==============\nWINCONDITIONS\n==============\n\nall Target on Crate\n\n=======\nLEVELS\n=======\n\n####..\n#.O#..\n#..###\n#@P..#\n#..*.#\n#..###\n####..\n\n######\n#....#\n#.#P.#\n#.*@.#\n#.O@.#\n#....#\n######\n\n", ["line 64 : Was expecting a sound verb here (e.g. MOVE, DESTROY, CANTMOVE, or the like), but found something else. Try \"CRATE MOVE 12345\" or \"CRATE ACTION 12345\"."], 1]
     ],
     [
         "COLLISIONLAYERS - error detected - unexpected character ",
@@ -1406,4 +1406,118 @@ var errormessage_testdata = [
         "#1178 multiple colors without a sprite matrix warn that only the first is used",
         ["OBJECTS\n\nBackground .\n(comment between declaration and colors)\nlightgreen green\n\nPlayer P\nwhite\n\nLEGEND\nSOUNDS\nCOLLISIONLAYERS\nBackground\nPlayer\nRULES\nWINCONDITIONS\nLEVELS\nP\n", ["line 3 : Object \"BACKGROUND\"  lists several colours but doesn\'t have a sprite matrix; it will just be a solid square of the first colour."], 0]
     ],
+    [
+		"Coverage: sprite with too few rows warns in the compiler",
+		["OBJECTS\n\nBackground .\nblack\n\nPlayer P\nwhite\n\nWall W\ngray\n\nCrate C\nred\n\nMarker M\nyellow\n\nTarget T\nblue\n\nShort S\nred\n00000\n00000\n\nLEGEND\n\nSOUNDS\n\nCOLLISIONLAYERS\n\nBackground\nPlayer, Wall, Crate\nMarker\nTarget\nShort\n\nRULES\n\n\n\nWINCONDITIONS\n\nLEVELS\n\nP..\n",["line 21 : Sprite graphics must be 5 wide and 5 high exactly."],0]
+	],
+    [
+		"Coverage: sound error recovery consumes sfx1",
+		["OBJECTS\n\nBackground .\nblack\n\nPlayer P\nwhite\n\nWall W\ngray\n\nCrate C\nred\n\nMarker M\nyellow\n\nTarget T\nblue\n\nLEGEND\n\nSOUNDS\nsfx0 nope sfx1\nCOLLISIONLAYERS\n\nBackground\nPlayer, Wall, Crate\nMarker\nTarget\n\nRULES\n\n\n\nWINCONDITIONS\n\nLEVELS\n\nP..\n",["line 24 : Was expecting a sound seed here (a number like 123123, like you generate by pressing the buttons above the console panel), but found something else."],1]
+	],
+    [
+		"Coverage: sound error recovery consumes move",
+		["OBJECTS\n\nBackground .\nblack\n\nPlayer P\nwhite\n\nWall W\ngray\n\nCrate C\nred\n\nMarker M\nyellow\n\nTarget T\nblue\n\nLEGEND\n\nSOUNDS\nsfx0 nope move\nCOLLISIONLAYERS\n\nBackground\nPlayer, Wall, Crate\nMarker\nTarget\n\nRULES\n\n\n\nWINCONDITIONS\n\nLEVELS\n\nP..\n",["line 24 : Was expecting a sound seed here (a number like 123123, like you generate by pressing the buttons above the console panel), but found something else."],1]
+	],
+    [
+		"Coverage: sound error recovery consumes right",
+		["OBJECTS\n\nBackground .\nblack\n\nPlayer P\nwhite\n\nWall W\ngray\n\nCrate C\nred\n\nMarker M\nyellow\n\nTarget T\nblue\n\nLEGEND\n\nSOUNDS\nsfx0 nope right\nCOLLISIONLAYERS\n\nBackground\nPlayer, Wall, Crate\nMarker\nTarget\n\nRULES\n\n\n\nWINCONDITIONS\n\nLEVELS\n\nP..\n",["line 24 : Was expecting a sound seed here (a number like 123123, like you generate by pressing the buttons above the console panel), but found something else."],1]
+	],
+    [
+		"Coverage: sound error recovery consumes Player",
+		["OBJECTS\n\nBackground .\nblack\n\nPlayer P\nwhite\n\nWall W\ngray\n\nCrate C\nred\n\nMarker M\nyellow\n\nTarget T\nblue\n\nLEGEND\n\nSOUNDS\nsfx0 nope Player\nCOLLISIONLAYERS\n\nBackground\nPlayer, Wall, Crate\nMarker\nTarget\n\nRULES\n\n\n\nWINCONDITIONS\n\nLEVELS\n\nP..\n",["line 24 : Was expecting a sound seed here (a number like 123123, like you generate by pressing the buttons above the console panel), but found something else."],1]
+	],
+    [
+		"Coverage: sound error recovery consumes Missing",
+		["OBJECTS\n\nBackground .\nblack\n\nPlayer P\nwhite\n\nWall W\ngray\n\nCrate C\nred\n\nMarker M\nyellow\n\nTarget T\nblue\n\nLEGEND\n\nSOUNDS\nsfx0 nope Missing\nCOLLISIONLAYERS\n\nBackground\nPlayer, Wall, Crate\nMarker\nTarget\n\nRULES\n\n\n\nWINCONDITIONS\n\nLEVELS\n\nP..\n",["line 24 : Was expecting a sound seed here (a number like 123123, like you generate by pressing the buttons above the console panel), but found something else."],1]
+	],
+    [
+		"Coverage: sprite with five short rows warns about its width",
+		["OBJECTS\n\nBackground .\nblack\n\nPlayer P\nwhite\n\nWall W\ngray\n\nCrate C\nred\n\nMarker M\nyellow\n\nTarget T\nblue\n\nShort S\nred\n0000\n0000\n0000\n0000\n0000\n\nLEGEND\n\nSOUNDS\n\nCOLLISIONLAYERS\n\nBackground\nPlayer, Wall, Crate\nMarker\nTarget\nShort\n\nRULES\n\n\n\nWINCONDITIONS\n\nLEVELS\n\nP..\n",["line 21 : Sprite graphics must be 5 wide and 5 high exactly."],0]
+	],
+    [
+		"Coverage: sound error recovery consumes events, verbs, directions, and names",
+		["OBJECTS\n\nBackground .\nblack\n\nPlayer P\nwhite\n\nWall W\ngray\n\nCrate C\nred\n\nMarker M\nyellow\n\nTarget T\nblue\n\nLEGEND\n\nSOUNDS\nUnknown sfx0 create up Player Unknown\nCOLLISIONLAYERS\n\nBackground\nPlayer, Wall, Crate\nMarker\nTarget\n\nRULES\n\n\n\nWINCONDITIONS\n\nLEVELS\n\nP..\n",["line 24 : unexpected sound token \"unknown\"."],1]
+	],
+    [
+		"Coverage: a property reports a synonym declared later",
+		["OBJECTS\n\nBackground .\nblack\n\nPlayer P\nwhite\n\nWall W\ngray\n\nCrate C\nred\n\nMarker M\nyellow\n\nTarget T\nblue\n\nLEGEND\nProp = Alias or Crate\nAlias = Wall\nSOUNDS\n\nCOLLISIONLAYERS\n\nBackground\nPlayer, Wall, Crate\nMarker\nTarget\n\nRULES\n\n\n\nWINCONDITIONS\n\nLEVELS\n\nP..\n",["line 22 : You're talking about ALIAS but it's not defined anywhere."],1]
+	],
+    [
+		"Coverage: a property reports another property declared later",
+		["OBJECTS\n\nBackground .\nblack\n\nPlayer P\nwhite\n\nWall W\ngray\n\nCrate C\nred\n\nMarker M\nyellow\n\nTarget T\nblue\n\nLEGEND\nProp = Inner or Crate\nInner = Wall or Marker\nSOUNDS\n\nCOLLISIONLAYERS\n\nBackground\nPlayer, Wall, Crate\nMarker\nTarget\n\nRULES\n\n\n\nWINCONDITIONS\n\nLEVELS\n\nP..\n",["line 22 : You're talking about INNER but it's not defined anywhere."],1]
+	],
+    [
+		"Coverage: a forward property alias chain reports both undeclared names",
+		["OBJECTS\n\nBackground .\nblack\n\nPlayer P\nwhite\n\nWall W\ngray\n\nCrate C\nred\n\nMarker M\nyellow\n\nTarget T\nblue\n\nLEGEND\nAlias1 = Alias2\nAlias2 = Alias3\nAlias3 = Wall or Crate\nSOUNDS\n\nCOLLISIONLAYERS\n\nBackground\nPlayer, Wall, Crate\nMarker\nTarget\n\nRULES\n\n\n\nWINCONDITIONS\n\nLEVELS\n\nP..\n",["line 22 : You're talking about ALIAS2 but it's not defined anywhere.","line 23 : You're talking about ALIAS3 but it's not defined anywhere."],2]
+	],
+    [
+		"Coverage: three expanded impossible alternatives list every overlap",
+		["OBJECTS\n\nBackground .\nblack\n\nPlayer P\nwhite\n\nWall W\ngray\n\nCrate C\nred\n\nMarker M\nyellow\n\nTarget T\nblue\n\nRed R\nred\n\nGreen G\ngreen\n\nBlue B\nblue\n\nLEGEND\nColour = Red or Green or Blue\nSOUNDS\n\nCOLLISIONLAYERS\n\nBackground\nPlayer\nWall, Red\nMarker, Green\nTarget, Blue\nCrate\n\nRULES\n\n[ Colour Wall Marker Target ] -> [ Colour Wall Marker Target ]\n\nWINCONDITIONS\n\nLEVELS\n\nP..\n",["line 45 : WALL and RED can never overlap (ditto for MARKER/GREEN, and TARGET/BLUE). This rule requires that to happen, so it impossible it will ever trigger."],1]
+	],
+    [
+		"Coverage: relative direction ^ cannot select a rule scan direction",
+		["OBJECTS\n\nBackground .\nblack\n\nPlayer P\nwhite\n\nWall W\ngray\n\nCrate C\nred\n\nMarker M\nyellow\n\nTarget T\nblue\n\nLEGEND\n\nSOUNDS\n\nCOLLISIONLAYERS\n\nBackground\nPlayer, Wall, Crate\nMarker\nTarget\n\nRULES\n\n^ [ Player ] -> [ Player ]\n\nWINCONDITIONS\n\nLEVELS\n\nP..\n",["line 34 : Name \"^\", referred to in a rule, does not exist.","line 34 : You cannot use relative directions (\"^v<>\") to indicate in which direction(s) a rule applies.  Use absolute directions indicators (Up, Down, Left, Right, Horizontal, or Vertical, for instance), or, if you want the rule to apply in all four directions, do not specify directions"],2]
+	],
+    [
+		"Coverage: relative direction v cannot select a rule scan direction",
+		["OBJECTS\n\nBackground .\nblack\n\nPlayer P\nwhite\n\nWall W\ngray\n\nCrate C\nred\n\nMarker M\nyellow\n\nTarget T\nblue\n\nLEGEND\n\nSOUNDS\n\nCOLLISIONLAYERS\n\nBackground\nPlayer, Wall, Crate\nMarker\nTarget\n\nRULES\n\nv [ Player ] -> [ Player ]\n\nWINCONDITIONS\n\nLEVELS\n\nP..\n",["line 34 : Name \"v\", referred to in a rule, does not exist.","line 34 : You cannot use relative directions (\"^v<>\") to indicate in which direction(s) a rule applies.  Use absolute directions indicators (Up, Down, Left, Right, Horizontal, or Vertical, for instance), or, if you want the rule to apply in all four directions, do not specify directions"],2]
+	],
+    [
+		"Coverage: relative direction < cannot select a rule scan direction",
+		["OBJECTS\n\nBackground .\nblack\n\nPlayer P\nwhite\n\nWall W\ngray\n\nCrate C\nred\n\nMarker M\nyellow\n\nTarget T\nblue\n\nLEGEND\n\nSOUNDS\n\nCOLLISIONLAYERS\n\nBackground\nPlayer, Wall, Crate\nMarker\nTarget\n\nRULES\n\n< [ Player ] -> [ Player ]\n\nWINCONDITIONS\n\nLEVELS\n\nP..\n",["line 34 : Name \"<\", referred to in a rule, does not exist.","line 34 : You cannot use relative directions (\"^v<>\") to indicate in which direction(s) a rule applies.  Use absolute directions indicators (Up, Down, Left, Right, Horizontal, or Vertical, for instance), or, if you want the rule to apply in all four directions, do not specify directions"],2]
+	],
+    [
+		"Coverage: relative direction > cannot select a rule scan direction",
+		["OBJECTS\n\nBackground .\nblack\n\nPlayer P\nwhite\n\nWall W\ngray\n\nCrate C\nred\n\nMarker M\nyellow\n\nTarget T\nblue\n\nLEGEND\n\nSOUNDS\n\nCOLLISIONLAYERS\n\nBackground\nPlayer, Wall, Crate\nMarker\nTarget\n\nRULES\n\n> [ Player ] -> [ Player ]\n\nWINCONDITIONS\n\nLEVELS\n\nP..\n",["line 34 : Name \">\", referred to in a rule, does not exist.","line 34 : You cannot use relative directions (\"^v<>\") to indicate in which direction(s) a rule applies.  Use absolute directions indicators (Up, Down, Left, Right, Horizontal, or Vertical, for instance), or, if you want the rule to apply in all four directions, do not specify directions"],2]
+	],
+    [
+		"Coverage: forward aggregate chain hangs compiler",
+		["OBJECTS\n\nBackground .\nblack\n\nPlayer P\nwhite\n\nWall W\ngray\n\nCrate C\nred\n\nMarker M\nyellow\n\nTarget T\nblue\n\nLEGEND\nAlias1 = Alias2\nAlias2 = Alias3\nAlias3 = Marker and Target\nSOUNDS\n\nCOLLISIONLAYERS\n\nBackground\nPlayer, Wall, Crate\nMarker\nTarget\n\nRULES\n\n\n\nWINCONDITIONS\n\nLEVELS\n\nP..\n",["line 22 : You're talking about ALIAS2 but it's not defined anywhere.","line 23 : You're talking about ALIAS3 but it's not defined anywhere."],2]
+	],
+    [
+        "#1187 sound verbs need an object before them",
+        ["OBJECTS\n\nBackground .\nblack\n\nPlayer P\nwhite\n\nLEGEND\nSOUNDS\naction 12341242\nCOLLISIONLAYERS\nBackground\nPlayer\nRULES\nWINCONDITIONS\nLEVELS\nP\n",["line 11 : Sound verb \"ACTION\" needs an entity before it, e.g. \"Player ACTION 12345\"."],1]
+    ],
+    [
+        "#1187 sound directions need an object and directional verb",
+        ["OBJECTS\n\nBackground .\nblack\n\nPlayer P\nwhite\n\nLEGEND\nSOUNDS\nup 12341242\nCOLLISIONLAYERS\nBackground\nPlayer\nRULES\nWINCONDITIONS\nLEVELS\nP\n",["line 11 : Sound direction \"UP\" needs an entity and MOVE or CANTMOVE before it, e.g. \"Player MOVE UP 12345\"."],1]
+    ],
+    [
+        "#1187 object sounds need a verb before the seed",
+        ["OBJECTS\n\nBackground .\nblack\n\nPlayer P\nwhite\n\nLEGEND\nSOUNDS\nPlayer 12341242\nCOLLISIONLAYERS\nBackground\nPlayer\nRULES\nWINCONDITIONS\nLEVELS\nP\n",["line 11 : Was expecting a sound verb here (e.g. MOVE, DESTROY, CANTMOVE, or the like), but found something else. Try \"PLAYER MOVE 12345\" or \"PLAYER ACTION 12345\"."],1]
+    ],
+    [
+        "#1216 recursive synonmys crash compiler",
+        ["title #1216 recursive synonmys crash compiler\nOBJECTS\nBackground\nblack\n\nPlayer\nwhite\n\nLEGEND\na = b\nb = a\n. = Background\nP = Player\n\nSOUNDS\n\nCOLLISIONLAYERS\nBackground\nPlayer, a\n\nRULES\n\nWINCONDITIONS\n\nLEVELS\nP\n\n",["line 10 : You're talking about B but it's not defined anywhere.","line 11 : You can't define object B in terms of itself!","line 19 : Cannot add \"A\" to a collision layer; it has not been declared."],3]
+    ],
+    [
+        "#1216 recursive synonmys crash compiler abc",
+        ["title #1216 recursive synonmys crash compiler\nOBJECTS\nBackground\nblack\n\nPlayer\nwhite\n\nLEGEND\na = b\nb = c\nc = a\n. = Background\nP = Player\n\nSOUNDS\n\nCOLLISIONLAYERS\nBackground\nPlayer, a\n\nRULES\n\nWINCONDITIONS\n\nLEVELS\nP\n\n",["line 10 : You're talking about B but it's not defined anywhere.","line 11 : You're talking about C but it's not defined anywhere.","line 12 : You can't define object C in terms of itself!","line 20 : Cannot add \"A\" to a collision layer; it has not been declared."],4]
+    ],
+    [
+        "#1216 recursive synonmys crash compiler (properties)",
+        ["title #1216 recursive synonmys crash compiler\nOBJECTS\nBackground\nblack\n\nPlayer\nwhite\n\nLEGEND\na = b or c\nb = c or d\nd = a or b\n. = Background\nP = Player\n\nSOUNDS\n\nCOLLISIONLAYERS\nBackground\nPlayer, a\n\nRULES\n\nWINCONDITIONS\n\nLEVELS\nP\n\n",["line 10 : You're talking about B but it's not defined anywhere.","line 10 : You're talking about C but it's not defined anywhere.","line 11 : You're talking about C but it's not defined anywhere.","line 11 : You're talking about D but it's not defined anywhere.","line 20 : Cannot add \"A\" to a collision layer; it has not been declared."],5]
+    ],
+    [
+        "#1216 recursive synonmys crash compiler (Aggregates)",
+        ["title #1216 recursive synonmys crash compiler\nOBJECTS\nBackground\nblack\n\nPlayer\nwhite\n\nLEGEND\na = b\nb = c\nd = a and b\n. = Background\nP = Player\n\nSOUNDS\n\nCOLLISIONLAYERS\nBackground\nPlayer, a\n\nRULES\n\nWINCONDITIONS\n\nLEVELS\nP\n\n",["line 10 : You're talking about B but it's not defined anywhere.","line 11 : You're talking about C but it's not defined anywhere.","line 20 : Cannot add \"A\" to a collision layer; it has not been declared."],3]
+    ],
+    [
+        "#1216 recursive synonyms are rejected without crashing",
+        ["OBJECTS\nBackground\nblack\n\nPlayer\nwhite\n\nLEGEND\na = b\nb = a\n. = Background\nP = Player\n\nSOUNDS\n\nCOLLISIONLAYERS\nBackground\nPlayer, a\n\nRULES\n\nWINCONDITIONS\n\nLEVELS\nP\n", [
+            "line 9 : You're talking about B but it's not defined anywhere.",
+            "line 10 : You can't define object B in terms of itself!",
+            "line 18 : Cannot add \"A\" to a collision layer; it has not been declared."
+        ], 3]
+    ],
+    ["Prototype names: original incomplete source reports undeclared __proto__",["OBJECTS\nBackground\nLEGEND\nBox = Crate or __proto__\nCOLLISIONLAYERS\nBackground\n",["line 4 : You're talking about CRATE but it's not defined anywhere.","line 4 : You're talking about __PROTO__ but it's not defined anywhere.","No levels found.  Add some levels!"],7]],
+    ["Prototype names: undeclared __proto__ in or",["OBJECTS\nBackground .\nblack\n\nPlayer P\nwhite\n\nCrate C\nred\n\nLEGEND\nBox = Crate or __proto__\nSOUNDS\nCOLLISIONLAYERS\nBackground\nPlayer, Crate\n\nRULES\n[ > Player | Crate ] -> [ > Player | > Crate ]\nWINCONDITIONS\nLEVELS\nPC.\n",["line 12 : You're talking about __PROTO__ but it's not defined anywhere."],1]],
+    ["Prototype names: undeclared __proto__ in and",["OBJECTS\nBackground .\nblack\n\nPlayer P\nwhite\n\nCrate C\nred\n\nLEGEND\nBox = Crate and __proto__\nSOUNDS\nCOLLISIONLAYERS\nBackground\nPlayer, Crate\n\nRULES\n[ > Player | Crate ] -> [ > Player | > Crate ]\nWINCONDITIONS\nLEVELS\nPC.\n",["line 12 : You're talking about __PROTO__ but it's not defined anywhere."],1]],
+    ["Prototype names: undeclared __proto__ in synonym",["OBJECTS\nBackground .\nblack\n\nPlayer P\nwhite\n\nCrate C\nred\n\nLEGEND\nBox = __proto__\nSOUNDS\nCOLLISIONLAYERS\nBackground\nPlayer, Crate\n\nRULES\n[ > Player | Crate ] -> [ > Player | > Crate ]\nWINCONDITIONS\nLEVELS\nPC.\n",["line 12 : You're talking about __PROTO__ but it's not defined anywhere."],1]],
+    ["Prototype names: declared __proto__ object",["OBJECTS\nBackground .\nblack\n\nPlayer P\nwhite\n\n__proto__ C\nred\n\nLEGEND\n\nSOUNDS\nCOLLISIONLAYERS\nBackground\nPlayer, __proto__\n\nRULES\n[ > Player | __proto__ ] -> [ > Player | > __proto__ ]\nWINCONDITIONS\nLEVELS\nPC.\n",[],0]],
+    ["Prototype names: declared constructor object",["OBJECTS\nBackground .\nblack\n\nPlayer P\nwhite\n\nconstructor C\nred\n\nLEGEND\n\nSOUNDS\nCOLLISIONLAYERS\nBackground\nPlayer, constructor\n\nRULES\n[ > Player | constructor ] -> [ > Player | > constructor ]\nWINCONDITIONS\nLEVELS\nPC.\n",[],0]],
+    ["Prototype names: declared __proto__ synonym",["OBJECTS\nBackground .\nblack\n\nPlayer P\nwhite\n\nCrate C\nred\n\nLEGEND\n__proto__ = Crate\nSOUNDS\nCOLLISIONLAYERS\nBackground\nPlayer, Crate\n\nRULES\n[ > Player | __proto__ ] -> [ > Player | > __proto__ ]\nWINCONDITIONS\nLEVELS\nPC.\n",[],0]],
+    ["Prototype names: declared __proto__ property",["OBJECTS\nBackground .\nblack\n\nPlayer P\nwhite\n\nCrate C\nred\n\nLEGEND\n__proto__ = Crate or Player\nSOUNDS\nCOLLISIONLAYERS\nBackground\nPlayer, Crate\n\nRULES\n[ > __proto__ | Crate ] -> [ > __proto__ | > Crate ]\nWINCONDITIONS\nLEVELS\nPC.\n",[],0]],
+    ["Prototype names: declared __proto__ aggregate",["OBJECTS\nBackground .\nblack\n\nPlayer P\nwhite\n\nCrate C\nred\n\nMarker M\nyellow\n\nLEGEND\n__proto__ = Player and Marker\nX = __proto__\nSOUNDS\nCOLLISIONLAYERS\nBackground\nPlayer, Crate\nMarker\nRULES\n[ __proto__ ] -> [ __proto__ ]\nWINCONDITIONS\nLEVELS\nPC.\n",[],0]],
+    ["Invalid moving rule prefix reports an error without throwing",["OBJECTS\nBackground .\nblack\n\nPlayer P\nwhite\n\nCrate C\nred\n\nLEGEND\nSOUNDS\nCOLLISIONLAYERS\nBackground\nPlayer, Crate\n\nRULES\nmoving [ > Player | Crate ] -> [ > Player | > Crate ]\nWINCONDITIONS\nLEVELS\nPC.\n",["line 18 : Name \"moving\", referred to in a rule, does not exist."],2]]
 ];   

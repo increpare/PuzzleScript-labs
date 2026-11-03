@@ -69,10 +69,10 @@ function createSessionOracle(types, { nativeAlreadyLoaded = false } = {}) {
     return originalPlaySound(seed, ignore);
   };
   const originalLoad = loadLevelFromLevelDat;
-  loadLevelFromLevelDat = function(game, board, requested, clearHistory) {
+  loadLevelFromLevelDat = function(game, board, requested, clearHistory, checkpoint) {
     const seed = requested || (Math.random() + Date.now()).toString();
     levelSeeds.push(seed);
-    return originalLoad(game, board, seed, clearHistory);
+    return originalLoad(game, board, seed, clearHistory, checkpoint);
   };
 
   function canonical(decoder, value, saved, sounds, played, persistence, events) {
@@ -85,7 +85,7 @@ function createSessionOracle(types, { nativeAlreadyLoaded = false } = {}) {
       viewport: value.viewport === null ? null : { ...value.viewport },
       screen: { ...value.screen }, winning: value.winning, againing: value.againing,
       restarting: value.restarting, levelStarting: value.levelStarting,
-      checkpointUsed: value.checkpointUsed, loadedLevelSeed: value.loadedLevelSeed, runMode: value.runMode,
+      restartTargetIsCheckpoint: value.restartTargetIsCheckpoint, loadedLevelSeed: value.loadedLevelSeed, runMode: value.runMode,
       savedProgress: saved.progress, savedCheckpoint: decoder.canonicalSnapshot(saved.checkpoint),
       sounds: [...sounds], playedSounds: played.map(event => ({ ...event })),
       persistence: persistence.map(event => ({ ...event })),
@@ -111,7 +111,7 @@ function createSessionOracle(types, { nativeAlreadyLoaded = false } = {}) {
       levelIndex: curlevel, levelTarget: curlevelTarget === null ? null : decoder.snapshot(curlevelTarget),
       restartTarget: decoder.snapshot(restartTarget), history, viewport: decoder.viewport(oldflickscreendat),
       screen, winning, againing, restarting, levelStarting: runrulesonlevelstart_phase,
-      checkpointUsed: hasUsedCheckpoint, loadedLevelSeed: String(loadedLevelSeed), runMode: RunMode.Replay,
+      restartTargetIsCheckpoint: restartTargetIsCheckpoint, loadedLevelSeed: String(loadedLevelSeed), runMode: RunMode.Replay,
     };
   }
   function nativeSaved(decoder) {
@@ -137,7 +137,7 @@ function createSessionOracle(types, { nativeAlreadyLoaded = false } = {}) {
     messagetext = '';
     seedsToPlay_CanMove = [];
     seedsToPlay_CantMove = [];
-    hasUsedCheckpoint = false;
+    restartTargetIsCheckpoint = false;
     restarting = false;
     runrulesonlevelstart_phase = false;
     localStorage.removeItem(document.URL);

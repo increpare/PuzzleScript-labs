@@ -361,9 +361,9 @@ test('native appearance diagnostics remain separate from later background declar
   assert.deepEqual(native.extraMemberDiagnostics, [...native.diagnostics, ...native.declarationDiagnostics]);
 });
 
-test('all 492 pinned sources match every native object appearance and display color', t => {
+test('all 528 pinned sources match every native object appearance and display color', t => {
   const fixtures = oracle.corpusFixtures();
-  assert.equal(fixtures.length, 492);
+  assert.equal(fixtures.length, 528);
   const totals = { sources: 0, objects: 0, pixels: 0, colors: 0, objectDiagnostics: 0, displayDiagnostics: 0 };
   for (const item of fixtures) {
     const { result, display } = oracle.compareFixture(item);
@@ -376,5 +376,5 @@ test('all 492 pinned sources match every native object appearance and display co
     totals.displayDiagnostics += display.diagnostics.length;
   }
   t.diagnostic(JSON.stringify(totals));
-  assert.deepEqual(totals, { sources: 492, objects: 12295, pixels: 307375, colors: 22975, objectDiagnostics: 26, displayDiagnostics: 0 });
+  assert.deepEqual(totals, { sources: 528, objects: 12503, pixels: 312575, colors: 23183, objectDiagnostics: 26, displayDiagnostics: 0 });
 });

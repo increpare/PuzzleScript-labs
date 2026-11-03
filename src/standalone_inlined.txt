@@ -839,7 +839,6 @@ let unitTesting = false;
 let lazyFunctionGeneration = true;
 let curlevel = 0;
 let curlevelTarget = null;
-let hasUsedCheckpoint = false;
 let levelEditorOpened = false;
 let muted = 0;
 let runrulesonlevelstart_phase = false;
@@ -958,9 +957,9 @@ let IDE=false;
 const diffToVisualize=null;
 
 function stripTags(str) {
-	let div = document.createElement("div");
-	div.innerHTML = str;
-	let result = div.textContent || div.innerText || "";
+	let template = document.createElement("template");
+	template.innerHTML = str;
+	let result = template.content.textContent || "";
 	return result;
 }
 
@@ -987,13 +986,15 @@ function UnitTestingThrow(error){}
 function consoleError(str,lineNumber){
 	let errorText = document.getElementById("errormessage");
 	str=stripTags(str);
-	errorText.innerHTML+=str+"<br>";
+	errorText.appendChild(document.createTextNode(str));
+	errorText.appendChild(document.createElement("br"));
 }
 
 function logErrorNoLine(str){
 	let errorText = document.getElementById("errormessage");
 	str=stripTags(str);
-	errorText.innerHTML+=str+"<br>";
+	errorText.appendChild(document.createTextNode(str));
+	errorText.appendChild(document.createElement("br"));
 }
 
 function clearInputHistory() {}
@@ -8241,7 +8242,7 @@ function generateGlyphImages() {
 
     const seenobjects = {};
     for (var n of state.glyphOrder) {
-        if (n.length == 1 && state.glyphDict.hasOwnProperty(n)) {
+        if (n.length == 1 && Object.hasOwn(state.glyphDict, n)) {
             var g = state.glyphDict[n];
 
             /* hide duplicate entries from editor palette*/
@@ -8399,7 +8400,7 @@ function glyphCount() {
     //could also just return glyphImages.length
     var count = 0;
     for (var n of state.glyphOrder) {
-        if (n.length == 1 && state.glyphDict.hasOwnProperty(n)) {
+        if (n.length == 1 && Object.hasOwn(state.glyphDict, n)) {
             count++;
         }
     }
@@ -9329,7 +9330,7 @@ function drawMessageScreen() {
 
 let loadedLevelSeed = 0;
 
-function loadLevelFromLevelDat(state, leveldat, randomseed, clearinputhistory) {
+function loadLevelFromLevelDat(state, leveldat, randomseed, clearinputhistory, checkpoint) {
 	if (!randomseed) {
 		randomseed = (Math.random() + Date.now()).toString();
 	}
@@ -9374,10 +9375,17 @@ function loadLevelFromLevelDat(state, leveldat, randomseed, clearinputhistory) {
 		}
 
 		backups = []
-		restartTarget = backupLevel();
+		if (checkpoint) {
+			restartTarget = checkpoint;
+			restartTargetIsCheckpoint = true;
+			restoreLevel(checkpoint);
+		} else {
+			restartTarget = backupLevel();
+			restartTargetIsCheckpoint = false;
+		}
 		keybuffer = [];
 
-		if ('run_rules_on_level_start' in state.metadata) {
+		if (!restartTargetIsCheckpoint && 'run_rules_on_level_start' in state.metadata) {
 			runrulesonlevelstart_phase = true;
 			processInput(-1, true);
 			runrulesonlevelstart_phase = false;
@@ -9405,9 +9413,7 @@ function loadLevelFromStateTarget(state, levelindex, target, randomseed) {
 			tryPlayStartLevelSound();
 		}
 	}
-	loadLevelFromLevelDat(state, state.levels[levelindex], randomseed);
-	restoreLevel(target);
-	restartTarget = target;
+	loadLevelFromLevelDat(state, state.levels[levelindex], randomseed, undefined, target);
 }
 
 function loadLevelFromState(state, levelindex, randomseed) {
@@ -9502,6 +9508,8 @@ function tryPlayCloseMessageSound() {
 
 let backups = [];
 let restartTarget;
+// Checkpoints contain an already initialized board; fresh restart targets do not.
+let restartTargetIsCheckpoint = false;
 let turnObjectsModified = false;
 
 function backupLevel() {
@@ -9973,7 +9981,7 @@ function DoRestart(force) {
 	restoreLevel(restartTarget);
 	tryPlayRestartSound();
 
-	if ('run_rules_on_level_start' in state.metadata) {
+	if (!restartTargetIsCheckpoint && 'run_rules_on_level_start' in state.metadata) {
 		processInput(-1, true);
 	}
 
@@ -12014,7 +12022,7 @@ function applyRuleGroupUnconditional(ruleGroup) {
 		// writes leave all match predicates unchanged. Replacements are fixed.
         if (onePassGroup) break;
     }
-    if (loopcount >= MAX_LOOP_COUNT) {
+    if (loopcount > MAX_LOOP_COUNT) {
         logErrorCacheable("Got caught looping lots in a rule group :O", ruleGroup[0].lineNumber, true);
     }
     return hasChanges;
@@ -12185,7 +12193,7 @@ function applyRuleGroup(ruleGroup) {
         }
     }
 
-    if (loopcount >= MAX_LOOP_COUNT) {
+    if (loopcount > MAX_LOOP_COUNT) {
         logErrorCacheable("Got caught looping lots in a rule group :O",
                           ruleGroup[0].lineNumber, true);
     }
@@ -12236,6 +12244,8 @@ function applyRules(rules, loopPoint, bannedGroup) {
             }
 
             if (verbose_logging) {
+                const { loopStartLine, loopEndLine } = rules[ruleGroupIndex][0];
+                consolePrint(`Jumping from <a onclick="jumpToLine(${loopEndLine});" href="javascript:void(0);">ENDLOOP</a> to <a onclick="jumpToLine(${loopStartLine});" href="javascript:void(0);">STARTLOOP</a>.`);
                 debugger_turnIndex++;
                 addToDebugTimeline(level, -2);
             }
@@ -12255,6 +12265,10 @@ function applyRules(rules, loopPoint, bannedGroup) {
             if (loopCount > 200) {
                 logErrorCacheable("got caught in an endless startloop...endloop vortex, escaping!", rules[ruleGroupIndex][0].lineNumber, true);
                 break;
+            }
+            if (verbose_logging) {
+                const { loopStartLine, loopEndLine } = rules[ruleGroupIndex][0];
+                consolePrint(`Jumping from <a onclick="jumpToLine(${loopEndLine});" href="javascript:void(0);">ENDLOOP</a> to <a onclick="jumpToLine(${loopStartLine});" href="javascript:void(0);">STARTLOOP</a>.`);
             }
         }
 
@@ -12731,17 +12745,16 @@ function processCommandQueue(bak, dontModify, dontDoWin, inputDir, skipAgainProb
 	// Process RESTART command
 	const restartIndex = level.commandQueue.indexOf('restart');
 	if (restartIndex >= 0) {
-		if (verbose_logging && runrulesonlevelstart_phase) {
-			let r = level.commandQueueSourceRules[restartIndex];
-			logWarning(
-				'A "restart" command is being triggered in the "run_rules_on_level_start" section of level creation, which would cause an infinite loop if it was actually triggered, but it\'s being ignored.',
-				r.lineNumber,
-				true
-			);
-		}
+		const deferRestart = !unitTesting && !restarting && level.commandQueue.includes('message');
 		if (verbose_logging) {
 			let r = level.commandQueueSourceRules[restartIndex];
-			consolePrintFromRule('RESTART command executed, reverting to restart state.', r);
+			if (restarting) {
+				logWarning('RESTART command ignored because a restart is already in progress.', r.lineNumber, true);
+			} else if (deferRestart) {
+				consolePrintFromRule('RESTART command will execute after its message is dismissed.', r);
+			} else {
+				consolePrintFromRule('RESTART command executed, reverting to restart state.', r);
+			}
 			consoleCacheDump();
 		}
 		if (!dontModify) {
@@ -12749,6 +12762,10 @@ function processCommandQueue(bak, dontModify, dontDoWin, inputDir, skipAgainProb
 		}
 		addUndoState(bak);
 		if (!dontModify) {
+			if (deferRestart) {
+				// Keep the restart queued while its message is displayed.
+				return true;
+			}
 			DoRestart(true);
 		}
 	}
@@ -12807,7 +12824,7 @@ function processCommandQueue(bak, dontModify, dontDoWin, inputDir, skipAgainProb
 				consolePrintFromRule('CHECKPOINT command executed, saving current state to the restart state.', r);
 			}
 			restartTarget = level4Serialization();
-			hasUsedCheckpoint = true;
+			restartTargetIsCheckpoint = true;
 			let backupStr = JSON.stringify(restartTarget);
 			storage_set(document.URL + '_checkpoint', backupStr);
 			storage_set(document.URL, curlevel);
@@ -12843,8 +12860,17 @@ function processCommandQueue(bak, dontModify, dontDoWin, inputDir, skipAgainProb
 		consolePrint('Turn complete');
 	}
 
-	level.commandQueue = [];
-	level.commandQueueSourceRules = [];
+	// Dismissing a rule message checks this queue for its explicit win.
+	// Suppressed wins (including initialization and editor turns) must expire now.
+	let winIndex = level.commandQueue.indexOf('win');
+	if (!dontModify && !dontDoWin && !levelEditorOpened && textMode &&
+		level.commandQueue.includes('message') && winIndex >= 0) {
+		level.commandQueueSourceRules = [level.commandQueueSourceRules[winIndex]];
+		level.commandQueue = ['win'];
+	} else {
+		level.commandQueue = [];
+		level.commandQueueSourceRules = [];
+	}
 	return modified;
 }
 
@@ -12986,10 +13012,6 @@ function nextLevel() {
 			loadLevelFromState(state, curlevel);
 		}
 	} else {
-		if (hasUsedCheckpoint) {
-			curlevelTarget = null;
-			hasUsedCheckpoint = false;
-		}
 		if (curlevel < (state.levels.length - 1)) {
 			curlevel++;
 			curlevelTarget = null;
@@ -13021,6 +13043,7 @@ function nextLevel() {
 		storage_set(document.URL, curlevel);
 		if (curlevelTarget !== null) {
 			restartTarget = level4Serialization();
+			restartTargetIsCheckpoint = true;
 			let backupStr = JSON.stringify(restartTarget);
 			storage_set(document.URL + '_checkpoint', backupStr);
 		} else {
@@ -13171,7 +13194,32 @@ function TooManyErrors() {
     throw error;
 }
 
+// Ordinary diagnostic strings are text. This tag preserves source-owned markup
+// while escaping every interpolated value, including quotes in attributes.
+class DiagnosticHTML {
+    constructor(html) { this.html = html; }
+    toString() { return this.html; }
+}
+
+function escapeDiagnosticText(text) {
+    return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function diagnosticHTML(strings, ...values) {
+    let html = strings[0];
+    for (let i = 0; i < values.length; i++) {
+        html += escapeDiagnosticText(values[i]) + strings[i + 1];
+    }
+    return new DiagnosticHTML(html);
+}
+
+function formatDiagnosticHTML(message) {
+    return message instanceof DiagnosticHTML ? message.html : escapeDiagnosticText(message);
+}
+
 function buildErrorHtml(lineNumber, str, className) {
+    str = formatDiagnosticHTML(str);
     const c = className || 'errorText';
     if (lineNumber === undefined) {
         return '<span class="' + c + '">' + str + '</span>';
@@ -13319,7 +13367,7 @@ function flattenPropertyEntry(n, a, substitutor) {
 
 //syntax-highlighting token class for a named colour, or null if it's not one
 function colorNameToken(candcol) {
-    if (candcol in colorPalettes.arnecolors) {
+    if (Object.hasOwn(colorPalettes.arnecolors, candcol)) {
         return 'COLOR COLOR-' + candcol.toUpperCase();
     } else if (candcol === "transparent") {
         return 'COLOR FADECOLOR';
@@ -13398,7 +13446,7 @@ let codeMirrorFn = function () {
 
             let alreadyDefined = wordAlreadyDeclared(state, candname);
             if (alreadyDefined !== null) {
-                logError(`Name "${candname.toUpperCase()}" already in use (on line <a onclick="jumpToLine(${alreadyDefined.lineNumber});" href="javascript:void(0);"><span class="errorTextLineNumber">line ${alreadyDefined.lineNumber}</span></a>).`, state.lineNumber);
+                logError(diagnosticHTML`Name "${candname.toUpperCase()}" already in use (on line <a onclick="jumpToLine(${alreadyDefined.lineNumber});" href="javascript:void(0);"><span class="errorTextLineNumber">line ${alreadyDefined.lineNumber}</span></a>).`, state.lineNumber);
                 ok = false;
             }
 
@@ -13440,6 +13488,12 @@ let codeMirrorFn = function () {
 
             if (splits.length === 3) {
                 //SYNONYM
+                // A forward reference can lead back to the name being defined.
+                // Reject the closing link before it creates a synonym cycle.
+                if (lookupLegendName(state, splits[2]).name === splits[0]) {
+                    logError("You can't define object " + splits[0].toUpperCase() + " in terms of itself!", state.lineNumber);
+                    return;
+                }
                 let synonym = [splits[0], splits[2]];
                 synonym.lineNumber = state.lineNumber;
                 registerOriginalCaseName(state, splits[0], mixedCase, state.lineNumber);
@@ -13549,9 +13603,9 @@ let codeMirrorFn = function () {
     return {
         wordChars: "puzzle",
         copyState: function (state) {
-            let objectsCopy = {};
+            let objectsCopy = Object.create(null);
             for (let i in state.objects) {
-                if (state.objects.hasOwnProperty(i)) {
+                if (Object.hasOwn(state.objects, i)) {
                     let o = state.objects[i];
                     objectsCopy[i] = {
                         colors: o.colors.slice(),
@@ -13602,8 +13656,8 @@ let codeMirrorFn = function () {
                 rulesCopy.push(state.rules[i].slice());
             }
 
-            let original_case_namesCopy = Object.assign({}, state.original_case_names);
-            let original_line_numbersCopy = Object.assign({}, state.original_line_numbers);
+            let original_case_namesCopy = Object.assign(Object.create(null), state.original_case_names);
+            let original_line_numbersCopy = Object.assign(Object.create(null), state.original_line_numbers);
 
             let nstate = {
                 lineNumber: state.lineNumber,
@@ -13797,7 +13851,7 @@ let codeMirrorFn = function () {
                     if (state.section === 'sounds') {
                         //populate names from objects and legends
                         for (let n in state.objects) {
-                            if (state.objects.hasOwnProperty(n)) {
+                            if (Object.hasOwn(state.objects, n)) {
                                 state.names.add(n);
                             }
                         }
@@ -13811,7 +13865,7 @@ let codeMirrorFn = function () {
                     else if (state.section === 'levels') {
                         //populate character abbreviations (properties are ambiguous, so they're not included)
                         for (let n in state.objects) {
-                            if (state.objects.hasOwnProperty(n) && n.length === 1) {
+                            if (Object.hasOwn(state.objects, n) && n.length === 1) {
                                 state.abbrevNames.add(n);
                             }
                         }
@@ -14133,7 +14187,17 @@ let codeMirrorFn = function () {
                                     if (!wordAlreadyDeclared(state, matched_name)) {
                                         tokentype = 'ERROR';
                                         state.current_line_wip_array.push("ERROR");
-                                        logError(`unexpected sound token "${matched_name}".`, state.lineNumber);
+                                        const sound_as_verb = reg_soundverbs.exec(matched_name);
+                                        const is_sound_verb = sound_as_verb !== null && sound_as_verb[0].trim() === matched_name;
+                                        const sound_as_dir = reg_sounddirectionindicators.exec(matched_name);
+                                        const is_sound_dir = sound_as_dir !== null && sound_as_dir[0].trim() === matched_name;
+                                        if (is_sound_verb) {
+                                            logError(`Sound verb "${matched_name.toUpperCase()}" needs an entity before it, e.g. "Player ${matched_name.toUpperCase()} 12345".`, state.lineNumber);
+                                        } else if (is_sound_dir) {
+                                            logError(`Sound direction "${matched_name.toUpperCase()}" needs an entity and MOVE or CANTMOVE before it, e.g. "Player MOVE ${matched_name.toUpperCase()} 12345".`, state.lineNumber);
+                                        } else {
+                                            logError(`unexpected sound token "${matched_name}".`, state.lineNumber);
+                                        }
                                     } else {
                                         tokentype = 'NAME';
                                         state.current_line_wip_array.push([matched_name, tokentype]);
@@ -14171,7 +14235,8 @@ let codeMirrorFn = function () {
                                     state.tokenIndex++;
                                 } else {
                                     match = errorFallbackMatchToken(stream);
-                                    logError("Was expecting a soundverb here (MOVE, DESTROY, CANTMOVE, or the like), but found something else.", state.lineNumber);
+                                    const objectName = state.current_line_wip_array[0][0].toUpperCase();
+                                    logError(`Was expecting a sound verb here (e.g. MOVE, DESTROY, CANTMOVE, or the like), but found something else. Try "${objectName} MOVE 12345" or "${objectName} ACTION 12345".`, state.lineNumber);
                                     tokentype = 'ERROR';
                                     state.current_line_wip_array.push("ERROR");
                                 }
@@ -14563,7 +14628,7 @@ let codeMirrorFn = function () {
                                             state.metadata.push(m2[0].trim());
                                             if (token in state.metadata_lines) {
                                                 let otherline = state.metadata_lines[token];
-                                                logWarning(`You've already defined a ${token.toUpperCase()} in the prelude on line <a onclick="jumpToLine(${otherline});" href="javascript:void(0);">${otherline}</a>.`, state.lineNumber);
+                                                logWarning(diagnosticHTML`You've already defined a ${token.toUpperCase()} in the prelude on line <a onclick="jumpToLine(${otherline});" href="javascript:void(0);">${otherline}</a>.`, state.lineNumber);
                                             }
                                             state.metadata_lines[token] = state.lineNumber;
                                         } else {
@@ -14593,8 +14658,7 @@ let codeMirrorFn = function () {
                                 return 'METADATA';
                             } else {
                                 //garbage found
-                                const text = stream.string.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                                logError(`Unrecognised stuff "${text}" in the prelude.`, state.lineNumber);
+                                logError(`Unrecognised stuff "${stream.string}" in the prelude.`, state.lineNumber);
                             }
                         } else {
                             stream.match(reg_notcommentstart, true);
@@ -14635,7 +14699,8 @@ let codeMirrorFn = function () {
                 /*
                     permanently useful
                 */
-                objects: {},
+                // Source names such as __proto__ must be ordinary dictionary keys.
+                objects: Object.create(null),
 
                 /*
                     for parsing
@@ -14682,8 +14747,8 @@ let codeMirrorFn = function () {
                 metadata: [],
                 metadata_lines: {},
 
-                original_case_names: {},
-                original_line_numbers: {},
+                original_case_names: Object.create(null),
+                original_line_numbers: Object.create(null),
 
                 abbrevNames: new Set(),
                 abbrevNamesSet: new Set(),
@@ -14702,8 +14767,10 @@ let codeMirrorFn = function () {
 
 
 function isColor(str) {
+    if (typeof str !== 'string')
+        return false;
     str = str.trim();
-    if (str in colorPalettes.arnecolors)
+    if (Object.hasOwn(colorPalettes.arnecolors, str))
         return true;
     if (REGEX_HEX.test(str))
         return true;
@@ -14714,7 +14781,7 @@ function isColor(str) {
 
 function colorToHex(palette, str) {
     str = str.trim();
-    if (str in palette) {
+    if (Object.hasOwn(palette, str)) {
         return palette[str];
     }
 
@@ -14841,10 +14908,10 @@ function generateExtraMembers(state) {
         let key = state.metadata[i];
         let val = state.metadata[i + 1];
         if (key === 'color_palette') {
-            if (val in colorPalettesAliases) {
+            if (Object.hasOwn(colorPalettesAliases, val)) {
                 val = colorPalettesAliases[val];
             }
-            if (colorPalettes[val] === undefined) {
+            if (!Object.hasOwn(colorPalettes, val)) {
                 logError('Palette "' + val + '" not found, defaulting to arnecolors.', 0);
             } else {
                 colorPalette = colorPalettes[val];
@@ -14865,7 +14932,7 @@ function generateExtraMembers(state) {
     }
 
     let glyphOrder = [];
-    let glyphDict = {};
+    let glyphDict = Object.create(null);
 
     //convert colors to hex
     const state_object_keys = Object.keys(state.objects);
@@ -14992,14 +15059,14 @@ function generateExtraMembers(state) {
     state.glyphDict = glyphDict;
     state.glyphOrder = glyphOrder;
 
-    let aggregatesDict = {};
+    let aggregatesDict = Object.create(null);
     for (let i = 0; i < state.legend_aggregates.length; i++) {
         let entry = state.legend_aggregates[i];
         aggregatesDict[entry[0]] = entry.slice(1);
     }
     state.aggregatesDict = aggregatesDict;
 
-    let propertiesDict = {};
+    let propertiesDict = Object.create(null);
     for (let i = 0; i < state.legend_properties.length; i++) {
         let entry = state.legend_properties[i];
         propertiesDict[entry[0]] = entry.slice(1);
@@ -15007,7 +15074,7 @@ function generateExtraMembers(state) {
     state.propertiesDict = propertiesDict;
 
     //calculate lookup dictionaries
-    let synonymsDict = {};
+    let synonymsDict = Object.create(null);
     for (let i = 0; i < state.legend_synonyms.length; i++) {
         let entry = state.legend_synonyms[i];
         let key = entry[0];
@@ -15036,7 +15103,7 @@ function generateExtraMembers(state) {
                 propertiesDict[n] = propertiesDict[value];
                 modified = true;
             } else if (value in aggregatesDict) {
-                delete aggregatesDict[n];
+                delete synonymsDict[n];
                 aggregatesDict[n] = aggregatesDict[value];
                 modified = true;
             } else if (value in synonymsDict) {
@@ -15049,7 +15116,7 @@ function generateExtraMembers(state) {
     }
 
     /* determine which properties specify objects all on one layer */
-    state.propertiesSingleLayer = {};
+    state.propertiesSingleLayer = Object.create(null);
     const propertiesDict_keys = Object.keys(propertiesDict);
     const propertiesDict_keys_l = propertiesDict_keys.length;
     for (let k_i = 0; k_i < propertiesDict_keys_l; k_i++) {
@@ -15378,7 +15445,7 @@ function processRuleString(rule, state, curRules) {
                     } else if (token === 'parallel' || token === 'perpendicular') {
                         logError('PARALLEL and PERPENDICULAR are relative directions for objects inside a rule, and cannot be used to indicate the direction in which a whole rule applies.', lineNumber);
                         return null;
-                    } else if (token in directionaggregates) {
+                    } else if (reg_ruledirectionindicators.test(token) && Object.hasOwn(directionaggregates, token)) {
                         authoredDirections.push(token);
                         directions = directions.concat(directionaggregates[token]);
                     } else if (token === 'late') {
@@ -15495,7 +15562,7 @@ function processRuleString(rule, state, curRules) {
                                     } else {
                                         logError(`You cannot specify the same object more than once in a single cell (in this case ${token.toUpperCase()} occurs multiple times).`, lineNumber);
                                         if (token in state.propertiesDict){
-                                            logWarningNoLine(`( However, noticing that you're committing this crime with <i>properties</i>, and not being able to help but acknowledge that you <i>may</i> be trying to do something esoteric and <i>clever</i> with the property inference system,  I might be brought to suggest that you consider this: you can have multiple equivalent properties with different names. )`);
+                                            logWarningNoLine(diagnosticHTML`( However, noticing that you're committing this crime with <i>properties</i>, and not being able to help but acknowledge that you <i>may</i> be trying to do something esoteric and <i>clever</i> with the property inference system,  I might be brought to suggest that you consider this: you can have multiple equivalent properties with different names. )`);
                                         }
                                     }
                                 }
@@ -15655,7 +15722,7 @@ function checkRHSConflicts(state, rule){
 				let item = cell[l];
 				if (!item.startsWith("no")){
 					let no_name = cell[l+1];
-					if (state.objects.hasOwnProperty(no_name)){
+					if (Object.hasOwn(state.objects, no_name)){
 						objects_present.push(no_name);
 						objects_present_mask.ibitset(state.objects[no_name].id);
 					}
@@ -15733,7 +15800,7 @@ function trimSuperfluousLHSNegations(state, rule){
 				}
 				let entity_name = cell[l+1]
 				//if it's a single-layer property
-				if (state.propertiesSingleLayer.hasOwnProperty(entity_name)){
+				if (Object.hasOwn(state.propertiesSingleLayer, entity_name)){
 					let layer = state.propertiesSingleLayer[entity_name];
 					required_layers.ibitset(layer);
 					let property_obs = state.propertiesDict[entity_name];
@@ -15746,7 +15813,7 @@ function trimSuperfluousLHSNegations(state, rule){
 						}
 					}
 					occupier[layer]=entity_name;
-				} else if (state.objects.hasOwnProperty(entity_name)){
+				} else if (Object.hasOwn(state.objects, entity_name)){
 					let object_data = state.objects[entity_name];
 					if (object_data === undefined || object_data.layer === undefined || typeof object_data.id !== 'number') {
 						continue;
@@ -15756,7 +15823,7 @@ function trimSuperfluousLHSNegations(state, rule){
 					required_layers.ibitset(layer);
 					required_objects.ibitset(ob_id);
 					occupier[layer]=entity_name;
-				} else if (state.aggregatesDict.hasOwnProperty(entity_name)){
+				} else if (Object.hasOwn(state.aggregatesDict, entity_name)){
 					let aggregate_obs = state.aggregatesDict[entity_name];
 					for (let m=0;m<aggregate_obs.length;m++){
 						let object_info = state.objects[aggregate_obs[m]];
@@ -15778,7 +15845,7 @@ function trimSuperfluousLHSNegations(state, rule){
 				let item = cell[l];
 				if (item.startsWith("no")){
 					let no_name = cell[l+1]
-					if (!state.objectMasks.hasOwnProperty(no_name)){
+					if (!Object.hasOwn(state.objectMasks, no_name)){
 						continue;//error, should have been caught earlier - e.g. You cannot use 'no' to exclude the aggregate objec
 					}
 					let no_object_mask = state.objectMasks[no_name];
@@ -15850,7 +15917,7 @@ First, let's check for 'X no X' on the RHS.
                     if (!item.startsWith("no")){
                         let no_name = cell[l+1];
                         //properties (single-layer or not) are deliberately not added to the present mask
-                        if (state.objects.hasOwnProperty(no_name)){
+                        if (Object.hasOwn(state.objects, no_name)){
                             objects_present.push(no_name);
                             objects_present_mask.ibitset(state.objects[no_name].id);
                         }
@@ -15927,7 +15994,7 @@ First, let's check for 'X no X' on the RHS.
                     }
                     let entity_name = cell[l+1]
                     //if it's a single-layer property
-                    if (state.propertiesSingleLayer.hasOwnProperty(entity_name)){
+                    if (Object.hasOwn(state.propertiesSingleLayer, entity_name)){
                         let layer = state.propertiesSingleLayer[entity_name];
                         required_layers.ibitset(layer);
                         let property_obs = state.propertiesDict[entity_name];
@@ -15938,13 +16005,13 @@ First, let's check for 'X no X' on the RHS.
                             required_objects.ibitset(object_data.id);
                         }
                         occupier[layer]=entity_name;
-                    } else if (state.objects.hasOwnProperty(entity_name)){
+                    } else if (Object.hasOwn(state.objects, entity_name)){
                         let layer = state.objects[entity_name].layer;
                         let ob_id = state.objects[entity_name].id;
                         required_layers.ibitset(layer);
                         required_objects.ibitset(ob_id);
                         occupier[layer]=entity_name;
-                    } else if (state.aggregatesDict.hasOwnProperty(entity_name)){
+                    } else if (Object.hasOwn(state.aggregatesDict, entity_name)){
                         let aggregate_obs = state.aggregatesDict[entity_name];
                         for (let m=0;m<aggregate_obs.length;m++){
                             let object_info = state.objects[aggregate_obs[m]];
@@ -16178,8 +16245,8 @@ function getPropertiesFromCell(state, cell) {
 }
 
 function isLayerCoupledProperty(state, name) {
-    return state.propertiesDict.hasOwnProperty(name) &&
-        !state.propertiesSingleLayer.hasOwnProperty(name);
+    return Object.hasOwn(state.propertiesDict, name) &&
+        !Object.hasOwn(state.propertiesSingleLayer, name);
 }
 
 const LAYER_COUPLED_MOVEMENT_DIRS = {
@@ -16188,10 +16255,10 @@ const LAYER_COUPLED_MOVEMENT_DIRS = {
 };
 
 function objectOrSingleLayerPropertyLayer(state, name) {
-    if (state.objects.hasOwnProperty(name)) {
+    if (Object.hasOwn(state.objects, name)) {
         return state.objects[name].layer | 0;
     }
-    if (state.propertiesSingleLayer.hasOwnProperty(name)) {
+    if (Object.hasOwn(state.propertiesSingleLayer, name)) {
         return state.propertiesSingleLayer[name];
     }
     return null;
@@ -16322,7 +16389,7 @@ function getMovings(state, cell, safeAggregates, safeAggregatePropertyAttachment
     for (let j = 0; j < cell.length; j += 2) {
         let dir = cell[j];
         let name = cell[j + 1];
-        if (dir in directionaggregates) {
+        if (Object.hasOwn(directionaggregates, dir)) {
             if (safeAggregates && safeAggregates.has(dir)) {
                 const isLayerCoupled = !state.objects[name] && isLayerCoupledProperty(state, name);
                 const safePropertyAttachment = safeAggregatePropertyAttachments &&
@@ -16413,7 +16480,7 @@ function computeAggregateCoalescingPlan(state, rule) {
                 const cell = row[c];
                 for (let i = 0; i < cell.length; i += 2) {
                     const dir = cell[i];
-                    if (!(dir in directionaggregates)) continue;
+                    if (!(Object.hasOwn(directionaggregates, dir))) continue;
                     const name = cell[i + 1];
                     const isLayerCoupled = !state.objects[name] && isLayerCoupledProperty(state, name);
                     const rawLayer = state.objects[name]
@@ -16516,8 +16583,8 @@ function computeAggregateCoalescingPlan(state, rule) {
         // Inference case: single LHS occurrence + concrete-object attachments.
         if (!inferenceAllowed || nonCoupledLhs.length !== 1) continue;
         const source = nonCoupledLhs[0];
-        if (!state.objects.hasOwnProperty(source.name)) continue;
-        const allRhsConcrete = rhsList.every(p => state.objects.hasOwnProperty(p.name));
+        if (!Object.hasOwn(state.objects, source.name)) continue;
+        const allRhsConcrete = rhsList.every(p => Object.hasOwn(state.objects, p.name));
         if (!allRhsConcrete) continue;
         if (source.layer === null) continue;
         if (rhsList.some(p => p.layer === null)) continue;
@@ -16625,7 +16692,7 @@ function computePropertyCoalescingPlan(state, rule) {
         if (rhsList.length === 0) continue;
 
         const findAggregateSink = (p) => {
-            if (!(p.dir in directionaggregates) || !rule.aggregateSinks) return null;
+            if (!(Object.hasOwn(directionaggregates, p.dir)) || !rule.aggregateSinks) return null;
             const sinkList = rule.aggregateSinks.get(p.dir);
             if (!sinkList) return null;
             for (let si = 0; si < sinkList.length; si++) {
@@ -16711,7 +16778,7 @@ function computePropertyCoalescingPlan(state, rule) {
         // deferred — they need composition with 7B-2b or extra capture
         // machinery.
         const aggregateSinkMatches = (p) => {
-            if (!(p.dir in directionaggregates) || !rule.aggregateSinks) return false;
+            if (!(Object.hasOwn(directionaggregates, p.dir)) || !rule.aggregateSinks) return false;
             const sinkList = rule.aggregateSinks.get(p.dir);
             if (!sinkList) return false;
             return findAggregateSink(p) !== null;
@@ -16738,7 +16805,7 @@ function computePropertyCoalescingPlan(state, rule) {
         } else if (source.dir !== '' && dirMasks.hasOwnProperty(source.dir)) {
             sourceMovementMode = 2;
             sourceMovementMask = dirMasks[source.dir];
-        } else if (source.dir in directionaggregates) {
+        } else if (Object.hasOwn(directionaggregates, source.dir)) {
             sourceMovementMode = 3;
             const concretes = directionaggregates[source.dir];
             for (let cdi = 0; cdi < concretes.length; cdi++) {
@@ -16886,9 +16953,9 @@ function getCoalescingPlan(state, rule, ambiguousProperties) {
                     const tailDir = cell_r[tail];
                     const tailName = cell_r[tail + 1];
                     const handleable =
-                        (tailDir === 'no' && state.objectMasks.hasOwnProperty(tailName)) ||
+                        (tailDir === 'no' && Object.hasOwn(state.objectMasks, tailName)) ||
                         (LAYER_COUPLED_MOVEMENT_DIRS[tailDir] &&
-                            state.objects.hasOwnProperty(tailName));
+                            Object.hasOwn(state.objects, tailName));
                     if (!handleable) {
                         movementValid = preservedValid = false;
                         break;
@@ -16932,7 +16999,7 @@ function getCoalescingPlan(state, rule, ambiguousProperties) {
                     if (dir_l !== 'no' && dir_l !== 'random') {
                         if (!LAYER_COUPLED_MOVEMENT_DIRS[dir_l]) {
                             commandOnlyValid = false;
-                        } else if (!(state.objects.hasOwnProperty(name_l) || state.propertiesDict.hasOwnProperty(name_l))) {
+                        } else if (!(Object.hasOwn(state.objects, name_l) || Object.hasOwn(state.propertiesDict, name_l))) {
                             commandOnlyValid = false;
                         } else if (isLayerCoupledProperty(state, name_l)) {
                             if (cellHasNoTermOverlappingProperty(state, cell_l, name_l)) {
@@ -16956,7 +17023,7 @@ function getCoalescingPlan(state, rule, ambiguousProperties) {
                         !LAYER_COUPLED_MOVEMENT_DIRS[dir_l] ||
                         !LAYER_COUPLED_MOVEMENT_DIRS[dir_r]) {
                         movementValid = false;
-                    } else if (!(state.objects.hasOwnProperty(name_l) || state.propertiesDict.hasOwnProperty(name_l))) {
+                    } else if (!(Object.hasOwn(state.objects, name_l) || Object.hasOwn(state.propertiesDict, name_l))) {
                         movementValid = false;
                     } else if (isLayerCoupledProperty(state, name_l)) {
                         sawLayerCoupledProperty = true;
@@ -16973,8 +17040,8 @@ function getCoalescingPlan(state, rule, ambiguousProperties) {
                 if (rewriteValid) {
                     if (dir_l !== '' || dir_r !== '') {
                         rewriteValid = false;
-                    } else if (state.propertiesDict.hasOwnProperty(name_l)) {
-                        if (!state.objects.hasOwnProperty(name_r)) {
+                    } else if (Object.hasOwn(state.propertiesDict, name_l)) {
+                        if (!Object.hasOwn(state.objects, name_r)) {
                             rewriteValid = false;
                         } else {
                             rewritePropertyTerms.push({
@@ -16984,7 +17051,7 @@ function getCoalescingPlan(state, rule, ambiguousProperties) {
                             });
                             propertyRewriteCount++;
                         }
-                    } else if (state.objects.hasOwnProperty(name_l)) {
+                    } else if (Object.hasOwn(state.objects, name_l)) {
                         if (name_l !== name_r) {
                             rewriteValid = false;
                         } else {
@@ -16998,8 +17065,8 @@ function getCoalescingPlan(state, rule, ambiguousProperties) {
                 // --- Mixed mode ---
                 if (mixedValid) {
                     if (dir_l === '' && dir_r === '' &&
-                        state.propertiesDict.hasOwnProperty(name_l) &&
-                        state.objects.hasOwnProperty(name_r)) {
+                        Object.hasOwn(state.propertiesDict, name_l) &&
+                        Object.hasOwn(state.objects, name_r)) {
                         mixedPropertyTerms.push({
                             name: name_l,
                             destinationLayer: state.objects[name_r].layer | 0,
@@ -17015,8 +17082,8 @@ function getCoalescingPlan(state, rule, ambiguousProperties) {
                             mixedMovementTerms.push(name_l);
                             sawLayerCoupledMovement = true;
                         }
-                    } else if (state.objects.hasOwnProperty(name_l) ||
-                               state.propertiesSingleLayer.hasOwnProperty(name_l)) {
+                    } else if (Object.hasOwn(state.objects, name_l) ||
+                               Object.hasOwn(state.propertiesSingleLayer, name_l)) {
                         const fl = objectOrSingleLayerPropertyLayer(state, name_l);
                         if (fl !== null) mixedFixedLayers[fl] = true;
                     } else {
@@ -17030,7 +17097,11 @@ function getCoalescingPlan(state, rule, ambiguousProperties) {
                         ambiguousProperties[name_l] !== true &&
                         cell_r[i] === '' &&
                         cell_r[i + 1] === name_l &&
-                        !cellHasNoTermOverlappingProperty(state, cell_l, name_l);
+                        !cellHasNoTermOverlappingProperty(state, cell_l, name_l) &&
+                        // Keep impossible alternatives on the expansion path so
+                        // the ordinary overlap diagnostic lists every conflict.
+                        !layerSetIsEmpty(propertyAliasLayerSet(state, name_l,
+                            buildLayerCoupledExcludedLayers(state, cell_l, i)));
                     if (!canPreserve || preservedSeenInCell[name_l]) {
                         preservedCandidateStatus[name_l] = false;
                     } else {
@@ -17123,7 +17194,7 @@ function getCoalescingPlan(state, rule, ambiguousProperties) {
 
 //entries are flat arrays, so a per-entry slice is a deep-enough copy
 function cloneReplacementDict(src) {
-    const result = {};
+    const result = Object.create(null);
     const keys = Object.keys(src);
     const keys_l = keys.length;
     for (let k_i = 0; k_i < keys_l; k_i++) {
@@ -17136,7 +17207,7 @@ function cloneReplacementDict(src) {
 function concretizePropertyRule(state, rule, lineNumber) {
 
     // we can't manage this if they're being used to disambiguate
-    let ambiguousProperties = {};
+    let ambiguousProperties = Object.create(null);
 
     for (let j = 0; j < rule.rhs.length; j++) {
         let row_l = rule.lhs[j];
@@ -17185,7 +17256,7 @@ function concretizePropertyRule(state, rule, lineNumber) {
                     for (let prop_n = 0; prop_n < properties.length; ++prop_n) {
                         let property = properties[prop_n];
 
-                        if (state.propertiesSingleLayer.hasOwnProperty(property) &&
+                        if (Object.hasOwn(state.propertiesSingleLayer, property) &&
                             ambiguousProperties[property] !== true) {
                             // we don't need to explode this property
                             continue;
@@ -17218,7 +17289,7 @@ function concretizePropertyRule(state, rule, lineNumber) {
                         for (let l = 0; l < aliases.length; l++) {
                             let concreteType = aliases[l];
                             let newrule = deepCloneRule(cur_rule);
-                            newrule.propertyReplacement = cur_rule.propertyReplacement ? cloneReplacementDict(cur_rule.propertyReplacement) : {};
+                            newrule.propertyReplacement = cur_rule.propertyReplacement ? cloneReplacementDict(cur_rule.propertyReplacement) : Object.create(null);
 
                             concretizePropertyInCell(newrule.lhs[j][k], property, concreteType);
                             if (newrule.rhs.length > 0) {
@@ -17286,7 +17357,7 @@ function concretizePropertyRule(state, rule, lineNumber) {
                     // are intentionally left un-split — the runtime will infer
                     // each RHS occurrence from the captured LHS alias.
                     if (propertyPlan.safe.has(propName)) continue;
-                    if (ambiguousProperties.hasOwnProperty(propName)) {
+                    if (Object.hasOwn(ambiguousProperties, propName)) {
                         rhsPropertyRemains = propName;
                     }
                 }
@@ -17684,7 +17755,7 @@ function dirToMovementMasks(dir) {
 }
 
 function aggregateDirectionMask(dir) {
-    if (!(dir in directionaggregates)) {
+    if (!(Object.hasOwn(directionaggregates, dir))) {
         return 0;
     }
     let mask = 0;
@@ -17706,9 +17777,9 @@ function buildLayerCoupledExcludedLayers(state, cell, coupledTermIndex) {
             continue;
         }
         const name = cell[i + 1];
-        if (state.objects.hasOwnProperty(name)) {
+        if (Object.hasOwn(state.objects, name)) {
             excludedLayers[state.objects[name].layer | 0] = true;
-        } else if (state.propertiesSingleLayer.hasOwnProperty(name)) {
+        } else if (Object.hasOwn(state.propertiesSingleLayer, name)) {
             excludedLayers[state.propertiesSingleLayer[name]] = true;
         }
     }
@@ -17920,7 +17991,7 @@ function rulesToMask(state) {
                             anyObjectsPresent.push(objectMask);
                         }
 
-                        if (object_dir in directionaggregates) {
+                        if (Object.hasOwn(directionaggregates, object_dir)) {
                             const aggregateBits = new BitVec(STRIDE_MOV);
                             const concretes = directionaggregates[object_dir];
                             for (let cd = 0; cd < concretes.length; cd++) {
@@ -18049,7 +18120,7 @@ function rulesToMask(state) {
                             const mask = state.objectMasks[object_name];
                             rhsBitVectors.randomMask_r.ior(mask);
                             
-                            const values = state.propertiesDict.hasOwnProperty(object_name) ? 
+                            const values = Object.hasOwn(state.propertiesDict, object_name) ?
                                 state.propertiesDict[object_name] : [object_name];
                             
                             if (values.length === 1) {
@@ -18133,7 +18204,7 @@ function rulesToMask(state) {
                             }
                         }
                         let localAggregateSink = null;
-                        if (object_dir in directionaggregates && rule.aggregateSinks) {
+                        if (Object.hasOwn(directionaggregates, object_dir) && rule.aggregateSinks) {
                             const aggregateSinkList = rule.aggregateSinks.get(object_dir);
                             if (aggregateSinkList) {
                                 for (let ai = 0; ai < aggregateSinkList.length; ai++) {
@@ -18161,7 +18232,7 @@ function rulesToMask(state) {
                             object_dir === '' ||
                             object_dir === 'stationary' ||
                             (LAYER_COUPLED_MOVEMENT_DIRS[object_dir] && dirMasks.hasOwnProperty(object_dir)) ||
-                            (object_dir in directionaggregates && rule.aggregateSinks);
+                            (Object.hasOwn(directionaggregates, object_dir) && rule.aggregateSinks);
                         if (sinkDirOk && rule.propertySinks) {
                             const sinkList = rule.propertySinks.get(object_name);
                             if (sinkList) {
@@ -18187,7 +18258,7 @@ function rulesToMask(state) {
                                             dirMode,
                                             dirMask,
                                         });
-                                        if (object_dir in directionaggregates && rule.aggregateSinks) {
+                                        if (Object.hasOwn(directionaggregates, object_dir) && rule.aggregateSinks) {
                                             const aggregateSinkList = rule.aggregateSinks.get(object_dir);
                                             if (aggregateSinkList) {
                                                 for (let ai = 0; ai < aggregateSinkList.length; ai++) {
@@ -18253,7 +18324,7 @@ function rulesToMask(state) {
                         // matched concrete movement bit flows through unchanged — we still
                         // need to write the object, but skip every movement-bit shift below.
                         let preservedAggregate = false;
-                        if (object_dir in directionaggregates && cell_l) {
+                        if (Object.hasOwn(directionaggregates, object_dir) && cell_l) {
                             for (let li = 0; li < cell_l.length; li += 2) {
                                 if (cell_l[li] === object_dir && cell_l[li + 1] === object_name) {
                                     preservedAggregate = true;
@@ -18269,7 +18340,7 @@ function rulesToMask(state) {
                         // through the standard branch below; movement bits skip.
                         let inferredAggregateSink = false;
                         if (!preservedAggregate &&
-                            object_dir in directionaggregates &&
+                            Object.hasOwn(directionaggregates, object_dir) &&
                             rule.aggregateSinks) {
                             const sinkList = rule.aggregateSinks.get(object_dir);
                             if (sinkList) {
@@ -18314,7 +18385,7 @@ function rulesToMask(state) {
                                 const lhs_name = cell_l[i + 1];
                                 if (lhs_dir === '' &&
                                     object_dir === '' &&
-                                    state.propertiesDict.hasOwnProperty(lhs_name)) {
+                                    Object.hasOwn(state.propertiesDict, lhs_name)) {
                                     applyPropertyObjectRewriteClears(state, rhsBitVectors, lhs_name, layerIndex);
                                 }
                             }
@@ -19255,7 +19326,7 @@ function generateMasks(state) {
     }
     state.layerMasks = layerMasks;
 
-    let objectMask = {};
+    let objectMask = Object.create(null);
 
     const object_keys = Object.keys(state.objects);
     const object_keys_l = object_keys.length;
@@ -19310,7 +19381,7 @@ function generateMasks(state) {
     state.objectMasks = objectMask;
 
 
-    state.aggregateMasks = {};
+    state.aggregateMasks = Object.create(null);
 
     //set aggregate masks similarly
     for (let aggregateName of Object.keys(state.aggregatesDict)) {
@@ -19475,7 +19546,7 @@ function printCellRow(cellRow) {
             if (direction === "...") {
                 result += direction + " ";
             } else {
-                result += direction + " " + object + " ";
+                result += escapeDiagnosticText(direction) + " " + escapeDiagnosticText(object) + " ";
             }
         }
     }
@@ -19499,7 +19570,7 @@ function cacheRuleStringRep(rule) {
     }
 
     if (directed){
-        result += rule.direction.toString().toUpperCase() + " ";
+        result += escapeDiagnosticText(rule.direction.toString().toUpperCase()) + " ";
     }
     if (rule.rigid) {
         result = "RIGID " + result + " ";
@@ -19522,9 +19593,9 @@ function cacheRuleStringRep(rule) {
     for (let i = 0; i < rule.commands.length; i++) {
         let command = rule.commands[i];
         if (command.length === 1) {
-            result = result + command[0].toString();
+            result = result + escapeDiagnosticText(command[0]);
         } else {
-            result = result + '(' + command[0].toString() + ", " + command[1].toString() + ') ';
+            result = result + '(' + escapeDiagnosticText(command[0]) + ", " + escapeDiagnosticText(command[1]) + ') ';
         }
     }
     //print commands next
@@ -19667,6 +19738,8 @@ function calculateLoopPoints(state, rulegroup_collection) {
             if (rule_in_loop) {
                 if (init_group_index === -1) {
                     init_group_index = group_i
+                    firstRule.loopStartLine = loop_start_line;
+                    firstRule.loopEndLine = loop_end_line;
                 }
                 // only the last rulegroup in a loop should be the loop point - 
                 // this is a bit lazy, but basically we look back, and if the 
@@ -20112,6 +20185,7 @@ function compile(command, text, randomseed) {
         consoleError(error.message+"\n"+error.stack,true);
         console.error(error);
         UnitTestingThrow(error);
+        return;
     } finally {
         compiling = false;
     }
@@ -20129,7 +20203,7 @@ function compile(command, text, randomseed) {
         const advice = IDE === false
             ? '  If this is an older game, and you think it just broke because of recent changes in the puzzlescript engine, please consider dropping an email to analytic@gmail.com with a link to the game and I\'ll try make sure it\'s back working ASAP.'
             : '';
-        consoleError('<span class="systemMessage">' + summary + advice + '</span>');
+        consoleError(diagnosticHTML`<span class="systemMessage">${summary}${advice}</span>`);
         if (errorCount > MAX_ERRORS) {
             return;
         }
@@ -20417,7 +20491,7 @@ function printLevel() {
 		const glyphMasks = [];
 
 		for (const glyphName in state.glyphDict) {
-			if (state.glyphDict.hasOwnProperty(glyphName) && glyphName.length === 1) {
+			if (Object.hasOwn(state.glyphDict, glyphName) && glyphName.length === 1) {
 				const glyph = state.glyphDict[glyphName];
 				const glyphmask = new BitVec(STRIDE_OBJ);
 				for (let i = 0; i < glyph.length; i++) {
@@ -20838,7 +20912,9 @@ function pollGamepads() {
 
 	function keyPressed(keycode) {
     	if(keybuffer.indexOf(keycode) === -1) {
-			pressKey({keyCode: keycode}, true);
+			// A message or level transition can clear keybuffer while the
+			// physical button stays down. Only a new physical press is fresh.
+			pressKey({keyCode: keycode}, gamepadKeys.indexOf(keycode) === -1);
 		}
 
 		newGamepadKeys.splice(0, 0, keycode);
@@ -21035,6 +21111,7 @@ function checkKey(e, justPressed) {
 						printLevel();
 					}
 					restartTarget = backupLevel();
+					restartTargetIsCheckpoint = false;
 					canvasResize();
 				}
 				return prevent(e);
@@ -21213,7 +21290,11 @@ function update() {
 				ignoreNotJustPressedAction = true;
 				titleSelection = 0;
 				canvasResize();
-				checkWin();
+				if (level.commandQueue.includes('restart')) {
+					DoRestart(true);
+				} else {
+					checkWin();
+				}
 			}
 		}
 	}
@@ -21314,7 +21395,17 @@ Mobile.setupPlayerControls = function () {
     // Consume the compatibility click even if activation hides its button
     // (mute/unmute) or opens a menu under the pointer before click dispatch.
     var skipPointerClick = false;
+    function isTouchMouseEvent(event) {
+        return event.sourceCapabilities && event.sourceCapabilities.firesTouchEvents;
+    }
     document.addEventListener('pointerdown', function () { skipPointerClick = false; }, true);
+    if (!window.PointerEvent) {
+        document.addEventListener('mousedown', function (event) {
+            // A cancelled touch may emit no compatibility click. A new mouse
+            // press owns its own click; touch-generated mouse events do not.
+            if (!isTouchMouseEvent(event)) { skipPointerClick = false; }
+        }, true);
+    }
     document.addEventListener('click', function (event) {
         if (skipPointerClick && event.detail > 0) {
             skipPointerClick = false;
@@ -21367,12 +21458,14 @@ Mobile.setupPlayerControls = function () {
             }
         }
         var pointer = null;
+        var touchStart = null;
         var pointerUsed = false;
         function release() {
             if (pointer && pointer.ownsKey) {
                 onKeyUp({ keyCode: heldCode });
             }
             pointer = null;
+            touchStart = null;
             element.classList.remove('is-held');
         }
         releaseButtons.push(release);
@@ -21410,25 +21503,41 @@ Mobile.setupPlayerControls = function () {
             element.addEventListener('lostpointercapture', release);
         } else {
             // Older touch browsers can suppress the first click after a swipe.
-            var touchStart;
+            element.addEventListener('mousedown', function (event) {
+                if (!isTouchMouseEvent(event)) { pointerUsed = false; }
+            });
             element.addEventListener('touchstart', function (event) {
+                if (element.disabled || touchStart) { return; }
                 touchStart = event.touches.length === 1 ? event.touches[0] : null;
+                if (touchStart && heldCode) {
+                    event.preventDefault();
+                    pointerUsed = true;
+                    skipPointerClick = true;
+                    pointer = { ownsKey: keybuffer.indexOf(heldCode) < 0 };
+                    element.classList.add('is-held');
+                    lastDownTarget = canvas;
+                    onKeyDown({ keyCode: heldCode });
+                }
             });
             element.addEventListener('touchmove', function (event) {
                 if (touchStart && (event.touches.length !== 1 ||
-                    Math.abs(event.touches[0].clientX - touchStart.clientX) > 10 ||
-                    Math.abs(event.touches[0].clientY - touchStart.clientY) > 10)) { touchStart = null; }
+                    (heldCode ? !inside(event.touches[0]) :
+                        Math.abs(event.touches[0].clientX - touchStart.clientX) > 10 ||
+                        Math.abs(event.touches[0].clientY - touchStart.clientY) > 10))) {
+                    release();
+                }
             });
-            element.addEventListener('touchcancel', function () { touchStart = null; });
+            element.addEventListener('touchcancel', release);
             element.addEventListener('touchend', function (event) {
-                var tap = touchStart && !element.disabled && !event.touches.length && inside(event.changedTouches[0]);
-                touchStart = null;
+                var tap = !heldCode && touchStart && !element.disabled && !event.touches.length && inside(event.changedTouches[0]);
+                release();
                 event.preventDefault();
                 if (tap) { activate(false); }
             });
         }
         element.addEventListener('click', function (event) {
-            if (!pointerUsed || event.detail === 0) { activate(event.detail === 0); }
+            var touchMouse = !window.PointerEvent && isTouchMouseEvent(event);
+            if (event.detail === 0 || (!pointerUsed && !touchMouse)) { activate(event.detail === 0); }
             pointerUsed = false;
         });
         return element;

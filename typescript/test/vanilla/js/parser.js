@@ -55,7 +55,32 @@ function TooManyErrors() {
     throw new Error(message);
 }
 
+// Ordinary diagnostic strings are text. This tag preserves source-owned markup
+// while escaping every interpolated value, including quotes in attributes.
+class DiagnosticHTML {
+    constructor(html) { this.html = html; }
+    toString() { return this.html; }
+}
+
+function escapeDiagnosticText(text) {
+    return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function diagnosticHTML(strings, ...values) {
+    let html = strings[0];
+    for (let i = 0; i < values.length; i++) {
+        html += escapeDiagnosticText(values[i]) + strings[i + 1];
+    }
+    return new DiagnosticHTML(html);
+}
+
+function formatDiagnosticHTML(message) {
+    return message instanceof DiagnosticHTML ? message.html : escapeDiagnosticText(message);
+}
+
 function buildErrorHtml(lineNumber, str, className) {
+    str = formatDiagnosticHTML(str);
     const c = className || 'errorText';
     if (lineNumber === undefined) {
         return '<span class="' + c + '">' + str + '</span>';
@@ -207,7 +232,7 @@ function flattenPropertyEntry(n, a, substitutor) {
 
 //syntax-highlighting token class for a named colour, or null if it's not one
 function colorNameToken(candcol) {
-    if (candcol in colorPalettes.arnecolors) {
+    if (Object.hasOwn(colorPalettes.arnecolors, candcol)) {
         return 'COLOR COLOR-' + candcol.toUpperCase();
     } else if (candcol === "transparent") {
         return 'COLOR FADECOLOR';
@@ -265,7 +290,7 @@ let codeMirrorFn = function () {
 
             let alreadyDefined = wordAlreadyDeclared(state, candname);
             if (alreadyDefined !== null) {
-                logError(`Name "${candname.toUpperCase()}" already in use (on line <a onclick="jumpToLine(${alreadyDefined.lineNumber});" href="javascript:void(0);"><span class="errorTextLineNumber">line ${alreadyDefined.lineNumber}</span></a>).`, state.lineNumber);
+                logError(diagnosticHTML`Name "${candname.toUpperCase()}" already in use (on line <a onclick="jumpToLine(${alreadyDefined.lineNumber});" href="javascript:void(0);"><span class="errorTextLineNumber">line ${alreadyDefined.lineNumber}</span></a>).`, state.lineNumber);
                 ok = false;
             }
 
@@ -307,6 +332,12 @@ let codeMirrorFn = function () {
 
             if (splits.length === 3) {
                 //SYNONYM
+                // A forward reference can lead back to the name being defined.
+                // Reject the closing link before it creates a synonym cycle.
+                if (lookupLegendName(state, splits[2]).name === splits[0]) {
+                    logError("You can't define object " + splits[0].toUpperCase() + " in terms of itself!", state.lineNumber);
+                    return;
+                }
                 let synonym = [splits[0], splits[2]];
                 synonym.lineNumber = state.lineNumber;
                 registerOriginalCaseName(state, splits[0], mixedCase, state.lineNumber);
@@ -414,9 +445,9 @@ let codeMirrorFn = function () {
     return {
         wordChars: "puzzle",
         copyState: function (state) {
-            let objectsCopy = {};
+            let objectsCopy = Object.create(null);
             for (let i in state.objects) {
-                if (state.objects.hasOwnProperty(i)) {
+                if (Object.hasOwn(state.objects, i)) {
                     let o = state.objects[i];
                     objectsCopy[i] = {
                         colors: o.colors.slice(),
@@ -461,8 +492,8 @@ let codeMirrorFn = function () {
                 rulesCopy.push(state.rules[i].slice());
             }
 
-            let original_case_namesCopy = Object.assign({}, state.original_case_names);
-            let original_line_numbersCopy = Object.assign({}, state.original_line_numbers);
+            let original_case_namesCopy = Object.assign(Object.create(null), state.original_case_names);
+            let original_line_numbersCopy = Object.assign(Object.create(null), state.original_line_numbers);
 
             let nstate = {
                 lineNumber: state.lineNumber,
@@ -654,7 +685,7 @@ let codeMirrorFn = function () {
                     if (state.section === 'sounds') {
                         //populate names from objects and legends
                         for (let n in state.objects) {
-                            if (state.objects.hasOwnProperty(n)) {
+                            if (Object.hasOwn(state.objects, n)) {
                                 state.names.add(n);
                             }
                         }
@@ -667,7 +698,7 @@ let codeMirrorFn = function () {
                     else if (state.section === 'levels') {
                         //populate character abbreviations (properties are ambiguous, so they're not included)
                         for (let n in state.objects) {
-                            if (state.objects.hasOwnProperty(n) && n.length === 1) {
+                            if (Object.hasOwn(state.objects, n) && n.length === 1) {
                                 state.abbrevNames.add(n);
                             }
                         }
@@ -988,7 +1019,17 @@ let codeMirrorFn = function () {
                                     if (!wordAlreadyDeclared(state, matched_name)) {
                                         tokentype = 'ERROR';
                                         state.current_line_wip_array.push("ERROR");
-                                        logError(`unexpected sound token "${matched_name}".`, state.lineNumber);
+                                        const sound_as_verb = reg_soundverbs.exec(matched_name);
+                                        const is_sound_verb = sound_as_verb !== null && sound_as_verb[0].trim() === matched_name;
+                                        const sound_as_dir = reg_sounddirectionindicators.exec(matched_name);
+                                        const is_sound_dir = sound_as_dir !== null && sound_as_dir[0].trim() === matched_name;
+                                        if (is_sound_verb) {
+                                            logError(`Sound verb "${matched_name.toUpperCase()}" needs an entity before it, e.g. "Player ${matched_name.toUpperCase()} 12345".`, state.lineNumber);
+                                        } else if (is_sound_dir) {
+                                            logError(`Sound direction "${matched_name.toUpperCase()}" needs an entity and MOVE or CANTMOVE before it, e.g. "Player MOVE ${matched_name.toUpperCase()} 12345".`, state.lineNumber);
+                                        } else {
+                                            logError(`unexpected sound token "${matched_name}".`, state.lineNumber);
+                                        }
                                     } else {
                                         tokentype = 'NAME';
                                         state.current_line_wip_array.push([matched_name, tokentype]);
@@ -1026,7 +1067,8 @@ let codeMirrorFn = function () {
                                     state.tokenIndex++;
                                 } else {
                                     match = errorFallbackMatchToken(stream);
-                                    logError("Was expecting a soundverb here (MOVE, DESTROY, CANTMOVE, or the like), but found something else.", state.lineNumber);
+                                    const objectName = state.current_line_wip_array[0][0].toUpperCase();
+                                    logError(`Was expecting a sound verb here (e.g. MOVE, DESTROY, CANTMOVE, or the like), but found something else. Try "${objectName} MOVE 12345" or "${objectName} ACTION 12345".`, state.lineNumber);
                                     tokentype = 'ERROR';
                                     state.current_line_wip_array.push("ERROR");
                                 }
@@ -1418,7 +1460,7 @@ let codeMirrorFn = function () {
                                             state.metadata.push(m2[0].trim());
                                             if (token in state.metadata_lines) {
                                                 let otherline = state.metadata_lines[token];
-                                                logWarning(`You've already defined a ${token.toUpperCase()} in the prelude on line <a onclick="jumpToLine(${otherline});" href="javascript:void(0);">${otherline}</a>.`, state.lineNumber);
+                                                logWarning(diagnosticHTML`You've already defined a ${token.toUpperCase()} in the prelude on line <a onclick="jumpToLine(${otherline});" href="javascript:void(0);">${otherline}</a>.`, state.lineNumber);
                                             }
                                             state.metadata_lines[token] = state.lineNumber;
                                         } else {
@@ -1448,8 +1490,7 @@ let codeMirrorFn = function () {
                                 return 'METADATA';
                             } else {
                                 //garbage found
-                                const text = stream.string.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                                logError(`Unrecognised stuff "${text}" in the prelude.`, state.lineNumber);
+                                logError(`Unrecognised stuff "${stream.string}" in the prelude.`, state.lineNumber);
                             }
                         } else {
                             stream.match(reg_notcommentstart, true);
@@ -1490,7 +1531,8 @@ let codeMirrorFn = function () {
                 /*
                     permanently useful
                 */
-                objects: {},
+                // Source names such as __proto__ must be ordinary dictionary keys.
+                objects: Object.create(null),
 
                 /*
                     for parsing
@@ -1536,8 +1578,8 @@ let codeMirrorFn = function () {
                 metadata: [],
                 metadata_lines: {},
 
-                original_case_names: {},
-                original_line_numbers: {},
+                original_case_names: Object.create(null),
+                original_line_numbers: Object.create(null),
 
                 abbrevNames: new Set(),
 

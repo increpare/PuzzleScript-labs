@@ -27,6 +27,7 @@ struct ps_gba_session {
     bool pendingAgain = false;
     bool resetKernelScratch = true;
     bool ruleMessage = false;
+    bool restartIsCheckpoint = false;
     const char* message = nullptr;
     ps_audio_event audio[PS_GBA_MAX_AUDIO_EVENTS]{};
     size_t audioCount = 0;
@@ -131,6 +132,7 @@ void applyKernelOutputs(ps_gba_session* session, const ps_gba_kernel_result& ker
     if (kernel.checkpoint) {
         std::memcpy(session->restart, session->board, session->activeWordCount * sizeof(uint32_t));
         session->restartRng = session->rng;
+        session->restartIsCheckpoint = true;
     }
     if (kernel.message != nullptr) {
         session->mode = PS_FULL_STATE_MODE_MESSAGE;
@@ -141,7 +143,7 @@ void applyKernelOutputs(ps_gba_session* session, const ps_gba_kernel_result& ker
 }
 
 void runRulesOnLevelStart(ps_gba_session* session) {
-    if (session == nullptr || session->mode != PS_FULL_STATE_MODE_LEVEL
+    if (session == nullptr || session->mode != PS_FULL_STATE_MODE_LEVEL || session->restartIsCheckpoint
         || !hasMetadata(session->game, "run_rules_on_level_start")) return;
     const ps_gba_kernel_result kernel = session->game->turn_kernel(
         session->board, session->activeWordCount,
@@ -182,6 +184,7 @@ bool loadLevelInternal(ps_gba_session* session, uint16_t levelIndex,
     session->resetKernelScratch = true;
     session->message = level.message;
     session->ruleMessage = false;
+    session->restartIsCheckpoint = false;
     if (resetRandomState) seedRng(&session->rng, seed);
     session->restartRng = session->rng;
     if (level.kind == PS_GBA_LEVEL_MESSAGE) {
@@ -343,6 +346,7 @@ ps_step_result ps_gba_step(ps_gba_session* session, ps_input input) {
         session->rng = session->restartRng;
         session->pendingAgain = false;
         session->resetKernelScratch = true;
+        runRulesOnLevelStart(session);
     } else if (kernel.won) {
         session->pendingAgain = false;
         transitioned = advanceLevel(session);
@@ -351,6 +355,7 @@ ps_step_result ps_gba_step(ps_gba_session* session, ps_input input) {
         if (kernel.checkpoint) {
             std::memcpy(session->restart, session->board, session->activeWordCount * sizeof(uint32_t));
             session->restartRng = session->rng;
+            session->restartIsCheckpoint = true;
         }
         if (kernel.message != nullptr) {
             session->mode = PS_FULL_STATE_MODE_MESSAGE;

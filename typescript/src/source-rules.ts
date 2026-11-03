@@ -26,10 +26,8 @@ const absoluteDirections = new Map<string, Direction>([
   ['up', Direction.Up], ['down', Direction.Down], ['left', Direction.Left], ['right', Direction.Right],
 ]);
 const directionFamilies = new Map<string, readonly Direction[]>([
-  ['horizontal', [Direction.Left, Direction.Right]], ['horizontal_par', [Direction.Left, Direction.Right]],
-  ['horizontal_perp', [Direction.Left, Direction.Right]], ['vertical', [Direction.Up, Direction.Down]],
-  ['vertical_par', [Direction.Up, Direction.Down]], ['vertical_perp', [Direction.Up, Direction.Down]],
-  ['orthogonal', orthogonal], ['moving', [...orthogonal, Direction.InPlace]],
+  ['horizontal', [Direction.Left, Direction.Right]], ['vertical', [Direction.Up, Direction.Down]],
+  ['orthogonal', orthogonal],
 ]);
 const controlCommands = new Map<string, Exclude<SourceRuleCommandKind, SourceRuleCommandKind.Message | SourceRuleCommandKind.SoundEffect>>([
   ['cancel', SourceRuleCommandKind.Cancel], ['restart', SourceRuleCommandKind.Restart], ['win', SourceRuleCommandKind.Win],

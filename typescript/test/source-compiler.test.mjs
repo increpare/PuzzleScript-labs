@@ -62,7 +62,7 @@ const compilerTypes = { compileSource, SourceCompilationKind, SourceCompilationS
   ...model, ...sessionModel, ...turnRules, ...winConditions, ...commands, ...ruleModel, ...assets, ...declarationModel };
 const oracle = createSourceCompilerOracle(compilerTypes);
 
-test('all 335 pinned compilation sources match actual compile diagnostics and acceptance', t => {
+test('all 370 pinned compilation sources match actual compile diagnostics and acceptance', t => {
   const totals = { sources: 0, formed: 0, invalid: 0, stopped: 0, accepted: 0, declined: 0, raw: 0, recorded: 0 };
   for (const fixture of oracle.compilationFixtures()) {
     const { result } = oracle.compareFixture(fixture);
@@ -76,11 +76,11 @@ test('all 335 pinned compilation sources match actual compile diagnostics and ac
     }
   }
   t.diagnostic(JSON.stringify(totals));
-  assert.deepEqual(totals, { sources: 335, formed: 315, invalid: 17, stopped: 3,
-    accepted: 306, declined: 9, raw: 872, recorded: 705 });
+  assert.deepEqual(totals, { sources: 370, formed: 350, invalid: 17, stopped: 3,
+    accepted: 340, declined: 10, raw: 932, recorded: 761 });
 });
 
-test('all 492 pinned simulation sources match complete actual compilation semantics and issues', t => {
+test('all 528 pinned simulation sources match complete actual compilation semantics and issues', t => {
   const totals = { sources: 0, accepted: 0, raw: 0, recorded: 0, errors: 0, finalRules: 0 };
   for (const fixture of oracle.corpusFixtures()) {
     const { result } = oracle.compareFixture(fixture);
@@ -90,7 +90,7 @@ test('all 492 pinned simulation sources match complete actual compilation semant
       .reduce((sum, group) => sum + group.rules.length, 0);
   }
   t.diagnostic(JSON.stringify(totals));
-  assert.deepEqual(totals, { sources: 492, accepted: 492, raw: 579, recorded: 548, errors: 25, finalRules: 99192 });
+  assert.deepEqual(totals, { sources: 528, accepted: 528, raw: 579, recorded: 548, errors: 25, finalRules: 99254 });
 });
 
 const originalFixture = name => {
@@ -267,11 +267,12 @@ test('host-free semantic comparator retains native globals and returns actual ca
   for (const [key, value] of Object.entries({ state, level, errorStrings, errorCount, localStorage, document })) assert.equal(value, before[key], key + ': native host unchanged');
 });
 
-test('constructed: documented native InPlace and empty aggregate TypeErrors remain explicit host boundaries', () => {
+test('constructed: invalid moving headers recover while empty aggregate TypeErrors remain explicit host boundaries', () => {
   const inPlace = movementSource({ rules: 'moving [ > Player | Crate ] -> win' });
   const emptyAggregate = movementSource({ rules: 'right [ Player ] -> [ Player ]' })
     .replace('. = Background', 'Pair = Player and Player\nPlayer = Pair\n. = Background').replace('P = Player\n', '');
-  for (const text of [inPlace, emptyAggregate]) {
+  oracle.compareFixture({ name: 'invalid moving header recovers safely', source: inPlace });
+  for (const text of [emptyAggregate]) {
     assert.throws(() => oracle.nativeCompile(text), TypeError);
     assert.throws(() => oracle.independently(() => compileSource(text)), TypeError);
   }

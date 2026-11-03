@@ -1,7 +1,7 @@
 # Vanilla quirks: current defaults and historical corpus impact
 
-The active reference is vanilla `57f9f6cba69f6aa52ed738d5aee1d709d0037648`,
-with 492 simulation fixtures. Its defaults match that revision:
+The active reference is vanilla `caa902120185b354f8b9bdb7bf67a9424be0665d`,
+with 528 simulation fixtures. Its defaults match that revision:
 `rigidOwnerOrdinalMerge`, `lhsRandomDirIsUpAndLeft` and `lateMovementsCarryOver`
 are off; the other five switches remain on. See [README](README.md#quirk-switches).
 

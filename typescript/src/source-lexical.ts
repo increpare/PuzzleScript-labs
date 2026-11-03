@@ -294,7 +294,12 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
       if (event === null) {
         const target = accept(namePattern);
         if (target === null) { fallback(); fail("Was expecting a sound event (like SFX3, or ENDLEVEL) or an object name, but didn't find either.", true); }
-        else if (declarations.findDeclaration(target.value) === null) fail(`unexpected sound token "${target.value}".`);
+        else if (declarations.findDeclaration(target.value) === null) {
+          const name = target.value, upper = name.toUpperCase();
+          if (soundVerbs.exec(name)?.[0].trim() === name) fail(`Sound verb "${upper}" needs an entity before it, e.g. "Player ${upper} 12345".`);
+          else if (soundDirections.exec(name)?.[0].trim() === name) fail(`Sound direction "${upper}" needs an entity and MOVE or CANTMOVE before it, e.g. "Player MOVE ${upper} 12345".`);
+          else fail(`unexpected sound token "${name}".`);
+        }
         else scan = { section: SourceSectionKind.Sounds, phase: SoundPhase.Verb, target };
       } else scan = { section: SourceSectionKind.Sounds, phase: SoundPhase.EventSeed, event: acceptedSoundEvent(event) };
     } else if (state.phase === SoundPhase.EventSeed) {
@@ -303,7 +308,7 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
       else scan = { section: SourceSectionKind.Sounds, phase: SoundPhase.End, definition: { kind: AcceptedSoundKind.Event, event: state.event, seed } };
     } else if (state.phase === SoundPhase.Verb) {
       const verb = accept(soundVerbs);
-      if (verb === null) { fallback(); fail('Was expecting a soundverb here (MOVE, DESTROY, CANTMOVE, or the like), but found something else.'); }
+      if (verb === null) { fallback(); fail(`Was expecting a sound verb here (e.g. MOVE, DESTROY, CANTMOVE, or the like), but found something else. Try "${state.target.value.toUpperCase()} MOVE 12345" or "${state.target.value.toUpperCase()} ACTION 12345".`); }
       else {
         const accepted = acceptedSoundVerb(verb);
         scan = accepted.kind === SoundVerb.Move || accepted.kind === SoundVerb.CantMove
@@ -427,8 +432,7 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
     if (state.phase === PreludePhase.Key) {
       const start = cursor.index, match = cursor.match(namePattern);
       if (match === null) {
-        const text = cursor.text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        issue(`Unrecognised stuff "${text}" in the prelude.`); cursor.next(); return;
+        issue(`Unrecognised stuff "${cursor.text}" in the prelude.`); cursor.next(); return;
       }
       const key = match.trim();
       if (!sol) return;

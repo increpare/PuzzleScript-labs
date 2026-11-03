@@ -162,7 +162,7 @@
             curWord = curWord.toLowerCase();
 
             var list = input.list || [],
-                seen = {};
+                seen = Object.create(null);
             var legendDirectionalFirst = []; // directional "or" completions for LEGEND, shown first
             var collisionlayersDirectionalFirst = []; // same for COLLISIONLAYERS
             var ruleMirrorFirst = []; // mirrored/rotated rule from previous line (rules section only)
@@ -460,9 +460,9 @@
                     var pairing = RuleTransform.DIRECTIONAL_PAIRINGS[p];
                     var suffixes = [pairing[0]].concat(pairing[1]);
                     var suffixesLower = suffixes.map(function (s) { return s.toLowerCase(); });
-                    var byStem = {};
+                    var byStem = Object.create(null);
                     for (var key in state.objects) {
-                        if (!state.objects.hasOwnProperty(key)) continue;
+                        if (!Object.hasOwn(state.objects, key)) continue;
                         for (var s = 0; s < suffixesLower.length; s++) {
                             var suf = suffixesLower[s];
                             if (key.length > suf.length && key.slice(-suf.length) === suf) {
@@ -516,7 +516,7 @@
                         }
                         var fullLine = stemDisplay + " = " + orParts.join(" or ");
                         var fullLineKey = fullLine.toLowerCase();
-                        if (Object.prototype.hasOwnProperty.call(seen, fullLineKey)) continue;
+                        if (Object.hasOwn(seen, fullLineKey)) continue;
                         seen[fullLineKey] = true;
                         legendDirectionalFirst.push({ text: fullLine, extra: '', tag: 'NAME' });
                     }
@@ -527,11 +527,11 @@
             if (addObjects){
                 var obs = state.objects;
                 for (var key in obs) {
-                    if (obs.hasOwnProperty(key)) {
+                    if (Object.hasOwn(obs, key)) {
                         var w = key;
                         var matchWord = w.toLowerCase();
                         // if (matchWord === curWord) continue;
-                        if ((!curWord || matchWord.lastIndexOf(curWord, 0) == 0) && !Object.prototype.hasOwnProperty.call(seen, matchWord)) {
+                        if ((!curWord || matchWord.lastIndexOf(curWord, 0) == 0) && !Object.hasOwn(seen, matchWord)) {
                             seen[matchWord] = true;
                             var hint = state.original_case_names[w];
                             list.push({text:hint,extra:"",tag:"NAME"});
@@ -554,7 +554,7 @@
                         var w = lr[j][0];
                         var matchWord = w.toLowerCase();
                         // if (matchWord === curWord) continue;
-                        if ((!curWord || matchWord.lastIndexOf(curWord, 0) == 0) && !Object.prototype.hasOwnProperty.call(seen, matchWord)) {
+                        if ((!curWord || matchWord.lastIndexOf(curWord, 0) == 0) && !Object.hasOwn(seen, matchWord)) {
                             seen[matchWord] = true;
                             var hint = state.original_case_names[w];
                             list.push({text:hint,extra:"",tag:"NAME"});
@@ -576,9 +576,9 @@
                         var pairing = RuleTransform.DIRECTIONAL_PAIRINGS[p];
                         var suffixes = [pairing[0]].concat(pairing[1]);
                         var suffixesLower = suffixes.map(function (s) { return s.toLowerCase(); });
-                        var byStem = {};
+                        var byStem = Object.create(null);
                         for (var key in state.objects) {
-                            if (!state.objects.hasOwnProperty(key)) continue;
+                            if (!Object.hasOwn(state.objects, key)) continue;
                             for (var s = 0; s < suffixesLower.length; s++) {
                                 var suf = suffixesLower[s];
                                 if (key.length > suf.length && key.slice(-suf.length) === suf) {
@@ -611,7 +611,7 @@
                             if (termAlreadyOnLine) continue;
                             var combined = orParts.join(' or ');
                             var combinedKey = combined.toLowerCase();
-                            if (Object.prototype.hasOwnProperty.call(seen, combinedKey)) continue;
+                            if (Object.hasOwn(seen, combinedKey)) continue;
                             seen[combinedKey] = true;
                             legendDirectionalFirst.push({ text: combined, extra: '', tag: 'NAME' });
                         }
@@ -632,9 +632,9 @@
                         var pairing = RuleTransform.DIRECTIONAL_PAIRINGS[p];
                         var suffixes = [pairing[0]].concat(pairing[1]);
                         var suffixesLower = suffixes.map(function (s) { return s.toLowerCase(); });
-                        var byStem = {};
+                        var byStem = Object.create(null);
                         for (var key in state.objects) {
-                            if (!state.objects.hasOwnProperty(key)) continue;
+                            if (!Object.hasOwn(state.objects, key)) continue;
                             for (var s = 0; s < suffixesLower.length; s++) {
                                 var suf = suffixesLower[s];
                                 if (key.length > suf.length && key.slice(-suf.length) === suf) {
@@ -666,7 +666,7 @@
                             if (termAlreadyOnLine) continue;
                             var combined = parts.join(', ');
                             var combinedKey = combined.toLowerCase();
-                            if (Object.prototype.hasOwnProperty.call(seen, combinedKey)) continue;
+                            if (Object.hasOwn(seen, combinedKey)) continue;
                             seen[combinedKey] = true;
                             collisionlayersDirectionalFirst.push({ text: combined, extra: '', tag: 'NAME' });
                         }
@@ -700,7 +700,7 @@
                     var matchWord=m;
                     var matchWord = matchWord.toLowerCase();
                     // if (matchWord === curWord) continue;
-                    if ((!curWord || matchWord.lastIndexOf(curWord, 0) == 0) && !Object.prototype.hasOwnProperty.call(seen, matchWord)) {
+                    if ((!curWord || matchWord.lastIndexOf(curWord, 0) == 0) && !Object.hasOwn(seen, matchWord)) {
                         seen[matchWord] = true;
 
                         var mytag = tag;

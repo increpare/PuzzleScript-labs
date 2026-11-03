@@ -69,12 +69,13 @@ function consolePrint(text,urgent,linenumber,inspect_ID,scrolldown=true) {
 
 let cache_n = 0;
 
-function addToConsole(text,scrolldown=true) {
+function addToConsole(text,scrolldown=true,className='') {
 	if (suppress_all_console_output){
 		return;
 	}
 	const cache = document.createElement("div");
 	cache.id = "cache" + cache_n;
+	cache.className = className;
 	cache.innerHTML = text;
 	cache_n++;
 	
@@ -96,7 +97,7 @@ function consoleCacheDump(scrolldown=true) {
 	if (suppress_all_console_output){
 		return;
 	}
-	if (cache_console_messages===false) {
+	if (cache_console_messages===false || consolecache.length===0) {
 		return;
 	}
 	
@@ -144,14 +145,14 @@ function consoleCacheDump(scrolldown=true) {
 		}
 	}
 
-	let summarised_message = "<br>";
+	let summarised_message = "\n";
 	for (let j=0;j<batched_messages.length;j++){
 		let batch_row = batched_messages[j];
 		let batch_lineNumber = batch_row[0];
 		let inspector_ID = batch_row[1];
 		let batch_messages = batch_row[2];
 		
-		summarised_message+="<br>"
+		summarised_message+="\n";
 
 		if (inspector_ID!= null){
 			summarised_message+=`<span class="hoverpreview" onmouseover="debugPreview(${inspector_ID})" onmouseleave="debugUnpreview()">`;
@@ -159,7 +160,7 @@ function consoleCacheDump(scrolldown=true) {
 		for (let i = 0; i < batch_messages.length; i++) {
 
 			if(i>0){
-				summarised_message+=`<br><span class="noeye_indent"></span>`
+				summarised_message+=`\n<span class="noeye_indent"></span>`;
 			}
 			let curdata = batch_messages[i];
 			let curline = curdata[0];
@@ -176,11 +177,11 @@ function consoleCacheDump(scrolldown=true) {
 	}
 
 
-	addToConsole(summarised_message,scrolldown);
+	addToConsole(summarised_message,scrolldown,'console-batch');
 }
 
 function consoleError(text) {	
-        let errorString = '<span class="errorText">' + text + '</span>';
+        let errorString = '<span class="errorText">' + formatDiagnosticHTML(text) + '</span>';
         consolePrint(errorString,true);
 }
 function clearConsole() {

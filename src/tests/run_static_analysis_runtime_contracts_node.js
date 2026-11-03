@@ -1630,7 +1630,7 @@ function captureRuntimeProbeState() {
         RandomGen: cloneRandomGenerator(RandomGen),
         curlevel,
         curlevelTarget: cloneCurlevelTarget(curlevelTarget),
-        hasUsedCheckpoint,
+        restartTargetIsCheckpoint,
         levelEditorOpened,
         ignoreNotJustPressedAction,
         textMode,
@@ -1657,7 +1657,7 @@ function restoreRuntimeProbeState(snapshot) {
     RandomGen = snapshot.RandomGen;
     curlevel = snapshot.curlevel;
     curlevelTarget = cloneCurlevelTarget(snapshot.curlevelTarget);
-    hasUsedCheckpoint = snapshot.hasUsedCheckpoint;
+    restartTargetIsCheckpoint = snapshot.restartTargetIsCheckpoint;
     levelEditorOpened = snapshot.levelEditorOpened;
     ignoreNotJustPressedAction = snapshot.ignoreNotJustPressedAction;
     textMode = snapshot.textMode;
@@ -1831,9 +1831,9 @@ function replayInputSpecializationTrace(testName, source, inputs, options = {}) 
         unitTesting = true;
         lazyFunctionGeneration = false;
         // Level transitions otherwise reseed from wall-clock time and Math.random.
-        loadLevelFromLevelDat = function(state, leveldat, seed, clearinputhistory) {
+        loadLevelFromLevelDat = function(state, leveldat, seed, clearinputhistory, checkpoint) {
             return previousLoadLevel(state, leveldat,
-                seed || `${randomSeed}:level-load:${unseededLevelLoads++}`, clearinputhistory);
+                seed || `${randomSeed}:level-load:${unseededLevelLoads++}`, clearinputhistory, checkpoint);
         };
         // Commands may be consumed or discarded before the input boundary.
         // Capture them after both main and late rule phases, including probes.

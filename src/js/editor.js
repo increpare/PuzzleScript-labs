@@ -6,6 +6,7 @@ let _editorDirty = false;
 let importedSource = document.getElementById("importedSource");
 let sourceFileToOpen=getParameterByName("file");
 let fileToOpen=getParameterByName("demo");
+let gistToLoad = null;
 if (importedSource && importedSource.textContent !== "null") {
 	code.value = JSON.parse(importedSource.textContent);
 	importedSource.remove();
@@ -21,16 +22,12 @@ if (importedSource && importedSource.textContent !== "null") {
 		jumpToLine(line);
 	});
 } else if (sourceFileToOpen!==null&&sourceFileToOpen.length>0) {
-	tryLoadSourceFile(sourceFileToOpen);
 	code.value = "loading...";
 } else if (fileToOpen!==null&&fileToOpen.length>0) {
-	tryLoadFile(fileToOpen);
 	code.value = "loading...";
 } else {
-	let gistToLoad=getParameterByName("hack");
+	gistToLoad=getParameterByName("hack");
 	if (gistToLoad!==null&&gistToLoad.length>0) {
-		let id = gistToLoad.replace(/[\\\/]/,"");
-		tryLoadGist(id);
 		code.value = "loading...";
 	} else {
 		try {
@@ -46,6 +43,20 @@ if (importedSource && importedSource.textContent !== "null") {
 		}
 	}
 }
+
+function loadInitialGame() {
+	if (importedSource && importedSource.textContent !== "null") { return; }
+	if (sourceFileToOpen) {
+		tryLoadSourceFile(sourceFileToOpen);
+	} else if (fileToOpen) {
+		tryLoadFile(fileToOpen);
+	} else if (gistToLoad) {
+		tryLoadGist(gistToLoad.replace(/[\\\/]/, ""));
+	}
+}
+
+// Wait until editor and GitHub helpers have all been initialized.
+document.addEventListener("DOMContentLoaded", loadInitialGame, {once: true});
 
 let editor = PuzzleScriptEditorDriver.create({
 	textarea: code,
@@ -109,24 +120,11 @@ function tryLoadFile(fileName) {
   			return;
   		}
   		
-		function doStuff(){
-			editor.replaceDocument(fileOpenClient.responseText);
-			clearConsole();
-			setEditorClean();
-			unloadGame();
-			compile(["restart"]);
-		}
-		if (document.readyState === "complete") {
-			doStuff();
-		} else {
-			let handler = (event)=>{
-				if (document.readyState === "complete") {
-					doStuff();
-					document.removeEventListener("readystatechange",handler);
-				}
-			};
-			document.addEventListener("readystatechange",handler);
-		}
+		editor.replaceDocument(fileOpenClient.responseText);
+		clearConsole();
+		setEditorClean();
+		unloadGame();
+		compile(["restart"]);
 	}
 	fileOpenClient.send();
 }
@@ -144,24 +142,11 @@ function tryLoadSourceFile(fileName) {
 			return;
 		}
 
-		function doStuff(){
-			editor.setValue(fileOpenClient.responseText);
-			clearConsole();
-			setEditorClean();
-			unloadGame();
-			compile(["restart"]);
-		}
-		if (document.readyState === "complete") {
-			doStuff();
-			} else {
-				let handler = (event)=>{
-					if (document.readyState === "complete") {
-						doStuff();
-						document.removeEventListener("readystatechange",handler);
-					}
-				};
-				document.addEventListener("readystatechange",handler);
-			}
+		editor.replaceDocument(fileOpenClient.responseText);
+		clearConsole();
+		setEditorClean();
+		unloadGame();
+		compile(["restart"]);
 	}
 	fileOpenClient.send();
 }
@@ -223,7 +208,7 @@ function loadDroppedSource(file, rawText) {
 		}
 		editor.replaceDocument(sourceText);
 		editor.clearHistory();
-		consolePrint("Loaded file: " + file.name);
+		consolePrint("Loaded file: " + escapeDiagnosticText(file.name));
 	} catch (error) {
 		consoleError(error);
 	}

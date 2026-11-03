@@ -30,7 +30,7 @@ Dormant, Trigger, Armed, Done
 
 RULES
 [ action Dormant ] -> [ Trigger ] again
-[ stationary Armed ] -> [ Done ] sfx0 restart
+[ stationary Armed ] -> [ Done ] sfx0 restart win checkpoint
 late [ Trigger ] -> [ Armed ]
 
 LEVELS

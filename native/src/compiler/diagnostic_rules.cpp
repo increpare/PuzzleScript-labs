@@ -378,6 +378,25 @@ void checkMasks(const Names& names, const AuthoredRule& rule, DiagnosticSink& di
                 }
             }
             Cell impossible;
+            // A property spanning layers can have every concrete alternative
+            // blocked by a different required object. No individual pair of
+            // authored terms is impossible until those alternatives expand.
+            for (size_t i = 0; i+1 < left.size(); i += 2) {
+                if (left[i] == "no" || left[i] == "random" || !names.property(left[i+1])) continue;
+                const auto members = names.objects(left[i+1]);
+                std::vector<Conflict> blocked;
+                for (const auto& member : members) {
+                    for (size_t j = 0; j+1 < left.size(); j += 2) {
+                        const auto& other = left[j+1];
+                        if (j == i || left[j] == "no" || left[j] == "random" || other == member
+                            || !names.state.objects.contains(other) || !names.layers.contains(member)
+                            || !names.layers.contains(other) || names.layers.at(member) != names.layers.at(other)) continue;
+                        blocked.emplace_back(upper(other), upper(member));
+                        break;
+                    }
+                }
+                if (!members.empty() && blocked.size() == members.size()) discards = std::move(blocked);
+            }
             for (const auto& layer : names.state.collisionLayers) for (const auto& name : layer)
                 if (std::find(present.begin(), present.end(), name) != present.end() && std::find(absent.begin(), absent.end(), name) != absent.end()) impossible.push_back(upper(name) + " NO " + upper(name));
             if (!impossible.empty()) {

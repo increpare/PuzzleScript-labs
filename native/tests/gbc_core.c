@@ -424,6 +424,47 @@ int main(void) {
         }
         free(level_start_arena);
     }
+    {
+        ps_gbc_rule checkpoint_rules[] = {kLevelStartRules[0]};
+        ps_gbc_game_view checkpoint_game = level_start_game;
+        snapshot_store checkpoint_snapshots = {{0U}, 4U};
+        const ps_gbc_snapshot_io checkpoint_io = {&checkpoint_snapshots, snapshot_read, snapshot_write};
+        void* checkpoint_arena = malloc(level_start_bytes);
+        ps_gbc_session* checkpoint_session;
+        checkpoint_rules[0].commands = PS_GBC_COMMAND_CHECKPOINT;
+        checkpoint_game.rules = checkpoint_rules;
+        checkpoint_session = ps_gbc_session_init(checkpoint_arena, level_start_bytes, &checkpoint_game, &checkpoint_io);
+        failed |= require_true(checkpoint_session != NULL, "checkpoint startup session failed");
+        if (checkpoint_session != NULL) {
+            /* A saved checkpoint can contain a target created after startup.
+             * Replaying startup would convert it to a crate again. */
+            checkpoint_snapshots.data[(size_t)checkpoint_game.undo_capacity * 4U + 2U] = 3U;
+            failed |= require_true(ps_gbc_restart(checkpoint_session)
+                && ps_gbc_cell_objects(checkpoint_session, 2, 0) == 3U,
+                "checkpoint restart must not reapply startup rules");
+        }
+        free(checkpoint_arena);
+    }
+    {
+        ps_gbc_rule restart_rules[] = {kLevelStartRules[0]};
+        ps_gbc_game_view restart_game = level_start_game;
+        snapshot_store restart_snapshots = {{0U}, 4U};
+        const ps_gbc_snapshot_io restart_io = {&restart_snapshots, snapshot_read, snapshot_write};
+        void* restart_arena = malloc(level_start_bytes);
+        ps_gbc_session* restart_session;
+        restart_game.run_rules_on_level_start = false;
+        restart_rules[0].commands = PS_GBC_COMMAND_RESTART | PS_GBC_COMMAND_WIN | PS_GBC_COMMAND_CHECKPOINT;
+        restart_game.rules = restart_rules;
+        restart_session = ps_gbc_session_init(restart_arena, level_start_bytes, &restart_game, &restart_io);
+        failed |= require_true(restart_session != NULL, "restart command session failed");
+        if (restart_session != NULL) {
+            result = ps_gbc_step(restart_session, PS_INPUT_ACTION);
+            failed |= require_true(result.restarted && !result.won
+                && ps_gbc_cell_objects(restart_session, 2, 0) == 3U,
+                "restart must discard its outer win/checkpoint commands");
+        }
+        free(restart_arena);
+    }
     result = ps_gbc_step(session, PS_INPUT_RIGHT);
     failed |= require_true(result.changed, "push turn did not change the board");
     failed |= require_true(result.won, "push turn did not satisfy the win condition");

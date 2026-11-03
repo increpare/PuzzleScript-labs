@@ -51,7 +51,7 @@ export interface SessionState {
   readonly againing: boolean;
   readonly restarting: boolean;
   readonly levelStarting: boolean;
-  readonly checkpointUsed: boolean;
+  readonly restartTargetIsCheckpoint: boolean;
   readonly loadedLevelSeed: string;
   readonly runMode: RunMode;
 }
@@ -70,6 +70,6 @@ export type SessionEffect =
   | { readonly kind: SessionEffectKind.Diagnostic; readonly diagnostic: RuntimeDiagnostic };
 export interface SessionResult { readonly state: SessionState; readonly modified: boolean; readonly effects: readonly SessionEffect[] }
 export interface SessionEnvironment { nextLevelSeed(): string }
-export interface CreateSessionOptions { readonly level?: number; readonly seed?: string; readonly runMode?: RunMode }
+export interface CreateSessionOptions { readonly level?: number; readonly seed?: string; readonly runMode?: RunMode; readonly checkpoint?: BoardSnapshot }
 export interface StepSessionOptions { readonly suppressWin?: boolean; readonly probe?: boolean }
 export interface UndoSessionOptions { readonly force?: boolean; readonly ignoreDuplicates?: boolean }

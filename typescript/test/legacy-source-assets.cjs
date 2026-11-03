@@ -35,7 +35,7 @@ function createSourceAssetsOracle(types) {
           assert.ok(call, 'native diagnostic call site');
           sites.push(Number(call[1]));
         }
-        diagnostics.push({ message, line: index > 1 ? null : line ?? null,
+        diagnostics.push({ message: String(message), line: index > 1 ? null : line ?? null,
           severity: index % 2 === 0 ? types.SourceDiagnosticSeverity.Error : types.SourceDiagnosticSeverity.Warning,
           countsAsError: index % 2 === 0 || line === undefined });
       }; });

@@ -3,7 +3,7 @@
 This audit follows newly authored interaction fixtures through production code.
 Boards are the manifest's readable rows. `Action` is input `4`; `tick` is null.
 Session cases include AGAIN turns drained by the host. Behavior uses vanilla
-`57f9f6cb` and `vanillaQuirks`.
+`caa90212` and `vanillaQuirks`.
 [Cell.objects and Board.rows](src/model.ts#L40) hold object Sets in ordinary rows;
 movement requests separately name a position, collision layer and Movement.
 

@@ -1,7 +1,7 @@
 # Vanilla gameplay adapter schema
 
 The oracle is pinned to official vanilla commit
-`57f9f6cba69f6aa52ed738d5aee1d709d0037648`. The native files are hash-checked
+`caa902120185b354f8b9bdb7bf67a9424be0665d`. The native files are hash-checked
 before loading. No production source changes are proposed.
 
 For integration into PuzzleScript-labs, those sources are packaged unchanged in

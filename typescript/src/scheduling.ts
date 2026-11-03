@@ -44,7 +44,7 @@ export function applyRuleGroup(game: RuleGame, group: RuleGroup, before: RuleExe
   let changed = false;
   let changedThisPass = true;
   let passes = 0;
-  // The postincrement also counts a rejected 201st pass, while a quiet 200th pass still diagnoses.
+  // The postincrement also counts a rejected 201st pass, a quiet 200th pass settles without a diagnostic.
   while (changedThisPass && passes++ < MAX_ITERATIONS) {
     changedThisPass = false;
     for (const rule of group.rules) {
@@ -57,7 +57,7 @@ export function applyRuleGroup(game: RuleGame, group: RuleGroup, before: RuleExe
       }
     }
   }
-  if (passes >= MAX_ITERATIONS) {
+  if (passes > MAX_ITERATIONS) {
     diagnostics.push({ kind: ExecutionDiagnosticKind.GroupIterationLimit, sourceLine: group.rules[0]!.sourceLine });
   }
   return { state, changed, diagnostics };

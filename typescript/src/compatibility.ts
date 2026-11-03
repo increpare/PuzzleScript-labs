@@ -1,4 +1,4 @@
-/** Compatibility with vanilla PuzzleScript revision 57f9f6cb.
+/** Compatibility with vanilla PuzzleScript revision caa90212.
  * Defaults preserve current observed behavior, including storage accidents.
  * Historical bugs fixed by that revision remain explicit research opt-ins.
  * Address calculations below depend on the original layout; domain boards do not.

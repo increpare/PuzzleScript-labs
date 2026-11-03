@@ -142,7 +142,9 @@ function loadPuzzleScript(options = {}) {
     vm.runInThisContext(allCode, { filename: 'combined_sources.js' });
 
     global.stripHTMLTags = function(htmlStr) {
-        return String(htmlStr).replace(/<\/?[a-zA-Z][^>]*>/g, '').trim();
+        return String(htmlStr).replace(/<\/?[a-zA-Z][^>]*>/g, '')
+            .replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+            .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').trim();
     };
 
     return {

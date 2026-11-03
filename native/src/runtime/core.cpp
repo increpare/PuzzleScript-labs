@@ -99,8 +99,9 @@ auto preparedMetaValues(Meta& meta) {
         meta.oldFlickscreenDat, meta.level.isMessage, meta.level.message,
         meta.level.lineNumber, meta.level.width, meta.level.height, meta.level.objects,
         meta.levelDimensions.width, meta.levelDimensions.height,
-        meta.restart.objects, meta.restart.oldFlickscreenDat,
-        meta.serializedLevel, meta.suppressRuleMessages);
+        meta.restart.objects, meta.restart.oldFlickscreenDat, meta.restart.isCheckpoint,
+        meta.serializedLevel, meta.suppressRuleMessages,
+        meta.messageRestartPending, meta.messageWinPending);
 }
 bool samePreparedRandomState(const RandomState& a, const RandomState& b) {
     return a.s == b.s && a.i == b.i && a.j == b.j && a.valid == b.valid;
@@ -2233,6 +2234,9 @@ MetaGameState parsePreparedSession(const json::Value& value, const Game& game) {
     prepared.level = parseLevelTemplate(requireField(object, "level"));
     prepared.levelDimensions = LevelDimensions{prepared.level.width, prepared.level.height};
     prepared.serializedLevel = requireField(object, "serialized_level").asString();
+    if (const auto* checkpoint = value.find("restart_target_is_checkpoint"); checkpoint && !checkpoint->isNull()) {
+        prepared.restart.isCheckpoint = toBool(*checkpoint);
+    }
 
     if (const auto* restart = value.find("restart_target"); restart && restart->isObject()) {
         const auto& restartObject = restart->asObject();
@@ -6269,6 +6273,8 @@ std::vector<uint8_t> buildSessionHashBytes(const FullState& session) {
     append(session.meta.textMode);
     append(session.meta.winning);
     append(session.meta.pendingAgain);
+    append(session.meta.messageRestartPending);
+    append(session.meta.messageWinPending);
     append(session.levelState.rng.i);
     append(session.levelState.rng.j);
     append(session.levelState.rng.valid);
@@ -6306,6 +6312,8 @@ uint64_t hashFullState64NoAlloc(const FullState& session, uint64_t seed) {
     appendHashValue(hash, session.meta.textMode);
     appendHashValue(hash, session.meta.winning);
     appendHashValue(hash, session.meta.pendingAgain);
+    appendHashValue(hash, session.meta.messageRestartPending);
+    appendHashValue(hash, session.meta.messageWinPending);
     appendHashValue(hash, session.levelState.rng.i);
     appendHashValue(hash, session.levelState.rng.j);
     appendHashValue(hash, session.levelState.rng.valid);
@@ -6466,6 +6474,8 @@ void pushUndoSnapshot(FullState& session) {
 }
 
 void restoreRestartTarget(FullState& session) {
+    session.meta.messageRestartPending = false;
+    session.meta.messageWinPending = false;
     if (!session.meta.restart.objects.empty()) {
         setPersistentBoardObjectsFromCellMajor(session, session.meta.restart.objects);
         session.meta.oldFlickscreenDat = session.meta.restart.oldFlickscreenDat;
@@ -6559,6 +6569,9 @@ bool advanceToNextLevel(FullState& session) {
     if (session.meta.currentLevelIndex < static_cast<int32_t>(session.game->levels.size()) - 1) {
         session.meta.currentLevelIndex += 1;
         session.meta.currentLevelTarget.reset();
+        session.meta.restart.isCheckpoint = false;
+        session.meta.messageRestartPending = false;
+        session.meta.messageWinPending = false;
         session.meta.titleScreen = false;
         session.meta.level = session.game->levels[static_cast<size_t>(session.meta.currentLevelIndex)];
         session.meta.textMode = session.meta.level.isMessage;
@@ -6592,6 +6605,9 @@ bool advanceToNextLevel(FullState& session) {
 
     session.meta.currentLevelIndex = 0;
     session.meta.currentLevelTarget.reset();
+    session.meta.restart.isCheckpoint = false;
+    session.meta.messageRestartPending = false;
+    session.meta.messageWinPending = false;
     session.meta.titleScreen = true;
     session.meta.textMode = true;
     session.meta.titleMode = showContinueOptionOnTitleScreen(session.meta) ? 1 : 0;
@@ -7339,6 +7355,9 @@ void prepareLoadedLevel(FullState& session, LevelTemplate level, int32_t levelIn
     }
     prepared.restart.objects = prepared.level.objects;
     prepared.restart.oldFlickscreenDat = prepared.oldFlickscreenDat;
+    prepared.restart.isCheckpoint = false;
+    prepared.messageRestartPending = false;
+    prepared.messageWinPending = false;
     resetToPrepared(session);
 }
 
@@ -7403,6 +7422,7 @@ bool restart(FullState& session, RuntimeStepOptions options) {
         pushUndoSnapshot(session);
     }
     restoreRestartTarget(session);
+    options.ignoreRestartCommand = true;
     runRulesOnLevelStart(session, options);
     return true;
 }
@@ -7429,7 +7449,10 @@ bool undo(FullState& session) {
     }
     const auto snapshot = std::move(session.meta.undoStack.back());
     session.meta.undoStack.pop_back();
+    const auto restartTarget = session.meta.restart;
     restoreSnapshot(session, snapshot, false);
+    // A checkpoint belongs to the session, independently of the board history.
+    session.meta.restart = restartTarget;
     return true;
 }
 
@@ -7556,7 +7579,8 @@ void runRulesOnLevelStart(FullState& session) {
 }
 
 void runRulesOnLevelStart(FullState& session, RuntimeStepOptions options) {
-    if (session.game->metadata.values.find("run_rules_on_level_start") == session.game->metadata.values.end()) {
+    if (session.meta.restart.isCheckpoint
+        || session.game->metadata.values.find("run_rules_on_level_start") == session.game->metadata.values.end()) {
         return;
     }
 
@@ -7565,7 +7589,7 @@ void runRulesOnLevelStart(FullState& session, RuntimeStepOptions options) {
         .pushUndo = false,
         .recordRestartUndo = options.playableUndo,
         .emitAudio = options.emitAudio,
-        .ignoreRestartCommand = true,
+        .ignoreRestartCommand = options.ignoreRestartCommand,
         .ignoreWin = true,
     });
 }
@@ -7860,38 +7884,58 @@ TurnResult executeTurn(FullState& session, int32_t directionMask, ExecuteTurnOpt
         tryPlayMaskSounds(session, out, session.game->sfxDestructionMasks, session.scratch.pendingDestroyMask, "destroy");
     }
     const bool hasRestart = commandQueueContains(commands, "restart");
+    const bool hasMessage = !options.solverMode && !session.meta.suppressRuleMessages
+        && commandQueueContains(commands, "message");
+    const bool deferRestart = hasRestart && !options.ignoreRestartCommand && hasMessage;
     if (!options.solverMode) {
-        processOutputCommands(session, out, commands, hasRestart, options.emitAudio);
+        processOutputCommands(session, out, commands, hasRestart && !options.ignoreRestartCommand && !deferRestart, options.emitAudio);
     }
 
-    if (hasRestart && !options.ignoreRestartCommand) {
+    if (deferRestart) {
         if (!options.pushUndo && options.recordRestartUndo) {
-            pushUndoSnapshot(session);
+            session.meta.undoStack.push_back(turnStart);
+        }
+        session.meta.messageRestartPending = true;
+    } else if (hasRestart && !options.ignoreRestartCommand) {
+        if (!options.pushUndo && options.recordRestartUndo) {
+            session.meta.undoStack.push_back(turnStart);
         }
         restoreRestartTarget(session);
         runRulesOnLevelStart(session, RuntimeStepOptions{
             .playableUndo = options.recordRestartUndo,
             .emitAudio = options.emitAudio,
+            .ignoreRestartCommand = true,
         });
         if (options.emitAudio) {
             tryPlaySimpleSound(session, out, "restart");
         }
+        // Restoring a level ends this command queue. Commands from the
+        // completed turn must not win, checkpoint, or schedule AGAIN later.
+        commands = CommandState{};
     }
 
-    const bool won = !options.ignoreWin && (commandQueueContains(commands, "win") || evaluateWinConditions(session));
+    if (hasMessage) {
+        // Only an unsuppressed explicit win survives dismissal. Level-start
+        // wins and speculative AGAIN commands expire with their own turn.
+        session.meta.messageWinPending = !options.ignoreWin && !deferRestart
+            && commandQueueContains(commands, "win");
+    }
+    const bool won = !deferRestart && !hasMessage && !options.ignoreWin
+        && (commandQueueContains(commands, "win") || evaluateWinConditions(session));
     const bool transitioned = won && advanceToNextLevel(session);
     if (won) {
         (void)transitioned;
     }
-    if (!options.solverMode && !won && commandQueueContains(commands, "checkpoint")) {
+    if (!options.solverMode && !won && !deferRestart && commandQueueContains(commands, "checkpoint")) {
         session.meta.restart.objects = session.levelState.board.objects;
         session.meta.restart.oldFlickscreenDat = session.meta.oldFlickscreenDat;
+        session.meta.restart.isCheckpoint = true;
     }
 
     const bool hasAgain = commandQueueContains(commands, "again");
     bool againWouldChange = false;
     bool againWouldModify = false;
-    if (!won && hasAgain && modified) {
+    if (!deferRestart && !won && hasAgain && modified) {
         if (options.probeAgain) {
             const auto audioBeforeAgainProbe = out.audio;
             againWouldChange = wouldAgainChange(session, &againWouldModify, options);
@@ -7938,10 +7982,10 @@ TurnResult executeTurn(FullState& session, int32_t directionMask, ExecuteTurnOpt
         session.meta.pendingAgain = true;
     }
 
-    result.changed = seeded || ruleChanged || moved || lateRuleChanged || modified || transitioned || !commands.queue.empty();
+    result.changed = seeded || ruleChanged || moved || lateRuleChanged || modified || transitioned || hasRestart || !commands.queue.empty();
     result.transitioned = transitioned;
     result.won = won;
-    result.restarted = hasRestart && !options.ignoreRestartCommand;
+    result.restarted = hasRestart && !options.ignoreRestartCommand && !deferRestart;
     if (options.emitAudio) {
         sortAudioEvents(out);
     }
@@ -8007,10 +8051,25 @@ ps_step_result interpretedTurnOnceWithSpecializedRulegroups(
         if (session.meta.level.isMessage) {
             result.transitioned = advanceToNextLevel(session);
         } else {
+            const bool restartPending = session.meta.messageRestartPending;
+            const bool winPending = session.meta.messageWinPending;
             session.meta.textMode = false;
             session.meta.messageText.clear();
             session.meta.messageSelected = false;
+            session.meta.messageRestartPending = false;
+            session.meta.messageWinPending = false;
             result.transitioned = true;
+            if (restartPending) {
+                RuntimeStepOptions restartOptions = options;
+                // The triggering turn already recorded its undo snapshot.
+                restartOptions.playableUndo = false;
+                restart(session, restartOptions);
+                result.restarted = true;
+                if (options.emitAudio) tryPlaySimpleSound(session, gThreadTurnResult, "restart");
+            } else if (winPending || evaluateWinConditions(session)) {
+                result.won = true;
+                result.transitioned = advanceToNextLevel(session);
+            }
             rebuildMasks(session);
         }
         if (options.emitAudio) {
@@ -8206,14 +8265,16 @@ ps_step_result compiledCompactPrimaryTurn(FullState& session, ps_input input, Ru
             .emitAudio = false,
             .solverMode = options.solverMode,
             .againPolicy = AgainPolicy::Drain,
+            .ignoreRestartCommand = true,
         });
     } else if (result.won) {
         session.meta.pendingAgain = false;
         result.transitioned = advanceToNextLevel(session);
     }
-    if (!options.solverMode && !result.won && outcome.hasCheckpoint) {
+    if (!options.solverMode && !result.won && !result.restarted && outcome.hasCheckpoint) {
         session.meta.restart.objects = session.levelState.board.objects;
         session.meta.restart.oldFlickscreenDat = session.meta.oldFlickscreenDat;
+        session.meta.restart.isCheckpoint = true;
     }
 
     // Object writes during the turn mark their rows/columns dirty and
