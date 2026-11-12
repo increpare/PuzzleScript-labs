@@ -91,4 +91,13 @@ add selective replacement-word updates for a further 3.5% reduction in corpus
 replay CPU time and 12.3% on the complete ENIGMASH recording. Their bitmaps fit
 the existing pattern layout, and the same tuning switch controls the new path.
 
+The [five further codegen passes](../docs/benchmarks/2026-11-12-interpreter-five-more.md)
+record additional matching, layer-lookup, buffer and resize experiments. None
+passed the longer regression comparison, so the optimized interpreter was retained.
+
+The [full revision comparison](../docs/benchmarks/2026-11-12-interpreter-revision-comparison.md)
+benchmarks `bdbb7f2` against `a564e3a` across simulation replay, the full solver
+corpus and generation presets, with matching inputs and four alternating runs.
+It separates replay improvements from solver deadlines and generation results.
+
 `make tests` runs the fast C++ checks and the JS parity suite. The JS parity suite regenerates saved replay/diagnostic data from `testdata.js` and `errormessage_testdata.js`, then checks that the C++ implementation matches it.
