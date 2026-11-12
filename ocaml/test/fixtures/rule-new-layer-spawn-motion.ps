@@ -1,0 +1,40 @@
+title A new layer makes a concrete spawn stationary
+
+objects
+Background
+black
+
+Player
+white
+
+Crate
+red
+
+Wall
+blue
+
+Marker
+yellow
+
+legend
+. = Background
+P = Player
+C = Crate
+# = Wall
+
+sounds
+Player action 12345
+
+collisionlayers
+Background
+Player, Crate, Wall
+Marker
+
+rules
+[ no Marker ] -> [ Player ]
+
+winconditions
+no Player
+
+levels
+PC.#

@@ -40,6 +40,12 @@ a separate contract.
 Additional branch features are recorded under `additionalPorts` in the JSON.
 The local `codex/cached-again` port is described in
 [cached AGAIN](cached-again.md); it does not advance the vanilla master cursor.
+The local `codex/comment-rule-capture` source fix at `7417d78a` is recorded in
+[the compiler fuzz report](benchmarks/2026-11-04-cpp-compiler-fuzz-findings.md).
+It is also applied to the ordinary vanilla checkout; its non-testdata
+regressions live in `/Users/stephenlavelle/Documents/puzzlescript_testdump/`.
+TypeScript pins the exact branch commit. This port does not advance the reviewed
+master cursor.
 
 ## 3 November port: `57f9f6cb..caa90212`
 

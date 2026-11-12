@@ -1,0 +1,22 @@
+OBJECTS
+Background .
+black
+Player P
+white
+Crate C
+red
+Target T
+blue
+LEGEND
+@ = Target
+SOUNDS
+COLLISIONLAYERS
+Background
+Player
+Crate
+Target
+RULES
+WINCONDITIONS
+all Floop on Missing
+LEVELS
+P@

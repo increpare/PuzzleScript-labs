@@ -10,6 +10,8 @@ const tests=context.errormessage_testdata;
 assert(tests.length>=321);
 const directory=fs.mkdtempSync(path.join(os.tmpdir(),'ps-real-diagnostics-'));
 try {
+    const original=spawnSync(path.resolve(binary),['test','diagnostics-corpus',path.join(__dirname,'resources/errormessage_testdata.js'),'--progress-every','0'],{cwd:directory,encoding:'utf8',windowsHide:true,maxBuffer:16*1024*1024});
+    assert.equal(original.status,0,original.stdout+original.stderr);
     const fixture=path.join(directory,'independent.js');
     fs.writeFileSync(fixture,'var errormessage_testdata = '+JSON.stringify(tests.map(([name,[source,...rest]])=>[name,[source+'\n(independent native diagnostic canary)\n',...rest]]))+';');
     const run=spawnSync(path.resolve(binary),['test','diagnostics-corpus',fixture,'--progress-every','0'],{cwd:directory,encoding:'utf8',windowsHide:true,maxBuffer:16*1024*1024});

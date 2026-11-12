@@ -16,6 +16,7 @@ function printUsage(exitCode) {
     console.error('Writes a canonical JSON representation of a PuzzleScript game.');
     console.error('Default mode is "semantic": gameplay metadata + player/background roles + collision layers + compiled rules + compiled maps.');
     console.error('--static-opt applies the static optimizer before compiled canonical modes are serialized.');
+    console.error('--execution-order dependency enables the experimental order-preserving projection; source preserves expansion order without reordering.');
     process.exit(exitCode);
 }
 
@@ -28,12 +29,16 @@ const positional = [];
 let mode = 'semantic';
 let hashes = false;
 let staticOptimizations = false;
+let executionOrder = 'legacy';
 
 for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     if (arg === '--mode') {
         mode = args[i + 1];
         i++;
+    } else if (arg === '--execution-order') {
+        executionOrder = args[++i];
+        if (!['legacy', 'source', 'dependency'].includes(executionOrder)) throw new Error('Invalid execution-order projection');
     } else if (arg === '--static-opt' || arg === '--optimize-static') {
         const next = args[i + 1];
         if (next && !next.startsWith('-')) {
@@ -63,7 +68,7 @@ if (!fs.existsSync(inputFile)) {
 }
 
 try {
-    const options = { staticOptimizations };
+    const options = { staticOptimizations, executionOrder };
     const canonical = canonicalizeFile(inputFile, mode, options);
     const serialized = stableStringify(canonical) + '\n';
 

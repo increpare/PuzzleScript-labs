@@ -1,0 +1,21 @@
+OBJECTS
+Background .
+black
+Player P
+white
+LEGEND
+Movers = Player or Background
+Bad = Movers and Player
+Pair = Player and Background
+BadProp = Pair or Player
+Selfish = Player and Background and Selfish
+SOUNDS
+COLLISIONLAYERS
+Background
+Player
+RULES
+WINCONDITIONS
+LEVELS
+P.
+(..comment..)
+..

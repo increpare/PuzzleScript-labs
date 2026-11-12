@@ -1,0 +1,37 @@
+title A captured ON prefix has no target
+
+objects
+Background
+black
+
+Player
+white
+
+Marker
+yellow
+
+Crate
+red
+
+legend
+. = Background
+P = Player
+
+sounds
+
+collisionlayers
+Background
+Player
+Marker
+Crate
+
+rules
+[ action Player ] -> [ Marker ]
+
+winconditions
+no Player on(comment)Crate
+
+levels
+P
+
+PP

@@ -9,7 +9,7 @@ import { movementSource } from './scenarios.mjs';
 
 test('the default reference targets the reviewed vanilla sync checkpoint', () => {
   const manifest = JSON.parse(readFileSync(new URL('../oracle-source.json', import.meta.url), 'utf8'));
-  assert.equal(manifest.revision, 'caa902120185b354f8b9bdb7bf67a9424be0665d');
+  assert.equal(manifest.revision, '7417d78a75b5a07402071e21e0c171a76ef8871d');
   assert.equal(vanillaQuirks.rigidOwnerOrdinalMerge, false);
   assert.equal(vanillaQuirks.lhsRandomDirIsUpAndLeft, false);
   assert.equal(vanillaQuirks.lateMovementsCarryOver, false);

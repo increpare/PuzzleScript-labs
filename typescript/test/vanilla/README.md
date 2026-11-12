@@ -1,7 +1,8 @@
 # Pinned vanilla PuzzleScript test oracle
 
-These are unmodified sources from
-[increpare/PuzzleScript at `caa902120185b354f8b9bdb7bf67a9424be0665d`](https://github.com/increpare/PuzzleScript/commit/caa902120185b354f8b9bdb7bf67a9424be0665d),
+These are unmodified sources from local vanilla commit
+`7417d78a75b5a07402071e21e0c171a76ef8871d` on `codex/comment-rule-capture`,
+based on [upstream `caa90212`](https://github.com/increpare/PuzzleScript/commit/caa902120185b354f8b9bdb7bf67a9424be0665d),
 provided under the accompanying upstream [MIT license](LICENSE).
 
 They are test fixtures for the separate TypeScript reference implementation.

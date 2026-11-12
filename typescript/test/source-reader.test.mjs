@@ -360,7 +360,8 @@ test('rule message literals after leading comments cannot swallow the next physi
     assert.equal(document.comments.length, 1, prefix);
     assert.equal(document.rules[0].commands[0].authoredPayload, 'Hello (unclosed', prefix);
     assert.equal(document.rules[0].commands[0].text, 'Hello (unclosed', prefix);
-    assert.equal(document.rules[0].compilerLine, source.split('\n')[document.rules[0].span.start.line - 1], prefix);
+    const physical = source.split('\n')[document.rules[0].span.start.line - 1];
+    assert.equal(document.rules[0].compilerLine, physical.slice(physical.indexOf('[ Player ]')), prefix);
     assert.equal(document.rules[1].kind, sourceModel.SourceRuleKind.Pattern, prefix);
     assert.ok(!diagnostics.some(diagnostic => diagnostic.code === 'unclosed-comment'), prefix);
     assert.deepEqual(document.rules.map(rule => rule.legacyCapturedText), legacy.rules.map(rule => rule.rule), prefix);
@@ -558,7 +559,7 @@ test('isolated JS authored snapshots agree on declaration order, captures and ca
   }
   assert.deepEqual(document.sounds.map(sound => sound.words.map(word => word.normalized)), legacy.sounds.map(sound => sound.tokens.map(token => token.text)));
   assert.deepEqual(document.collisionLayers.map(layer => layer.names.map(word => word.normalized)), legacy.collision_layers);
-  assert.deepEqual(document.rules.map(rule => ({ rule: rule.legacyCapturedText, line_number: rule.span.start.line, mixed_case: rule.originalLine.original })), legacy.rules);
+  assert.deepEqual(document.rules.map(rule => ({ rule: rule.legacyCapturedText, line_number: rule.span.start.line, mixed_case: rule.compilerLine })), legacy.rules);
   assert.deepEqual(document.winConditions.map(win => win.words.map(word => word.normalized)), legacy.winconditions.map(win => win.tokens));
   assert.deepEqual(document.levels.map(level => level.kind === sourceModel.SourceLevelKind.Message ? { kind: 'message', line_number: level.span.start.line, message: level.text }
     : { kind: 'level', line_number: level.span.start.line, rows: level.rows.map(row => row.text.toLowerCase()) }), legacy.levels.filter(level => level.kind === 'message' || level.rows.length > 0));

@@ -1,0 +1,19 @@
+OBJECTS
+Background .
+black
+Player P
+white
+Flag F
+yellow
+LEGEND
+SOUNDS
+COLLISIONLAYERS
+Background
+Player
+Flag
+RULES
+[ Player ] -> [ Player Flag ] (note) cancel (unclosed
+[ Player ] -> [ Player ]
+WINCONDITIONS
+LEVELS
+P

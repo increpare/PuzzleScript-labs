@@ -1,0 +1,26 @@
+OBJECTS
+Background .
+black
+
+Player P
+white
+
+Crate C
+red
+
+Marker M
+yellow
+
+LEGEND
+__proto__ = Player and Marker
+X = __proto__
+SOUNDS
+COLLISIONLAYERS
+Background
+Player, Crate
+Marker
+RULES
+[ __proto__ ] -> [ __proto__ ]
+WINCONDITIONS
+LEVELS
+PC.

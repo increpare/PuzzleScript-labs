@@ -1,0 +1,28 @@
+title Heading words are consumed during sound visits
+
+objects
+Background
+black
+
+Player
+white
+
+legend
+. = Background
+P = Player
+
+sounds
+sfx0 rules 12345
+
+collisionlayers
+Background
+Player
+
+rules
+[ action Player ] -> sfx0
+
+winconditions
+no Player
+
+levels
+P

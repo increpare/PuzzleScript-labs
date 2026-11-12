@@ -1,0 +1,35 @@
+title Persistent pushing
+
+objects
+Background
+black
+
+Player
+white
+
+Crate
+red
+
+Wall
+blue
+
+legend
+. = Background
+P = Player
+C = Crate
+# = Wall
+
+sounds
+
+collisionlayers
+Background
+Player, Crate, Wall
+
+rules
+[ > Player | Crate ] -> [ > Player | > Crate ]
+
+winconditions
+no Player
+
+levels
+PC.#

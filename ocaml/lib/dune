@@ -1,0 +1,4 @@
+(library
+ (name puzzlescript)
+ (public_name puzzlescript)
+ (libraries str uucp))

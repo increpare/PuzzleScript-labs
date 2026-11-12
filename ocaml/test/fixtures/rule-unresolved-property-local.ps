@@ -1,0 +1,41 @@
+title Locally inferred properties do not infer another detached occurrence
+
+objects
+Background
+black
+
+Player
+white
+
+Red
+red
+
+Blue
+blue
+
+Trophy
+yellow
+
+legend
+. = Background
+P = Player
+Thing = Red or Blue
+
+sounds
+Trophy create 12345
+
+collisionlayers
+Background
+Player
+Red, Blue
+Trophy
+
+rules
+random [ Thing ] [ Thing ] [ ] -> [ Thing ] [ Thing ] [ Thing ]
++ [ Player ] -> [ Player Trophy ]
+
+winconditions
+no Player
+
+levels
+PP.

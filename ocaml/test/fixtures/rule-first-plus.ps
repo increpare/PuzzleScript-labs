@@ -1,0 +1,31 @@
+title A first joined rule recovers as a new group
+
+objects
+Background
+black
+
+Player
+white
+
+Marker
+yellow
+
+legend
+. = Background
+P = Player
+
+sounds
+
+collisionlayers
+Background
+Player
+Marker
+
+rules
++ [ action Player ] -> [ Player Marker ]
+
+winconditions
+no Player
+
+levels
+P.

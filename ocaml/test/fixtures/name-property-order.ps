@@ -1,0 +1,47 @@
+title Shared compound aliases retain expansion order
+
+objects
+Background
+black
+
+Player
+white
+
+Red
+red
+
+Blue
+blue
+
+Green
+green
+
+Marker
+yellow
+
+legend
+. = Background
+P = Player
+R = Red
+B = Blue
+G = Green
+Color = Inner or Blue
+Hue = Color
+Inner = Red or Green
+
+sounds
+
+collisionlayers
+Background
+Player
+Red, Blue, Green
+Marker
+
+rules
+random right [ Hue | no Color ] -> [ Marker | Hue ]
+
+winconditions
+no Player
+
+levels
+B.R.G.P

@@ -1,0 +1,32 @@
+title An unmatched loop marker is diagnosed and patched
+
+objects
+Background
+black
+
+Player
+white
+
+Marker
+yellow
+
+legend
+. = Background
+P = Player
+
+sounds
+
+collisionlayers
+Background
+Player
+Marker
+
+rules
+startloop
+[ Player no Marker ] -> [ Player Marker ]
+
+winconditions
+no Player
+
+levels
+P.

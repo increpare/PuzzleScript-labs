@@ -1,0 +1,44 @@
+title A mixed replacement gap retains its prefix and ignores its suffix
+
+objects
+Background
+black
+
+Player
+white
+
+Crate
+red
+
+Wall
+blue
+
+Marker
+yellow
+
+Trophy
+green
+
+legend
+. = Background
+P = Player
+C = Crate
+# = Wall
+
+sounds
+Marker create 12345
+
+collisionlayers
+Background
+Player, Crate, Wall
+Marker
+Trophy
+
+rules
+right [ action Player | Crate ] -> [ Player Marker | Crate ... Trophy ]
+
+winconditions
+no Player
+
+levels
+PC.#

@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <ctime>
 #include <filesystem>
 #include <fstream>
 #include <future>
@@ -194,6 +195,9 @@ std::string stripTrailingJsonCommas(std::string_view input) {
     return out;
 }
 
+std::string runNodeScriptAndCaptureStdout(const std::string& scriptPath,
+    const std::filesystem::path& sourcePath, const std::vector<std::string>& args);
+
 puzzlescript::json::Value loadJsDataArrayAsJson(const std::filesystem::path& path) {
     const std::string text = readFile(path);
     const size_t begin = text.find('[');
@@ -202,7 +206,15 @@ puzzlescript::json::Value loadJsDataArrayAsJson(const std::filesystem::path& pat
         throw std::runtime_error("Could not find JSON array in: " + path.string());
     }
     const std::string jsonish = stripTrailingJsonCommas(std::string_view(text).substr(begin, end - begin + 1));
-    puzzlescript::json::Value root = puzzlescript::json::parse(jsonish);
+    puzzlescript::json::Value root;
+    try {
+        root = puzzlescript::json::parse(jsonish);
+    } catch (const std::exception&) {
+        // Real fixture files may use JS string syntax (including backticks).
+        // Keep JSON fixtures independent of Node; evaluate JS data only when needed.
+        const auto exporter = std::filesystem::path(PS_EXPORT_IR_SCRIPT).parent_path() / "export_testdata_json.js";
+        root = puzzlescript::json::parse(runNodeScriptAndCaptureStdout(exporter.string(), path, {}));
+    }
     if (!root.isArray()) {
         throw std::runtime_error("Expected top-level test data array in: " + path.string());
     }
@@ -2209,6 +2221,13 @@ int64_t usToMs(int64_t microseconds) {
     return microseconds / 1000;
 }
 
+int64_t elapsedCpuMicrosSince(std::clock_t start) {
+    const auto end = std::clock();
+    if (start == static_cast<std::clock_t>(-1) || end == static_cast<std::clock_t>(-1))
+        throw std::runtime_error("Process CPU clock is unavailable");
+    return static_cast<int64_t>((end - start) * (1000000.0 / CLOCKS_PER_SEC));
+}
+
 struct SimulationCorpusOptions {
     size_t progressEvery = 25;
     size_t repeat = 1;
@@ -2220,6 +2239,7 @@ struct SimulationCorpusOptions {
     std::optional<std::filesystem::path> runtimeIrCachePath;
     bool profileTimers = false;
     bool jsonSummary = false;
+    bool cpuTimers = false;
     bool quiet = false;
     bool compactTurnOracle = false;
     bool requireCompactTurnOracleChecks = false;
@@ -2242,6 +2262,7 @@ struct SimulationCaseTiming {
     int64_t sessionCreateUs = 0;
     int64_t levelLoadUs = 0;
     int64_t replayUs = 0;
+    int64_t replayCpuUs = 0;
     int64_t serializeUs = 0;
 };
 
@@ -2388,6 +2409,7 @@ struct SimulationTimingTotals {
     int64_t sessionCreateUs = 0;
     int64_t levelLoadUs = 0;
     int64_t replayUs = 0;
+    int64_t replayCpuUs = 0;
     int64_t serializeUs = 0;
 };
 
@@ -2396,6 +2418,7 @@ struct SimulationCaseTimingSummary {
     int64_t totalUs = 0;
     int64_t sourceCompileUs = 0;
     int64_t replayUs = 0;
+    int64_t replayCpuUs = 0;
     int64_t sessionCreateUs = 0;
     int64_t levelLoadUs = 0;
     int64_t serializeUs = 0;
@@ -2420,6 +2443,8 @@ SimulationCorpusOptions parseSimulationCorpusOptions(int argc, char** argv) {
             options.profileTimers = true;
         } else if (arg == "--json-summary") {
             options.jsonSummary = true;
+        } else if (arg == "--cpu-timers") {
+            options.cpuTimers = true;
         } else if (arg == "--json-summary-out" && index + 1 < argc) {
             options.jsonSummary = true;
             options.jsonSummaryOut = argv[++index];
@@ -2465,6 +2490,8 @@ SimulationCorpusOptions parseSimulationCorpusOptions(int argc, char** argv) {
     if (options.runtimeIrCachePath.has_value() && options.turnExecutor != SimulationTurnExecutor::CompiledCompact) {
         throw std::runtime_error("--runtime-ir-cache is only valid with --turn-executor=compiled-compact");
     }
+    if (options.cpuTimers && options.jobs != 1)
+        throw std::runtime_error("--cpu-timers requires --jobs 1");
     return options;
 }
 
@@ -2687,8 +2714,10 @@ SimulationCaseResult runSimulationCorpusCase(
     ReplayOracleStats* oracleStatsPtr = options.compactTurnOracle ? &oracleStats : nullptr;
     ReplayExecutionStats executionStats;
     ReplayExecutionStats* executionStatsPtr = options.turnExecutor == SimulationTurnExecutor::CompiledCompact ? &executionStats : nullptr;
+    const auto replayCpuStart = options.cpuTimers ? std::clock() : std::clock_t{};
     if (!replayInputTokens(session.get(), testCase.inputs, nullptr, oracleStatsPtr, options.turnExecutor, executionStatsPtr)) {
         result.timing.replayUs = elapsedMicrosSince(phaseStart);
+        if (options.cpuTimers) result.timing.replayCpuUs = elapsedCpuMicrosSince(replayCpuStart);
         result.compactTurnOracleChecks = oracleStats.compactTurnChecks;
         result.compactTurnOracleHandled = oracleStats.compactTurnHandled;
         result.compactTurnOracleStateChecks = oracleStats.compactTurnStateChecks;
@@ -2706,6 +2735,7 @@ SimulationCaseResult runSimulationCorpusCase(
         return result;
     }
     result.timing.replayUs = elapsedMicrosSince(phaseStart);
+    if (options.cpuTimers) result.timing.replayCpuUs = elapsedCpuMicrosSince(replayCpuStart);
     result.compactTurnOracleChecks = oracleStats.compactTurnChecks;
     result.compactTurnOracleHandled = oracleStats.compactTurnHandled;
     result.compactTurnOracleStateChecks = oracleStats.compactTurnStateChecks;
@@ -2770,6 +2800,7 @@ SimulationTimingTotals sumSimulationTimings(
         totals.sessionCreateUs += result.timing.sessionCreateUs;
         totals.levelLoadUs += result.timing.levelLoadUs;
         totals.replayUs += result.timing.replayUs;
+        totals.replayCpuUs += result.timing.replayCpuUs;
         totals.serializeUs += result.timing.serializeUs;
     }
     return totals;
@@ -2802,6 +2833,7 @@ std::vector<SimulationCaseTimingSummary> collectSimulationCaseTimingSummaries(
         slow.sessionCreateUs += timing.sessionCreateUs;
         slow.levelLoadUs += timing.levelLoadUs;
         slow.replayUs += timing.replayUs;
+        slow.replayCpuUs += timing.replayCpuUs;
         slow.serializeUs += timing.serializeUs;
         slow.totalUs += timing.sourceCompileUs + timing.sessionCreateUs + timing.levelLoadUs + timing.replayUs + timing.serializeUs;
     }
@@ -2858,6 +2890,8 @@ void writeSimulationJsonSummary(
         << ",\"session_create_ms\":" << usToMs(reportedTimings.sessionCreateUs)
         << ",\"level_load_ms\":" << usToMs(reportedTimings.levelLoadUs)
         << ",\"replay_ms\":" << usToMs(reportedTimings.replayUs)
+        << ",\"replay_cpu_ms\":" << (options.cpuTimers
+            ? std::to_string(reportedTimings.replayCpuUs / 1000.0) : "null")
         << ",\"replay_avg_ms\":" << usToMs(reportedTimings.replayUs / static_cast<int64_t>(std::max<size_t>(options.repeat, 1)))
         << ",\"replay_median_ms\":" << usToMs(medianMicros(replayUsByRepeat))
         << ",\"serialize_ms\":" << usToMs(reportedTimings.serializeUs)
@@ -2961,6 +2995,8 @@ void writeSimulationJsonSummary(
             << ",\"total_ms\":" << usToMs(slow.totalUs)
             << ",\"source_compile_ms\":" << usToMs(slow.sourceCompileUs)
             << ",\"replay_ms\":" << usToMs(slow.replayUs)
+            << ",\"replay_cpu_ms\":" << (options.cpuTimers
+                ? std::to_string(slow.replayCpuUs / 1000.0) : "null")
             << ",\"session_create_ms\":" << usToMs(slow.sessionCreateUs)
             << ",\"level_load_ms\":" << usToMs(slow.levelLoadUs)
             << ",\"serialize_ms\":" << usToMs(slow.serializeUs)
@@ -7490,7 +7526,7 @@ void printExportGbcHelp() {
 void printTestHelp() {
     std::cout
         << "Usage: puzzlescript_cpp test js-parity generated-js-parity-data.json [options]\n"
-        << "       puzzlescript_cpp test simulation-corpus src/tests/resources/testdata.js [--progress-every N] [--profile-timers] [--json-summary|--json-summary-out path] [--runtime-ir-cache path] [--no-compile-cache] [--repeat N] [--jobs N|auto] [--top-slow-cases N] [--case-index N] [--case-name text] [--turn-executor interpreter|compiled-compact] [--compact-turn-oracle] [--require-compact-turn-oracle-checks] [--quiet]\n"
+        << "       puzzlescript_cpp test simulation-corpus src/tests/resources/testdata.js [--progress-every N] [--profile-timers] [--cpu-timers] [--json-summary|--json-summary-out path] [--runtime-ir-cache path] [--no-compile-cache] [--repeat N] [--jobs N|auto] [--top-slow-cases N] [--case-index N] [--case-name text] [--turn-executor interpreter|compiled-compact] [--compact-turn-oracle] [--require-compact-turn-oracle-checks] [--quiet]\n"
         << "       puzzlescript_cpp test diagnostics-corpus src/tests/resources/errormessage_testdata.js [--progress-every N]\n"
         << "       puzzlescript_cpp test diagnostics parser-corpus.bundle.ndjson\n\n"
         << "simulation-corpus and diagnostics-corpus read the original testdata.js and\n"

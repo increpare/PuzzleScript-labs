@@ -1,0 +1,32 @@
+title A consumed heading exposes a literal message command
+
+objects
+Background
+black
+
+Player
+white
+
+Marker
+yellow
+
+legend
+. = Background
+P = Player
+
+sounds
+
+collisionlayers
+Background
+Player
+Marker
+
+rules
+[ action Player ] -> rules message (literal
+[ Player ] -> [ Player Marker ]
+
+winconditions
+no Player
+
+levels
+P

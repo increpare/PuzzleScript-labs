@@ -1,0 +1,36 @@
+title Same-layer exclusions preserve existing action movement
+
+objects
+Background
+black
+
+Player
+white
+
+Crate
+red
+
+Wall
+blue
+
+legend
+. = Background
+P = Player
+C = Crate
+# = Wall
+
+sounds
+Player action 12345
+
+collisionlayers
+Background
+Player, Crate, Wall
+
+rules
+[ no Crate ] -> [ Player ]
+
+winconditions
+no Player
+
+levels
+PC.#

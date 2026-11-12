@@ -171,7 +171,7 @@ test('native parser snapshots retain the current source line and actual rule-row
   assert.equal(state.lhs_rhs_rowcount_difference, 1);
   assert.equal(state.rhs_pattern_started, true);
   assert.equal(Object.hasOwn(state, 'bracket_balance'), false);
-  assert.equal(state.rules.at(-1).mixed_case, line);
+  assert.equal(state.rules.at(-1).mixed_case, '[ Player ] [ Player ] -> [ Player ] message MiXeD');
 });
 
 test('editor blank-line visits and token-by-token state copies match the native compiler parser', () => {

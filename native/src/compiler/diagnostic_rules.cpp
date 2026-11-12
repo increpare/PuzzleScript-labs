@@ -490,6 +490,16 @@ void checkGroups(const ParserState& state, const std::vector<AuthoredRule>& rule
 }
 } // namespace
 
+std::vector<ParsedRuleGroup> parseRuleGroups(const ParserState& state) {
+    DiagnosticSink ignored;
+    bool invalid = false;
+    const auto rules = parseRules(state, Names(state), ignored, invalid);
+    std::vector<ParsedRuleGroup> groups;
+    groups.reserve(rules.size());
+    for (const auto& rule : rules) groups.push_back({rule.line, rule.group});
+    return groups;
+}
+
 bool runRuleDiagnostics(const ParserState& state, DiagnosticSink& diagnostics) {
     const Names names(state);
     bool invalid = false;

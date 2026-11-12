@@ -1,0 +1,16 @@
+(data_only_dirs results)
+
+(tests
+ (names core interactive)
+ (modules core interactive)
+ (libraries puzzlescript))
+
+(executable
+ (name frontend_bench)
+ (modules frontend_bench)
+ (libraries puzzlescript unix))
+
+(executable
+ (name unicode_probe)
+ (modules unicode_probe)
+ (libraries puzzlescript))

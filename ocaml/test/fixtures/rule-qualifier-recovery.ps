@@ -1,0 +1,31 @@
+title A duplicate movement retains the first qualifier
+
+objects
+Background
+black
+
+Player
+white
+
+Marker
+yellow
+
+legend
+. = Background
+P = Player
+
+sounds
+
+collisionlayers
+Background
+Player
+Marker
+
+rules
+[ action right Player ] -> [ Player Marker ]
+
+winconditions
+no Player
+
+levels
+P.

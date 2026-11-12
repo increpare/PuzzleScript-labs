@@ -1,0 +1,19 @@
+OBJECTS
+Background .
+black
+Player P
+white
+Flag F
+yellow
+LEGEND
+SOUNDS
+COLLISIONLAYERS
+Background
+Player
+Flag
+RULES
+
+WINCONDITIONS
+( all Flag (note) ) all Player on Flag
+LEVELS
+P

@@ -71,4 +71,24 @@ build/native/puzzlescript_cpp compile src/demo/sokoban_basic.txt --diagnostics
 
 `make profile_simulation_tests` runs a C++-only simulation replay workload and writes native timer/hotspot profiler output to `profile_stats.txt` and `build/native/profile_last/`.
 
+The [native matcher profiling report](../docs/benchmarks/2026-11-12-arm64-pattern-matching.md)
+compares compiler output, handwritten assembly and cached line checks. Native
+CMake builds default to `PS_PATTERN_MATCH_KERNEL=anchor-cache`, which reduces
+replay CPU time by 6.8% on the corpus and 13.6% on ENIGMASH. The original matcher
+and assembly variants remain available as profiling controls. `--cpu-timers`
+reports replay CPU time in simulation JSON summaries without enabling counters;
+it requires `--jobs 1`.
+
+The [interpreter codegen follow-up](../docs/benchmarks/2026-11-12-interpreter-codegen.md)
+removes redundant history/mask copies and scratch-buffer calls for a further
+31.3% reduction in corpus replay CPU time and 18.6% on the long ENIGMASH recording.
+`PS_INTERPRETER_TUNING=OFF` is a build-time profiling control; tuning defaults on,
+including in direct builds. `native/tests/benchmark_interpreter.py` compares
+already-built executables with alternating runs and counters disabled.
+
+The [next interpreter passes](../docs/benchmarks/2026-11-12-interpreter-passes.md)
+add selective replacement-word updates for a further 3.5% reduction in corpus
+replay CPU time and 12.3% on the complete ENIGMASH recording. Their bitmaps fit
+the existing pattern layout, and the same tuning switch controls the new path.
+
 `make tests` runs the fast C++ checks and the JS parity suite. The JS parity suite regenerates saved replay/diagnostic data from `testdata.js` and `errormessage_testdata.js`, then checks that the C++ implementation matches it.

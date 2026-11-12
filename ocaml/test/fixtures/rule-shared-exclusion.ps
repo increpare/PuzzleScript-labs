@@ -1,0 +1,32 @@
+title Shared exclusions cannot erase an overlapping write
+
+objects
+Background
+black
+
+Player
+white
+
+Marker
+yellow
+
+legend
+. = Background
+P = Player
+
+sounds
+Marker create 12345
+
+collisionlayers
+Background
+Player
+Marker
+
+rules
+[ Player no Marker ] [ no Marker ] -> [ Player Marker ] [ no Marker ]
+
+winconditions
+no Player
+
+levels
+P

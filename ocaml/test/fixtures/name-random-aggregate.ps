@@ -1,0 +1,40 @@
+title Random aggregate terms share one draw
+
+objects
+Background
+black
+
+Player
+white
+
+Red
+red
+
+Blue
+blue
+
+Marker
+yellow
+
+legend
+. = Background
+P = Player
+Both = Red and Blue
+
+sounds
+
+collisionlayers
+Background
+Player
+Red
+Blue
+Marker
+
+rules
+[ action Player ] -> [ Player random Both Marker ]
+
+winconditions
+no Player
+
+levels
+P..

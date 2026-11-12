@@ -1,0 +1,37 @@
+title Equivalent directions within one source rule
+
+objects
+Background
+black
+
+Player
+white
+
+Red
+red
+
+Marker
+yellow
+
+legend
+. = Background
+P = Player
+R = Red
+
+sounds
+
+collisionlayers
+Background
+Player
+Red
+Marker
+
+rules
+random horizontal [ Red | Red ] -> [ Red Marker | Red Marker ]
++ [ Player ] -> [ Player Marker ]
+
+winconditions
+no Player
+
+levels
+RRP

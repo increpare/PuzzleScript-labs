@@ -1,0 +1,33 @@
+[
+  {
+    "id": "ocaml/event-heading-visits",
+    "sourceFile": "event-heading-visits.ps",
+    "explanation": "The rules heading word is consumed during a sound token visit without changing sections. The remaining numeric seed registers sfx0; Action must play it while preserving Player.",
+    "cells": { "P": ["background", "player"] },
+    "cases": [
+      { "name": "a consumed heading preserves the event seed", "inputs": [4], "expected": ["P"], "expectedSounds": [], "expectedPlayedSounds": ["12345"] },
+      { "name": "replaying the event retains simple-sound ordering", "inputs": [4, "undo", 4], "expected": ["P"], "expectedSounds": [], "expectedPlayedSounds": ["12345", "12345"] }
+    ]
+  },
+  {
+    "id": "ocaml/move-heading-visits",
+    "sourceFile": "move-heading-visits.ps",
+    "explanation": "Consumed heading words leave the sound reader in its entity/verb/direction phases. A rightward move must play the declared movement seed; undo and replay must preserve the binding.",
+    "cells": { ".": ["background"], "P": ["background", "player"] },
+    "cases": [
+      { "name": "a recovered movement declaration plays its seed", "inputs": [3], "expected": [".P."], "expectedSounds": ["123"], "expectedPlayedSounds": ["123"] },
+      { "name": "movement sound survives undo and replay", "inputs": [3, "undo", 3], "expected": [".P."], "expectedSounds": ["123", "123"], "expectedPlayedSounds": ["123", "123"] }
+    ]
+  },
+  {
+    "id": "ocaml/rule-heading-message",
+    "sourceFile": "rule-heading-message.ps",
+    "explanation": "Live reading consumes the midline heading and recognizes the following literal message command. Structural compilation still diagnoses the heading retained in captured source. Its unclosed message parenthesis must not consume the next Marker rule or level.",
+    "expectedErrors": ["Error, malformed cell rule - was looking for cell contents, but found \"rules\".  What am I supposed to do with this, eh, please tell me that."],
+    "cells": { "M": ["background", "player", "marker"] },
+    "cases": [
+      { "name": "literal message preserves the following rule", "inputs": [4], "expected": ["M"] },
+      { "name": "captured recovery remains persistent through undo", "inputs": [4, "undo", 4], "expected": ["M"] }
+    ]
+  }
+]

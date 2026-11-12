@@ -163,7 +163,9 @@ struct RestartSnapshot {
 
 struct UndoSnapshot;
 
-struct MetaGameState {
+// Keep metadata fields here so snapshots can copy them without copying the
+// history owning that snapshot. Ordinary MetaGameState copies retain history.
+struct MetaGameStateData {
     int32_t currentLevelIndex = 0;
     std::optional<int32_t> currentLevelTarget;
     bool titleScreen = false;
@@ -185,11 +187,15 @@ struct MetaGameState {
     LevelDimensions levelDimensions;
     RestartSnapshot restart;
     std::string serializedLevel;
-    std::vector<UndoSnapshot> undoStack;
     bool pendingAgain = false;
     bool suppressRuleMessages = false;
     bool messageRestartPending = false;
     bool messageWinPending = false;
+};
+
+struct MetaGameState : MetaGameStateData {
+    std::vector<UndoSnapshot> undoStack;
+    void assignWithoutUndoHistory(const MetaGameState& source);
 };
 
 struct LayerCoupledMovementLayerTerm {
@@ -280,9 +286,14 @@ struct Replacement {
     MaskOffset randomDirMask      = kNullMaskOffset;
     uint32_t randomEntityMaskWidth = 0;
     uint32_t randomDirMaskWidth    = 0;
-    bool hasMovementsLayerMask = false;
-    bool hasRandomEntityMask   = false;
-    bool hasRandomDirMask      = false;
+    // Pack the flags and word bitsets into the same space as the old three
+    // bools and padding, keeping Pattern's size unchanged.
+    bool hasMovementsLayerMask : 1 = false;
+    bool hasRandomEntityMask : 1 = false;
+    bool hasRandomDirMask : 1 = false;
+    bool hasStaticWordPlan : 1 = false;
+    uint8_t staticObjectWords = 0;
+    uint16_t staticMovementWords = 0;
     std::vector<int32_t> randomEntityChoices;
     std::vector<int32_t> randomDirLayers;
     std::shared_ptr<ReplacementDynamic> dynamic;
@@ -572,6 +583,29 @@ struct PreparedTurnCache {
     void reset() { value.reset(); tag = nullptr; owner = nullptr; }
 };
 
+// A generation belongs to one read-only candidate collection. Rule changes,
+// movement, undo and level changes therefore cannot reuse an earlier result.
+struct LinePreconditionCache {
+    std::vector<uint32_t> tags;
+    uint32_t generation = 0;
+    LinePreconditionCache() = default;
+    LinePreconditionCache(const LinePreconditionCache&) {}
+    LinePreconditionCache& operator=(const LinePreconditionCache&) {
+        tags.clear(); generation = 0; return *this;
+    }
+    LinePreconditionCache(LinePreconditionCache&&) = default;
+    LinePreconditionCache& operator=(LinePreconditionCache&&) = default;
+    uint32_t begin(size_t lineCount) {
+        if (tags.size() < lineCount) tags.resize(lineCount, 0);
+        generation += 2;
+        if (generation == 0) {
+            for (auto& tag : tags) tag = 0;
+            generation = 2;
+        }
+        return generation;
+    }
+};
+
 struct Scratch {
     PreparedTurnCache interpretedAgain;
     PreparedTurnCache compactAgain;
@@ -655,6 +689,7 @@ struct Scratch {
     std::vector<int32_t> ellipsisMinConcreteSuffixScratch;
     std::vector<int32_t> ellipsisPositionsScratch;
     SimdBackend backend = SimdBackend::Scalar;
+    mutable LinePreconditionCache linePreconditions;
 };
 
 // Invalidate all level-derived state without releasing reusable vector
@@ -734,6 +769,11 @@ struct UndoSnapshot {
     MaskVector rigidGroupIndexMasks;
     MaskVector rigidMovementAppliedMasks;
 };
+
+inline void MetaGameState::assignWithoutUndoHistory(const MetaGameState& source) {
+    static_cast<MetaGameStateData&>(*this) = source;
+    undoStack.clear();
+}
 
 struct LoadedGame {
     std::shared_ptr<const GameInformation> information;

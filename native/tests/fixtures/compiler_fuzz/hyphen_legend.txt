@@ -1,0 +1,26 @@
+OBJECTS
+
+Background .
+black
+
+Player P
+white
+
+Target T
+red
+
+LEGEND
+a-b = Player or Target
+SOUNDS
+COLLISIONLAYERS
+
+Background
+Player
+Target
+
+RULES
+[ a-b ] -> [ a-b ]
+WINCONDITIONS
+LEVELS
+
+P

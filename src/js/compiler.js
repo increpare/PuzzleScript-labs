@@ -1702,6 +1702,11 @@ function ruleAllowsAggregateInferenceBinding(rule) {
 // Pure preservation cases emit no binding (level bit preserved in place);
 // only the inference case populates bindings + sinks.
 function computeAggregateCoalescingPlan(state, rule) {
+    // The canonical projection must retain vanilla's movement-expansion order.
+    // Aggregate matching has a different match traversal from expanded rules.
+    if (state.canonicalExecutionOrder) {
+        return { safe: new Set(), safePropertyAttachments: new Map(), bindings: new Map(), sinks: new Map() };
+    }
     // Collect every aggregate-direction occurrence — layer-coupled property
     // attachments are kept (marked) so the safe-set check can see them and
     // bail rather than silently skipping. If we coalesce a name but the rule
@@ -1891,6 +1896,7 @@ function rulePropertyBindingAllowed(rule) {
 // other aliases' bits from the relevant layers.
 function computePropertyCoalescingPlan(state, rule) {
     const empty = { safe: new Set(), bindings: new Map(), sinks: new Map() };
+    if (state.canonicalExecutionOrder && !canonicalPropertyMatchesCommute(state, rule)) return empty;
     if (!rulePropertyBindingAllowed(rule)) return empty;
 
     const collect = (rows) => {
@@ -2099,6 +2105,9 @@ function concretizeMovingInCellByAmbiguousMovementName(cell, ambiguousMovement, 
 // command-only → preserved). Each "mode" matches the corresponding legacy
 // predicate's acceptance criteria bit-for-bit.
 function getCoalescingPlan(state, rule, ambiguousProperties) {
+    if (state.canonicalExecutionOrder && !canonicalPropertyMatchesCommute(state, rule)) {
+        return { skippable: {}, hasRewriteTerm: false };
+    }
     if (rule.rigid) return { skippable: {}, hasRewriteTerm: false };
 
     const lhs = rule.lhs;
@@ -2425,6 +2434,53 @@ function getCoalescingPlan(state, rule, ambiguousProperties) {
         return { skippable: preserved, hasRewriteTerm: false };
     }
     return { skippable: {}, hasRewriteTerm: false };
+}
+
+// A deliberately narrow certificate for combining property alternatives. The
+// predicate is stable, every existing positive term is preserved verbatim, and
+// all new writes assign the same constant object on each written layer. Thus
+// overlapping matches cannot invalidate/enable one another or disagree on a
+// replacement. Unproved cases take the ordinary ordered expansion path.
+function canonicalPropertyMatchesCommute(state, rule) {
+    if (rule.rigid || rule.randomRule || rule.commands.length || !rule.rhs.length) return false;
+    const readLayers = new Set();
+    const assignments = new Map();
+    const members = name => state.propertiesDict[name] || [name];
+    for (const row of rule.lhs) for (const cell of row) {
+        if (cell[0] === '...') continue;
+        for (let i = 0; i < cell.length; i += 2) {
+            for (const name of members(cell[i + 1])) {
+                const object = state.objects[name];
+                if (!object || !Number.isInteger(object.layer)) return false;
+                readLayers.add(object.layer);
+            }
+        }
+    }
+    for (let r = 0; r < rule.lhs.length; r++) for (let c = 0; c < rule.lhs[r].length; c++) {
+        const lhs = rule.lhs[r][c], rhs = rule.rhs[r] && rule.rhs[r][c];
+        if (!rhs) return false;
+        if (lhs[0] === '...') {
+            if (rhs[0] !== '...') return false;
+            continue;
+        }
+        const keys = cell => {
+            const result = new Set();
+            for (let i = 0; i < cell.length; i += 2) result.add(cell[i] + ':' + cell[i + 1]);
+            return result;
+        };
+        const left = keys(lhs), right = keys(rhs);
+        for (let i = 0; i < lhs.length; i += 2) {
+            if (lhs[i] !== 'no' && !right.has(lhs[i] + ':' + lhs[i + 1])) return false;
+        }
+        for (let i = 0; i < rhs.length; i += 2) {
+            if (left.has(rhs[i] + ':' + rhs[i + 1])) continue;
+            const object = state.objects[rhs[i + 1]];
+            if ((rhs[i] !== '' && rhs[i] !== 'stationary') || !object || readLayers.has(object.layer)) return false;
+            if (assignments.has(object.layer) && assignments.get(object.layer) !== rhs[i + 1]) return false;
+            assignments.set(object.layer, rhs[i + 1]);
+        }
+    }
+    return true;
 }
 
 //entries are flat arrays, so a per-entry slice is a deep-enough copy

@@ -1,0 +1,35 @@
+title Joined rules retain their own late modifier
+
+objects
+Background
+black
+
+Player
+white
+
+Marker
+yellow
+
+Trophy
+blue
+
+legend
+. = Background
+P = Player
+
+sounds
+
+collisionlayers
+Background
+Player
+Marker, Trophy
+
+rules
+late [ Player ] -> [ Player Marker ]
++ [ Player Marker ] -> [ Player Trophy ]
+
+winconditions
+no Player
+
+levels
+P.

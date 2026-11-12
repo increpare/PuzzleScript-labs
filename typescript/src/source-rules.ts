@@ -34,9 +34,9 @@ const controlCommands = new Map<string, Exclude<SourceRuleCommandKind, SourceRul
   ['checkpoint', SourceRuleCommandKind.Checkpoint], ['again', SourceRuleCommandKind.Again],
 ]);
 
-function legacyCaptureRange(line: SourceLine): { start: number; end: number } {
-  const match = /[^(]+/u.exec(line.original);
-  return match === null ? { start: line.original.length, end: line.original.length } : { start: match.index, end: match.index + match[0].length };
+function legacyCaptureRange(line: SourceLine, start: number): { start: number; end: number } {
+  const comment = line.original.indexOf('(', start);
+  return { start, end: comment < 0 ? line.original.length : comment };
 }
 
 /** Context is the completed lexical walk, not a resolved declaration namespace. */
@@ -50,8 +50,8 @@ export interface RuleParsingContext {
  * lexicalTokens retain all authored fragments that recovery discards.
  */
 export function readRule(line: SourceLine, compilerLine: string, entry: SourceEntry, context: RuleParsingContext,
-  previous: SourcePatternRule | undefined): SourceRule {
-  const captured = legacyCaptureRange(line);
+  previous: SourcePatternRule | undefined, contentStart: number): SourceRule {
+  const captured = legacyCaptureRange(line, contentStart);
   const legacyCapturedSpan = lineSpan(line, captured.start, captured.end);
   const lexicalTokens = scanRuleTokens(line, legacyCapturedSpan);
   const tokens = lexicalTokens.map(token => token.word);

@@ -1,0 +1,36 @@
+title A comment resumes the pending legend phase
+
+objects
+Background
+black
+
+Player
+white
+
+Crate
+red
+
+Marker
+yellow
+
+legend
+. = Background
+P = Player
+C = Crate
+Actor ? junk) (comment) Crate
+
+sounds
+
+collisionlayers
+Background
+Player, Crate
+Marker
+
+rules
+[ action Player | Actor ] -> [ Player | Marker ]
+
+winconditions
+no Player
+
+levels
+PC

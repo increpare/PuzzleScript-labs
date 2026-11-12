@@ -97,11 +97,7 @@ function serializeLevels(levels) {
 }
 
 function toStringMap(map) {
-    const result = {};
-    for (const key of Object.keys(map || {}).sort()) {
-        result[key] = map[key];
-    }
-    return result;
+    return Object.fromEntries(Object.keys(map || {}).sort().map(key => [key, map[key]]));
 }
 
 function buildParserStateSnapshot(source) {
@@ -130,8 +126,8 @@ function buildParserStateSnapshot(source) {
             metadata_lines: toStringMap(state.metadata_lines),
             original_case_names: toStringMap(state.original_case_names),
             original_line_numbers: toStringMap(state.original_line_numbers),
-            names: Array.isArray(state.names) ? state.names.slice() : [],
-            abbrev_names: Array.isArray(state.abbrevNames) ? state.abbrevNames.slice() : [],
+            names: Array.from(state.names || []),
+            abbrev_names: Array.from(state.abbrevNames || []),
             objects: serializeObjects(state.objects),
             legend_synonyms: serializeLegendEntries(state.legend_synonyms),
             legend_aggregates: serializeLegendEntries(state.legend_aggregates),

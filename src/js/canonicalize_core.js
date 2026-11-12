@@ -1,5 +1,7 @@
 'use strict';
 
+const { normalizeCanonicalExecutionOrder } = require('./canonicalize_order');
+
 // Dependency-free state operations; source compilation is injected by the host.
 const CANONICAL_METADATA_KEYS = new Set([
     'noaction',
@@ -150,13 +152,17 @@ function createCanonicalizer(dependencies = {}) {
     }
 
     function staticOptimizationCompileOptions(source, options) {
+        if (options.executionOrder !== undefined && !['legacy', 'source', 'dependency'].includes(options.executionOrder)) {
+            throw new Error('executionOrder must be legacy, source, or dependency');
+        }
         const requested = normalizeStaticOptimizationPasses(
             options.staticOptimizations !== undefined
                 ? options.staticOptimizations
                 : options.staticOptimizationPasses
         );
         if (!requested) {
-            return null;
+            return options.executionOrder && options.executionOrder !== 'legacy'
+                ? { canonicalExecutionOrder: true } : null;
         }
 
         const report = options.staticAnalysisReport || dependencies.analyzeSource(source, {
@@ -165,6 +171,7 @@ function createCanonicalizer(dependencies = {}) {
         });
         const { effectiveSolverPassesForHook } = solverStaticOptHelpers();
         return {
+            canonicalExecutionOrder: !!options.executionOrder && options.executionOrder !== 'legacy',
             staticAnalysisReport: report,
             passes: effectiveSolverPassesForHook(report, requested),
             actionNoactionMode: options.actionNoactionMode || options.staticOptimizationActionMode || 'game',
@@ -398,6 +405,35 @@ function createCanonicalizer(dependencies = {}) {
         const playerSet = new Set(listObjectNamesFromMask(playerMask, state));
         const backgroundSet = new Set(listObjectNamesFromMask(backgroundMask, state));
         const objectSignatures = buildSemanticObjectSignatures(state, uniqueObjectNames, options);
+        const orderRelevant = new Set(playerSet);
+        for (const rule of state.rules) {
+            if (!rule.rhs.length && !rule.commands.some(command =>
+                !/^sfx(?:10|[0-9])$/.test(command[0]) && command[0] !== 'checkpoint' && command[0] !== 'message')) continue;
+            for (const side of [rule.lhs, rule.rhs]) for (const row of side) for (const cell of row) {
+                if (cell[0] === '...') continue;
+                for (let i = 1; i < cell.length; i += 2) {
+                    for (const name of state.propertiesDict[cell[i]] || [cell[i]]) orderRelevant.add(name);
+                }
+            }
+        }
+        if (options.includeWinConditions) for (const condition of state.winconditions) {
+            const allB = !condition[5] && uniqueObjectNames.every(name => condition[2].get(state.objects[name].id));
+            for (const name of uniqueObjectNames) {
+                const id = state.objects[name].id;
+                if (condition[1].get(id) || (!allB && condition[2].get(id))) orderRelevant.add(name);
+            }
+        }
+        const labelKeys = new Set();
+        let ambiguousLabels = false;
+        for (const name of uniqueObjectNames) {
+            // Inert siblings may be collapsed, or their entire layer pruned.
+            // They cannot force a source-order fallback that disappears when
+            // the projected source is compiled again.
+            if (!orderRelevant.has(name)) continue;
+            const key = JSON.stringify([state.objects[name].layer, playerSet.has(name), backgroundSet.has(name), objectSignatures.get(name)]);
+            if (labelKeys.has(key)) ambiguousLabels = true;
+            labelKeys.add(key);
+        }
         const firstSeen = new Map();
         let nextOrdinal = 0;
 
@@ -492,7 +528,20 @@ function createCanonicalizer(dependencies = {}) {
             orderedNames,
             playerSet,
             backgroundSet,
+            ambiguousLabels,
         };
+    }
+
+    function executionOrderOptions(state, options) {
+        if (options.executionOrder !== 'dependency' || options.orderLabelsChecked) return options;
+        const ordering = buildSemanticObjectOrdering(state, options);
+        // A source-order tie breaker is not a canonical labeling proof. Until
+        // such symmetries have a complete labeling algorithm, keep the ordered
+        // compiler projection instead of making emission change its own hash.
+        return Object.assign({}, options, {
+            executionOrder: ordering.ambiguousLabels ? 'source' : 'dependency',
+            orderLabelsChecked: true,
+        });
     }
 
     function termMaskContainsObject(term, objectName, objectId, state) {
@@ -526,7 +575,9 @@ function createCanonicalizer(dependencies = {}) {
                             for (let entryIndex = 0; entryIndex < cell.length; entryIndex += 2) {
                                 if (termMaskContainsObject(cell[entryIndex + 1], objectName, objectId, state)) {
                                     const direction = cell[entryIndex];
-                                    parts.push(`r:${ruleIndex}:${sideName}:${rowIndex}:${cellIndex}:${entryIndex}:${direction}`);
+                                    parts.push(options.executionOrder === 'dependency'
+                                        ? `r:${sideName}:${rowIndex}:${cellIndex}:${direction}`
+                                        : `r:${ruleIndex}:${sideName}:${rowIndex}:${cellIndex}:${entryIndex}:${direction}`);
                                 }
                             }
                         }
@@ -563,7 +614,7 @@ function createCanonicalizer(dependencies = {}) {
                 }
             }
 
-            signatures.set(objectName, parts.join('|'));
+            signatures.set(objectName, (options.executionOrder === 'dependency' ? parts.sort() : parts).join('|'));
         }
         return signatures;
     }
@@ -833,13 +884,27 @@ function createCanonicalizer(dependencies = {}) {
         return edges;
     }
 
-    function buildCanonicalRelabelBuckets(canonical) {
+    function buildCanonicalRelabelBuckets(canonical, options = {}) {
         const layerIndex = new Map();
         (canonical.collisionLayers || []).forEach((layer, index) => {
             for (const objectName of layer) {
                 layerIndex.set(objectName, index);
             }
         });
+
+        if (options.executionOrder === 'dependency') {
+            // Reordering independent rules can change first-seen tie breakers
+            // between disconnected objects. Include small whole-layer role
+            // buckets so source emission cannot change their canonical labels.
+            const byRole = new Map();
+            for (const name of collectCanonicalObjectNames(canonical)) {
+                const key = `${layerIndex.get(name)}:${canonicalObjectRoleKey(canonical, name)}`;
+                if (!byRole.has(key)) byRole.set(key, []);
+                byRole.get(key).push(name);
+            }
+            return Array.from(byRole.values()).filter(bucket =>
+                bucket.length > 1 && bucket.length <= MAX_CANONICAL_RELABEL_BUCKET_SIZE);
+        }
 
         const edges = buildCanonicalObjectGraph(canonical);
         const visited = new Set();
@@ -916,12 +981,15 @@ function createCanonicalizer(dependencies = {}) {
         });
     }
 
-    function stabilizeCanonicalObjectLabels(canonical) {
+    function stabilizeCanonicalObjectLabels(canonical, options = {}) {
+        const normalizeOrder = value => options.executionOrder === 'dependency'
+            ? normalizeCanonicalExecutionOrder(value) : value;
+        canonical = normalizeOrder(canonical);
         let current = canonical;
         let currentKey = JSON.stringify(current);
         let objectMap = new Map(collectCanonicalObjectNames(canonical).map(name => [name, name]));
         const candidatePairs = [];
-        for (const bucket of buildCanonicalRelabelBuckets(canonical)) {
+        for (const bucket of buildCanonicalRelabelBuckets(canonical, options)) {
             for (let i = 0; i < bucket.length; i++) {
                 for (let j = i + 1; j < bucket.length; j++) {
                     candidatePairs.push([bucket[i], bucket[j]]);
@@ -938,7 +1006,7 @@ function createCanonicalizer(dependencies = {}) {
                 if (approximateKey >= bestKey) {
                     continue;
                 }
-                const candidate = swapCanonicalObjects(current, left, right);
+                const candidate = normalizeOrder(swapCanonicalObjects(current, left, right));
                 const candidateKey = JSON.stringify(candidate);
                 if (candidateKey < bestKey) {
                     best = candidate;
@@ -949,7 +1017,7 @@ function createCanonicalizer(dependencies = {}) {
 
             if (bestSwap === null && candidatePairs.length <= MAX_CANONICAL_EXACT_RELABEL_PAIRS) {
                 for (const [left, right] of candidatePairs) {
-                    const candidate = swapCanonicalObjects(current, left, right);
+                    const candidate = normalizeOrder(swapCanonicalObjects(current, left, right));
                     const candidateKey = JSON.stringify(candidate);
                     if (candidateKey < bestKey) {
                         best = candidate;
@@ -1268,6 +1336,10 @@ function createCanonicalizer(dependencies = {}) {
     }
 
     function canonicalizeCompiledState(state, options) {
+        options = executionOrderOptions(state, options);
+        if (options.executionOrder && options.executionOrder !== 'legacy' && !state.canonicalExecutionOrder) {
+            throw new Error('Execution-order projection requires recompiling source with executionOrder enabled; an already coalesced state has lost the expansion order.');
+        }
         const nameData = options.compiledNameData || buildCompiledNameMap(state, options);
         const { map: nameMap, playerSet, backgroundSet } = nameData;
         const metadata = [];
@@ -1286,6 +1358,11 @@ function createCanonicalizer(dependencies = {}) {
                 .sort(compareNumericNames)
         );
 
+        const randomByGroup = new Map();
+        for (const rule of state.rules) {
+            const key = `${!!rule.late}:${rule.groupNumber}`;
+            if (!randomByGroup.has(key)) randomByGroup.set(key, !!rule.randomRule);
+        }
         const rawRulePairs = state.rules
             .map(rule => ({
                 compiledRule: rule,
@@ -1301,7 +1378,9 @@ function createCanonicalizer(dependencies = {}) {
                 groupMap.set(originalGroupNumber, nextGroupNumber++);
             }
             return Object.assign({}, rule, {
-                groupNumber: groupMap.get(originalGroupNumber)
+                groupNumber: groupMap.get(originalGroupNumber),
+                randomRule: options.executionOrder && options.executionOrder !== 'legacy'
+                    ? randomByGroup.get(`${!!pair.compiledRule.late}:${originalGroupNumber}`) : rule.randomRule,
             });
         });
         const loops = serializeCompiledLoops(state, rawRulePairs, groupMap);
@@ -1337,13 +1416,14 @@ function createCanonicalizer(dependencies = {}) {
                 includeWinConditions: options.includeWinConditions,
                 includeLevels: options.includeLevels,
             });
-            return stabilizeCanonicalObjectLabels(collapsed).canonical;
+            return stabilizeCanonicalObjectLabels(collapsed, options).canonical;
         }
 
-        return result;
+        return options.executionOrder === 'dependency' ? normalizeCanonicalExecutionOrder(result) : result;
     }
 
     function buildCompilerToFinalObjectMap(state, options) {
+        options = executionOrderOptions(state, options);
         const nameData = buildCompiledNameMap(state, options);
         const preCollapse = canonicalizeCompiledState(state, Object.assign({}, options, {
             collapseEquivalentObjects: false,
@@ -1359,7 +1439,7 @@ function createCanonicalizer(dependencies = {}) {
             includeWinConditions: options.includeWinConditions,
             includeLevels: options.includeLevels,
         });
-        const { objectMap: stabilizeMap } = stabilizeCanonicalObjectLabels(collapsed);
+        const { objectMap: stabilizeMap } = stabilizeCanonicalObjectLabels(collapsed, options);
         const sourceToFinal = new Map();
         for (const compilerName of Object.keys(state.objects || {})) {
             const preName = nameData.map.get(compilerName);
@@ -1407,7 +1487,7 @@ function createCanonicalizer(dependencies = {}) {
     }
 
     function createCompiledLevelStateProjector(state, mode = 'semantic', canonicalOptions = {}) {
-        const options = canonicalModeOptions(mode, canonicalOptions);
+        const options = executionOrderOptions(state, canonicalModeOptions(mode, canonicalOptions));
         const compiledNameData = buildCompiledNameMap(state, options);
         const { map: nameMap } = compiledNameData;
         let collapsedObjectMap = null;
@@ -1423,7 +1503,7 @@ function createCanonicalizer(dependencies = {}) {
                 includeWinConditions: options.includeWinConditions,
                 includeLevels: options.includeLevels,
             });
-            collapsedObjectMap = stabilizeCanonicalObjectLabels(fullCollapsed).objectMap;
+            collapsedObjectMap = stabilizeCanonicalObjectLabels(fullCollapsed, options).objectMap;
         }
         const rawCanonical = canonicalizeCompiledState(state, Object.assign({}, options, {
             includeLevels: false,

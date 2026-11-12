@@ -1,0 +1,47 @@
+title Preserve upward gap enumeration
+
+objects
+Background
+black
+
+Player
+white
+
+Seed
+green
+
+Red
+red
+
+Blue
+blue
+
+Marker
+yellow
+
+legend
+S = Seed
+P = Player
+Color = Red or Blue
+
+sounds
+
+collisionlayers
+Background
+Player
+Seed
+Red, Blue
+Marker
+
+rules
+random up [ Seed | ... | Seed ] -> [ random Color | ... | Marker ]
+
+winconditions
+no Player
+
+levels
+S
+S
+S
+S
+P

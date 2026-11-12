@@ -27,7 +27,7 @@ LEGEND
 . = Background
 P = Background and Player
 S = Background and Switch
-
+SOUNDS
 ================
 COLLISIONLAYERS
 ================

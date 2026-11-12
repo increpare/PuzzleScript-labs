@@ -1,0 +1,39 @@
+title A mismatched gap ignores the replacement at its position
+
+objects
+Background
+black
+
+Player
+white
+
+Crate
+red
+
+Wall
+blue
+
+Marker
+yellow
+
+legend
+. = Background
+P = Player
+# = Wall
+
+sounds
+Marker create 12345
+
+collisionlayers
+Background
+Player, Crate, Wall
+Marker
+
+rules
+right [ action Player | ... | Wall ] -> [ Player Marker | Crate | Wall ]
+
+winconditions
+no Player
+
+levels
+P..#

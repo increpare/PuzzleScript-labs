@@ -1,0 +1,38 @@
+title Overwritten first slot stays independently writable
+
+objects
+Background
+black
+
+Player
+white
+
+Ghost
+red
+
+Marker
+blue
+
+legend
+. = Background
+P = Player
+
+sounds
+Background ACTION 777
+
+collisionlayers
+Background
+Background
+Player
+Marker
+
+rules
+[ action Player ] -> [ Player ]
+right [ Player | no Ghost ] -> [ Player | Ghost Marker ]
+[ Marker ] -> [ Marker Background action Ghost ]
+
+winconditions
+no Player
+
+levels
+P.

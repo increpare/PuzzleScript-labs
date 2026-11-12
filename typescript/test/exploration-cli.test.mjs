@@ -26,7 +26,7 @@ test('saved cases preserve source, tape, authority and failure evidence without 
     const saved = readCase(filename);
     assert.deepEqual(saved.program, program);
     assert.deepEqual(saved.result, result);
-    assert.equal(saved.authority.revision, 'caa902120185b354f8b9bdb7bf67a9424be0665d');
+    assert.equal(saved.authority.revision, '7417d78a75b5a07402071e21e0c171a76ef8871d');
     assert.equal(typeof saved.candidate.buildSha256['session.js'], 'string');
     assert.match(readFileSync(filename.replace(/\.json$/, '.ps'), 'utf8'), /^title /);
     assert.equal(Object.hasOwn(saved, 'expectedBoard'), false);

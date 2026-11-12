@@ -1,0 +1,9 @@
+OBJECTS
+Background .
+black white
+
+Player P
+wh ite
+
+Other
+bl ack 

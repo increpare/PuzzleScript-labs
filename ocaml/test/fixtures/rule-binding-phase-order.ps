@@ -1,0 +1,48 @@
+title Transported property movement binds before its concrete identity
+
+objects
+Background
+black
+
+Red
+red
+
+Blue
+blue
+
+Marker
+yellow
+
+Token
+green
+
+legend
+. = Background
+Player = Red
+Thing = Red or Blue
+L = Red and Marker
+R = Red and Token
+
+sounds
+Red move 12345
+
+collisionlayers
+Background
+Red, Blue
+Marker
+Token
+
+rules
+[ action Red Marker ] -> [ up Red Marker ]
+[ action Red Token ] -> [ down Red Token ]
+right [ moving Thing Marker | moving Red Token ] -> [ Marker | moving Thing Token ]
+
+winconditions
+no Player
+
+levels
+.....
+.....
+.LR..
+.....
+.....

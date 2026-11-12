@@ -1,0 +1,38 @@
+title A discarded random opener cannot randomize its surviving group
+
+objects
+Background
+black
+
+Player
+white
+
+Marker
+yellow
+
+Trophy
+blue
+
+legend
+. = Background
+P = Player
+Thing = Player or Marker
+
+sounds
+Trophy create 12345
+
+collisionlayers
+Background
+Player
+Marker
+Trophy
+
+rules
+random [ Thing no Player no Marker ] -> [ Thing ]
++ [ Player ] -> [ Player Trophy ]
+
+winconditions
+no Player
+
+levels
+PP.

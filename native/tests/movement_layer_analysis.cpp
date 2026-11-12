@@ -78,7 +78,7 @@ std::string manyMovementLayersSource() {
         source << "M" << index << "\nred\n0\n\n";
     }
     source << "=======\nLEGEND\n=======\n\n"
-        << ". = Background\nP = Background and Player\n\n"
+        << ". = Background\nP = Background and Player\nSOUNDS\n"
         << "================\nCOLLISIONLAYERS\n================\n\n"
         << "Background\nPlayer\n";
     for (int index = 0; index < 12; ++index) {

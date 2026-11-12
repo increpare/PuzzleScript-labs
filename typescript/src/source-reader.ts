@@ -131,7 +131,8 @@ export function readAuthoredSource(source: string, lexical: SourceLexicalResult)
     const activeHeading: SourceHeading | null = canStartHeading ? sectionHeading(line, ' '.repeat(contentStart) + line.original.slice(contentStart)) : null;
     const commentNames = lexical.ruleNamesByLine.get(line.span.start.line) ?? new Set<string>();
     const ruleNames = section?.kind === SourceSectionKind.Rules && activeHeading === null ? commentNames : undefined;
-    const view = readComments(line, comments, diagnostics, levelMessage === null ? undefined : contentStart + levelMessage[0].length, ruleNames);
+    const view = readComments(line, comments, diagnostics, levelMessage === null ? undefined : contentStart + levelMessage[0].length,
+      ruleNames, activeHeading === null && (ruleNames !== undefined || section?.kind === SourceSectionKind.WinConditions));
     const words = sourceWords(line, view);
     bindings.remember(words);
     const first = words[0];
@@ -225,7 +226,8 @@ export function readAuthoredSource(source: string, lexical: SourceLexicalResult)
           document.collisionLayers.push({ sectionId: section.id, order: order++, span: line.span, names, words,
             definitionNames: bindings.reuse(lexical.collisionNames.get(line.span.start.line) ?? [], names) });
         } else if (section.kind === SourceSectionKind.Rules) {
-          const rule = readRule(line, line.original, { sectionId: section.id, order: order++, span: line.span }, ruleContext, previousRule);
+          if (!content.startOfLine) { line.kind = SourceLineKind.Invalid; section.lines.push(line); continue; }
+          const rule = readRule(line, line.original.slice(contentStart), { sectionId: section.id, order: order++, span: line.span }, ruleContext, previousRule, contentStart);
           document.rules.push(rule);
           if (rule.kind === SourceRuleKind.Pattern) {
             if (rule.recovery.kind !== RuleRecoveryKind.Discard) previousRule = rule;

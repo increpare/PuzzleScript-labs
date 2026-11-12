@@ -200,6 +200,7 @@ constexpr std::string_view kSoundDirections[] = {
 };
 
 bool utf8CodepointIsZsOrAsciiSpace(utf8proc_int32_t codepoint) {
+    if (codepoint == 0xFEFF) return true; // ECMAScript WhiteSpace / String.trim
     if (codepoint <= 0x7F) {
         return std::isspace(static_cast<unsigned char>(static_cast<char>(codepoint))) != 0;
     }
@@ -417,23 +418,19 @@ std::vector<std::string> iterateObjectKeysLikeJs(const std::map<std::string, Par
 
 std::vector<std::string> splitWhitespace(std::string_view value) {
     std::vector<std::string> result;
-    const auto isAsciiSpace = [](char ch) {
-        return std::isspace(static_cast<unsigned char>(ch)) != 0;
-    };
-    size_t index = 0;
-    while (index < value.size()) {
-        while (index < value.size() && isAsciiSpace(value[index]) != 0) {
-            ++index;
+    size_t start = 0;
+    for (size_t index = 0; index < value.size();) {
+        utf8proc_int32_t codepoint = 0;
+        const auto width = utf8proc_iterate(reinterpret_cast<const utf8proc_uint8_t*>(value.data() + index),
+            static_cast<utf8proc_ssize_t>(value.size() - index), &codepoint);
+        const size_t advance = width > 0 ? static_cast<size_t>(width) : 1;
+        if (width > 0 && utf8CodepointIsZsOrAsciiSpace(codepoint)) {
+            if (index > start) result.emplace_back(value.substr(start, index - start));
+            start = index + advance;
         }
-        if (index >= value.size()) {
-            break;
-        }
-        const size_t start = index;
-        while (index < value.size() && isAsciiSpace(value[index]) == 0) {
-            ++index;
-        }
-        result.emplace_back(value.substr(start, index - start));
+        index += advance;
     }
+    if (start < value.size()) result.emplace_back(value.substr(start));
     return result;
 }
 
@@ -456,22 +453,24 @@ std::vector<std::string> splitCsvWords(std::string_view value) {
     return result;
 }
 
+bool utf8CodepointIsRegNameBody(utf8proc_int32_t codepoint);
+
 std::vector<std::string> splitCollisionLayerTokensPreservingCase(std::string_view value) {
     std::vector<std::string> result;
-    std::string current;
-    for (const char ch : value) {
-        if (ch == ',' || std::isspace(static_cast<unsigned char>(ch)) != 0) {
-            if (!current.empty()) {
-                result.push_back(trim(current));
-                current.clear();
-            }
-            continue;
+    size_t start = 0;
+    for (size_t index = 0; index < value.size();) {
+        utf8proc_int32_t cp = 0;
+        const auto width = utf8proc_iterate(reinterpret_cast<const utf8proc_uint8_t*>(value.data() + index),
+            static_cast<utf8proc_ssize_t>(value.size() - index), &cp);
+        const size_t advance = width > 0 ? static_cast<size_t>(width) : 1;
+        if (!utf8CodepointIsRegNameBody(cp)) {
+            if (index > start) result.emplace_back(value.substr(start, index - start));
+            if (cp != ',' && !utf8CodepointIsZsOrAsciiSpace(cp)) result.emplace_back(value.substr(index, advance));
+            start = index + advance;
         }
-        current.push_back(ch);
+        index += advance;
     }
-    if (!current.empty()) {
-        result.push_back(trim(current));
-    }
+    if (start < value.size()) result.emplace_back(value.substr(start));
     return result;
 }
 
@@ -536,8 +535,12 @@ static const std::regex& objectColorTokenAtLineStart() {
 }
 
 void skipAsciiSpaceTab(std::string_view s, size_t& pos) {
-    while (pos < s.size() && (s[pos] == ' ' || s[pos] == '\t')) {
-        ++pos;
+    while (pos < s.size()) {
+        utf8proc_int32_t cp = 0;
+        const auto width = utf8proc_iterate(reinterpret_cast<const utf8proc_uint8_t*>(s.data() + pos),
+            static_cast<utf8proc_ssize_t>(s.size() - pos), &cp);
+        if (width <= 0 || !utf8CodepointIsZsOrAsciiSpace(cp)) break;
+        pos += static_cast<size_t>(width);
     }
 }
 
@@ -655,30 +658,12 @@ bool tryMatchObjectColorToken(std::string_view lowered, size_t& bytePos, std::st
 }
 
 std::vector<std::string> tokenizeLegendLine(std::string_view value) {
-    std::vector<std::string> result;
-    std::string current;
+    std::string separated;
     for (const char ch : value) {
-        if (std::isspace(static_cast<unsigned char>(ch)) != 0) {
-            if (!current.empty()) {
-                result.push_back(current);
-                current.clear();
-            }
-            continue;
-        }
-        if (ch == '=') {
-            if (!current.empty()) {
-                result.push_back(current);
-                current.clear();
-            }
-            result.emplace_back("=");
-            continue;
-        }
-        current.push_back(ch);
+        if (ch == '=') separated += " = ";
+        else separated += ch;
     }
-    if (!current.empty()) {
-        result.push_back(current);
-    }
-    return result;
+    return splitWhitespace(separated);
 }
 
 bool isWordChar(char ch) {
@@ -901,6 +886,7 @@ std::string stripCommentsCore(std::string_view line, ParserState& state, Diagnos
     std::string visible;
     visible.reserve(line.size());
     int ruleBracketDepth = 0;
+    bool inlineCaptureComment = false;
     for (size_t index = 0; index < line.size(); ++index) {
         const char ch = line[index];
         if (state.section == "rules"
@@ -918,6 +904,10 @@ std::string stripCommentsCore(std::string_view line, ParserState& state, Diagnos
                 visible.push_back(ch);
                 continue;
             }
+            if (state.commentLevel == 0 && (state.section == "rules" || state.section == "winconditions")
+                && !trim(visible).empty() && !matchLeadingSectionKeyword(toLowerCopy(trim(visible))).has_value()) {
+                inlineCaptureComment = true;
+            }
             ++state.commentLevel;
             continue;
         }
@@ -926,6 +916,7 @@ std::string stripCommentsCore(std::string_view line, ParserState& state, Diagnos
                 --state.commentLevel;
                 if (state.commentLevel == 0) {
                     state.solAfterComment = true;
+                    if (inlineCaptureComment) return visible;
                     // parser.js sound tokenization uses \\b after comments; stripping `(...)` can glue
                     // "move" + "36772507" into "move36772507". Restore a word boundary in SOUNDS only.
                     if (state.section == "sounds" && !visible.empty() && index + 1 < line.size()) {
@@ -978,7 +969,7 @@ std::string stripComments(std::string_view line, ParserState& state, DiagnosticS
         }
     }
 
-    return stripCommentsCore(trimmedLine, state, diagnostics);
+    return stripCommentsCore(line, state, diagnostics);
 }
 
 std::string takePrefixBeforeComment(std::string_view line) {
@@ -1083,7 +1074,7 @@ void populateNamesForSounds(ParserState& state) {
     }
     // parser.js: names doesn't grow after this point — mirror it in a Set for O(1) membership tests.
     state.namesSet.clear();
-    state.namesSet.insert(state.names.begin(), state.names.end());
+    std::erase_if(state.names, [&](const auto& name) { return !state.namesSet.insert(name).second; });
 }
 
 void populateAbbrevNamesForLevels(ParserState& state) {
@@ -1105,7 +1096,7 @@ void populateAbbrevNamesForLevels(ParserState& state) {
     }
     // parser.js: abbrevNames doesn't grow after this point — mirror it in a Set for O(1) membership tests.
     state.abbrevNamesSet.clear();
-    state.abbrevNamesSet.insert(state.abbrevNames.begin(), state.abbrevNames.end());
+    std::erase_if(state.abbrevNames, [&](const auto& name) { return !state.abbrevNamesSet.insert(name).second; });
 }
 
 void handleBlankLine(ParserState& state) {
@@ -1190,7 +1181,7 @@ void parsePreambleLine(ParserState& state, DiagnosticSink& diagnostics, std::str
             diagnostics.warning(
                 DiagnosticCode::GenericWarning,
                 state.lineNumber,
-                "MetaData " + toUpperCopy(key) + " doesn't take any parameters, but you went and gave it \"" + extra + "\".");
+                "MetaData " + toUpperCopy(key) + " doesn't take any parameters, but you went and gave it \"" + toLowerCopy(extra) + "\".");
         }
         state.metadata.push_back(key);
         state.metadata.push_back("true");
@@ -1211,10 +1202,21 @@ void parsePreambleLine(ParserState& state, DiagnosticSink& diagnostics, std::str
         }
     }
     diagnostics.error(DiagnosticCode::GenericError, state.lineNumber, "Unrecognised stuff in the prelude.");
+    for (size_t index = 0; index < displayLine.size();) {
+        utf8proc_int32_t cp = 0;
+        const auto width = utf8proc_iterate(reinterpret_cast<const utf8proc_uint8_t*>(displayLine.data() + index),
+            static_cast<utf8proc_ssize_t>(displayLine.size() - index), &cp);
+        if (width <= 0 || (!utf8CodepointIsRegNameBody(cp) && !utf8CodepointIsZsOrAsciiSpace(cp))) {
+            diagnostics.error(DiagnosticCode::GenericError, state.lineNumber,
+                "Unrecognised stuff \"" + displayLine + "\" in the prelude.");
+            break;
+        }
+        index += static_cast<size_t>(width);
+    }
 }
 
 void parseObjectsLine(ParserState& state, DiagnosticSink& diagnostics, std::string_view trimmedLine, std::string_view mixedCase) {
-    const std::string mixedLine = trim(std::string(mixedCase));
+    const std::string mixedLine(mixedCase);
     const std::string loweredLine = toLowerCopy(trimmedLine);
     if (mixedLine.size() != loweredLine.size()) {
         // Extremely rare: lowering changes UTF-8 length; fall back to whitespace-only object lines.
@@ -1257,7 +1259,6 @@ void parseObjectsLine(ParserState& state, DiagnosticSink& diagnostics, std::stri
                 DiagnosticCode::GenericError,
                 state.lineNumber,
                 "Object \"" + toUpperCopy(candLower) + "\" defined multiple times.");
-            state.objectsSection = 0;
             return false;
         }
         for (const auto& synonym : state.legendSynonyms) {
@@ -1339,10 +1340,12 @@ void parseObjectsLine(ParserState& state, DiagnosticSink& diagnostics, std::stri
                 continue;
             }
             std::string badTok;
+            const size_t badStart = pos;
             size_t unusedStart = 0;
             size_t unusedEnd = 0;
             if (matchObjectsRegNameSol(loweredLine, pos, badTok, unusedStart, unusedEnd)) {
-                // parser.js: prefer reg_name text for the diagnostic fragment when it matches.
+                // JS interpolates the raw regex match, including trailing whitespace.
+                badTok = std::string(loweredLine.substr(badStart, pos - badStart));
             } else {
                 const size_t badStart = pos;
                 consumeObjectsRegNotCommentStart(loweredLine, pos);
@@ -1362,7 +1365,6 @@ void parseObjectsLine(ParserState& state, DiagnosticSink& diagnostics, std::stri
             const bool isSpriteChar = byte == '.' || std::isdigit(byte) != 0;
             if (!isSpriteChar) {
                 if (state.objectsSpritematrix.empty()) {
-                    state.objectsSection = 0;
                     if (!tryParseNameToken(sol)) {
                         firstContentfulTokenOnLine = false;
                     } else {
@@ -1428,7 +1430,7 @@ bool abbrevNamesContainGlyph(const ParserState& state, std::string_view utf8Glyp
     return state.abbrevNamesSet.count(std::string(utf8Glyph)) != 0;
 }
 
-// parser.js parseLevelsToken: first unknown glyph on a row yields one Key diagnostic (then parsing continues).
+// parser.js continues tokenizing after an unknown glyph, reporting each distinct key.
 void validateLevelMapRowAbbrevKeys(const ParserState& state, DiagnosticSink& diagnostics, std::string_view rowLowered) {
     if (rowLowered.empty()) {
         return;
@@ -1443,13 +1445,12 @@ void validateLevelMapRowAbbrevKeys(const ParserState& state, DiagnosticSink& dia
             break;
         }
         const std::string_view glyph(reinterpret_cast<const char*>(bytes + cursor), static_cast<size_t>(advance));
-        if (!abbrevNamesContainGlyph(state, glyph)) {
+        if (!utf8CodepointIsZsOrAsciiSpace(codepoint) && !abbrevNamesContainGlyph(state, glyph)) {
             std::string glyphStr(glyph);
             diagnostics.error(
                 DiagnosticCode::GenericError,
                 state.lineNumber,
                 "Key \"" + toUpperCopy(glyphStr) + "\" not found. Do you need to add it to the legend, or define a new object?");
-            return;
         }
         cursor += advance;
     }
@@ -1484,6 +1485,12 @@ void parseLegendLine(ParserState& state, DiagnosticSink& diagnostics, std::strin
     }
 
     if (tokens.size() < 3 || tokens[1] != "=") {
+        if (tokens.size() >= 2 && tokens[1] != "=") {
+            diagnostics.error(DiagnosticCode::GenericError, state.lineNumber,
+                "In the legend, define new items using the equals symbol - declarations must look like \"A = B\", \"A = B or C [ or D ...]\", \"A = B and C [ and D ...]\".");
+            diagnostics.error(DiagnosticCode::GenericError, state.lineNumber,
+                "Incorrect format of legend - should be one of \"A = B\", \"A = B or C [ or D ...]\", \"A = B and C [ and D ...]\", but it looks like you have a dangling \"ERROR\"?");
+        }
         return;
     }
 
@@ -1505,19 +1512,20 @@ void parseLegendLine(ParserState& state, DiagnosticSink& diagnostics, std::strin
     const std::string candname = toLowerCopy(trim(std::string(tokens[0])));
     entry.name = candname;
     entry.lineNumber = state.lineNumber;
-    // Keep the physical line's source spelling even after tokenization lowercases it.
-    if (isAsciiIdentifierLike(candname)) {
+    auto registerEntryName = [&]() {
+        // Keep the physical line's source spelling even after tokenization lowercases it.
         registerOriginalCaseName(state, candname, originalLine, state.lineNumber);
-    } else if (isIdentifierLike(candname)) {
-        // registerOriginalCaseName uses ASCII \\b boundaries only (matches JS RegExp without /u).
-        // Unicode legend keys (e.g. "stück") still get a stable original_case_names entry in JS.
-        // Reuse the legacy gate: only ASCII-ish edge bytes count as "word" endpoints (same as the
-        // old registerLegendOriginalCaseName), so single-token punctuation like "˅" is skipped.
-        if (isWordChar(static_cast<unsigned char>(candname.front())) && isWordChar(static_cast<unsigned char>(candname.back()))) {
-            state.originalCaseNames[candname] = candname;
-            state.originalLineNumbers[candname] = state.lineNumber;
+        if (!state.originalCaseNames.contains(candname) && isIdentifierLike(candname)) {
+            // registerOriginalCaseName uses ASCII \\b boundaries only (matches JS RegExp without /u).
+            // Unicode legend keys (e.g. "stück") still get a stable original_case_names entry in JS.
+            // Reuse the legacy gate: only ASCII-ish edge bytes count as "word" endpoints (same as the
+            // old registerLegendOriginalCaseName), so single-token punctuation like "˅" is skipped.
+            if (isWordChar(static_cast<unsigned char>(candname.front())) && isWordChar(static_cast<unsigned char>(candname.back()))) {
+                state.originalCaseNames[candname] = candname;
+                state.originalLineNumbers[candname] = state.lineNumber;
+            }
         }
-    }
+    };
 
     // parser.js: trailing "'" fails reg_name at an odd token index — logs "Something bad…" and does not push
     // that token, so processLegendLine sees only [@, =, Crate] and still records a synonym.
@@ -1533,33 +1541,35 @@ void parseLegendLine(ParserState& state, DiagnosticSink& diagnostics, std::strin
     bool legendJoinerMixing = false;
     const std::string firstJoinerForMix =
         legendTokens.size() >= 4 ? toLowerCopy(trim(std::string(legendTokens[3]))) : std::string{};
-    if (legendTokens.size() >= 5 && (legendTokens.size() - 3) % 2 == 0) {
-        const std::string j0 = firstJoinerForMix;
-        if (j0 != "and" && j0 != "or") {
-            diagnostics.error(
-                DiagnosticCode::GenericError,
-                state.lineNumber,
-                "Expected and 'AND' or an 'OR' here, but got " + toUpperCopy(trim(std::string(legendTokens[3])))
+    for (size_t index = 3; index < legendTokens.size(); index += 2) {
+        const std::string joinerToken = toLowerCopy(trim(legendTokens[index]));
+        if (joinerToken != "and" && joinerToken != "or") {
+            diagnostics.error(DiagnosticCode::GenericError, state.lineNumber,
+                "Expected and 'AND' or an 'OR' here, but got " + toUpperCopy(joinerToken)
                     + " instead. In the legend, define new items using the equals symbol - declarations must look like 'A = B' or 'A = B and C' or 'A = B or C'.");
-            diagnostics.error(
-                DiagnosticCode::GenericError,
-                state.lineNumber,
-                "This legend-entry is incorrectly-formatted - it should be one of A = B, A = B or C ( or D ...), A = B and C (and D ...)");
-            return;
-        }
-        for (size_t joinerIndex = 5; joinerIndex < legendTokens.size(); joinerIndex += 2) {
-            const std::string ji = toLowerCopy(trim(std::string(legendTokens[joinerIndex])));
-            if ((ji == "and" || ji == "or") && ji != j0) {
-                diagnostics.error(
-                    DiagnosticCode::GenericError,
-                    state.lineNumber,
-                    "Hey! You can't go mixing ANDs and ORs in a single legend entry.");
-                legendJoinerMixing = true;
-                break;
-            }
+        } else if (index >= 5 && joinerToken != firstJoinerForMix) {
+            diagnostics.error(DiagnosticCode::GenericError, state.lineNumber,
+                "Hey! You can't go mixing ANDs and ORs in a single legend entry.");
+            legendJoinerMixing = true;
         }
     }
 
+    if (legendTokens.size() % 2 == 0) {
+        diagnostics.error(DiagnosticCode::GenericError, state.lineNumber,
+            "Incorrect format of legend - should be one of \"A = B\", \"A = B or C [ or D ...]\", \"A = B and C [ and D ...]\", but it looks like you have a dangling \"" + toUpperCopy(legendTokens.back()) + "\"?");
+        return;
+    }
+    if (legendTokens.size() >= 5 && firstJoinerForMix != "and" && firstJoinerForMix != "or") {
+        diagnostics.error(DiagnosticCode::GenericError, state.lineNumber,
+            "This legend-entry is incorrectly-formatted - it should be one of A = B, A = B or C ( or D ...), A = B and C (and D ...)");
+        return;
+    }
+
+    const bool alreadyDeclared = wordAlreadyDeclaredLine(state, candname).has_value();
+    bool selfReference = false;
+    for (size_t index = 2; index < legendTokens.size(); index += 2) {
+        selfReference |= toLowerCopy(trim(legendTokens[index])) == candname;
+    }
     diagnoseLegendLineTokens(state, diagnostics, legendTokens, candname);
     // parser.js: mixing still pushes aggregates when splits[3]==='and' (aggregate branch); property "or"
     // lines with bad joiners set malformed and skip push (e.g. "@ = Crate or Target and crate").
@@ -1587,12 +1597,13 @@ void parseLegendLine(ParserState& state, DiagnosticSink& diagnostics, std::strin
             return;
         }
         entry.items.push_back(rhs);
+        registerEntryName();
         state.legendSynonyms.push_back(std::move(entry));
         return;
     }
 
     const std::string joiner = legendTokens.size() >= 4 ? toLowerCopy(trim(std::string(legendTokens[3]))) : std::string{};
-    bool validAggregate = true;
+    bool validAggregate = !alreadyDeclared && !selfReference;
     std::unordered_set<std::string> expandingAggregate;
     std::unordered_set<std::string> expandingProperty;
     std::function<std::vector<std::string>(const std::string&)> expandAggregate;
@@ -1674,7 +1685,10 @@ void parseLegendLine(ParserState& state, DiagnosticSink& diagnostics, std::strin
             const auto expanded = expandAggregate(trim(std::string(legendTokens[index])));
             entry.items.insert(entry.items.end(), expanded.begin(), expanded.end());
         }
-        if (validAggregate) state.legendAggregates.push_back(std::move(entry));
+        if (validAggregate) {
+            registerEntryName();
+            state.legendAggregates.push_back(std::move(entry));
+        }
     } else if (joiner == "or") {
         if (legendTokens.size() >= 3) {
             const auto expanded = expandProperty(trim(std::string(legendTokens[2])));
@@ -1687,6 +1701,9 @@ void parseLegendLine(ParserState& state, DiagnosticSink& diagnostics, std::strin
         for (size_t index = 6; index < legendTokens.size(); index += 2) {
             entry.items.push_back(toLowerCopy(trim(std::string(legendTokens[index]))));
         }
+        // JS retains this partially expanded property even when expansion
+        // reports an aggregate reference; only rejected aggregates are dropped.
+        registerEntryName();
         state.legendProperties.push_back(std::move(entry));
     }
 }
@@ -2297,7 +2314,6 @@ void parseWinConditionsLine(ParserState& state, DiagnosticSink& diagnostics, std
                     DiagnosticCode::GenericError,
                     state.lineNumber,
                     "Expecting the start of a win condition (\"ALL\",\"SOME\",\"NO\") but got \"" + toUpperCopy(cand) + "'.");
-                return;
             }
         } else if (tokenIndex == 1) {
             if (!namesVectorContains(state, cand)) {
@@ -2305,7 +2321,6 @@ void parseWinConditionsLine(ParserState& state, DiagnosticSink& diagnostics, std
                     DiagnosticCode::GenericError,
                     state.lineNumber,
                     "Error in win condition: \"" + toUpperCopy(cand) + "\" is not a valid object name.");
-                return;
             }
         } else if (tokenIndex == 2) {
             if (cand != "on") {
@@ -2313,7 +2328,6 @@ void parseWinConditionsLine(ParserState& state, DiagnosticSink& diagnostics, std
                     DiagnosticCode::GenericError,
                     state.lineNumber,
                     "Expecting the word \"ON\" but got \"" + toUpperCopy(cand) + "\".");
-                return;
             }
         } else if (tokenIndex == 3) {
             if (!namesVectorContains(state, cand)) {
@@ -2321,7 +2335,6 @@ void parseWinConditionsLine(ParserState& state, DiagnosticSink& diagnostics, std
                     DiagnosticCode::GenericError,
                     state.lineNumber,
                     "Error in win condition: \"" + toUpperCopy(cand) + "\" is not a valid object name.");
-                return;
             }
         } else {
             diagnostics.error(
@@ -2337,8 +2350,9 @@ void parseWinConditionsLine(ParserState& state, DiagnosticSink& diagnostics, std
     }
 }
 
-void parseRulesLine(ParserState& state, DiagnosticSink& diagnostics, std::string_view trimmedLine, std::string_view mixedCaseRaw) {
-    emitRuleTokenDiagnostics(state, diagnostics, toLowerCopy(trim(std::string(trimmedLine))));
+void parseRulesLine(ParserState& state, DiagnosticSink& diagnostics, std::string_view mixedCaseRaw) {
+    const std::string trimmedLine = toLowerCopy(takePrefixBeforeComment(mixedCaseRaw));
+    emitRuleTokenDiagnostics(state, diagnostics, trim(trimmedLine));
     bool arrowPassed = false;
     bool insideCell = false;
     bool rulePrelude = true;
@@ -2410,9 +2424,6 @@ void parseLevelsLine(ParserState& state, DiagnosticSink& diagnostics, std::strin
         level.lineNumber = state.lineNumber;
     }
     level.rows.push_back(trimmedLower);
-    if (!trimmedLower.empty()) {
-        validateLevelMapRowAbbrevKeys(state, diagnostics, trimmedLower);
-    }
     if (level.rows.size() > 1) {
         // parser.js compares String.length (UTF-16 code units); for BMP PuzzleScript maps this matches Unicode scalar count.
         if (utf8CodePointCount(level.rows.back()) != utf8CodePointCount(level.rows.front())) {
@@ -2421,6 +2432,9 @@ void parseLevelsLine(ParserState& state, DiagnosticSink& diagnostics, std::strin
                 state.lineNumber,
                 "Maps must be rectangular, yo (In a level, the length of each row must be the same).");
         }
+    }
+    if (!trimmedLower.empty()) {
+        validateLevelMapRowAbbrevKeys(state, diagnostics, trimmedLower);
     }
 }
 
@@ -2435,7 +2449,14 @@ std::string escapeJson(std::string_view value) {
             case '\r': out += "\\r"; break;
             case '\t': out += "\\t"; break;
             default:
-                out.push_back(ch);
+                if (static_cast<unsigned char>(ch) < 0x20) {
+                    constexpr char hex[] = "0123456789abcdef";
+                    out += "\\u00";
+                    out.push_back(hex[static_cast<unsigned char>(ch) >> 4]);
+                    out.push_back(hex[static_cast<unsigned char>(ch) & 15]);
+                } else {
+                    out.push_back(ch);
+                }
                 break;
         }
     }
@@ -2532,6 +2553,22 @@ struct PhysicalBlankInOpenCommentFooter {
     }
 };
 
+// Find the first live byte after leading whitespace and nested comments.
+// The caller supplies comment depth from the previous physical line.
+size_t captureStart(std::string_view line, int32_t depth) {
+    for (size_t index = 0; index < line.size();) {
+        const char ch = line[index];
+        if (ch == '(') { ++depth; ++index; continue; }
+        if (ch == ')') { if (depth == 0) return line.size(); --depth; ++index; continue; }
+        utf8proc_int32_t cp = 0;
+        const auto width = utf8proc_iterate(reinterpret_cast<const utf8proc_uint8_t*>(line.data() + index),
+            static_cast<utf8proc_ssize_t>(line.size() - index), &cp);
+        if (depth == 0 && (width <= 0 || !utf8CodepointIsZsOrAsciiSpace(cp))) return index;
+        index += width > 0 ? static_cast<size_t>(width) : 1;
+    }
+    return line.size();
+}
+
 ParserState parseSource(std::string_view source, DiagnosticSink& diagnostics) {
     ParserState state;
     state.levels.push_back(ParserLevelEntry{});
@@ -2564,6 +2601,7 @@ ParserState parseSource(std::string_view source, DiagnosticSink& diagnostics) {
         }
         // Always strip comments (parser.js processes '(' / ')' before section logic).
         // A levels "message ..." line can contain '(' — skipping strip would desync commentLevel.
+        const int32_t initialCommentDepth = state.commentLevel;
         const std::string mixedVisible = stripComments(rawLine, state, diagnostics);
         const std::string trimmedVisible = trim(mixedVisible);
         const std::string loweredVisible = toLowerCopy(trimmedVisible);
@@ -2577,20 +2615,15 @@ ParserState parseSource(std::string_view source, DiagnosticSink& diagnostics) {
                 state.lineShouldEnd = true;
                 state.lineShouldEndBecause = "a bunch of equals signs ('===')";
             } else {
-                const bool rawHasContent = !trim(rawLine).empty();
-                if (rawHasContent && state.section == "objects"
-                    && state.objectsSection >= 1 && state.objectsSection <= 3) {
-                    // Comment-only physical line while reading an object: JS still has
-                    // non-empty stream.string so blankLineHandle does not run; do not reset.
-                } else {
-                    handleBlankLine(state);
-                }
+                // JS's blankLineHandle runs only for a physically empty line,
+                // never for a line whose contents were removed as a comment.
+                if (trim(rawLine).empty()) handleBlankLine(state);
             }
             continue;
         }
 
         // parser.js #976: lines that look like section headers are still level map rows inside LEVELS.
-        if (state.section != "levels") {
+        if (state.section != "levels" && captureStart(rawLine, initialCommentDepth) < rawLine.size()) {
             if (const std::optional<std::string> sectionHeader = matchLeadingSectionKeyword(loweredVisible)) {
                 const std::string& newSection = *sectionHeader;
                 if (std::find(state.visitedSections.begin(), state.visitedSections.end(), newSection) != state.visitedSections.end()) {
@@ -2651,7 +2684,7 @@ ParserState parseSource(std::string_view source, DiagnosticSink& diagnostics) {
 
         switch (state.section[0]) {
             case 'o':
-                parseObjectsLine(state, diagnostics, trimmedVisible, trim(mixedVisible));
+                parseObjectsLine(state, diagnostics, mixedVisible, mixedVisible);
                 break;
             case 'l':
                 if (state.section == "legend") {
@@ -2666,11 +2699,13 @@ ParserState parseSource(std::string_view source, DiagnosticSink& diagnostics) {
             case 'c':
                 parseCollisionLayersLine(state, diagnostics, trimmedVisible);
                 break;
-            case 'r':
-                parseRulesLine(state, diagnostics, trimmedVisible, rawLine);
+            case 'r': {
+                const size_t start = captureStart(rawLine, initialCommentDepth);
+                if (start < rawLine.size()) parseRulesLine(state, diagnostics, std::string_view(rawLine).substr(start));
                 break;
+            }
             case 'w':
-                parseWinConditionsLine(state, diagnostics, trimmedVisible);
+                parseWinConditionsLine(state, diagnostics, takePrefixBeforeComment(std::string_view(rawLine).substr(captureStart(rawLine, initialCommentDepth))));
                 break;
             default:
                 break;

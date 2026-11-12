@@ -127,6 +127,41 @@ if(NOT PS_MASK_WORD_BITS STREQUAL "32" AND NOT PS_MASK_WORD_BITS STREQUAL "64")
 endif()
 option(PS_INTERPRETER_OBJECT_CELL_INDEX "Maintain per-object cell index for anchored interpreter rule scans" ON)
 
+# Cache line preconditions within each immutable anchored candidate scan.
+# Other implementations remain available as profiling controls; selection is
+# compile-time, with no runtime backend dispatch.
+set(PS_PATTERN_MATCH_KERNEL "anchor-cache" CACHE STRING "Runtime matcher and profiling controls")
+set_property(CACHE PS_PATTERN_MATCH_KERNEL PROPERTY STRINGS original cpp neon asm asm-early copy asm-loop anchor anchor-short asm-readonly asm-anchor anchor-cache anchor-adaptive)
+set(PS_PATTERN_MATCH_KERNELS original cpp neon asm asm-early copy asm-loop anchor anchor-short asm-readonly asm-anchor anchor-cache anchor-adaptive)
+list(FIND PS_PATTERN_MATCH_KERNELS "${PS_PATTERN_MATCH_KERNEL}" PS_PATTERN_MATCH_KERNEL_ID)
+if(PS_PATTERN_MATCH_KERNEL_ID LESS 0)
+  message(FATAL_ERROR "Unknown PS_PATTERN_MATCH_KERNEL; choose from: ${PS_PATTERN_MATCH_KERNELS}")
+endif()
+if(PS_PATTERN_MATCH_KERNEL MATCHES "^(neon|asm|asm-early|asm-loop|asm-readonly|asm-anchor)$")
+  if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64|ARM64)$"
+      OR CMAKE_OSX_ARCHITECTURES MATCHES "x86_64"
+      OR CMAKE_CXX_SIMULATE_ID STREQUAL "MSVC"
+      OR NOT CMAKE_CXX_COMPILER_ID MATCHES "^(Clang|AppleClang|GNU)$"
+      OR NOT PS_MASK_WORD_BITS STREQUAL "64")
+    message(FATAL_ERROR "neon/asm matcher experiments require GCC/Clang, ARM64 and 64-bit masks")
+  endif()
+endif()
+option(PS_INTERPRETER_TUNING "Enable interpreter copy/call reductions (OFF is a profiling control)" ON)
+set_property(SOURCE src/runtime/core.cpp APPEND PROPERTY COMPILE_DEFINITIONS
+  PS_PATTERN_MATCH_KERNEL=${PS_PATTERN_MATCH_KERNEL_ID}
+  PS_INTERPRETER_TUNING=$<BOOL:${PS_INTERPRETER_TUNING}>)
+
+option(PS_BUILD_MASK_EXPERIMENTS "Build matcher differential tests and microbenchmark" OFF)
+if(PS_BUILD_MASK_EXPERIMENTS)
+  add_executable(pattern_match_kernels tests/pattern_match_kernels.cpp)
+  target_include_directories(pattern_match_kernels PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+  add_test(NAME pattern_match_kernels COMMAND pattern_match_kernels)
+  add_executable(line_precondition_cache_tests tests/line_precondition_cache.cpp)
+  target_include_directories(line_precondition_cache_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_SOURCE_DIR}/include)
+  add_test(NAME line_precondition_cache_tests COMMAND line_precondition_cache_tests)
+endif()
+
 add_library(puzzlescript_compiler STATIC
   ${PUZZLESCRIPT_COMPILER_PUBLIC_HEADERS}
   ${PUZZLESCRIPT_COMPILER_SOURCES}
@@ -2638,7 +2673,7 @@ if(PS_MASK_WORD_BITS STREQUAL "32")
 endif()
 
 # Recent solver/compiler contracts must be exercised by a normal clean build.
-foreach(test_name IN ITEMS solver_static_tags sparse_replacements solver_compiled_profiles)
+foreach(test_name IN ITEMS solver_static_tags sparse_replacements solver_compiled_profiles interpreter_codegen interpreter_replacements)
   add_executable(${test_name} tests/${test_name}.cpp)
   target_include_directories(${test_name} PRIVATE src)
   target_link_libraries(${test_name} PRIVATE puzzlescript_compiler puzzlescript_native)
@@ -2664,6 +2699,10 @@ add_test(NAME solver_compiled_profile_replay
 
 add_test(NAME native_diagnostic_regressions_node
   COMMAND ${NODE_EXECUTABLE} ${PUZZLESCRIPT_REPO_ROOT}/src/tests/native_diagnostic_regressions_node.js $<TARGET_FILE:puzzlescript_cpp>)
+add_test(NAME compiler_fuzz_regressions_node
+  COMMAND ${NODE_EXECUTABLE} ${PUZZLESCRIPT_REPO_ROOT}/src/tests/compiler_fuzz_regressions_node.js $<TARGET_FILE:puzzlescript_cpp>)
+add_test(NAME comment_rule_capture_node
+  COMMAND ${NODE_EXECUTABLE} ${PUZZLESCRIPT_REPO_ROOT}/src/tests/comment_rule_capture_node.js)
 add_test(NAME native_diagnostics_corpus
   COMMAND puzzlescript_cpp test diagnostics-corpus ${PUZZLESCRIPT_REPO_ROOT}/src/tests/resources/errormessage_testdata.js --progress-every 0)
 add_test(NAME compiled_solver_profiles_node

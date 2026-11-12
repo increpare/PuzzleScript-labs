@@ -88,10 +88,12 @@ export function leadingContentStart(line: SourceLine, initialCommentDepth: numbe
  * In rules, the lexical word reader consumes embedded parentheses and MESSAGE consumes the remaining physical line.
  */
 export function readComments(line: SourceLine, state: CommentState, diagnostics: SourceDiagnostic[], literalFrom = line.original.length,
-  ruleNames?: ReadonlySet<string>): string {
+  ruleNames?: ReadonlySet<string>, captureOnceAfterComment = ruleNames !== undefined): string {
   const view = line.original.split('');
+  let activeContent = false;
   for (let index = 0; index < literalFrom; index++) {
     const character = line.original.charAt(index);
+    if (state.stack.length === 0 && !/[\p{Z}\s()]/u.test(character)) activeContent = true;
     if (ruleNames !== undefined && state.stack.length === 0 && !/[\p{Z}\s\[\]|+()]/u.test(character)) {
       if (line.original.startsWith('->', index)) { index++; continue; }
       let end = index + 1;
@@ -112,6 +114,10 @@ export function readComments(line: SourceLine, state: CommentState, diagnostics:
         severity: SourceDiagnosticSeverity.Warning, countsAsError: false, phase: SourceDiagnosticPhase.Reader, span: lineSpan(line, index, index + 1) });
       else { comment.span = { start: comment.span.start, end: lineSpan(line, index, index + 1).end }; comment.closed = true; }
       view[index] = ' ';
+      if (comment !== undefined && state.stack.length === 0 && activeContent && captureOnceAfterComment) {
+        view.fill(' ', index + 1);
+        break;
+      }
     } else if (state.stack.length > 0) view[index] = ' ';
   }
   return view.join('');

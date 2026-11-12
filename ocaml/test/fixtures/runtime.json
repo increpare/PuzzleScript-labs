@@ -1,0 +1,714 @@
+[
+  {
+    "id": "ocaml/independent-layer-sounds",
+    "sourceFile": "layer-sounds.ps",
+    "explanation": "Marker moves through Wall on its own collision layer. Player stays blocked and must emit only its failure sound; another layer's success cannot emit Player's move sound.",
+    "cells": {"P": ["background", "player"], "M": ["background", "wall", "marker"]},
+    "cases": [
+      {"name": "successful marker does not play blocked player move sound", "inputs": [3], "expected": ["PM"], "expectedSounds": ["123", "125"], "expectedPlayedSounds": ["123", "125"]}
+    ]
+  },
+  {
+    "id": "ocaml/left-ellipsis-order",
+    "sourceFile": "left-ellipsis.ps",
+    "explanation": "Leftward starts enumerate x=1,2,3, with ascending gaps at each start. Seed ocaml/reverse-ellipsis selects tuple 0 (start 1, gap 0, partner 0), then selects Blue. Marker occupies x=0, Blue x=1. Reversing an ellipsis row to scan right would select different cells.",
+    "cells": {"M": ["background", "marker"], "B": ["background", "blue"], "S": ["background", "seed"], "P": ["background", "player"]},
+    "cases": [{"name": "random tuple preserves leftward starts and gaps", "seed": "ocaml/reverse-ellipsis", "inputs": [4], "expected": ["MBSSP"]}]
+  },
+  {
+    "id": "ocaml/up-ellipsis-order",
+    "sourceFile": "up-ellipsis.ps",
+    "explanation": "Upward starts enumerate y=1,2,3, with ascending gaps at each start. The same independently inspected RNG draws choose tuple 0 and Blue: Marker at y=0, Blue at y=1. Fixed-row orientation normalization must not reverse this gap search.",
+    "cells": {"M": ["background", "marker"], "B": ["background", "blue"], "S": ["background", "seed"], "P": ["background", "player"]},
+    "cases": [{"name": "random tuple preserves upward starts and gaps", "seed": "ocaml/reverse-ellipsis", "inputs": [4], "expected": ["M", "B", "S", "S", "P"]}]
+  },
+  {
+    "id": "ocaml/message-parentheses",
+    "sourceFile": "message-parentheses.ps",
+    "explanation": "Once a message command starts, its remainder is literal text. Unclosed parentheses in the payload must not swallow the next rule or the level. Action consumes Player's intent and the following rule adds Marker.",
+    "cells": {"M": ["background", "player", "marker"]},
+    "cases": [{"name": "literal message parentheses do not begin comments", "inputs": [4], "expected": ["M"]}]
+  },
+  {
+    "id": "ocaml/unicode-names",
+    "sourceFile": "unicode-names.ps",
+    "explanation": "Greek capital ΟΣ lowercases to ος with final sigma. Cyrillic capital А is a level alias, and a nonbreaking space separates the direction header from the rule. Action must add Marker next to Player using the same declaration identity.",
+    "cells": {"P": ["background", "player"], "M": ["background", "ος", "marker"]},
+    "cases": [{"name": "Unicode casing and whitespace preserve bound identities", "inputs": [4], "expected": ["PM"]}]
+  },
+  {
+    "id": "ocaml/comment-layout",
+    "sourceFile": "comment-layout.ps",
+    "explanation": "Comment-only lines preserve an object sprite and do not split a level. Real blank lines end the object, so the later detached dot-leading pixel rows are diagnosed and ignored. Action adds Marker to Player's top-left cell of the one two-row board.",
+    "cells": {"M": ["background", "player", "marker"], ".": ["background"]},
+    "cases": [{"name": "comments preserve layout while physical blanks reset it", "inputs": [4], "expected": ["M.", ".."]}]
+  },
+  {
+    "id": "ocaml/comment-capture",
+    "sourceFile": "comment-capture.ps",
+    "explanation": "The reference captures each rule and win-condition prefix before its first comment. Tokens after the comment closes on the same physical line are ignored, so neither undefined suffix name is resolved. Action adds Marker without reaching the no-Player win condition.",
+    "cells": {"M": ["background", "player", "marker"]},
+    "cases": [{"name": "captured rule and win prefixes ignore suffix text", "inputs": [4], "expected": ["M"]}]
+  },
+  {
+    "id": "ocaml/glued-message",
+    "sourceFile": "glued-message.ps",
+    "explanation": "The arrow and message command need no separating whitespace. Parentheses after that command are literal message text; they must not swallow the following Marker rule or the level. Marker is added on Action while Player remains in place.",
+    "cells": {"M": ["background", "player", "marker"]},
+    "cases": [{"name": "glued arrow still enters literal message text", "inputs": [4], "expected": ["M"]}]
+  },
+  {
+    "id": "ocaml/unlayered-reference",
+    "sourceFile": "unlayered-reference.ps",
+    "explanation": "Ghost has no layer. Its level glyph contributes no objects, so the second cell initially contains only Background. Diagnosed rule lookup recovers identity zero, allowing Ghost to match that Background and add Marker. A movement sound attached to the unlayered declaration is skipped.",
+    "expectedErrors": ["Object \"GHOST\" has been defined, but not assigned to a layer."],
+    "cells": {"P": ["background", "player"], "M": ["background", "marker"]},
+    "cases": [
+      {"name": "rule lookup differs from the empty glyph", "inputs": [4], "expected": ["PM"], "expectedSounds": [], "expectedPlayedSounds": []},
+      {"name": "recovered identity survives undo and replay", "inputs": [4, "undo", 4], "expected": ["PM"], "expectedSounds": [], "expectedPlayedSounds": []}
+    ]
+  },
+  {
+    "id": "ocaml/unlayered-movement",
+    "sourceFile": "unlayered-movement.ps",
+    "explanation": "The unknown first collision member leaves layer zero empty. Background owns physical identity zero on layer one; Ghost recovers that identity but its movement qualifier targets layer zero. It must not trigger Background's layer-one Action sound.",
+    "expectedErrors": ["Cannot add \"VACANT\" to a collision layer; it has not been declared.", "Object \"GHOST\" has been defined, but not assigned to a layer."],
+    "cells": {"P": ["background", "player"]},
+    "cases": [{"name": "recovered movement uses the source layer rather than identity owner", "inputs": [4], "expected": ["P"], "expectedSounds": [], "expectedPlayedSounds": []}]
+  },
+  {
+    "id": "ocaml/aggregate-player",
+    "sourceFile": "aggregate-player.ps",
+    "explanation": "Player is the aggregate A and B. At their shared starting cell, Right applies to both layers. Wall blocks B while A enters Wall's cell. Once split, neither cell contains the complete aggregate, so a second Right supplies no movement; undo restores the single earlier boundary.",
+    "cells": {"P": ["background", "a", "b"], "W": ["background", "wall"], "B": ["background", "b"], "A": ["background", "a", "wall"], ".": ["background"]},
+    "cases": [
+      {"name": "shared aggregate receives input on both layers", "inputs": [3], "expected": ["BA."]},
+      {"name": "split members no longer receive input", "inputs": [3, 3], "expected": ["BA."]},
+      {"name": "ineffective second input adds no history boundary", "inputs": [3, 3, "undo"], "expected": ["PW."]}
+    ]
+  },
+  {
+    "id": "ocaml/property-rule-identity",
+    "sourceFile": "property-rule-identity.ps",
+    "explanation": "Color and Hue denote the same property but remain different source rules. The random group therefore has three candidates: Color at Red, Hue at Red, and Player. Seed ocaml/source-duplicates:9 gives first uniform 0.601664942322831, selecting candidate one and adding Marker at Red. Deduplicating by lowered predicates would leave two candidates and wrongly mark Player.",
+    "cells": {"M": ["background", "red", "marker"], "P": ["background", "player"]},
+    "cases": [{"name": "equivalent properties keep distinct random rule candidates", "seed": "ocaml/source-duplicates:9", "inputs": [4], "expected": ["MP"]}]
+  },
+  {
+    "id": "ocaml/duplicate-rule-lines",
+    "sourceFile": "duplicate-rule-lines.ps",
+    "explanation": "Even exactly repeated rules on different source lines are distinct random candidates in vanilla. The two Red rules and one Player rule give three candidates. Uniform 0.601664942322831 selects the second Red rule, adding Marker at Red.",
+    "cells": {"M": ["background", "red", "marker"], "P": ["background", "player"]},
+    "cases": [{"name": "separate lines preserve repeated candidates", "seed": "ocaml/source-duplicates:9", "inputs": [4], "expected": ["MP"]}]
+  },
+  {
+    "id": "ocaml/duplicate-rule-directions",
+    "sourceFile": "duplicate-rule-directions.ps",
+    "explanation": "The horizontal rule expands to Left and Right, whose two identical Red cells normalize to the same source pattern on the same line. Vanilla retains one of those candidates, followed by Player. Uniform 0.601664942322831 therefore selects Player, leaving both Red cells unmarked.",
+    "cells": {"R": ["background", "red"], "M": ["background", "player", "marker"]},
+    "cases": [{"name": "equivalent directions on one line collapse", "seed": "ocaml/source-duplicates:9", "inputs": [4], "expected": ["RRM"]}]
+  },
+  {
+    "id": "ocaml/legend-forward-property",
+    "sourceFile": "legend-forward-property.ps",
+    "explanation": "Color refers to Alias before Alias is registered. The source reader diagnoses the forward reference. Although final property alternatives resolve Alias to Red, Color's matching membership was registered earlier and contains only Blue. The rule therefore marks Blue and leaves Red untouched.",
+    "expectedErrors": ["You're talking about ALIAS but it's not defined anywhere."],
+    "cells": {"R": ["background", "red"], "M": ["background", "blue", "marker"], "P": ["background", "player"]},
+    "cases": [{"name": "source membership differs from final alternatives", "inputs": [4], "expected": ["RMP"]}]
+  },
+  {
+    "id": "ocaml/legend-cycle-recovery",
+    "sourceFile": "legend-cycle-recovery.ps",
+    "explanation": "A = B is registered with a forward-reference error. B = A would close a cycle and is rejected. Rule lookup then reaches undeclared B and drops its terms, so the recovered rule marks every cell. Physical identity zero is Player: treating B as that identity would incorrectly leave the Background-only cell unmarked.",
+    "expectedErrors": ["You're talking about B but it's not defined anywhere.", "You can't define object B in terms of itself!", "Oops! B not assigned to a layer."],
+    "cells": {"M": ["background", "player", "marker"], "N": ["background", "marker"]},
+    "cases": [
+      {"name": "missing alias has no physical board identity", "inputs": [4], "expected": ["MN"]},
+      {"name": "recovered rule remains deterministic after undo", "inputs": [4, "undo", 4], "expected": ["MN"]}
+    ]
+  },
+  {
+    "id": "ocaml/legend-first-layer",
+    "sourceFile": "legend-first-layer.ps",
+    "explanation": "Choice is registered as Red on line 23 and then redefined as Blue. Collision lookup and C's glyph use the first registration, so the first cell is Red. Final rule lookup uses Blue, adding Marker only to the last cell. The redefinition remains diagnosed.",
+    "expectedErrors": ["Name \"CHOICE\" already in use (on line line 23)."],
+    "cells": {"R": ["background", "red"], "P": ["background", "player"], "M": ["background", "blue", "marker"]},
+    "cases": [{"name": "first source registration differs from final alias", "inputs": [4], "expected": ["RPM"]}]
+  },
+  {
+    "id": "ocaml/name-concrete-membership",
+    "sourceFile": "name-concrete-membership.ps",
+    "explanation": "Red is both a concrete object and a diagnosed property of Blue or Green. Its source matching membership contains Blue and Green, but lowering treats the concrete name as requiring every bit in that membership. Neither initial cell contains both, so the Marker rule cannot match.",
+    "expectedErrors": ["Name \"RED\" already in use (on line line 10)."],
+    "cells": {"B": ["background", "blue"], "G": ["background", "green"], "P": ["background", "player"]},
+    "cases": [{"name": "overwritten concrete membership requires all its occupants", "inputs": [4], "expected": ["BGP"]}]
+  },
+  {
+    "id": "ocaml/name-player-views",
+    "sourceFile": "name-player-views.ps",
+    "explanation": "The diagnosed Player property lists A and B. Player input unions those members with the actual Player object, so Right moves the original Player. The movement sound expands the final property to A and B only; moving Player must not trigger it. The some-A win condition remains false.",
+    "expectedErrors": ["Name \"PLAYER\" already in use (on line line 7)."],
+    "cells": {"P": ["background", "player"], ".": ["background"]},
+    "cases": [
+      {"name": "input includes the actual object but movement sound does not", "inputs": [3], "expected": [".P."], "expectedSounds": [], "expectedPlayedSounds": []},
+      {"name": "contextual name selection survives undo and replay", "inputs": [3, "undo", 3], "expected": [".P."], "expectedSounds": [], "expectedPlayedSounds": []}
+    ]
+  },
+  {
+    "id": "ocaml/name-win-membership",
+    "sourceFile": "name-win-membership.ps",
+    "explanation": "The forward Alias reference is diagnosed. Final Color alternatives include Red and Blue, but its earlier source membership contains only Blue. The Red cell therefore cannot satisfy some Color; gameplay stays on the board after Action.",
+    "expectedErrors": ["You're talking about ALIAS but it's not defined anywhere."],
+    "cells": {"R": ["background", "red"], "P": ["background", "player"]},
+    "cases": [{"name": "a resolved forward alternative does not satisfy the earlier win membership", "inputs": [4], "expected": ["RP"]}]
+  },
+  {
+    "id": "ocaml/name-alias-pass",
+    "sourceFile": "name-alias-pass.ps",
+    "explanation": "With no compounds, vanilla makes one ordered alias pass: A becomes C, B becomes Red, and C remains Red. Rephrasing the A rule once leaves the non-object term C, which is diagnosed and omitted. The resulting rule marks every cell, including the Player and Background-only cells; recursive alias lookup would wrongly mark only Red.",
+    "expectedErrors": ["You're talking about B but it's not defined anywhere.", "You're talking about C but it's not defined anywhere.", "Oops! C not assigned to a layer."],
+    "cells": {"R": ["background", "red", "marker"], "P": ["background", "player", "marker"], "M": ["background", "marker"]},
+    "cases": [{"name": "alias updates preserve the reference stopping condition", "inputs": [4], "expected": ["RPM"]}]
+  },
+  {
+    "id": "ocaml/name-property-order",
+    "sourceFile": "name-property-order.ps",
+    "explanation": "Color initially lists unresolved Inner before Blue, and Hue shares its compound definition. Expanding Inner removes that entry and appends Red and Green, giving Hue the order Blue, Red, Green. Cross-cell transport concretizes the random rule in that order. Uniform 0.601664942322831 selects Red, leaving Marker at its origin and moving Red one cell right.",
+    "expectedErrors": ["You're talking about INNER but it's not defined anywhere."],
+    "cells": {"B": ["background", "blue"], "R": ["background", "red"], "G": ["background", "green"], "M": ["background", "marker"], "P": ["background", "player"], ".": ["background"]},
+    "cases": [{"name": "shared property expansion preserves random candidate order", "seed": "ocaml/source-duplicates:9", "inputs": [4], "expected": ["B.MRG.P"]}]
+  },
+  {
+    "id": "ocaml/name-empty-membership",
+    "sourceFile": "name-empty-membership.ps",
+    "explanation": "The diagnosed Red property is registered before either alias, giving the concrete name an empty source membership. Matching therefore requires no objects but still tests Action on Red's layer, shared with Player. Action replaces Player with the actual Red and Marker; Right must move Player normally. Red's create sound uses that empty source membership and remains silent.",
+    "expectedErrors": ["Name \"RED\" already in use (on line line 10).", "You're talking about ALIAS1 but it's not defined anywhere.", "You're talking about ALIAS2 but it's not defined anywhere."],
+    "cells": {"M": ["background", "red", "marker"], "P": ["background", "player"], ".": ["background"]},
+    "cases": [
+      {"name": "an empty matching membership still checks Action on its source layer", "inputs": [4], "expected": ["M.."], "expectedSounds": [], "expectedPlayedSounds": []},
+      {"name": "other movement does not satisfy the independent Action test", "inputs": [3], "expected": [".P."], "expectedSounds": [], "expectedPlayedSounds": []}
+    ]
+  },
+  {
+    "id": "ocaml/name-random-aggregate",
+    "sourceFile": "name-random-aggregate.ps",
+    "explanation": "Both is the aggregate Red and Blue. Rule normalization expands random Both into random Red and random Blue; the replacement combines their membership and draws once. Uniform 0.601664942322831 chooses Blue, so Action creates Blue and Marker at Player without creating Red. Full RNG observations verify the single seven-byte draw.",
+    "cells": {"M": ["background", "player", "blue", "marker"], ".": ["background"]},
+    "cases": [{"name": "expanded aggregate random terms use one combined choice", "seed": "ocaml/source-duplicates:9", "inputs": [4], "expected": ["M.."]}]
+  },
+  {
+    "id": "ocaml/win-excess-recovery",
+    "sourceFile": "win-excess-recovery.ps",
+    "explanation": "The fifth word is diagnosed. With five captured words, vanilla ignores the ON target and tests all Player against the whole board. Player is present, so Action advances from PC to the second level P.; honoring the written Crate target would incorrectly keep the first level.",
+    "expectedErrors": ["Error in win condition: I don't know what to do with CRATE."],
+    "cells": {"P": ["background", "player"], ".": ["background"]},
+    "cases": [{"name": "excess words retain the whole-board fallback target", "inputs": [4], "expected": ["P."]}]
+  },
+  {
+    "id": "ocaml/win-separator-recovery",
+    "sourceFile": "win-separator-recovery.ps",
+    "explanation": "The third word CRATE is diagnosed as an invalid separator. Exactly four captured words still make the fourth word the target, so Player must overlap Crate to win. Their separate cells do not satisfy that condition, and Action stays on PC.",
+    "expectedErrors": ["Expecting the word \"ON\" but got \"CRATE\"."],
+    "cells": {"P": ["background", "player"], "C": ["background", "crate"]},
+    "cases": [{"name": "a bad separator retains the fourth captured word as target", "inputs": [4], "expected": ["PC"]}]
+  },
+  {
+    "id": "ocaml/win-quantifier-recovery",
+    "sourceFile": "win-quantifier-recovery.ps",
+    "explanation": "MAYBE is diagnosed as an unknown quantifier and compiles to the existential fallback. Player overlaps itself, so Action satisfies the recovered condition and advances from PC to P. on the second level.",
+    "expectedErrors": ["Expecting the start of a win condition (\"ALL\",\"SOME\",\"NO\") but got \"MAYBE'."],
+    "cells": {"P": ["background", "player"], ".": ["background"]},
+    "cases": [{"name": "an unknown quantifier keeps the existential fallback", "inputs": [4], "expected": ["P."]}]
+  },
+  {
+    "id": "ocaml/sound-event-redefinition",
+    "sourceFile": "sound-event-redefinition.ps",
+    "explanation": "SFX0 is defined twice. The later seed replaces the earlier event, so each Action sounds 54321 once while adding Marker. Undo restores the board while retaining audible request history.",
+    "cells": {"M": ["background", "player", "marker"], ".": ["background"]},
+    "cases": [
+      {"name": "only the last event definition plays", "inputs": [4], "expected": ["M.."], "expectedSounds": [], "expectedPlayedSounds": ["54321"]},
+      {"name": "the last seed remains singular after undo and replay", "inputs": [4, "undo", 4], "expected": ["M.."], "expectedSounds": [], "expectedPlayedSounds": ["54321", "54321"]}
+    ]
+  },
+  {
+    "id": "ocaml/sound-partial-direction",
+    "sourceFile": "sound-partial-direction.ps",
+    "explanation": "The incomplete object sound is diagnosed by the compiler. Its last direction token RIGHT becomes the recovered seed string, leaving no explicit directions; movement therefore defaults to all four directions. Either Right or Down emits the seed right once.",
+    "expectedErrors": ["Expecting sfx data, instead found \"right\"."],
+    "cells": {"P": ["background", "player"], ".": ["background"]},
+    "cases": [
+      {"name": "a missing numeric seed retains its final token spelling", "inputs": [3], "expected": [".P", ".."], "expectedSounds": ["right"], "expectedPlayedSounds": ["right"]},
+      {"name": "the recovered final direction does not restrict the sound", "inputs": [2], "expected": ["..", "P."], "expectedSounds": ["right"], "expectedPlayedSounds": ["right"]}
+    ]
+  },
+  {
+    "id": "ocaml/sound-discarded-line",
+    "sourceFile": "sound-discarded-line.ps",
+    "explanation": "The extra token rejects the entire first SFX0 declaration. The following valid line defines SFX0 independently, so Action plays 12345 once while adding Marker; the discarded 999 prefix does not register an event.",
+    "expectedErrors": ["I wasn't expecting anything after the sound declaration 999 on this line, so I don't know what to do with \"EXTRA\" here."],
+    "cells": {"M": ["background", "player", "marker"], ".": ["background"]},
+    "cases": [{"name": "a failed line cannot register a partial sound event", "inputs": [4], "expected": ["M.."], "expectedSounds": [], "expectedPlayedSounds": ["12345"]}]
+  },
+  {
+    "id": "ocaml/sound-comment-finalization",
+    "sourceFile": "sound-comment-finalization.ps",
+    "explanation": "Both sound lines have an unmatched closing comment. SFX0 ends immediately after it, bypassing registration; SFX1 deliberately has one trailing space, causing another token visit that registers 54321. Action therefore adds Marker and plays only SFX1. The fixture's trailing whitespace is intentional source data.",
+    "cells": {"M": ["background", "player", "marker"], ".": ["background"]},
+    "cases": [{"name": "an early comment return and a later whitespace visit differ", "inputs": [4], "expected": ["M.."], "expectedSounds": [], "expectedPlayedSounds": ["54321"]}]
+  },
+  {
+    "id": "ocaml/rule-unknown-cell",
+    "sourceFile": "rule-unknown-cell.ps",
+    "explanation": "The source lexer and structural compiler each diagnose Missing. Its unqualified occurrence is omitted, leaving an Action-Player pattern that adds Marker. Recovery must preserve the executable rule and normal undo boundaries.",
+    "expectedErrors": ["Name \"missing\", referred to in a rule, does not exist.", "Error, malformed cell rule - was looking for cell contents, but found \"missing\".  What am I supposed to do with this, eh, please tell me that."],
+    "cells": {"M": ["background", "player", "marker"], ".": ["background"]},
+    "cases": [
+      {"name": "an unknown unqualified name leaves the known pattern executable", "inputs": [4], "expected": ["M."]},
+      {"name": "recovered matching remains stable after undo", "inputs": [4, "undo", 4], "expected": ["M."]}
+    ]
+  },
+  {
+    "id": "ocaml/rule-header-recovery",
+    "sourceFile": "rule-header-recovery.ps",
+    "explanation": "The relative scan modifier is diagnosed and omitted. With no absolute scan direction, the single-cell rule retains the default scan and adds Marker on Action.",
+    "expectedErrors": ["Name \"^\", referred to in a rule, does not exist.", "You cannot use relative directions (\"^v<>\") to indicate in which direction(s) a rule applies.  Use absolute directions indicators (Up, Down, Left, Right, Horizontal, or Vertical, for instance), or, if you want the rule to apply in all four directions, do not specify directions"],
+    "cells": {"M": ["background", "player", "marker"], ".": ["background"]},
+    "cases": [{"name": "invalid scan syntax does not erase the default direction", "inputs": [4], "expected": ["M."]}]
+  },
+  {
+    "id": "ocaml/rule-late-join",
+    "sourceFile": "rule-late-join.ps",
+    "explanation": "The opening rule is late and its joined member is early. The early member sees no Marker on the initial board; the late rule then adds Marker. Inheriting late onto the joined member would instead replace it with Trophy and repeatedly change the group.",
+    "cells": {"M": ["background", "player", "marker"], ".": ["background"]},
+    "cases": [
+      {"name": "joined rules retain their own execution phase", "inputs": [4], "expected": ["M."]},
+      {"name": "mixed-phase source grouping survives undo and replay", "inputs": [4, "undo", 4], "expected": ["M."]}
+    ]
+  },
+  {
+    "id": "ocaml/rule-qualifier-recovery",
+    "sourceFile": "rule-qualifier-recovery.ps",
+    "explanation": "The second qualifier RIGHT is diagnosed and ignored while ACTION remains pending for Player. Action therefore adds Marker, while Right moves Player without matching the rule.",
+    "expectedErrors": ["Error, an item can only have one direction/action at a time, but you're looking for several at once!"],
+    "cells": {"M": ["background", "player", "marker"], "P": ["background", "player"], ".": ["background"]},
+    "cases": [
+      {"name": "the first qualifier remains attached to its object", "inputs": [4], "expected": ["M."]},
+      {"name": "the ignored qualifier cannot make the rule match", "inputs": [3], "expected": [".P"]}
+    ]
+  },
+  {
+    "id": "ocaml/rule-command-placement",
+    "sourceFile": "rule-command-placement.ps",
+    "explanation": "CANCEL is diagnosed on the detection side but remains a queued command. It cancels Action and the Marker replacement, leaving the original board unchanged.",
+    "expectedErrors": ["Commands should only appear at the end of rules, not in or before the pattern-detection/-replacement sections."],
+    "cells": {"P": ["background", "player"], ".": ["background"]},
+    "cases": [{"name": "a diagnosed command still applies its cancellation priority", "inputs": [4], "expected": ["P."]}]
+  },
+  {
+    "id": "ocaml/rule-first-plus",
+    "sourceFile": "rule-first-plus.ps",
+    "explanation": "A first '+' has no group to join and is diagnosed. Recovery leaves the rule in its own group, where Action adds Marker normally.",
+    "expectedErrors": ["The \"+\" symbol, for joining a rule with the group of the previous rule, needs a previous rule to be applied to."],
+    "cells": {"M": ["background", "player", "marker"], ".": ["background"]},
+    "cases": [{"name": "an unmatched join modifier recovers as an opening rule", "inputs": [4], "expected": ["M."]}]
+  },
+  {
+    "id": "ocaml/rule-no-arrow-command",
+    "sourceFile": "rule-no-arrow-command.ps",
+    "explanation": "The missing arrow and detection-side WIN command are diagnosed. The recovered command-only rule still matches Action and advances from PC to the second level P.",
+    "expectedErrors": ["A rule has to have an arrow in it.  There's no arrow here! Consider reading up about rules - you're clearly doing something weird", "Commands should only appear at the end of rules, not in or before the pattern-detection/-replacement sections."],
+    "cells": {"P": ["background", "player"], ".": ["background"]},
+    "cases": [{"name": "a recovered command-only rule can progress to another level", "inputs": [4], "expected": ["P."]}]
+  },
+  {
+    "id": "ocaml/rule-empty-message",
+    "sourceFile": "rule-empty-message.ps",
+    "explanation": "An empty message command has a single-space payload in vanilla. The complete trace checks that payload while Action leaves Player's board unchanged.",
+    "cells": {"P": ["background", "player"], ".": ["background"]},
+    "cases": [{"name": "an empty message retains its nonempty sentinel payload", "inputs": [4], "expected": ["P."]}]
+  },
+  {
+    "id": "ocaml/rule-discarded-group-loop",
+    "sourceFile": "rule-discarded-group-loop.ps",
+    "explanation": "The Player/Crate overlap makes the first group impossible. The surviving group inside the loop adds Marker and stabilizes, then the outside group replaces Marker with Trophy. Loop bounds must be calculated after the impossible group is removed; targeting the outside group would repeatedly toggle Marker and Trophy and hit the loop limit.",
+    "expectedErrors": ["CRATE and PLAYER can never overlap. This rule requires that to happen, so it impossible it will ever trigger."],
+    "cells": {"T": ["background", "player", "trophy"], ".": ["background"]},
+    "cases": [{"name": "discarded groups cannot move a loop boundary onto an outside rule", "inputs": [4], "expected": ["T."]}]
+  },
+  {
+    "id": "ocaml/rule-unclosed-loop",
+    "sourceFile": "rule-unclosed-loop.ps",
+    "explanation": "The unmatched STARTLOOP is diagnosed and paired with an end marker on that same source line. Its later Marker rule therefore executes as an ordinary group, preserving the recovered game rather than aborting compilation.",
+    "expectedErrors": ["Yo I found a STARTLOOP without a corresponding ENDLOOP."],
+    "cells": {"M": ["background", "player", "marker"], ".": ["background"]},
+    "cases": [{"name": "an incomplete loop still yields an executable recovered game", "inputs": [4], "expected": ["M."]}]
+  },
+  {
+    "id": "ocaml/rule-shared-exclusion",
+    "sourceFile": "rule-shared-exclusion.ps",
+    "explanation": "Both rows initially match the same cell. The second row's repeated NO Marker on the right is redundant and must be removed before applying writes; retaining it would erase the Marker just created by the first row.",
+    "cells": {"M": ["background", "player", "marker"]},
+    "cases": [
+      {"name": "a shared negative replacement cannot erase another row's write", "inputs": [4], "expected": ["M"], "expectedSounds": ["12345"]},
+      {"name": "shared exclusion recovery remains deterministic after undo", "inputs": [4, "undo", 4], "expected": ["M"], "expectedSounds": ["12345", "12345"]}
+    ]
+  },
+  {
+    "id": "ocaml/rule-contradictory-opener",
+    "sourceFile": "rule-contradictory-opener.ps",
+    "explanation": "Thing spans two layers, so its Player and Marker variants contradict the explicit exclusions and are discarded. The surviving joined rule becomes the deterministic opening rule and marks both Players in one turn.",
+    "cells": {"T": ["background", "player", "trophy"], ".": ["background"]},
+    "cases": [
+      {"name": "the first surviving rule supplies the group random flag", "inputs": [4], "expected": ["TT."], "expectedSounds": ["12345"]},
+      {"name": "discarded alternatives stay absent after undo and replay", "inputs": [4, "undo", 4], "expected": ["TT."], "expectedSounds": ["12345", "12345"]}
+    ]
+  },
+  {
+    "id": "ocaml/rule-property-exclusion",
+    "sourceFile": "rule-property-exclusion.ps",
+    "explanation": "Actor is a single-layer Player-or-Crate property. Excluding Player restricts that predicate to Crate; it cannot remove the whole rule or be simplified away as a redundant same-layer exclusion.",
+    "cells": {"P": ["background", "player"], "M": ["background", "crate", "marker"], ".": ["background"]},
+    "cases": [
+      {"name": "a partial property exclusion preserves its surviving alternative", "inputs": [4], "expected": ["PM."], "expectedSounds": ["12345"]},
+      {"name": "the excluded Player cannot gain Marker after undo", "inputs": [4, "undo", 4], "expected": ["PM."], "expectedSounds": ["12345", "12345"]}
+    ]
+  },
+  {
+    "id": "ocaml/rule-left-gap-recovery",
+    "sourceFile": "rule-left-gap-recovery.ps",
+    "explanation": "The mismatched replacement at the left-side gap is diagnosed and ignored. Action marks Player while leaving the intervening background cells unchanged, so no Crate is created inside the gap.",
+    "expectedErrors": ["An ellipsis on the left must be matched by one in the corresponding place on the right."],
+    "cells": {"M": ["background", "player", "marker"], "#": ["background", "wall"], ".": ["background"]},
+    "cases": [
+      {"name": "a recovered gap cannot spawn the ignored replacement", "inputs": [4], "expected": ["M..#"], "expectedSounds": ["12345"]},
+      {"name": "left gap recovery survives undo and replay", "inputs": [4, "undo", 4], "expected": ["M..#"], "expectedSounds": ["12345", "12345"]}
+    ]
+  },
+  {
+    "id": "ocaml/rule-right-gap-recovery",
+    "sourceFile": "rule-right-gap-recovery.ps",
+    "explanation": "A replacement-only gap is diagnosed and has no positive replacement terms. Its matching concrete Crate is therefore removed while the other cell gains Marker.",
+    "expectedErrors": ["An ellipsis on the right must be matched by one in the corresponding place on the left."],
+    "cells": {"M": ["background", "player", "marker"], "#": ["background", "wall"], ".": ["background"]},
+    "cases": [
+      {"name": "a replacement-only gap clears its detected object", "inputs": [4], "expected": ["M..#"], "expectedSounds": ["12345"]},
+      {"name": "undo restores an object deleted by gap recovery", "inputs": [4, "undo", 4], "expected": ["M..#"], "expectedSounds": ["12345", "12345"]}
+    ]
+  },
+  {
+    "id": "ocaml/rule-mixed-gap-recovery",
+    "sourceFile": "rule-mixed-gap-recovery.ps",
+    "explanation": "The malformed replacement cell contains Crate before its gap and Trophy afterward. Only the prefix becomes a transaction: Crate remains, Trophy is never created, and Player gains Marker.",
+    "expectedErrors": ["You can't have anything in with an ellipsis. Sorry."],
+    "cells": {"M": ["background", "player", "marker"], "C": ["background", "crate"], "#": ["background", "wall"], ".": ["background"]},
+    "cases": [
+      {"name": "a mixed replacement gap discards only its suffix", "inputs": [4], "expected": ["MC.#"], "expectedSounds": ["12345"]},
+      {"name": "mixed gap recovery survives undo and replay", "inputs": [4, "undo", 4], "expected": ["MC.#"], "expectedSounds": ["12345", "12345"]}
+    ]
+  },
+  {
+    "id": "ocaml/rule-mixed-gap-opener",
+    "sourceFile": "rule-mixed-gap-opener.ps",
+    "explanation": "A mixed detection-side gap discards the random opening variant completely. Its joined survivor becomes a deterministic group and marks both Players.",
+    "expectedErrors": ["You can't have anything in with an ellipsis. Sorry."],
+    "cells": {"T": ["background", "player", "trophy"], ".": ["background"]},
+    "cases": [
+      {"name": "a discarded gap opener cannot randomize its survivor", "inputs": [4], "expected": ["TT."], "expectedSounds": ["12345"]},
+      {"name": "the recovered group marks every Player after undo", "inputs": [4, "undo", 4], "expected": ["TT."], "expectedSounds": ["12345", "12345"]}
+    ]
+  },
+  {
+    "id": "ocaml/rule-edge-gap-recovery",
+    "sourceFile": "rule-edge-gap-recovery.ps",
+    "explanation": "The final detection-side gap is diagnosed, along with its missing replacement gap. That variant is removed before run_rules_on_level_start, so it cannot create Trophy during startup or later turns.",
+    "expectedErrors": ["There's no point in putting an ellipsis at the very start or the end of a rule", "An ellipsis on the left must be matched by one in the corresponding place on the right."],
+    "cells": {"P": ["background", "player"], ".": ["background"]},
+    "cases": [
+      {"name": "an edge gap is discarded before startup execution", "inputs": [4], "expected": ["PP."], "expectedSounds": []},
+      {"name": "discarded edge gaps remain absent after replay", "inputs": [4, "undo", 4], "expected": ["PP."], "expectedSounds": []}
+    ]
+  },
+  {
+    "id": "ocaml/rule-binding-phase-order",
+    "sourceFile": "rule-binding-phase-order.ps",
+    "explanation": "The left Red moves up while the right Red moves down. Thing binds the left movement before its Red alternative is expanded, so transport must replace the right movement with up. Expanding Thing first would attach its replacement to the right Red's down movement instead.",
+    "cells": {"P": ["background", "red"], "M": ["background", "marker"], "T": ["background", "token"], ".": ["background"]},
+    "cases": [
+      {"name": "transport retains movement from its property's source cell", "inputs": [4], "expected": [".....", "..P..", ".MT..", ".....", "....."], "expectedSounds": ["12345"]},
+      {"name": "source binding remains stable after undo", "inputs": [4, "undo", 4], "expected": [".....", "..P..", ".MT..", ".....", "....."], "expectedSounds": ["12345", "12345"]}
+    ]
+  },
+  {
+    "id": "ocaml/rule-unresolved-property-opener",
+    "sourceFile": "rule-unresolved-property-opener.ps",
+    "explanation": "Thing has no source occurrence, so its opening rule is diagnosed and discarded. The joined Player rule becomes deterministic and marks both Players instead of selecting only one at random.",
+    "expectedErrors": ["This rule has a property on the right-hand side, \"THING\", that can't be inferred from the left-hand side.  (either for every property on the right there has to be a corresponding one on the left in the same cell, OR, if there's a single occurrence of a particular property name on the left, all properties of the same name on the right are assumed to be the same)."],
+    "cells": {"T": ["background", "player", "trophy"], ".": ["background"]},
+    "cases": [
+      {"name": "unresolved property recovery preserves later joined rules", "inputs": [4], "expected": ["TT."], "expectedSounds": ["12345"]},
+      {"name": "the recovered group remains deterministic after undo", "inputs": [4, "undo", 4], "expected": ["TT."], "expectedSounds": ["12345", "12345"]}
+    ]
+  },
+  {
+    "id": "ocaml/rule-unresolved-property-local",
+    "sourceFile": "rule-unresolved-property-local.ps",
+    "explanation": "The first two Thing occurrences each infer their local replacement but cannot infer a third detached occurrence. The unresolved source rule is discarded while its joined Player rule still marks both Players.",
+    "expectedErrors": ["This rule has a property on the right-hand side, \"THING\", that can't be inferred from the left-hand side.  (either for every property on the right there has to be a corresponding one on the left in the same cell, OR, if there's a single occurrence of a particular property name on the left, all properties of the same name on the right are assumed to be the same)."],
+    "cells": {"T": ["background", "player", "trophy"], ".": ["background"]},
+    "cases": [
+      {"name": "local inference cannot manufacture detached evidence", "inputs": [4], "expected": ["TT."], "expectedSounds": ["12345"]},
+      {"name": "dropping the ambiguous rule survives replay", "inputs": [4, "undo", 4], "expected": ["TT."], "expectedSounds": ["12345", "12345"]}
+    ]
+  },
+  {
+    "id": "ocaml/rule-negative-spawn-motion",
+    "sourceFile": "rule-negative-spawn-motion.ps",
+    "explanation": "NO Crate contributes the same source layer as the replacement Player. Existing Player action movement must therefore survive, while empty cells and Wall become additional Players. The action sound proves that movement was preserved.",
+    "cells": {"P": ["background", "player"], "C": ["background", "crate"]},
+    "cases": [
+      {"name": "a same-layer exclusion preserves an existing action", "inputs": [4], "expected": ["PCPP"], "expectedSounds": ["12345"]},
+      {"name": "preserved action sounds repeat after undo", "inputs": [4, "undo", 4], "expected": ["PCPP"], "expectedSounds": ["12345", "12345"]}
+    ]
+  },
+  {
+    "id": "ocaml/rule-new-layer-spawn-motion",
+    "sourceFile": "rule-new-layer-spawn-motion.ps",
+    "explanation": "NO Marker refers to a different layer from Player, so the concrete replacement is marked stationary. All cells become Players, and the original Player's action is cleared before sound selection.",
+    "cells": {"P": ["background", "player"]},
+    "cases": [
+      {"name": "a genuinely new layer clears the original action", "inputs": [4], "expected": ["PPPP"], "expectedSounds": []},
+      {"name": "new-layer stationary spawning survives undo", "inputs": [4, "undo", 4], "expected": ["PPPP"], "expectedSounds": []}
+    ]
+  },
+  {
+    "id": "ocaml/level-partial-unknown",
+    "sourceFile": "level-partial-unknown.ps",
+    "explanation": "The first column is written before the unknown glyph in the second column stops compilation. Player and the explicitly written Background survive, while unwritten cells remain empty and background filling is skipped.",
+    "expectedErrors": ["Key \"?\" not found. Do you need to add it to the legend, or define a new object?", "Error, symbol \"?\", used in map, not found."],
+    "cells": {"P": ["player"], ".": ["background"], "_": []},
+    "cases": [
+      {"name": "column-prefix recovery retains raw cells without background fill", "inputs": [4], "expected": ["P_", "._"]},
+      {"name": "movement and undo operate on the recovered partial board", "inputs": [3, "undo", 3], "expected": ["_P", "._"]}
+    ]
+  },
+  {
+    "id": "ocaml/level-partial-property",
+    "sourceFile": "level-partial-property.ps",
+    "explanation": "An OR property cannot serve as a level glyph. Its source key diagnostic is separate from the compiler's ambiguity diagnostic; compilation retains the raw first column and skips background filling.",
+    "expectedErrors": ["Key \"A\" not found. Do you need to add it to the legend, or define a new object?", "Error, symbol \"a\" is defined using OR, and therefore ambiguous - it cannot be used in a map. Did you mean to define it in terms of AND?"],
+    "cells": {"P": ["player"], ".": ["background"], "_": []},
+    "cases": [
+      {"name": "ambiguous glyph recovery returns its preceding column", "inputs": [4], "expected": ["P_", "._"]},
+      {"name": "an ambiguous glyph does not prevent replay of the retained cells", "inputs": [3, "undo", 3], "expected": ["_P", "._"]}
+    ]
+  },
+  {
+    "id": "ocaml/level-comment-prefix",
+    "sourceFile": "level-comment-prefix.ps",
+    "explanation": "Only P. before the comment becomes a row. The later question mark is still checked as a live source token and diagnosed, but it cannot extend the captured board or stop background filling.",
+    "expectedErrors": ["Key \"?\" not found. Do you need to add it to the legend, or define a new object?"],
+    "cells": {"P": ["background", "player"], ".": ["background"]},
+    "cases": [
+      {"name": "an uncaptured suffix cannot change the board width", "inputs": [4], "expected": ["P.", ".."]},
+      {"name": "movement uses the captured two-column level after undo", "inputs": [3, "undo", 3], "expected": [".P", ".."]}
+    ]
+  },
+  {
+    "id": "ocaml/level-cropped-unknown",
+    "sourceFile": "level-cropped-unknown.ps",
+    "explanation": "The second row is wider than the first and its final question mark is cropped by board compilation. The source reader still diagnoses that glyph, while the compiler completes the valid two-column board and fills Background.",
+    "expectedErrors": ["Key \"?\" not found. Do you need to add it to the legend, or define a new object?"],
+    "cells": {"P": ["background", "player"], "C": ["background", "crate"], ".": ["background"]},
+    "cases": [
+      {"name": "a cropped unknown glyph cannot truncate the compiled board", "inputs": [4], "expected": ["P.", ".C"]},
+      {"name": "cropped-row recovery survives movement and undo", "inputs": [3, "undo", 3], "expected": [".P", ".C"]}
+    ]
+  },
+  {
+    "id": "ocaml/level-literal-message",
+    "sourceFile": "level-literal-message.ps",
+    "explanation": "A leading comment restarts recognition of the message directive. Its unmatched opening parenthesis is literal message text, so it cannot swallow the following grid. Loading level one must still produce the ordinary two-cell board.",
+    "cells": {"P": ["background", "player"], ".": ["background"]},
+    "cases": [
+      {"name": "a literal opening parenthesis cannot hide a following level", "level": 1, "inputs": [4], "expected": ["P."]},
+      {"name": "the following board remains playable after undo", "level": 1, "inputs": [3, "undo", 3], "expected": [".P"]}
+    ]
+  },
+  {
+    "id": "ocaml/level-astral-glyph",
+    "sourceFile": "level-astral-glyph.ps",
+    "explanation": "An astral legend name occupies two UTF-16 units, so it cannot register as a one-unit level key. Both surrogate units receive source diagnostics, then board compilation stops on the first one after writing the first column. The board is three columns wide, with raw cells and no background filling.",
+    "expectedErrors": ["Key \"\ud83d\" not found. Do you need to add it to the legend, or define a new object?", "Key \"\ude00\" not found. Do you need to add it to the legend, or define a new object?", "Error, symbol \"\ud83d\", used in map, not found."],
+    "cells": {"P": ["player"], ".": ["background"], "_": []},
+    "cases": [
+      {"name": "an astral glyph cannot become one valid board cell", "inputs": [4], "expected": ["P__", ".__"]},
+      {"name": "UTF-16 board width remains stable after undo", "inputs": [3, "undo", 3], "expected": ["_P_", ".__"]}
+    ]
+  },
+{
+  "id": "ocaml/zero-identities",
+  "sourceFile": "zero-identities.ps",
+  "explanation": "The comma registers an empty collision layer. Both objects remain declared but have no board identity; accepted recovery produces empty cells, empty object masks and no player input. Undo and restart must preserve the valid board dimensions.",
+  "expectedErrors": [
+    "You need to have some objects defined",
+    "Error, didn't find any object called player, either in the objects section, or the legends section.",
+    "you have to have a background layer",
+    "Object \"BACKGROUND\" has been defined, but not assigned to a layer.",
+    "Object \"PLAYER\" has been defined, but not assigned to a layer."
+  ],
+  "cells": {
+    "_": []
+  },
+  "cases": [
+    {
+      "name": "empty identities retain a two-cell board",
+      "inputs": [
+        4
+      ],
+      "expected": [
+        "__"
+      ]
+    },
+    {
+      "name": "input undo and restart need no identity zero",
+      "inputs": [
+        3,
+        "undo",
+        "restart",
+        4
+      ],
+      "expected": [
+        "__"
+      ]
+    }
+  ]
+},
+{
+  "id": "ocaml/late-alias-publication",
+  "sourceFile": "late-alias-publication.ps",
+  "explanation": "Rule names are published on entering sounds. A later legend alias exists for semantic resolution but remains unknown to source rule validation. Recovery leaves an empty detection cell, so the replacement fills every cell with Crate.",
+  "expectedErrors": [
+    "cannot duplicate sections (you tried to duplicate \"LEGEND\").",
+    "Name \"actor\", referred to in a rule, does not exist.",
+    "Error, malformed cell rule - was looking for cell contents, but found \"actor\".  What am I supposed to do with this, eh, please tell me that."
+  ],
+  "cells": {
+    "C": [
+      "background",
+      "crate"
+    ]
+  },
+  "cases": [
+    {
+      "name": "source registration timing controls recovery",
+      "inputs": [
+        4
+      ],
+      "expected": [
+        "CCCC"
+      ]
+    },
+    {
+      "name": "registration recovery survives undo and replay",
+      "inputs": [
+        3,
+        "undo",
+        4
+      ],
+      "expected": [
+        "CCCC"
+      ]
+    }
+  ]
+},
+{
+  "id": "ocaml/late-layer-lookup",
+  "sourceFile": "late-layer-lookup.ps",
+  "explanation": "A collision layer resolves only names declared at that point. Actor is introduced later and republished by a second sounds heading, but cannot retroactively add Player to the earlier layer. Existing player and crate movement remains intact.",
+  "expectedErrors": [
+    "cannot duplicate sections (you tried to duplicate \"COLLISIONLAYERS\").",
+    "Cannot add \"ACTOR\" to a collision layer; it has not been declared.",
+    "cannot duplicate sections (you tried to duplicate \"LEGEND\").",
+    "cannot duplicate sections (you tried to duplicate \"SOUNDS\")."
+  ],
+  "cells": {
+    ".": [
+      "background"
+    ],
+    "P": [
+      "background",
+      "player"
+    ],
+    "C": [
+      "background",
+      "crate"
+    ],
+    "#": [
+      "background",
+      "wall"
+    ]
+  },
+  "cases": [
+    {
+      "name": "source registration timing controls recovery",
+      "inputs": [
+        3
+      ],
+      "expected": [
+        ".PC#"
+      ]
+    },
+    {
+      "name": "registration recovery survives undo and replay",
+      "inputs": [
+        3,
+        "undo",
+        3
+      ],
+      "expected": [
+        ".PC#"
+      ]
+    }
+  ]
+},
+{
+  "id": "ocaml/layer-leading-close",
+  "sourceFile": "layer-leading-close.ps",
+  "explanation": "A stray closing comment consumes the first lexical visit. Player therefore continues Background's existing collision layer. P contains only Player; the explicit Background cell occupies the same layer and blocks player movement. Merely matching compiler diagnostics would miss this recovered layer ownership.",
+  "cells": {
+    "P": [
+      "player"
+    ],
+    ".": [
+      "background"
+    ]
+  },
+  "cases": [
+    {
+      "name": "a continued layer changes background filling and collision",
+      "inputs": [
+        3
+      ],
+      "expected": [
+        "P."
+      ]
+    },
+    {
+      "name": "continued-layer input remains stable after undo",
+      "inputs": [
+        4,
+        3,
+        "undo",
+        3
+      ],
+      "expected": [
+        "P."
+      ],
+      "expectedSounds": [],
+      "expectedPlayedSounds": [
+        "12345"
+      ]
+    }
+  ]
+}
+]

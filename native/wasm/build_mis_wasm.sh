@@ -103,6 +103,7 @@ SOURCES=(
   src/compiler/c_api.cpp
   src/compiler/source_c_api.cpp
   src/compiler/diagnostic.cpp
+  src/compiler/diagnostic_rules.cpp
   src/compiler/lower_to_runtime.cpp
   src/compiler/parser.cpp
   src/compiler/parser_glyphs.cpp

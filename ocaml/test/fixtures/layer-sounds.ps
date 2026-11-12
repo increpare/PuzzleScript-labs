@@ -1,0 +1,37 @@
+title Independent sound layers
+
+objects
+Background
+black
+
+Player
+white
+
+Marker
+red
+
+Wall
+blue
+
+legend
+X = Player and Marker
+# = Wall
+
+sounds
+Player move right 124
+Player cantmove right 123
+Marker move right 125
+
+collisionlayers
+Background
+Player, Wall
+Marker
+
+rules
+right [ Marker ] -> [ right Marker ]
+
+winconditions
+no Player
+
+levels
+X#

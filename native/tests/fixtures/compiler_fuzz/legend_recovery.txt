@@ -1,0 +1,10 @@
+OBJECTS
+Background .
+black
+Player P
+white
+Crate C
+red
+LEGEND
+Movers = Pla yer or Crate
+Bad Name = Player

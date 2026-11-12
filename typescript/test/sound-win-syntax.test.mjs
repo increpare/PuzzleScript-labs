@@ -97,18 +97,18 @@ test('rule sound vocabulary comes from the same retained event definitions', () 
     [AcceptedSoundKind.BareEvent, AcceptedSoundKind.Event, AcceptedSoundKind.BareTarget]);
 });
 
-test('win syntax retains the native physical capture independently of authored comment views', () => {
+test('win syntax captures active text after leading comments and before trailing comments', () => {
   const { document } = prepare('', 'all Player (c) on Crate\n(c)all Player on Crate\nall (c)Player on Crate\n) all Player on Crate');
   const [truncated, insideComment, missing, skipped] = document.winConditions;
   assert.equal(truncated.definition.kind, WinSyntaxKind.Clause);
   assert.equal(truncated.definition.quantifierToken.word, truncated.words[0]);
   assert.equal(truncated.definition.subjectToken.word, truncated.words[1]);
   assert.equal(truncated.definition.target.kind, WinTargetKind.Everywhere);
-  assert.deepEqual(truncated.words.map(word => word.spelling), ['all', 'Player', 'on', 'Crate']);
-  assert.equal(insideComment.definition.quantifier, WinQuantifier.Some);
+  assert.deepEqual(truncated.words.map(word => word.spelling), ['all', 'Player']);
+  assert.equal(insideComment.definition.quantifier, WinQuantifier.All);
   const token = insideComment.definition.quantifierToken;
-  assert.equal(token.value, 'c)all');
-  assert.equal(document.source.slice(token.word.span.start.offset, token.word.span.end.offset), 'c)all');
+  assert.equal(token.value, 'all');
+  assert.equal(document.source.slice(token.word.span.start.offset, token.word.span.end.offset), 'all');
   assert.equal(missing.definition.kind, WinSyntaxKind.MissingSubject);
   assert.equal(missing.definition.quantifierToken.word, missing.words[0]);
   assert.equal(skipped.definition, null, 'a skipped logical SOL cannot invent win registration');
@@ -118,8 +118,8 @@ test('recovered win tokens preserve expanding Unicode values and exact authored 
   const { document } = readSource(movementSource().replace('Player\nwhite', 'Player İ\nwhite')
     .replace('winconditions\n', 'winconditions\n(c)ALL İ on Crate\n'));
   const win = document.winConditions[0].definition;
-  assert.equal(win.quantifier, WinQuantifier.Some);
-  assert.equal(win.quantifierToken.value, 'c)all');
+  assert.equal(win.quantifier, WinQuantifier.All);
+  assert.equal(win.quantifierToken.value, 'all');
   assert.equal(win.subjectToken.value, 'i̇');
   assert.equal(win.subjectToken.word, document.winConditions[0].words[1]);
   assert.equal(win.subjectToken.word.spelling, 'İ');

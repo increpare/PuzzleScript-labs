@@ -1,0 +1,37 @@
+title A partial exclusion retains the other property alternative
+
+objects
+Background
+black
+
+Player
+white
+
+Crate
+red
+
+Marker
+yellow
+
+legend
+. = Background
+P = Player
+C = Crate
+Actor = Player or Crate
+
+sounds
+Marker create 12345
+
+collisionlayers
+Background
+Player, Crate
+Marker
+
+rules
+[ Actor no Player ] -> [ Actor Marker ]
+
+winconditions
+no Player
+
+levels
+PC.

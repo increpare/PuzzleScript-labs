@@ -43,7 +43,7 @@ LEGEND
 . = Background
 P = Background and Dust1 and Dust2 and Dust4 and Dust5 and Player
 # = Background and Wall
-
+SOUNDS
 ================
 COLLISIONLAYERS
 ================

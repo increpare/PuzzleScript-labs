@@ -1,0 +1,33 @@
+title An edge gap cannot run during startup rules
+run_rules_on_level_start
+
+objects
+Background
+black
+
+Player
+white
+
+Trophy
+blue
+
+legend
+. = Background
+P = Player
+
+sounds
+Trophy create 12345
+
+collisionlayers
+Background
+Player
+Trophy
+
+rules
+right [ Player | ... ] -> [ Player Trophy | ]
+
+winconditions
+no Player
+
+levels
+PP.

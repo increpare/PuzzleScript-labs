@@ -1,0 +1,33 @@
+title Redefined sound events use the last seed
+
+objects
+Background
+black
+
+Player
+white
+
+Marker
+yellow
+
+legend
+. = Background
+P = Player
+
+sounds
+sfx0 12345
+sfx0 54321
+
+collisionlayers
+Background
+Player
+Marker
+
+rules
+[ action Player ] -> [ Player Marker ] sfx0
+
+winconditions
+no Player
+
+levels
+P..

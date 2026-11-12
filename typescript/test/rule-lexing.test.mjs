@@ -130,8 +130,8 @@ test('compiler tokens retain exact authored evidence after expansion, astral tex
 
 for (const [line, captured] of [
   ['[ Player ] (comment) -> [ Player ]', '[ player ] '],
-  ['(comment) [ Player ] -> [ Player ]', 'comment) [ player ] -> [ player ]'],
-  [' (comment) [ Player ] -> [ Player ]', ' '],
+  ['(comment) [ Player ] -> [ Player ]', '[ player ] -> [ player ]'],
+  [' (comment) [ Player ] -> [ Player ]', '[ player ] -> [ player ]'],
   ['[ Player ] -> message Hello (literal)', '[ player ] -> message hello '],
 ]) {
   test('compiler lexing respects the selected native capture: ' + line, () => {
@@ -194,21 +194,22 @@ test('a rule entered after a leading comment preserves native and authored messa
   assert.equal(compilerPayload(rule, tokens, index), 'HeLLo (literal)');
 });
 
-for (const line of [
-  '[ Player ] -> message HeLLo (literal)',
-  '(comment) [ Player ] -> message HeLLo',
-  '(outer (inner)) [ Player ] -> message HeLLo',
-  '(one) (two) [ Player ] -> message HeLLo',
-  ' \t(comment) [ Player ] -> message HeLLo',
-  '(comment\n) [ Player ] -> message HeLLo',
-  '(outer\n(inner) comment) [ Player ] -> message HeLLo',
-  '(İ) İİ [ Player ] -> message HeLLo (literal)',
+for (const [line, active] of [
+  ['[ Player ] -> message HeLLo (literal)', '[ Player ] -> message HeLLo (literal)'],
+  ['(comment) [ Player ] -> message HeLLo', '[ Player ] -> message HeLLo'],
+  ['(outer (inner)) [ Player ] -> message HeLLo', '[ Player ] -> message HeLLo'],
+  ['(one) (two) [ Player ] -> message HeLLo', '[ Player ] -> message HeLLo'],
+  [' \t(comment) [ Player ] -> message HeLLo', '[ Player ] -> message HeLLo'],
+  ['(comment\n) [ Player ] -> message HeLLo', '[ Player ] -> message HeLLo'],
+  ['(outer\n(inner) comment) [ Player ] -> message HeLLo', '[ Player ] -> message HeLLo'],
+  ['(İ) İİ [ Player ] -> message HeLLo (literal)', 'İİ [ Player ] -> message HeLLo (literal)'],
 ]) {
   test('effective compiler casing follows native comment reentry: ' + JSON.stringify(line), () => {
     const { source, document, rule, native, before } = readRule(line);
     const authoredLine = line.split('\n').at(-1);
     assert.equal(rule.originalLine.original, authoredLine);
-    assert.equal(native.mixed_case, authoredLine);
+    assert.equal(native.mixed_case, active);
+    assert.equal(rule.compilerLine, active);
     const tokens = checkTokens(rule, source, native);
     freezeSource(tokens, source);
     for (let index = 0; index < tokens.length; index++) {

@@ -1,6 +1,6 @@
 {
   "repository": "https://github.com/increpare/PuzzleScript",
-  "revision": "caa902120185b354f8b9bdb7bf67a9424be0665d",
+  "revision": "7417d78a75b5a07402071e21e0c171a76ef8871d",
   "implementation": "vanilla",
   "sourceSha256": {
     "js/storagewrapper.js": "3b6b3dfee738beefa33ed0d38a3c26b16557c45a59378cf382f62b270bf41014",
@@ -17,7 +17,7 @@
     "js/colorhelpers.js": "cfefd6f524866fe1c07cf2e2b448e66b858bd5ceadcef948fe03e2a69ed9e53e",
     "js/colors.js": "b842cef3c8252d430aaa500269a0c6f19d57ea5697de88f679b553b2e084a798",
     "js/engine.js": "ec86cc467b953e259c923a1cd1a9aa443d4fe2506d3bf2f2bf7c05a4c17b2fd9",
-    "js/parser.js": "921cb6336e64fda731f7564456821364f13c2ad4564e45b4b297d7a578aec135",
+    "js/parser.js": "96353701e87ff4c16aa73fc7886c9a5ceb016118c1dcd4ff49af303893f60515",
     "js/compiler.js": "b256942cf44f87c0bfece7316c6cc7f16935eb0bda33b18e45226f5225fb3da4",
     "js/soundbar.js": "8dc24f1d4f2d14b44fcbb0a2bddd5c572252e478e6d26af8350364ab59457b86",
     "js/codemirror/stringstream.js": "78947b75195ee9b03d09c0bc9e6008e9821a76ed3414c9355f6ab2b056f89b2b",

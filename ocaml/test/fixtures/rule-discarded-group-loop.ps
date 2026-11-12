@@ -1,0 +1,41 @@
+title Loop bounds use surviving rule groups
+
+objects
+Background
+black
+
+Player
+white
+
+Marker
+yellow
+
+Trophy
+blue
+
+Crate
+red
+
+legend
+. = Background
+P = Player
+
+sounds
+
+collisionlayers
+Background
+Player, Crate
+Marker, Trophy
+
+rules
+startloop
+[ Player Crate ] -> [ Player Trophy ]
+[ Player no Marker ] -> [ Player Marker ]
+endloop
+[ Player Marker ] -> [ Player Trophy ]
+
+winconditions
+no Player
+
+levels
+P.

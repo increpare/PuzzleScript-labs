@@ -55,7 +55,7 @@ P = Background and PlayerL
 
 Player = PlayerL or PlayerR
 Solid = Player or Wall or Crate
-
+SOUNDS
 ================
 COLLISIONLAYERS
 ================

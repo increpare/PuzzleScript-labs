@@ -630,6 +630,10 @@ let codeMirrorFn = function () {
             ////////////////////////////////
 
             //NESTED COMMENTS
+            const lastRule = state.rules[state.rules.length - 1];
+            const lastWin = state.winconditions[state.winconditions.length - 1];
+            const capturedThisLine = (state.section === 'rules' && lastRule && lastRule[1] === state.lineNumber)
+                || (state.section === 'winconditions' && lastWin && lastWin[lastWin.length - 1] === state.lineNumber);
             let ch = stream.peek();
             if (ch === '(' && state.tokenIndex !== -4) { // tokenIndex -4 indicates message command
                 stream.next();
@@ -639,6 +643,10 @@ let codeMirrorFn = function () {
                 if (state.commentLevel > 0) {
                     state.commentLevel--;
                     if (state.commentLevel === 0) {
+                        if (capturedThisLine) {
+                            stream.skipToEnd();
+                            return 'comment';
+                        }
                         state.sol_after_comment = true;
                         return 'comment';
                     }
@@ -672,6 +680,7 @@ let codeMirrorFn = function () {
                     }
                 }
 
+                if (state.commentLevel === 0 && capturedThisLine) stream.skipToEnd();
                 if (stream.eol()) {
                     endOfLineProcessing(state, mixedCase);
                 }
@@ -1285,8 +1294,21 @@ let codeMirrorFn = function () {
                 case 'rules':
                     {
                         if (sol) {
-                            let rule = reg_notcommentstart.exec(stream.string)[0];
-                            state.rules.push([rule, state.lineNumber, mixedCase]);
+                            // Resuming after a leading comment must capture only
+                            // live text. Never recapture a rule already read on
+                            // this physical line after its trailing comment.
+                            if (state.rules.length > 0 && state.rules[state.rules.length - 1][1] === state.lineNumber) {
+                                stream.skipToEnd();
+                                return null;
+                            }
+                            let originalStart = 0, normalizedStart = 0;
+                            for (const character of mixedCase) {
+                                if (normalizedStart >= stream.pos) break;
+                                originalStart += character.length;
+                                normalizedStart += character.toLowerCase().length;
+                            }
+                            let rule = reg_notcommentstart.exec(stream.string.slice(stream.pos))[0];
+                            state.rules.push([rule, state.lineNumber, mixedCase.slice(originalStart)]);
                             state.tokenIndex = 0;//in rules, records whether bracket has been found or not
                             state.inside_cell = false;
                             state.arrow_passed = false;
@@ -1369,7 +1391,12 @@ let codeMirrorFn = function () {
                 case 'winconditions':
                     {
                         if (sol) {
-                            let tokenized = reg_notcommentstart.exec(stream.string);
+                            const previous = state.winconditions[state.winconditions.length - 1];
+                            if (previous && previous[previous.length - 1] === state.lineNumber) {
+                                stream.skipToEnd();
+                                return null;
+                            }
+                            let tokenized = reg_notcommentstart.exec(stream.string.slice(stream.pos));
                             let splitted = tokenized[0].split(/[\p{Z}\s]/u);
                             let filtered = splitted.filter(function (v) { return v !== '' });
                             filtered.push(state.lineNumber);

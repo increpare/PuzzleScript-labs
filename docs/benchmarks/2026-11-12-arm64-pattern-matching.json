@@ -1,0 +1,2449 @@
+{
+  "date": "2026-11-12",
+  "result": "Default native CMake builds use anchor-cache; replay CPU time improves 6.8% on the corpus and 13.6% on ENIGMASH",
+  "initial_comparison": {
+    "metadata": {
+      "machine": "arm64",
+      "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+      "runs": 4,
+      "repeat": 3,
+      "counters_enabled": false,
+      "git_head": "bdbb7f2601fc0848e59026781f1505bd77d216bd",
+      "source_hashes": {
+        "native/src/runtime/core.cpp": "2a6529ee78e943232f9c371b7a243da0700965287268c429b6850ec9caadfba5",
+        "native/src/runtime/pattern_match_kernels.hpp": "527c1b5b14b5c52dcfba05a796c5614948366cda97b9945c5fcece88ff6f5cd2"
+      },
+      "compiler": "Apple clang version 21.0.0 (clang-2100.4.1.1)"
+    },
+    "results": [
+      {
+        "trial": 1,
+        "kernel": "original",
+        "workload": "corpus",
+        "replay_ms": 2055.3333333333335,
+        "passed": 2193,
+        "cases": 731
+      },
+      {
+        "trial": 1,
+        "kernel": "original",
+        "workload": "extra",
+        "replay_ms": 3390.0,
+        "passed": 1,
+        "cases": 1
+      },
+      {
+        "trial": 1,
+        "kernel": "cpp",
+        "workload": "corpus",
+        "replay_ms": 2112.6666666666665,
+        "passed": 2193,
+        "cases": 731
+      },
+      {
+        "trial": 1,
+        "kernel": "cpp",
+        "workload": "extra",
+        "replay_ms": 4016.0,
+        "passed": 1,
+        "cases": 1
+      },
+      {
+        "trial": 1,
+        "kernel": "neon",
+        "workload": "corpus",
+        "replay_ms": 2284.0,
+        "passed": 2193,
+        "cases": 731
+      },
+      {
+        "trial": 1,
+        "kernel": "neon",
+        "workload": "extra",
+        "replay_ms": 3690.0,
+        "passed": 1,
+        "cases": 1
+      },
+      {
+        "trial": 1,
+        "kernel": "asm",
+        "workload": "corpus",
+        "replay_ms": 2320.3333333333335,
+        "passed": 2193,
+        "cases": 731
+      },
+      {
+        "trial": 1,
+        "kernel": "asm",
+        "workload": "extra",
+        "replay_ms": 3678.0,
+        "passed": 1,
+        "cases": 1
+      },
+      {
+        "trial": 2,
+        "kernel": "asm",
+        "workload": "corpus",
+        "replay_ms": 2211.6666666666665,
+        "passed": 2193,
+        "cases": 731
+      },
+      {
+        "trial": 2,
+        "kernel": "asm",
+        "workload": "extra",
+        "replay_ms": 3696.0,
+        "passed": 1,
+        "cases": 1
+      },
+      {
+        "trial": 2,
+        "kernel": "neon",
+        "workload": "corpus",
+        "replay_ms": 2128.0,
+        "passed": 2193,
+        "cases": 731
+      },
+      {
+        "trial": 2,
+        "kernel": "neon",
+        "workload": "extra",
+        "replay_ms": 3908.0,
+        "passed": 1,
+        "cases": 1
+      },
+      {
+        "trial": 2,
+        "kernel": "cpp",
+        "workload": "corpus",
+        "replay_ms": 2364.3333333333335,
+        "passed": 2193,
+        "cases": 731
+      },
+      {
+        "trial": 2,
+        "kernel": "cpp",
+        "workload": "extra",
+        "replay_ms": 4043.0,
+        "passed": 1,
+        "cases": 1
+      },
+      {
+        "trial": 2,
+        "kernel": "original",
+        "workload": "corpus",
+        "replay_ms": 2057.3333333333335,
+        "passed": 2193,
+        "cases": 731
+      },
+      {
+        "trial": 2,
+        "kernel": "original",
+        "workload": "extra",
+        "replay_ms": 3361.0,
+        "passed": 1,
+        "cases": 1
+      },
+      {
+        "trial": 3,
+        "kernel": "original",
+        "workload": "corpus",
+        "replay_ms": 2058.3333333333335,
+        "passed": 2193,
+        "cases": 731
+      },
+      {
+        "trial": 3,
+        "kernel": "original",
+        "workload": "extra",
+        "replay_ms": 3366.0,
+        "passed": 1,
+        "cases": 1
+      },
+      {
+        "trial": 3,
+        "kernel": "cpp",
+        "workload": "corpus",
+        "replay_ms": 2107.0,
+        "passed": 2193,
+        "cases": 731
+      },
+      {
+        "trial": 3,
+        "kernel": "cpp",
+        "workload": "extra",
+        "replay_ms": 4002.0,
+        "passed": 1,
+        "cases": 1
+      },
+      {
+        "trial": 3,
+        "kernel": "neon",
+        "workload": "corpus",
+        "replay_ms": 2091.3333333333335,
+        "passed": 2193,
+        "cases": 731
+      },
+      {
+        "trial": 3,
+        "kernel": "neon",
+        "workload": "extra",
+        "replay_ms": 3680.0,
+        "passed": 1,
+        "cases": 1
+      },
+      {
+        "trial": 3,
+        "kernel": "asm",
+        "workload": "corpus",
+        "replay_ms": 2088.3333333333335,
+        "passed": 2193,
+        "cases": 731
+      },
+      {
+        "trial": 3,
+        "kernel": "asm",
+        "workload": "extra",
+        "replay_ms": 3628.0,
+        "passed": 1,
+        "cases": 1
+      },
+      {
+        "trial": 4,
+        "kernel": "asm",
+        "workload": "corpus",
+        "replay_ms": 2095.3333333333335,
+        "passed": 2193,
+        "cases": 731
+      },
+      {
+        "trial": 4,
+        "kernel": "asm",
+        "workload": "extra",
+        "replay_ms": 3605.0,
+        "passed": 1,
+        "cases": 1
+      },
+      {
+        "trial": 4,
+        "kernel": "neon",
+        "workload": "corpus",
+        "replay_ms": 2098.0,
+        "passed": 2193,
+        "cases": 731
+      },
+      {
+        "trial": 4,
+        "kernel": "neon",
+        "workload": "extra",
+        "replay_ms": 3537.0,
+        "passed": 1,
+        "cases": 1
+      },
+      {
+        "trial": 4,
+        "kernel": "cpp",
+        "workload": "corpus",
+        "replay_ms": 2117.3333333333335,
+        "passed": 2193,
+        "cases": 731
+      },
+      {
+        "trial": 4,
+        "kernel": "cpp",
+        "workload": "extra",
+        "replay_ms": 3908.0,
+        "passed": 1,
+        "cases": 1
+      },
+      {
+        "trial": 4,
+        "kernel": "original",
+        "workload": "corpus",
+        "replay_ms": 2037.3333333333333,
+        "passed": 2193,
+        "cases": 731
+      },
+      {
+        "trial": 4,
+        "kernel": "original",
+        "workload": "extra",
+        "replay_ms": 3253.0,
+        "passed": 1,
+        "cases": 1
+      }
+    ],
+    "median_replay_ms": {
+      "corpus": {
+        "original": 2056.3333333333335,
+        "cpp": 2115.0,
+        "neon": 2113.0,
+        "asm": 2153.5
+      },
+      "extra": {
+        "original": 3363.5,
+        "cpp": 4009.0,
+        "neon": 3685.0,
+        "asm": 3653.0
+      }
+    }
+  },
+  "tuned_assembly_comparison": {
+    "metadata": {
+      "machine": "arm64",
+      "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+      "runs": 4,
+      "repeat": 3,
+      "kernels": [
+        "original",
+        "asm"
+      ],
+      "counters_enabled": false,
+      "git_head": "bdbb7f2601fc0848e59026781f1505bd77d216bd",
+      "source_hashes": {
+        "native/src/runtime/core.cpp": "2a6529ee78e943232f9c371b7a243da0700965287268c429b6850ec9caadfba5",
+        "native/src/runtime/pattern_match_kernels.hpp": "c876885a406064c43ba6fcaca17dcd350fece20963d9324e63954daa122cb758"
+      },
+      "compiler": "Apple clang version 21.0.0 (clang-2100.4.1.1)"
+    },
+    "results": [
+      {
+        "trial": 1,
+        "kernel": "original",
+        "workload": "corpus",
+        "replay_ms": 2041.3333333333333,
+        "passed": 2193,
+        "cases": 731
+      },
+      {
+        "trial": 1,
+        "kernel": "original",
+        "workload": "extra",
+        "replay_ms": 3270.0,
+        "passed": 1,
+        "cases": 1
+      },
+      {
+        "trial": 1,
+        "kernel": "asm",
+        "workload": "corpus",
+        "replay_ms": 2079.6666666666665,
+        "passed": 2193,
+        "cases": 731
+      },
+      {
+        "trial": 1,
+        "kernel": "asm",
+        "workload": "extra",
+        "replay_ms": 3701.0,
+        "passed": 1,
+        "cases": 1
+      },
+      {
+        "trial": 2,
+        "kernel": "asm",
+        "workload": "corpus",
+        "replay_ms": 2090.0,
+        "passed": 2193,
+        "cases": 731
+      },
+      {
+        "trial": 2,
+        "kernel": "asm",
+        "workload": "extra",
+        "replay_ms": 3603.0,
+        "passed": 1,
+        "cases": 1
+      },
+      {
+        "trial": 2,
+        "kernel": "original",
+        "workload": "corpus",
+        "replay_ms": 2147.0,
+        "passed": 2193,
+        "cases": 731
+      },
+      {
+        "trial": 2,
+        "kernel": "original",
+        "workload": "extra",
+        "replay_ms": 3418.0,
+        "passed": 1,
+        "cases": 1
+      },
+      {
+        "trial": 3,
+        "kernel": "original",
+        "workload": "corpus",
+        "replay_ms": 2219.0,
+        "passed": 2193,
+        "cases": 731
+      },
+      {
+        "trial": 3,
+        "kernel": "original",
+        "workload": "extra",
+        "replay_ms": 3420.0,
+        "passed": 1,
+        "cases": 1
+      },
+      {
+        "trial": 3,
+        "kernel": "asm",
+        "workload": "corpus",
+        "replay_ms": 2198.0,
+        "passed": 2193,
+        "cases": 731
+      },
+      {
+        "trial": 3,
+        "kernel": "asm",
+        "workload": "extra",
+        "replay_ms": 3622.0,
+        "passed": 1,
+        "cases": 1
+      },
+      {
+        "trial": 4,
+        "kernel": "asm",
+        "workload": "corpus",
+        "replay_ms": 2210.0,
+        "passed": 2193,
+        "cases": 731
+      },
+      {
+        "trial": 4,
+        "kernel": "asm",
+        "workload": "extra",
+        "replay_ms": 3794.0,
+        "passed": 1,
+        "cases": 1
+      },
+      {
+        "trial": 4,
+        "kernel": "original",
+        "workload": "corpus",
+        "replay_ms": 2145.0,
+        "passed": 2193,
+        "cases": 731
+      },
+      {
+        "trial": 4,
+        "kernel": "original",
+        "workload": "extra",
+        "replay_ms": 3378.0,
+        "passed": 1,
+        "cases": 1
+      }
+    ],
+    "median_replay_ms": {
+      "corpus": {
+        "original": 2146.0,
+        "asm": 2144.0
+      },
+      "extra": {
+        "original": 3398.0,
+        "asm": 3661.5
+      }
+    }
+  },
+  "selected_tuned_microbench": [
+    {
+      "kernel": "original",
+      "words": 1,
+      "scenario": "reject-first",
+      "flags": 3,
+      "ns_per_cell": 0.436707,
+      "checksum": 0
+    },
+    {
+      "kernel": "cpp",
+      "words": 1,
+      "scenario": "reject-first",
+      "flags": 3,
+      "ns_per_cell": 1.05591,
+      "checksum": 0
+    },
+    {
+      "kernel": "neon",
+      "words": 1,
+      "scenario": "reject-first",
+      "flags": 3,
+      "ns_per_cell": 1.10921,
+      "checksum": 0
+    },
+    {
+      "kernel": "asm",
+      "words": 1,
+      "scenario": "reject-first",
+      "flags": 3,
+      "ns_per_cell": 1.00962,
+      "checksum": 0
+    },
+    {
+      "kernel": "original",
+      "words": 4,
+      "scenario": "match",
+      "flags": 3,
+      "ns_per_cell": 3.48755,
+      "checksum": 2048000
+    },
+    {
+      "kernel": "cpp",
+      "words": 4,
+      "scenario": "match",
+      "flags": 3,
+      "ns_per_cell": 1.26709,
+      "checksum": 2048000
+    },
+    {
+      "kernel": "neon",
+      "words": 4,
+      "scenario": "match",
+      "flags": 3,
+      "ns_per_cell": 1.42385,
+      "checksum": 2048000
+    },
+    {
+      "kernel": "asm",
+      "words": 4,
+      "scenario": "match",
+      "flags": 3,
+      "ns_per_cell": 1.19283,
+      "checksum": 2048000
+    },
+    {
+      "kernel": "original",
+      "words": 4,
+      "scenario": "reject-first",
+      "flags": 3,
+      "ns_per_cell": 0.428669,
+      "checksum": 0
+    },
+    {
+      "kernel": "cpp",
+      "words": 4,
+      "scenario": "reject-first",
+      "flags": 3,
+      "ns_per_cell": 1.24359,
+      "checksum": 0
+    },
+    {
+      "kernel": "neon",
+      "words": 4,
+      "scenario": "reject-first",
+      "flags": 3,
+      "ns_per_cell": 1.39709,
+      "checksum": 0
+    },
+    {
+      "kernel": "asm",
+      "words": 4,
+      "scenario": "reject-first",
+      "flags": 3,
+      "ns_per_cell": 1.20433,
+      "checksum": 0
+    },
+    {
+      "kernel": "original",
+      "words": 5,
+      "scenario": "mixed",
+      "flags": 3,
+      "ns_per_cell": 3.25043,
+      "checksum": 1117000
+    },
+    {
+      "kernel": "cpp",
+      "words": 5,
+      "scenario": "mixed",
+      "flags": 3,
+      "ns_per_cell": 3.8029,
+      "checksum": 1117000
+    },
+    {
+      "kernel": "neon",
+      "words": 5,
+      "scenario": "mixed",
+      "flags": 3,
+      "ns_per_cell": 3.16335,
+      "checksum": 1117000
+    },
+    {
+      "kernel": "asm",
+      "words": 5,
+      "scenario": "mixed",
+      "flags": 3,
+      "ns_per_cell": 2.74394,
+      "checksum": 1117000
+    },
+    {
+      "kernel": "original",
+      "words": 9,
+      "scenario": "match",
+      "flags": 3,
+      "ns_per_cell": 6.64774,
+      "checksum": 2048000
+    },
+    {
+      "kernel": "cpp",
+      "words": 9,
+      "scenario": "match",
+      "flags": 3,
+      "ns_per_cell": 3.48145,
+      "checksum": 2048000
+    },
+    {
+      "kernel": "neon",
+      "words": 9,
+      "scenario": "match",
+      "flags": 3,
+      "ns_per_cell": 4.11123,
+      "checksum": 2048000
+    },
+    {
+      "kernel": "asm",
+      "words": 9,
+      "scenario": "match",
+      "flags": 3,
+      "ns_per_cell": 3.47961,
+      "checksum": 2048000
+    }
+  ],
+  "trace_checks": [
+    {
+      "kernel": "original",
+      "name": "simple rigid test",
+      "exit": 0,
+      "log": "build/asm-mask-experiment/traces/original-0.log",
+      "snapshots": 2
+    },
+    {
+      "kernel": "original",
+      "name": "random movement determinism test",
+      "exit": 0,
+      "log": "build/asm-mask-experiment/traces/original-1.log",
+      "snapshots": 2
+    },
+    {
+      "kernel": "original",
+      "name": "ellipsisTest1",
+      "exit": 0,
+      "log": "build/asm-mask-experiment/traces/original-2.log",
+      "snapshots": 47
+    },
+    {
+      "kernel": "original",
+      "name": "bug #186 - 'no property' on the RHS should clear objects",
+      "exit": 0,
+      "log": "build/asm-mask-experiment/traces/original-3.log",
+      "snapshots": 9
+    },
+    {
+      "kernel": "original",
+      "name": "again + message combo",
+      "exit": 0,
+      "log": "build/asm-mask-experiment/traces/original-4.log",
+      "snapshots": 3
+    },
+    {
+      "kernel": "original",
+      "name": "undo test",
+      "exit": 0,
+      "log": "build/asm-mask-experiment/traces/original-5.log",
+      "snapshots": 11
+    },
+    {
+      "kernel": "original",
+      "name": "ENIGMASH",
+      "exit": 0,
+      "log": "build/asm-mask-experiment/traces/original-6.log",
+      "snapshots": 188
+    },
+    {
+      "kernel": "asm",
+      "name": "simple rigid test",
+      "exit": 0,
+      "log": "build/asm-mask-experiment/traces/asm-0.log",
+      "snapshots": 2
+    },
+    {
+      "kernel": "asm",
+      "name": "random movement determinism test",
+      "exit": 0,
+      "log": "build/asm-mask-experiment/traces/asm-1.log",
+      "snapshots": 2
+    },
+    {
+      "kernel": "asm",
+      "name": "ellipsisTest1",
+      "exit": 0,
+      "log": "build/asm-mask-experiment/traces/asm-2.log",
+      "snapshots": 47
+    },
+    {
+      "kernel": "asm",
+      "name": "bug #186 - 'no property' on the RHS should clear objects",
+      "exit": 0,
+      "log": "build/asm-mask-experiment/traces/asm-3.log",
+      "snapshots": 9
+    },
+    {
+      "kernel": "asm",
+      "name": "again + message combo",
+      "exit": 0,
+      "log": "build/asm-mask-experiment/traces/asm-4.log",
+      "snapshots": 3
+    },
+    {
+      "kernel": "asm",
+      "name": "undo test",
+      "exit": 0,
+      "log": "build/asm-mask-experiment/traces/asm-5.log",
+      "snapshots": 11
+    },
+    {
+      "kernel": "asm",
+      "name": "ENIGMASH",
+      "exit": 0,
+      "log": "build/asm-mask-experiment/traces/asm-6.log",
+      "snapshots": 188
+    }
+  ],
+  "validation": {
+    "differential_and_guard_pages": "passed",
+    "address_and_undefined_sanitizers": "passed",
+    "player_api_ctest": "passed",
+    "x86_64_fallback": "compile checked, not executed"
+  },
+  "text_section_bytes": {
+    "original": 2155116,
+    "tuned_asm": 2168416
+  },
+  "followup": {
+    "compiler_copy": {
+      "text_bytes": 2155116,
+      "original_and_copy_text_sha256": "86a6b7a960442ade4d5985dee4d522482edb7ef8341e2b915b04b525898dbb56"
+    },
+    "instruction_only_and_filter_removal_comparison": {
+      "metadata": {
+        "machine": "arm64",
+        "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+        "runs": 4,
+        "repeat": 3,
+        "kernels": [
+          "original",
+          "anchor",
+          "anchor-short",
+          "asm-readonly",
+          "asm-anchor"
+        ],
+        "counters_enabled": false,
+        "build_flags": [
+          "Release",
+          "-O3",
+          "LTO",
+          "-march=native",
+          "64-bit masks"
+        ],
+        "git_head": "bdbb7f2601fc0848e59026781f1505bd77d216bd",
+        "source_hashes": {
+          "native/src/runtime/core.cpp": "4bb8a0c00c0a0f16fad695944a306cc173414f67f065804e585a316418f33839",
+          "native/src/runtime/pattern_match_kernels.hpp": "272de921e6ca57d111f22cdb5aff8aa4be404c3ce53eb3f9bf5498049c539dd8"
+        },
+        "compiler": "Apple clang version 21.0.0 (clang-2100.4.1.1)",
+        "corpus_hashes": {
+          "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/src/tests/resources/testdata.js": "7044a58c153a7543eed61c660493f55e769a748c65807541628697fc5ed315a8",
+          "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/build/asm-mask-experiment/enigmash.json": "ffacdbf9f818321f61e3418392019f7b78a669b1b27052e12ceca397338e2a7c"
+        }
+      },
+      "results": [
+        {
+          "trial": 1,
+          "kernel": "original",
+          "workload": "corpus",
+          "replay_ms": 2316.6666666666665,
+          "replay_cpu_ms": 2223.505,
+          "passed": 2193,
+          "cases": 731
+        },
+        {
+          "trial": 1,
+          "kernel": "original",
+          "workload": "extra",
+          "replay_ms": 3512.0,
+          "replay_cpu_ms": 3485.588,
+          "passed": 1,
+          "cases": 1
+        },
+        {
+          "trial": 1,
+          "kernel": "anchor",
+          "workload": "corpus",
+          "replay_ms": 1913.0,
+          "replay_cpu_ms": 1904.5963333333332,
+          "passed": 2193,
+          "cases": 731
+        },
+        {
+          "trial": 1,
+          "kernel": "anchor",
+          "workload": "extra",
+          "replay_ms": 2732.0,
+          "replay_cpu_ms": 2713.038,
+          "passed": 1,
+          "cases": 1
+        },
+        {
+          "trial": 1,
+          "kernel": "anchor-short",
+          "workload": "corpus",
+          "replay_ms": 2099.6666666666665,
+          "replay_cpu_ms": 2016.3713333333333,
+          "passed": 2193,
+          "cases": 731
+        },
+        {
+          "trial": 1,
+          "kernel": "anchor-short",
+          "workload": "extra",
+          "replay_ms": 5925.0,
+          "replay_cpu_ms": 3404.084,
+          "passed": 1,
+          "cases": 1
+        },
+        {
+          "trial": 1,
+          "kernel": "asm-readonly",
+          "workload": "corpus",
+          "replay_ms": 2383.6666666666665,
+          "replay_cpu_ms": 2259.3579999999997,
+          "passed": 2193,
+          "cases": 731
+        },
+        {
+          "trial": 1,
+          "kernel": "asm-readonly",
+          "workload": "extra",
+          "replay_ms": 3505.0,
+          "replay_cpu_ms": 3483.911,
+          "passed": 1,
+          "cases": 1
+        },
+        {
+          "trial": 1,
+          "kernel": "asm-anchor",
+          "workload": "corpus",
+          "replay_ms": 2014.0,
+          "replay_cpu_ms": 1992.0936666666666,
+          "passed": 2193,
+          "cases": 731
+        },
+        {
+          "trial": 1,
+          "kernel": "asm-anchor",
+          "workload": "extra",
+          "replay_ms": 3275.0,
+          "replay_cpu_ms": 2991.959,
+          "passed": 1,
+          "cases": 1
+        },
+        {
+          "trial": 2,
+          "kernel": "asm-anchor",
+          "workload": "corpus",
+          "replay_ms": 1992.0,
+          "replay_cpu_ms": 1973.031,
+          "passed": 2193,
+          "cases": 731
+        },
+        {
+          "trial": 2,
+          "kernel": "asm-anchor",
+          "workload": "extra",
+          "replay_ms": 2939.0,
+          "replay_cpu_ms": 2925.266,
+          "passed": 1,
+          "cases": 1
+        },
+        {
+          "trial": 2,
+          "kernel": "asm-readonly",
+          "workload": "corpus",
+          "replay_ms": 2195.6666666666665,
+          "replay_cpu_ms": 2159.5383333333334,
+          "passed": 2193,
+          "cases": 731
+        },
+        {
+          "trial": 2,
+          "kernel": "asm-readonly",
+          "workload": "extra",
+          "replay_ms": 3497.0,
+          "replay_cpu_ms": 3475.27,
+          "passed": 1,
+          "cases": 1
+        },
+        {
+          "trial": 2,
+          "kernel": "anchor-short",
+          "workload": "corpus",
+          "replay_ms": 2006.0,
+          "replay_cpu_ms": 1993.3793333333333,
+          "passed": 2193,
+          "cases": 731
+        },
+        {
+          "trial": 2,
+          "kernel": "anchor-short",
+          "workload": "extra",
+          "replay_ms": 3022.0,
+          "replay_cpu_ms": 3004.843,
+          "passed": 1,
+          "cases": 1
+        },
+        {
+          "trial": 2,
+          "kernel": "anchor",
+          "workload": "corpus",
+          "replay_ms": 1969.0,
+          "replay_cpu_ms": 1909.6216666666667,
+          "passed": 2193,
+          "cases": 731
+        },
+        {
+          "trial": 2,
+          "kernel": "anchor",
+          "workload": "extra",
+          "replay_ms": 2826.0,
+          "replay_cpu_ms": 2808.144,
+          "passed": 1,
+          "cases": 1
+        },
+        {
+          "trial": 2,
+          "kernel": "original",
+          "workload": "corpus",
+          "replay_ms": 2275.0,
+          "replay_cpu_ms": 2187.4376666666667,
+          "passed": 2193,
+          "cases": 731
+        },
+        {
+          "trial": 2,
+          "kernel": "original",
+          "workload": "extra",
+          "replay_ms": 3574.0,
+          "replay_cpu_ms": 3553.828,
+          "passed": 1,
+          "cases": 1
+        },
+        {
+          "trial": 3,
+          "kernel": "original",
+          "workload": "corpus",
+          "replay_ms": 2102.0,
+          "replay_cpu_ms": 2097.038,
+          "passed": 2193,
+          "cases": 731
+        },
+        {
+          "trial": 3,
+          "kernel": "original",
+          "workload": "extra",
+          "replay_ms": 3501.0,
+          "replay_cpu_ms": 3484.706,
+          "passed": 1,
+          "cases": 1
+        },
+        {
+          "trial": 3,
+          "kernel": "anchor",
+          "workload": "corpus",
+          "replay_ms": 1885.6666666666667,
+          "replay_cpu_ms": 1881.9350000000002,
+          "passed": 2193,
+          "cases": 731
+        },
+        {
+          "trial": 3,
+          "kernel": "anchor",
+          "workload": "extra",
+          "replay_ms": 2865.0,
+          "replay_cpu_ms": 2809.15,
+          "passed": 1,
+          "cases": 1
+        },
+        {
+          "trial": 3,
+          "kernel": "anchor-short",
+          "workload": "corpus",
+          "replay_ms": 2026.3333333333333,
+          "replay_cpu_ms": 1990.3963333333334,
+          "passed": 2193,
+          "cases": 731
+        },
+        {
+          "trial": 3,
+          "kernel": "anchor-short",
+          "workload": "extra",
+          "replay_ms": 2998.0,
+          "replay_cpu_ms": 2980.767,
+          "passed": 1,
+          "cases": 1
+        },
+        {
+          "trial": 3,
+          "kernel": "asm-readonly",
+          "workload": "corpus",
+          "replay_ms": 2214.0,
+          "replay_cpu_ms": 2178.9936666666667,
+          "passed": 2193,
+          "cases": 731
+        },
+        {
+          "trial": 3,
+          "kernel": "asm-readonly",
+          "workload": "extra",
+          "replay_ms": 3455.0,
+          "replay_cpu_ms": 3439.064,
+          "passed": 1,
+          "cases": 1
+        },
+        {
+          "trial": 3,
+          "kernel": "asm-anchor",
+          "workload": "corpus",
+          "replay_ms": 1956.6666666666667,
+          "replay_cpu_ms": 1949.6266666666668,
+          "passed": 2193,
+          "cases": 731
+        },
+        {
+          "trial": 3,
+          "kernel": "asm-anchor",
+          "workload": "extra",
+          "replay_ms": 2925.0,
+          "replay_cpu_ms": 2912.967,
+          "passed": 1,
+          "cases": 1
+        },
+        {
+          "trial": 4,
+          "kernel": "asm-anchor",
+          "workload": "corpus",
+          "replay_ms": 1928.3333333333333,
+          "replay_cpu_ms": 1921.7259999999999,
+          "passed": 2193,
+          "cases": 731
+        },
+        {
+          "trial": 4,
+          "kernel": "asm-anchor",
+          "workload": "extra",
+          "replay_ms": 2942.0,
+          "replay_cpu_ms": 2912.805,
+          "passed": 1,
+          "cases": 1
+        },
+        {
+          "trial": 4,
+          "kernel": "asm-readonly",
+          "workload": "corpus",
+          "replay_ms": 2482.0,
+          "replay_cpu_ms": 2238.8886666666667,
+          "passed": 2193,
+          "cases": 731
+        },
+        {
+          "trial": 4,
+          "kernel": "asm-readonly",
+          "workload": "extra",
+          "replay_ms": 3354.0,
+          "replay_cpu_ms": 3348.782,
+          "passed": 1,
+          "cases": 1
+        },
+        {
+          "trial": 4,
+          "kernel": "anchor-short",
+          "workload": "corpus",
+          "replay_ms": 1940.3333333333333,
+          "replay_cpu_ms": 1935.8596666666665,
+          "passed": 2193,
+          "cases": 731
+        },
+        {
+          "trial": 4,
+          "kernel": "anchor-short",
+          "workload": "extra",
+          "replay_ms": 2986.0,
+          "replay_cpu_ms": 2972.16,
+          "passed": 1,
+          "cases": 1
+        },
+        {
+          "trial": 4,
+          "kernel": "anchor",
+          "workload": "corpus",
+          "replay_ms": 1920.3333333333333,
+          "replay_cpu_ms": 1899.6043333333334,
+          "passed": 2193,
+          "cases": 731
+        },
+        {
+          "trial": 4,
+          "kernel": "anchor",
+          "workload": "extra",
+          "replay_ms": 2962.0,
+          "replay_cpu_ms": 2850.344,
+          "passed": 1,
+          "cases": 1
+        },
+        {
+          "trial": 4,
+          "kernel": "original",
+          "workload": "corpus",
+          "replay_ms": 2099.6666666666665,
+          "replay_cpu_ms": 2095.997,
+          "passed": 2193,
+          "cases": 731
+        },
+        {
+          "trial": 4,
+          "kernel": "original",
+          "workload": "extra",
+          "replay_ms": 3460.0,
+          "replay_cpu_ms": 3445.27,
+          "passed": 1,
+          "cases": 1
+        }
+      ],
+      "median_replay_ms": {
+        "corpus": {
+          "original": 2188.5,
+          "anchor": 1916.6666666666665,
+          "anchor-short": 2016.1666666666665,
+          "asm-readonly": 2298.833333333333,
+          "asm-anchor": 1974.3333333333335
+        },
+        "extra": {
+          "original": 3506.5,
+          "anchor": 2845.5,
+          "anchor-short": 3010.0,
+          "asm-readonly": 3476.0,
+          "asm-anchor": 2940.5
+        }
+      },
+      "median_replay_cpu_ms": {
+        "corpus": {
+          "original": 2142.2378333333336,
+          "anchor": 1902.1003333333333,
+          "anchor-short": 1991.8878333333332,
+          "asm-readonly": 2208.9411666666665,
+          "asm-anchor": 1961.3288333333335
+        },
+        "extra": {
+          "original": 3485.147,
+          "anchor": 2808.647,
+          "anchor-short": 2992.805,
+          "asm-readonly": 3457.167,
+          "asm-anchor": 2919.1165
+        }
+      }
+    },
+    "final_cache_comparison": {
+      "metadata": {
+        "machine": "arm64",
+        "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+        "runs": 4,
+        "repeat": 3,
+        "kernels": [
+          "original",
+          "anchor-cache",
+          "anchor-adaptive"
+        ],
+        "counters_enabled": false,
+        "build_flags": [
+          "Release",
+          "-O3",
+          "LTO",
+          "-march=native",
+          "64-bit masks"
+        ],
+        "git_head": "bdbb7f2601fc0848e59026781f1505bd77d216bd",
+        "source_hashes": {
+          "native/src/runtime/core.cpp": "e1d65aecb2e500b29d84307214628aef31aa43670247072dd58e59e01e482ac2",
+          "native/src/runtime/core.hpp": "675f13b8829be5c683bf66c4bf1095239ccf8f7a787f0eda65cdb414af39ed5c",
+          "native/src/cli/main.cpp": "e956ef6bbb865a47618416ee02b2e96e5de0ba6a2de6b8f8d43713e85e54c16a",
+          "native/src/runtime/pattern_match_kernels.hpp": "1e087c14ad70ad053093c112d48dc40d1400dc867feb6a11fc9c437434a8c8e3"
+        },
+        "compiler": "Apple clang version 21.0.0 (clang-2100.4.1.1)",
+        "binary_hashes": {
+          "original": "cfd62a759298183c7f82809607b2f500460534ce670427df156e896f85239308",
+          "anchor-cache": "701b91df139e42036a399b7feff7413b3157f62be9448289063c441eaa2262fa",
+          "anchor-adaptive": "fdbcc71fa749ec3c6455a782c09687c6d089781293923f6439266aa6d91608cb"
+        },
+        "corpus_hashes": {
+          "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/src/tests/resources/testdata.js": "7044a58c153a7543eed61c660493f55e769a748c65807541628697fc5ed315a8",
+          "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/build/asm-mask-experiment/enigmash.json": "ffacdbf9f818321f61e3418392019f7b78a669b1b27052e12ceca397338e2a7c"
+        }
+      },
+      "results": [
+        {
+          "trial": 1,
+          "kernel": "original",
+          "workload": "corpus",
+          "replay_ms": 2126.6666666666665,
+          "replay_cpu_ms": 2095.059333333333,
+          "passed": 2193,
+          "cases": 731
+        },
+        {
+          "trial": 1,
+          "kernel": "original",
+          "workload": "extra",
+          "replay_ms": 3386.0,
+          "replay_cpu_ms": 3378.927,
+          "passed": 1,
+          "cases": 1
+        },
+        {
+          "trial": 1,
+          "kernel": "anchor-cache",
+          "workload": "corpus",
+          "replay_ms": 1941.0,
+          "replay_cpu_ms": 1940.3536666666666,
+          "passed": 2193,
+          "cases": 731
+        },
+        {
+          "trial": 1,
+          "kernel": "anchor-cache",
+          "workload": "extra",
+          "replay_ms": 2926.0,
+          "replay_cpu_ms": 2921.291,
+          "passed": 1,
+          "cases": 1
+        },
+        {
+          "trial": 1,
+          "kernel": "anchor-adaptive",
+          "workload": "corpus",
+          "replay_ms": 1941.0,
+          "replay_cpu_ms": 1939.3466666666666,
+          "passed": 2193,
+          "cases": 731
+        },
+        {
+          "trial": 1,
+          "kernel": "anchor-adaptive",
+          "workload": "extra",
+          "replay_ms": 2957.0,
+          "replay_cpu_ms": 2954.763,
+          "passed": 1,
+          "cases": 1
+        },
+        {
+          "trial": 2,
+          "kernel": "anchor-adaptive",
+          "workload": "corpus",
+          "replay_ms": 1922.6666666666667,
+          "replay_cpu_ms": 1922.894,
+          "passed": 2193,
+          "cases": 731
+        },
+        {
+          "trial": 2,
+          "kernel": "anchor-adaptive",
+          "workload": "extra",
+          "replay_ms": 2934.0,
+          "replay_cpu_ms": 2932.324,
+          "passed": 1,
+          "cases": 1
+        },
+        {
+          "trial": 2,
+          "kernel": "anchor-cache",
+          "workload": "corpus",
+          "replay_ms": 1943.6666666666667,
+          "replay_cpu_ms": 1943.425,
+          "passed": 2193,
+          "cases": 731
+        },
+        {
+          "trial": 2,
+          "kernel": "anchor-cache",
+          "workload": "extra",
+          "replay_ms": 2927.0,
+          "replay_cpu_ms": 2924.845,
+          "passed": 1,
+          "cases": 1
+        },
+        {
+          "trial": 2,
+          "kernel": "original",
+          "workload": "corpus",
+          "replay_ms": 2088.6666666666665,
+          "replay_cpu_ms": 2086.9590000000003,
+          "passed": 2193,
+          "cases": 731
+        },
+        {
+          "trial": 2,
+          "kernel": "original",
+          "workload": "extra",
+          "replay_ms": 3391.0,
+          "replay_cpu_ms": 3384.03,
+          "passed": 1,
+          "cases": 1
+        },
+        {
+          "trial": 3,
+          "kernel": "original",
+          "workload": "corpus",
+          "replay_ms": 2082.0,
+          "replay_cpu_ms": 2077.6259999999997,
+          "passed": 2193,
+          "cases": 731
+        },
+        {
+          "trial": 3,
+          "kernel": "original",
+          "workload": "extra",
+          "replay_ms": 3402.0,
+          "replay_cpu_ms": 3386.724,
+          "passed": 1,
+          "cases": 1
+        },
+        {
+          "trial": 3,
+          "kernel": "anchor-cache",
+          "workload": "corpus",
+          "replay_ms": 1935.3333333333333,
+          "replay_cpu_ms": 1930.8553333333332,
+          "passed": 2193,
+          "cases": 731
+        },
+        {
+          "trial": 3,
+          "kernel": "anchor-cache",
+          "workload": "extra",
+          "replay_ms": 2944.0,
+          "replay_cpu_ms": 2938.246,
+          "passed": 1,
+          "cases": 1
+        },
+        {
+          "trial": 3,
+          "kernel": "anchor-adaptive",
+          "workload": "corpus",
+          "replay_ms": 1931.0,
+          "replay_cpu_ms": 1930.1836666666668,
+          "passed": 2193,
+          "cases": 731
+        },
+        {
+          "trial": 3,
+          "kernel": "anchor-adaptive",
+          "workload": "extra",
+          "replay_ms": 2948.0,
+          "replay_cpu_ms": 2946.69,
+          "passed": 1,
+          "cases": 1
+        },
+        {
+          "trial": 4,
+          "kernel": "anchor-adaptive",
+          "workload": "corpus",
+          "replay_ms": 1936.0,
+          "replay_cpu_ms": 1935.9399999999998,
+          "passed": 2193,
+          "cases": 731
+        },
+        {
+          "trial": 4,
+          "kernel": "anchor-adaptive",
+          "workload": "extra",
+          "replay_ms": 2963.0,
+          "replay_cpu_ms": 2960.656,
+          "passed": 1,
+          "cases": 1
+        },
+        {
+          "trial": 4,
+          "kernel": "anchor-cache",
+          "workload": "corpus",
+          "replay_ms": 1941.6666666666667,
+          "replay_cpu_ms": 1940.4303333333335,
+          "passed": 2193,
+          "cases": 731
+        },
+        {
+          "trial": 4,
+          "kernel": "anchor-cache",
+          "workload": "extra",
+          "replay_ms": 2920.0,
+          "replay_cpu_ms": 2916.997,
+          "passed": 1,
+          "cases": 1
+        },
+        {
+          "trial": 4,
+          "kernel": "original",
+          "workload": "corpus",
+          "replay_ms": 2074.0,
+          "replay_cpu_ms": 2072.895,
+          "passed": 2193,
+          "cases": 731
+        },
+        {
+          "trial": 4,
+          "kernel": "original",
+          "workload": "extra",
+          "replay_ms": 3365.0,
+          "replay_cpu_ms": 3359.322,
+          "passed": 1,
+          "cases": 1
+        }
+      ],
+      "median_replay_ms": {
+        "corpus": {
+          "original": 2085.333333333333,
+          "anchor-cache": 1941.3333333333335,
+          "anchor-adaptive": 1933.5
+        },
+        "extra": {
+          "original": 3388.5,
+          "anchor-cache": 2926.5,
+          "anchor-adaptive": 2952.5
+        }
+      },
+      "median_replay_cpu_ms": {
+        "corpus": {
+          "original": 2082.2925,
+          "anchor-cache": 1940.392,
+          "anchor-adaptive": 1933.0618333333332
+        },
+        "extra": {
+          "original": 3381.4785,
+          "anchor-cache": 2923.068,
+          "anchor-adaptive": 2950.7264999999998
+        }
+      }
+    },
+    "critical_cases": {
+      "101": {
+        "name": "netrunner test",
+        "original_cpu_ms": 6.199833333333332,
+        "cached_cpu_ms": 5.199
+      },
+      "207": {
+        "name": "gallery: vacuum",
+        "original_cpu_ms": 6.265000000000001,
+        "cached_cpu_ms": 5.602833333333334
+      }
+    },
+    "case_cpu_medians_baseline_at_least_1ms": [
+      [
+        4,
+        "block faker with win condition",
+        1.1013333333333333,
+        1.1021666666666667
+      ],
+      [
+        5,
+        "by your side",
+        20.1405,
+        19.474833333333333
+      ],
+      [
+        15,
+        "rigid body test 2",
+        4.964499999999999,
+        5.006
+      ],
+      [
+        31,
+        "collapse simple",
+        12.780999999999999,
+        12.5415
+      ],
+      [
+        32,
+        "collapse long",
+        157.918,
+        152.94666666666666
+      ],
+      [
+        34,
+        "hos2",
+        1.1268333333333334,
+        1.0918333333333332
+      ],
+      [
+        35,
+        "damn I'm huge",
+        1.9090000000000003,
+        1.8726666666666667
+      ],
+      [
+        39,
+        "too many rigid bodies",
+        4.649,
+        4.5953333333333335
+      ],
+      [
+        60,
+        "Manic Ammo",
+        2.226166666666667,
+        2.1591666666666667
+      ],
+      [
+        61,
+        "Tunnel Rat",
+        31.4635,
+        30.293333333333333
+      ],
+      [
+        62,
+        "Cute Train",
+        138.244,
+        131.2985
+      ],
+      [
+        64,
+        "castlemouse",
+        3.2616666666666667,
+        3.242166666666667
+      ],
+      [
+        71,
+        "legend of zokoban",
+        9.612,
+        9.762333333333334
+      ],
+      [
+        74,
+        "dungeon janitor",
+        2.568,
+        2.4555
+      ],
+      [
+        76,
+        "armageddon",
+        2.6983333333333337,
+        2.621666666666667
+      ],
+      [
+        78,
+        "it dies in the light",
+        1.1808333333333334,
+        1.073
+      ],
+      [
+        84,
+        "Bouncers 2",
+        3.195666666666667,
+        3.1533333333333333
+      ],
+      [
+        85,
+        "Sok7",
+        7.814333333333334,
+        7.450000000000001
+      ],
+      [
+        86,
+        "Closure",
+        4.554333333333333,
+        4.397333333333333
+      ],
+      [
+        87,
+        "Color Chained",
+        1.7296666666666667,
+        1.5855
+      ],
+      [
+        90,
+        "Drop Swap 3",
+        1.3208333333333333,
+        1.2586666666666666
+      ],
+      [
+        101,
+        "netrunner test",
+        6.199833333333332,
+        5.199
+      ],
+      [
+        102,
+        "wb + gems test",
+        2.5283333333333333,
+        2.4978333333333333
+      ],
+      [
+        103,
+        "10 layers 50 objects",
+        2.7278333333333333,
+        2.761
+      ],
+      [
+        106,
+        "robotic arm",
+        3.2748333333333335,
+        3.2223333333333333
+      ],
+      [
+        107,
+        "circuit game",
+        1.0395,
+        1.0343333333333333
+      ],
+      [
+        117,
+        "Rigidbody fix bug #246",
+        7.840833333333333,
+        7.784833333333333
+      ],
+      [
+        154,
+        "gallery game: sokodig",
+        2.3795,
+        2.3873333333333333
+      ],
+      [
+        155,
+        "gallery game: at the hedges of time",
+        196.946,
+        182.09883333333335
+      ],
+      [
+        156,
+        "gallery game: shall we golf?",
+        10.4465,
+        9.126
+      ],
+      [
+        158,
+        "gallery game: two worlds",
+        13.572833333333332,
+        12.668666666666667
+      ],
+      [
+        162,
+        "gallery game: Broken Abacus",
+        2.6205,
+        2.5733333333333333
+      ],
+      [
+        164,
+        "gallery game: vexd edit",
+        8.972166666666666,
+        8.444333333333333
+      ],
+      [
+        165,
+        "gallery game: I'm too far gone",
+        11.466833333333334,
+        11.318000000000001
+      ],
+      [
+        167,
+        "gallery game: path lines",
+        1.8758333333333335,
+        1.8014999999999999
+      ],
+      [
+        170,
+        "galley game: easy enigma",
+        5.129833333333333,
+        4.905833333333334
+      ],
+      [
+        171,
+        "gallery game: coin collector",
+        1.5413333333333332,
+        1.4665
+      ],
+      [
+        172,
+        "gallery game: two worlds",
+        13.490666666666666,
+        12.658333333333335
+      ],
+      [
+        177,
+        "gallery: you're pulleying my leg",
+        4.642333333333333,
+        4.543666666666667
+      ],
+      [
+        178,
+        "gallery: beam islands",
+        6.5906666666666665,
+        6.406833333333333
+      ],
+      [
+        179,
+        "gallery: singleton traffic",
+        5.165166666666666,
+        5.1306666666666665
+      ],
+      [
+        181,
+        "gallery: censored version of NSFW game pornography for beginners",
+        2.211666666666667,
+        2.2133333333333334
+      ],
+      [
+        182,
+        "gallery: swap bot",
+        1.1678333333333333,
+        1.1560000000000001
+      ],
+      [
+        185,
+        "gallery: boxes & balloons",
+        5.389,
+        5.269
+      ],
+      [
+        187,
+        "gallery: sokoboros",
+        29.887,
+        29.249000000000002
+      ],
+      [
+        189,
+        "gallery:cyber-lasso",
+        50.28016666666666,
+        42.176833333333335
+      ],
+      [
+        196,
+        "gallery: hazard golf",
+        1.0274999999999999,
+        0.9981666666666666
+      ],
+      [
+        198,
+        "gallery: skipping stones to lonely homes",
+        91.8905,
+        84.8015
+      ],
+      [
+        200,
+        "gallery: JAM3 Game",
+        1.0428333333333333,
+        0.9940000000000001
+      ],
+      [
+        202,
+        "gallery: vines",
+        2.514333333333333,
+        2.084833333333333
+      ],
+      [
+        203,
+        "gallery: unconventional guns",
+        1.0708333333333333,
+        1.0328333333333333
+      ],
+      [
+        206,
+        "gallery: boxes love boxing gloves",
+        1.6706666666666667,
+        1.5766666666666667
+      ],
+      [
+        207,
+        "gallery: vacuum",
+        6.265000000000001,
+        5.602833333333334
+      ],
+      [
+        208,
+        "gallery: paralands",
+        3.4011666666666667,
+        3.1785
+      ],
+      [
+        209,
+        "gallery: Some lines were meant to be crossed",
+        1.0125,
+        1.0073333333333334
+      ],
+      [
+        211,
+        "gallery: \ud83c\udf61 -ooo- \ud83c\udf61",
+        1.1001666666666667,
+        1.0943333333333334
+      ],
+      [
+        212,
+        "gallery: Rose",
+        68.31583333333333,
+        67.49233333333333
+      ],
+      [
+        213,
+        "gallery: season finale",
+        23.377333333333333,
+        23.301499999999997
+      ],
+      [
+        214,
+        "gallery: Spider's Hollow",
+        2.5145,
+        2.578333333333333
+      ],
+      [
+        215,
+        "gallery: i herd u liek water templs",
+        3.2041666666666666,
+        3.1798333333333333
+      ],
+      [
+        217,
+        "gallery: Symbolism",
+        2.7696666666666667,
+        2.689833333333333
+      ],
+      [
+        220,
+        "gallery: Spikes 'n' Stuff",
+        106.52016666666665,
+        88.53433333333334
+      ],
+      [
+        221,
+        "gallery: XL-Plan",
+        2.572,
+        2.571833333333333
+      ],
+      [
+        222,
+        "gallery: Play Mini Gemini Replay (PMGRP)",
+        3.7775,
+        3.6006666666666662
+      ],
+      [
+        223,
+        "vertebrae",
+        4.9445,
+        4.754333333333333
+      ],
+      [
+        225,
+        "increpare game: LED Challenge",
+        1.7013333333333331,
+        1.7583333333333333
+      ],
+      [
+        226,
+        "increpare game: robot arm",
+        1.5025,
+        1.468
+      ],
+      [
+        230,
+        "increpare game: happy kraken",
+        1.0625,
+        1.0373333333333332
+      ],
+      [
+        234,
+        "Match two two by twos",
+        5.807166666666667,
+        5.801333333333333
+      ],
+      [
+        235,
+        "Garten der Medusen",
+        4.956666666666667,
+        4.787333333333333
+      ],
+      [
+        237,
+        "Des Poseidons Dreizack",
+        17.996666666666666,
+        16.540166666666664
+      ],
+      [
+        238,
+        "Bring the ice cube to the goal without exposing it to heat.",
+        4.2135,
+        3.948666666666667
+      ],
+      [
+        239,
+        "der Hydra Krypta",
+        3.634333333333333,
+        3.6158333333333337
+      ],
+      [
+        240,
+        "Die schoene Steinmetzin",
+        2.3826666666666663,
+        2.259
+      ],
+      [
+        241,
+        "I want to grind myself into dust",
+        6.687333333333333,
+        6.479333333333333
+      ],
+      [
+        242,
+        "Karamell",
+        9.404166666666667,
+        8.927833333333332
+      ],
+      [
+        244,
+        "Gabelstapler",
+        1.4340000000000002,
+        1.4198333333333335
+      ],
+      [
+        247,
+        "Individuals can produce a society, but can a society produce individuals?",
+        8.942666666666668,
+        8.7515
+      ],
+      [
+        248,
+        "the exit is under my left foot",
+        8.561166666666667,
+        8.252166666666668
+      ],
+      [
+        249,
+        "I SURE LOOK TASTY!",
+        5.315666666666667,
+        5.1325
+      ],
+      [
+        250,
+        "Oh no I accidentally swallowed myself!",
+        11.400333333333332,
+        11.058666666666667
+      ],
+      [
+        253,
+        "Sokogoban",
+        1.5043333333333333,
+        1.4196666666666666
+      ],
+      [
+        254,
+        "SHY SNAKE",
+        6.305166666666667,
+        4.7665
+      ],
+      [
+        256,
+        "Seize the flag!",
+        1.3076666666666665,
+        1.2546666666666666
+      ],
+      [
+        259,
+        "Car Crash",
+        77.21016666666667,
+        61.93533333333334
+      ],
+      [
+        265,
+        "KONSUM",
+        3.0131666666666668,
+        3.0236666666666667
+      ],
+      [
+        266,
+        "Expand, avoid the flames [also it's not always solvable]",
+        19.533,
+        19.405333333333335
+      ],
+      [
+        271,
+        "Snakey Snakey Makes A Sixy",
+        2.0145,
+        1.9798333333333333
+      ],
+      [
+        276,
+        "5-junctions-maker / 5kreuzungenmacher",
+        6.433333333333334,
+        5.757666666666666
+      ],
+      [
+        280,
+        "SLIME VAT FILLER",
+        1.5558333333333334,
+        1.548
+      ],
+      [
+        291,
+        "It gets its Feet Wet",
+        6.732166666666666,
+        6.517166666666666
+      ],
+      [
+        292,
+        "Neoprenanzieher",
+        44.10516666666666,
+        43.052166666666665
+      ],
+      [
+        293,
+        "Moved by leaves of grass",
+        1.8748333333333334,
+        1.665
+      ],
+      [
+        296,
+        "Microban x 10",
+        1.1978333333333333,
+        1.117
+      ],
+      [
+        298,
+        "C\u014cDEX\u00b7L\u016aBRICUS",
+        3.1363333333333334,
+        2.9673333333333334
+      ],
+      [
+        299,
+        "Oh No My Dog Is About To Swallow A Piece Of Chocolate",
+        60.9735,
+        60.340833333333336
+      ],
+      [
+        300,
+        "paint everything everywhere!",
+        3.5575,
+        3.4538333333333333
+      ],
+      [
+        301,
+        "Putting Bicycle Helmets on Young Children",
+        17.025666666666666,
+        16.73016666666667
+      ],
+      [
+        302,
+        "No! Don't eat that!",
+        42.632,
+        42.218666666666664
+      ],
+      [
+        306,
+        "SWIMMING TIME!",
+        3.7771666666666666,
+        3.6691666666666665
+      ],
+      [
+        307,
+        "(NSFW / censored) Tugging a trapped XXX XXX out from under one's XXX",
+        1.8065,
+        1.7590000000000001
+      ],
+      [
+        308,
+        "REALTIME DOG MOUNTAIN RESCUE",
+        30.62833333333333,
+        28.627
+      ],
+      [
+        313,
+        "The sponge what lights up the seafloor",
+        3.7135,
+        3.6639999999999997
+      ],
+      [
+        314,
+        "(censored version of NSFW game) Sexual Intercourse",
+        6.0145,
+        5.747166666666667
+      ],
+      [
+        319,
+        "Gem Socketeer",
+        2.7805,
+        2.5231666666666666
+      ],
+      [
+        324,
+        "VEXT EDIT",
+        3.2853333333333334,
+        3.1039999999999996
+      ],
+      [
+        325,
+        "VEXT EDIT B",
+        34.574333333333335,
+        31.078166666666668
+      ],
+      [
+        342,
+        "Double-Entry Bookkeeping Simulator#1",
+        1.7388333333333335,
+        1.7398333333333333
+      ],
+      [
+        343,
+        "Double-Entry Bookkeeping Simulator#2",
+        1.2576666666666667,
+        1.2326666666666666
+      ],
+      [
+        344,
+        "short adventure in sticky wall land",
+        1.9065,
+        1.7998333333333334
+      ],
+      [
+        350,
+        "Lightdown",
+        3.9323333333333332,
+        3.9066666666666667
+      ],
+      [
+        351,
+        "I Need To Stop My Teleport Gun",
+        3.6718333333333333,
+        3.603833333333333
+      ],
+      [
+        353,
+        "Every Star Needs a Tree",
+        28.810833333333335,
+        28.348333333333333
+      ],
+      [
+        355,
+        "Caramelban",
+        14.916,
+        14.376333333333333
+      ],
+      [
+        359,
+        "Isle of Bloks",
+        8.832166666666666,
+        8.565166666666666
+      ],
+      [
+        360,
+        "SokokoS",
+        6.109833333333334,
+        6.0681666666666665
+      ],
+      [
+        378,
+        "Many parallel players, unlimited rigidbodies",
+        1.8826666666666667,
+        1.8368333333333333
+      ],
+      [
+        392,
+        "double ellipsis simple test #2",
+        1.024,
+        1.0188333333333333
+      ],
+      [
+        393,
+        "double ellipsis simple test #3",
+        1.3804999999999998,
+        1.3735
+      ],
+      [
+        394,
+        "double ellipsis simple test #4",
+        2.2741666666666664,
+        2.2468333333333335
+      ],
+      [
+        395,
+        "double ellipsis simple test #5",
+        2.6308333333333334,
+        2.596333333333333
+      ],
+      [
+        400,
+        "Head Skuller",
+        15.083666666666666,
+        15.049
+      ],
+      [
+        401,
+        "Sokoban... in 3D!",
+        4.975833333333334,
+        4.666833333333333
+      ],
+      [
+        402,
+        "single screen scream",
+        11.036999999999999,
+        9.126999999999999
+      ],
+      [
+        405,
+        "Mini Jill Off",
+        1.0303333333333333,
+        1.0361666666666667
+      ],
+      [
+        406,
+        "Big dog and little dog",
+        4.836333333333334,
+        4.784666666666666
+      ],
+      [
+        407,
+        "The Monsterous Autoshove",
+        2.2803333333333335,
+        2.2688333333333333
+      ],
+      [
+        408,
+        "ecosystem generator",
+        11.829666666666668,
+        11.7635
+      ],
+      [
+        471,
+        "a warning raised every turn does not stop the game after 100 turns",
+        8.905000000000001,
+        9.064166666666667
+      ],
+      [
+        472,
+        "Selene's Labyrinth",
+        178.1413333333333,
+        153.82066666666668
+      ],
+      [
+        473,
+        "ENIGMASH",
+        62.1125,
+        52.713166666666666
+      ],
+      [
+        476,
+        "Seven-Layer Dip",
+        1.0621666666666667,
+        1.0470000000000002
+      ],
+      [
+        478,
+        "Un-Lock",
+        9.5805,
+        8.756666666666668
+      ]
+    ],
+    "material_regression_definition": {
+      "baseline_cpu_ms_at_least": 1,
+      "increase_cpu_ms_at_least": 0.25,
+      "aggregation": "median of four processes, three corpus passes per process"
+    },
+    "material_regressions": [],
+    "validation": {
+      "native64_corpus": {
+        "passed": 731,
+        "failed": 0
+      },
+      "native32_corpus": {
+        "passed": 731,
+        "failed": 0
+      },
+      "ctest": [
+        "pattern_match_kernels",
+        "line_precondition_cache_tests",
+        "puzzlescript_cpp_player_api_tests",
+        "cached_again_tests"
+      ],
+      "solver_runtime_counters": "passed",
+      "address_and_undefined_sanitizers": "passed",
+      "trace_checks": [
+        {
+          "variant": "native64",
+          "case": "simple rigid test",
+          "exit": 0,
+          "snapshots": 2
+        },
+        {
+          "variant": "native64",
+          "case": "random movement determinism test",
+          "exit": 0,
+          "snapshots": 2
+        },
+        {
+          "variant": "native64",
+          "case": "ellipsisTest1",
+          "exit": 0,
+          "snapshots": 47
+        },
+        {
+          "variant": "native64",
+          "case": "bug #186 - 'no property' on the RHS should clear objects",
+          "exit": 0,
+          "snapshots": 9
+        },
+        {
+          "variant": "native64",
+          "case": "again + message combo",
+          "exit": 0,
+          "snapshots": 3
+        },
+        {
+          "variant": "native64",
+          "case": "undo test",
+          "exit": 0,
+          "snapshots": 11
+        },
+        {
+          "variant": "native64",
+          "case": "ENIGMASH",
+          "exit": 0,
+          "snapshots": 188
+        },
+        {
+          "variant": "native64",
+          "case": "netrunner test",
+          "exit": 0,
+          "snapshots": 37
+        },
+        {
+          "variant": "native64",
+          "case": "gallery: vacuum",
+          "exit": 0,
+          "snapshots": 31
+        },
+        {
+          "variant": "native32",
+          "case": "simple rigid test",
+          "exit": 0,
+          "snapshots": 2
+        },
+        {
+          "variant": "native32",
+          "case": "random movement determinism test",
+          "exit": 0,
+          "snapshots": 2
+        },
+        {
+          "variant": "native32",
+          "case": "ellipsisTest1",
+          "exit": 0,
+          "snapshots": 47
+        },
+        {
+          "variant": "native32",
+          "case": "bug #186 - 'no property' on the RHS should clear objects",
+          "exit": 0,
+          "snapshots": 9
+        },
+        {
+          "variant": "native32",
+          "case": "again + message combo",
+          "exit": 0,
+          "snapshots": 3
+        },
+        {
+          "variant": "native32",
+          "case": "undo test",
+          "exit": 0,
+          "snapshots": 11
+        },
+        {
+          "variant": "native32",
+          "case": "ENIGMASH",
+          "exit": 0,
+          "snapshots": 188
+        },
+        {
+          "variant": "native32",
+          "case": "netrunner test",
+          "exit": 0,
+          "snapshots": 37
+        },
+        {
+          "variant": "native32",
+          "case": "gallery: vacuum",
+          "exit": 0,
+          "snapshots": 31
+        },
+        {
+          "variant": "ir32",
+          "case": "simple rigid test",
+          "exit": 0,
+          "snapshots": 2
+        },
+        {
+          "variant": "ir32",
+          "case": "random movement determinism test",
+          "exit": 0,
+          "snapshots": 2
+        },
+        {
+          "variant": "ir32",
+          "case": "ellipsisTest1",
+          "exit": 0,
+          "snapshots": 47
+        },
+        {
+          "variant": "ir32",
+          "case": "bug #186 - 'no property' on the RHS should clear objects",
+          "exit": 0,
+          "snapshots": 9
+        },
+        {
+          "variant": "ir32",
+          "case": "again + message combo",
+          "exit": 0,
+          "snapshots": 3
+        },
+        {
+          "variant": "ir32",
+          "case": "undo test",
+          "exit": 0,
+          "snapshots": 11
+        },
+        {
+          "variant": "ir32",
+          "case": "ENIGMASH",
+          "exit": 0,
+          "snapshots": 188
+        },
+        {
+          "variant": "ir32",
+          "case": "netrunner test",
+          "exit": 0,
+          "snapshots": 37
+        },
+        {
+          "variant": "ir32",
+          "case": "gallery: vacuum",
+          "exit": 0,
+          "snapshots": 31
+        }
+      ],
+      "trace_snapshot_total": 990
+    },
+    "discarded_ir64_probe": {
+      "reason": "JS exports use 32-bit masks; the repository Makefile tests them with the 32-bit reader. The initial 64-bit reader probe used the wrong configuration.",
+      "failed_cases": [
+        "ENIGMASH",
+        "gallery: vacuum"
+      ]
+    },
+    "final_source_hashes": {
+      "native/src/runtime/core.cpp": "81e41e5744154ad2b906374c8b03cea8dd30d59f8af1e4fd93ff36f52d39f43a",
+      "native/src/runtime/core.hpp": "ca497c45afe4520504513f43386a695795ccfa44895aa397373c2ac75a151f7a",
+      "native/src/cli/main.cpp": "19459eeaa49a53f622921d84c85adf1dacadbf9ae0c1538dfee910f650a8d42b",
+      "native/src/runtime/pattern_match_kernels.hpp": "1e087c14ad70ad053093c112d48dc40d1400dc867feb6a11fc9c437434a8c8e3"
+    }
+  }
+}

@@ -1,0 +1,22 @@
+OBJECTS
+Background .
+black
+Player P
+white
+Crate C
+red
+Target T
+blue
+LEGEND
+Pair = Crate and Target
+@ = Pair
+SOUNDS
+COLLISIONLAYERS
+Background
+Player
+Crate
+Target
+RULES
+WINCONDITIONS
+LEVELS
+P@

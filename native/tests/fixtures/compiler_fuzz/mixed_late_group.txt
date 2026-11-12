@@ -1,0 +1,21 @@
+OBJECTS
+Background .
+black
+Player P
+white
+Crate C
+red
+LEGEND
+SOUNDS
+COLLISIONLAYERS
+Background
+Player, Crate
+RULES
+[ Crate ] -> [ Player ]
++ late [ no Player Crate ] -> [ Player ]
++ [ Player ] -> [ Crate ]
+late [ Crate ] -> [ Player ]
++ [ Player ] -> [ Crate ]
+WINCONDITIONS
+LEVELS
+PC

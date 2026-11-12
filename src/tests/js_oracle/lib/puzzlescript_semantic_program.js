@@ -115,7 +115,7 @@ function ruleList(state) {
 }
 
 function buildSemanticProgramSnapshot(state) {
-    const nameToId = {};
+    const nameToId = Object.create(null);
     for (let id = 0; id < state.idDict.length; id++) {
         nameToId[state.idDict[id]] = id;
     }
@@ -212,7 +212,7 @@ function buildSemanticProgramSnapshot(state) {
 function validateSingleLayerObjects(snapshot) {
     const violations = [];
     const objects = snapshot.semantic_program.objects;
-    const idsByName = {};
+    const idsByName = Object.create(null);
     for (const object of objects) {
         if (object.layer < 0) {
             violations.push(`object "${object.name}" (id ${object.id}) is not on a collision layer`);

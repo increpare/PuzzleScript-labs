@@ -1,0 +1,37 @@
+title Unlayered lookup and glyphs
+
+objects
+Background
+black
+
+Player
+white
+
+Ghost
+red
+
+Marker
+blue
+
+legend
+P = Player
+G = Ghost
+
+sounds
+Ghost MOVE 111
+
+collisionlayers
+Background
+Player
+Marker
+
+rules
+[ action Player ] -> [ Player ]
+right [ Player | Ghost ] -> [ Player | Ghost Marker ]
+[ Ghost ] -> [ right Ghost ]
+
+winconditions
+no Player
+
+levels
+PG

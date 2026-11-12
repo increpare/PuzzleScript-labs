@@ -1,0 +1,16 @@
+title Example﻿
+OBJECTS
+Background .
+black
+Player P
+white
+LEGEND
+SOUNDS
+COLLISIONLAYERS
+Background
+Player
+RULES
+WINCONDITIONS
+LEVELS
+P
+message ﻿

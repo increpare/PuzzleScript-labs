@@ -1,0 +1,33 @@
+title Discarding a mixed gap changes the surviving group opener
+
+objects
+Background
+black
+
+Player
+white
+
+Trophy
+blue
+
+legend
+. = Background
+P = Player
+
+sounds
+Trophy create 12345
+
+collisionlayers
+Background
+Player
+Trophy
+
+rules
+random [ Player ... ] -> [ Player ]
++ [ Player ] -> [ Player Trophy ]
+
+winconditions
+no Player
+
+levels
+PP.

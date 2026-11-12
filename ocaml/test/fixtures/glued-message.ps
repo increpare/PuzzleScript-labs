@@ -1,0 +1,31 @@
+title Glued message command
+
+objects
+Background
+black
+
+Player
+white
+
+Marker
+red
+
+legend
+P = Player
+
+sounds
+
+collisionlayers
+Background
+Player
+Marker
+
+rules
+[ action Player ]->message Literal ( unclosed payload
+[ Player no Marker ] -> [ Player Marker ]
+
+winconditions
+no Player
+
+levels
+P

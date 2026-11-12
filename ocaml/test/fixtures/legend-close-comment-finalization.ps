@@ -1,0 +1,36 @@
+title A later comment visit finalizes the pending alias
+
+objects
+Background
+black
+
+Player
+white
+
+Crate
+red
+
+Marker
+yellow
+
+legend
+. = Background
+P = Player
+C = Crate
+Actor = Crate) (comment)
+
+sounds
+
+collisionlayers
+Background
+Player, Crate
+Marker
+
+rules
+[ action Player | Actor ] -> [ Player | Marker ]
+
+winconditions
+no Player
+
+levels
+PC

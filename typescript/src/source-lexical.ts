@@ -120,6 +120,7 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
   const legendWords = new Map<number, SourceLexicalToken[]>(), collisionNames = new Map<number, SourceLexicalToken[]>();
   const soundDefinitions = new Map<number, AcceptedSound>(), winDefinitions = new Map<number, AcceptedWinCondition>();
   const ruleNamesByLine = new Map<number, ReadonlySet<string>>();
+  const capturedRuleLines = new Set<number>();
   const levelMessages = new Map<number, string>();
   const concrete = new Map<string, SourceObjectLexical>();
   const metadataLines = new Map<string, number>();
@@ -351,6 +352,10 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
     declarations.addCollisionName(token);
   };
   const ruleToken = (state: RuleScanState, sol: boolean): void => {
+    if (sol) {
+      if (capturedRuleLines.has(cursor.line.span.start.line)) { cursor.index = cursor.text.length; return; }
+      capturedRuleLines.add(cursor.line.span.start.line);
+    }
     if (!ruleNamesByLine.has(cursor.line.span.start.line)) ruleNamesByLine.set(cursor.line.span.start.line, declarations.ruleVocabulary);
     if (sol) state.phase = RulePhase.Prelude;
     if (state.phase === RulePhase.MessageTail) { cursor.index = cursor.text.length; return; }
@@ -372,13 +377,12 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
   };
   const winToken = (state: WinScanState, sol: boolean): void => {
     if (sol) {
+      if (winDefinitions.has(cursor.line.span.start.line)) { cursor.index = cursor.text.length; return; }
       state.phase = WinPhase.Quantifier;
-      // Native captures the first non-'(' fragment of the entire normalized
-      // physical line, even when this body visit resumes after a comment.
-      const capture = /[^(]+/u.exec(cursor.text);
+      const capture = /^[^(]+/u.exec(cursor.text.slice(cursor.index));
       const tokens: SourceLexicalToken[] = [];
       if (capture !== null) for (const word of capture[0].matchAll(/[^\p{Z}\s]+/gu)) {
-        const start = capture.index + word.index;
+        const start = cursor.index + word.index;
         tokens.push(cursor.token(start, start + word[0].length));
       }
       winDefinitions.set(cursor.line.span.start.line, recoverWinSyntax(tokens));
@@ -498,12 +502,18 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
     const character = cursor.character;
     const messageTail = scan.section === SourceSectionKind.Rules && scan.phase === RulePhase.MessageTail
       || scan.section === SourceSectionKind.Levels && scan.phase === LevelPhase.MessageTail;
+    const capturedThisLine = scan.section === SourceSectionKind.Rules && capturedRuleLines.has(cursor.line.span.start.line)
+      || scan.section === SourceSectionKind.WinConditions && winDefinitions.has(cursor.line.span.start.line);
     if (character === '(' && !messageTail) { cursor.next(); commentDepth++; }
     else if (character === ')') {
       cursor.next();
       if (commentDepth > 0) {
         commentDepth--;
-        if (commentDepth === 0) { resumeAsLineStart = true; return; }
+        if (commentDepth === 0) {
+          if (capturedThisLine) cursor.index = cursor.text.length;
+          else resumeAsLineStart = true;
+          return;
+        }
       } else {
         issue("You're trying to close a comment here, but I can't find any opening bracket to match it? [This is highly suspicious; you probably want to fix it.]", true); return;
       }
@@ -516,6 +526,7 @@ export function walkSourceLexically(source: string, stopAtLimits: boolean): Sour
         else if (character === ')') commentDepth--;
         if (commentDepth === 0) break;
       }
+      if (commentDepth === 0 && capturedThisLine) cursor.index = cursor.text.length;
       if (cursor.end) visitNativeEndOfLine();
       return;
     }

@@ -1,0 +1,37 @@
+title A terminal stray closer discards a pending alias
+
+objects
+Background
+black
+
+Player
+white
+
+Crate
+red
+
+Marker
+yellow
+
+legend
+. = Background
+P = Player
+C = Crate
+Actor = Player)
+Actor = Crate
+
+sounds
+
+collisionlayers
+Background
+Player, Crate
+Marker
+
+rules
+[ action Player | Actor ] -> [ Player | Marker ]
+
+winconditions
+no Player
+
+levels
+PC

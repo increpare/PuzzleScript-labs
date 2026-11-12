@@ -1,0 +1,33 @@
+title Sound registration depends on the final token visit
+
+objects
+Background
+black
+
+Player
+white
+
+Marker
+yellow
+
+legend
+. = Background
+P = Player
+
+sounds
+sfx0 12345)
+sfx1 54321) 
+
+collisionlayers
+Background
+Player
+Marker
+
+rules
+[ action Player ] -> [ Player Marker ] sfx0 sfx1
+
+winconditions
+no Player
+
+levels
+P..

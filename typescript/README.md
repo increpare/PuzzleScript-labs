@@ -1,8 +1,10 @@
 # Readable TypeScript reference port
 
-A separate, headless port of **vanilla PuzzleScript**, pinned to
-[increpare/PuzzleScript at caa90212](https://github.com/increpare/PuzzleScript/commit/caa902120185b354f8b9bdb7bf67a9424be0665d).
-The existing labs JavaScript editor and player are unchanged.
+A separate, headless port of **vanilla PuzzleScript**, pinned to the local vanilla
+fix commit `7417d78a` on `codex/comment-rule-capture`, based on
+[upstream caa90212](https://github.com/increpare/PuzzleScript/commit/caa902120185b354f8b9bdb7bf67a9424be0665d).
+The fix prevents rules and win conditions inside comments from being reactivated.
+The Labs JavaScript compiler carries the same comment-capture correction.
 
 The implementation describes actual objects, cells, movements and unnamed
 collision layers. It uses numeric enums, arrays, Sets, Maps and direct loops.
@@ -18,8 +20,9 @@ compatibility behavior and research switches for bugs fixed by the pinned revisi
 `compileSource(source, { quirks: noQuirks })` gives the clean model. See
 [Quirk switches](#quirk-switches).
 
-The [3 November refresh audit](UPSTREAM-2026-11-03.md) records the exact oracle
-update, intentional behavior changes and current verification limits.
+The [4 November refresh audit](UPSTREAM-2026-11-04.md) records the comment-capture
+correction and exact oracle update. The [3 November audit](UPSTREAM-2026-11-03.md)
+records the preceding upstream refresh.
 
 ## Try the source example
 

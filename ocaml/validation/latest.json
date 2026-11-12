@@ -1,0 +1,1401 @@
+{
+  "recordedAt": "2026-11-07T17:43:40.891Z",
+  "status": "complete",
+  "scope": "Headless source parser, compiler, interpreter and persistent interactive controller",
+  "frontendArchitecture": {
+    "qualifiers": "closed variants",
+    "headers": "typed directions and flags",
+    "stages": [
+      "captured source",
+      "authored syntax",
+      "oriented rules",
+      "private bound rules with paired cells",
+      "domain rules",
+      "scheduled groups"
+    ],
+    "parser": "persistent state and explicit transitions",
+    "metadata": "descriptive phase variants",
+    "compiler": "named passes with ordered diagnostic context",
+    "formatting": "ocamlformat 0.29.0 conventional, margin 90",
+    "ruleParser": "classified lexemes, explicit prelude/pattern/literal modes, row builders and independent recovery depth",
+    "objectReader": "phase-owned cursor and sprite payload, explicit recovery history",
+    "levelReader": "grid-builder and line phases with shared glyph set",
+    "bindingSearch": "finished, expansion and dead-end outcomes in breadth-first order",
+    "loopMatching": "start-expected/end-expected transitions with positional recovery",
+    "text": "validated UTF-8 byte traversal with buffered casing and spacing"
+  },
+  "reference": {
+    "repository": "https://github.com/increpare/PuzzleScript",
+    "revision": "7417d78a75b5a07402071e21e0c171a76ef8871d",
+    "implementation": "vanilla",
+    "sourceSha256": {
+      "js/storagewrapper.js": "3b6b3dfee738beefa33ed0d38a3c26b16557c45a59378cf382f62b270bf41014",
+      "js/bitvec.js": "51e1fdd82fc4f82e509d09da47659867152cf1d406629b1384269f7d4dfbab3f",
+      "js/level.js": "7db48c669bdb1e9a0d40eb737388e95ca3e2c2e022e23d71eb4e5a13dd882271",
+      "js/languageConstants.js": "f6556cb9b0a4fc0a1e10ff2b32303d7cbd98001be87027957554b0db33ab2245",
+      "js/globalVariables.js": "465639a043101949663de0d15ee41b360969a65d5c575b6da2de064c55113643",
+      "js/debug.js": "7242fc2e5ce4c63a2d62981edafbe82ef80c20719e1ffbcc0a05608b28f091de",
+      "js/debug_off.js": "c266567e963d3039c3633cb03651a01e27a5fa46ccebfcb62cd17a1f6d6b603f",
+      "js/font.js": "da17f798ddf0b4a1d6a778396c96d0d2f3eaf7511d0e3bf8fdfa83fda9f436eb",
+      "js/rng.js": "9570e7354eb86fe13f22c1e74c258c5e0e39fd8b69e117096463be8d8612b723",
+      "js/riffwave.js": "960e4337169f9db67af4131c8d696c1c7282b41ed9796798301553a4ea3b6924",
+      "js/sfxr.js": "b4707692c61d42ceebf8063fffda92933b1e032d9fe75251e51b27a6f4401b87",
+      "js/colorhelpers.js": "cfefd6f524866fe1c07cf2e2b448e66b858bd5ceadcef948fe03e2a69ed9e53e",
+      "js/colors.js": "b842cef3c8252d430aaa500269a0c6f19d57ea5697de88f679b553b2e084a798",
+      "js/engine.js": "ec86cc467b953e259c923a1cd1a9aa443d4fe2506d3bf2f2bf7c05a4c17b2fd9",
+      "js/parser.js": "96353701e87ff4c16aa73fc7886c9a5ceb016118c1dcd4ff49af303893f60515",
+      "js/compiler.js": "b256942cf44f87c0bfece7316c6cc7f16935eb0bda33b18e45226f5225fb3da4",
+      "js/soundbar.js": "8dc24f1d4f2d14b44fcbb0a2bddd5c572252e478e6d26af8350364ab59457b86",
+      "js/codemirror/stringstream.js": "78947b75195ee9b03d09c0bc9e6008e9821a76ed3414c9355f6ab2b056f89b2b",
+      "tests/resources/testingFrameWork.js": "f37977aa3982bb46998a210121174e3c8226448897ce633079f52b04fbee8bf7",
+      "tests/resources/testdata.js": "dae82b975600846b9caf7329fc4840ae0b2b42d9e91d421b9f8c3397e58469cc",
+      "tests/resources/errormessage_testdata.js": "b8cd0cf08e9d18ee91dd426a3b3346019b362636636752dc92caa0eaee525423",
+      "js/inputoutput.js": "9332494917fab89f99448a3192cc1b33534f95587b78ad84294e3850d0953dff"
+    }
+  },
+  "candidateBinarySha256": "e5e199d9c71121dd8e6799f4e768247b4eda775c3eaca4b66494357e2e2326c6",
+  "environment": {
+    "ocaml": "5.5.2",
+    "dune": "3.24.2",
+    "uucp": "17.0.0",
+    "node": "v25.8.1",
+    "unicode": "17.0",
+    "platform": "darwin",
+    "arch": "arm64"
+  },
+  "checks": {
+    "build": "passed",
+    "core": "passed",
+    "installTarget": "passed",
+    "cliPushUndoReplay": "passed",
+    "gapRuntimeContract": "passed",
+    "sourceFaultContract": "passed",
+    "acceptanceAudit": "passed",
+    "publicBoundaryContracts": "passed",
+    "pairedRecoveryConstruction": "passed",
+    "frontendIrContracts": "passed",
+    "formatting": "passed",
+    "frontendCraftsmanshipAudit": "passed",
+    "explicitStateContracts": "passed",
+    "stateMachineSurvey": "all eight areas addressed",
+    "unicodeContract": "passed: all 1112064 scalars and contextual casing",
+    "cliModeCompatibility": "passed: 16 launch combinations",
+    "frontendPerformance": "passed: five paired rounds per stage over eight historical sources"
+  },
+  "reports": {
+    "semantic-parity": {
+      "fixtures": 317,
+      "matched": 317,
+      "passed": 317,
+      "matchedObservations": 866,
+      "startedAt": "2026-11-07T17:33:39.642Z",
+      "finishedAt": "2026-11-07T17:33:42.299Z",
+      "campaign": null,
+      "rejections": [],
+      "failures": [],
+      "oracleFailures": [],
+      "reportJsonSha256": "e5522adff9fa335fbd7b51b4138249aafb2ed328112c80654062cdae5ed5d021",
+      "reportFile": "ocaml/test/results/run-6yyRrF/report.json"
+    },
+    "generated-parity": {
+      "fixtures": 4096,
+      "matched": 4096,
+      "passed": 4096,
+      "matchedObservations": 28691,
+      "startedAt": "2026-11-07T17:33:39.903Z",
+      "finishedAt": "2026-11-07T17:34:18.909Z",
+      "campaign": {
+        "seed": "ocaml-interactions-2026-11-06",
+        "start": 0,
+        "count": 4096,
+        "distinctSources": 4039,
+        "constructionHashes": {
+          "generate.mjs": "408ac337a295caa02a5701937dd79eee8e84524f5c8a222b7b3cb8d11d912c20",
+          "program.mjs": "720214ef07c5b5b9b6638f4e3712a28fc501c115d2b748b1b886eb954cee42c5"
+        }
+      },
+      "rejections": [],
+      "failures": [],
+      "oracleFailures": [],
+      "reportJsonSha256": "c24f43d17adfa0eec247f3b8c26532307de63fa18b86879ee2282aa8da1a1041",
+      "reportFile": "ocaml/test/results/run-YylhHz/report.json"
+    },
+    "frontend-parity": {
+      "fixtures": 4096,
+      "matched": 4096,
+      "passed": 4096,
+      "matchedObservations": 28573,
+      "startedAt": "2026-11-07T17:33:40.042Z",
+      "finishedAt": "2026-11-07T17:34:20.388Z",
+      "campaign": {
+        "seed": "ocaml-frontend-2026-11-06",
+        "start": 0,
+        "count": 4096,
+        "distinctSources": 4096,
+        "constructionHashes": {
+          "generate.mjs": "408ac337a295caa02a5701937dd79eee8e84524f5c8a222b7b3cb8d11d912c20",
+          "program.mjs": "720214ef07c5b5b9b6638f4e3712a28fc501c115d2b748b1b886eb954cee42c5",
+          "frontend-generation.cjs": "46ba092886c292a4385c76d4bc86979f024e82668609a9b750f472271e98ab8a"
+        },
+        "frontend": true
+      },
+      "rejections": [],
+      "failures": [],
+      "oracleFailures": [],
+      "reportJsonSha256": "cc447d7df2ac3e22c80dd8e7b11fb236433732e36d66ed1e3ce627fc664c2ca9",
+      "reportFile": "ocaml/test/results/run-1BCJwM/report.json"
+    },
+    "rules-parity": {
+      "fixtures": 4096,
+      "matched": 4096,
+      "passed": 4096,
+      "matchedObservations": 28594,
+      "startedAt": "2026-11-07T17:33:39.876Z",
+      "finishedAt": "2026-11-07T17:34:18.926Z",
+      "campaign": {
+        "seed": "ocaml-rules-2026-11-06",
+        "start": 0,
+        "count": 4096,
+        "rules": true,
+        "distinctSources": 4096,
+        "families": {
+          "weighted-lines": 1024,
+          "symmetric-directions": 1024,
+          "cartesian-rows": 1024,
+          "negative-spawn": 1024
+        },
+        "constructionHashes": {
+          "rule-generation.cjs": "a2073023f3a59ce8ee3a7d6fc86c015866313412d8ee1cf937912a6d02fee5e2",
+          "program.mjs": "720214ef07c5b5b9b6638f4e3712a28fc501c115d2b748b1b886eb954cee42c5"
+        }
+      },
+      "rejections": [],
+      "failures": [],
+      "oracleFailures": [],
+      "reportJsonSha256": "906f2dcf7e5d29552446d956fd3a9180e2b845d867dd1ee9a121acfa10b6c5e3",
+      "reportFile": "ocaml/test/results/run-LDcuM0/report.json"
+    },
+    "bindings-parity": {
+      "fixtures": 4096,
+      "matched": 4096,
+      "passed": 4096,
+      "matchedObservations": 28620,
+      "startedAt": "2026-11-07T17:33:39.833Z",
+      "finishedAt": "2026-11-07T17:34:23.328Z",
+      "campaign": {
+        "seed": "ocaml-bindings-2026-11-06",
+        "start": 0,
+        "count": 4096,
+        "bindings": true,
+        "distinctSources": 4060,
+        "families": {
+          "property-transport": 1024,
+          "relative-transport": 1024,
+          "property-copy": 1024,
+          "command-evidence": 1024
+        },
+        "constructionHashes": {
+          "binding-generation.cjs": "9eb024ec333911969d376ccdb0952a6af5e08cfcb59d0fbebb5852d30f4f67e8"
+        }
+      },
+      "rejections": [],
+      "failures": [],
+      "oracleFailures": [],
+      "reportJsonSha256": "1958eb97c92e9f9d10c6cfb296b626f06bc005b07a2649513b1c587dac051487",
+      "reportFile": "ocaml/test/results/run-66yxpY/report.json"
+    },
+    "corpus-parity": {
+      "fixtures": 528,
+      "matched": 528,
+      "passed": 523,
+      "matchedObservations": 20083,
+      "startedAt": "2026-11-07T17:33:39.709Z",
+      "finishedAt": "2026-11-07T17:35:47.416Z",
+      "campaign": null,
+      "rejections": [],
+      "failures": [],
+      "oracleFailures": [
+        "Drop Swap",
+        "Drop Swap 2",
+        "Drop Swap 3",
+        "Expand, avoid the flames [also it's not always solvable]",
+        "Sokoban... in 3D!"
+      ],
+      "reportJsonSha256": "2e9238d392d454371b2d9594c81685f5dd0d0fd231bb156e2d7b4eaac1a4596c",
+      "reportFile": "ocaml/test/results/run-6UChGw/report.json"
+    },
+    "corpus-diagnostics": {
+      "fixtures": 370,
+      "matched": 370,
+      "campaign": null,
+      "startedAt": "2026-11-07T17:33:39.703Z",
+      "finishedAt": "2026-11-07T17:33:44.159Z",
+      "failures": [],
+      "processFailures": [],
+      "oracleExceptions": [],
+      "referenceAborts": [],
+      "reportJsonSha256": "bf2f89c707065057e0ed597cddc241ce6ea99e358fca1d9ebc919e5a99878f2d",
+      "reportFile": "ocaml/test/results/diagnostics-yJSqTX/report.json"
+    },
+    "metadata-diagnostics": {
+      "fixtures": 111,
+      "matched": 111,
+      "campaign": null,
+      "startedAt": "2026-11-07T17:33:39.786Z",
+      "finishedAt": "2026-11-07T17:33:41.203Z",
+      "failures": [],
+      "processFailures": [],
+      "oracleExceptions": [],
+      "referenceAborts": [],
+      "reportJsonSha256": "3572e5be64cb859c6210e4428641160a9052a214dbdf796c183d42698b14f657",
+      "reportFile": "ocaml/test/results/diagnostics-BrZLd6/report.json"
+    },
+    "asset-diagnostics": {
+      "fixtures": 26,
+      "matched": 26,
+      "campaign": null,
+      "startedAt": "2026-11-07T17:33:39.811Z",
+      "finishedAt": "2026-11-07T17:33:42.033Z",
+      "failures": [],
+      "processFailures": [],
+      "oracleExceptions": [],
+      "referenceAborts": [],
+      "reportJsonSha256": "02e92ddc3dab213762432c9bd31182c17a7f4eaae234c1d111f57f9e09bbf576",
+      "reportFile": "ocaml/test/results/diagnostics-LCDfCH/report.json"
+    },
+    "name-diagnostics": {
+      "fixtures": 32,
+      "matched": 32,
+      "campaign": null,
+      "startedAt": "2026-11-07T17:33:39.821Z",
+      "finishedAt": "2026-11-07T17:33:41.104Z",
+      "failures": [],
+      "processFailures": [],
+      "oracleExceptions": [],
+      "referenceAborts": [],
+      "reportJsonSha256": "a88952bae516e6e801da7f6dac6f77b94fd6f4cc57a6903b4aed8395dbab94cc",
+      "reportFile": "ocaml/test/results/diagnostics-bMqjVr/report.json"
+    },
+    "event-diagnostics": {
+      "fixtures": 81,
+      "matched": 81,
+      "campaign": null,
+      "startedAt": "2026-11-07T17:33:39.828Z",
+      "finishedAt": "2026-11-07T17:33:41.875Z",
+      "failures": [],
+      "processFailures": [],
+      "oracleExceptions": [],
+      "referenceAborts": [],
+      "reportJsonSha256": "575f046ec068853098cbca0a1470f0d79cc4f3a4f6466e47fdd69d43a776e41d",
+      "reportFile": "ocaml/test/results/diagnostics-cJWFhj/report.json"
+    },
+    "rule-diagnostics": {
+      "fixtures": 403,
+      "matched": 403,
+      "campaign": null,
+      "startedAt": "2026-11-07T17:33:39.809Z",
+      "finishedAt": "2026-11-07T17:33:43.423Z",
+      "failures": [],
+      "processFailures": [],
+      "oracleExceptions": [],
+      "referenceAborts": [],
+      "reportJsonSha256": "7ae0ab3a72a757ea66d21a3c72248d8306cf847c7e997fe99416039e601a4faf",
+      "reportFile": "ocaml/test/results/diagnostics-HuSN1C/report.json"
+    },
+    "level-diagnostics": {
+      "fixtures": 58,
+      "matched": 58,
+      "campaign": null,
+      "startedAt": "2026-11-07T17:33:39.841Z",
+      "finishedAt": "2026-11-07T17:33:41.937Z",
+      "failures": [],
+      "processFailures": [],
+      "oracleExceptions": [],
+      "referenceAborts": [],
+      "reportJsonSha256": "36b3799f745bf95d66f9cd80da43e666efea032e0d5203cc5597f0865a3ab070",
+      "reportFile": "ocaml/test/results/diagnostics-p4Zrti/report.json"
+    },
+    "section-diagnostics": {
+      "fixtures": 376,
+      "matched": 374,
+      "campaign": null,
+      "startedAt": "2026-11-07T17:33:39.880Z",
+      "finishedAt": "2026-11-07T17:33:45.851Z",
+      "failures": [],
+      "processFailures": [],
+      "oracleExceptions": [
+        {
+          "name": "sound raw ownership: Player move rules(ignored) 12345",
+          "sourceFile": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/diagnostics-6Ih8mx/source-364.ps",
+          "exception": "Cannot read properties of null (reading '0')",
+          "actual": {
+            "accepted": true,
+            "errorCount": 1,
+            "diagnostics": [
+              {
+                "line": 23,
+                "severity": "error",
+                "message": "Ah I was expecting direction or a sound seed here after MOVE, but I don't know what to make of \"\"."
+              }
+            ]
+          },
+          "partialReference": {
+            "accepted": false,
+            "errorCount": 0,
+            "diagnostics": []
+          }
+        },
+        {
+          "name": "sound raw ownership: sfx0 12345 rules(",
+          "sourceFile": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/diagnostics-6Ih8mx/source-366.ps",
+          "exception": "Cannot read properties of null (reading '0')",
+          "actual": {
+            "accepted": false,
+            "errorCount": 2,
+            "diagnostics": [
+              {
+                "line": 23,
+                "severity": "error",
+                "message": "I wasn't expecting anything after the sound declaration 12345 on this line, so I don't know what to do with \"\" here."
+              },
+              {
+                "line": null,
+                "severity": "error",
+                "message": "No collision layers defined.  All objects need to be in collision layers."
+              }
+            ]
+          },
+          "partialReference": {
+            "accepted": false,
+            "errorCount": 0,
+            "diagnostics": []
+          }
+        }
+      ],
+      "referenceAborts": [
+        {
+          "name": "global warning cutoff 99 object aliases",
+          "reason": "Too many errors/warnings; aborting compilation."
+        },
+        {
+          "name": "global warning cutoff 99 sound visits",
+          "reason": "Too many errors/warnings; aborting compilation."
+        },
+        {
+          "name": "global warning cutoff 99 rule visits",
+          "reason": "Too many errors/warnings; aborting compilation."
+        },
+        {
+          "name": "global warning cutoff 99 win visits",
+          "reason": "Too many errors/warnings; aborting compilation."
+        },
+        {
+          "name": "global warning cutoff 99 level visits",
+          "reason": "Too many errors/warnings; noping out."
+        },
+        {
+          "name": "global warning cutoff 99 legend visits",
+          "reason": "Too many errors/warnings; aborting compilation."
+        },
+        {
+          "name": "global warning cutoff 99 layer visits",
+          "reason": "Too many errors/warnings; aborting compilation."
+        },
+        {
+          "name": "global warning cutoff 100 object aliases",
+          "reason": "Too many errors/warnings; aborting compilation."
+        },
+        {
+          "name": "global warning cutoff 100 metadata visits",
+          "reason": "Too many errors/warnings; aborting compilation."
+        },
+        {
+          "name": "global warning cutoff 100 sound visits",
+          "reason": "Too many errors/warnings; aborting compilation."
+        },
+        {
+          "name": "global warning cutoff 100 rule visits",
+          "reason": "Too many errors/warnings; aborting compilation."
+        },
+        {
+          "name": "global warning cutoff 100 win visits",
+          "reason": "Too many errors/warnings; aborting compilation."
+        },
+        {
+          "name": "global warning cutoff 100 level visits",
+          "reason": "Too many errors/warnings; aborting compilation."
+        },
+        {
+          "name": "global warning cutoff 100 legend visits",
+          "reason": "Too many errors/warnings; aborting compilation."
+        },
+        {
+          "name": "global warning cutoff 100 layer visits",
+          "reason": "Too many errors/warnings; aborting compilation."
+        },
+        {
+          "name": "global warning cutoff 99 duplicate header",
+          "reason": "Too many errors/warnings; aborting compilation."
+        },
+        {
+          "name": "global warning cutoff 100 duplicate header",
+          "reason": "Too many errors/warnings; aborting compilation."
+        },
+        {
+          "name": "compiler cutoff 100 long message",
+          "reason": "Too many errors/warnings; aborting compilation."
+        },
+        {
+          "name": "compiler cutoff 100 short sprite",
+          "reason": "Too many errors/warnings; aborting compilation."
+        },
+        {
+          "name": "compiler cutoff 100 palette",
+          "reason": "Too many errors/warnings; aborting compilation."
+        },
+        {
+          "name": "rule closer at diagnostic limit 100",
+          "reason": "Too many errors/warnings; aborting compilation."
+        },
+        {
+          "name": "raw visit cap 99 legend",
+          "reason": "Too many errors/warnings; aborting compilation."
+        },
+        {
+          "name": "raw visit cap 99 layer",
+          "reason": "Too many errors/warnings; aborting compilation."
+        },
+        {
+          "name": "raw visit cap 99 layer astral",
+          "reason": "Too many errors/warnings; aborting compilation."
+        },
+        {
+          "name": "raw visit cap 99 win",
+          "reason": "Too many errors/warnings; aborting compilation."
+        },
+        {
+          "name": "raw visit cap 100 legend",
+          "reason": "Too many errors/warnings; aborting compilation."
+        },
+        {
+          "name": "raw visit cap 100 layer",
+          "reason": "Too many errors/warnings; aborting compilation."
+        },
+        {
+          "name": "raw visit cap 100 layer astral",
+          "reason": "Too many errors/warnings; aborting compilation."
+        },
+        {
+          "name": "raw visit cap 100 win",
+          "reason": "Too many errors/warnings; aborting compilation."
+        },
+        {
+          "name": "rule raw ownership cap 99",
+          "reason": "Too many errors/warnings; aborting compilation."
+        },
+        {
+          "name": "rule raw ownership cap 100",
+          "reason": "Too many errors/warnings; aborting compilation."
+        },
+        {
+          "name": "sound raw ownership cap 100",
+          "reason": "Too many errors/warnings; aborting compilation."
+        }
+      ],
+      "reportJsonSha256": "a570c4c8dae5ff425ae82d033b6d2951e6d93e406ad6208a7b1b4e5919c0a6c4",
+      "reportFile": "ocaml/test/results/diagnostics-6Ih8mx/report.json"
+    },
+    "player-parity": {
+      "fixtures": 82,
+      "matched": 82,
+      "matchedObservations": 733,
+      "startedAt": "2026-11-07T17:33:39.814Z",
+      "finishedAt": "2026-11-07T17:33:41.944Z",
+      "campaign": null,
+      "environment": {
+        "node": "v25.8.1",
+        "unicode": "17.0"
+      },
+      "fixtureConstructionSha256": "8c02f1d7e393cdcd2d86e79ece23c781242c8884885f610094e3aeaf23937c60",
+      "failureDetails": "per-case-files",
+      "failures": [],
+      "processFailures": [],
+      "oracleExceptions": [],
+      "reportJsonSha256": "9619a108a2647afee1e602ce2ee3fe8dd0da367239e81e84000805392a7fc3da",
+      "reportFile": "ocaml/test/results/player-SlzDL0/report.json"
+    },
+    "player-generated-parity": {
+      "fixtures": 4096,
+      "matched": 4096,
+      "matchedObservations": 135182,
+      "startedAt": "2026-11-07T17:33:39.854Z",
+      "finishedAt": "2026-11-07T17:34:23.928Z",
+      "campaign": {
+        "seed": "ocaml-player-2026-11-06",
+        "count": 4096,
+        "distinctSources": 3017,
+        "constructionSha256": "bfca41786ce7b88139573e0790411611523cd634d4e65daac063f1b692d076ce"
+      },
+      "environment": {
+        "node": "v25.8.1",
+        "unicode": "17.0"
+      },
+      "fixtureConstructionSha256": "8c02f1d7e393cdcd2d86e79ece23c781242c8884885f610094e3aeaf23937c60",
+      "failureDetails": "per-case-files",
+      "failures": [],
+      "processFailures": [],
+      "oracleExceptions": [],
+      "reportJsonSha256": "9f7a1aef66cef5dfbd76e4974bbaf64b3ae2603578e9faad297c08a55cf26ae6",
+      "reportFile": "ocaml/test/results/player-e15d7Y/report.json"
+    },
+    "gap-runtime": {
+      "kind": "explicit-component-contract",
+      "fixtures": 32,
+      "passed": 32,
+      "contract": "Adjacent gaps match as a single zero-or-more-cell span, including random candidate weights, random-stream consumption, fixed-cell edits and persistent undo.",
+      "nativeObservations": 128,
+      "referenceSingleGapObservations": 128,
+      "referenceRuntimeFaults": [
+        {
+          "name": "right P#",
+          "sourceFile": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/gaps-e7vvNz/source-0.ps",
+          "error": "cellRow[2].matches is not a function"
+        },
+        {
+          "name": "right P.#",
+          "sourceFile": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/gaps-e7vvNz/source-1.ps",
+          "error": "cellRow[2].matches is not a function"
+        },
+        {
+          "name": "right P...#",
+          "sourceFile": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/gaps-e7vvNz/source-2.ps",
+          "error": "cellRow[2].matches is not a function"
+        },
+        {
+          "name": "right P.#.#",
+          "sourceFile": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/gaps-e7vvNz/source-3.ps",
+          "error": "cellRow[2].matches is not a function"
+        },
+        {
+          "name": "left P#",
+          "sourceFile": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/gaps-e7vvNz/source-4.ps",
+          "error": "cellRow[2].matches is not a function"
+        },
+        {
+          "name": "left P.#",
+          "sourceFile": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/gaps-e7vvNz/source-5.ps",
+          "error": "cellRow[2].matches is not a function"
+        },
+        {
+          "name": "left P...#",
+          "sourceFile": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/gaps-e7vvNz/source-6.ps",
+          "error": "cellRow[2].matches is not a function"
+        },
+        {
+          "name": "left P.#.#",
+          "sourceFile": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/gaps-e7vvNz/source-7.ps",
+          "error": "cellRow[2].matches is not a function"
+        },
+        {
+          "name": "down P#",
+          "sourceFile": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/gaps-e7vvNz/source-8.ps",
+          "error": "cellRow[2].matches is not a function"
+        },
+        {
+          "name": "down P.#",
+          "sourceFile": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/gaps-e7vvNz/source-9.ps",
+          "error": "cellRow[2].matches is not a function"
+        },
+        {
+          "name": "down P...#",
+          "sourceFile": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/gaps-e7vvNz/source-10.ps",
+          "error": "cellRow[2].matches is not a function"
+        },
+        {
+          "name": "down P.#.#",
+          "sourceFile": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/gaps-e7vvNz/source-11.ps",
+          "error": "cellRow[2].matches is not a function"
+        },
+        {
+          "name": "up P#",
+          "sourceFile": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/gaps-e7vvNz/source-12.ps",
+          "error": "cellRow[2].matches is not a function"
+        },
+        {
+          "name": "up P.#",
+          "sourceFile": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/gaps-e7vvNz/source-13.ps",
+          "error": "cellRow[2].matches is not a function"
+        },
+        {
+          "name": "up P...#",
+          "sourceFile": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/gaps-e7vvNz/source-14.ps",
+          "error": "cellRow[2].matches is not a function"
+        },
+        {
+          "name": "up P.#.#",
+          "sourceFile": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/gaps-e7vvNz/source-15.ps",
+          "error": "cellRow[2].matches is not a function"
+        },
+        {
+          "name": "random right P#",
+          "sourceFile": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/gaps-e7vvNz/source-16.ps",
+          "error": "cellRow[2].matches is not a function"
+        },
+        {
+          "name": "random right P.#",
+          "sourceFile": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/gaps-e7vvNz/source-17.ps",
+          "error": "cellRow[2].matches is not a function"
+        },
+        {
+          "name": "random right P...#",
+          "sourceFile": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/gaps-e7vvNz/source-18.ps",
+          "error": "cellRow[2].matches is not a function"
+        },
+        {
+          "name": "random right P.#.#",
+          "sourceFile": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/gaps-e7vvNz/source-19.ps",
+          "error": "cellRow[2].matches is not a function"
+        },
+        {
+          "name": "random left P#",
+          "sourceFile": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/gaps-e7vvNz/source-20.ps",
+          "error": "cellRow[2].matches is not a function"
+        },
+        {
+          "name": "random left P.#",
+          "sourceFile": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/gaps-e7vvNz/source-21.ps",
+          "error": "cellRow[2].matches is not a function"
+        },
+        {
+          "name": "random left P...#",
+          "sourceFile": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/gaps-e7vvNz/source-22.ps",
+          "error": "cellRow[2].matches is not a function"
+        },
+        {
+          "name": "random left P.#.#",
+          "sourceFile": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/gaps-e7vvNz/source-23.ps",
+          "error": "cellRow[2].matches is not a function"
+        },
+        {
+          "name": "random down P#",
+          "sourceFile": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/gaps-e7vvNz/source-24.ps",
+          "error": "cellRow[2].matches is not a function"
+        },
+        {
+          "name": "random down P.#",
+          "sourceFile": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/gaps-e7vvNz/source-25.ps",
+          "error": "cellRow[2].matches is not a function"
+        },
+        {
+          "name": "random down P...#",
+          "sourceFile": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/gaps-e7vvNz/source-26.ps",
+          "error": "cellRow[2].matches is not a function"
+        },
+        {
+          "name": "random down P.#.#",
+          "sourceFile": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/gaps-e7vvNz/source-27.ps",
+          "error": "cellRow[2].matches is not a function"
+        },
+        {
+          "name": "random up P#",
+          "sourceFile": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/gaps-e7vvNz/source-28.ps",
+          "error": "cellRow[2].matches is not a function"
+        },
+        {
+          "name": "random up P.#",
+          "sourceFile": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/gaps-e7vvNz/source-29.ps",
+          "error": "cellRow[2].matches is not a function"
+        },
+        {
+          "name": "random up P...#",
+          "sourceFile": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/gaps-e7vvNz/source-30.ps",
+          "error": "cellRow[2].matches is not a function"
+        },
+        {
+          "name": "random up P.#.#",
+          "sourceFile": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/gaps-e7vvNz/source-31.ps",
+          "error": "cellRow[2].matches is not a function"
+        }
+      ],
+      "startedAt": "2026-11-07T17:33:39.842Z",
+      "finishedAt": "2026-11-07T17:33:42.285Z",
+      "environment": {
+        "node": "v25.8.1",
+        "unicode": "17.0"
+      },
+      "constructionSha256": "726d9aff5f9103c893ca4ec56ffe4508bf02f04c7091ba788c037294d756f7e7",
+      "failures": [],
+      "reportJsonSha256": "329c754a86d1a104ee9d913f192c0f9e899637e0989e631dc575e29d26dfec23",
+      "reportFile": "ocaml/test/results/gaps-e7vvNz/report.json"
+    },
+    "source-faults": {
+      "kind": "explicit-component-contract",
+      "fixtures": 2,
+      "passed": 2,
+      "contract": "An empty sound fallback after a consumed heading emits a structured error. Comment recovery preserves later sections or diagnoses their absence; it does not throw a host-language null exception.",
+      "compileObservations": 2,
+      "runtimeObservations": 4,
+      "referenceCompilerFaults": [
+        {
+          "name": "sound raw ownership: Player move rules(ignored) 12345",
+          "sourceFile": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/source-faults-7QJqT1/source-0.ps",
+          "sourceSha256": "25efdae48b6cebb084414810ca4cb85b0db465384b6b8462d98da565c6214d00",
+          "error": "Cannot read properties of null (reading '0')"
+        },
+        {
+          "name": "sound raw ownership: sfx0 12345 rules(",
+          "sourceFile": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/source-faults-7QJqT1/source-1.ps",
+          "sourceSha256": "79b53cec266734087562937ca495e66e0b61e68da46d43070abe21b824dc515a",
+          "error": "Cannot read properties of null (reading '0')"
+        }
+      ],
+      "startedAt": "2026-11-07T17:33:39.858Z",
+      "finishedAt": "2026-11-07T17:33:42.407Z",
+      "environment": {
+        "node": "v25.8.1",
+        "unicode": "17.0"
+      },
+      "constructionSha256": "c751f094d5a8b9d51ba0f69d6f44bcbfcd1b2fd90802a6d1f6855ae63b3c8284",
+      "failures": [],
+      "reportJsonSha256": "3ec0b302850e7dfd8478e863a10e1550b6062507d2227fd8a708cc65b342cda7",
+      "reportFile": "ocaml/test/results/source-faults-7QJqT1/report.json"
+    },
+    "player-metadata-parity": {
+      "fixtures": 4096,
+      "matched": 4096,
+      "matchedObservations": 188440,
+      "startedAt": "2026-11-07T17:33:39.874Z",
+      "finishedAt": "2026-11-07T17:34:32.007Z",
+      "campaign": {
+        "seed": "ocaml-player-metadata-2026-11-07",
+        "count": 4096,
+        "distinctSources": 4096,
+        "kind": "metadata",
+        "flags": [
+          "require_player_movement",
+          "run_rules_on_level_start",
+          "noaction",
+          "noundo",
+          "norestart",
+          "norepeat_action",
+          "throttle_movement"
+        ],
+        "profiles": [
+          [],
+          [
+            "realtime_interval 0.1",
+            "again_interval 0.1",
+            "key_repeat_interval 0.15"
+          ],
+          [
+            "realtime_interval 0.25",
+            "again_interval 0",
+            "key_repeat_interval 0",
+            "flickscreen 2x1"
+          ],
+          [
+            "realtime_interval bad",
+            "again_interval bad",
+            "key_repeat_interval bad",
+            "zoomscreen 3x1"
+          ]
+        ],
+        "families": [
+          "push and message",
+          "replacement and message",
+          "random and again",
+          "checkpoint and forced restart",
+          "cancel and checkpoint",
+          "partially blocked players",
+          "message and explicit win",
+          "realtime and message restart"
+        ],
+        "constructionSha256": "643c8dc1e1efeb038535833edc1f24f9b088cf27ca9cdddcf6fc609f73701a1d"
+      },
+      "environment": {
+        "node": "v25.8.1",
+        "unicode": "17.0"
+      },
+      "fixtureConstructionSha256": "8c02f1d7e393cdcd2d86e79ece23c781242c8884885f610094e3aeaf23937c60",
+      "failureDetails": "per-case-files",
+      "failures": [],
+      "processFailures": [],
+      "oracleExceptions": [],
+      "reportJsonSha256": "b5846d4762dd9412859756c214adda7ee018f77ad9aa35040476fa8a9d0d5c8a",
+      "reportFile": "ocaml/test/results/player-Wv5KP1/report.json"
+    },
+    "recovery-parity": {
+      "fixtures": 4096,
+      "matched": 3564,
+      "passed": 3564,
+      "matchedObservations": 24948,
+      "compilerMatched": 4096,
+      "checkedRejections": 532,
+      "startedAt": "2026-11-07T17:33:39.930Z",
+      "finishedAt": "2026-11-07T17:34:18.500Z",
+      "campaign": {
+        "seed": "ocaml-recovery-2026-11-07",
+        "start": 0,
+        "count": 4096,
+        "recovery": true,
+        "distinctSources": 4074,
+        "families": {
+          "forward-alias": 512,
+          "forward-property": 512,
+          "alias-redefinition": 512,
+          "property-redefinition": 512,
+          "cross-kind-name": 512,
+          "rejected-cycle": 512,
+          "late-publication": 512,
+          "player-redefinition": 512
+        },
+        "constructionHashes": {
+          "recovery-generation.cjs": "148050949b2391f04c4f6c2173ac0819a6dee36cab00da77020d6e23bd035cdf"
+        }
+      },
+      "rejections": [],
+      "failures": [],
+      "oracleFailures": [],
+      "reportJsonSha256": "f4e6dd989c35a7d96da79ab8e937dead0d21d8d819f475aa2deb5407987594f6",
+      "reportFile": "ocaml/test/results/run-ddedsu/report.json"
+    },
+    "recovery-diagnostics": {
+      "fixtures": 4096,
+      "matched": 4096,
+      "campaign": {
+        "seed": "ocaml-recovery-2026-11-07",
+        "count": 4096,
+        "distinctSources": 4074,
+        "constructionSha256": "148050949b2391f04c4f6c2173ac0819a6dee36cab00da77020d6e23bd035cdf"
+      },
+      "startedAt": "2026-11-07T17:33:39.948Z",
+      "finishedAt": "2026-11-07T17:34:13.513Z",
+      "failures": [],
+      "processFailures": [],
+      "oracleExceptions": [],
+      "referenceAborts": [],
+      "reportJsonSha256": "4e91c054a391629a3823ab655a7499e69c5556fa9d83fc1eba5e49d2d188d477",
+      "reportFile": "ocaml/test/results/diagnostics-KRoDnW/report.json"
+    },
+    "unicode": {
+      "kind": "unicode-contract",
+      "fixtures": 6,
+      "passed": 6,
+      "checkedScalars": 1112064,
+      "probe": {
+        "file": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/unicode-DTwGYc/probe.exe",
+        "sha256": "2e23e7ba2f8bd39d61e60d4b4af85c811218f5112d5643521dade003d5fb7fd9"
+      },
+      "constructionHashes": {
+        "unicode.cjs": "ce379b3fb9a7850621d79e9316ef345cceac7635003fc3a671b74e0e67983883",
+        "unicode_probe.ml": "5713678ec0a8f7930e36bc9a83b9aa9a4016f9ee415e7e781d496c0abb65ae9a"
+      },
+      "observation": {
+        "unicodeVersion": "17.0.0",
+        "checkedScalars": 1112064,
+        "stream": {
+          "source": "92d3db02653391c91c55ad6fc44a8abc3215f5bd535ae351d4d286da20189f4b0a92d49132f6431fc53e27f2ddce73a0c27e5eff73a98d88844eb08e31835017",
+          "lower": "ad4589b848542621845c75810596ed141b2cd6b648c49e9d186466cdc957bbbaaa4e5126ace4492d7583a267bc258b834476e4d49155760ed503810f8dee86f3",
+          "upper": "bbfeafbc6e3f948bf1d594b62125111f6f2f62d1f781f35bb68a57563963a463bfe8585ac1482144df8699816c248f1374f8f73d6f61d08d4324a9255b4eaa95",
+          "whitespace": "cfd8910eae82d1356b1adef6341bfd618faffa33fb8a3287a939f4c6582d804da87d9b2baf76fd1f63e85bc26414951c53cd85dedeaa2aacf8fc7be74c06ca16",
+          "identifiers": "3e1c9ea4a1f1a77254910bc48c5afbec7cca4735b4c19485320ba048a00a7a3e79d7ce2e78970f2df76bbea69cb6b5cc7a8099362ddef2d59b9aad1541a2999d",
+          "utf16": "c0903bdd8fc353e3625c5f2e1c34fce343330471307599de239c5e1abb20d4f805c35b10ac4df87d0f893a007df0dd15ed1e15ed7370dd0f24dbc93ab127b479"
+        },
+        "contexts": [
+          {
+            "source": "Α'Σ",
+            "lower": "α'ς",
+            "upper": "Α'Σ"
+          },
+          {
+            "source": "ΟΣ'Α",
+            "lower": "οσ'α",
+            "upper": "ΟΣ'Α"
+          },
+          {
+            "source": "ΟΣ.Α",
+            "lower": "οσ.α",
+            "upper": "ΟΣ.Α"
+          },
+          {
+            "source": "ΟΣ'",
+            "lower": "ος'",
+            "upper": "ΟΣ'"
+          },
+          {
+            "source": "İ Σ́",
+            "lower": "i̇ σ́",
+            "upper": "İ Σ́"
+          }
+        ]
+      },
+      "environment": {
+        "node": "v25.8.1",
+        "unicode": "17.0"
+      },
+      "startedAt": "2026-11-07T17:28:36.516Z",
+      "finishedAt": "2026-11-07T17:28:37.614Z",
+      "failures": [],
+      "reportJsonSha256": "823c642eb9c50340036665a76ed7cd711bfeef0d974de6b1666b70ed0e6d0fe3",
+      "reportFile": "ocaml/test/results/unicode-DTwGYc/report.json"
+    }
+  },
+  "performance": {
+    "reportFile": "ocaml/test/results/frontend-states-tQqIog/comparison-c0vcIW/report.json",
+    "reportJsonSha256": "a7fcb9086ffe177daea30c709e5a3005df1ebb44cc5e0c12692dbd067e20da6b",
+    "baselineCliSha256": "c32b4630267a559b6e06c2c55a90852845a51b02864a535c898d06160fac04bb",
+    "candidateBenchmark": {
+      "file": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/frontend-states-tQqIog/comparison-c0vcIW/candidate-bench.exe",
+      "sha256": "3093a4cda6d8627b3349d6a456be1386376d529e5831980bfeafa860d202badb"
+    },
+    "baselineBinary": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/frontend-states-tQqIog/baseline-bench.exe",
+    "baselineSha256": "c3fbdc072857235d744b5b4170817cb48d913c188576c7d5673799e62c70fd9b",
+    "sources": [
+      {
+        "file": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/frontend-states-tQqIog/source-0.ps",
+        "original": "ocaml/test/results/run-mfgwJq/legacy-489.ps",
+        "bytes": 199,
+        "sha256": "c04df8049bb735ee05bb416db61fd678fef0214c91701ea0189ee5d672505160"
+      },
+      {
+        "file": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/frontend-states-tQqIog/source-1.ps",
+        "original": "ocaml/test/results/run-mfgwJq/legacy-320.ps",
+        "bytes": 937,
+        "sha256": "526bc3e7d2eabfdbcf2650fa81fe23dee3833a6a1055c44a14cb5ca81600d30c"
+      },
+      {
+        "file": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/frontend-states-tQqIog/source-2.ps",
+        "original": "ocaml/test/results/run-mfgwJq/legacy-208.ps",
+        "bytes": 2187,
+        "sha256": "8d7fde9916e127e0e165abd5e0142878c4f5eae3cf49de600ec890fd2a328cbc"
+      },
+      {
+        "file": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/frontend-states-tQqIog/source-3.ps",
+        "original": "ocaml/test/results/run-mfgwJq/legacy-403.ps",
+        "bytes": 6943,
+        "sha256": "bc17767f7636ec1ea2fd1f143221cdba68c9c74a2b1b98e3d6468d3f61a55e8c"
+      },
+      {
+        "file": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/frontend-states-tQqIog/source-4.ps",
+        "original": "ocaml/test/results/run-mfgwJq/legacy-307.ps",
+        "bytes": 16692,
+        "sha256": "99042814bbcaa9b8e17cff6c1d05ab3164cfd1dbf0081a3bffc743c3551885e9"
+      },
+      {
+        "file": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/frontend-states-tQqIog/source-5.ps",
+        "original": "ocaml/test/results/run-mfgwJq/legacy-341.ps",
+        "bytes": 29476,
+        "sha256": "89d32a18f42346858ab8c379acfdbabd937cb4ef896790af0ae3fb33776952a2"
+      },
+      {
+        "file": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/frontend-states-tQqIog/source-6.ps",
+        "original": "ocaml/test/results/run-mfgwJq/legacy-222.ps",
+        "bytes": 52982,
+        "sha256": "36652fb197086183b6f8d2a33f0557b2c87b574091ab4bc02cdb27120f93d6ac"
+      },
+      {
+        "file": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/frontend-states-tQqIog/source-7.ps",
+        "original": "ocaml/test/results/run-mfgwJq/legacy-248.ps",
+        "bytes": 91573,
+        "sha256": "33e6a2b16946da002c266a8efa1289b136e115a84ab3ca790912f7eecd7e7bc4"
+      }
+    ],
+    "rounds": 5,
+    "iterations": 10,
+    "summary": {
+      "parse": {
+        "baseline": {
+          "cpuSeconds": 2.1823639999999997,
+          "wallSeconds": 2.189516067504883,
+          "allocatedBytes": 8678776832
+        },
+        "candidate": {
+          "cpuSeconds": 0.576794,
+          "wallSeconds": 0.5803859233856201,
+          "allocatedBytes": 1011638512
+        },
+        "ratios": {
+          "cpuSeconds": 0.2642977981674918,
+          "wallSeconds": 0.26507497798224117,
+          "allocatedBytes": 0.11656464172116185
+        }
+      },
+      "compile": {
+        "baseline": {
+          "cpuSeconds": 5.714769,
+          "wallSeconds": 5.73848819732666,
+          "allocatedBytes": 15228564592
+        },
+        "candidate": {
+          "cpuSeconds": 3.8406050000000005,
+          "wallSeconds": 3.866534948348999,
+          "allocatedBytes": 7226812512
+        },
+        "ratios": {
+          "cpuSeconds": 0.672049036452742,
+          "wallSeconds": 0.6737898232761493,
+          "allocatedBytes": 0.4745563817483134
+        }
+      }
+    },
+    "driverSha256": "b618a56f4ec3ea752ad3d2ffa5340159c6f8a1d7a4fc0e5931ca1e47570585ff",
+    "constructionSha256": "929a76cee8a13cc498335c97982e9429b33c97371886b23d588476cb92a8deaa"
+  },
+  "cliCompatibility": {
+    "recordedAt": "2026-11-07T17:42:42.023Z",
+    "binary": "ocaml/_build/default/cli/main.exe",
+    "binarySha256": "e5e199d9c71121dd8e6799f4e768247b4eda775c3eaca4b66494357e2e2326c6",
+    "baseline": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/ocaml/test/results/run-1rjRH5/candidate-c32b4630267a559b6e06c2c55a90852845a51b02864a535c898d06160fac04bb.exe",
+    "baselineSha256": "c32b4630267a559b6e06c2c55a90852845a51b02864a535c898d06160fac04bb",
+    "cases": [
+      {
+        "options": [],
+        "status": 0,
+        "observations": 5
+      },
+      {
+        "options": [
+          "--interactive"
+        ],
+        "status": 0,
+        "observations": 5
+      },
+      {
+        "options": [
+          "--title"
+        ],
+        "status": 0,
+        "observations": 5
+      },
+      {
+        "options": [
+          "--resume"
+        ],
+        "status": 0,
+        "observations": 5
+      },
+      {
+        "options": [
+          "--resume-grid",
+          "PC.#"
+        ],
+        "status": 0,
+        "observations": 5
+      },
+      {
+        "options": [
+          "--resume-grid",
+          ""
+        ],
+        "status": 0,
+        "observations": 5
+      },
+      {
+        "options": [
+          "--interactive",
+          "--resume-grid",
+          ""
+        ],
+        "status": 0,
+        "observations": 5
+      },
+      {
+        "options": [
+          "--title",
+          "--resume"
+        ],
+        "status": 0,
+        "observations": 5
+      },
+      {
+        "options": [
+          "--title",
+          "--resume-grid",
+          "PC.#"
+        ],
+        "status": 0,
+        "observations": 5
+      },
+      {
+        "options": [
+          "--title",
+          "--interactive",
+          "--resume"
+        ],
+        "status": 0,
+        "observations": 5
+      },
+      {
+        "options": [
+          "--compile-only"
+        ],
+        "status": 0,
+        "observations": 1
+      },
+      {
+        "options": [
+          "--compile-only",
+          "--interactive"
+        ],
+        "status": 0,
+        "observations": 1
+      },
+      {
+        "options": [
+          "--compile-only",
+          "--title",
+          "--resume-grid",
+          "?"
+        ],
+        "status": 0,
+        "observations": 1
+      },
+      {
+        "options": [
+          "--compile-only",
+          "--resume-grid",
+          "?",
+          "--level",
+          "-1"
+        ],
+        "status": 0,
+        "observations": 1
+      },
+      {
+        "options": [
+          "--interactive",
+          "--level",
+          "-1"
+        ],
+        "status": 1,
+        "observations": 1
+      },
+      {
+        "options": [
+          "--resume-grid",
+          "?",
+          "--level",
+          "-1"
+        ],
+        "status": 1,
+        "observations": 1
+      }
+    ],
+    "cliPushUndoReplay": "passed",
+    "reportFile": "ocaml/test/results/cli-states-fmapou/report.json",
+    "reportJsonSha256": "90be0da48999cf6ff2833215cbf9eba8d401ce383b14037b3879d72cdb2c6f91"
+  },
+  "sourceHashes": {
+    "ocaml/.gitignore": "523a5ce326511305e62effce1459f48e93a4154de3cd4a324f1a5c59e673bbe1",
+    "ocaml/.ocamlformat": "274c33ed497dc830a0f8eaadb5ce26fc817c03a82325bb745898b52aaae38ef0",
+    "ocaml/AUDIT.md": "80c36a9e254605c48de4cdca31b666ed71c052dc2cebaf88c87090163338f662",
+    "ocaml/PORTING.md": "e41e604e9c2478b4cf5ab8ae1fc47ad831c585764649f96b5c082e1069a90ef7",
+    "ocaml/README.md": "6c0bd8e01b874d11e912f996133acff7ada7856e7eb3ea03cf74e9033f50c482",
+    "ocaml/cli/dune": "d3601a540d2150e5cdecbd48b66f1f296787418e8e62070a61f36f260ced9815",
+    "ocaml/cli/main.ml": "540c9d5af6020187d02dc0bf167ca9ab87e39f7fef13bca6e7cf587d15c1d2cc",
+    "ocaml/dune-project": "5f858e4ed298ef8966bc31a263514e61ce9f5d679c8821edfeed02d6f2250036",
+    "ocaml/examples/push.ps": "e6b7195e278f4d59af2522a002ac68d115373f35524da054f267f3e1c272d277",
+    "ocaml/lib/board.ml": "49f7f10e1a57f1fe3f22166f8f8463261d02c7366bb6e3e5278912cbf890c789",
+    "ocaml/lib/board.mli": "6d3a337d805d38d47f2dee433350092c540b21de4b77336610d8882a16a31b3c",
+    "ocaml/lib/code_unit.ml": "02f46c83c6e91eb2dfc6c529ded49d0a19a3ca5dccda14ce82d678a8221a743e",
+    "ocaml/lib/code_unit.mli": "b07bb02e8c13b3f5a973074221c372acffc19d910fda83eaf9e06db8aab47d54",
+    "ocaml/lib/compile_diagnostics.ml": "c53acf82fab332d51041d445deeac57a8824a77ddf84e495fe1c8977d66f3866",
+    "ocaml/lib/compile_diagnostics.mli": "ae5a174352b90ce272f3c033cf5f0f8fa472faece8384100eb84e041f21baa7b",
+    "ocaml/lib/compiled_names.ml": "140efee31316822fb6acfd361b0c207c5059d89136ecfd11fb68bce847b1379e",
+    "ocaml/lib/compiled_names.mli": "d7b07bb5f8607c083256ef392af649e22e113e057708750e80d60dcb6852d73b",
+    "ocaml/lib/compiler.ml": "6f728cfcecede00e258f52d1cd1af561a3784455215da9e7cff01c826455913a",
+    "ocaml/lib/compiler.mli": "84f891fc429c3bd7c60e8f33a8289682ae6a288a8c822901285d192c3d646576",
+    "ocaml/lib/diagnostics.ml": "bba0d11abe87ae31209ef165db25220d2cd16b321c6a3f04cfad40e057093d31",
+    "ocaml/lib/diagnostics.mli": "7ca01f34201055832fd2303d99b011f5970a89b7a16eeb4e5f71b71e48c6e42a",
+    "ocaml/lib/direction.ml": "6412ac35eabd415c77b7fe1c7e156f75b535558cd0a16eb2689f974bf1dadc80",
+    "ocaml/lib/domain.ml": "f3fdbcaf9fab107a7c5025dda6ebf69950e41ab4dc2ad03ac98476f6f93d1b63",
+    "ocaml/lib/dune": "5ee42cc298ca5e165390fc44e874ed20005051b2e9ef6cf9acc8240783d09d69",
+    "ocaml/lib/execution.ml": "a456a6d3095b8fefb972abfbdc49533f776f073636e233b60ef6835bbf895569",
+    "ocaml/lib/execution.mli": "39a069fe6dfda3c7ee7f27b21e12737c5ef387c4da81cfb4341e846ef703fa0f",
+    "ocaml/lib/frozen_array.ml": "f54ac9112ddf049304c68257963707a9c9c7dcb6df15c4ffe8a4959e165f8b35",
+    "ocaml/lib/frozen_array.mli": "9482ecaaca4fbdd924d26834da39e3119ba8009e77a1eaad34364ff9f7d52f8c",
+    "ocaml/lib/json.ml": "fadc567eb5b28f55d2a86126feb5fb8788a0e447b3fbf39f4da11ef04c8461de",
+    "ocaml/lib/level_compiler.ml": "e921b661a2e907808c461170d3b0c741e4cc519ed3a59e979e139891b07e5365",
+    "ocaml/lib/level_compiler.mli": "39949303d37b8994d805cdb032700616cea16f7919c1d0a602cd3b47a92e73d8",
+    "ocaml/lib/parser.ml": "2c8bd075e4180593676c910bea3f214f1fb74b768b8af62c33b5879697e0f24f",
+    "ocaml/lib/parser.mli": "636cbfba44abe950f3e0f462131267ee4bd8e6bc6074acda1c7894642e424e9a",
+    "ocaml/lib/player.ml": "ab328973e20df7577e3a9190e1d870a8aa628715ca3ef6288eb78b6579779c6a",
+    "ocaml/lib/player.mli": "8a9781200228c3a36293e6ae3e9c7bae1c9077da7696b0ae8c4078542863ce1f",
+    "ocaml/lib/player_control.ml": "f6be7fd697ab3ef70638af2f83645ecfabdba38c8bf750ff9e1baed22c081c18",
+    "ocaml/lib/player_control.mli": "cda7eb32ab2c7af0d56df9b6e6e41a4002330c005884be0ec38cf93d238bf744",
+    "ocaml/lib/qualifier.ml": "b969d2963c9ec570e8baeff47fb9a16f88b2c077e5e11fbd02d68eac629c7ff4",
+    "ocaml/lib/random_stream.ml": "476d3f7a049ef93f6e44a704f8fb7570d2b9d84e14b4d77ea375e20f0e6239ce",
+    "ocaml/lib/random_stream.mli": "d3bc741ff2aa18b4fd6d63bac22413fa822e37f04246d13df53a5fb31ad06850",
+    "ocaml/lib/rule_bindings.ml": "f91014b49a6653f468702b22e02ffa345464bc2438e7749455dd601dba3d7ddc",
+    "ocaml/lib/rule_bindings.mli": "52f862a2552ec73ebde69634c5fc44584c2a32ec151eb0c3f51eccc79a164e55",
+    "ocaml/lib/rule_checks.ml": "54f8ee552b9df0486b9be1808685350f66c768dee375030a9dbf0b354c7cd0dc",
+    "ocaml/lib/rule_checks.mli": "bd324df90e0431c1424318edd205324417ce1db6b34ad1bb36064ae2e7f3fb63",
+    "ocaml/lib/rule_compiler.ml": "e8ec41188cc7cf418aa33383f9faab6879469ca1c50b275e8c1e2d10f1e88a8d",
+    "ocaml/lib/rule_compiler.mli": "d5b786cd749237dcb2874845478288d678a3d4f6635d557d5f1b1ace76fd438c",
+    "ocaml/lib/rule_expansion.ml": "a5c21b3d11fe7dc2320fd7203da46b9276fdcd0c2a44210f8b5e0201619a8eb7",
+    "ocaml/lib/rule_expansion.mli": "70089ab2db1f50d5825de1cfbb96d357537a838ca040be4745a5efe51a1d6fcc",
+    "ocaml/lib/rule_header.ml": "467c43263f666f611a0b029f9081d3e0ca9f5084f9d363cce54bd53339d728af",
+    "ocaml/lib/rule_ir.ml": "1f469957a1a94f175e2f3237ad08ab4aea9ccac029f6844d38ba795b64b17846",
+    "ocaml/lib/rule_ir.mli": "5bdf8708b509314ce45e32bc670578d23ad9f7ac9fff651c3bed577537369597",
+    "ocaml/lib/rule_lowering.ml": "ecf6b29f8f80ccb68060f4717aa7487628bb6b6bb07398a7fcfb06bcb3afd2c3",
+    "ocaml/lib/rule_lowering.mli": "27968acbe8f43811e1d28c829003042a5ef0459edb63bbfc843e9277a83adf95",
+    "ocaml/lib/rule_names.ml": "6571516c8c7895a409b2de8fb91cdf0efd4de22b4eca81f0f09d19f77e328d6a",
+    "ocaml/lib/rule_names.mli": "8edbf9b1e7d2b94d9357c3fed94e1fe513c19ed8d8681f3019db29354d1dd155",
+    "ocaml/lib/rule_parser.ml": "d7235a0e0e3e25f4feaf0e0931de45c54fde1248271aac627f18eb862cbd9277",
+    "ocaml/lib/rule_parser.mli": "daa3d55815a24fe1ede52f44665b47d97efe8558787f0f9f9eaf2a5e691dba03",
+    "ocaml/lib/rule_schedule.ml": "f7fcdfe4f96af2823244c26de63021519d17973daa94fc46193cd049daf3cd5d",
+    "ocaml/lib/rule_schedule.mli": "c3401d566435c4f6679b43629541d8d3a1cb43cd41d1676876ab59764fff2155",
+    "ocaml/lib/session.ml": "b1f5befc3b4b86d11d3d1a78b32734302e2d7f02792e1db9c05947120c33d779",
+    "ocaml/lib/session.mli": "f9b1ee99f5466c81909d1322aa7a2cebb00c7bc80e2fbe8efae73c0360440133",
+    "ocaml/lib/sound_compiler.ml": "19c925c01a31adeec65fa7a7edb49e027bb53951ccfc50f4775aefee7a9391b0",
+    "ocaml/lib/sound_compiler.mli": "a507fe7e4390f06aed1029a2157b735397a203cedb0245c56d918f15e6806cca",
+    "ocaml/lib/source_assets.ml": "b4650838a4e8136f80508ba1d196a0b818230c911c7708abca7f75d098c7da33",
+    "ocaml/lib/source_assets.mli": "ac6c899af48b2478e1501dee1684f9deafb15a0525f327c4764055685a15147b",
+    "ocaml/lib/source_declarations.ml": "065c616a19dd00b165c4f55039199017eefd88dd6984d7ccab44bd5bc9ee0f42",
+    "ocaml/lib/source_declarations.mli": "47e4bf601469727c57ac607c1815b9b0b9533e3f9b077b94c1ba19e1ad54652c",
+    "ocaml/lib/source_layers.ml": "fea4401b69f8f50d2d2e8d1c2e1663ab8fd63223e24c26d0b34c6a899dd6ba9b",
+    "ocaml/lib/source_layers.mli": "ce84f6526f2366aef17a3ceb03bde638969535c33a38b372316932ad5e49dc0c",
+    "ocaml/lib/source_legend.ml": "c309f640135c02d81cacaa998fefacbe64a7882d16ec7ba3f66041c5ead8f811",
+    "ocaml/lib/source_legend.mli": "9c4145f79611c8d69237cb3a5a15237c59b500af3f8702b28c8744672faae0db",
+    "ocaml/lib/source_levels.ml": "8d1b09ab569168b7d4478b3ca83d04018c39aa58c4ef8f34acfe154b92355d59",
+    "ocaml/lib/source_levels.mli": "accb710fddc8fb33ea8f5642805187ab743e27d1eb3a088a33d24f27e69c61f3",
+    "ocaml/lib/source_line.ml": "21467d28c0ebce067f1900fd0634e8da5b7d76495284e65acf8089c12eca18ae",
+    "ocaml/lib/source_line.mli": "def95c69984a82a3759f7806926adf8042e0051093cfdf1bc8b6e7afbe8e0f44",
+    "ocaml/lib/source_metadata.ml": "3f5ba78b2e7efba718382bdafa7bfd8e287ac3c3536bd265cb51a52377528e82",
+    "ocaml/lib/source_metadata.mli": "091cc64861564635fd477ea6b6a0d05d7af492dc5c1319dbcf8d61aed0493044",
+    "ocaml/lib/source_objects.ml": "c17fcb87f38120fef543f1cc51776b4a7557b402af76f392b6334cce504c3b24",
+    "ocaml/lib/source_objects.mli": "8eee3ae081fd6c4fea31931e866215294b5d41daf9be8206159657c88efaa86c",
+    "ocaml/lib/source_rules.ml": "09bccf6c25748ba1f185ef2e773c4a1614e4da74323bd7c9e9f616474bfa64fb",
+    "ocaml/lib/source_rules.mli": "38a593ecd3a1f6e0756f8083398d1114da1360f2636c700e7fa35d9482969c26",
+    "ocaml/lib/source_sections.ml": "57ebf7a8f1b9ddac4538bf4e3130e23ace5bc45721411590378b54f77becd538",
+    "ocaml/lib/source_sections.mli": "7317e3bd601a238f6b896f5c7503af2152be0f49fdce5cf2d4540a2bf3e2b1f8",
+    "ocaml/lib/source_sounds.ml": "c42bda07deb2530dcea760068a3c370e9ddddfc9879786dcd312c933003b7a92",
+    "ocaml/lib/source_sounds.mli": "a48a5d5cecb017ed3f811ea03ac9cf6f12fbdd4eb25587a897dba0ebda3b61d9",
+    "ocaml/lib/source_wins.ml": "e619db757c5fd9f5cd99824f1efd35070502fde0f4aa7b541b59adc3f671e6ef",
+    "ocaml/lib/source_wins.mli": "bf994d26a358b5d404d26965373a40a85c84621bb68a2cfdd76a4d686883e67d",
+    "ocaml/lib/syntax.ml": "66a9ddb1014946327d5784d659cbbd3a0f29b422ae1b27ee9e8ec91f135da37a",
+    "ocaml/lib/utf8.ml": "0a96ca309f6100f7807663c5c0e8ab8a2e96949d0b4f3ea9192435061e6a13be",
+    "ocaml/lib/win_compiler.ml": "a3bbb6042885202b3d289a587f6a3b2e8e812248a4a464b92ead2b1ee13d85db",
+    "ocaml/lib/win_compiler.mli": "f8a611bf6863e03d29f2c343e4d0f8ed1583176eb257971bece14481e3c2f501",
+    "ocaml/oracle-source.json": "b35dc8c8876d7a47b5c063ca1a8a294ae37b6e94c84e62fe7139b1ffb43a9648",
+    "ocaml/puzzlescript.opam": "3cadaf9ca8d84b25c0057e278692319f1d8c2fd255387d7f9ca3b407a703e056",
+    "ocaml/test/binding-generation.cjs": "9eb024ec333911969d376ccdb0952a6af5e08cfcb59d0fbebb5852d30f4f67e8",
+    "ocaml/test/compile-observation.cjs": "cbc3e2e0586949a9ffeba98e47d481befc06be6849179c46c210f16485fa2256",
+    "ocaml/test/core.ml": "30f8b97856bc8343c81607661de9e55b7d91c2314ca2791bf39a015ea99c2d89",
+    "ocaml/test/diagnostics.cjs": "507033759b2336457310f52d54a91fd7f3b1ba0946b9a20bd894244ee1471d72",
+    "ocaml/test/dune": "d86b0a567dfecce6ee04c07336393ce96b6ed0e897edf8184e5837901cd23287",
+    "ocaml/test/fixtures/aggregate-player.ps": "f42d054d3ad9a3ce924d7c65d49f5c1517f55c04c61471f2e3e0357401813194",
+    "ocaml/test/fixtures/comment-capture.ps": "738d90b8524c561f6ee59fa886421df65ee14504d981e399bf82d973004752da",
+    "ocaml/test/fixtures/comment-layout.ps": "7f957cb510bb1d425d9809aec73a52d72374a505bdad62abca34a7b6b46343b8",
+    "ocaml/test/fixtures/duplicate-rule-directions.ps": "5a42fb494e10f97d3f874f29ae23f215839d226a8cdabb6c987e3c7521f68a2f",
+    "ocaml/test/fixtures/duplicate-rule-lines.ps": "89a6be22ae995ac7a1bd0fa478c808803415010da5de471d249125ca74575b79",
+    "ocaml/test/fixtures/event-heading-visits.ps": "25a3a06d2dd7d81cd6c5bff2beecb53c66502f615fc18bf0dc6788e5a77930c2",
+    "ocaml/test/fixtures/glued-message.ps": "5cf291438cbc0205809a40b6bb99565c345c7c463a368398f8c09c960124d11b",
+    "ocaml/test/fixtures/late-alias-publication.ps": "b04b4e5176c654d71077a03fb41da9446397d87e251539b6655ec337ce8d9be5",
+    "ocaml/test/fixtures/late-layer-lookup.ps": "a23fbc01d5a7a91f0081bb771baab30d19352aebfc17dc0ce70f418348be8eb6",
+    "ocaml/test/fixtures/layer-astral-visits.ps": "be7fe5571fb09ae82f6a489b26fab84cd561867942fd482f877d5833dc112d51",
+    "ocaml/test/fixtures/layer-leading-close.ps": "fc44f3fe9d861929fb65b88ab25b250a3120fd318cd83b115ed822909117ca59",
+    "ocaml/test/fixtures/layer-sounds.ps": "bce4ebcae070f0ab5c766c5b18b950ae4e15a1392f475a750df997d400b3cd3b",
+    "ocaml/test/fixtures/left-ellipsis.ps": "d140ccda309c645f43d98ab779bb724160570353840652a03a4e362da4c85ec6",
+    "ocaml/test/fixtures/legend-close-comment-finalization.ps": "98208fe6ac2ce37ae18b7453c1f15acc7a8d4eb07956b8b79e33064af7632b53",
+    "ocaml/test/fixtures/legend-close-discard.ps": "1b58a3338509814b9bdfc316f243c04ee81d02f38289a24ad567378017a7e2f6",
+    "ocaml/test/fixtures/legend-cycle-recovery.ps": "20080d9363a920ccdbb473b6f5c21bd92f5490a3e1d1e97faaa9099852454f4b",
+    "ocaml/test/fixtures/legend-equals-comment-recovery.ps": "6cf69234214dfb2b6d839ec627e27c6109dc334f3c50f38f69058cee3c2520db",
+    "ocaml/test/fixtures/legend-first-layer.ps": "1bf069391e3f3bca44f7511da13365eb45b3c939ed1c45cbd0949df1bb48fcf2",
+    "ocaml/test/fixtures/legend-forward-property.ps": "ffac6247330e082fc551eb229fa26eda8cc4b41459a5149493dd47da969f061b",
+    "ocaml/test/fixtures/level-astral-glyph.ps": "c2ff1fc4d9aa25ffc5c106a60730e800942560caa7d06ce8a8aeaf33862f93dc",
+    "ocaml/test/fixtures/level-comment-prefix.ps": "e27613ab0bf4a1ab78304764721a443f5bb8316992eccadc1ddb443ade9dc91c",
+    "ocaml/test/fixtures/level-cropped-unknown.ps": "cea12926362b69b13c740ed9344b5c15b5e10ca5ef66d154257b39e0f2f380da",
+    "ocaml/test/fixtures/level-literal-message.ps": "0fcc1cc531ac5905d02594651d62f35bc989113eced0f7d3ca0715066164a916",
+    "ocaml/test/fixtures/level-partial-property.ps": "cba9fd70855c5dd7ea5a86e2335bea8c583c0847c4eaf2400a101f31a43a12f4",
+    "ocaml/test/fixtures/level-partial-unknown.ps": "b93211b531c71c89b2558596661abdbe376bbef17ac1756ff14deaf712d79dc2",
+    "ocaml/test/fixtures/message-parentheses.ps": "22c8324a512665cc8aeabaf7a33f8eb149d8f5e7e12ab3b7d72b02222e8f7b83",
+    "ocaml/test/fixtures/move-heading-visits.ps": "a0aa129c4018fe5026ef13bdc7fe0ae5cfc2cf763d7f6a7b7951e6267444c11b",
+    "ocaml/test/fixtures/name-alias-pass.ps": "4aaa0c2f9742ac4adc110ed14d4d58295846624b0435cac138084af4b3f9b7a6",
+    "ocaml/test/fixtures/name-concrete-membership.ps": "5bd02b97db6627beabca83bbf2cdb3b58481e967da3cb2230e32ffb560a31273",
+    "ocaml/test/fixtures/name-empty-membership.ps": "56669c5392263ec94cf6eacb6509b62f2a8173c73a16e1157125a02aca39f0f1",
+    "ocaml/test/fixtures/name-player-views.ps": "db111a0e7fe3bb0341573999292adb9cf106cd30712763e2ea7ffa03d603f7e3",
+    "ocaml/test/fixtures/name-property-order.ps": "4c6be6e2940b0cbca38fc932806ea081ef9da862d66d922fa47609c375462b27",
+    "ocaml/test/fixtures/name-random-aggregate.ps": "7b24442a5a60781bd0b91bc95cbed0fd27ea2a60f64455ae8f4a58b7c93dfafe",
+    "ocaml/test/fixtures/name-win-membership.ps": "ec500a557681d811d4e836992692f6bd4093f8a4dadca63b1b3a5d3fadc9482f",
+    "ocaml/test/fixtures/orphaned-slot.ps": "444fee22554c05bf2a3442da38401420f3c6347f8c52a9810e2d0af89762104d",
+    "ocaml/test/fixtures/owned-reading.json": "00270b95500acdcc18c295e6e0b6710692c7e61f1fd71ec8cb083de8a93cfddd",
+    "ocaml/test/fixtures/property-rule-identity.ps": "c9fc772ab5bbca8f233dccddaae4ed64f454845132d4088633f4c7a107b6f2c8",
+    "ocaml/test/fixtures/raw-reading.json": "394b8699b02dba621365528186d43f03f8898a778087d589baa2cd60c5b3a605",
+    "ocaml/test/fixtures/rule-binding-phase-order.ps": "1f41b8a399fb8f0daaa2b3da19a1c63913bf0e1377becae582ea10950f9fd056",
+    "ocaml/test/fixtures/rule-command-placement.ps": "03b2ecf2fccfe8a5896fa8e69ef2eaf3d00920f02ea62da65813fee1840fbd10",
+    "ocaml/test/fixtures/rule-contradictory-opener.ps": "8fcdebe11459c46469db153dfaa90e1afdfefcacf88e9cde410024fcf1c36f0b",
+    "ocaml/test/fixtures/rule-discarded-group-loop.ps": "4b1402dd4788bcfb25d430a7c29032e9c6ad914896df5c83acfe57444f5a470b",
+    "ocaml/test/fixtures/rule-edge-gap-recovery.ps": "299f4c2b9fc6d306b6f7782f9fa77a744721f8ddaad7427ea8d1218224343ecc",
+    "ocaml/test/fixtures/rule-empty-message.ps": "bcbbef948888e19440ffd727ca0d361b152a679282ea2fdfc2709ca136f6554e",
+    "ocaml/test/fixtures/rule-first-plus.ps": "258f1567ebcec0db215fc6d14f22b46234b955bedc78fe4bba1a2060548fa08f",
+    "ocaml/test/fixtures/rule-header-recovery.ps": "5fbf7e449e5c474ecf269eda2f4886b67b6f767e8fff9062332de7f69f42f9eb",
+    "ocaml/test/fixtures/rule-heading-message.ps": "700305f724313fcacead23ff5a0cdf35eece94abc1007f13e0058e2289deb8ba",
+    "ocaml/test/fixtures/rule-late-join.ps": "30314ad8536574874c6788cf47515fc5499c0a6626203aaa218927e00878290b",
+    "ocaml/test/fixtures/rule-left-gap-recovery.ps": "a6f843c3e2e968f2722a08b7ac21824ae644468d2be1f1d27fd5f9a57cd82137",
+    "ocaml/test/fixtures/rule-mixed-gap-opener.ps": "43282206f828125cbefbdb9de99c93f791c3ce1988cb038805a7096883137fa8",
+    "ocaml/test/fixtures/rule-mixed-gap-recovery.ps": "6d859eecbbd138cb1fb3affbdd27504c1a4fcc2cfcd929502b6f55968157be26",
+    "ocaml/test/fixtures/rule-negative-spawn-motion.ps": "18ade026a65928a4ceb1305d39018656f6bae34c36b2ded66547a71f392c8f45",
+    "ocaml/test/fixtures/rule-new-layer-spawn-motion.ps": "0986f3d0a96de83745fd1c57dfe34eac10a7b022d9ba8b129f26608f12cba8bc",
+    "ocaml/test/fixtures/rule-no-arrow-command.ps": "02e5c71903438251247eb8c47daf8e11bee64af85471234884a5fef3de066f64",
+    "ocaml/test/fixtures/rule-property-exclusion.ps": "c2636128a8a530b3b42521330a5a03079bb684f51de4190af833088c302b1044",
+    "ocaml/test/fixtures/rule-qualifier-recovery.ps": "9dcf35533c9e2396174b231ff64d8409a37236460315e5f272ea787ff283f122",
+    "ocaml/test/fixtures/rule-right-gap-recovery.ps": "3c685cf5ac8c67d60a72168b4792d1a76293c5f211553efae24daf09ca222e86",
+    "ocaml/test/fixtures/rule-shared-exclusion.ps": "d3d58cde881c7616882f37e1b07dacdc2ec4d84c0aae7a54277817c3e9a043b6",
+    "ocaml/test/fixtures/rule-unclosed-loop.ps": "162bfdaede899a9dad0ffad68b221a576bf572e5ae401745612a31e2274aecb1",
+    "ocaml/test/fixtures/rule-unknown-cell.ps": "8a12b9a2555d7e7ee48246603a089e65ecdb7429ffe6f60738db017a036ebd8d",
+    "ocaml/test/fixtures/rule-unresolved-property-local.ps": "a613d261be0cd58abb5153af91f05f22353250565f84d1d2469f8959e70421cf",
+    "ocaml/test/fixtures/rule-unresolved-property-opener.ps": "ba808ebad5f8eecc1e87951e2d968bd52b38e1ad93f989edf934a405c80e5062",
+    "ocaml/test/fixtures/runtime.json": "0d76b4f39e96d7a62a02a23092043c1622dcceca70b953279c2df0f28693c55f",
+    "ocaml/test/fixtures/sound-comment-finalization.ps": "12469b49bb30b84e6adc587131556eab148443e5b6e3c4a41de9c82637ba72ba",
+    "ocaml/test/fixtures/sound-discarded-line.ps": "e58f13d8a7bf2296e89f98cde95f5013feabc182e87d8bb8108f9bc007cf9c4e",
+    "ocaml/test/fixtures/sound-event-redefinition.ps": "f503cecaf8fb277c96d4744b4e0faebb3d705659be549e42e8a9d140ea9e9864",
+    "ocaml/test/fixtures/sound-partial-direction.ps": "1a156134e8bf9e5c7a37f6573e42bac5a81891314b14b53ecc762c338ade0023",
+    "ocaml/test/fixtures/unicode-names.ps": "dfb06d41f45a65ab266a96991366067d83d2c3e5954264f0b2d702d651da50f6",
+    "ocaml/test/fixtures/unlayered-movement.ps": "5345caa8768e73caeba3c6c2380a6fb8d0a87dd1de0d2b1e3e76dc01054c2ab2",
+    "ocaml/test/fixtures/unlayered-reference.ps": "a04fe46aa88394b58bdc884ddb434a142b29720118e713fc40513cfd6d28c8ec",
+    "ocaml/test/fixtures/up-ellipsis.ps": "d42aefba665cfa25aee065caf3b0d0754546d1c49ad3a6a3b7a68bde5d6ca107",
+    "ocaml/test/fixtures/win-comment-prefix-target.ps": "93ff62b91eb7cf7a82d183e953cd1f50bdf6a9c115a3d315b839ca152722f2e3",
+    "ocaml/test/fixtures/win-excess-recovery.ps": "23b960c948275234913176f581a4afa1f4a62044db9f2087893d8a93ea046cfa",
+    "ocaml/test/fixtures/win-leading-close.ps": "ae4bba34d1f8ca5c3bad5617a817a1d4665446ca60d75e004ac5383a17d9aa24",
+    "ocaml/test/fixtures/win-quantifier-recovery.ps": "e68e68e2ef4ff84863bf77b20aa9b0ece31905749a6359d93c625cb667bf8240",
+    "ocaml/test/fixtures/win-separator-recovery.ps": "315d098699a77c2a7c633189cf2957b98dfd9f911347372a7d6a1e21f2b818dc",
+    "ocaml/test/fixtures/zero-identities.ps": "4cc50da5754c28c8e93f89166817003e2b257cf95b605ee18bfe6dc18a6ce04d",
+    "ocaml/test/frontend-bench.cjs": "929a76cee8a13cc498335c97982e9429b33c97371886b23d588476cb92a8deaa",
+    "ocaml/test/frontend-generation.cjs": "46ba092886c292a4385c76d4bc86979f024e82668609a9b750f472271e98ab8a",
+    "ocaml/test/frontend_bench.ml": "b618a56f4ec3ea752ad3d2ffa5340159c6f8a1d7a4fc0e5931ca1e47570585ff",
+    "ocaml/test/gap-runtime.cjs": "726d9aff5f9103c893ca4ec56ffe4508bf02f04c7091ba788c037294d756f7e7",
+    "ocaml/test/interactive.ml": "98c3767ab167190e818b1da1d5a846a1e7ec6e071a3c3bede956b72d3c0a2937",
+    "ocaml/test/parity.cjs": "94363aca6be50cf3e385a74d6b5bccb9adec085be2f5db4608cb145f01011573",
+    "ocaml/test/player-fixtures.cjs": "8c02f1d7e393cdcd2d86e79ece23c781242c8884885f610094e3aeaf23937c60",
+    "ocaml/test/player-generation.cjs": "bfca41786ce7b88139573e0790411611523cd634d4e65daac063f1b692d076ce",
+    "ocaml/test/player-metadata-generation.cjs": "643c8dc1e1efeb038535833edc1f24f9b088cf27ca9cdddcf6fc609f73701a1d",
+    "ocaml/test/player-parity.cjs": "c732ce74179b91c37986405f33d344c861078ecaf19622285c38f5097956e33d",
+    "ocaml/test/recovery-generation.cjs": "148050949b2391f04c4f6c2173ac0819a6dee36cab00da77020d6e23bd035cdf",
+    "ocaml/test/rule-generation.cjs": "a2073023f3a59ce8ee3a7d6fc86c015866313412d8ee1cf937912a6d02fee5e2",
+    "ocaml/test/section-fixtures.cjs": "615339ccb493a708566bedd0bd6d2a88ad31b1a4bbcf98b24e66ee716e5c31af",
+    "ocaml/test/source-faults.cjs": "c751f094d5a8b9d51ba0f69d6f44bcbfcd1b2fd90802a6d1f6855ae63b3c8284",
+    "ocaml/test/unicode.cjs": "ce379b3fb9a7850621d79e9316ef345cceac7635003fc3a671b74e0e67983883",
+    "ocaml/test/unicode_probe.ml": "5713678ec0a8f7930e36bc9a83b9aa9a4016f9ee415e7e781d496c0abb65ae9a",
+    "ocaml/test/wire-fixtures.cjs": "cc2d89f245c4268d334c3fbedaf528820d73e2f50fef7183fde27f66d987a9b1"
+  },
+  "sharedFixtures": {
+    "files": 81,
+    "treeSha256": "9b7ffb8f0f6ca6a6561b83d75449a22b85f5c5212d21aeebe44156609e746654",
+    "treeHashFormat": "SHA-256 of JSON.stringify(sorted [repository-relative path, file SHA-256] pairs)"
+  },
+  "limitations": [
+    "Five historical golden disagreements keep the gameplay verifier nonzero.",
+    "Two pinned source-compiler null exceptions keep the section diagnostic audit nonzero. Separate recovery contracts verify candidate diagnostics and recovery/rejection without counting incomplete reference outcomes as parity.",
+    "Finite passing audits and constructed campaigns do not prove compatibility for every possible source program.",
+    "The pinned reference throws when matching adjacent gaps. A separately counted component contract treats them as a single gap, including random weights and undo; this is not reference runtime parity.",
+    "Rendering, synthesized audio, editor UI and device input are outside the headless component. Sound requests and ordered persistence effects are implemented.",
+    "Compatibility targets the pinned vanilla revision and Unicode data version; newer authorities require separate validation."
+  ],
+  "runtimeArchitecture": {
+    "session": "ready, AGAIN and victory work; typed message continuations and evaluation context",
+    "control": "abstract orthogonal title/message/action protocols with named frame steps",
+    "rigidRetry": "settled/retry result with explicit carry-over and failed-attempt payload",
+    "cli": "typed startup requests and observation events; unchanged JSON schema"
+  }
+}

@@ -15,6 +15,7 @@ function psCompileSemantic(str, includeWinConditions = true, optimizationOptions
             : null;
         const processor = new codeMirrorFn();
         const state = processor.startState();
+        state.canonicalExecutionOrder = !!(optimizationOptions && optimizationOptions.canonicalExecutionOrder);
         const lines = str.split('\n');
         for (let i = 0; i < lines.length; i++) {
             const ss = new CodeMirror.StringStream(lines[i], 4);

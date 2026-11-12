@@ -1,0 +1,44 @@
+title Concrete names retain their own replacement identity
+
+objects
+Background
+black
+
+Player
+white
+
+Red
+red
+
+Blue
+blue
+
+Green
+green
+
+Marker
+yellow
+
+legend
+. = Background
+P = Player
+B = Blue
+G = Green
+Red = Blue or Green
+
+sounds
+
+collisionlayers
+Background
+Player
+Red, Blue, Green
+Marker
+
+rules
+[ Red ] -> [ Red Marker ]
+
+winconditions
+no Player
+
+levels
+BGP

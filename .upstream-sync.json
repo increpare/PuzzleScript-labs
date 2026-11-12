@@ -14,6 +14,12 @@
       "commit": "92d045d3180eb03af34fc07fe6a56c87ebc298e8",
       "portDate": "2026-10-31",
       "notes": "docs/cached-again.md"
+    },
+    {
+      "branch": "codex/comment-rule-capture",
+      "commit": "7417d78a75b5a07402071e21e0c171a76ef8871d",
+      "portDate": "2026-11-04",
+      "notes": "docs/benchmarks/2026-11-04-cpp-compiler-fuzz-findings.md"
     }
   ]
 }

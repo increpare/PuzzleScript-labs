@@ -1,0 +1,33 @@
+title A failed sound line does not register its valid prefix
+
+objects
+Background
+black
+
+Player
+white
+
+Marker
+yellow
+
+legend
+. = Background
+P = Player
+
+sounds
+sfx0 999 extra
+sfx0 12345
+
+collisionlayers
+Background
+Player
+Marker
+
+rules
+[ action Player ] -> [ Player Marker ] sfx0
+
+winconditions
+no Player
+
+levels
+P..

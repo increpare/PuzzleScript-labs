@@ -234,6 +234,26 @@ void switchBackends(const LoadedGame& loaded) {
             "switching backends replayed an incompatible preparation");
     }
 }
+void screensStopAgain() {
+    const auto loaded = fixture("deterministic");
+    for (bool compact : {false, true}) for (bool title : {false, true}) {
+        auto state = start(loaded);
+        RuntimeStepOptions options{.playableUndo = true, .emitAudio = true, .againPolicy = AgainPolicy::Yield};
+        (void)apply(*state, compact, PS_INPUT_ACTION, options);
+        require(state->meta.pendingAgain, "screen fixture did not prepare an AGAIN continuation");
+        const auto board = state->levelState.board.objects;
+        const auto rng = state->levelState.rng;
+        const auto undoCount = state->meta.undoStack.size();
+        state->meta.textMode = true;
+        state->meta.titleScreen = title;
+        const auto result = apply(*state, compact, PS_INPUT_TICK, options);
+        require(!result.changed && !result.won && !result.transitioned, "screen tick executed a turn");
+        require(state->levelState.board.objects == board && sameRng(rng, state->levelState.rng), "screen tick changed gameplay state");
+        require(!state->meta.pendingAgain && state->meta.undoStack.size() == undoCount,
+            "screen tick retained AGAIN or changed undo history");
+        require(result.audio_event_count == 0 && result.ui_audio_event_count == 0, "screen tick emitted audio");
+    }
+}
 void rejectedRandomProbe() {
     const auto loaded = fixture("rejected_rng");
     for (bool compact : {false, true}) for (int level : {0, 1}) {
@@ -403,7 +423,7 @@ void effects(const std::string& name) {
 int main(int argc, char** argv) {
     const bool benchmark = argc > 1 && std::string(argv[1]) == "--benchmark";
     setRuntimeCountersEnabled(!benchmark);
-    if (!benchmark) { rejectedRandomProbe(); partialRigidProbe(); negativeDirectionalMasks(); }
+    if (!benchmark) { screensStopAgain(); rejectedRandomProbe(); partialRigidProbe(); negativeDirectionalMasks(); }
     if (!benchmark) for (const std::string effect : {"audio", "message", "checkpoint", "win", "restart", "cancel"}) effects(effect);
     for (const std::string name : {"deterministic", "random", "rigid", "noagain"}) {
         const auto loaded = fixture(name);

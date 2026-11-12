@@ -29,7 +29,7 @@ Thing = Crate or Wall
 P = Background and Player
 * = Crate
 # = Wall
-
+SOUNDS
 ================
 COLLISIONLAYERS
 ================

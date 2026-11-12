@@ -1,0 +1,45 @@
+title Comment layout
+
+objects
+Background
+black white
+00000
+(A whole comment block does not end the sprite.
+11111
+11111)
+01110
+01010
+01110
+00000
+
+Player
+white
+
+.333.
+.232.
+.333.
+
+Marker
+red
+
+legend
+. = Background
+P = Player
+
+sounds
+
+collisionlayers
+Background
+Player
+Marker
+
+rules
+[ action Player ] -> [ Player Marker ]
+
+winconditions
+no Player
+
+levels
+P.
+(A comment-only line does not split a level.)
+..

@@ -1,0 +1,10 @@
+OBJECTS
+Background .
+black
+Player P
+white
+LEGEND
+SOUNDS
+COLLISIONLAYERS
+Background
+Player -> Missing

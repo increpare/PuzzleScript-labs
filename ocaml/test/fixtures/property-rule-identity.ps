@@ -1,0 +1,43 @@
+title Source identity in random candidates
+
+objects
+Background
+black
+
+Player
+white
+
+Red
+red
+
+Blue
+blue
+
+Marker
+yellow
+
+legend
+. = Background
+P = Player
+R = Red
+Color = Red or Blue
+Hue = Color
+
+sounds
+
+collisionlayers
+Background
+Player
+Red, Blue
+Marker
+
+rules
+random [ Color ] -> [ Color Marker ]
++ [ Hue ] -> [ Hue Marker ]
++ [ Player ] -> [ Player Marker ]
+
+winconditions
+no Player
+
+levels
+RP

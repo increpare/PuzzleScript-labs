@@ -17,6 +17,20 @@
 
 #include "simdjson.h" // vendored; will replace puzzlescript::json in Task 4
 #include "runtime/compiled_rules.hpp"
+#include "runtime/movement_fields.hpp"
+#include "runtime/replacement_words.hpp"
+
+#ifndef PS_INTERPRETER_TUNING
+#define PS_INTERPRETER_TUNING 1
+#endif
+
+#ifndef PS_PATTERN_MATCH_KERNEL
+#define PS_PATTERN_MATCH_KERNEL 0
+#endif
+#if (PS_PATTERN_MATCH_KERNEL > 0 && PS_PATTERN_MATCH_KERNEL <= 6) \
+    || PS_PATTERN_MATCH_KERNEL == 9 || PS_PATTERN_MATCH_KERNEL == 10
+#include "runtime/pattern_match_kernels.hpp"
+#endif
 
 namespace puzzlescript {
 void runRulesOnLevelStart(FullState& session);
@@ -1357,11 +1371,15 @@ int32_t movementFieldAtLayer(
     if (words == nullptr || layerIndex < 0) {
         return 0;
     }
+#if PS_INTERPRETER_TUNING
+    return interpreter::readMovementField5(words, wordCount, layerIndex);
+#else
     MaskVector packed(static_cast<size_t>(wordCount), 0);
     for (uint32_t word = 0; word < wordCount; ++word) {
         packed[static_cast<size_t>(word)] = words[word];
     }
     return getShiftedMask5(packed, 5 * layerIndex);
+#endif
 }
 
 bool layerCoupledMovementLayerMatches(
@@ -1544,6 +1562,7 @@ Replacement parseReplacement(Game& game, const json::Value& value) {
         replacement.ensureDynamic().rhsPropertyPreserveMask =
             storeMaskWords(game, parseMaskVector(preserveMask->second));
     }
+    interpreter::prepareReplacementWordPlan(game, replacement);
     return replacement;
 }
 
@@ -3318,6 +3337,23 @@ bool resolveOneLayerMovement(FullState& session, TurnResult& out, int32_t tileIn
     const Game& game = *session.game;
     const MaskWord* layerMask = maskPtr(game, game.layerMaskOffsets[static_cast<size_t>(layer)]);
     const uint32_t wordCount = game.wordCount;
+#if PS_INTERPRETER_TUNING
+    // Reject collisions before allocating the two writable cell masks.
+    const MaskWord* targetWords = getCellObjectsPtr(session, targetIndex);
+    if (directionMask != 16 && anyBitsInCommon(targetWords, game.strideObject, layerMask, wordCount)) {
+        return false;
+    }
+    // Both setters run after audio/debug processing, so the original cell
+    // remains available without another owning copy.
+    const MaskWord* sourceMaskBeforeMove = getCellObjectsPtr(session, tileIndex);
+    MaskVector sourceMask = getCellObjects(session, tileIndex);
+    MaskVector targetMask = getCellObjects(session, targetIndex);
+    for (size_t word = 0; word < sourceMask.size() && word < wordCount; ++word) {
+        const MaskWord moving = sourceMask[word] & layerMask[word];
+        sourceMask[word] &= ~layerMask[word];
+        targetMask[word] |= moving;
+    }
+#else
     MaskVector sourceMask = getCellObjects(session, tileIndex);
     const MaskVector sourceMaskBeforeMove = sourceMask;
     MaskVector targetMask = getCellObjects(session, targetIndex);
@@ -3332,12 +3368,18 @@ bool resolveOneLayerMovement(FullState& session, TurnResult& out, int32_t tileIn
         targetMask[word] |= movingEntities[word];
     }
 
+#endif
+
     if (emitAudio && static_cast<size_t>(layer) < game.sfxMovementMasks.size()) {
         for (const auto& entry : game.sfxMovementMasks[static_cast<size_t>(layer)]) {
             const MaskWord* entryObjectMask = maskPtr(game, entry.objectMask);
             if (entryObjectMask == nullptr) continue;
+#if PS_INTERPRETER_TUNING
+            if (!anyBitsInCommon(sourceMaskBeforeMove, sourceMask.size(), entryObjectMask, wordCount)) {
+#else
             if (!anyBitsInCommon(sourceMaskBeforeMove.data(), sourceMaskBeforeMove.size(),
                                  entryObjectMask, wordCount)) {
+#endif
                 continue;
             }
             const MaskWord* entryDirectionMask = maskPtr(game, entry.directionMask);
@@ -3354,6 +3396,12 @@ bool resolveOneLayerMovement(FullState& session, TurnResult& out, int32_t tileIn
     }
 
     if (movementDebugEnabled()) {
+#if PS_INTERPRETER_TUNING
+        MaskVector movingEntities = getCellObjects(session, tileIndex);
+        for (size_t word = 0; word < movingEntities.size() && word < wordCount; ++word) {
+            movingEntities[word] &= layerMask[word];
+        }
+#endif
         std::ostringstream stream;
         stream << "resolve tile=(" << x << "," << y << ")"
                << " target=(" << targetX << "," << targetY << ")"
@@ -3625,22 +3673,46 @@ PS_ALWAYS_INLINE bool matchesPatternAt(
     const MaskWord* movements = getCellMovementsPtr(session, tileIndex);
     const MaskWord* arena    = game.maskArena.data();
 
+#if PS_PATTERN_MATCH_KERNEL > 0 && PS_PATTERN_MATCH_KERNEL < 4
+    if (!mask_experiment::matches<static_cast<mask_experiment::Kernel>(PS_PATTERN_MATCH_KERNEL)>(
+            objects, pattern.hasObjectsPresent ? arena + pattern.objectsPresent : nullptr,
+            pattern.hasObjectsMissing ? arena + pattern.objectsMissing : nullptr, objectWordCount)) {
+        return false;
+    }
+#else
     if (pattern.hasObjectsPresent) {
         const MaskWord* objectsPresent = arena + pattern.objectsPresent;
+#if PS_PATTERN_MATCH_KERNEL == 6 || PS_PATTERN_MATCH_KERNEL == 9 || PS_PATTERN_MATCH_KERNEL == 10
+        if (!mask_experiment::earlyLoop<true, PS_PATTERN_MATCH_KERNEL != 6>(objects, objectsPresent, objectWordCount)) return false;
+#else
         for (uint32_t w = 0; w < objectWordCount; ++w) {
+#if PS_PATTERN_MATCH_KERNEL == 4
+            if (!mask_experiment::earlyWord<true>(objects[w], objectsPresent[w])) {
+#else
             if ((objects[w] & objectsPresent[w]) != objectsPresent[w]) {
+#endif
                 return false;
             }
         }
+#endif
     }
     if (pattern.hasObjectsMissing) {
         const MaskWord* objectsMissing = arena + pattern.objectsMissing;
+#if PS_PATTERN_MATCH_KERNEL == 6 || PS_PATTERN_MATCH_KERNEL == 9 || PS_PATTERN_MATCH_KERNEL == 10
+        if (!mask_experiment::earlyLoop<false, PS_PATTERN_MATCH_KERNEL != 6>(objects, objectsMissing, objectWordCount)) return false;
+#else
         for (uint32_t w = 0; w < objectWordCount; ++w) {
+#if PS_PATTERN_MATCH_KERNEL == 4
+            if (!mask_experiment::earlyWord<false>(objects[w], objectsMissing[w])) {
+#else
             if ((objects[w] & objectsMissing[w]) != 0) {
+#endif
                 return false;
             }
         }
+#endif
     }
+#endif
     for (uint32_t i = 0; i < pattern.anyObjectsCount; ++i) {
         const MaskOffset offset = game.anyObjectOffsets[pattern.anyObjectsFirst + i];
         const MaskWord* anyMask = arena + offset;
@@ -3655,22 +3727,46 @@ PS_ALWAYS_INLINE bool matchesPatternAt(
             return false;
         }
     }
+#if PS_PATTERN_MATCH_KERNEL > 0 && PS_PATTERN_MATCH_KERNEL < 4
+    if (!mask_experiment::matches<static_cast<mask_experiment::Kernel>(PS_PATTERN_MATCH_KERNEL)>(
+            movements, pattern.hasMovementsPresent ? arena + pattern.movementsPresent : nullptr,
+            pattern.hasMovementsMissing ? arena + pattern.movementsMissing : nullptr, movementWordCount)) {
+        return false;
+    }
+#else
     if (pattern.hasMovementsPresent) {
         const MaskWord* movementsPresent = arena + pattern.movementsPresent;
+#if PS_PATTERN_MATCH_KERNEL == 6 || PS_PATTERN_MATCH_KERNEL == 9 || PS_PATTERN_MATCH_KERNEL == 10
+        if (!mask_experiment::earlyLoop<true, PS_PATTERN_MATCH_KERNEL != 6>(movements, movementsPresent, movementWordCount)) return false;
+#else
         for (uint32_t w = 0; w < movementWordCount; ++w) {
+#if PS_PATTERN_MATCH_KERNEL == 4
+            if (!mask_experiment::earlyWord<true>(movements[w], movementsPresent[w])) {
+#else
             if ((movements[w] & movementsPresent[w]) != movementsPresent[w]) {
+#endif
                 return false;
             }
         }
+#endif
     }
     if (pattern.hasMovementsMissing) {
         const MaskWord* movementsMissing = arena + pattern.movementsMissing;
+#if PS_PATTERN_MATCH_KERNEL == 6 || PS_PATTERN_MATCH_KERNEL == 9 || PS_PATTERN_MATCH_KERNEL == 10
+        if (!mask_experiment::earlyLoop<false, PS_PATTERN_MATCH_KERNEL != 6>(movements, movementsMissing, movementWordCount)) return false;
+#else
         for (uint32_t w = 0; w < movementWordCount; ++w) {
+#if PS_PATTERN_MATCH_KERNEL == 4
+            if (!mask_experiment::earlyWord<false>(movements[w], movementsMissing[w])) {
+#else
             if ((movements[w] & movementsMissing[w]) != 0) {
+#endif
                 return false;
             }
         }
+#endif
     }
+#endif
     if (pattern.anyMovementsCount != 0 || !pattern.layerCoupledMovementMasks.empty()) {
         if (!matchesAdvancedMovementPatternAt(session, pattern, objects, movements)) {
             return false;
@@ -3679,6 +3775,74 @@ PS_ALWAYS_INLINE bool matchesPatternAt(
     addCounter(gRuntimeCounters.patternMatches);
     return true;
 }
+
+#if PS_INTERPRETER_TUNING
+// Keep the word-index arrays and uncommon branches out of the common updater.
+#if defined(_MSC_VER)
+__declspec(noinline)
+#elif defined(__GNUC__) || defined(__clang__)
+__attribute__((noinline))
+#endif
+bool applyStaticReplacementWords(FullState& session, const Replacement& replacement, int32_t tileIndex) {
+    const Game& game = *session.game;
+    const MaskWord* objectsClear = maskPtr(game, replacement.objectsClear);
+    const MaskWord* objectsSet = maskPtr(game, replacement.objectsSet);
+    const MaskWord* movementsClear = maskPtr(game, replacement.movementsClear);
+    const MaskWord* movementsSet = maskPtr(game, replacement.movementsSet);
+    const MaskWord* movementsLayerMask = replacement.hasMovementsLayerMask
+        ? maskPtr(game, replacement.movementsLayerMask) : nullptr;
+    const MaskWord* oldObjects = getCellObjectsPtr(session, tileIndex);
+    const MaskWord* oldMovements = getCellMovementsPtr(session, tileIndex);
+    MaskVector& objects = session.scratch.replacementObjectsScratch;
+    MaskVector& movements = session.scratch.replacementMovementsScratch;
+    if (objects.size() != game.wordCount) objects.resize(game.wordCount);
+    if (movements.size() != game.movementWordCount) movements.resize(game.movementWordCount);
+    uint32_t objectWords[8], movementWords[16];
+    size_t objectCount = 0, movementCount = 0;
+    uint32_t remaining = replacement.staticObjectWords;
+    while (remaining != 0) {
+        const uint32_t word = static_cast<uint32_t>(maskWordCountTrailingZeros(remaining));
+        remaining &= remaining - 1;
+        const MaskWord before = oldObjects[word];
+        const MaskWord clear = objectsClear ? objectsClear[word] : 0;
+        const MaskWord set = objectsSet ? objectsSet[word] : 0;
+        const MaskWord after = (before & ~clear) | set;
+        if (before == after) continue;
+        // Match accumulateMaskWords: a nonempty short sound mask grows on
+        // the first object change, including destruction-only changes.
+        if (objectCount == 0) {
+            if (!session.scratch.pendingCreateMask.empty() && session.scratch.pendingCreateMask.size() < game.wordCount)
+                session.scratch.pendingCreateMask.resize(game.wordCount, 0);
+            if (!session.scratch.pendingDestroyMask.empty() && session.scratch.pendingDestroyMask.size() < game.wordCount)
+                session.scratch.pendingDestroyMask.resize(game.wordCount, 0);
+        }
+        objects[word] = after;
+        objectWords[objectCount++] = word;
+        if (word < session.scratch.pendingCreateMask.size())
+            session.scratch.pendingCreateMask[word] |= after & ~before;
+        if (word < session.scratch.pendingDestroyMask.size())
+            session.scratch.pendingDestroyMask[word] |= before & ~after;
+    }
+    remaining = replacement.staticMovementWords;
+    while (remaining != 0) {
+        const uint32_t word = static_cast<uint32_t>(maskWordCountTrailingZeros(remaining));
+        remaining &= remaining - 1;
+        const MaskWord before = oldMovements[word];
+        MaskWord clear = movementsClear ? movementsClear[word] : 0;
+        if (movementsLayerMask) clear |= movementsLayerMask[word];
+        const MaskWord set = movementsSet ? movementsSet[word] : 0;
+        const MaskWord after = (before & ~clear) | set;
+        if (before == after) continue;
+        movements[word] = after;
+        movementWords[movementCount++] = word;
+    }
+    if (objectCount) setCellObjectsFromWordsImpl<true>(session, tileIndex, objects.data(), objectWords, objectCount);
+    if (movementCount) setCellMovementsFromWordsImpl<true>(session, tileIndex, movements.data(), movementWords, movementCount);
+    if (objectCount == 0 && movementCount == 0) return false;
+    addCounter(gRuntimeCounters.replacementsApplied);
+    return true;
+}
+#endif
 
 bool applyReplacementAt(FullState& session, const Rule& rule, const Pattern& pattern, int32_t tileIndex) {
     addCounter(gRuntimeCounters.replacementsAttempted);
@@ -3694,6 +3858,11 @@ bool applyReplacementAt(FullState& session, const Rule& rule, const Pattern& pat
         && !replacement.hasRandomEntityMask
         && !replacement.hasRandomDirMask
         && !ruleDebugEnabled()) {
+#if PS_INTERPRETER_TUNING
+        if (replacement.hasStaticWordPlan && !replacement.dynamic) {
+            return applyStaticReplacementWords(session, replacement, tileIndex);
+        }
+#endif
         const MaskWord* oldObjects = getCellObjectsPtr(session, tileIndex);
         const MaskWord* oldMovements = getCellMovementsPtr(session, tileIndex);
         const MaskWord* objectsClear = maskPtr(game, replacement.objectsClear);
@@ -3708,10 +3877,19 @@ bool applyReplacementAt(FullState& session, const Rule& rule, const Pattern& pat
         MaskVector& newMovements = session.scratch.replacementMovementsScratch;
         MaskVector& created = session.scratch.replacementCreatedScratch;
         MaskVector& destroyed = session.scratch.replacementDestroyedScratch;
+#if PS_INTERPRETER_TUNING
+        // These scratch buffers normally already have the required size.
+        // An explicit check avoids out-of-line libc++ resize calls per cell.
+        if (newObjects.size() != objectWordCount) newObjects.resize(objectWordCount);
+        if (created.size() != objectWordCount) created.resize(objectWordCount);
+        if (destroyed.size() != objectWordCount) destroyed.resize(objectWordCount);
+        if (newMovements.size() != movementWordCount) newMovements.resize(movementWordCount);
+#else
         newObjects.resize(objectWordCount);
         created.resize(objectWordCount);
         destroyed.resize(objectWordCount);
         newMovements.resize(movementWordCount);
+#endif
 
         const ReplacementDynamic* dynamic = replacement.dynamic.get();
         if (dynamic == nullptr) {
@@ -4289,6 +4467,50 @@ bool lineSatisfiesRowPreconditions(
                allMovementWordCount);
 }
 
+#if PS_PATTERN_MATCH_KERNEL == 11 || PS_PATTERN_MATCH_KERNEL == 12
+struct CandidateLineMemo {
+    const FullState& session;
+    const RowMaskPreconditions& preconditions;
+    const bool horizontal;
+    const bool enabled;
+    uint32_t generation = 0;
+    uint32_t* tags = nullptr;
+    CandidateLineMemo(const FullState& state, const RowMaskPreconditions& conditions,
+                      bool across, uint64_t candidates, size_t lines)
+        : session(state), preconditions(conditions), horizontal(across),
+          enabled(PS_PATTERN_MATCH_KERNEL != 12 || candidates > 8) {
+        if (enabled) {
+            auto& cache = session.scratch.linePreconditions;
+            generation = cache.begin(lines);
+            tags = cache.tags.data();
+        }
+    }
+    PS_ALWAYS_INLINE bool accepts(int32_t x, int32_t y) const {
+        if (!enabled) return true;
+        const auto line = horizontal ? y : x;
+        uint32_t tag = tags[line];
+        if ((tag & ~uint32_t{1}) != generation) {
+            const auto& scratch = session.scratch;
+            const auto& game = *session.game;
+            const auto objectsBase = static_cast<size_t>(line * game.strideObject);
+            const auto movementsBase = static_cast<size_t>(line * game.strideMovement);
+            const auto* objects = (horizontal ? scratch.rowMasks : scratch.columnMasks).data() + objectsBase;
+            const auto* movements = (horizontal ? scratch.rowMovementMasks : scratch.columnMovementMasks).data() + movementsBase;
+            const auto* allObjects = game.needsObjectLineAllMasks
+                ? (horizontal ? scratch.rowAllMasks : scratch.columnAllMasks).data() + objectsBase : nullptr;
+            const auto* allMovements = game.needsMovementLineAllMasks
+                ? (horizontal ? scratch.rowAllMovementMasks : scratch.columnAllMovementMasks).data() + movementsBase : nullptr;
+            const bool allowed = lineSatisfiesRowPreconditions(session, preconditions,
+                objects, game.strideObject, movements, game.strideMovement,
+                allObjects, game.strideObject, allMovements, game.strideMovement);
+            tag = generation | static_cast<uint32_t>(allowed);
+            tags[line] = tag;
+        }
+        return (tag & 1) != 0;
+    }
+};
+#endif
+
 uint64_t objectPresenceCount(const FullState& session, int32_t objectId) {
 #if !PS_INTERPRETER_OBJECT_CELL_INDEX
     (void)session;
@@ -4435,6 +4657,9 @@ std::optional<bool> collectMovementAnchoredRowMatchesInto(
     const int32_t bitCount = movementBitCount(session);
     const size_t cellWordCount = movementCellWordCount(session);
     addCounter(gRuntimeCounters.movementAnchorCollectionsUsed);
+#if PS_PATTERN_MATCH_KERNEL == 11 || PS_PATTERN_MATCH_KERNEL == 12
+    CandidateLineMemo lineMemo(session, preconditions, horizontal, anchor->cellCount, horizontal ? height : width);
+#endif
     uint32_t anchorMovementBitCount = 0;
     for (uint32_t word = 0; word < anchor->movementWords; ++word) {
         MaskWordUnsigned movementBits = static_cast<MaskWordUnsigned>(anchor->movements[word]);
@@ -4469,6 +4694,9 @@ std::optional<bool> collectMovementAnchoredRowMatchesInto(
                         continue;
                     }
 
+#if PS_PATTERN_MATCH_KERNEL == 11 || PS_PATTERN_MATCH_KERNEL == 12
+                    if (!lineMemo.accepts(startX, startY)) continue;
+#else
                     const MaskWord* lineObjects = horizontal
                         ? session.scratch.rowMasks.data() + static_cast<size_t>(startY * session.game->strideObject)
                         : session.scratch.columnMasks.data() + static_cast<size_t>(startX * session.game->strideObject);
@@ -4485,7 +4713,12 @@ std::optional<bool> collectMovementAnchoredRowMatchesInto(
                             ? session.scratch.rowAllMovementMasks.data() + static_cast<size_t>(startY * session.game->strideMovement)
                             : session.scratch.columnAllMovementMasks.data() + static_cast<size_t>(startX * session.game->strideMovement))
                         : nullptr;
-                    if (!lineSatisfiesRowPreconditions(
+#if PS_PATTERN_MATCH_KERNEL != 7 && PS_PATTERN_MATCH_KERNEL != 10
+                    if (
+#if PS_PATTERN_MATCH_KERNEL == 8
+                            row.size() > 2 &&
+#endif
+                            !lineSatisfiesRowPreconditions(
                             session,
                             preconditions,
                             lineObjects,
@@ -4498,6 +4731,8 @@ std::optional<bool> collectMovementAnchoredRowMatchesInto(
                             static_cast<size_t>(session.game->strideMovement))) {
                         continue;
                     }
+#endif
+#endif
 
                     addCounter(gRuntimeCounters.candidateCellsTested);
                     const int32_t startIndex = startX * height + startY;
@@ -4558,6 +4793,9 @@ bool collectAnchoredRowMatchesInto(
     const int32_t height = currentLevelHeight(session);
     const int32_t width = currentLevelWidth(session);
     const int32_t tileCount = width * height;
+#if PS_PATTERN_MATCH_KERNEL == 11 || PS_PATTERN_MATCH_KERNEL == 12
+    CandidateLineMemo lineMemo(session, preconditions, horizontal, anchor->cellCount, horizontal ? height : width);
+#endif
     for (const int32_t objectId : *anchor->objectIds) {
         if (objectId < 0 || objectId >= session.game->objectCount) {
             continue;
@@ -4584,6 +4822,9 @@ bool collectAnchoredRowMatchesInto(
                     continue;
                 }
 
+#if PS_PATTERN_MATCH_KERNEL == 11 || PS_PATTERN_MATCH_KERNEL == 12
+                if (!lineMemo.accepts(startX, startY)) continue;
+#else
                 const MaskWord* lineObjects = horizontal
                     ? session.scratch.rowMasks.data() + static_cast<size_t>(startY * session.game->strideObject)
                     : session.scratch.columnMasks.data() + static_cast<size_t>(startX * session.game->strideObject);
@@ -4600,7 +4841,12 @@ bool collectAnchoredRowMatchesInto(
                         ? session.scratch.rowAllMovementMasks.data() + static_cast<size_t>(startY * session.game->strideMovement)
                         : session.scratch.columnAllMovementMasks.data() + static_cast<size_t>(startX * session.game->strideMovement))
                     : nullptr;
-                if (!lineSatisfiesRowPreconditions(
+#if PS_PATTERN_MATCH_KERNEL != 7 && PS_PATTERN_MATCH_KERNEL != 10
+                if (
+#if PS_PATTERN_MATCH_KERNEL == 8
+                        row.size() > 2 &&
+#endif
+                        !lineSatisfiesRowPreconditions(
                         session,
                         preconditions,
                         lineObjects,
@@ -4613,6 +4859,8 @@ bool collectAnchoredRowMatchesInto(
                         static_cast<size_t>(session.game->strideMovement))) {
                     continue;
                 }
+#endif
+#endif
 
                 addCounter(gRuntimeCounters.candidateCellsTested);
                 const int32_t startIndex = startX * height + startY;
@@ -6448,8 +6696,13 @@ bool levelBoardMatchesSnapshot(const FullState& session, const UndoSnapshot& sna
 }
 
 UndoSnapshot makeUndoSnapshot(const FullState& session) {
+#if PS_INTERPRETER_TUNING
+    MetaGameState meta;
+    meta.assignWithoutUndoHistory(session.meta);
+#else
     MetaGameState meta = session.meta;
     meta.undoStack.clear();
+#endif
     return UndoSnapshot{
         std::move(meta),
         makeLevelStateSnapshot(session),
@@ -6461,8 +6714,12 @@ UndoSnapshot makeUndoSnapshot(const FullState& session) {
 
 // makeUndoSnapshot(session) into an existing snapshot, reusing its storage.
 void assignUndoSnapshot(UndoSnapshot& out, const FullState& session) {
+#if PS_INTERPRETER_TUNING
+    out.meta.assignWithoutUndoHistory(session.meta);
+#else
     out.meta = session.meta;
     out.meta.undoStack.clear();
+#endif
     out.levelState = session.levelState;
     out.liveMovements.clear();
     out.rigidGroupIndexMasks.clear();
@@ -8092,7 +8349,7 @@ ps_step_result interpretedTurnOnceWithSpecializedRulegroups(
         return result;
     }
 
-    if (input == PS_INPUT_TICK) {
+    if (input == PS_INPUT_TICK || session.meta.textMode || session.meta.titleScreen) {
         return interpretedTickWithSpecializedRulegroups(session, options, applyEarlyRules, applyLateRules);
     }
 
@@ -8150,6 +8407,15 @@ ps_step_result interpretedTickWithSpecializedRulegroups(
     SpecializedRulegroupsForInterpretedTurnFn applyEarlyRules,
     SpecializedRulegroupsForInterpretedTurnFn applyLateRules
 ) {
+    // A queued AGAIN may outlive the turn that opened a message or title.
+    // Match JS processInput: discard that continuation without touching the board.
+    if (session.meta.textMode || session.meta.titleScreen) {
+        session.meta.pendingAgain = false;
+        session.scratch.interpretedAgain.reset();
+        session.scratch.compactAgain.reset();
+        gThreadTurnResult = TurnResult{};
+        return gThreadTurnResult.core;
+    }
     gThreadTurnResult = executeTurn(session, 0, ExecuteTurnOptions{
         .pushUndo = false,
         .recordRestartUndo = options.playableUndo,

@@ -17,7 +17,9 @@
 #include <utf8proc.h>
 
 #include "compiler/parser_glyphs.hpp"
+#include "compiler/diagnostic_rules.hpp"
 #include "compiler/rule_text.hpp"
+#include "runtime/replacement_words.hpp"
 
 namespace puzzlescript::compiler {
 
@@ -307,18 +309,6 @@ std::string takeRulePrefixBeforeComment(std::string_view line) {
     return prefix;
 }
 
-std::string trimAsciiWhitespace(std::string_view value) {
-    size_t start = 0;
-    while (start < value.size() && std::isspace(static_cast<unsigned char>(value[start]))) {
-        ++start;
-    }
-    size_t end = value.size();
-    while (end > start && std::isspace(static_cast<unsigned char>(value[end - 1]))) {
-        --end;
-    }
-    return std::string(value.substr(start, end - start));
-}
-
 size_t findIndexAfterToken(
     std::string_view lineLower,
     const std::vector<std::string>& tokens,
@@ -342,7 +332,7 @@ std::string messageTextFromRuleLine(
     size_t messageTokenIndex
 ) {
     const size_t start = findIndexAfterToken(lowerLine, ruleTokens, messageTokenIndex);
-    std::string message = trimAsciiWhitespace(mixedCaseLine.substr(start));
+    std::string message = trimDimensionWhitespace(mixedCaseLine.substr(start));
     if (message.empty()) {
         message = " ";
     }
@@ -1367,6 +1357,9 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
 
     std::vector<std::vector<std::string>> earlyRuleSignatures;
     std::vector<std::vector<std::string>> lateRuleSignatures;
+    std::map<int32_t, int32_t> acceptedRuleGroups;
+    for (const auto& rule : parseRuleGroups(state)) acceptedRuleGroups.emplace(rule.lineNumber, rule.groupNumber);
+    std::map<int32_t, size_t> earlySourceGroups, lateSourceGroups;
 
     // Rule lowering: a subset of JS rulesToMask (enough to start converging).
     for (const auto& entry : state.rules) {
@@ -1392,6 +1385,8 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
             }
             continue;
         }
+        const auto accepted = acceptedRuleGroups.find(entry.lineNumber);
+        if (accepted == acceptedRuleGroups.end()) continue;
         // Mirror compiler.js processRuleString's `incellrow` flag: `->` only
         // separates LHS/RHS when it is not currently inside a `[...]` cell row.
         // That keeps legacy `[[ A ] -> [ B ]` working (the first `]` clears
@@ -1426,7 +1421,6 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
         bool rigidRule = false;
         bool randomRule = false;
         bool lateRule = false;
-        bool sameGroup = false;
         std::vector<std::string> ruleDirections;
         std::vector<std::string> authoredDirections;
         auto addDirectionAggregate = [&](const std::string& token) {
@@ -1457,8 +1451,6 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                 randomRule = true;
             } else if (token == "late") {
                 lateRule = true;
-            } else if (token == "+") {
-                sameGroup = true;
             }
             ++cursor;
         }
@@ -1466,16 +1458,18 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
             addDirectionAggregate("orthogonal");
         }
 
-        // Establish authored grouping before dropping invalid rules so a
-        // following '+' keeps the group it originally joined.
+        // Source grouping precedes phase separation and later semantic rejection.
         std::vector<std::vector<puzzlescript::Rule>>& groups = lateRule ? game->lateRules : game->rules;
         std::vector<std::vector<std::string>>& groupSignatures = lateRule ? lateRuleSignatures : earlyRuleSignatures;
-        if (groups.empty() || !sameGroup) {
+        auto& sourceGroups = lateRule ? lateSourceGroups : earlySourceGroups;
+        const auto [sourceGroup, inserted] = sourceGroups.emplace(accepted->second, groups.size());
+        if (inserted) {
             groups.emplace_back();
             groupSignatures.emplace_back();
         }
-        std::vector<puzzlescript::Rule>* outputGroup = &groups.back();
-        std::vector<std::string>* outputSignatures = &groupSignatures.back();
+        const size_t authoredGroupIndex = sourceGroup->second;
+        std::vector<puzzlescript::Rule>* outputGroup = &groups[authoredGroupIndex];
+        std::vector<std::string>* outputSignatures = &groupSignatures[authoredGroupIndex];
 
         struct ParsedItem {
             std::string dir;
@@ -1830,7 +1824,7 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
             authored.rigid = rigidRule;
             authored.random = randomRule;
             authored.late = lateRule;
-            authored.groupNumber = static_cast<int32_t>(groups.size()) - 1;
+            authored.groupNumber = static_cast<int32_t>(authoredGroupIndex);
             authored.lhs = toSemanticRow(lhsRows);
             authored.rhs = toSemanticRow(rhsRows);
             authored.commands.reserve(parsedCommands.size());
@@ -3683,11 +3677,7 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
         puzzlescript::Rule rule;
         rule.direction = dirMaskFromToken(concreteRuleDirection);
         rule.lineNumber = entry.lineNumber;
-        if (sameGroup && outputGroup != nullptr && !outputGroup->empty()) {
-            rule.groupNumber = outputGroup->front().groupNumber;
-        } else {
-            rule.groupNumber = entry.lineNumber;
-        }
+        rule.groupNumber = accepted->second;
         rule.rigid = rigidRule;
         rule.isRandom = randomRule;
         rule.hasReplacements = !variantRhsRowsExpanded.empty();
@@ -4563,6 +4553,7 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                             || anyNonZero(movementsSet) || anyNonZero(movementsLayerMask)
                             || anyNonZero(randomEntityMask) || anyNonZero(randomDirMask)
                             || repl.dynamic != nullptr) {
+                            interpreter::prepareReplacementWordPlan(*game, repl);
                             pat.replacement = std::move(repl);
                         }
                     }

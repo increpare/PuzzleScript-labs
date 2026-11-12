@@ -1,0 +1,41 @@
+title An unresolved property drops its opening rule without losing its group
+
+objects
+Background
+black
+
+Player
+white
+
+Red
+red
+
+Blue
+blue
+
+Trophy
+yellow
+
+legend
+. = Background
+P = Player
+Thing = Red or Blue
+
+sounds
+Trophy create 12345
+
+collisionlayers
+Background
+Player
+Red, Blue
+Trophy
+
+rules
+random [ Player ] -> [ Thing ]
++ [ Player ] -> [ Player Trophy ]
+
+winconditions
+no Player
+
+levels
+PP.

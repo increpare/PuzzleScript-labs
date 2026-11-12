@@ -1,0 +1,6505 @@
+{
+  "metadata": {
+    "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+    "machine": "arm64",
+    "runs": 4,
+    "repeat": 3,
+    "binary_sha256": {
+      "baseline": "ab18ae9237d93faa392aa87d16add0d5b918413fb51c5ed4d48242ca54e9baa2",
+      "snapshots": "8e7b5a843463f5b439b57136766a29dfb2f63faf5b259f556f7d416fb6b4fb10",
+      "tuned": "b2c11c4d0f179387ba955ff73adcc6f18b8abde0b6683f6daf8fc9874c68e7ef"
+    },
+    "corpus_sha256": {
+      "corpus": "7044a58c153a7543eed61c660493f55e769a748c65807541628697fc5ed315a8",
+      "extra": "ffacdbf9f818321f61e3418392019f7b78a669b1b27052e12ceca397338e2a7c"
+    },
+    "counters_enabled": false,
+    "jobs": 1
+  },
+  "medians": {
+    "corpus": {
+      "baseline": 1963.402,
+      "snapshots": 1431.5189999999998,
+      "tuned": 1349.1403333333333
+    },
+    "extra": {
+      "baseline": 2927.8755,
+      "snapshots": 2459.004,
+      "tuned": 2381.958
+    }
+  },
+  "results": [
+    {
+      "trial": 1,
+      "variant": "baseline",
+      "workload": "corpus",
+      "cpu_ms": 1985.3243333333332,
+      "wall_ms": 1985.6666666666667,
+      "process_instructions": 107533820738,
+      "process_cycles": 23194775501
+    },
+    {
+      "trial": 1,
+      "variant": "baseline",
+      "workload": "extra",
+      "cpu_ms": 3011.449,
+      "wall_ms": 3013.0,
+      "process_instructions": 47846995354,
+      "process_cycles": 9720533636
+    },
+    {
+      "trial": 1,
+      "variant": "snapshots",
+      "workload": "corpus",
+      "cpu_ms": 1450.388,
+      "wall_ms": 1451.0,
+      "process_instructions": 94971131794,
+      "process_cycles": 18128289862
+    },
+    {
+      "trial": 1,
+      "variant": "snapshots",
+      "workload": "extra",
+      "cpu_ms": 2477.054,
+      "wall_ms": 2478.0,
+      "process_instructions": 44644495218,
+      "process_cycles": 8157587685
+    },
+    {
+      "trial": 1,
+      "variant": "tuned",
+      "workload": "corpus",
+      "cpu_ms": 1361.2549999999999,
+      "wall_ms": 1362.6666666666667,
+      "process_instructions": 90366118257,
+      "process_cycles": 17379397178
+    },
+    {
+      "trial": 1,
+      "variant": "tuned",
+      "workload": "extra",
+      "cpu_ms": 2414.197,
+      "wall_ms": 2416.0,
+      "process_instructions": 43115409685,
+      "process_cycles": 7943383389
+    },
+    {
+      "trial": 2,
+      "variant": "tuned",
+      "workload": "corpus",
+      "cpu_ms": 1361.7456666666667,
+      "wall_ms": 1362.0,
+      "process_instructions": 90377093650,
+      "process_cycles": 17368563558
+    },
+    {
+      "trial": 2,
+      "variant": "tuned",
+      "workload": "extra",
+      "cpu_ms": 2414.922,
+      "wall_ms": 2416.0,
+      "process_instructions": 43115375188,
+      "process_cycles": 7953786499
+    },
+    {
+      "trial": 2,
+      "variant": "snapshots",
+      "workload": "corpus",
+      "cpu_ms": 1439.9756666666665,
+      "wall_ms": 1440.3333333333333,
+      "process_instructions": 95026687510,
+      "process_cycles": 18103117621
+    },
+    {
+      "trial": 2,
+      "variant": "snapshots",
+      "workload": "extra",
+      "cpu_ms": 2454.101,
+      "wall_ms": 2454.0,
+      "process_instructions": 44644263840,
+      "process_cycles": 8150725413
+    },
+    {
+      "trial": 2,
+      "variant": "baseline",
+      "workload": "corpus",
+      "cpu_ms": 1956.282,
+      "wall_ms": 1955.6666666666667,
+      "process_instructions": 107489169511,
+      "process_cycles": 23153438532
+    },
+    {
+      "trial": 2,
+      "variant": "baseline",
+      "workload": "extra",
+      "cpu_ms": 2970.306,
+      "wall_ms": 2972.0,
+      "process_instructions": 47861223607,
+      "process_cycles": 9716494430
+    },
+    {
+      "trial": 3,
+      "variant": "baseline",
+      "workload": "corpus",
+      "cpu_ms": 1926.548,
+      "wall_ms": 1926.0,
+      "process_instructions": 107537112382,
+      "process_cycles": 22964235665
+    },
+    {
+      "trial": 3,
+      "variant": "baseline",
+      "workload": "extra",
+      "cpu_ms": 2868.008,
+      "wall_ms": 2868.0,
+      "process_instructions": 47824338857,
+      "process_cycles": 9518732328
+    },
+    {
+      "trial": 3,
+      "variant": "snapshots",
+      "workload": "corpus",
+      "cpu_ms": 1413.7776666666666,
+      "wall_ms": 1414.0,
+      "process_instructions": 94955662061,
+      "process_cycles": 18041040609
+    },
+    {
+      "trial": 3,
+      "variant": "snapshots",
+      "workload": "extra",
+      "cpu_ms": 2439.005,
+      "wall_ms": 2439.0,
+      "process_instructions": 44643039447,
+      "process_cycles": 8165267999
+    },
+    {
+      "trial": 3,
+      "variant": "tuned",
+      "workload": "corpus",
+      "cpu_ms": 1337.0256666666667,
+      "wall_ms": 1336.6666666666667,
+      "process_instructions": 90369778909,
+      "process_cycles": 17303060512
+    },
+    {
+      "trial": 3,
+      "variant": "tuned",
+      "workload": "extra",
+      "cpu_ms": 2344.783,
+      "wall_ms": 2347.0,
+      "process_instructions": 43117689312,
+      "process_cycles": 7869714259
+    },
+    {
+      "trial": 4,
+      "variant": "tuned",
+      "workload": "corpus",
+      "cpu_ms": 1334.3410000000001,
+      "wall_ms": 1335.0,
+      "process_instructions": 90378973142,
+      "process_cycles": 17300918725
+    },
+    {
+      "trial": 4,
+      "variant": "tuned",
+      "workload": "extra",
+      "cpu_ms": 2349.719,
+      "wall_ms": 2351.0,
+      "process_instructions": 43116769382,
+      "process_cycles": 7876032479
+    },
+    {
+      "trial": 4,
+      "variant": "snapshots",
+      "workload": "corpus",
+      "cpu_ms": 1423.0623333333333,
+      "wall_ms": 1423.0,
+      "process_instructions": 94953876883,
+      "process_cycles": 18058919222
+    },
+    {
+      "trial": 4,
+      "variant": "snapshots",
+      "workload": "extra",
+      "cpu_ms": 2463.907,
+      "wall_ms": 2465.0,
+      "process_instructions": 44649637050,
+      "process_cycles": 8181264970
+    },
+    {
+      "trial": 4,
+      "variant": "baseline",
+      "workload": "corpus",
+      "cpu_ms": 1970.522,
+      "wall_ms": 1970.3333333333333,
+      "process_instructions": 107463966567,
+      "process_cycles": 23205102150
+    },
+    {
+      "trial": 4,
+      "variant": "baseline",
+      "workload": "extra",
+      "cpu_ms": 2885.445,
+      "wall_ms": 2888.0,
+      "process_instructions": 47881460642,
+      "process_cycles": 9573128435
+    }
+  ],
+  "cases": {
+    "155": {
+      "name": "gallery game: at the hedges of time",
+      "cpu_ms": {
+        "baseline": 183.6125,
+        "snapshots": 165.44633333333334,
+        "tuned": 162.37916666666666
+      }
+    },
+    "472": {
+      "name": "Selene's Labyrinth",
+      "cpu_ms": {
+        "baseline": 154.546,
+        "snapshots": 148.72483333333332,
+        "tuned": 143.89616666666666
+      }
+    },
+    "473": {
+      "name": "ENIGMASH",
+      "cpu_ms": {
+        "baseline": 52.5065,
+        "snapshots": 50.875166666666665,
+        "tuned": 49.01650000000001
+      }
+    },
+    "32": {
+      "name": "collapse long",
+      "cpu_ms": {
+        "baseline": 157.213,
+        "snapshots": 90.2375,
+        "tuned": 69.06866666666667
+      }
+    },
+    "62": {
+      "name": "Cute Train",
+      "cpu_ms": {
+        "baseline": 136.34116666666668,
+        "snapshots": 55.56783333333333,
+        "tuned": 54.788
+      }
+    },
+    "220": {
+      "name": "gallery: Spikes 'n' Stuff",
+      "cpu_ms": {
+        "baseline": 89.58483333333334,
+        "snapshots": 68.94399999999999,
+        "tuned": 67.13466666666667
+      }
+    },
+    "198": {
+      "name": "gallery: skipping stones to lonely homes",
+      "cpu_ms": {
+        "baseline": 85.67616666666666,
+        "snapshots": 79.98616666666666,
+        "tuned": 76.58633333333333
+      }
+    },
+    "212": {
+      "name": "gallery: Rose",
+      "cpu_ms": {
+        "baseline": 66.89883333333333,
+        "snapshots": 39.493,
+        "tuned": 39.739333333333335
+      }
+    },
+    "259": {
+      "name": "Car Crash",
+      "cpu_ms": {
+        "baseline": 61.937333333333335,
+        "snapshots": 56.206833333333336,
+        "tuned": 55.2935
+      }
+    },
+    "299": {
+      "name": "Oh No My Dog Is About To Swallow A Piece Of Chocolate",
+      "cpu_ms": {
+        "baseline": 60.01349999999999,
+        "snapshots": 40.906333333333336,
+        "tuned": 36.798833333333334
+      }
+    },
+    "325": {
+      "name": "VEXT EDIT B",
+      "cpu_ms": {
+        "baseline": 31.299,
+        "snapshots": 26.939333333333337,
+        "tuned": 25.319833333333335
+      }
+    },
+    "292": {
+      "name": "Neoprenanzieher",
+      "cpu_ms": {
+        "baseline": 44.73350000000001,
+        "snapshots": 18.9085,
+        "tuned": 18.501333333333335
+      }
+    },
+    "189": {
+      "name": "gallery:cyber-lasso",
+      "cpu_ms": {
+        "baseline": 42.099999999999994,
+        "snapshots": 40.12183333333333,
+        "tuned": 39.7295
+      }
+    },
+    "302": {
+      "name": "No! Don't eat that!",
+      "cpu_ms": {
+        "baseline": 42.47383333333333,
+        "snapshots": 42.104,
+        "tuned": 39.53766666666667
+      }
+    },
+    "187": {
+      "name": "gallery: sokoboros",
+      "cpu_ms": {
+        "baseline": 30.15083333333333,
+        "snapshots": 3.4735,
+        "tuned": 3.4023333333333334
+      }
+    },
+    "61": {
+      "name": "Tunnel Rat",
+      "cpu_ms": {
+        "baseline": 30.531,
+        "snapshots": 26.41683333333333,
+        "tuned": 19.59133333333333
+      }
+    },
+    "308": {
+      "name": "REALTIME DOG MOUNTAIN RESCUE",
+      "cpu_ms": {
+        "baseline": 29.210166666666666,
+        "snapshots": 12.582,
+        "tuned": 12.457666666666668
+      }
+    },
+    "213": {
+      "name": "gallery: season finale",
+      "cpu_ms": {
+        "baseline": 23.57566666666667,
+        "snapshots": 17.166666666666664,
+        "tuned": 17.037833333333335
+      }
+    },
+    "353": {
+      "name": "Every Star Needs a Tree",
+      "cpu_ms": {
+        "baseline": 28.502166666666668,
+        "snapshots": 14.887333333333334,
+        "tuned": 14.530666666666667
+      }
+    },
+    "164": {
+      "name": "gallery game: vexd edit",
+      "cpu_ms": {
+        "baseline": 8.395333333333333,
+        "snapshots": 7.7955000000000005,
+        "tuned": 7.4065
+      }
+    },
+    "223": {
+      "name": "vertebrae",
+      "cpu_ms": {
+        "baseline": 4.773166666666667,
+        "snapshots": 4.537833333333333,
+        "tuned": 4.2435
+      }
+    },
+    "324": {
+      "name": "VEXT EDIT",
+      "cpu_ms": {
+        "baseline": 3.11,
+        "snapshots": 2.9171666666666667,
+        "tuned": 2.7936666666666667
+      }
+    },
+    "402": {
+      "name": "single screen scream",
+      "cpu_ms": {
+        "baseline": 9.207,
+        "snapshots": 7.995166666666666,
+        "tuned": 7.9736666666666665
+      }
+    },
+    "5": {
+      "name": "by your side",
+      "cpu_ms": {
+        "baseline": 19.903333333333332,
+        "snapshots": 3.4878333333333336,
+        "tuned": 3.392666666666667
+      }
+    },
+    "266": {
+      "name": "Expand, avoid the flames [also it's not always solvable]",
+      "cpu_ms": {
+        "baseline": 19.355833333333333,
+        "snapshots": 19.266666666666666,
+        "tuned": 18.829
+      }
+    },
+    "237": {
+      "name": "Des Poseidons Dreizack",
+      "cpu_ms": {
+        "baseline": 16.74116666666667,
+        "snapshots": 15.194166666666668,
+        "tuned": 14.058833333333332
+      }
+    },
+    "301": {
+      "name": "Putting Bicycle Helmets on Young Children",
+      "cpu_ms": {
+        "baseline": 16.807166666666667,
+        "snapshots": 15.828333333333333,
+        "tuned": 14.7045
+      }
+    },
+    "158": {
+      "name": "gallery game: two worlds",
+      "cpu_ms": {
+        "baseline": 12.733333333333334,
+        "snapshots": 12.096499999999999,
+        "tuned": 11.1695
+      }
+    },
+    "400": {
+      "name": "Head Skuller",
+      "cpu_ms": {
+        "baseline": 15.791166666666667,
+        "snapshots": 0.9640000000000001,
+        "tuned": 0.9398333333333333
+      }
+    },
+    "172": {
+      "name": "gallery game: two worlds",
+      "cpu_ms": {
+        "baseline": 12.624833333333333,
+        "snapshots": 12.078499999999998,
+        "tuned": 11.238666666666667
+      }
+    },
+    "355": {
+      "name": "Caramelban",
+      "cpu_ms": {
+        "baseline": 14.583833333333333,
+        "snapshots": 9.336833333333333,
+        "tuned": 9.026833333333332
+      }
+    },
+    "249": {
+      "name": "I SURE LOOK TASTY!",
+      "cpu_ms": {
+        "baseline": 5.193333333333333,
+        "snapshots": 5.088,
+        "tuned": 4.865166666666667
+      }
+    },
+    "250": {
+      "name": "Oh no I accidentally swallowed myself!",
+      "cpu_ms": {
+        "baseline": 11.066333333333334,
+        "snapshots": 10.656666666666666,
+        "tuned": 10.204666666666666
+      }
+    },
+    "31": {
+      "name": "collapse simple",
+      "cpu_ms": {
+        "baseline": 12.655333333333331,
+        "snapshots": 10.606,
+        "tuned": 8.04
+      }
+    },
+    "165": {
+      "name": "gallery game: I'm too far gone",
+      "cpu_ms": {
+        "baseline": 11.460333333333335,
+        "snapshots": 5.807333333333332,
+        "tuned": 5.760666666666667
+      }
+    },
+    "408": {
+      "name": "ecosystem generator",
+      "cpu_ms": {
+        "baseline": 11.841833333333334,
+        "snapshots": 3.3270000000000004,
+        "tuned": 3.2138333333333335
+      }
+    },
+    "156": {
+      "name": "gallery game: shall we golf?",
+      "cpu_ms": {
+        "baseline": 9.386666666666667,
+        "snapshots": 5.666,
+        "tuned": 5.546833333333334
+      }
+    },
+    "248": {
+      "name": "the exit is under my left foot",
+      "cpu_ms": {
+        "baseline": 8.378666666666668,
+        "snapshots": 7.907,
+        "tuned": 7.301833333333333
+      }
+    },
+    "170": {
+      "name": "galley game: easy enigma",
+      "cpu_ms": {
+        "baseline": 5.022666666666667,
+        "snapshots": 3.1735,
+        "tuned": 3.233666666666667
+      }
+    },
+    "181": {
+      "name": "gallery: censored version of NSFW game pornography for beginners",
+      "cpu_ms": {
+        "baseline": 2.217833333333333,
+        "snapshots": 1.830833333333333,
+        "tuned": 1.8531666666666666
+      }
+    },
+    "101": {
+      "name": "netrunner test",
+      "cpu_ms": {
+        "baseline": 5.175333333333333,
+        "snapshots": 5.024666666666667,
+        "tuned": 5.013333333333334
+      }
+    },
+    "242": {
+      "name": "Karamell",
+      "cpu_ms": {
+        "baseline": 9.155833333333334,
+        "snapshots": 7.877,
+        "tuned": 5.116
+      }
+    },
+    "359": {
+      "name": "Isle of Bloks",
+      "cpu_ms": {
+        "baseline": 8.7525,
+        "snapshots": 6.912333333333333,
+        "tuned": 6.510166666666667
+      }
+    },
+    "247": {
+      "name": "Individuals can produce a society, but can a society produce individuals?",
+      "cpu_ms": {
+        "baseline": 9.166833333333333,
+        "snapshots": 4.294666666666666,
+        "tuned": 3.2736666666666663
+      }
+    },
+    "71": {
+      "name": "legend of zokoban",
+      "cpu_ms": {
+        "baseline": 9.7525,
+        "snapshots": 2.2576666666666667,
+        "tuned": 2.1435
+      }
+    },
+    "478": {
+      "name": "Un-Lock",
+      "cpu_ms": {
+        "baseline": 8.896833333333333,
+        "snapshots": 6.039166666666667,
+        "tuned": 5.568833333333334
+      }
+    },
+    "471": {
+      "name": "a warning raised every turn does not stop the game after 100 turns",
+      "cpu_ms": {
+        "baseline": 9.007666666666667,
+        "snapshots": 8.030166666666666,
+        "tuned": 7.684333333333334
+      }
+    },
+    "117": {
+      "name": "Rigidbody fix bug #246",
+      "cpu_ms": {
+        "baseline": 7.804333333333332,
+        "snapshots": 4.8821666666666665,
+        "tuned": 4.1691666666666665
+      }
+    },
+    "207": {
+      "name": "gallery: vacuum",
+      "cpu_ms": {
+        "baseline": 5.640833333333334,
+        "snapshots": 3.8198333333333334,
+        "tuned": 3.832
+      }
+    },
+    "85": {
+      "name": "Sok7",
+      "cpu_ms": {
+        "baseline": 7.423500000000001,
+        "snapshots": 5.173166666666667,
+        "tuned": 5.042666666666667
+      }
+    },
+    "241": {
+      "name": "I want to grind myself into dust",
+      "cpu_ms": {
+        "baseline": 6.640833333333333,
+        "snapshots": 4.308833333333333,
+        "tuned": 3.7125
+      }
+    },
+    "178": {
+      "name": "gallery: beam islands",
+      "cpu_ms": {
+        "baseline": 6.436333333333334,
+        "snapshots": 6.0151666666666666,
+        "tuned": 5.7283333333333335
+      }
+    },
+    "291": {
+      "name": "It gets its Feet Wet",
+      "cpu_ms": {
+        "baseline": 6.552333333333333,
+        "snapshots": 5.907166666666667,
+        "tuned": 5.6675
+      }
+    },
+    "254": {
+      "name": "SHY SNAKE",
+      "cpu_ms": {
+        "baseline": 4.748666666666667,
+        "snapshots": 4.569500000000001,
+        "tuned": 4.404166666666667
+      }
+    },
+    "360": {
+      "name": "SokokoS",
+      "cpu_ms": {
+        "baseline": 6.182166666666667,
+        "snapshots": 5.139833333333334,
+        "tuned": 5.0875
+      }
+    },
+    "306": {
+      "name": "SWIMMING TIME!",
+      "cpu_ms": {
+        "baseline": 3.6661666666666664,
+        "snapshots": 3.1756666666666664,
+        "tuned": 2.8666666666666667
+      }
+    },
+    "234": {
+      "name": "Match two two by twos",
+      "cpu_ms": {
+        "baseline": 5.7965,
+        "snapshots": 4.1215,
+        "tuned": 4.012333333333333
+      }
+    },
+    "276": {
+      "name": "5-junctions-maker / 5kreuzungenmacher",
+      "cpu_ms": {
+        "baseline": 5.737666666666666,
+        "snapshots": 5.292,
+        "tuned": 4.974
+      }
+    },
+    "314": {
+      "name": "(censored version of NSFW game) Sexual Intercourse",
+      "cpu_ms": {
+        "baseline": 5.783333333333333,
+        "snapshots": 3.2060000000000004,
+        "tuned": 3.1276666666666664
+      }
+    },
+    "185": {
+      "name": "gallery: boxes & balloons",
+      "cpu_ms": {
+        "baseline": 5.296333333333333,
+        "snapshots": 4.072333333333333,
+        "tuned": 3.866833333333333
+      }
+    },
+    "401": {
+      "name": "Sokoban... in 3D!",
+      "cpu_ms": {
+        "baseline": 4.6803333333333335,
+        "snapshots": 3.141333333333333,
+        "tuned": 2.9684999999999997
+      }
+    },
+    "222": {
+      "name": "gallery: Play Mini Gemini Replay (PMGRP)",
+      "cpu_ms": {
+        "baseline": 3.6261666666666668,
+        "snapshots": 3.491,
+        "tuned": 3.4614999999999996
+      }
+    },
+    "177": {
+      "name": "gallery: you're pulleying my leg",
+      "cpu_ms": {
+        "baseline": 4.5715,
+        "snapshots": 3.5551666666666666,
+        "tuned": 3.009333333333333
+      }
+    },
+    "217": {
+      "name": "gallery: Symbolism",
+      "cpu_ms": {
+        "baseline": 2.7193333333333336,
+        "snapshots": 2.3083333333333336,
+        "tuned": 2.2565
+      }
+    },
+    "179": {
+      "name": "gallery: singleton traffic",
+      "cpu_ms": {
+        "baseline": 5.1905,
+        "snapshots": 5.100833333333333,
+        "tuned": 4.937833333333334
+      }
+    },
+    "406": {
+      "name": "Big dog and little dog",
+      "cpu_ms": {
+        "baseline": 4.816666666666666,
+        "snapshots": 2.782166666666667,
+        "tuned": 2.7671666666666663
+      }
+    },
+    "15": {
+      "name": "rigid body test 2",
+      "cpu_ms": {
+        "baseline": 5.087666666666666,
+        "snapshots": 1.2553333333333332,
+        "tuned": 1.2146666666666666
+      }
+    },
+    "106": {
+      "name": "robotic arm",
+      "cpu_ms": {
+        "baseline": 3.242166666666667,
+        "snapshots": 2.4375,
+        "tuned": 2.3561666666666667
+      }
+    },
+    "239": {
+      "name": "der Hydra Krypta",
+      "cpu_ms": {
+        "baseline": 3.6470000000000002,
+        "snapshots": 2.8838333333333335,
+        "tuned": 2.297833333333333
+      }
+    },
+    "235": {
+      "name": "Garten der Medusen",
+      "cpu_ms": {
+        "baseline": 4.873333333333333,
+        "snapshots": 4.4736666666666665,
+        "tuned": 4.2805
+      }
+    },
+    "208": {
+      "name": "gallery: paralands",
+      "cpu_ms": {
+        "baseline": 3.1951666666666667,
+        "snapshots": 2.448,
+        "tuned": 2.425
+      }
+    },
+    "39": {
+      "name": "too many rigid bodies",
+      "cpu_ms": {
+        "baseline": 4.574,
+        "snapshots": 2.642,
+        "tuned": 1.7586666666666668
+      }
+    },
+    "86": {
+      "name": "Closure",
+      "cpu_ms": {
+        "baseline": 4.4126666666666665,
+        "snapshots": 3.4956666666666667,
+        "tuned": 3.3064999999999998
+      }
+    },
+    "206": {
+      "name": "gallery: boxes love boxing gloves",
+      "cpu_ms": {
+        "baseline": 1.5716666666666668,
+        "snapshots": 1.4958333333333336,
+        "tuned": 1.4918333333333331
+      }
+    },
+    "313": {
+      "name": "The sponge what lights up the seafloor",
+      "cpu_ms": {
+        "baseline": 3.7253333333333334,
+        "snapshots": 2.6271666666666667,
+        "tuned": 2.5681666666666665
+      }
+    },
+    "64": {
+      "name": "castlemouse",
+      "cpu_ms": {
+        "baseline": 3.2463333333333333,
+        "snapshots": 2.459,
+        "tuned": 2.4448333333333334
+      }
+    },
+    "300": {
+      "name": "paint everything everywhere!",
+      "cpu_ms": {
+        "baseline": 3.4805,
+        "snapshots": 3.4215,
+        "tuned": 1.4628333333333332
+      }
+    },
+    "238": {
+      "name": "Bring the ice cube to the goal without exposing it to heat.",
+      "cpu_ms": {
+        "baseline": 3.9851666666666663,
+        "snapshots": 3.6243333333333334,
+        "tuned": 3.187
+      }
+    },
+    "350": {
+      "name": "Lightdown",
+      "cpu_ms": {
+        "baseline": 3.8933333333333335,
+        "snapshots": 1.7106666666666666,
+        "tuned": 1.6221666666666665
+      }
+    },
+    "215": {
+      "name": "gallery: i herd u liek water templs",
+      "cpu_ms": {
+        "baseline": 3.1918333333333333,
+        "snapshots": 3.1670000000000003,
+        "tuned": 3.030666666666667
+      }
+    },
+    "351": {
+      "name": "I Need To Stop My Teleport Gun",
+      "cpu_ms": {
+        "baseline": 3.5906666666666665,
+        "snapshots": 1.7341666666666666,
+        "tuned": 1.6918333333333333
+      }
+    },
+    "221": {
+      "name": "gallery: XL-Plan",
+      "cpu_ms": {
+        "baseline": 2.5700000000000003,
+        "snapshots": 2.5131666666666668,
+        "tuned": 2.511
+      }
+    },
+    "162": {
+      "name": "gallery game: Broken Abacus",
+      "cpu_ms": {
+        "baseline": 2.564,
+        "snapshots": 2.3808333333333334,
+        "tuned": 2.341666666666667
+      }
+    },
+    "226": {
+      "name": "increpare game: robot arm",
+      "cpu_ms": {
+        "baseline": 1.4698333333333333,
+        "snapshots": 1.2573333333333334,
+        "tuned": 1.2136666666666667
+      }
+    },
+    "166": {
+      "name": "gallery game: maera public works",
+      "cpu_ms": {
+        "baseline": 0.635,
+        "snapshots": 0.4345,
+        "tuned": 0.43866666666666665
+      }
+    },
+    "298": {
+      "name": "C\u014cDEX\u00b7L\u016aBRICUS",
+      "cpu_ms": {
+        "baseline": 3.0181666666666667,
+        "snapshots": 2.659,
+        "tuned": 2.549166666666667
+      }
+    },
+    "290": {
+      "name": "North Wind Simple Sailboat Buoy Collection",
+      "cpu_ms": {
+        "baseline": 0.8455,
+        "snapshots": 0.6553333333333333,
+        "tuned": 0.6391666666666667
+      }
+    },
+    "319": {
+      "name": "Gem Socketeer",
+      "cpu_ms": {
+        "baseline": 2.517,
+        "snapshots": 2.0461666666666667,
+        "tuned": 2.0229999999999997
+      }
+    },
+    "84": {
+      "name": "Bouncers 2",
+      "cpu_ms": {
+        "baseline": 3.1685,
+        "snapshots": 0.7191666666666666,
+        "tuned": 0.6978333333333334
+      }
+    },
+    "265": {
+      "name": "KONSUM",
+      "cpu_ms": {
+        "baseline": 3.039166666666667,
+        "snapshots": 1.232,
+        "tuned": 1.1683333333333332
+      }
+    },
+    "102": {
+      "name": "wb + gems test",
+      "cpu_ms": {
+        "baseline": 2.4755000000000003,
+        "snapshots": 2.3280000000000003,
+        "tuned": 2.299833333333333
+      }
+    },
+    "91": {
+      "name": "Threes",
+      "cpu_ms": {
+        "baseline": 0.6993333333333334,
+        "snapshots": 0.693,
+        "tuned": 0.6825
+      }
+    },
+    "214": {
+      "name": "gallery: Spider's Hollow",
+      "cpu_ms": {
+        "baseline": 2.578666666666667,
+        "snapshots": 2.5621666666666663,
+        "tuned": 2.527
+      }
+    },
+    "103": {
+      "name": "10 layers 50 objects",
+      "cpu_ms": {
+        "baseline": 2.7195,
+        "snapshots": 0.49916666666666665,
+        "tuned": 0.39733333333333337
+      }
+    },
+    "196": {
+      "name": "gallery: hazard golf",
+      "cpu_ms": {
+        "baseline": 1.0238333333333334,
+        "snapshots": 0.6433333333333333,
+        "tuned": 0.5996666666666666
+      }
+    },
+    "342": {
+      "name": "Double-Entry Bookkeeping Simulator#1",
+      "cpu_ms": {
+        "baseline": 1.7358333333333333,
+        "snapshots": 1.6301666666666668,
+        "tuned": 1.5986666666666667
+      }
+    },
+    "256": {
+      "name": "Seize the flag!",
+      "cpu_ms": {
+        "baseline": 1.2486666666666668,
+        "snapshots": 1.0565000000000002,
+        "tuned": 0.8958333333333334
+      }
+    },
+    "76": {
+      "name": "armageddon",
+      "cpu_ms": {
+        "baseline": 2.6425,
+        "snapshots": 0.7608333333333334,
+        "tuned": 0.7573333333333334
+      }
+    },
+    "240": {
+      "name": "Die schoene Steinmetzin",
+      "cpu_ms": {
+        "baseline": 2.296666666666667,
+        "snapshots": 1.8053333333333335,
+        "tuned": 1.4246666666666667
+      }
+    },
+    "403": {
+      "name": "Crate Assembler",
+      "cpu_ms": {
+        "baseline": 0.2635,
+        "snapshots": 0.22250000000000003,
+        "tuned": 0.2068333333333333
+      }
+    },
+    "74": {
+      "name": "dungeon janitor",
+      "cpu_ms": {
+        "baseline": 2.4285,
+        "snapshots": 1.6541666666666668,
+        "tuned": 1.6081666666666667
+      }
+    },
+    "154": {
+      "name": "gallery game: sokodig",
+      "cpu_ms": {
+        "baseline": 2.381333333333333,
+        "snapshots": 2.159,
+        "tuned": 2.0435
+      }
+    },
+    "395": {
+      "name": "double ellipsis simple test #5",
+      "cpu_ms": {
+        "baseline": 2.6559999999999997,
+        "snapshots": 0.5695,
+        "tuned": 0.497
+      }
+    },
+    "202": {
+      "name": "gallery: vines",
+      "cpu_ms": {
+        "baseline": 2.0838333333333336,
+        "snapshots": 1.8641666666666667,
+        "tuned": 1.8596666666666666
+      }
+    },
+    "60": {
+      "name": "Manic Ammo",
+      "cpu_ms": {
+        "baseline": 2.1795,
+        "snapshots": 0.2985,
+        "tuned": 0.287
+      }
+    },
+    "343": {
+      "name": "Double-Entry Bookkeeping Simulator#2",
+      "cpu_ms": {
+        "baseline": 1.226,
+        "snapshots": 1.2155,
+        "tuned": 1.1955
+      }
+    },
+    "230": {
+      "name": "increpare game: happy kraken",
+      "cpu_ms": {
+        "baseline": 1.0271666666666666,
+        "snapshots": 0.7695000000000001,
+        "tuned": 0.7533333333333334
+      }
+    },
+    "307": {
+      "name": "(NSFW / censored) Tugging a trapped XXX XXX out from under one's XXX",
+      "cpu_ms": {
+        "baseline": 1.7476666666666665,
+        "snapshots": 1.2486666666666666,
+        "tuned": 1.2096666666666667
+      }
+    },
+    "203": {
+      "name": "gallery: unconventional guns",
+      "cpu_ms": {
+        "baseline": 1.0416666666666665,
+        "snapshots": 0.8943333333333334,
+        "tuned": 0.8826666666666667
+      }
+    },
+    "90": {
+      "name": "Drop Swap 3",
+      "cpu_ms": {
+        "baseline": 1.2551666666666668,
+        "snapshots": 1.1696666666666666,
+        "tuned": 1.1406666666666667
+      }
+    },
+    "87": {
+      "name": "Color Chained",
+      "cpu_ms": {
+        "baseline": 1.5813333333333335,
+        "snapshots": 1.5466666666666669,
+        "tuned": 1.5108333333333333
+      }
+    },
+    "204": {
+      "name": "gallery: newton's crates",
+      "cpu_ms": {
+        "baseline": 0.639,
+        "snapshots": 0.3228333333333333,
+        "tuned": 0.31166666666666665
+      }
+    },
+    "407": {
+      "name": "The Monsterous Autoshove",
+      "cpu_ms": {
+        "baseline": 2.271166666666667,
+        "snapshots": 1.3301666666666667,
+        "tuned": 1.2778333333333332
+      }
+    },
+    "157": {
+      "name": "gallery game: Indigestion",
+      "cpu_ms": {
+        "baseline": 0.9253333333333333,
+        "snapshots": 0.808,
+        "tuned": 0.7511666666666668
+      }
+    },
+    "394": {
+      "name": "double ellipsis simple test #4",
+      "cpu_ms": {
+        "baseline": 2.2895,
+        "snapshots": 0.5658333333333333,
+        "tuned": 0.48383333333333334
+      }
+    },
+    "35": {
+      "name": "damn I'm huge",
+      "cpu_ms": {
+        "baseline": 1.895,
+        "snapshots": 0.7041666666666667,
+        "tuned": 0.6778333333333333
+      }
+    },
+    "271": {
+      "name": "Snakey Snakey Makes A Sixy",
+      "cpu_ms": {
+        "baseline": 1.9988333333333332,
+        "snapshots": 0.8470000000000001,
+        "tuned": 0.8049999999999999
+      }
+    },
+    "171": {
+      "name": "gallery game: coin collector",
+      "cpu_ms": {
+        "baseline": 1.4513333333333334,
+        "snapshots": 1.2325,
+        "tuned": 1.2191666666666667
+      }
+    },
+    "293": {
+      "name": "Moved by leaves of grass",
+      "cpu_ms": {
+        "baseline": 1.678,
+        "snapshots": 1.5958333333333334,
+        "tuned": 1.5126666666666666
+      }
+    },
+    "167": {
+      "name": "gallery game: path lines",
+      "cpu_ms": {
+        "baseline": 1.7881666666666667,
+        "snapshots": 1.722,
+        "tuned": 1.5646666666666667
+      }
+    },
+    "182": {
+      "name": "gallery: swap bot",
+      "cpu_ms": {
+        "baseline": 1.1618333333333333,
+        "snapshots": 0.7068333333333333,
+        "tuned": 0.7184999999999999
+      }
+    },
+    "378": {
+      "name": "Many parallel players, unlimited rigidbodies",
+      "cpu_ms": {
+        "baseline": 1.8808333333333334,
+        "snapshots": 1.3981666666666666,
+        "tuned": 1.3021666666666667
+      }
+    },
+    "255": {
+      "name": "a distant sunset",
+      "cpu_ms": {
+        "baseline": 0.8076666666666668,
+        "snapshots": 0.7568333333333332,
+        "tuned": 0.46366666666666667
+      }
+    },
+    "200": {
+      "name": "gallery: JAM3 Game",
+      "cpu_ms": {
+        "baseline": 0.9943333333333333,
+        "snapshots": 0.8431666666666666,
+        "tuned": 0.7908333333333333
+      }
+    },
+    "225": {
+      "name": "increpare game: LED Challenge",
+      "cpu_ms": {
+        "baseline": 1.6833333333333333,
+        "snapshots": 0.7293333333333334,
+        "tuned": 0.7108333333333332
+      }
+    },
+    "344": {
+      "name": "short adventure in sticky wall land",
+      "cpu_ms": {
+        "baseline": 1.7923333333333336,
+        "snapshots": 1.3123333333333334,
+        "tuned": 1.2416666666666667
+      }
+    },
+    "244": {
+      "name": "Gabelstapler",
+      "cpu_ms": {
+        "baseline": 1.4433333333333334,
+        "snapshots": 1.0321666666666667,
+        "tuned": 0.9375
+      }
+    },
+    "34": {
+      "name": "hos2",
+      "cpu_ms": {
+        "baseline": 1.1015,
+        "snapshots": 0.9413333333333334,
+        "tuned": 0.9346666666666666
+      }
+    },
+    "253": {
+      "name": "Sokogoban",
+      "cpu_ms": {
+        "baseline": 1.4246666666666665,
+        "snapshots": 1.3343333333333334,
+        "tuned": 1.205
+      }
+    },
+    "68": {
+      "name": "tiny treasure hunt",
+      "cpu_ms": {
+        "baseline": 0.8988333333333334,
+        "snapshots": 0.8926666666666666,
+        "tuned": 0.893
+      }
+    },
+    "280": {
+      "name": "SLIME VAT FILLER",
+      "cpu_ms": {
+        "baseline": 1.5806666666666667,
+        "snapshots": 0.21083333333333334,
+        "tuned": 0.2
+      }
+    },
+    "405": {
+      "name": "Mini Jill Off",
+      "cpu_ms": {
+        "baseline": 1.041,
+        "snapshots": 0.74,
+        "tuned": 0.7311666666666667
+      }
+    },
+    "201": {
+      "name": "gallery: dharma dojo demake",
+      "cpu_ms": {
+        "baseline": 0.8843333333333334,
+        "snapshots": 0.6990000000000001,
+        "tuned": 0.6728333333333334
+      }
+    },
+    "283": {
+      "name": "BIAXIAL INVASION OF SATURN",
+      "cpu_ms": {
+        "baseline": 0.7741666666666667,
+        "snapshots": 0.742,
+        "tuned": 0.6865000000000001
+      }
+    },
+    "195": {
+      "name": "gallery: rock, paper, scissors",
+      "cpu_ms": {
+        "baseline": 0.868,
+        "snapshots": 0.7381666666666666,
+        "tuned": 0.7011666666666667
+      }
+    },
+    "53": {
+      "name": "Saga of the Candy Scroll",
+      "cpu_ms": {
+        "baseline": 0.7916666666666667,
+        "snapshots": 0.3425,
+        "tuned": 0.3373333333333334
+      }
+    },
+    "476": {
+      "name": "Seven-Layer Dip",
+      "cpu_ms": {
+        "baseline": 1.0616666666666665,
+        "snapshots": 0.5241666666666667,
+        "tuned": 0.5186666666666667
+      }
+    },
+    "65": {
+      "name": "atlas shrank",
+      "cpu_ms": {
+        "baseline": 0.8816666666666667,
+        "snapshots": 0.7530000000000001,
+        "tuned": 0.7016666666666667
+      }
+    },
+    "59": {
+      "name": "Heroes of Sokoban 3",
+      "cpu_ms": {
+        "baseline": 0.5173333333333333,
+        "snapshots": 0.3875,
+        "tuned": 0.3753333333333333
+      }
+    },
+    "411": {
+      "name": "WITCH LIFTER",
+      "cpu_ms": {
+        "baseline": 0.974,
+        "snapshots": 0.8946666666666667,
+        "tuned": 0.8606666666666667
+      }
+    },
+    "211": {
+      "name": "gallery: \ud83c\udf61 -ooo- \ud83c\udf61",
+      "cpu_ms": {
+        "baseline": 1.1103333333333334,
+        "snapshots": 0.7563333333333333,
+        "tuned": 0.6856666666666666
+      }
+    },
+    "393": {
+      "name": "double ellipsis simple test #3",
+      "cpu_ms": {
+        "baseline": 1.3935,
+        "snapshots": 0.4325,
+        "tuned": 0.37250000000000005
+      }
+    },
+    "296": {
+      "name": "Microban x 10",
+      "cpu_ms": {
+        "baseline": 1.1183333333333332,
+        "snapshots": 1.0771666666666668,
+        "tuned": 1.0474999999999999
+      }
+    },
+    "107": {
+      "name": "circuit game",
+      "cpu_ms": {
+        "baseline": 1.0365,
+        "snapshots": 0.5581666666666667,
+        "tuned": 0.5409999999999999
+      }
+    },
+    "66": {
+      "name": "ponies",
+      "cpu_ms": {
+        "baseline": 0.3361666666666666,
+        "snapshots": 0.25683333333333336,
+        "tuned": 0.255
+      }
+    },
+    "188": {
+      "name": "gallery: marble shot",
+      "cpu_ms": {
+        "baseline": 0.3428333333333333,
+        "snapshots": 0.21350000000000002,
+        "tuned": 0.21216666666666667
+      }
+    },
+    "58": {
+      "name": "Cratopia",
+      "cpu_ms": {
+        "baseline": 0.5673333333333332,
+        "snapshots": 0.383,
+        "tuned": 0.3573333333333333
+      }
+    },
+    "78": {
+      "name": "it dies in the light",
+      "cpu_ms": {
+        "baseline": 1.0731666666666668,
+        "snapshots": 0.9556666666666667,
+        "tuned": 0.9253333333333333
+      }
+    },
+    "358": {
+      "name": "I wanna change my position",
+      "cpu_ms": {
+        "baseline": 0.8815,
+        "snapshots": 0.5405,
+        "tuned": 0.5298333333333334
+      }
+    },
+    "190": {
+      "name": "gallery: train braining",
+      "cpu_ms": {
+        "baseline": 0.39383333333333337,
+        "snapshots": 0.2906666666666667,
+        "tuned": 0.2796666666666666
+      }
+    },
+    "474": {
+      "name": "Lock & Pin",
+      "cpu_ms": {
+        "baseline": 0.8601666666666667,
+        "snapshots": 0.31633333333333336,
+        "tuned": 0.30100000000000005
+      }
+    },
+    "46": {
+      "name": "basic unlimited object/layer support",
+      "cpu_ms": {
+        "baseline": 0.9626666666666668,
+        "snapshots": 0.8731666666666666,
+        "tuned": 0.8596666666666666
+      }
+    },
+    "294": {
+      "name": "Place the crate on the targets",
+      "cpu_ms": {
+        "baseline": 0.9746666666666667,
+        "snapshots": 0.5535,
+        "tuned": 0.49450000000000005
+      }
+    },
+    "94": {
+      "name": "chaos wizard",
+      "cpu_ms": {
+        "baseline": 0.5941666666666667,
+        "snapshots": 0.37483333333333335,
+        "tuned": 0.3716666666666667
+      }
+    },
+    "109": {
+      "name": "2048",
+      "cpu_ms": {
+        "baseline": 0.9866666666666667,
+        "snapshots": 0.64,
+        "tuned": 0.6018333333333333
+      }
+    },
+    "89": {
+      "name": "Drop Swap 2",
+      "cpu_ms": {
+        "baseline": 0.1355,
+        "snapshots": 0.12533333333333335,
+        "tuned": 0.12416666666666666
+      }
+    },
+    "224": {
+      "name": "increpare game: cooperacing",
+      "cpu_ms": {
+        "baseline": 0.6955,
+        "snapshots": 0.44866666666666666,
+        "tuned": 0.4375
+      }
+    },
+    "311": {
+      "name": "Bicycle-Kick Football",
+      "cpu_ms": {
+        "baseline": 0.8976666666666666,
+        "snapshots": 0.7063333333333333,
+        "tuned": 0.6603333333333332
+      }
+    },
+    "218": {
+      "name": "gallery: The Flames",
+      "cpu_ms": {
+        "baseline": 0.07883333333333334,
+        "snapshots": 0.07,
+        "tuned": 0.0665
+      }
+    },
+    "4": {
+      "name": "block faker with win condition",
+      "cpu_ms": {
+        "baseline": 1.081,
+        "snapshots": 0.31766666666666665,
+        "tuned": 0.3041666666666667
+      }
+    },
+    "289": {
+      "name": "Pocket Gopher: Root-Shoot Nibbler",
+      "cpu_ms": {
+        "baseline": 0.6001666666666667,
+        "snapshots": 0.5846666666666667,
+        "tuned": 0.553
+      }
+    },
+    "281": {
+      "name": "A CLEAR VIEW OF THE SKY",
+      "cpu_ms": {
+        "baseline": 0.38233333333333336,
+        "snapshots": 0.37183333333333335,
+        "tuned": 0.34400000000000003
+      }
+    },
+    "83": {
+      "name": "Bouncers",
+      "cpu_ms": {
+        "baseline": 0.8285,
+        "snapshots": 0.2205,
+        "tuned": 0.21283333333333335
+      }
+    },
+    "246": {
+      "name": "Participating in society",
+      "cpu_ms": {
+        "baseline": 0.8783333333333334,
+        "snapshots": 0.4611666666666666,
+        "tuned": 0.39866666666666667
+      }
+    },
+    "352": {
+      "name": "City road builder",
+      "cpu_ms": {
+        "baseline": 0.8775,
+        "snapshots": 0.6393333333333333,
+        "tuned": 0.625
+      }
+    },
+    "282": {
+      "name": "A CLEAR VIEW OF THE SKY",
+      "cpu_ms": {
+        "baseline": 0.36283333333333334,
+        "snapshots": 0.35316666666666663,
+        "tuned": 0.3243333333333333
+      }
+    },
+    "168": {
+      "name": "gallery game: interconnection",
+      "cpu_ms": {
+        "baseline": 0.7253333333333334,
+        "snapshots": 0.6338333333333334,
+        "tuned": 0.6036666666666667
+      }
+    },
+    "209": {
+      "name": "gallery: Some lines were meant to be crossed",
+      "cpu_ms": {
+        "baseline": 1.0053333333333332,
+        "snapshots": 0.38183333333333336,
+        "tuned": 0.3773333333333333
+      }
+    },
+    "88": {
+      "name": "Drop Swap",
+      "cpu_ms": {
+        "baseline": 0.12183333333333332,
+        "snapshots": 0.112,
+        "tuned": 0.11133333333333334
+      }
+    },
+    "184": {
+      "name": "gallery: pretender to the crown",
+      "cpu_ms": {
+        "baseline": 0.7376666666666667,
+        "snapshots": 0.6151666666666666,
+        "tuned": 0.6118333333333333
+      }
+    },
+    "348": {
+      "name": "Wallnut chasing mouse chasing cat chasing dog chasing man",
+      "cpu_ms": {
+        "baseline": 0.5308333333333333,
+        "snapshots": 0.32999999999999996,
+        "tuned": 0.3185
+      }
+    },
+    "392": {
+      "name": "double ellipsis simple test #2",
+      "cpu_ms": {
+        "baseline": 1.029,
+        "snapshots": 0.26033333333333336,
+        "tuned": 0.22666666666666668
+      }
+    },
+    "288": {
+      "name": "Put the logs in the water, elephant!",
+      "cpu_ms": {
+        "baseline": 0.7625,
+        "snapshots": 0.42599999999999993,
+        "tuned": 0.35583333333333333
+      }
+    },
+    "273": {
+      "name": "Voitex Rasteriser 2 [2nd Demake of Vertex Dispenser Puzzle Mode]",
+      "cpu_ms": {
+        "baseline": 0.6681666666666666,
+        "snapshots": 0.4803333333333334,
+        "tuned": 0.3573333333333334
+      }
+    },
+    "357": {
+      "name": "Psyshic push",
+      "cpu_ms": {
+        "baseline": 0.8343333333333333,
+        "snapshots": 0.38583333333333336,
+        "tuned": 0.37916666666666665
+      }
+    },
+    "377": {
+      "name": "One player, unlimited rigidbodies",
+      "cpu_ms": {
+        "baseline": 0.8823333333333333,
+        "snapshots": 0.7480000000000001,
+        "tuned": 0.523
+      }
+    },
+    "180": {
+      "name": "gallery: aa I'm being attacked by a giant tentacle",
+      "cpu_ms": {
+        "baseline": 0.43533333333333335,
+        "snapshots": 0.37916666666666665,
+        "tuned": 0.375
+      }
+    },
+    "233": {
+      "name": "unewton",
+      "cpu_ms": {
+        "baseline": 0.7765,
+        "snapshots": 0.3403333333333333,
+        "tuned": 0.3348333333333333
+      }
+    },
+    "245": {
+      "name": "Slot Machine",
+      "cpu_ms": {
+        "baseline": 0.7441666666666666,
+        "snapshots": 0.5885,
+        "tuned": 0.5371666666666667
+      }
+    },
+    "69": {
+      "name": "heroes of sokoban 2",
+      "cpu_ms": {
+        "baseline": 0.30900000000000005,
+        "snapshots": 0.2791666666666667,
+        "tuned": 0.27849999999999997
+      }
+    },
+    "404": {
+      "name": "Clearing space",
+      "cpu_ms": {
+        "baseline": 0.6623333333333334,
+        "snapshots": 0.20783333333333331,
+        "tuned": 0.20066666666666666
+      }
+    },
+    "57": {
+      "name": "Flying Kick",
+      "cpu_ms": {
+        "baseline": 0.396,
+        "snapshots": 0.3111666666666667,
+        "tuned": 0.3091666666666667
+      }
+    },
+    "337": {
+      "name": "pipe puffer",
+      "cpu_ms": {
+        "baseline": 0.5503333333333333,
+        "snapshots": 0.368,
+        "tuned": 0.35350000000000004
+      }
+    },
+    "334": {
+      "name": "Pushy-V Pully-H",
+      "cpu_ms": {
+        "baseline": 0.9423333333333332,
+        "snapshots": 0.12716666666666665,
+        "tuned": 0.12133333333333333
+      }
+    },
+    "526": {
+      "name": "startloop/endloop loop limit check",
+      "cpu_ms": {
+        "baseline": 0.8176666666666668,
+        "snapshots": 0.821,
+        "tuned": 0.8198333333333333
+      }
+    },
+    "267": {
+      "name": "Pupush",
+      "cpu_ms": {
+        "baseline": 0.7429999999999999,
+        "snapshots": 0.3345,
+        "tuned": 0.31916666666666665
+      }
+    },
+    "492": {
+      "name": "Midwinter Springtime (gallery 3e73c82343df51a600786e75745ccf6b)",
+      "cpu_ms": {
+        "baseline": 0.3726666666666667,
+        "snapshots": 0.34883333333333333,
+        "tuned": 0.3343333333333333
+      }
+    },
+    "80": {
+      "name": "2D whale world",
+      "cpu_ms": {
+        "baseline": 0.7635000000000001,
+        "snapshots": 0.7278333333333333,
+        "tuned": 0.5283333333333333
+      }
+    },
+    "315": {
+      "name": "Attractor Net",
+      "cpu_ms": {
+        "baseline": 0.8106666666666666,
+        "snapshots": 0.34750000000000003,
+        "tuned": 0.2926666666666667
+      }
+    },
+    "236": {
+      "name": "Kreiseln",
+      "cpu_ms": {
+        "baseline": 0.15366666666666667,
+        "snapshots": 0.1345,
+        "tuned": 0.1315
+      }
+    },
+    "54": {
+      "name": "Pants, Shirt, Cap",
+      "cpu_ms": {
+        "baseline": 0.5003333333333333,
+        "snapshots": 0.16249999999999998,
+        "tuned": 0.15483333333333332
+      }
+    },
+    "186": {
+      "name": "gallery: pushcat junior",
+      "cpu_ms": {
+        "baseline": 0.5526666666666666,
+        "snapshots": 0.366,
+        "tuned": 0.36866666666666664
+      }
+    },
+    "97": {
+      "name": "200 objects",
+      "cpu_ms": {
+        "baseline": 0.15999999999999998,
+        "snapshots": 0.0695,
+        "tuned": 0.06833333333333333
+      }
+    },
+    "160": {
+      "name": "gallery game: fall leaves",
+      "cpu_ms": {
+        "baseline": 0.5971666666666666,
+        "snapshots": 0.4168333333333334,
+        "tuned": 0.41000000000000003
+      }
+    },
+    "55": {
+      "name": "Gobble Rush",
+      "cpu_ms": {
+        "baseline": 0.4295,
+        "snapshots": 0.3168333333333333,
+        "tuned": 0.31033333333333335
+      }
+    },
+    "176": {
+      "name": "gallery: cake monsters",
+      "cpu_ms": {
+        "baseline": 0.20466666666666666,
+        "snapshots": 0.10600000000000001,
+        "tuned": 0.10450000000000001
+      }
+    },
+    "477": {
+      "name": "Omniban",
+      "cpu_ms": {
+        "baseline": 0.44666666666666666,
+        "snapshots": 0.21183333333333332,
+        "tuned": 0.2003333333333333
+      }
+    },
+    "159": {
+      "name": "gallery game: mad queens",
+      "cpu_ms": {
+        "baseline": 0.4188333333333333,
+        "snapshots": 0.3983333333333333,
+        "tuned": 0.37
+      }
+    },
+    "81": {
+      "name": "Push",
+      "cpu_ms": {
+        "baseline": 0.14216666666666666,
+        "snapshots": 0.08483333333333333,
+        "tuned": 0.08366666666666667
+      }
+    },
+    "328": {
+      "name": "Chevron Lodger",
+      "cpu_ms": {
+        "baseline": 0.5911666666666666,
+        "snapshots": 0.21316666666666667,
+        "tuned": 0.1983333333333333
+      }
+    },
+    "161": {
+      "name": "gallery game: mini nomerads",
+      "cpu_ms": {
+        "baseline": 0.32066666666666666,
+        "snapshots": 0.1735,
+        "tuned": 0.1741666666666667
+      }
+    },
+    "210": {
+      "name": "gallery: Stand Off",
+      "cpu_ms": {
+        "baseline": 0.3733333333333333,
+        "snapshots": 0.33299999999999996,
+        "tuned": 0.3245
+      }
+    },
+    "75": {
+      "name": "icycrates",
+      "cpu_ms": {
+        "baseline": 0.21550000000000002,
+        "snapshots": 0.188,
+        "tuned": 0.187
+      }
+    },
+    "339": {
+      "name": "Don't let your goals slip away",
+      "cpu_ms": {
+        "baseline": 0.6621666666666667,
+        "snapshots": 0.1408333333333333,
+        "tuned": 0.13266666666666665
+      }
+    },
+    "264": {
+      "name": "DICE GOBLIN",
+      "cpu_ms": {
+        "baseline": 0.2885,
+        "snapshots": 0.29033333333333333,
+        "tuned": 0.2743333333333333
+      }
+    },
+    "227": {
+      "name": "increpare game: snortal",
+      "cpu_ms": {
+        "baseline": 0.249,
+        "snapshots": 0.17933333333333334,
+        "tuned": 0.1775
+      }
+    },
+    "33": {
+      "name": "unnecessary number of rules sokobond",
+      "cpu_ms": {
+        "baseline": 0.16749999999999998,
+        "snapshots": 0.14466666666666667,
+        "tuned": 0.11566666666666665
+      }
+    },
+    "354": {
+      "name": "Long Haul Space Flight",
+      "cpu_ms": {
+        "baseline": 0.5891666666666666,
+        "snapshots": 0.14566666666666667,
+        "tuned": 0.13883333333333334
+      }
+    },
+    "191": {
+      "name": "gallery: enqueue",
+      "cpu_ms": {
+        "baseline": 0.17883333333333334,
+        "snapshots": 0.15200000000000002,
+        "tuned": 0.14833333333333332
+      }
+    },
+    "192": {
+      "name": "gallery: tidy the cafe",
+      "cpu_ms": {
+        "baseline": 0.42466666666666664,
+        "snapshots": 0.37583333333333335,
+        "tuned": 0.3576666666666667
+      }
+    },
+    "216": {
+      "name": "gallery: PrograMaze",
+      "cpu_ms": {
+        "baseline": 0.21833333333333332,
+        "snapshots": 0.1275,
+        "tuned": 0.127
+      }
+    },
+    "270": {
+      "name": "AUTOHURDLER",
+      "cpu_ms": {
+        "baseline": 0.43899999999999995,
+        "snapshots": 0.3603333333333334,
+        "tuned": 0.3396666666666667
+      }
+    },
+    "50": {
+      "name": "sticky candy puzzle saga",
+      "cpu_ms": {
+        "baseline": 0.1425,
+        "snapshots": 0.13266666666666668,
+        "tuned": 0.12833333333333333
+      }
+    },
+    "193": {
+      "name": "gallery: flower dance",
+      "cpu_ms": {
+        "baseline": 0.2798333333333333,
+        "snapshots": 0.25883333333333336,
+        "tuned": 0.261
+      }
+    },
+    "70": {
+      "name": "dang I'm huge",
+      "cpu_ms": {
+        "baseline": 0.19733333333333333,
+        "snapshots": 0.14316666666666666,
+        "tuned": 0.14033333333333334
+      }
+    },
+    "284": {
+      "name": "sum three horizontally to 8!",
+      "cpu_ms": {
+        "baseline": 0.10983333333333334,
+        "snapshots": 0.099,
+        "tuned": 0.0975
+      }
+    },
+    "356": {
+      "name": "Paralelism",
+      "cpu_ms": {
+        "baseline": 0.43366666666666664,
+        "snapshots": 0.2525,
+        "tuned": 0.248
+      }
+    },
+    "279": {
+      "name": "Vexatious Match 3",
+      "cpu_ms": {
+        "baseline": 0.18333333333333335,
+        "snapshots": 0.11466666666666665,
+        "tuned": 0.11449999999999999
+      }
+    },
+    "332": {
+      "name": "Acorn Scorchery Paradise",
+      "cpu_ms": {
+        "baseline": 0.5525,
+        "snapshots": 0.14933333333333332,
+        "tuned": 0.14116666666666666
+      }
+    },
+    "409": {
+      "name": "B*TTEATER",
+      "cpu_ms": {
+        "baseline": 0.33416666666666667,
+        "snapshots": 0.22233333333333333,
+        "tuned": 0.21333333333333332
+      }
+    },
+    "330": {
+      "name": "Hole-Stuffer",
+      "cpu_ms": {
+        "baseline": 0.4548333333333333,
+        "snapshots": 0.3386666666666666,
+        "tuned": 0.29933333333333334
+      }
+    },
+    "260": {
+      "name": "Alternatey",
+      "cpu_ms": {
+        "baseline": 0.5630000000000001,
+        "snapshots": 0.5760000000000001,
+        "tuned": 0.5571666666666667
+      }
+    },
+    "175": {
+      "name": "gallery: heroes of sokoban",
+      "cpu_ms": {
+        "baseline": 0.20033333333333334,
+        "snapshots": 0.10700000000000001,
+        "tuned": 0.10316666666666666
+      }
+    },
+    "98": {
+      "name": "misc many objects",
+      "cpu_ms": {
+        "baseline": 0.0275,
+        "snapshots": 0.021166666666666667,
+        "tuned": 0.021666666666666667
+      }
+    },
+    "52": {
+      "name": "MazezaM",
+      "cpu_ms": {
+        "baseline": 0.24733333333333335,
+        "snapshots": 0.128,
+        "tuned": 0.1205
+      }
+    },
+    "469": {
+      "name": "#1094 winning broken in Cratopia",
+      "cpu_ms": {
+        "baseline": 0.0315,
+        "snapshots": 0.031166666666666665,
+        "tuned": 0.030333333333333334
+      }
+    },
+    "63": {
+      "name": "sokobond demake",
+      "cpu_ms": {
+        "baseline": 0.06783333333333333,
+        "snapshots": 0.06233333333333333,
+        "tuned": 0.0545
+      }
+    },
+    "331": {
+      "name": "Wand Spinner",
+      "cpu_ms": {
+        "baseline": 0.14049999999999999,
+        "snapshots": 0.10583333333333333,
+        "tuned": 0.10066666666666665
+      }
+    },
+    "338": {
+      "name": "crate guardian",
+      "cpu_ms": {
+        "baseline": 0.4355,
+        "snapshots": 0.21066666666666667,
+        "tuned": 0.1958333333333333
+      }
+    },
+    "316": {
+      "name": "Yellow Box",
+      "cpu_ms": {
+        "baseline": 0.13333333333333336,
+        "snapshots": 0.11016666666666666,
+        "tuned": 0.10366666666666667
+      }
+    },
+    "252": {
+      "name": "no heroes necessary",
+      "cpu_ms": {
+        "baseline": 0.37083333333333335,
+        "snapshots": 0.305,
+        "tuned": 0.24283333333333335
+      }
+    },
+    "205": {
+      "name": "gallery: count mover",
+      "cpu_ms": {
+        "baseline": 0.1845,
+        "snapshots": 0.14350000000000002,
+        "tuned": 0.13966666666666666
+      }
+    },
+    "163": {
+      "name": "gallery game: soliquid",
+      "cpu_ms": {
+        "baseline": 0.16216666666666665,
+        "snapshots": 0.12533333333333332,
+        "tuned": 0.11933333333333333
+      }
+    },
+    "341": {
+      "name": "Subway upholstry snot smearing championship",
+      "cpu_ms": {
+        "baseline": 0.37816666666666665,
+        "snapshots": 0.2185,
+        "tuned": 0.20766666666666667
+      }
+    },
+    "340": {
+      "name": "Eyeball-watching flowers bloom",
+      "cpu_ms": {
+        "baseline": 0.12366666666666666,
+        "snapshots": 0.10466666666666666,
+        "tuned": 0.10266666666666667
+      }
+    },
+    "272": {
+      "name": "Voitex Rasteriser [Demake of Vertex Dispenser Puzzle Mode]",
+      "cpu_ms": {
+        "baseline": 0.352,
+        "snapshots": 0.14400000000000002,
+        "tuned": 0.14033333333333334
+      }
+    },
+    "228": {
+      "name": "increpare game: you complete me",
+      "cpu_ms": {
+        "baseline": 0.35616666666666663,
+        "snapshots": 0.21400000000000002,
+        "tuned": 0.21216666666666667
+      }
+    },
+    "329": {
+      "name": "Two-Tone Tango",
+      "cpu_ms": {
+        "baseline": 0.2835,
+        "snapshots": 0.16716666666666669,
+        "tuned": 0.1575
+      }
+    },
+    "104": {
+      "name": "10 layers, 50 objects 2",
+      "cpu_ms": {
+        "baseline": 0.010166666666666668,
+        "snapshots": 0.0075,
+        "tuned": 0.009666666666666667
+      }
+    },
+    "285": {
+      "name": "Schleimban",
+      "cpu_ms": {
+        "baseline": 0.10966666666666666,
+        "snapshots": 0.098,
+        "tuned": 0.094
+      }
+    },
+    "231": {
+      "name": "increpare game: match three billiards",
+      "cpu_ms": {
+        "baseline": 0.09916666666666665,
+        "snapshots": 0.08283333333333334,
+        "tuned": 0.08149999999999999
+      }
+    },
+    "475": {
+      "name": "Being Alan Hazelden",
+      "cpu_ms": {
+        "baseline": 0.2966666666666667,
+        "snapshots": 0.27283333333333337,
+        "tuned": 0.25383333333333336
+      }
+    },
+    "229": {
+      "name": "increpare game: ",
+      "cpu_ms": {
+        "baseline": 0.19383333333333333,
+        "snapshots": 0.11966666666666666,
+        "tuned": 0.11416666666666667
+      }
+    },
+    "309": {
+      "name": "You can't make this up!",
+      "cpu_ms": {
+        "baseline": 0.30133333333333334,
+        "snapshots": 0.25483333333333336,
+        "tuned": 0.24366666666666667
+      }
+    },
+    "67": {
+      "name": "take heart lass",
+      "cpu_ms": {
+        "baseline": 0.13616666666666666,
+        "snapshots": 0.12966666666666668,
+        "tuned": 0.12816666666666665
+      }
+    },
+    "327": {
+      "name": "Cucumber Surprise",
+      "cpu_ms": {
+        "baseline": 0.24416666666666664,
+        "snapshots": 0.13366666666666668,
+        "tuned": 0.13033333333333336
+      }
+    },
+    "6": {
+      "name": "ellipsisTest1",
+      "cpu_ms": {
+        "baseline": 0.37816666666666665,
+        "snapshots": 0.10350000000000001,
+        "tuned": 0.10300000000000001
+      }
+    },
+    "11": {
+      "name": "cat bastard",
+      "cpu_ms": {
+        "baseline": 0.38649999999999995,
+        "snapshots": 0.10383333333333333,
+        "tuned": 0.097
+      }
+    },
+    "18": {
+      "name": "test testing starting at level N",
+      "cpu_ms": {
+        "baseline": 0.05766666666666667,
+        "snapshots": 0.046166666666666675,
+        "tuned": 0.04566666666666667
+      }
+    },
+    "232": {
+      "name": "newton",
+      "cpu_ms": {
+        "baseline": 0.16316666666666668,
+        "snapshots": 0.14466666666666667,
+        "tuned": 0.1423333333333333
+      }
+    },
+    "312": {
+      "name": "Van-to-Mobile-Living-Space-Conversion Window-Frame-Installation",
+      "cpu_ms": {
+        "baseline": 0.12433333333333332,
+        "snapshots": 0.103,
+        "tuned": 0.09549999999999999
+      }
+    },
+    "333": {
+      "name": "Match-Maker",
+      "cpu_ms": {
+        "baseline": 0.1315,
+        "snapshots": 0.11,
+        "tuned": 0.10483333333333333
+      }
+    },
+    "92": {
+      "name": "Smother",
+      "cpu_ms": {
+        "baseline": 0.07883333333333332,
+        "snapshots": 0.07383333333333333,
+        "tuned": 0.06883333333333333
+      }
+    },
+    "183": {
+      "name": "gallery: spaceokoban",
+      "cpu_ms": {
+        "baseline": 0.099,
+        "snapshots": 0.08333333333333333,
+        "tuned": 0.0825
+      }
+    },
+    "73": {
+      "name": "explod",
+      "cpu_ms": {
+        "baseline": 0.07766666666666666,
+        "snapshots": 0.06933333333333333,
+        "tuned": 0.06849999999999999
+      }
+    },
+    "79": {
+      "name": "limerick",
+      "cpu_ms": {
+        "baseline": 0.122,
+        "snapshots": 0.06683333333333333,
+        "tuned": 0.06783333333333333
+      }
+    },
+    "21": {
+      "name": "late beginloop/endloop test",
+      "cpu_ms": {
+        "baseline": 0.11016666666666666,
+        "snapshots": 0.10516666666666666,
+        "tuned": 0.09966666666666665
+      }
+    },
+    "326": {
+      "name": "Undo and Real-time #796",
+      "cpu_ms": {
+        "baseline": 0.22883333333333333,
+        "snapshots": 0.17083333333333334,
+        "tuned": 0.15516666666666667
+      }
+    },
+    "28": {
+      "name": "loop length 1-b",
+      "cpu_ms": {
+        "baseline": 0.33349999999999996,
+        "snapshots": 0.33116666666666666,
+        "tuned": 0.33399999999999996
+      }
+    },
+    "174": {
+      "name": "gallery: midas",
+      "cpu_ms": {
+        "baseline": 0.05666666666666667,
+        "snapshots": 0.0555,
+        "tuned": 0.050666666666666665
+      }
+    },
+    "349": {
+      "name": "Kettle, except something is off",
+      "cpu_ms": {
+        "baseline": 0.2028333333333333,
+        "snapshots": 0.13133333333333333,
+        "tuned": 0.1175
+      }
+    },
+    "199": {
+      "name": "gallery: the undertaking",
+      "cpu_ms": {
+        "baseline": 0.10316666666666666,
+        "snapshots": 0.07016666666666665,
+        "tuned": 0.069
+      }
+    },
+    "412": {
+      "name": "The Red Ring of Immortality",
+      "cpu_ms": {
+        "baseline": 0.16099999999999998,
+        "snapshots": 0.11616666666666667,
+        "tuned": 0.09616666666666665
+      }
+    },
+    "96": {
+      "name": "100 objects",
+      "cpu_ms": {
+        "baseline": 0.022333333333333334,
+        "snapshots": 0.020166666666666666,
+        "tuned": 0.0195
+      }
+    },
+    "277": {
+      "name": "NIGHTMARECROBAN",
+      "cpu_ms": {
+        "baseline": 0.1255,
+        "snapshots": 0.082,
+        "tuned": 0.07783333333333334
+      }
+    },
+    "115": {
+      "name": "Make synonyms of properties work. #245",
+      "cpu_ms": {
+        "baseline": 0.025,
+        "snapshots": 0.024833333333333332,
+        "tuned": 0.02383333333333333
+      }
+    },
+    "113": {
+      "name": "Make synonyms of properties work. #241",
+      "cpu_ms": {
+        "baseline": 0.009333333333333334,
+        "snapshots": 0.007,
+        "tuned": 0.006500000000000001
+      }
+    },
+    "287": {
+      "name": "Xorro The Chaos Warden",
+      "cpu_ms": {
+        "baseline": 0.05183333333333333,
+        "snapshots": 0.043166666666666666,
+        "tuned": 0.041499999999999995
+      }
+    },
+    "82": {
+      "name": "Kettle",
+      "cpu_ms": {
+        "baseline": 0.07700000000000001,
+        "snapshots": 0.07400000000000001,
+        "tuned": 0.06433333333333333
+      }
+    },
+    "318": {
+      "name": "Varifocal Nightmare",
+      "cpu_ms": {
+        "baseline": 0.039,
+        "snapshots": 0.031,
+        "tuned": 0.03166666666666666
+      }
+    },
+    "10": {
+      "name": "restart test",
+      "cpu_ms": {
+        "baseline": 0.25283333333333335,
+        "snapshots": 0.08449999999999999,
+        "tuned": 0.07883333333333334
+      }
+    },
+    "56": {
+      "name": "Slidings",
+      "cpu_ms": {
+        "baseline": 0.06416666666666668,
+        "snapshots": 0.051000000000000004,
+        "tuned": 0.051166666666666666
+      }
+    },
+    "20": {
+      "name": "beginloop/endloop test #2 (w/ rigids)",
+      "cpu_ms": {
+        "baseline": 0.028166666666666666,
+        "snapshots": 0.028499999999999998,
+        "tuned": 0.027000000000000003
+      }
+    },
+    "380": {
+      "name": "startloop stoploop vortex check",
+      "cpu_ms": {
+        "baseline": 0.20566666666666666,
+        "snapshots": 0.196,
+        "tuned": 0.18766666666666665
+      }
+    },
+    "258": {
+      "name": "Unclean Residues",
+      "cpu_ms": {
+        "baseline": 0.08633333333333333,
+        "snapshots": 0.063,
+        "tuned": 0.059166666666666666
+      }
+    },
+    "99": {
+      "name": "50 layers",
+      "cpu_ms": {
+        "baseline": 0.05566666666666667,
+        "snapshots": 0.05233333333333333,
+        "tuned": 0.051000000000000004
+      }
+    },
+    "243": {
+      "name": "I am a gust of wind",
+      "cpu_ms": {
+        "baseline": 0.1771666666666667,
+        "snapshots": 0.07033333333333333,
+        "tuned": 0.06766666666666667
+      }
+    },
+    "390": {
+      "name": "aggregates in win conditions 7",
+      "cpu_ms": {
+        "baseline": 0.2015,
+        "snapshots": 0.077,
+        "tuned": 0.07283333333333333
+      }
+    },
+    "95": {
+      "name": "50 objects",
+      "cpu_ms": {
+        "baseline": 0.07516666666666666,
+        "snapshots": 0.04983333333333333,
+        "tuned": 0.04533333333333334
+      }
+    },
+    "317": {
+      "name": "Sokoban[Sokoban[Sokoban]]]",
+      "cpu_ms": {
+        "baseline": 0.12,
+        "snapshots": 0.06883333333333333,
+        "tuned": 0.06866666666666665
+      }
+    },
+    "219": {
+      "name": "gallery: Watch Your Step",
+      "cpu_ms": {
+        "baseline": 0.037000000000000005,
+        "snapshots": 0.030166666666666665,
+        "tuned": 0.02983333333333333
+      }
+    },
+    "286": {
+      "name": "Legend of Swixero",
+      "cpu_ms": {
+        "baseline": 0.12433333333333332,
+        "snapshots": 0.07999999999999999,
+        "tuned": 0.07849999999999999
+      }
+    },
+    "268": {
+      "name": "GAPFILLER / LUECKEFUELLER",
+      "cpu_ms": {
+        "baseline": 0.09716666666666665,
+        "snapshots": 0.05916666666666666,
+        "tuned": 0.05600000000000001
+      }
+    },
+    "1": {
+      "name": "sokoban no win condition",
+      "cpu_ms": {
+        "baseline": 0.13616666666666666,
+        "snapshots": 0.05483333333333333,
+        "tuned": 0.050499999999999996
+      }
+    },
+    "14": {
+      "name": "rigid body test",
+      "cpu_ms": {
+        "baseline": 0.13183333333333336,
+        "snapshots": 0.09,
+        "tuned": 0.08516666666666667
+      }
+    },
+    "72": {
+      "name": "ebony & ivory",
+      "cpu_ms": {
+        "baseline": 0.08049999999999999,
+        "snapshots": 0.05983333333333333,
+        "tuned": 0.057999999999999996
+      }
+    },
+    "100": {
+      "name": "50 layers 2",
+      "cpu_ms": {
+        "baseline": 0.03949999999999999,
+        "snapshots": 0.036000000000000004,
+        "tuned": 0.036000000000000004
+      }
+    },
+    "47": {
+      "name": "many layers movement bug",
+      "cpu_ms": {
+        "baseline": 0.0031666666666666666,
+        "snapshots": 0.0031666666666666666,
+        "tuned": 0.0031666666666666666
+      }
+    },
+    "169": {
+      "name": "gallery game: the art of cloning",
+      "cpu_ms": {
+        "baseline": 0.10666666666666667,
+        "snapshots": 0.06633333333333333,
+        "tuned": 0.06483333333333333
+      }
+    },
+    "303": {
+      "name": "Recondite Star Sector Sigma",
+      "cpu_ms": {
+        "baseline": 0.10800000000000001,
+        "snapshots": 0.04733333333333334,
+        "tuned": 0.04466666666666667
+      }
+    },
+    "262": {
+      "name": "Slide Pull",
+      "cpu_ms": {
+        "baseline": 0.1205,
+        "snapshots": 0.05866666666666666,
+        "tuned": 0.056666666666666664
+      }
+    },
+    "27": {
+      "name": "loop length 1",
+      "cpu_ms": {
+        "baseline": 0.1751666666666667,
+        "snapshots": 0.17099999999999999,
+        "tuned": 0.1716666666666667
+      }
+    },
+    "197": {
+      "name": "gallery: collapsable sokoban",
+      "cpu_ms": {
+        "baseline": 0.1225,
+        "snapshots": 0.09866666666666665,
+        "tuned": 0.08716666666666667
+      }
+    },
+    "389": {
+      "name": "aggregates in win conditions 6",
+      "cpu_ms": {
+        "baseline": 0.15866666666666665,
+        "snapshots": 0.07899999999999999,
+        "tuned": 0.07400000000000001
+      }
+    },
+    "51": {
+      "name": "modality",
+      "cpu_ms": {
+        "baseline": 0.09466666666666668,
+        "snapshots": 0.04699999999999999,
+        "tuned": 0.045
+      }
+    },
+    "194": {
+      "name": "gallery: stairways",
+      "cpu_ms": {
+        "baseline": 0.08166666666666667,
+        "snapshots": 0.05716666666666667,
+        "tuned": 0.053000000000000005
+      }
+    },
+    "3": {
+      "name": "block faker no win condition",
+      "cpu_ms": {
+        "baseline": 0.0515,
+        "snapshots": 0.034999999999999996,
+        "tuned": 0.0335
+      }
+    },
+    "336": {
+      "name": "Resin-Caster",
+      "cpu_ms": {
+        "baseline": 0.10766666666666666,
+        "snapshots": 0.046166666666666675,
+        "tuned": 0.043000000000000003
+      }
+    },
+    "295": {
+      "name": "Two-Step Pete",
+      "cpu_ms": {
+        "baseline": 0.04,
+        "snapshots": 0.03,
+        "tuned": 0.028666666666666663
+      }
+    },
+    "310": {
+      "name": "Explodoban",
+      "cpu_ms": {
+        "baseline": 0.057833333333333334,
+        "snapshots": 0.037500000000000006,
+        "tuned": 0.03733333333333333
+      }
+    },
+    "278": {
+      "name": "Scalesoban",
+      "cpu_ms": {
+        "baseline": 0.08766666666666667,
+        "snapshots": 0.058166666666666665,
+        "tuned": 0.05550000000000001
+      }
+    },
+    "274": {
+      "name": "All Green and Blue on Yellow",
+      "cpu_ms": {
+        "baseline": 0.09416666666666665,
+        "snapshots": 0.0445,
+        "tuned": 0.04166666666666667
+      }
+    },
+    "345": {
+      "name": "[testing for recording through level-changes A]  Level-Change test",
+      "cpu_ms": {
+        "baseline": 0.14733333333333334,
+        "snapshots": 0.0615,
+        "tuned": 0.057833333333333334
+      }
+    },
+    "120": {
+      "name": "Undo test (#315)",
+      "cpu_ms": {
+        "baseline": 0.102,
+        "snapshots": 0.08,
+        "tuned": 0.078
+      }
+    },
+    "29": {
+      "name": "mirror loop test",
+      "cpu_ms": {
+        "baseline": 0.009666666666666667,
+        "snapshots": 0.009666666666666667,
+        "tuned": 0.008833333333333332
+      }
+    },
+    "77": {
+      "name": "love and pieces",
+      "cpu_ms": {
+        "baseline": 0.0695,
+        "snapshots": 0.051666666666666666,
+        "tuned": 0.047
+      }
+    },
+    "173": {
+      "name": "gallery: multi-word dictionary",
+      "cpu_ms": {
+        "baseline": 0.09633333333333333,
+        "snapshots": 0.051666666666666666,
+        "tuned": 0.048333333333333325
+      }
+    },
+    "269": {
+      "name": "pushit",
+      "cpu_ms": {
+        "baseline": 0.09583333333333333,
+        "snapshots": 0.03983333333333333,
+        "tuned": 0.03833333333333333
+      }
+    },
+    "257": {
+      "name": "An OK multiban level",
+      "cpu_ms": {
+        "baseline": 0.02933333333333333,
+        "snapshots": 0.02333333333333333,
+        "tuned": 0.021
+      }
+    },
+    "346": {
+      "name": "[testing for recording through level-changes B] Simple Block asdfsadf Game",
+      "cpu_ms": {
+        "baseline": 0.12933333333333333,
+        "snapshots": 0.04366666666666667,
+        "tuned": 0.042333333333333334
+      }
+    },
+    "133": {
+      "name": "Test travelling through multiple levels",
+      "cpu_ms": {
+        "baseline": 0.1245,
+        "snapshots": 0.049666666666666665,
+        "tuned": 0.047333333333333324
+      }
+    },
+    "25": {
+      "name": "optimization that broke andrew's game",
+      "cpu_ms": {
+        "baseline": 0.010333333333333333,
+        "snapshots": 0.009500000000000001,
+        "tuned": 0.0085
+      }
+    },
+    "118": {
+      "name": "Rigidbody rules apply to group rather than individual rules.",
+      "cpu_ms": {
+        "baseline": 0.05633333333333333,
+        "snapshots": 0.0475,
+        "tuned": 0.043333333333333335
+      }
+    },
+    "30": {
+      "name": "mirror + test",
+      "cpu_ms": {
+        "baseline": 0.008,
+        "snapshots": 0.008333333333333333,
+        "tuned": 0.007833333333333333
+      }
+    },
+    "335": {
+      "name": "Crates move when you move",
+      "cpu_ms": {
+        "baseline": 0.08433333333333334,
+        "snapshots": 0.0755,
+        "tuned": 0.06683333333333334
+      }
+    },
+    "420": {
+      "name": "Weirdness with = as glyph",
+      "cpu_ms": {
+        "baseline": 0.12383333333333332,
+        "snapshots": 0.05133333333333333,
+        "tuned": 0.04883333333333333
+      }
+    },
+    "22": {
+      "name": "multiple loops",
+      "cpu_ms": {
+        "baseline": 0.044833333333333336,
+        "snapshots": 0.03866666666666667,
+        "tuned": 0.03133333333333334
+      }
+    },
+    "251": {
+      "name": "A cliche for bedtime",
+      "cpu_ms": {
+        "baseline": 0.10200000000000001,
+        "snapshots": 0.04533333333333334,
+        "tuned": 0.04216666666666667
+      }
+    },
+    "525": {
+      "name": "rule loop limit check",
+      "cpu_ms": {
+        "baseline": 0.10983333333333334,
+        "snapshots": 0.1125,
+        "tuned": 0.10933333333333334
+      }
+    },
+    "41": {
+      "name": "zen puzzle garden",
+      "cpu_ms": {
+        "baseline": 0.05483333333333333,
+        "snapshots": 0.03333333333333334,
+        "tuned": 0.03166666666666667
+      }
+    },
+    "128": {
+      "name": "trouble parsing non-ascii in unicode #528",
+      "cpu_ms": {
+        "baseline": 0.005666666666666667,
+        "snapshots": 0.005,
+        "tuned": 0.004666666666666667
+      }
+    },
+    "347": {
+      "name": "[testing for recording through level-changes C] Don't asdlet your goals slip away",
+      "cpu_ms": {
+        "baseline": 0.041833333333333333,
+        "snapshots": 0.029166666666666667,
+        "tuned": 0.027333333333333334
+      }
+    },
+    "261": {
+      "name": "Push Pull",
+      "cpu_ms": {
+        "baseline": 0.07766666666666666,
+        "snapshots": 0.041499999999999995,
+        "tuned": 0.03933333333333333
+      }
+    },
+    "388": {
+      "name": "aggregates in win conditions 5",
+      "cpu_ms": {
+        "baseline": 0.09133333333333335,
+        "snapshots": 0.041833333333333333,
+        "tuned": 0.04033333333333333
+      }
+    },
+    "24": {
+      "name": "ellipsis magnetism test",
+      "cpu_ms": {
+        "baseline": 0.024666666666666667,
+        "snapshots": 0.021666666666666667,
+        "tuned": 0.02033333333333333
+      }
+    },
+    "410": {
+      "name": "Fickle Fred",
+      "cpu_ms": {
+        "baseline": 0.05316666666666667,
+        "snapshots": 0.0325,
+        "tuned": 0.0305
+      }
+    },
+    "362": {
+      "name": "rigid applies to movements even if the movements were already present in the cell before rule application [i.e. if the rule doesn't do anything]",
+      "cpu_ms": {
+        "baseline": 0.02383333333333333,
+        "snapshots": 0.023,
+        "tuned": 0.0215
+      }
+    },
+    "275": {
+      "name": "ALL GREEN TO BLUE",
+      "cpu_ms": {
+        "baseline": 0.024333333333333332,
+        "snapshots": 0.017666666666666667,
+        "tuned": 0.017333333333333333
+      }
+    },
+    "304": {
+      "name": "Crate Swarp",
+      "cpu_ms": {
+        "baseline": 0.052500000000000005,
+        "snapshots": 0.029166666666666667,
+        "tuned": 0.028333333333333335
+      }
+    },
+    "124": {
+      "name": "Rule direction inference test (#407)",
+      "cpu_ms": {
+        "baseline": 0.0685,
+        "snapshots": 0.03683333333333333,
+        "tuned": 0.0345
+      }
+    },
+    "263": {
+      "name": "Make way!",
+      "cpu_ms": {
+        "baseline": 0.03683333333333333,
+        "snapshots": 0.031,
+        "tuned": 0.029166666666666667
+      }
+    },
+    "413": {
+      "name": "cover 'random' bit of getPropertiesFromCell",
+      "cpu_ms": {
+        "baseline": 0.07899999999999999,
+        "snapshots": 0.035,
+        "tuned": 0.03283333333333333
+      }
+    },
+    "383": {
+      "name": "Audio Test 3",
+      "cpu_ms": {
+        "baseline": 0.0435,
+        "snapshots": 0.028999999999999998,
+        "tuned": 0.028333333333333335
+      }
+    },
+    "361": {
+      "name": "rigid disablement applies to whole rule-groups",
+      "cpu_ms": {
+        "baseline": 0.021666666666666667,
+        "snapshots": 0.02,
+        "tuned": 0.0205
+      }
+    },
+    "8": {
+      "name": "ellipsisPropagationBug2",
+      "cpu_ms": {
+        "baseline": 0.07816666666666666,
+        "snapshots": 0.07400000000000001,
+        "tuned": 0.06216666666666667
+      }
+    },
+    "456": {
+      "name": "#1067 [ player no wall ] test suite, No. 31",
+      "cpu_ms": {
+        "baseline": 0.0038333333333333336,
+        "snapshots": 0.0045000000000000005,
+        "tuned": 0.004
+      }
+    },
+    "426": {
+      "name": "#1067 [ player no wall ] test suite, No. 1",
+      "cpu_ms": {
+        "baseline": 0.005,
+        "snapshots": 0.005,
+        "tuned": 0.004666666666666667
+      }
+    },
+    "455": {
+      "name": "#1067 [ player no wall ] test suite, No. 30",
+      "cpu_ms": {
+        "baseline": 0.004,
+        "snapshots": 0.004166666666666667,
+        "tuned": 0.004166666666666667
+      }
+    },
+    "460": {
+      "name": "#1067 [ player no wall ] test suite, No. 35",
+      "cpu_ms": {
+        "baseline": 0.0033333333333333335,
+        "snapshots": 0.0033333333333333335,
+        "tuned": 0.0031666666666666666
+      }
+    },
+    "12": {
+      "name": "rule grouping test",
+      "cpu_ms": {
+        "baseline": 0.017333333333333333,
+        "snapshots": 0.016,
+        "tuned": 0.013166666666666667
+      }
+    },
+    "127": {
+      "name": "should allow overlapping things #512",
+      "cpu_ms": {
+        "baseline": 0.009666666666666667,
+        "snapshots": 0.0075,
+        "tuned": 0.007833333333333333
+      }
+    },
+    "297": {
+      "name": "The Far Away Danish Pastry is always Deliciouser.",
+      "cpu_ms": {
+        "baseline": 0.028166666666666666,
+        "snapshots": 0.0235,
+        "tuned": 0.0235
+      }
+    },
+    "461": {
+      "name": "#1067 [ player no wall ] test suite, No. 36",
+      "cpu_ms": {
+        "baseline": 0.0035,
+        "snapshots": 0.0035,
+        "tuned": 0.0029999999999999996
+      }
+    },
+    "457": {
+      "name": "#1067 [ player no wall ] test suite, No. 32",
+      "cpu_ms": {
+        "baseline": 0.0025,
+        "snapshots": 0.0026666666666666666,
+        "tuned": 0.002333333333333333
+      }
+    },
+    "468": {
+      "name": "#1067 [ player no wall ] test suite, No. 43",
+      "cpu_ms": {
+        "baseline": 0.0036666666666666666,
+        "snapshots": 0.0033333333333333335,
+        "tuned": 0.0033333333333333335
+      }
+    },
+    "467": {
+      "name": "#1067 [ player no wall ] test suite, No. 42",
+      "cpu_ms": {
+        "baseline": 0.0035,
+        "snapshots": 0.0035,
+        "tuned": 0.0033333333333333335
+      }
+    },
+    "305": {
+      "name": "NO FORBIDDEN SYMBOLS",
+      "cpu_ms": {
+        "baseline": 0.027833333333333335,
+        "snapshots": 0.022166666666666668,
+        "tuned": 0.0215
+      }
+    },
+    "463": {
+      "name": "#1067 [ player no wall ] test suite, No. 38",
+      "cpu_ms": {
+        "baseline": 0.004,
+        "snapshots": 0.0036666666666666666,
+        "tuned": 0.0038333333333333336
+      }
+    },
+    "459": {
+      "name": "#1067 [ player no wall ] test suite, No. 34",
+      "cpu_ms": {
+        "baseline": 0.0035,
+        "snapshots": 0.0035,
+        "tuned": 0.0031666666666666666
+      }
+    },
+    "462": {
+      "name": "#1067 [ player no wall ] test suite, No. 37",
+      "cpu_ms": {
+        "baseline": 0.002833333333333333,
+        "snapshots": 0.0031666666666666666,
+        "tuned": 0.0026666666666666666
+      }
+    },
+    "464": {
+      "name": "#1067 [ player no wall ] test suite, No. 39",
+      "cpu_ms": {
+        "baseline": 0.0029999999999999996,
+        "snapshots": 0.0033333333333333335,
+        "tuned": 0.002833333333333333
+      }
+    },
+    "458": {
+      "name": "#1067 [ player no wall ] test suite, No. 33",
+      "cpu_ms": {
+        "baseline": 0.0029999999999999996,
+        "snapshots": 0.0029999999999999996,
+        "tuned": 0.0029999999999999996
+      }
+    },
+    "465": {
+      "name": "#1067 [ player no wall ] test suite, No. 40",
+      "cpu_ms": {
+        "baseline": 0.0035,
+        "snapshots": 0.0035,
+        "tuned": 0.0035
+      }
+    },
+    "466": {
+      "name": "#1067 [ player no wall ] test suite, No. 41",
+      "cpu_ms": {
+        "baseline": 0.0026666666666666666,
+        "snapshots": 0.0029999999999999996,
+        "tuned": 0.0025
+      }
+    },
+    "142": {
+      "name": "second test for #492 movement not getting correctly cleared from tile",
+      "cpu_ms": {
+        "baseline": 0.004333333333333333,
+        "snapshots": 0.0055,
+        "tuned": 0.0045000000000000005
+      }
+    },
+    "2": {
+      "name": "sokoban with win condition",
+      "cpu_ms": {
+        "baseline": 0.05450000000000001,
+        "snapshots": 0.027000000000000003,
+        "tuned": 0.026500000000000003
+      }
+    },
+    "427": {
+      "name": "#1067 [ player no wall ] test suite, No. 2",
+      "cpu_ms": {
+        "baseline": 0.0029999999999999996,
+        "snapshots": 0.002833333333333333,
+        "tuned": 0.0029999999999999996
+      }
+    },
+    "428": {
+      "name": "#1067 [ player no wall ] test suite, No. 3",
+      "cpu_ms": {
+        "baseline": 0.0035,
+        "snapshots": 0.0035,
+        "tuned": 0.003333333333333333
+      }
+    },
+    "384": {
+      "name": "aggregates in win conditions 1",
+      "cpu_ms": {
+        "baseline": 0.03533333333333333,
+        "snapshots": 0.020999999999999998,
+        "tuned": 0.020166666666666666
+      }
+    },
+    "386": {
+      "name": "aggregates in win conditions 3",
+      "cpu_ms": {
+        "baseline": 0.03716666666666667,
+        "snapshots": 0.024833333333333332,
+        "tuned": 0.023333333333333334
+      }
+    },
+    "434": {
+      "name": "#1067 [ player no wall ] test suite, No. 9",
+      "cpu_ms": {
+        "baseline": 0.0038333333333333336,
+        "snapshots": 0.004,
+        "tuned": 0.0035
+      }
+    },
+    "438": {
+      "name": "#1067 [ player no wall ] test suite, No. 13",
+      "cpu_ms": {
+        "baseline": 0.0031666666666666666,
+        "snapshots": 0.0029999999999999996,
+        "tuned": 0.0029999999999999996
+      }
+    },
+    "396": {
+      "name": "Double-ellipsis testcase",
+      "cpu_ms": {
+        "baseline": 0.009166666666666667,
+        "snapshots": 0.0085,
+        "tuned": 0.008333333333333333
+      }
+    },
+    "439": {
+      "name": "#1067 [ player no wall ] test suite, No. 14",
+      "cpu_ms": {
+        "baseline": 0.0038333333333333336,
+        "snapshots": 0.004333333333333333,
+        "tuned": 0.004
+      }
+    },
+    "444": {
+      "name": "#1067 [ player no wall ] test suite, No. 19",
+      "cpu_ms": {
+        "baseline": 0.0035,
+        "snapshots": 0.0035,
+        "tuned": 0.0033333333333333335
+      }
+    },
+    "105": {
+      "name": "throttle movement",
+      "cpu_ms": {
+        "baseline": 0.011000000000000001,
+        "snapshots": 0.007166666666666667,
+        "tuned": 0.007666666666666666
+      }
+    },
+    "446": {
+      "name": "#1067 [ player no wall ] test suite, No. 21",
+      "cpu_ms": {
+        "baseline": 0.0029999999999999996,
+        "snapshots": 0.0029999999999999996,
+        "tuned": 0.0031666666666666666
+      }
+    },
+    "429": {
+      "name": "#1067 [ player no wall ] test suite, No. 4",
+      "cpu_ms": {
+        "baseline": 0.0025,
+        "snapshots": 0.0025,
+        "tuned": 0.0026666666666666666
+      }
+    },
+    "430": {
+      "name": "#1067 [ player no wall ] test suite, No. 5",
+      "cpu_ms": {
+        "baseline": 0.002833333333333333,
+        "snapshots": 0.0031666666666666666,
+        "tuned": 0.0023333333333333335
+      }
+    },
+    "441": {
+      "name": "#1067 [ player no wall ] test suite, No. 16",
+      "cpu_ms": {
+        "baseline": 0.004,
+        "snapshots": 0.0036666666666666666,
+        "tuned": 0.0033333333333333335
+      }
+    },
+    "449": {
+      "name": "#1067 [ player no wall ] test suite, No. 24",
+      "cpu_ms": {
+        "baseline": 0.002833333333333333,
+        "snapshots": 0.0029999999999999996,
+        "tuned": 0.0026666666666666666
+      }
+    },
+    "440": {
+      "name": "#1067 [ player no wall ] test suite, No. 15",
+      "cpu_ms": {
+        "baseline": 0.003666666666666667,
+        "snapshots": 0.004166666666666667,
+        "tuned": 0.004166666666666667
+      }
+    },
+    "442": {
+      "name": "#1067 [ player no wall ] test suite, No. 17",
+      "cpu_ms": {
+        "baseline": 0.0031666666666666666,
+        "snapshots": 0.0038333333333333336,
+        "tuned": 0.0036666666666666666
+      }
+    },
+    "443": {
+      "name": "#1067 [ player no wall ] test suite, No. 18",
+      "cpu_ms": {
+        "baseline": 0.0038333333333333336,
+        "snapshots": 0.004,
+        "tuned": 0.0038333333333333336
+      }
+    },
+    "454": {
+      "name": "#1067 [ player no wall ] test suite, No. 29",
+      "cpu_ms": {
+        "baseline": 0.0035,
+        "snapshots": 0.004333333333333333,
+        "tuned": 0.0029999999999999996
+      }
+    },
+    "432": {
+      "name": "#1067 [ player no wall ] test suite, No. 7",
+      "cpu_ms": {
+        "baseline": 0.0026666666666666666,
+        "snapshots": 0.003,
+        "tuned": 0.0023333333333333335
+      }
+    },
+    "431": {
+      "name": "#1067 [ player no wall ] test suite, No. 6",
+      "cpu_ms": {
+        "baseline": 0.003333333333333333,
+        "snapshots": 0.0033333333333333335,
+        "tuned": 0.0031666666666666666
+      }
+    },
+    "433": {
+      "name": "#1067 [ player no wall ] test suite, No. 8",
+      "cpu_ms": {
+        "baseline": 0.0036666666666666666,
+        "snapshots": 0.0036666666666666666,
+        "tuned": 0.0036666666666666666
+      }
+    },
+    "17": {
+      "name": "propagation test",
+      "cpu_ms": {
+        "baseline": 0.03683333333333333,
+        "snapshots": 0.03333333333333334,
+        "tuned": 0.03133333333333333
+      }
+    },
+    "320": {
+      "name": "Empty loop test",
+      "cpu_ms": {
+        "baseline": 0.023,
+        "snapshots": 0.0175,
+        "tuned": 0.016666666666666666
+      }
+    },
+    "437": {
+      "name": "#1067 [ player no wall ] test suite, No. 12",
+      "cpu_ms": {
+        "baseline": 0.0031666666666666666,
+        "snapshots": 0.0033333333333333335,
+        "tuned": 0.003666666666666667
+      }
+    },
+    "445": {
+      "name": "#1067 [ player no wall ] test suite, No. 20",
+      "cpu_ms": {
+        "baseline": 0.0038333333333333336,
+        "snapshots": 0.0036666666666666666,
+        "tuned": 0.004166666666666667
+      }
+    },
+    "447": {
+      "name": "#1067 [ player no wall ] test suite, No. 22",
+      "cpu_ms": {
+        "baseline": 0.002833333333333333,
+        "snapshots": 0.0026666666666666666,
+        "tuned": 0.0025
+      }
+    },
+    "435": {
+      "name": "#1067 [ player no wall ] test suite, No. 10",
+      "cpu_ms": {
+        "baseline": 0.002833333333333333,
+        "snapshots": 0.0031666666666666666,
+        "tuned": 0.0026666666666666666
+      }
+    },
+    "448": {
+      "name": "#1067 [ player no wall ] test suite, No. 23",
+      "cpu_ms": {
+        "baseline": 0.0029999999999999996,
+        "snapshots": 0.0029999999999999996,
+        "tuned": 0.0031666666666666666
+      }
+    },
+    "436": {
+      "name": "#1067 [ player no wall ] test suite, No. 11",
+      "cpu_ms": {
+        "baseline": 0.002833333333333333,
+        "snapshots": 0.0029999999999999996,
+        "tuned": 0.0033333333333333335
+      }
+    },
+    "450": {
+      "name": "#1067 [ player no wall ] test suite, No. 25",
+      "cpu_ms": {
+        "baseline": 0.002833333333333333,
+        "snapshots": 0.0029999999999999996,
+        "tuned": 0.0031666666666666666
+      }
+    },
+    "451": {
+      "name": "#1067 [ player no wall ] test suite, No. 26",
+      "cpu_ms": {
+        "baseline": 0.003,
+        "snapshots": 0.0031666666666666666,
+        "tuned": 0.0028333333333333335
+      }
+    },
+    "452": {
+      "name": "#1067 [ player no wall ] test suite, No. 27",
+      "cpu_ms": {
+        "baseline": 0.0033333333333333335,
+        "snapshots": 0.0031666666666666666,
+        "tuned": 0.002833333333333333
+      }
+    },
+    "453": {
+      "name": "#1067 [ player no wall ] test suite, No. 28",
+      "cpu_ms": {
+        "baseline": 0.003,
+        "snapshots": 0.0031666666666666666,
+        "tuned": 0.0031666666666666666
+      }
+    },
+    "422": {
+      "name": "aggregate player allowed #1032",
+      "cpu_ms": {
+        "baseline": 0.03366666666666667,
+        "snapshots": 0.024499999999999997,
+        "tuned": 0.023999999999999997
+      }
+    },
+    "387": {
+      "name": "aggregates in win conditions 4",
+      "cpu_ms": {
+        "baseline": 0.03866666666666667,
+        "snapshots": 0.023666666666666666,
+        "tuned": 0.0225
+      }
+    },
+    "391": {
+      "name": "double ellipsis simple test",
+      "cpu_ms": {
+        "baseline": 0.021333333333333333,
+        "snapshots": 0.020833333333333336,
+        "tuned": 0.015
+      }
+    },
+    "23": {
+      "name": "beginloop/endloop with mutual recursion",
+      "cpu_ms": {
+        "baseline": 0.063,
+        "snapshots": 0.063,
+        "tuned": 0.060333333333333336
+      }
+    },
+    "379": {
+      "name": "Restart command on level start",
+      "cpu_ms": {
+        "baseline": 0.008166666666666666,
+        "snapshots": 0.006500000000000001,
+        "tuned": 0.006166666666666666
+      }
+    },
+    "19": {
+      "name": "beginloop/endloop test",
+      "cpu_ms": {
+        "baseline": 0.007166666666666667,
+        "snapshots": 0.007166666666666667,
+        "tuned": 0.006333333333333333
+      }
+    },
+    "381": {
+      "name": "Audio Test 1",
+      "cpu_ms": {
+        "baseline": 0.025166666666666664,
+        "snapshots": 0.016,
+        "tuned": 0.0155
+      }
+    },
+    "132": {
+      "name": "Recent update broke some games with tabs in the source code #609",
+      "cpu_ms": {
+        "baseline": 0.026166666666666668,
+        "snapshots": 0.015166666666666665,
+        "tuned": 0.014499999999999999
+      }
+    },
+    "397": {
+      "name": "Double-ellipsis delicate test case",
+      "cpu_ms": {
+        "baseline": 0.0045000000000000005,
+        "snapshots": 0.004333333333333333,
+        "tuned": 0.004
+      }
+    },
+    "414": {
+      "name": "coverage of concretizeMovingInCellByAmbiguousMovementName",
+      "cpu_ms": {
+        "baseline": 0.028999999999999998,
+        "snapshots": 0.018833333333333334,
+        "tuned": 0.018
+      }
+    },
+    "110": {
+      "name": "bug #186 - 'no property' on the RHS should clear objects",
+      "cpu_ms": {
+        "baseline": 0.016833333333333332,
+        "snapshots": 0.013000000000000001,
+        "tuned": 0.012166666666666666
+      }
+    },
+    "425": {
+      "name": "aggregate player allowed D #1032",
+      "cpu_ms": {
+        "baseline": 0.017833333333333333,
+        "snapshots": 0.01616666666666667,
+        "tuned": 0.015666666666666666
+      }
+    },
+    "385": {
+      "name": "aggregates in win conditions 2",
+      "cpu_ms": {
+        "baseline": 0.013,
+        "snapshots": 0.011333333333333334,
+        "tuned": 0.011166666666666668
+      }
+    },
+    "470": {
+      "name": "lhsHasOverlappingRequiredLayers",
+      "cpu_ms": {
+        "baseline": 0.0315,
+        "snapshots": 0.020666666666666667,
+        "tuned": 0.019833333333333335
+      }
+    },
+    "121": {
+      "name": "Rigid weirdness test (#369)",
+      "cpu_ms": {
+        "baseline": 0.007333333333333333,
+        "snapshots": 0.006666666666666667,
+        "tuned": 0.006500000000000001
+      }
+    },
+    "365": {
+      "name": "rigid applies to movements even if they are removed and subsequently readded",
+      "cpu_ms": {
+        "baseline": 0.004833333333333334,
+        "snapshots": 0.004833333333333334,
+        "tuned": 0.005
+      }
+    },
+    "141": {
+      "name": "movement not getting correctly cleared from tile - #492",
+      "cpu_ms": {
+        "baseline": 0.007666666666666666,
+        "snapshots": 0.006833333333333334,
+        "tuned": 0.005999999999999999
+      }
+    },
+    "9": {
+      "name": "undo test",
+      "cpu_ms": {
+        "baseline": 0.014333333333333333,
+        "snapshots": 0.011333333333333334,
+        "tuned": 0.010833333333333334
+      }
+    },
+    "137": {
+      "name": "Win condition test \"NO X ON Y\"",
+      "cpu_ms": {
+        "baseline": 0.0175,
+        "snapshots": 0.015166666666666665,
+        "tuned": 0.013166666666666667
+      }
+    },
+    "366": {
+      "name": "rigid applies to movements even if they are removed",
+      "cpu_ms": {
+        "baseline": 0.005333333333333333,
+        "snapshots": 0.0045000000000000005,
+        "tuned": 0.005
+      }
+    },
+    "139": {
+      "name": "Test for trigger message at same time as reset",
+      "cpu_ms": {
+        "baseline": 0.013000000000000001,
+        "snapshots": 0.010166666666666668,
+        "tuned": 0.009833333333333333
+      }
+    },
+    "376": {
+      "name": "rigid: even a rigid rule removing an object marks the position/layer of the removed object as rigid.",
+      "cpu_ms": {
+        "baseline": 0.007,
+        "snapshots": 0.006833333333333334,
+        "tuned": 0.006833333333333334
+      }
+    },
+    "363": {
+      "name": "rigid applies to movements even if the movements are chagned by subsequent non-rigid rules in other groups",
+      "cpu_ms": {
+        "baseline": 0.006500000000000001,
+        "snapshots": 0.005833333333333333,
+        "tuned": 0.005999999999999999
+      }
+    },
+    "130": {
+      "name": "Bug: \"norestart\" prelude option can interfere with \"restart\" command #411",
+      "cpu_ms": {
+        "baseline": 0.015166666666666665,
+        "snapshots": 0.011666666666666667,
+        "tuned": 0.010333333333333333
+      }
+    },
+    "123": {
+      "name": "a = b and b #393",
+      "cpu_ms": {
+        "baseline": 0.009333333333333334,
+        "snapshots": 0.007833333333333333,
+        "tuned": 0.007166666666666667
+      }
+    },
+    "382": {
+      "name": "Audio Test 2",
+      "cpu_ms": {
+        "baseline": 0.009333333333333334,
+        "snapshots": 0.008166666666666666,
+        "tuned": 0.007333333333333333
+      }
+    },
+    "323": {
+      "name": "in sound section can't mention an object called horizontali - cf #757",
+      "cpu_ms": {
+        "baseline": 0.008833333333333332,
+        "snapshots": 0.007833333333333333,
+        "tuned": 0.007666666666666666
+      }
+    },
+    "48": {
+      "name": "random movement determinism test",
+      "cpu_ms": {
+        "baseline": 0.006166666666666666,
+        "snapshots": 0.006,
+        "tuned": 0.005
+      }
+    },
+    "417": {
+      "name": "parser rigid in strange place highlighting test",
+      "cpu_ms": {
+        "baseline": 0.013833333333333333,
+        "snapshots": 0.01,
+        "tuned": 0.009833333333333333
+      }
+    },
+    "629": {
+      "name": "semantic: interaction-session/rigid-again: actual again retries after speculative retry",
+      "cpu_ms": {
+        "baseline": 0.010666666666666668,
+        "snapshots": 0.010666666666666666,
+        "tuned": 0.010666666666666666
+      }
+    },
+    "49": {
+      "name": "random instances of properties",
+      "cpu_ms": {
+        "baseline": 0.008,
+        "snapshots": 0.009,
+        "tuned": 0.008166666666666666
+      }
+    },
+    "321": {
+      "name": "Loop example with both late and regular rules.",
+      "cpu_ms": {
+        "baseline": 0.009500000000000001,
+        "snapshots": 0.009166666666666667,
+        "tuned": 0.009166666666666667
+      }
+    },
+    "152": {
+      "name": "super tricky (related to #469) right [ vertical playerortarget | vertical player ] -> [ vertical playerortarget  |  vertical playerortarget ] ",
+      "cpu_ms": {
+        "baseline": 0.0035,
+        "snapshots": 0.0036666666666666666,
+        "tuned": 0.003333333333333333
+      }
+    },
+    "423": {
+      "name": "aggregate player allowed B #1032",
+      "cpu_ms": {
+        "baseline": 0.008666666666666666,
+        "snapshots": 0.0075,
+        "tuned": 0.007333333333333333
+      }
+    },
+    "37": {
+      "name": "ortho test 1",
+      "cpu_ms": {
+        "baseline": 0.014833333333333334,
+        "snapshots": 0.014166666666666666,
+        "tuned": 0.014333333333333332
+      }
+    },
+    "424": {
+      "name": "aggregate player allowed C #1032",
+      "cpu_ms": {
+        "baseline": 0.004833333333333334,
+        "snapshots": 0.004833333333333334,
+        "tuned": 0.004666666666666667
+      }
+    },
+    "630": {
+      "name": "semantic: interaction-session/rigid-again: undo restores whole action and automatic retry",
+      "cpu_ms": {
+        "baseline": 0.008833333333333332,
+        "snapshots": 0.008666666666666666,
+        "tuned": 0.0085
+      }
+    },
+    "631": {
+      "name": "semantic: interaction-session/rigid-again: automatic retry checkpoint persists through undo",
+      "cpu_ms": {
+        "baseline": 0.0085,
+        "snapshots": 0.008333333333333333,
+        "tuned": 0.007833333333333333
+      }
+    },
+    "632": {
+      "name": "semantic: interaction-session/rigid-again: explicit restart preserves automatic checkpoint",
+      "cpu_ms": {
+        "baseline": 0.008666666666666666,
+        "snapshots": 0.007833333333333333,
+        "tuned": 0.007333333333333333
+      }
+    },
+    "138": {
+      "name": "Test for cancel cancelling restart #374",
+      "cpu_ms": {
+        "baseline": 0.013166666666666667,
+        "snapshots": 0.011,
+        "tuned": 0.009833333333333333
+      }
+    },
+    "116": {
+      "name": "Failed rigid groups shouldn't block late rule execution. #254",
+      "cpu_ms": {
+        "baseline": 0.008666666666666666,
+        "snapshots": 0.0085,
+        "tuned": 0.007666666666666667
+      }
+    },
+    "375": {
+      "name": "rigid: even removing and re-adding an object doesn't remove the rigid tag from that position and layer.",
+      "cpu_ms": {
+        "baseline": 0.007166666666666667,
+        "snapshots": 0.006833333333333334,
+        "tuned": 0.006833333333333334
+      }
+    },
+    "415": {
+      "name": "trigger delete newmetadata.flickscreen",
+      "cpu_ms": {
+        "baseline": 0.005833333333333333,
+        "snapshots": 0.005666666666666666,
+        "tuned": 0.004833333333333334
+      }
+    },
+    "129": {
+      "name": "Can't start message with section keywords #490",
+      "cpu_ms": {
+        "baseline": 0.0023333333333333335,
+        "snapshots": 0.0021666666666666666,
+        "tuned": 0.002333333333333333
+      }
+    },
+    "136": {
+      "name": "Win condition test \"SOME X ON Y\"",
+      "cpu_ms": {
+        "baseline": 0.019833333333333335,
+        "snapshots": 0.014499999999999999,
+        "tuned": 0.013666666666666667
+      }
+    },
+    "131": {
+      "name": "undoing reset undoes two steps, not one #453",
+      "cpu_ms": {
+        "baseline": 0.004333333333333333,
+        "snapshots": 0.004,
+        "tuned": 0.0036666666666666666
+      }
+    },
+    "134": {
+      "name": "Win condition test \"NO X\"",
+      "cpu_ms": {
+        "baseline": 0.007333333333333333,
+        "snapshots": 0.006666666666666667,
+        "tuned": 0.006833333333333334
+      }
+    },
+    "371": {
+      "name": "rigid DOES apply to objects if a movement on the RHS is removed explicitly [by not mentioning a movement matched on the LHS]",
+      "cpu_ms": {
+        "baseline": 0.005833333333333333,
+        "snapshots": 0.005666666666666667,
+        "tuned": 0.005333333333333333
+      }
+    },
+    "419": {
+      "name": "Levels can not contain glyphs that resemble section names #976",
+      "cpu_ms": {
+        "baseline": 0.007166666666666667,
+        "snapshots": 0.006,
+        "tuned": 0.005666666666666666
+      }
+    },
+    "38": {
+      "name": "ortho test 2",
+      "cpu_ms": {
+        "baseline": 0.012833333333333332,
+        "snapshots": 0.013,
+        "tuned": 0.012166666666666666
+      }
+    },
+    "368": {
+      "name": "rigid applies to movements even if the initial movement applied is an STATIONARY that is later changed to a movement",
+      "cpu_ms": {
+        "baseline": 0.007333333333333333,
+        "snapshots": 0.007166666666666667,
+        "tuned": 0.007
+      }
+    },
+    "398": {
+      "name": "Autowin",
+      "cpu_ms": {
+        "baseline": 0.007,
+        "snapshots": 0.006333333333333333,
+        "tuned": 0.005833333333333333
+      }
+    },
+    "416": {
+      "name": "trigger delete newmetadata.zoomscreen",
+      "cpu_ms": {
+        "baseline": 0.004166666666666667,
+        "snapshots": 0.004,
+        "tuned": 0.0036666666666666666
+      }
+    },
+    "372": {
+      "name": "rigid DOES apply to objects if a movement on the RHS is removed explicitly, even if the object is replaced by another one on the same layer",
+      "cpu_ms": {
+        "baseline": 0.006500000000000001,
+        "snapshots": 0.006,
+        "tuned": 0.005666666666666667
+      }
+    },
+    "418": {
+      "name": "background_color transparent code path",
+      "cpu_ms": {
+        "baseline": 0.005166666666666667,
+        "snapshots": 0.004666666666666667,
+        "tuned": 0.0045000000000000005
+      }
+    },
+    "112": {
+      "name": "Make synonyms of properties work. #230",
+      "cpu_ms": {
+        "baseline": 0.004833333333333334,
+        "snapshots": 0.004166666666666667,
+        "tuned": 0.0036666666666666666
+      }
+    },
+    "373": {
+      "name": "rigid DOES NOT apply to objects if a movement on the RHS is assigned, and later the object is replaced by an object on another layer",
+      "cpu_ms": {
+        "baseline": 0.0034999999999999996,
+        "snapshots": 0.0036666666666666666,
+        "tuned": 0.0035
+      }
+    },
+    "611": {
+      "name": "semantic: interaction-matching/random-ellipsis-cartesian: undo replay retains the first two draws and selects a blue transfer with apple",
+      "cpu_ms": {
+        "baseline": 0.009666666666666667,
+        "snapshots": 0.009833333333333333,
+        "tuned": 0.009666666666666667
+      }
+    },
+    "364": {
+      "name": "rigid applies to movements even if the objects are changed to different objects in the same layer",
+      "cpu_ms": {
+        "baseline": 0.005999999999999999,
+        "snapshots": 0.005666666666666666,
+        "tuned": 0.005666666666666667
+      }
+    },
+    "370": {
+      "name": "rigid DOES NOT apply to objects if a movement on the RHS is removed implicitly [by not mentioning a movement matched on the LHS]",
+      "cpu_ms": {
+        "baseline": 0.0036666666666666666,
+        "snapshots": 0.0038333333333333336,
+        "tuned": 0.004
+      }
+    },
+    "153": {
+      "name": "right [ vertical playerortarget | vertical player ] -> [ vertical player  |  vertical playerortarget ]",
+      "cpu_ms": {
+        "baseline": 0.0038333333333333336,
+        "snapshots": 0.0038333333333333336,
+        "tuned": 0.0036666666666666666
+      }
+    },
+    "374": {
+      "name": "misc rigid test",
+      "cpu_ms": {
+        "baseline": 0.004166666666666667,
+        "snapshots": 0.0036666666666666666,
+        "tuned": 0.0038333333333333336
+      }
+    },
+    "609": {
+      "name": "semantic: interaction-matching/random-ellipsis-cartesian: remaining candidate and separate object draw fill the opposite pair",
+      "cpu_ms": {
+        "baseline": 0.008,
+        "snapshots": 0.0075,
+        "tuned": 0.0075
+      }
+    },
+    "369": {
+      "name": "rigid DOES NOT apply to objects if the rule is totally inert except for triggering SFX",
+      "cpu_ms": {
+        "baseline": 0.003666666666666667,
+        "snapshots": 0.0035,
+        "tuned": 0.0033333333333333335
+      }
+    },
+    "608": {
+      "name": "semantic: interaction-matching/random-ellipsis-cartesian: row-zero-fastest candidate order chooses the left token and farther target",
+      "cpu_ms": {
+        "baseline": 0.006333333333333333,
+        "snapshots": 0.006666666666666666,
+        "tuned": 0.006666666666666667
+      }
+    },
+    "610": {
+      "name": "semantic: interaction-matching/random-ellipsis-cartesian: undo restores the first chosen ellipsis tuple and its prize",
+      "cpu_ms": {
+        "baseline": 0.008,
+        "snapshots": 0.008,
+        "tuned": 0.0075
+      }
+    },
+    "367": {
+      "name": "rigid applies to movements even if the initial movement applied is an ACTION that is later changed to a movement",
+      "cpu_ms": {
+        "baseline": 0.005,
+        "snapshots": 0.005,
+        "tuned": 0.004833333333333334
+      }
+    },
+    "119": {
+      "name": "Laser movement check (#264)",
+      "cpu_ms": {
+        "baseline": 0.014166666666666666,
+        "snapshots": 0.013333333333333334,
+        "tuned": 0.012166666666666666
+      }
+    },
+    "135": {
+      "name": "Win condition test \"SOME X\"",
+      "cpu_ms": {
+        "baseline": 0.005333333333333333,
+        "snapshots": 0.005,
+        "tuned": 0.0045000000000000005
+      }
+    },
+    "619": {
+      "name": "semantic: interaction-session/rigid-checkpoint: replay checkpoints fourth draw",
+      "cpu_ms": {
+        "baseline": 0.008333333333333333,
+        "snapshots": 0.008,
+        "tuned": 0.007666666666666666
+      }
+    },
+    "399": {
+      "name": "Autowin2",
+      "cpu_ms": {
+        "baseline": 0.004166666666666667,
+        "snapshots": 0.004166666666666667,
+        "tuned": 0.0036666666666666666
+      }
+    },
+    "617": {
+      "name": "semantic: interaction-session/rigid-checkpoint: failed push checkpoints second draw",
+      "cpu_ms": {
+        "baseline": 0.006666666666666666,
+        "snapshots": 0.007666666666666666,
+        "tuned": 0.006833333333333334
+      }
+    },
+    "140": {
+      "name": "Test for trigger message at same time as cancel",
+      "cpu_ms": {
+        "baseline": 0.005,
+        "snapshots": 0.005333333333333334,
+        "tuned": 0.005
+      }
+    },
+    "108": {
+      "name": "multiple patterns not checking for modifications",
+      "cpu_ms": {
+        "baseline": 0.0036666666666666666,
+        "snapshots": 0.0033333333333333335,
+        "tuned": 0.0036666666666666666
+      }
+    },
+    "13": {
+      "name": "simple rigid test",
+      "cpu_ms": {
+        "baseline": 0.006333333333333333,
+        "snapshots": 0.006,
+        "tuned": 0.005833333333333333
+      }
+    },
+    "479": {
+      "name": "rigid ownership: overlapping rules roll back on action (#1206)",
+      "cpu_ms": {
+        "baseline": 0.0125,
+        "snapshots": 0.012833333333333332,
+        "tuned": 0.013166666666666667
+      }
+    },
+    "621": {
+      "name": "semantic: interaction-session/rigid-checkpoint: restart restores successful retry checkpoint",
+      "cpu_ms": {
+        "baseline": 0.006166666666666666,
+        "snapshots": 0.005833333333333333,
+        "tuned": 0.0055
+      }
+    },
+    "622": {
+      "name": "semantic: interaction-session/rigid-checkpoint: undo restart restores departure board",
+      "cpu_ms": {
+        "baseline": 0.006166666666666666,
+        "snapshots": 0.005833333333333333,
+        "tuned": 0.005999999999999999
+      }
+    },
+    "620": {
+      "name": "semantic: interaction-session/rigid-checkpoint: player can leave saved retry board",
+      "cpu_ms": {
+        "baseline": 0.005,
+        "snapshots": 0.005166666666666667,
+        "tuned": 0.005166666666666667
+      }
+    },
+    "637": {
+      "name": "semantic: interaction-session/again-cancel: actual blue cancels after successful red probe",
+      "cpu_ms": {
+        "baseline": 0.005666666666666667,
+        "snapshots": 0.005833333333333333,
+        "tuned": 0.005166666666666667
+      }
+    },
+    "618": {
+      "name": "semantic: interaction-session/rigid-checkpoint: undo restores token but preserves consumed draws",
+      "cpu_ms": {
+        "baseline": 0.004666666666666666,
+        "snapshots": 0.004666666666666667,
+        "tuned": 0.004666666666666667
+      }
+    },
+    "623": {
+      "name": "semantic: interaction-session/rigid-checkpoint: undo original input does not erase retry checkpoint",
+      "cpu_ms": {
+        "baseline": 0.004666666666666667,
+        "snapshots": 0.004833333333333334,
+        "tuned": 0.004
+      }
+    },
+    "143": {
+      "name": "third test for #492 movement not getting correctly cleared from tile",
+      "cpu_ms": {
+        "baseline": 0.0021666666666666666,
+        "snapshots": 0.0026666666666666666,
+        "tuned": 0.002333333333333333
+      }
+    },
+    "607": {
+      "name": "semantic: interaction-matching/random-ellipsis-cartesian: load exposes eight variant and Cartesian candidates",
+      "cpu_ms": {
+        "baseline": 0.0,
+        "snapshots": 0.0003333333333333333,
+        "tuned": 0.0005
+      }
+    },
+    "44": {
+      "name": "movement matching - ellipsis bug - forgot to include one case in above",
+      "cpu_ms": {
+        "baseline": 0.0033333333333333335,
+        "snapshots": 0.0036666666666666666,
+        "tuned": 0.0029999999999999996
+      }
+    },
+    "641": {
+      "name": "semantic: interaction-session/again-cancel: tick checkpoint survives undo of initiating action",
+      "cpu_ms": {
+        "baseline": 0.0055,
+        "snapshots": 0.005166666666666667,
+        "tuned": 0.005166666666666667
+      }
+    },
+    "613": {
+      "name": "semantic: interaction-matching/two-ellipsis-relay-live: two inferred members consume separate live relays and endpoints",
+      "cpu_ms": {
+        "baseline": 0.0029999999999999996,
+        "snapshots": 0.0033333333333333335,
+        "tuned": 0.0031666666666666666
+      }
+    },
+    "616": {
+      "name": "semantic: interaction-matching/two-ellipsis-relay-live: unequal first gaps combine with nonempty and empty second gaps",
+      "cpu_ms": {
+        "baseline": 0.002,
+        "snapshots": 0.0021666666666666666,
+        "tuned": 0.0023333333333333335
+      }
+    },
+    "626": {
+      "name": "semantic: interaction-session/rigid-cancel: second action commits fourth draw and checkpoints",
+      "cpu_ms": {
+        "baseline": 0.007166666666666667,
+        "snapshots": 0.007166666666666667,
+        "tuned": 0.006833333333333334
+      }
+    },
+    "638": {
+      "name": "semantic: interaction-session/again-cancel: undo canceled automatic turn restores initial board",
+      "cpu_ms": {
+        "baseline": 0.004833333333333334,
+        "snapshots": 0.004333333333333333,
+        "tuned": 0.004833333333333334
+      }
+    },
+    "7": {
+      "name": "ellipsisPropagationBug1",
+      "cpu_ms": {
+        "baseline": 0.015,
+        "snapshots": 0.013500000000000002,
+        "tuned": 0.011166666666666668
+      }
+    },
+    "571": {
+      "name": "semantic: inference/moving-propagation: up propagates across a rightward pattern",
+      "cpu_ms": {
+        "baseline": 0.0029999999999999996,
+        "snapshots": 0.0033333333333333335,
+        "tuned": 0.0029999999999999996
+      }
+    },
+    "639": {
+      "name": "semantic: interaction-session/again-cancel: restart after undo restores last actual checkpoint",
+      "cpu_ms": {
+        "baseline": 0.004833333333333334,
+        "snapshots": 0.004666666666666667,
+        "tuned": 0.004666666666666667
+      }
+    },
+    "640": {
+      "name": "semantic: interaction-session/again-cancel: tick after cancellation uses third draw and checkpoints red",
+      "cpu_ms": {
+        "baseline": 0.004833333333333334,
+        "snapshots": 0.0045000000000000005,
+        "tuned": 0.004833333333333334
+      }
+    },
+    "495": {
+      "name": "Duplicate property expansion: repeated conversions survive separate rule groups (#1123)",
+      "cpu_ms": {
+        "baseline": 0.0021666666666666666,
+        "snapshots": 0.0026666666666666666,
+        "tuned": 0.0026666666666666666
+      }
+    },
+    "614": {
+      "name": "semantic: interaction-matching/two-ellipsis-relay-live: spent middle cells and cleared origins prevent another transfer",
+      "cpu_ms": {
+        "baseline": 0.0026666666666666666,
+        "snapshots": 0.0021666666666666666,
+        "tuned": 0.0024999999999999996
+      }
+    },
+    "624": {
+      "name": "semantic: interaction-session/rigid-cancel: blue retry cancels but outputs its command sound",
+      "cpu_ms": {
+        "baseline": 0.005,
+        "snapshots": 0.005,
+        "tuned": 0.005
+      }
+    },
+    "627": {
+      "name": "semantic: interaction-session/rigid-cancel: undo committed retry returns to restored token",
+      "cpu_ms": {
+        "baseline": 0.0075,
+        "snapshots": 0.007333333333333333,
+        "tuned": 0.007
+      }
+    },
+    "628": {
+      "name": "semantic: interaction-session/rigid-cancel: restart after undo keeps red checkpoint",
+      "cpu_ms": {
+        "baseline": 0.007333333333333333,
+        "snapshots": 0.007166666666666667,
+        "tuned": 0.007333333333333333
+      }
+    },
+    "421": {
+      "name": "Missing/Skipping Rules? Objects disappear for no reason? #1046",
+      "cpu_ms": {
+        "baseline": 0.016833333333333332,
+        "snapshots": 0.013666666666666667,
+        "tuned": 0.013500000000000002
+      }
+    },
+    "612": {
+      "name": "semantic: interaction-matching/two-ellipsis-relay-live: load keeps both relays and all four empty targets",
+      "cpu_ms": {
+        "baseline": 0.0,
+        "snapshots": 0.0003333333333333333,
+        "tuned": 0.00016666666666666666
+      }
+    },
+    "615": {
+      "name": "semantic: interaction-matching/two-ellipsis-relay-live: one consumed relay leaves blue stranded beside unused targets",
+      "cpu_ms": {
+        "baseline": 0.0013333333333333333,
+        "snapshots": 0.0016666666666666668,
+        "tuned": 0.0011666666666666665
+      }
+    },
+    "36": {
+      "name": "rule application hat test",
+      "cpu_ms": {
+        "baseline": 0.0023333333333333335,
+        "snapshots": 0.0018333333333333335,
+        "tuned": 0.0021666666666666666
+      }
+    },
+    "481": {
+      "name": "rigid ownership: overlapping rules across movement words on action (#1206)",
+      "cpu_ms": {
+        "baseline": 0.005666666666666666,
+        "snapshots": 0.005333333333333333,
+        "tuned": 0.0055
+      }
+    },
+    "591": {
+      "name": "semantic: interaction-matching/unique-multirow-transfer: exhausted sources cannot transfer again",
+      "cpu_ms": {
+        "baseline": 0.006333333333333333,
+        "snapshots": 0.006166666666666666,
+        "tuned": 0.0055
+      }
+    },
+    "595": {
+      "name": "semantic: interaction-matching/cross-layer-row-overlap: marks block all later member variants",
+      "cpu_ms": {
+        "baseline": 0.005,
+        "snapshots": 0.004833333333333334,
+        "tuned": 0.005
+      }
+    },
+    "493": {
+      "name": "Duplicate property expansion: random group removes duplicate weighting (seed 1, #1123)",
+      "cpu_ms": {
+        "baseline": 0.004666666666666667,
+        "snapshots": 0.005,
+        "tuned": 0.005999999999999999
+      }
+    },
+    "590": {
+      "name": "semantic: interaction-matching/unique-multirow-transfer: next action binds the remaining blue into the second target",
+      "cpu_ms": {
+        "baseline": 0.005666666666666667,
+        "snapshots": 0.005166666666666667,
+        "tuned": 0.005833333333333333
+      }
+    },
+    "594": {
+      "name": "semantic: interaction-matching/cross-layer-row-overlap: next action consumes only the remaining unmarked blue",
+      "cpu_ms": {
+        "baseline": 0.004166666666666667,
+        "snapshots": 0.004166666666666667,
+        "tuned": 0.004
+      }
+    },
+    "625": {
+      "name": "semantic: interaction-session/rigid-cancel: canceled retry leaves no undo entry",
+      "cpu_ms": {
+        "baseline": 0.004,
+        "snapshots": 0.0038333333333333336,
+        "tuned": 0.004
+      }
+    },
+    "642": {
+      "name": "semantic: interaction-session/again-restart: speculative restart followed by actual blue",
+      "cpu_ms": {
+        "baseline": 0.005166666666666667,
+        "snapshots": 0.0055,
+        "tuned": 0.005
+      }
+    },
+    "646": {
+      "name": "semantic: interaction-session/again-restart: later tick leaves native done blue but completes labs restart",
+      "cpu_ms": {
+        "baseline": 0.0055,
+        "snapshots": 0.005666666666666666,
+        "tuned": 0.005333333333333334
+      }
+    },
+    "701": {
+      "name": "semantic: movement/rigid-random-consumption: rollback keeps consumed random draw",
+      "cpu_ms": {
+        "baseline": 0.004166666666666667,
+        "snapshots": 0.004666666666666667,
+        "tuned": 0.004333333333333333
+      }
+    },
+    "703": {
+      "name": "semantic: movement/rigid-random-consumption: undo restores token but not random stream",
+      "cpu_ms": {
+        "baseline": 0.005,
+        "snapshots": 0.005166666666666667,
+        "tuned": 0.005166666666666667
+      }
+    },
+    "645": {
+      "name": "semantic: interaction-session/again-restart: explicit restart returns to pre-color checkpoint",
+      "cpu_ms": {
+        "baseline": 0.005166666666666667,
+        "snapshots": 0.004833333333333334,
+        "tuned": 0.005
+      }
+    },
+    "484": {
+      "name": "rigid ownership: a later rule still owns new layers across movement words (#1206)",
+      "cpu_ms": {
+        "baseline": 0.005666666666666667,
+        "snapshots": 0.0055,
+        "tuned": 0.0055
+      }
+    },
+    "572": {
+      "name": "semantic: inference/moving-propagation: down propagates across a rightward pattern",
+      "cpu_ms": {
+        "baseline": 0.0021666666666666666,
+        "snapshots": 0.0023333333333333335,
+        "tuned": 0.0021666666666666666
+      }
+    },
+    "589": {
+      "name": "semantic: interaction-matching/unique-multirow-transfer: red variant wins before the spatially earlier blue source",
+      "cpu_ms": {
+        "baseline": 0.004166666666666667,
+        "snapshots": 0.0036666666666666666,
+        "tuned": 0.004333333333333333
+      }
+    },
+    "322": {
+      "name": "\"right [ Player ] -> [ up Player ]\" gets compiled to down #755",
+      "cpu_ms": {
+        "baseline": 0.004,
+        "snapshots": 0.0035,
+        "tuned": 0.004333333333333333
+      }
+    },
+    "573": {
+      "name": "semantic: inference/moving-propagation: right propagates along the pattern",
+      "cpu_ms": {
+        "baseline": 0.0021666666666666666,
+        "snapshots": 0.0018333333333333335,
+        "tuned": 0.0018333333333333335
+      }
+    },
+    "643": {
+      "name": "semantic: interaction-session/again-restart: one undo reaches pre-again restart snapshot",
+      "cpu_ms": {
+        "baseline": 0.005166666666666667,
+        "snapshots": 0.005,
+        "tuned": 0.005
+      }
+    },
+    "644": {
+      "name": "semantic: interaction-session/again-restart: second undo reaches initiating input boundary",
+      "cpu_ms": {
+        "baseline": 0.004666666666666666,
+        "snapshots": 0.004333333333333333,
+        "tuned": 0.004666666666666667
+      }
+    },
+    "593": {
+      "name": "semantic: interaction-matching/cross-layer-row-overlap: same-cell second row removes red but retains blue and the first mark",
+      "cpu_ms": {
+        "baseline": 0.002833333333333333,
+        "snapshots": 0.0026666666666666666,
+        "tuned": 0.0026666666666666666
+      }
+    },
+    "596": {
+      "name": "semantic: interaction-matching/cross-layer-row-overlap: red variant order outranks the leftmost blue position",
+      "cpu_ms": {
+        "baseline": 0.002,
+        "snapshots": 0.002,
+        "tuned": 0.0021666666666666666
+      }
+    },
+    "151": {
+      "name": "2nd alternative test for: right [ vertical Player | perpendicular Player ] -> [ perpendicular Player | ] produces error #682",
+      "cpu_ms": {
+        "baseline": 0.0036666666666666666,
+        "snapshots": 0.0038333333333333336,
+        "tuned": 0.0035
+      }
+    },
+    "494": {
+      "name": "Duplicate property expansion: random group removes duplicate weighting (seed 5, #1123)",
+      "cpu_ms": {
+        "baseline": 0.0023333333333333335,
+        "snapshots": 0.0025,
+        "tuned": 0.0025
+      }
+    },
+    "26": {
+      "name": "simple sokobond test",
+      "cpu_ms": {
+        "baseline": 0.002833333333333333,
+        "snapshots": 0.0026666666666666666,
+        "tuned": 0.0025
+      }
+    },
+    "482": {
+      "name": "rigid ownership: overlapping rules across movement words on a no-input tick (#1206)",
+      "cpu_ms": {
+        "baseline": 0.0038333333333333336,
+        "snapshots": 0.004,
+        "tuned": 0.004
+      }
+    },
+    "578": {
+      "name": "semantic: inference/independent-moving: different local movements survive a mixed property match",
+      "cpu_ms": {
+        "baseline": 0.0033333333333333335,
+        "snapshots": 0.0036666666666666666,
+        "tuned": 0.0038333333333333336
+      }
+    },
+    "592": {
+      "name": "semantic: interaction-matching/cross-layer-row-overlap: load contains a simultaneous red and blue source",
+      "cpu_ms": {
+        "baseline": 0.00016666666666666666,
+        "snapshots": 0.00016666666666666666,
+        "tuned": 0.0003333333333333333
+      }
+    },
+    "588": {
+      "name": "semantic: interaction-matching/unique-multirow-transfer: load has two sources and two empty targets",
+      "cpu_ms": {
+        "baseline": 0.0003333333333333333,
+        "snapshots": 0.0003333333333333333,
+        "tuned": 0.00016666666666666666
+      }
+    },
+    "604": {
+      "name": "semantic: interaction-matching/random-property-candidates: no candidate on a third input leaves the completed assignment",
+      "cpu_ms": {
+        "baseline": 0.007,
+        "snapshots": 0.006833333333333334,
+        "tuned": 0.007166666666666667
+      }
+    },
+    "606": {
+      "name": "semantic: interaction-matching/random-property-candidates: undo replay keeps the consumed draw and selects blue to the first target",
+      "cpu_ms": {
+        "baseline": 0.0075,
+        "snapshots": 0.007166666666666667,
+        "tuned": 0.007333333333333333
+      }
+    },
+    "702": {
+      "name": "semantic: movement/rigid-random-consumption: no rigid match uses first draw",
+      "cpu_ms": {
+        "baseline": 0.0016666666666666668,
+        "snapshots": 0.002,
+        "tuned": 0.0021666666666666666
+      }
+    },
+    "579": {
+      "name": "semantic: inference/independent-moving: a later player move does not move the settled item",
+      "cpu_ms": {
+        "baseline": 0.004333333333333333,
+        "snapshots": 0.004,
+        "tuned": 0.004166666666666667
+      }
+    },
+    "603": {
+      "name": "semantic: interaction-matching/random-property-candidates: singleton remaining candidate still consumes a choice draw",
+      "cpu_ms": {
+        "baseline": 0.006666666666666667,
+        "snapshots": 0.006666666666666667,
+        "tuned": 0.006666666666666667
+      }
+    },
+    "605": {
+      "name": "semantic: interaction-matching/random-property-candidates: undo restores the first random assignment",
+      "cpu_ms": {
+        "baseline": 0.006333333333333333,
+        "snapshots": 0.0061666666666666675,
+        "tuned": 0.006166666666666666
+      }
+    },
+    "147": {
+      "name": "right [ vertical Player | perpendicular Player ] -> [ perpendicular Player | ] produces error #682",
+      "cpu_ms": {
+        "baseline": 0.0033333333333333335,
+        "snapshots": 0.0033333333333333335,
+        "tuned": 0.0033333333333333335
+      }
+    },
+    "542": {
+      "name": "semantic: history/again-probe-random: replay after undo uses fourth draw",
+      "cpu_ms": {
+        "baseline": 0.006500000000000001,
+        "snapshots": 0.006333333333333333,
+        "tuned": 0.006166666666666666
+      }
+    },
+    "556": {
+      "name": "semantic: inference/unique-transfer: red transfers once across two actions",
+      "cpu_ms": {
+        "baseline": 0.0033333333333333335,
+        "snapshots": 0.0035,
+        "tuned": 0.0033333333333333335
+      }
+    },
+    "698": {
+      "name": "semantic: movement/rigid-rollback: successive failed attempts",
+      "cpu_ms": {
+        "baseline": 0.009500000000000001,
+        "snapshots": 0.009000000000000001,
+        "tuned": 0.008166666666666666
+      }
+    },
+    "16": {
+      "name": "annoying edge case",
+      "cpu_ms": {
+        "baseline": 0.004833333333333334,
+        "snapshots": 0.0038333333333333336,
+        "tuned": 0.0035
+      }
+    },
+    "574": {
+      "name": "semantic: inference/relative-perpendicular: rightward pattern turns red up",
+      "cpu_ms": {
+        "baseline": 0.0029999999999999996,
+        "snapshots": 0.002833333333333333,
+        "tuned": 0.003
+      }
+    },
+    "575": {
+      "name": "semantic: inference/relative-perpendicular: downward pattern turns blue right",
+      "cpu_ms": {
+        "baseline": 0.0023333333333333335,
+        "snapshots": 0.002,
+        "tuned": 0.0016666666666666668
+      }
+    },
+    "720": {
+      "name": "semantic: movement/late-multiword-restore: restart and action leave Dust in place",
+      "cpu_ms": {
+        "baseline": 0.0029999999999999996,
+        "snapshots": 0.0025,
+        "tuned": 0.0026666666666666666
+      }
+    },
+    "602": {
+      "name": "semantic: interaction-matching/random-property-candidates: candidate one is red to the second target",
+      "cpu_ms": {
+        "baseline": 0.005666666666666667,
+        "snapshots": 0.005166666666666667,
+        "tuned": 0.005666666666666666
+      }
+    },
+    "499": {
+      "name": "Checkpoint restart: rule RESTART restores the saved state without startup movement",
+      "cpu_ms": {
+        "baseline": 0.005333333333333334,
+        "snapshots": 0.005333333333333333,
+        "tuned": 0.005666666666666666
+      }
+    },
+    "538": {
+      "name": "semantic: history/again-chain-history: again stops at blocked edge",
+      "cpu_ms": {
+        "baseline": 0.009833333333333333,
+        "snapshots": 0.009166666666666667,
+        "tuned": 0.009166666666666667
+      }
+    },
+    "576": {
+      "name": "semantic: inference/relative-perpendicular: leftward pattern turns red down",
+      "cpu_ms": {
+        "baseline": 0.0018333333333333335,
+        "snapshots": 0.002,
+        "tuned": 0.0018333333333333335
+      }
+    },
+    "598": {
+      "name": "semantic: interaction-matching/inferred-ellipsis-live: mixed inferred members each consume one live endpoint",
+      "cpu_ms": {
+        "baseline": 0.0038333333333333336,
+        "snapshots": 0.0033333333333333335,
+        "tuned": 0.0035
+      }
+    },
+    "577": {
+      "name": "semantic: inference/relative-perpendicular: upward pattern turns blue left",
+      "cpu_ms": {
+        "baseline": 0.0016666666666666668,
+        "snapshots": 0.002,
+        "tuned": 0.002
+      }
+    },
+    "717": {
+      "name": "semantic: movement/late-multiword-restore: second action has no pending movement",
+      "cpu_ms": {
+        "baseline": 0.0025,
+        "snapshots": 0.0023333333333333335,
+        "tuned": 0.0023333333333333335
+      }
+    },
+    "719": {
+      "name": "semantic: movement/late-multiword-restore: undo and action leave Dust in place",
+      "cpu_ms": {
+        "baseline": 0.002833333333333333,
+        "snapshots": 0.0026666666666666666,
+        "tuned": 0.0021666666666666666
+      }
+    },
+    "43": {
+      "name": "movement matching - correctly matching different objects same cell moving in different directions",
+      "cpu_ms": {
+        "baseline": 0.0026666666666666666,
+        "snapshots": 0.0021666666666666666,
+        "tuned": 0.0025
+      }
+    },
+    "540": {
+      "name": "semantic: history/again-probe-random: actual again uses second draw",
+      "cpu_ms": {
+        "baseline": 0.004666666666666667,
+        "snapshots": 0.0045000000000000005,
+        "tuned": 0.004
+      }
+    },
+    "40": {
+      "name": "don't mask movements if no movements happening",
+      "cpu_ms": {
+        "baseline": 0.0033333333333333335,
+        "snapshots": 0.0029999999999999996,
+        "tuned": 0.0033333333333333335
+      }
+    },
+    "480": {
+      "name": "rigid ownership: overlapping rules roll back on a no-input tick (#1206)",
+      "cpu_ms": {
+        "baseline": 0.0045000000000000005,
+        "snapshots": 0.004333333333333333,
+        "tuned": 0.0045000000000000005
+      }
+    },
+    "555": {
+      "name": "semantic: history/sound-request-order: later turn adds only movement sounds",
+      "cpu_ms": {
+        "baseline": 0.005,
+        "snapshots": 0.004833333333333334,
+        "tuned": 0.004166666666666667
+      }
+    },
+    "570": {
+      "name": "semantic: inference/stationary-versus-moving: without action the initial red is stationary",
+      "cpu_ms": {
+        "baseline": 0.0013333333333333333,
+        "snapshots": 0.0013333333333333335,
+        "tuned": 0.0015
+      }
+    },
+    "599": {
+      "name": "semantic: interaction-matching/inferred-ellipsis-live: transferred members cannot relaunch on another input",
+      "cpu_ms": {
+        "baseline": 0.0025,
+        "snapshots": 0.0025,
+        "tuned": 0.0025
+      }
+    },
+    "600": {
+      "name": "semantic: interaction-matching/inferred-ellipsis-live: same-member sources skip the filled endpoint without cloning",
+      "cpu_ms": {
+        "baseline": 0.002,
+        "snapshots": 0.0021666666666666666,
+        "tuned": 0.0016666666666666668
+      }
+    },
+    "700": {
+      "name": "semantic: movement/rigid-rollback: boundary blocks second push only",
+      "cpu_ms": {
+        "baseline": 0.007,
+        "snapshots": 0.007,
+        "tuned": 0.006166666666666666
+      }
+    },
+    "716": {
+      "name": "semantic: movement/late-multiword-restore: first action leaves Dust in place",
+      "cpu_ms": {
+        "baseline": 0.0021666666666666666,
+        "snapshots": 0.0015,
+        "tuned": 0.0015
+      }
+    },
+    "498": {
+      "name": "Checkpoint restart: repeated manual restart preserves a checkpoint set during play",
+      "cpu_ms": {
+        "baseline": 0.0036666666666666666,
+        "snapshots": 0.0031666666666666666,
+        "tuned": 0.0035
+      }
+    },
+    "503": {
+      "name": "Checkpoint restart: advancing a level resets the restart target to fresh startup",
+      "cpu_ms": {
+        "baseline": 0.006500000000000001,
+        "snapshots": 0.0055,
+        "tuned": 0.005166666666666667
+      }
+    },
+    "718": {
+      "name": "semantic: movement/late-multiword-restore: undo restores board",
+      "cpu_ms": {
+        "baseline": 0.0016666666666666666,
+        "snapshots": 0.0016666666666666668,
+        "tuned": 0.0015
+      }
+    },
+    "483": {
+      "name": "rigid ownership: a later rule still owns newly affected layers (#1206)",
+      "cpu_ms": {
+        "baseline": 0.006666666666666666,
+        "snapshots": 0.006500000000000001,
+        "tuned": 0.006500000000000001
+      }
+    },
+    "553": {
+      "name": "semantic: history/sound-request-order: category order and duplicate requests",
+      "cpu_ms": {
+        "baseline": 0.0038333333333333336,
+        "snapshots": 0.004,
+        "tuned": 0.0038333333333333336
+      }
+    },
+    "557": {
+      "name": "semantic: inference/unique-transfer: blue identity follows the transfer",
+      "cpu_ms": {
+        "baseline": 0.0015,
+        "snapshots": 0.0016666666666666668,
+        "tuned": 0.0015
+      }
+    },
+    "697": {
+      "name": "semantic: movement/rigid-rollback: failed rigid attempt moves independent mark once",
+      "cpu_ms": {
+        "baseline": 0.005999999999999999,
+        "snapshots": 0.006833333333333334,
+        "tuned": 0.0055
+      }
+    },
+    "706": {
+      "name": "semantic: movement/rigid-owner-1206: repeat remains deterministic",
+      "cpu_ms": {
+        "baseline": 0.008666666666666666,
+        "snapshots": 0.008666666666666666,
+        "tuned": 0.008833333333333332
+      }
+    },
+    "539": {
+      "name": "semantic: history/again-chain-history: one undo reverts entire run",
+      "cpu_ms": {
+        "baseline": 0.008166666666666666,
+        "snapshots": 0.007333333333333333,
+        "tuned": 0.006500000000000001
+      }
+    },
+    "554": {
+      "name": "semantic: history/sound-request-order: undo preserves sound history",
+      "cpu_ms": {
+        "baseline": 0.0029999999999999996,
+        "snapshots": 0.0031666666666666666,
+        "tuned": 0.0029999999999999996
+      }
+    },
+    "569": {
+      "name": "semantic: inference/stationary-versus-moving: a later tick sees the settled red",
+      "cpu_ms": {
+        "baseline": 0.0029999999999999996,
+        "snapshots": 0.0026666666666666666,
+        "tuned": 0.002833333333333333
+      }
+    },
+    "93": {
+      "name": "again + message combo",
+      "cpu_ms": {
+        "baseline": 0.006166666666666666,
+        "snapshots": 0.0055,
+        "tuned": 0.005166666666666667
+      }
+    },
+    "150": {
+      "name": "1st alternative test for: right [ vertical Player | perpendicular Player ] -> [ perpendicular Player | ] produces error #682",
+      "cpu_ms": {
+        "baseline": 0.006333333333333333,
+        "snapshots": 0.005,
+        "tuned": 0.004833333333333334
+      }
+    },
+    "496": {
+      "name": "Duplicate property expansion: same-cell overlap keeps shared-object rejection (#1123)",
+      "cpu_ms": {
+        "baseline": 0.0018333333333333335,
+        "snapshots": 0.0021666666666666666,
+        "tuned": 0.002333333333333333
+      }
+    },
+    "501": {
+      "name": "Checkpoint restart: undo does not discard the saved checkpoint",
+      "cpu_ms": {
+        "baseline": 0.004166666666666667,
+        "snapshots": 0.0036666666666666666,
+        "tuned": 0.0036666666666666666
+      }
+    },
+    "597": {
+      "name": "semantic: interaction-matching/inferred-ellipsis-live: load retains all three unfilled targets",
+      "cpu_ms": {
+        "baseline": 0.0,
+        "snapshots": 0.0003333333333333333,
+        "tuned": 0.0005
+      }
+    },
+    "111": {
+      "name": "Make synonyms of properties work. #215",
+      "cpu_ms": {
+        "baseline": 0.001,
+        "snapshots": 0.0013333333333333333,
+        "tuned": 0.001
+      }
+    },
+    "520": {
+      "name": "Coverage: random movement consumes the next seeded direction after undo",
+      "cpu_ms": {
+        "baseline": 0.005,
+        "snapshots": 0.0055,
+        "tuned": 0.004666666666666667
+      }
+    },
+    "531": {
+      "name": "semantic: history/cancel-precedence: cancel defeats restart and checkpoint",
+      "cpu_ms": {
+        "baseline": 0.004333333333333333,
+        "snapshots": 0.004333333333333333,
+        "tuned": 0.004166666666666667
+      }
+    },
+    "541": {
+      "name": "semantic: history/again-probe-random: again undo restores original board",
+      "cpu_ms": {
+        "baseline": 0.003666666666666667,
+        "snapshots": 0.0036666666666666666,
+        "tuned": 0.0036666666666666666
+      }
+    },
+    "563": {
+      "name": "semantic: inference/cross-layer-transfer: both simultaneous members transfer",
+      "cpu_ms": {
+        "baseline": 0.0025,
+        "snapshots": 0.0025,
+        "tuned": 0.002333333333333333
+      }
+    },
+    "568": {
+      "name": "semantic: inference/stationary-versus-moving: moving red is not stationary in its launch turn",
+      "cpu_ms": {
+        "baseline": 0.0026666666666666666,
+        "snapshots": 0.0023333333333333335,
+        "tuned": 0.0023333333333333335
+      }
+    },
+    "678": {
+      "name": "semantic: movement/chain-and-blocking: wall blocks whole chain",
+      "cpu_ms": {
+        "baseline": 0.004666666666666667,
+        "snapshots": 0.004333333333333333,
+        "tuned": 0.004333333333333333
+      }
+    },
+    "144": {
+      "name": "fourth test for #492 movement not getting correctly cleared from tile",
+      "cpu_ms": {
+        "baseline": 0.0023333333333333335,
+        "snapshots": 0.0018333333333333335,
+        "tuned": 0.0023333333333333335
+      }
+    },
+    "562": {
+      "name": "semantic: inference/cross-layer-transfer: one cross-layer member transfers",
+      "cpu_ms": {
+        "baseline": 0.0025,
+        "snapshots": 0.0023333333333333335,
+        "tuned": 0.0023333333333333335
+      }
+    },
+    "500": {
+      "name": "Checkpoint restart: undo after restart restores the pre-restart board",
+      "cpu_ms": {
+        "baseline": 0.004333333333333333,
+        "snapshots": 0.0029999999999999996,
+        "tuned": 0.0034999999999999996
+      }
+    },
+    "651": {
+      "name": "semantic: matching/horizontal-row-order: top row wins the single shared token",
+      "cpu_ms": {
+        "baseline": 0.002833333333333333,
+        "snapshots": 0.0031666666666666666,
+        "tuned": 0.0025
+      }
+    },
+    "727": {
+      "name": "semantic: movement/late-partial-word-restore: another seed leaves Dust in place after undo",
+      "cpu_ms": {
+        "baseline": 0.0021666666666666666,
+        "snapshots": 0.0023333333333333335,
+        "tuned": 0.0023333333333333335
+      }
+    },
+    "527": {
+      "name": "Property expansion order: Crate first transfers Crate",
+      "cpu_ms": {
+        "baseline": 0.002833333333333333,
+        "snapshots": 0.0031666666666666666,
+        "tuned": 0.003333333333333333
+      }
+    },
+    "601": {
+      "name": "semantic: interaction-matching/random-property-candidates: load has four ordered candidates without drawing",
+      "cpu_ms": {
+        "baseline": 0.0005,
+        "snapshots": 0.0006666666666666666,
+        "tuned": 0.0
+      }
+    },
+    "722": {
+      "name": "semantic: movement/late-partial-word-restore: second action has no pending movement",
+      "cpu_ms": {
+        "baseline": 0.0023333333333333335,
+        "snapshots": 0.0021666666666666666,
+        "tuned": 0.0023333333333333335
+      }
+    },
+    "724": {
+      "name": "semantic: movement/late-partial-word-restore: undo and action leave Dust in place",
+      "cpu_ms": {
+        "baseline": 0.0023333333333333335,
+        "snapshots": 0.0025,
+        "tuned": 0.002
+      }
+    },
+    "725": {
+      "name": "semantic: movement/late-partial-word-restore: restart and action leave Dust in place",
+      "cpu_ms": {
+        "baseline": 0.0029999999999999996,
+        "snapshots": 0.0021666666666666666,
+        "tuned": 0.0023333333333333335
+      }
+    },
+    "485": {
+      "name": "#1207 rejected late randomdir does not leave movement pending after undo",
+      "cpu_ms": {
+        "baseline": 0.004166666666666667,
+        "snapshots": 0.0038333333333333336,
+        "tuned": 0.0033333333333333335
+      }
+    },
+    "558": {
+      "name": "semantic: inference/unique-copy: one red source binds two red sinks",
+      "cpu_ms": {
+        "baseline": 0.0015,
+        "snapshots": 0.0016666666666666668,
+        "tuned": 0.0018333333333333335
+      }
+    },
+    "559": {
+      "name": "semantic: inference/unique-copy: one blue source binds two blue sinks",
+      "cpu_ms": {
+        "baseline": 0.001,
+        "snapshots": 0.0011666666666666665,
+        "tuned": 0.0011666666666666665
+      }
+    },
+    "677": {
+      "name": "semantic: movement/chain-and-blocking: push two crates",
+      "cpu_ms": {
+        "baseline": 0.0033333333333333335,
+        "snapshots": 0.0035,
+        "tuned": 0.0033333333333333335
+      }
+    },
+    "726": {
+      "name": "semantic: movement/late-partial-word-restore: alternate seed leaves Dust in place after undo",
+      "cpu_ms": {
+        "baseline": 0.0021666666666666666,
+        "snapshots": 0.0021666666666666666,
+        "tuned": 0.0025
+      }
+    },
+    "148": {
+      "name": "right [ horizontal TestObject1 | perpendicular TestObject1 ] -> [ perpendicular TestObject1 | ] produces an error #498",
+      "cpu_ms": {
+        "baseline": 0.0029999999999999996,
+        "snapshots": 0.002833333333333333,
+        "tuned": 0.002833333333333333
+      }
+    },
+    "582": {
+      "name": "semantic: inference/random-versus-inferred: random red and inferred red coincide",
+      "cpu_ms": {
+        "baseline": 0.0018333333333333335,
+        "snapshots": 0.0016666666666666666,
+        "tuned": 0.002
+      }
+    },
+    "704": {
+      "name": "semantic: movement/rigid-owner-1206: overlap bans actual contributors",
+      "cpu_ms": {
+        "baseline": 0.005666666666666666,
+        "snapshots": 0.006166666666666666,
+        "tuned": 0.005666666666666667
+      }
+    },
+    "721": {
+      "name": "semantic: movement/late-partial-word-restore: first action leaves Dust in place",
+      "cpu_ms": {
+        "baseline": 0.0015,
+        "snapshots": 0.0013333333333333333,
+        "tuned": 0.0011666666666666665
+      }
+    },
+    "723": {
+      "name": "semantic: movement/late-partial-word-restore: undo restores board",
+      "cpu_ms": {
+        "baseline": 0.0013333333333333333,
+        "snapshots": 0.0018333333333333335,
+        "tuned": 0.0015
+      }
+    },
+    "532": {
+      "name": "semantic: history/cancel-precedence: cancel does not add a lasting undo step",
+      "cpu_ms": {
+        "baseline": 0.0038333333333333336,
+        "snapshots": 0.0031666666666666666,
+        "tuned": 0.0035
+      }
+    },
+    "679": {
+      "name": "semantic: movement/chain-and-blocking: undo successful push",
+      "cpu_ms": {
+        "baseline": 0.0029999999999999996,
+        "snapshots": 0.0031666666666666666,
+        "tuned": 0.0026666666666666666
+      }
+    },
+    "711": {
+      "name": "semantic: random/one-rule-from-group: second rule selected next turn",
+      "cpu_ms": {
+        "baseline": 0.004666666666666667,
+        "snapshots": 0.004333333333333333,
+        "tuned": 0.004
+      }
+    },
+    "42": {
+      "name": "Remove movements from empty layers after rule application",
+      "cpu_ms": {
+        "baseline": 0.0029999999999999996,
+        "snapshots": 0.0026666666666666666,
+        "tuned": 0.0026666666666666666
+      }
+    },
+    "497": {
+      "name": "Coverage: repeated restart restores the startup checkpoint without rerunning rules",
+      "cpu_ms": {
+        "baseline": 0.0025,
+        "snapshots": 0.0018333333333333335,
+        "tuned": 0.0015
+      }
+    },
+    "560": {
+      "name": "semantic: inference/repeated-local: red followed by blue remains mixed",
+      "cpu_ms": {
+        "baseline": 0.0016666666666666668,
+        "snapshots": 0.002,
+        "tuned": 0.002
+      }
+    },
+    "664": {
+      "name": "semantic: matching/two-ellipses: unequal nonempty gaps",
+      "cpu_ms": {
+        "baseline": 0.0013333333333333333,
+        "snapshots": 0.0013333333333333333,
+        "tuned": 0.0015
+      }
+    },
+    "699": {
+      "name": "semantic: movement/rigid-rollback: open rigid push",
+      "cpu_ms": {
+        "baseline": 0.0029999999999999996,
+        "snapshots": 0.002833333333333333,
+        "tuned": 0.002833333333333333
+      }
+    },
+    "533": {
+      "name": "semantic: history/cancel-precedence: canceled checkpoint cannot become restart target",
+      "cpu_ms": {
+        "baseline": 0.0035,
+        "snapshots": 0.0029999999999999996,
+        "tuned": 0.0029999999999999996
+      }
+    },
+    "561": {
+      "name": "semantic: inference/repeated-local: blue followed by red remains mixed",
+      "cpu_ms": {
+        "baseline": 0.001,
+        "snapshots": 0.0018333333333333335,
+        "tuned": 0.0015
+      }
+    },
+    "583": {
+      "name": "semantic: inference/random-versus-inferred: random red is independent of inferred blue",
+      "cpu_ms": {
+        "baseline": 0.0015,
+        "snapshots": 0.0018333333333333335,
+        "tuned": 0.0013333333333333333
+      }
+    },
+    "530": {
+      "name": "semantic: history/late-stage-mark: following action uses early stage",
+      "cpu_ms": {
+        "baseline": 0.0031666666666666666,
+        "snapshots": 0.0033333333333333335,
+        "tuned": 0.0029999999999999996
+      }
+    },
+    "564": {
+      "name": "semantic: inference/negative-property: empty cell satisfies the whole-property negation",
+      "cpu_ms": {
+        "baseline": 0.0015,
+        "snapshots": 0.0013333333333333333,
+        "tuned": 0.0016666666666666668
+      }
+    },
+    "565": {
+      "name": "semantic: inference/negative-property: both members prevent the negative match",
+      "cpu_ms": {
+        "baseline": 0.0011666666666666665,
+        "snapshots": 0.001,
+        "tuned": 0.0015
+      }
+    },
+    "680": {
+      "name": "semantic: movement/chain-and-blocking: action is not a right push",
+      "cpu_ms": {
+        "baseline": 0.0011666666666666665,
+        "snapshots": 0.0011666666666666665,
+        "tuned": 0.0013333333333333333
+      }
+    },
+    "705": {
+      "name": "semantic: movement/rigid-owner-1206: tick also retries actual contributors",
+      "cpu_ms": {
+        "baseline": 0.004,
+        "snapshots": 0.0038333333333333336,
+        "tuned": 0.004
+      }
+    },
+    "653": {
+      "name": "semantic: matching/separate-group-order: later group creates B",
+      "cpu_ms": {
+        "baseline": 0.0013333333333333333,
+        "snapshots": 0.0013333333333333333,
+        "tuned": 0.0011666666666666665
+      }
+    },
+    "654": {
+      "name": "semantic: matching/separate-group-order: next input consumes B then a later group consumes new C",
+      "cpu_ms": {
+        "baseline": 0.0018333333333333335,
+        "snapshots": 0.0016666666666666666,
+        "tuned": 0.0018333333333333335
+      }
+    },
+    "663": {
+      "name": "semantic: matching/two-ellipses: both gaps empty",
+      "cpu_ms": {
+        "baseline": 0.001,
+        "snapshots": 0.0011666666666666665,
+        "tuned": 0.0013333333333333333
+      }
+    },
+    "665": {
+      "name": "semantic: matching/two-ellipses: middle and final endpoints in the wrong order",
+      "cpu_ms": {
+        "baseline": 0.0008333333333333333,
+        "snapshots": 0.0006666666666666666,
+        "tuned": 0.0011666666666666665
+      }
+    },
+    "710": {
+      "name": "semantic: random/one-rule-from-group: first rule selected",
+      "cpu_ms": {
+        "baseline": 0.002833333333333333,
+        "snapshots": 0.0026666666666666666,
+        "tuned": 0.0026666666666666666
+      }
+    },
+    "712": {
+      "name": "semantic: random/one-rule-from-group: unmatched input consumes no rule choice",
+      "cpu_ms": {
+        "baseline": 0.0031666666666666666,
+        "snapshots": 0.0026666666666666666,
+        "tuned": 0.0029999999999999996
+      }
+    },
+    "122": {
+      "name": "Synonym confusion",
+      "cpu_ms": {
+        "baseline": 0.0016666666666666668,
+        "snapshots": 0.0013333333333333333,
+        "tuned": 0.0016666666666666666
+      }
+    },
+    "146": {
+      "name": "test for convention #2 to issue right [ > Player | ] -> [ Player | Player ]\ud83d\udc31\u200d\ud83d\udc09 #679 : Should right [ Player | ] -> [ Player | Player ] propagate movements? (A: yes?)\t\t",
+      "cpu_ms": {
+        "baseline": 0.0031666666666666666,
+        "snapshots": 0.0034999999999999996,
+        "tuned": 0.0031666666666666666
+      }
+    },
+    "149": {
+      "name": "[ orthogonal a | moving a ] -> [ moving a | orthogonal a ] produces an error #496",
+      "cpu_ms": {
+        "baseline": 0.0033333333333333335,
+        "snapshots": 0.0035,
+        "tuned": 0.0029999999999999996
+      }
+    },
+    "515": {
+      "name": "Coverage: cancel restores objects and suppresses movement sounds",
+      "cpu_ms": {
+        "baseline": 0.0025,
+        "snapshots": 0.0025,
+        "tuned": 0.0023333333333333335
+      }
+    },
+    "551": {
+      "name": "semantic: history/singleton-random-draw: singleton advances stream before color",
+      "cpu_ms": {
+        "baseline": 0.0018333333333333335,
+        "snapshots": 0.002,
+        "tuned": 0.0021666666666666666
+      }
+    },
+    "585": {
+      "name": "semantic: interaction-matching/local-property-overlap: live overlap consumes two disjoint mixed pairs",
+      "cpu_ms": {
+        "baseline": 0.002833333333333333,
+        "snapshots": 0.002333333333333333,
+        "tuned": 0.0023333333333333335
+      }
+    },
+    "669": {
+      "name": "semantic: matching/multirow-cartesian: excess A remains after B endpoints are consumed",
+      "cpu_ms": {
+        "baseline": 0.0033333333333333335,
+        "snapshots": 0.0031666666666666666,
+        "tuned": 0.0029999999999999996
+      }
+    },
+    "529": {
+      "name": "semantic: history/late-stage-mark: arrival uses late stage",
+      "cpu_ms": {
+        "baseline": 0.0021666666666666666,
+        "snapshots": 0.0023333333333333335,
+        "tuned": 0.0021666666666666666
+      }
+    },
+    "652": {
+      "name": "semantic: matching/vertical-column-order: left column wins the single shared token",
+      "cpu_ms": {
+        "baseline": 0.0021666666666666666,
+        "snapshots": 0.002,
+        "tuned": 0.002
+      }
+    },
+    "708": {
+      "name": "semantic: random/one-tuple-per-turn: second choice consumes another tuple and object draw",
+      "cpu_ms": {
+        "baseline": 0.005333333333333334,
+        "snapshots": 0.0045000000000000005,
+        "tuned": 0.004666666666666666
+      }
+    },
+    "709": {
+      "name": "semantic: random/one-tuple-per-turn: undo returns the first random replacement",
+      "cpu_ms": {
+        "baseline": 0.005166666666666667,
+        "snapshots": 0.004333333333333333,
+        "tuned": 0.004666666666666667
+      }
+    },
+    "566": {
+      "name": "semantic: inference/partial-exclusion: excluded red does not match",
+      "cpu_ms": {
+        "baseline": 0.0013333333333333333,
+        "snapshots": 0.0013333333333333333,
+        "tuned": 0.0013333333333333333
+      }
+    },
+    "567": {
+      "name": "semantic: inference/partial-exclusion: remaining blue member matches",
+      "cpu_ms": {
+        "baseline": 0.0015,
+        "snapshots": 0.0011666666666666665,
+        "tuned": 0.0013333333333333335
+      }
+    },
+    "586": {
+      "name": "semantic: interaction-matching/local-property-overlap: marked survivors do not rematch on another tick",
+      "cpu_ms": {
+        "baseline": 0.002,
+        "snapshots": 0.0023333333333333335,
+        "tuned": 0.0025
+      }
+    },
+    "587": {
+      "name": "semantic: interaction-matching/local-property-overlap: odd blue run preserves the final unpaired member",
+      "cpu_ms": {
+        "baseline": 0.0018333333333333335,
+        "snapshots": 0.0018333333333333335,
+        "tuned": 0.0018333333333333335
+      }
+    },
+    "707": {
+      "name": "semantic: random/one-tuple-per-turn: one chosen match among three",
+      "cpu_ms": {
+        "baseline": 0.0036666666666666666,
+        "snapshots": 0.0038333333333333336,
+        "tuned": 0.003666666666666666
+      }
+    },
+    "668": {
+      "name": "semantic: matching/multirow-cartesian: two independent pairs",
+      "cpu_ms": {
+        "baseline": 0.002833333333333333,
+        "snapshots": 0.0026666666666666666,
+        "tuned": 0.0026666666666666666
+      }
+    },
+    "713": {
+      "name": "semantic: history/late-direction-carryover: recovered late rule consumes switch",
+      "cpu_ms": {
+        "baseline": 0.0025,
+        "snapshots": 0.0025,
+        "tuned": 0.0023333333333333335
+      }
+    },
+    "715": {
+      "name": "semantic: history/late-direction-carryover: undo and tick repeat recovered replacement",
+      "cpu_ms": {
+        "baseline": 0.0031666666666666666,
+        "snapshots": 0.0033333333333333335,
+        "tuned": 0.003666666666666667
+      }
+    },
+    "486": {
+      "name": "#1175 rejected AGAIN must not save a speculative checkpoint",
+      "cpu_ms": {
+        "baseline": 0.005,
+        "snapshots": 0.005,
+        "tuned": 0.005166666666666667
+      }
+    },
+    "487": {
+      "name": "#1175 a real no-input turn still saves a checkpoint",
+      "cpu_ms": {
+        "baseline": 0.007,
+        "snapshots": 0.006333333333333333,
+        "tuned": 0.005999999999999999
+      }
+    },
+    "513": {
+      "name": "Coverage: early loop converges before the following rule runs",
+      "cpu_ms": {
+        "baseline": 0.0021666666666666666,
+        "snapshots": 0.0021666666666666666,
+        "tuned": 0.0023333333333333335
+      }
+    },
+    "684": {
+      "name": "semantic: movement/contested-cell: column-first winner",
+      "cpu_ms": {
+        "baseline": 0.0023333333333333335,
+        "snapshots": 0.0021666666666666666,
+        "tuned": 0.002333333333333333
+      }
+    },
+    "685": {
+      "name": "semantic: movement/contested-cell: vacated target frees second mover",
+      "cpu_ms": {
+        "baseline": 0.0038333333333333336,
+        "snapshots": 0.0035,
+        "tuned": 0.0029999999999999996
+      }
+    },
+    "509": {
+      "name": "Coverage: startup restart reruns startup rules with the next seeded choice",
+      "cpu_ms": {
+        "baseline": 0.0005,
+        "snapshots": 0.00016666666666666666,
+        "tuned": 0.0005
+      }
+    },
+    "552": {
+      "name": "semantic: history/singleton-random-draw: existing singleton skips its draw",
+      "cpu_ms": {
+        "baseline": 0.0016666666666666666,
+        "snapshots": 0.0013333333333333333,
+        "tuned": 0.0018333333333333335
+      }
+    },
+    "580": {
+      "name": "semantic: inference/spawned-stationary: overwriting an input-moving neighbor clears its movement",
+      "cpu_ms": {
+        "baseline": 0.0021666666666666666,
+        "snapshots": 0.002,
+        "tuned": 0.0016666666666666668
+      }
+    },
+    "636": {
+      "name": "semantic: interaction-session/dead-probe-checkpoint: replay does not inherit a speculative checkpoint",
+      "cpu_ms": {
+        "baseline": 0.005333333333333333,
+        "snapshots": 0.005,
+        "tuned": 0.005666666666666666
+      }
+    },
+    "659": {
+      "name": "semantic: matching/ellipsis-spans: two cells in the gap",
+      "cpu_ms": {
+        "baseline": 0.0011666666666666665,
+        "snapshots": 0.0015,
+        "tuned": 0.0011666666666666665
+      }
+    },
+    "660": {
+      "name": "semantic: matching/ellipsis-spans: several endpoints cannot rewrite a consumed A",
+      "cpu_ms": {
+        "baseline": 0.0015,
+        "snapshots": 0.0015,
+        "tuned": 0.0013333333333333333
+      }
+    },
+    "662": {
+      "name": "semantic: matching/ellipsis-spans: ellipsis cannot wrap across a row boundary",
+      "cpu_ms": {
+        "baseline": 0.0016666666666666666,
+        "snapshots": 0.0015,
+        "tuned": 0.0013333333333333333
+      }
+    },
+    "714": {
+      "name": "semantic: history/late-direction-carryover: tick has no carried direction",
+      "cpu_ms": {
+        "baseline": 0.0028333333333333335,
+        "snapshots": 0.0025,
+        "tuned": 0.0025
+      }
+    },
+    "514": {
+      "name": "Coverage: late loop converges before the following late rule runs",
+      "cpu_ms": {
+        "baseline": 0.002,
+        "snapshots": 0.0016666666666666668,
+        "tuned": 0.002
+      }
+    },
+    "584": {
+      "name": "semantic: interaction-matching/local-property-overlap: load preserves the alternating members",
+      "cpu_ms": {
+        "baseline": 0.0,
+        "snapshots": 0.0003333333333333333,
+        "tuned": 0.0003333333333333333
+      }
+    },
+    "45": {
+      "name": "ellipsis bug: rule matches two candidates, first replacement invalidates second",
+      "cpu_ms": {
+        "baseline": 0.004833333333333334,
+        "snapshots": 0.004333333333333333,
+        "tuned": 0.004333333333333333
+      }
+    },
+    "511": {
+      "name": "Coverage: early loop revisits an earlier group at the end of the rules",
+      "cpu_ms": {
+        "baseline": 0.0025,
+        "snapshots": 0.0021666666666666666,
+        "tuned": 0.0023333333333333335
+      }
+    },
+    "528": {
+      "name": "Property expansion order: OtherCrate first transfers OtherCrate",
+      "cpu_ms": {
+        "baseline": 0.0016666666666666668,
+        "snapshots": 0.002,
+        "tuned": 0.0018333333333333335
+      }
+    },
+    "672": {
+      "name": "semantic: matching/negative-object-layer: only the token-free A is replaced",
+      "cpu_ms": {
+        "baseline": 0.0015,
+        "snapshots": 0.0018333333333333335,
+        "tuned": 0.0016666666666666668
+      }
+    },
+    "673": {
+      "name": "semantic: matching/negative-object-layer: the excluded A remains excluded on later inputs",
+      "cpu_ms": {
+        "baseline": 0.0018333333333333335,
+        "snapshots": 0.0016666666666666668,
+        "tuned": 0.002333333333333333
+      }
+    },
+    "687": {
+      "name": "semantic: movement/contested-cell: retry after crate vacates",
+      "cpu_ms": {
+        "baseline": 0.0025,
+        "snapshots": 0.0025,
+        "tuned": 0.0026666666666666666
+      }
+    },
+    "502": {
+      "name": "Checkpoint restart: fresh-level restart still runs startup movement",
+      "cpu_ms": {
+        "baseline": 0.0031666666666666666,
+        "snapshots": 0.0026666666666666666,
+        "tuned": 0.0026666666666666666
+      }
+    },
+    "633": {
+      "name": "semantic: interaction-session/dead-probe-checkpoint: unchanged checkpoint probe produces no automatic turn",
+      "cpu_ms": {
+        "baseline": 0.004,
+        "snapshots": 0.0035,
+        "tuned": 0.0038333333333333336
+      }
+    },
+    "689": {
+      "name": "semantic: movement/independent-layers: layers subsequently separate",
+      "cpu_ms": {
+        "baseline": 0.003,
+        "snapshots": 0.0031666666666666666,
+        "tuned": 0.0029999999999999996
+      }
+    },
+    "581": {
+      "name": "semantic: inference/spawned-stationary: separate moving players each settle after one transfer",
+      "cpu_ms": {
+        "baseline": 0.0016666666666666666,
+        "snapshots": 0.0018333333333333335,
+        "tuned": 0.0015
+      }
+    },
+    "688": {
+      "name": "semantic: movement/independent-layers: two layers share target",
+      "cpu_ms": {
+        "baseline": 0.0018333333333333335,
+        "snapshots": 0.0016666666666666668,
+        "tuned": 0.0016666666666666668
+      }
+    },
+    "730": {
+      "name": "semantic: movement/opposing-carried-input: tick leaves moved Player in place",
+      "cpu_ms": {
+        "baseline": 0.0035,
+        "snapshots": 0.003333333333333333,
+        "tuned": 0.0031666666666666666
+      }
+    },
+    "634": {
+      "name": "semantic: interaction-session/dead-probe-checkpoint: restart ignores speculative checkpoint",
+      "cpu_ms": {
+        "baseline": 0.0038333333333333336,
+        "snapshots": 0.0033333333333333335,
+        "tuned": 0.0035
+      }
+    },
+    "635": {
+      "name": "semantic: interaction-session/dead-probe-checkpoint: undo then restart still uses original target",
+      "cpu_ms": {
+        "baseline": 0.003333333333333333,
+        "snapshots": 0.0035,
+        "tuned": 0.0035
+      }
+    },
+    "648": {
+      "name": "semantic: matching/overlap-right: even run consumes disjoint pairs",
+      "cpu_ms": {
+        "baseline": 0.002,
+        "snapshots": 0.0018333333333333335,
+        "tuned": 0.002
+      }
+    },
+    "658": {
+      "name": "semantic: matching/ellipsis-spans: zero cells in the gap",
+      "cpu_ms": {
+        "baseline": 0.0013333333333333333,
+        "snapshots": 0.0013333333333333333,
+        "tuned": 0.0016666666666666668
+      }
+    },
+    "661": {
+      "name": "semantic: matching/ellipsis-spans: B before A is not a right-facing endpoint",
+      "cpu_ms": {
+        "baseline": 0.0008333333333333333,
+        "snapshots": 0.0008333333333333333,
+        "tuned": 0.0011666666666666665
+      }
+    },
+    "731": {
+      "name": "semantic: movement/opposing-carried-input: undo restores the consumed switch board",
+      "cpu_ms": {
+        "baseline": 0.0029999999999999996,
+        "snapshots": 0.0031666666666666666,
+        "tuned": 0.0031666666666666666
+      }
+    },
+    "145": {
+      "name": "fifth test for #492 movement not getting correctly cleared from tile",
+      "cpu_ms": {
+        "baseline": 0.0013333333333333333,
+        "snapshots": 0.0016666666666666666,
+        "tuned": 0.0015
+      }
+    },
+    "549": {
+      "name": "semantic: history/random-property-order: property choices follow cell order",
+      "cpu_ms": {
+        "baseline": 0.002,
+        "snapshots": 0.0026666666666666666,
+        "tuned": 0.0021666666666666666
+      }
+    },
+    "686": {
+      "name": "semantic: movement/contested-cell: tick only moves crate",
+      "cpu_ms": {
+        "baseline": 0.0011666666666666665,
+        "snapshots": 0.0013333333333333333,
+        "tuned": 0.0013333333333333333
+      }
+    },
+    "728": {
+      "name": "semantic: movement/opposing-carried-input: recovered late rule consumes switch",
+      "cpu_ms": {
+        "baseline": 0.0021666666666666666,
+        "snapshots": 0.0021666666666666666,
+        "tuned": 0.0021666666666666666
+      }
+    },
+    "693": {
+      "name": "semantic: movement/require-player-movement: blocked player cancels world change",
+      "cpu_ms": {
+        "baseline": 0.0026666666666666666,
+        "snapshots": 0.0023333333333333335,
+        "tuned": 0.0025
+      }
+    },
+    "508": {
+      "name": "Coverage: undo does not roll back the checkpoint used by restart",
+      "cpu_ms": {
+        "baseline": 0.004,
+        "snapshots": 0.0033333333333333335,
+        "tuned": 0.0035
+      }
+    },
+    "512": {
+      "name": "Coverage: late loop revisits an earlier group at the end of the rules",
+      "cpu_ms": {
+        "baseline": 0.0021666666666666666,
+        "snapshots": 0.002,
+        "tuned": 0.0016666666666666668
+      }
+    },
+    "649": {
+      "name": "semantic: matching/overlap-right: odd run preserves the unpaired last A",
+      "cpu_ms": {
+        "baseline": 0.0013333333333333333,
+        "snapshots": 0.0013333333333333333,
+        "tuned": 0.0013333333333333333
+      }
+    },
+    "729": {
+      "name": "semantic: movement/opposing-carried-input: Down moves without carried Up",
+      "cpu_ms": {
+        "baseline": 0.0026666666666666666,
+        "snapshots": 0.0029999999999999996,
+        "tuned": 0.002833333333333333
+      }
+    },
+    "550": {
+      "name": "semantic: history/random-property-order: undo restores both seedlings",
+      "cpu_ms": {
+        "baseline": 0.0021666666666666666,
+        "snapshots": 0.0018333333333333335,
+        "tuned": 0.002
+      }
+    },
+    "647": {
+      "name": "semantic: matching/overlap-right: load does not run rules",
+      "cpu_ms": {
+        "baseline": 0.0005,
+        "snapshots": 0.0,
+        "tuned": 0.00016666666666666666
+      }
+    },
+    "655": {
+      "name": "semantic: matching/joined-group-fixed-point: joined group revisits its earlier rule",
+      "cpu_ms": {
+        "baseline": 0.0015,
+        "snapshots": 0.001,
+        "tuned": 0.0015
+      }
+    },
+    "671": {
+      "name": "semantic: matching/multirow-same-cell: each self-overlapping tuple leaves its last layer write",
+      "cpu_ms": {
+        "baseline": 0.0023333333333333335,
+        "snapshots": 0.002,
+        "tuned": 0.002
+      }
+    },
+    "510": {
+      "name": "Coverage: startup changes are reapplied after restart",
+      "cpu_ms": {
+        "baseline": 0.0025,
+        "snapshots": 0.0025,
+        "tuned": 0.0021666666666666666
+      }
+    },
+    "675": {
+      "name": "semantic: matching/command-only-sound: another input can emit the command again",
+      "cpu_ms": {
+        "baseline": 0.0036666666666666666,
+        "snapshots": 0.0033333333333333335,
+        "tuned": 0.003666666666666667
+      }
+    },
+    "694": {
+      "name": "semantic: movement/require-player-movement: action also requires displacement",
+      "cpu_ms": {
+        "baseline": 0.0021666666666666666,
+        "snapshots": 0.0021666666666666666,
+        "tuned": 0.0023333333333333335
+      }
+    },
+    "114": {
+      "name": "Make synonyms of properties work. #243",
+      "cpu_ms": {
+        "baseline": 0.001,
+        "snapshots": 0.0011666666666666665,
+        "tuned": 0.0008333333333333333
+      }
+    },
+    "534": {
+      "name": "semantic: history/restart-precedence: restart defeats checkpoint",
+      "cpu_ms": {
+        "baseline": 0.0029999999999999996,
+        "snapshots": 0.0031666666666666666,
+        "tuned": 0.0029999999999999996
+      }
+    },
+    "670": {
+      "name": "semantic: matching/multirow-same-cell: one cell can satisfy both rows",
+      "cpu_ms": {
+        "baseline": 0.0016666666666666668,
+        "snapshots": 0.0015,
+        "tuned": 0.0016666666666666668
+      }
+    },
+    "695": {
+      "name": "semantic: movement/require-player-movement: tick advances nonplayer",
+      "cpu_ms": {
+        "baseline": 0.0013333333333333333,
+        "snapshots": 0.0011666666666666665,
+        "tuned": 0.0013333333333333333
+      }
+    },
+    "696": {
+      "name": "semantic: movement/require-player-movement: tick alone creates no undo entry",
+      "cpu_ms": {
+        "baseline": 0.0013333333333333333,
+        "snapshots": 0.0013333333333333333,
+        "tuned": 0.001
+      }
+    },
+    "126": {
+      "name": "Removing background tiles breaks \"no X\" wincondition (#534)",
+      "cpu_ms": {
+        "baseline": 0.0024999999999999996,
+        "snapshots": 0.0023333333333333335,
+        "tuned": 0.0021666666666666666
+      }
+    },
+    "656": {
+      "name": "semantic: matching/new-match-next-pass: newly enabled matches propagate in one input",
+      "cpu_ms": {
+        "baseline": 0.002,
+        "snapshots": 0.0018333333333333335,
+        "tuned": 0.002
+      }
+    },
+    "657": {
+      "name": "semantic: matching/new-match-next-pass: stable board stays stable on a later input",
+      "cpu_ms": {
+        "baseline": 0.0016666666666666668,
+        "snapshots": 0.002,
+        "tuned": 0.0021666666666666666
+      }
+    },
+    "674": {
+      "name": "semantic: matching/command-only-sound: all tuple matches share one sound command",
+      "cpu_ms": {
+        "baseline": 0.0021666666666666666,
+        "snapshots": 0.0021666666666666666,
+        "tuned": 0.0021666666666666666
+      }
+    },
+    "535": {
+      "name": "semantic: history/restart-precedence: undo reaches pre-restart board",
+      "cpu_ms": {
+        "baseline": 0.0025,
+        "snapshots": 0.0026666666666666666,
+        "tuned": 0.002833333333333333
+      }
+    },
+    "650": {
+      "name": "semantic: matching/overlap-left: left-facing origins still scan from low x",
+      "cpu_ms": {
+        "baseline": 0.0016666666666666668,
+        "snapshots": 0.0011666666666666665,
+        "tuned": 0.0013333333333333333
+      }
+    },
+    "666": {
+      "name": "semantic: matching/ellipsis-live-recheck: recheck plus another pass moves A twice",
+      "cpu_ms": {
+        "baseline": 0.0021666666666666666,
+        "snapshots": 0.0016666666666666668,
+        "tuned": 0.0016666666666666668
+      }
+    },
+    "517": {
+      "name": "Coverage: late object creation follows the movement sound",
+      "cpu_ms": {
+        "baseline": 0.0023333333333333335,
+        "snapshots": 0.0021666666666666666,
+        "tuned": 0.0018333333333333335
+      }
+    },
+    "683": {
+      "name": "semantic: movement/convoy: undo restores first convoy state",
+      "cpu_ms": {
+        "baseline": 0.002833333333333333,
+        "snapshots": 0.002833333333333333,
+        "tuned": 0.002833333333333333
+      }
+    },
+    "521": {
+      "name": "Coverage: win advances to the next level with a Unicode title and norestart",
+      "cpu_ms": {
+        "baseline": 0.002,
+        "snapshots": 0.002,
+        "tuned": 0.0021666666666666666
+      }
+    },
+    "543": {
+      "name": "semantic: history/checkpoint-history: restart returns to checkpoint arrival",
+      "cpu_ms": {
+        "baseline": 0.005333333333333333,
+        "snapshots": 0.004,
+        "tuned": 0.004333333333333333
+      }
+    },
+    "667": {
+      "name": "semantic: matching/ellipsis-live-recheck: no endpoint remains on the next input",
+      "cpu_ms": {
+        "baseline": 0.0015,
+        "snapshots": 0.0016666666666666668,
+        "tuned": 0.002
+      }
+    },
+    "682": {
+      "name": "semantic: movement/convoy: second input advances convoy",
+      "cpu_ms": {
+        "baseline": 0.0026666666666666666,
+        "snapshots": 0.0023333333333333335,
+        "tuned": 0.002
+      }
+    },
+    "516": {
+      "name": "Coverage: rule restart overrides the norestart keyboard setting",
+      "cpu_ms": {
+        "baseline": 0.0031666666666666666,
+        "snapshots": 0.002833333333333333,
+        "tuned": 0.0026666666666666666
+      }
+    },
+    "681": {
+      "name": "semantic: movement/convoy: followers enter vacated cells",
+      "cpu_ms": {
+        "baseline": 0.0015,
+        "snapshots": 0.0018333333333333335,
+        "tuned": 0.0015
+      }
+    },
+    "690": {
+      "name": "semantic: movement/action-and-failure-sounds: action has no displacement",
+      "cpu_ms": {
+        "baseline": 0.0015,
+        "snapshots": 0.0013333333333333335,
+        "tuned": 0.0013333333333333333
+      }
+    },
+    "692": {
+      "name": "semantic: movement/action-and-failure-sounds: success then failure history",
+      "cpu_ms": {
+        "baseline": 0.0021666666666666666,
+        "snapshots": 0.0018333333333333335,
+        "tuned": 0.002
+      }
+    },
+    "489": {
+      "name": "#1179 rejected randomdir drops the whole rule and preserves the following rule",
+      "cpu_ms": {
+        "baseline": 0.0021666666666666666,
+        "snapshots": 0.0023333333333333335,
+        "tuned": 0.002
+      }
+    },
+    "544": {
+      "name": "semantic: history/checkpoint-history: undo reverses explicit restart",
+      "cpu_ms": {
+        "baseline": 0.005166666666666667,
+        "snapshots": 0.004,
+        "tuned": 0.003666666666666667
+      }
+    },
+    "507": {
+      "name": "Coverage: blocked moves do not consume an extra undo",
+      "cpu_ms": {
+        "baseline": 0.0033333333333333335,
+        "snapshots": 0.0031666666666666666,
+        "tuned": 0.0029999999999999996
+      }
+    },
+    "691": {
+      "name": "semantic: movement/action-and-failure-sounds: wall records failed move",
+      "cpu_ms": {
+        "baseline": 0.0011666666666666665,
+        "snapshots": 0.0013333333333333333,
+        "tuned": 0.001
+      }
+    },
+    "522": {
+      "name": "Coverage: startup win commands do not skip a level",
+      "cpu_ms": {
+        "baseline": 0.00016666666666666666,
+        "snapshots": 0.0003333333333333333,
+        "tuned": 0.00016666666666666666
+      }
+    },
+    "548": {
+      "name": "semantic: history/undo-random-stream: restart leaves first draw consumed",
+      "cpu_ms": {
+        "baseline": 0.002833333333333333,
+        "snapshots": 0.002833333333333333,
+        "tuned": 0.0025
+      }
+    },
+    "519": {
+      "name": "Coverage: cantmove sound uses the blocked direction",
+      "cpu_ms": {
+        "baseline": 0.0023333333333333335,
+        "snapshots": 0.0021666666666666666,
+        "tuned": 0.0018333333333333335
+      }
+    },
+    "547": {
+      "name": "semantic: history/undo-random-stream: undo leaves first draw consumed",
+      "cpu_ms": {
+        "baseline": 0.0026666666666666666,
+        "snapshots": 0.0026666666666666666,
+        "tuned": 0.0026666666666666666
+      }
+    },
+    "676": {
+      "name": "semantic: matching/command-only-sound: missing B prevents the command",
+      "cpu_ms": {
+        "baseline": 0.0008333333333333333,
+        "snapshots": 0.0005,
+        "tuned": 0.0005
+      }
+    },
+    "545": {
+      "name": "semantic: history/checkpoint-history: undo of arrival keeps checkpoint target",
+      "cpu_ms": {
+        "baseline": 0.0031666666666666666,
+        "snapshots": 0.0031666666666666666,
+        "tuned": 0.0029999999999999996
+      }
+    },
+    "546": {
+      "name": "semantic: history/undo-random-stream: first draw is red",
+      "cpu_ms": {
+        "baseline": 0.0013333333333333335,
+        "snapshots": 0.0016666666666666668,
+        "tuned": 0.0016666666666666668
+      }
+    },
+    "125": {
+      "name": "Reserved keywords are too greedy (#419)",
+      "cpu_ms": {
+        "baseline": 0.0025,
+        "snapshots": 0.0023333333333333335,
+        "tuned": 0.0025
+      }
+    },
+    "518": {
+      "name": "Coverage: action sounds are distinct from directional movement sounds",
+      "cpu_ms": {
+        "baseline": 0.0021666666666666666,
+        "snapshots": 0.0023333333333333335,
+        "tuned": 0.0021666666666666666
+      }
+    },
+    "488": {
+      "name": "#1179 randomdir on the right still moves the player",
+      "cpu_ms": {
+        "baseline": 0.002333333333333333,
+        "snapshots": 0.0026666666666666666,
+        "tuned": 0.0025
+      }
+    },
+    "504": {
+      "name": "Coverage: noundo blocks undo while movement still works",
+      "cpu_ms": {
+        "baseline": 0.0013333333333333333,
+        "snapshots": 0.001,
+        "tuned": 0.0013333333333333333
+      }
+    },
+    "491": {
+      "name": "#1179 rejected random also drops the whole rule",
+      "cpu_ms": {
+        "baseline": 0.0013333333333333333,
+        "snapshots": 0.0015,
+        "tuned": 0.0015
+      }
+    },
+    "505": {
+      "name": "Coverage: norestart ignores restart without adding an undo state",
+      "cpu_ms": {
+        "baseline": 0.0015,
+        "snapshots": 0.0016666666666666668,
+        "tuned": 0.001
+      }
+    },
+    "524": {
+      "name": "Coverage: undo skips duplicate restart states",
+      "cpu_ms": {
+        "baseline": 0.002833333333333333,
+        "snapshots": 0.0026666666666666666,
+        "tuned": 0.0025
+      }
+    },
+    "506": {
+      "name": "Coverage: undo restores the state from before a manual restart",
+      "cpu_ms": {
+        "baseline": 0.0015,
+        "snapshots": 0.0018333333333333335,
+        "tuned": 0.002
+      }
+    },
+    "537": {
+      "name": "semantic: history/command-only-match: matched command cancels arrival",
+      "cpu_ms": {
+        "baseline": 0.0026666666666666666,
+        "snapshots": 0.0026666666666666666,
+        "tuned": 0.002
+      }
+    },
+    "490": {
+      "name": "#1179 rejected randomdir drops command-only rules",
+      "cpu_ms": {
+        "baseline": 0.0018333333333333335,
+        "snapshots": 0.0016666666666666668,
+        "tuned": 0.0015
+      }
+    },
+    "536": {
+      "name": "semantic: history/command-only-match: unmatched command does nothing",
+      "cpu_ms": {
+        "baseline": 0.0013333333333333333,
+        "snapshots": 0.0013333333333333333,
+        "tuned": 0.0013333333333333333
+      }
+    },
+    "523": {
+      "name": "Coverage: undo with an empty history leaves the level unchanged",
+      "cpu_ms": {
+        "baseline": 0.0003333333333333333,
+        "snapshots": 0.0003333333333333333,
+        "tuned": 0.0003333333333333333
+      }
+    }
+  },
+  "baseline": "Frozen previous optimized interpreter: anchor-cache, before this follow-up",
+  "build_flags": [
+    "Release",
+    "-O3",
+    "-march=native",
+    "LTO",
+    "64-bit masks",
+    "PS_PATTERN_MATCH_KERNEL=anchor-cache"
+  ],
+  "compiler": "Apple clang version 21.0.0 (clang-2100.4.1.1)",
+  "baseline_source_sha256": {
+    "native/src/runtime/core.cpp": "81e41e5744154ad2b906374c8b03cea8dd30d59f8af1e4fd93ff36f52d39f43a",
+    "native/src/runtime/core.hpp": "ca497c45afe4520504513f43386a695795ccfa44895aa397373c2ac75a151f7a",
+    "native/src/compiler/lower_to_runtime.cpp": "cc1bbe7441c836a380b7be3e4c8b8d2ab5a0ec69e12d61b02c816af5bd518ad6"
+  },
+  "current_source_sha256": {
+    "native/src/runtime/core.cpp": "8ca9c4445edbc59bcfd9331cb83aa3918681e0c02725af6374e74ffcfad18c09",
+    "native/src/runtime/core.hpp": "808098bffdd512580a8c046c48eaaf14dc4146604c86740cd3e7b30430fae991",
+    "native/src/runtime/movement_fields.hpp": "96d7f651aaee42609246c5a2bdd80d23fa7534c38d6d85fd033cde48442868fc",
+    "native/src/cli/main.cpp": "19459eeaa49a53f622921d84c85adf1dacadbf9ae0c1538dfee910f650a8d42b",
+    "native/CMakeLists.txt": "221d12060fe09192e16eed560f0858d115130275346a56780d8350083f4a16a3"
+  },
+  "screening": {
+    "sort": {
+      "runs": 2,
+      "repeat": 2,
+      "medians": {
+        "corpus": {
+          "baseline": 1970.693,
+          "sort": 2044.3635
+        },
+        "enigmash": {
+          "baseline": 3059.364,
+          "sort": 3039.4555
+        }
+      },
+      "results": [
+        {
+          "trial": 0,
+          "variant": "baseline",
+          "workload": "corpus",
+          "cpu_ms": 2005.7515,
+          "wall_ms": 2026.5
+        },
+        {
+          "trial": 0,
+          "variant": "baseline",
+          "workload": "enigmash",
+          "cpu_ms": 3089.759,
+          "wall_ms": 3256.0
+        },
+        {
+          "trial": 0,
+          "variant": "sort",
+          "workload": "corpus",
+          "cpu_ms": 2019.4545,
+          "wall_ms": 2038.5
+        },
+        {
+          "trial": 0,
+          "variant": "sort",
+          "workload": "enigmash",
+          "cpu_ms": 3060.162,
+          "wall_ms": 3232.0
+        },
+        {
+          "trial": 1,
+          "variant": "sort",
+          "workload": "corpus",
+          "cpu_ms": 2069.2725,
+          "wall_ms": 2128.5
+        },
+        {
+          "trial": 1,
+          "variant": "sort",
+          "workload": "enigmash",
+          "cpu_ms": 3018.749,
+          "wall_ms": 3037.0
+        },
+        {
+          "trial": 1,
+          "variant": "baseline",
+          "workload": "corpus",
+          "cpu_ms": 1935.6345,
+          "wall_ms": 1936.0
+        },
+        {
+          "trial": 1,
+          "variant": "baseline",
+          "workload": "enigmash",
+          "cpu_ms": 3028.969,
+          "wall_ms": 3055.0
+        }
+      ]
+    },
+    "resize": {
+      "runs": 2,
+      "repeat": 2,
+      "medians": {
+        "corpus": {
+          "baseline": 2021.5320000000002,
+          "resize": 2035.45575
+        },
+        "enigmash": {
+          "baseline": 3078.0305,
+          "resize": 2850.6225
+        }
+      },
+      "results": [
+        {
+          "trial": 0,
+          "variant": "baseline",
+          "workload": "corpus",
+          "cpu_ms": 2106.7845,
+          "wall_ms": 2146.5
+        },
+        {
+          "trial": 0,
+          "variant": "baseline",
+          "workload": "enigmash",
+          "cpu_ms": 3121.417,
+          "wall_ms": 3395.0
+        },
+        {
+          "trial": 0,
+          "variant": "resize",
+          "workload": "corpus",
+          "cpu_ms": 2039.1765,
+          "wall_ms": 2089.5
+        },
+        {
+          "trial": 0,
+          "variant": "resize",
+          "workload": "enigmash",
+          "cpu_ms": 2875.621,
+          "wall_ms": 2897.0
+        },
+        {
+          "trial": 1,
+          "variant": "resize",
+          "workload": "corpus",
+          "cpu_ms": 2031.735,
+          "wall_ms": 2100.0
+        },
+        {
+          "trial": 1,
+          "variant": "resize",
+          "workload": "enigmash",
+          "cpu_ms": 2825.624,
+          "wall_ms": 2840.0
+        },
+        {
+          "trial": 1,
+          "variant": "baseline",
+          "workload": "corpus",
+          "cpu_ms": 1936.2795,
+          "wall_ms": 1936.0
+        },
+        {
+          "trial": 1,
+          "variant": "baseline",
+          "workload": "enigmash",
+          "cpu_ms": 3034.644,
+          "wall_ms": 3049.0
+        }
+      ]
+    },
+    "fields": {
+      "runs": 2,
+      "repeat": 2,
+      "medians": {
+        "corpus": {
+          "baseline": 2030.6412500000001,
+          "fields": 2062.57225
+        },
+        "enigmash": {
+          "baseline": 3032.9719999999998,
+          "fields": 3079.2025000000003
+        }
+      },
+      "results": [
+        {
+          "trial": 0,
+          "variant": "baseline",
+          "workload": "corpus",
+          "cpu_ms": 2026.5005,
+          "wall_ms": 2057.0
+        },
+        {
+          "trial": 0,
+          "variant": "baseline",
+          "workload": "enigmash",
+          "cpu_ms": 3033.396,
+          "wall_ms": 3121.0
+        },
+        {
+          "trial": 0,
+          "variant": "fields",
+          "workload": "corpus",
+          "cpu_ms": 1974.296,
+          "wall_ms": 1985.5
+        },
+        {
+          "trial": 0,
+          "variant": "fields",
+          "workload": "enigmash",
+          "cpu_ms": 3104.36,
+          "wall_ms": 3254.0
+        },
+        {
+          "trial": 1,
+          "variant": "fields",
+          "workload": "corpus",
+          "cpu_ms": 2150.8485,
+          "wall_ms": 2335.5
+        },
+        {
+          "trial": 1,
+          "variant": "fields",
+          "workload": "enigmash",
+          "cpu_ms": 3054.045,
+          "wall_ms": 3112.0
+        },
+        {
+          "trial": 1,
+          "variant": "baseline",
+          "workload": "corpus",
+          "cpu_ms": 2034.782,
+          "wall_ms": 2054.0
+        },
+        {
+          "trial": 1,
+          "variant": "baseline",
+          "workload": "enigmash",
+          "cpu_ms": 3032.548,
+          "wall_ms": 3052.0
+        }
+      ]
+    },
+    "movement": {
+      "runs": 2,
+      "repeat": 2,
+      "medians": {
+        "corpus": {
+          "baseline": 2081.6932500000003,
+          "movement": 2021.781
+        },
+        "enigmash": {
+          "baseline": 3077.1555,
+          "movement": 2975.373
+        }
+      },
+      "results": [
+        {
+          "trial": 0,
+          "variant": "baseline",
+          "workload": "corpus",
+          "cpu_ms": 2098.6815,
+          "wall_ms": 2147.0
+        },
+        {
+          "trial": 0,
+          "variant": "baseline",
+          "workload": "enigmash",
+          "cpu_ms": 3043.556,
+          "wall_ms": 3073.0
+        },
+        {
+          "trial": 0,
+          "variant": "movement",
+          "workload": "corpus",
+          "cpu_ms": 2041.644,
+          "wall_ms": 2084.5
+        },
+        {
+          "trial": 0,
+          "variant": "movement",
+          "workload": "enigmash",
+          "cpu_ms": 2974.063,
+          "wall_ms": 2991.0
+        },
+        {
+          "trial": 1,
+          "variant": "movement",
+          "workload": "corpus",
+          "cpu_ms": 2001.918,
+          "wall_ms": 2048.0
+        },
+        {
+          "trial": 1,
+          "variant": "movement",
+          "workload": "enigmash",
+          "cpu_ms": 2976.683,
+          "wall_ms": 2995.0
+        },
+        {
+          "trial": 1,
+          "variant": "baseline",
+          "workload": "corpus",
+          "cpu_ms": 2064.705,
+          "wall_ms": 2099.0
+        },
+        {
+          "trial": 1,
+          "variant": "baseline",
+          "workload": "enigmash",
+          "cpu_ms": 3110.755,
+          "wall_ms": 3256.0
+        }
+      ]
+    },
+    "snapshots": {
+      "runs": 2,
+      "repeat": 2,
+      "medians": {
+        "corpus": {
+          "baseline": 2063.46275,
+          "snapshots": 1471.855
+        },
+        "enigmash": {
+          "baseline": 3043.31,
+          "snapshots": 2536.4170000000004
+        }
+      },
+      "results": [
+        {
+          "trial": 0,
+          "variant": "baseline",
+          "workload": "corpus",
+          "cpu_ms": 2108.7655,
+          "wall_ms": 2279.0
+        },
+        {
+          "trial": 0,
+          "variant": "baseline",
+          "workload": "enigmash",
+          "cpu_ms": 3057.153,
+          "wall_ms": 3100.0
+        },
+        {
+          "trial": 0,
+          "variant": "snapshots",
+          "workload": "corpus",
+          "cpu_ms": 1475.0015,
+          "wall_ms": 1483.0
+        },
+        {
+          "trial": 0,
+          "variant": "snapshots",
+          "workload": "enigmash",
+          "cpu_ms": 2531.686,
+          "wall_ms": 2552.0
+        },
+        {
+          "trial": 1,
+          "variant": "snapshots",
+          "workload": "corpus",
+          "cpu_ms": 1468.7085,
+          "wall_ms": 1476.5
+        },
+        {
+          "trial": 1,
+          "variant": "snapshots",
+          "workload": "enigmash",
+          "cpu_ms": 2541.148,
+          "wall_ms": 2556.0
+        },
+        {
+          "trial": 1,
+          "variant": "baseline",
+          "workload": "corpus",
+          "cpu_ms": 2018.16,
+          "wall_ms": 2031.0
+        },
+        {
+          "trial": 1,
+          "variant": "baseline",
+          "workload": "enigmash",
+          "cpu_ms": 3029.467,
+          "wall_ms": 3046.0
+        }
+      ]
+    }
+  },
+  "qualifying_case_rule": "Baseline median replay CPU time >= 1 ms; compare median of four independent processes, three corpus passes per process",
+  "case_gate": {
+    "qualifying_cases": 132,
+    "cases_with_any_increase": 0,
+    "cases_increasing_at_least_0_25_ms": 0
+  },
+  "validation": {
+    "native64_corpus_cases": 731,
+    "native32_corpus_cases": 731,
+    "ctest64_passed": 6,
+    "ctest32_passed": 4,
+    "js_trace_checks": 27,
+    "js_trace_snapshots": 990,
+    "asan_ubsan_interpreter_codegen": "passed",
+    "native_runtime_counters_node": "passed",
+    "disabled_tuning_control_syntax": "passed"
+  },
+  "text_equivalence_after_comment_only_rebuild": {
+    "bytes": 2155952,
+    "sha256": "e4f09cca6929da084f3c65bb190155d2adb913c7625d73ecc2c4cf6fea2f1c20"
+  },
+  "artifacts": "build/interpreter-codegen-20261112/"
+}

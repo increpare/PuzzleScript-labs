@@ -1,0 +1,33 @@
+title Missing alias after a rejected cycle
+
+objects
+Background
+black
+
+Player
+white
+
+Marker
+yellow
+
+legend
+A = B
+B = A
+. = Background
+P = Player
+
+sounds
+
+collisionlayers
+Player
+Background
+Marker
+
+rules
+[ action A ] -> [ A Marker ]
+
+winconditions
+no Player
+
+levels
+P.

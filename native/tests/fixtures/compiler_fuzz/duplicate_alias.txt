@@ -1,0 +1,17 @@
+OBJECTS
+Background .
+black
+Player P
+white
+LEGEND
+P = Player
+SOUNDS
+COLLISIONLAYERS
+Background
+Player
+RULES
+WINCONDITIONS
+LEVELS
+P.
+(..comment..)
+..

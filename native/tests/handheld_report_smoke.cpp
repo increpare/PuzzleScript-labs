@@ -142,7 +142,7 @@ LEGEND
 
 . = Background
 P = Player
-
+SOUNDS
 COLLISIONLAYERS
 
 Background
@@ -172,7 +172,7 @@ LEGEND
 
 . = Background
 P = Player
-
+SOUNDS
 COLLISIONLAYERS
 
 Background
@@ -204,7 +204,7 @@ LEGEND
 
 . = Background
 P = Player
-
+SOUNDS
 COLLISIONLAYERS
 
 Background
@@ -236,7 +236,7 @@ LEGEND
 
 . = Background
 P = Player
-
+SOUNDS
 COLLISIONLAYERS
 
 Background
@@ -271,7 +271,7 @@ LEGEND
 . = Background
 P = Player
 M = Marker
-
+SOUNDS
 COLLISIONLAYERS
 
 Background
@@ -305,7 +305,7 @@ LEGEND
 . = Background
 P = Player
 B = Background and Player
-
+SOUNDS
 COLLISIONLAYERS
 
 Background

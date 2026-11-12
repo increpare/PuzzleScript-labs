@@ -40,7 +40,7 @@ c = c_u or c_d or c_l or c_r
 u = Crate and c_u
 . = Background
 P = Background and Player
-
+SOUNDS
 ================
 COLLISIONLAYERS
 ================

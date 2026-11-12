@@ -1,0 +1,44 @@
+title Empty concrete membership still tests its movement layer
+
+objects
+Background
+black
+
+Player
+white
+
+Red
+red
+
+Blue
+blue
+
+Green
+green
+
+Marker
+yellow
+
+legend
+. = Background
+P = Player
+Red = Alias1 or Alias2
+Alias1 = Blue
+Alias2 = Green
+
+sounds
+Red create 12345
+
+collisionlayers
+Background
+Player, Red, Blue, Green
+Marker
+
+rules
+[ action Red ] -> [ Red Marker ]
+
+winconditions
+some Blue
+
+levels
+P..

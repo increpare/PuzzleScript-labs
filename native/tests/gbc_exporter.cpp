@@ -954,7 +954,7 @@ int main() {
         "Player\nwhite\n0\n\n"
         "=======\nLEGEND\n=======\n\n"
         ". = Background\nP = Background and Player\n\n"
-        "================\nCOLLISIONLAYERS\n================\n\n"
+        "SOUNDS\n================\nCOLLISIONLAYERS\n================\n\n"
         "Background\nPlayer\n\n"
         "======\nRULES\n======\n\n"
         "right [ > Player ] -> [ > Player ]\n\n"
@@ -1121,7 +1121,7 @@ int main() {
     }
     maxCollisionSource << "=======\nLEGEND\n=======\n\n"
         << ". = Background\nP = Background and Player\n\n"
-        << "================\nCOLLISIONLAYERS\n================\n\n"
+        << "SOUNDS\n================\nCOLLISIONLAYERS\n================\n\n"
         << "Background\nPlayer\n";
     for (int index = 0; index < 30; ++index) {
         maxCollisionSource << "D" << index << "\n";
@@ -1270,7 +1270,7 @@ int main() {
     twoByteObjectsSource << "=======\nLEGEND\n=======\n\n"
         << ". = Background\n# = Wall\nP = Player\n* = Crate and Target\n"
         << "@ = Crate\no = Target\n\n"
-        << "================\nCOLLISIONLAYERS\n================\n\n"
+        << "SOUNDS\n================\nCOLLISIONLAYERS\n================\n\n"
         << "Background\nTarget\nPlayer, Wall, Crate\n"
         << "Deco0\nDeco1\nDeco2\nDeco3\nDeco4\n\n"
         << "======\nRULES\n======\n\n"
@@ -1430,7 +1430,7 @@ int main() {
         "Player\nwhite\n0\n\n"
         "=======\nLEGEND\n=======\n\n"
         ". = Background\nP = Background and Player\n\n"
-        "================\nCOLLISIONLAYERS\n================\n\n"
+        "SOUNDS\n================\nCOLLISIONLAYERS\n================\n\n"
         "Background\nPlayer\n\n"
         "======\nRULES\n======\n\n"
         "==============\nWINCONDITIONS\n==============\n\n"

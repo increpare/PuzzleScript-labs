@@ -1,0 +1,56 @@
+[
+  {
+    "id": "ocaml/legend-close-discard",
+    "sourceFile": "legend-close-discard.ps",
+    "explanation": "A stray closer at physical end of line returns before legend finalization. The first Actor alias is discarded, so the following declaration binds only Crate. Action must replace the adjacent Crate with Marker without a duplicate-name error.",
+    "cells": { "P": ["background", "player"], "M": ["background", "marker"] },
+    "cases": [
+      { "name": "a terminal closer does not register an alias", "inputs": [4], "expected": ["PM"] },
+      { "name": "the retained alias survives undo and replay", "inputs": [4, "undo", 4], "expected": ["PM"] }
+    ]
+  },
+  {
+    "id": "ocaml/legend-close-comment-finalization",
+    "sourceFile": "legend-close-comment-finalization.ps",
+    "explanation": "A comment after the stray closer supplies a later end-of-line visit. It finalizes Actor as an alias of Crate, so the action rule replaces that Crate with Marker.",
+    "cells": { "P": ["background", "player"], "M": ["background", "marker"] },
+    "cases": [
+      { "name": "a later comment finalizes the alias", "inputs": [4], "expected": ["PM"] },
+      { "name": "comment-finalized binding remains persistent", "inputs": [4, "undo", 4], "expected": ["PM"] }
+    ]
+  },
+  {
+    "id": "ocaml/legend-equals-comment-recovery",
+    "sourceFile": "legend-equals-comment-recovery.ps",
+    "explanation": "Missing equals consumes junk through the next opening comment, including the stray closer. Reading resumes in the member phase and recovers Actor as Crate; Action then replaces Crate with Marker.",
+    "expectedErrors": ["In the legend, define new items using the equals symbol - declarations must look like \"A = B\", \"A = B or C [ or D ...]\", \"A = B and C [ and D ...]\"."],
+    "cells": { "P": ["background", "player"], "M": ["background", "marker"] },
+    "cases": [{ "name": "comment recovery retains the pending alias", "inputs": [4], "expected": ["PM"] }]
+  },
+  {
+    "id": "ocaml/win-leading-close",
+    "sourceFile": "win-leading-close.ps",
+    "explanation": "The first visit consumes a stray closer, so no win condition is captured. Token validation resumes in subject/on phases. Removing Player must leave Marker on the first level, rather than advancing to the second board.",
+    "expectedErrors": ["Error in win condition: \"NO\" is not a valid object name.", "Expecting the word \"ON\" but got \"PLAYER\"."],
+    "cells": { "M": ["background", "marker"] },
+    "cases": [
+      { "name": "an uncaptured condition cannot win", "inputs": [4], "expected": ["M"] },
+      { "name": "undo and replay retain the first level", "inputs": [4, "undo", 4], "expected": ["M"] }
+    ]
+  },
+  {
+    "id": "ocaml/win-comment-prefix-target",
+    "sourceFile": "win-comment-prefix-target.ps",
+    "explanation": "The captured condition ends after ON, before the opening comment. Its three captured words recover a targetless NO Player condition. The suffix Crate is ignored, so removing Player advances to the two-player second board.",
+    "cells": { "P": ["background", "player"] },
+    "cases": [{ "name": "a comment suffix does not become a win target", "inputs": [4], "expected": ["PP"] }]
+  },
+  {
+    "id": "ocaml/layer-astral-visits",
+    "sourceFile": "layer-astral-visits.ps",
+    "explanation": "The emoji is valid UTF-8 source but an unexpected collision-layer token. Its two UTF-16 units produce separate diagnostics, then reading resumes at Crate and Wall. The ordinary push must still work.",
+    "expectedErrors": ["error detected - unexpected character \ud83d", "error detected - unexpected character \ude00"],
+    "cells": { ".": ["background"], "P": ["background", "player"], "C": ["background", "crate"], "#": ["background", "wall"] },
+    "cases": [{ "name": "astral diagnostics preserve subsequent layer declarations", "inputs": [3], "expected": [".PC#"] }]
+  }
+]

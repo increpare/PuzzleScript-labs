@@ -1,0 +1,38 @@
+title Repeated random rule lines
+
+objects
+Background
+black
+
+Player
+white
+
+Red
+red
+
+Marker
+yellow
+
+legend
+. = Background
+P = Player
+R = Red
+
+sounds
+
+collisionlayers
+Background
+Player
+Red
+Marker
+
+rules
+random [ Red ] -> [ Red Marker ]
++ [ Red ] -> [ Red Marker ]
++ [ Player ] -> [ Player Marker ]
+
+winconditions
+no Player
+
+levels
+RP

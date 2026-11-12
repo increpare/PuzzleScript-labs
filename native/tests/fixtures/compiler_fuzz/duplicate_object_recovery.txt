@@ -1,0 +1,16 @@
+OBJECTS
+Background
+black
+00000
+00000
+00000
+00000
+00000
+
+Background
+black black
+11111
+01111
+11101
+11111
+10111
