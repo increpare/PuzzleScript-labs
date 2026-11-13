@@ -148,7 +148,7 @@
 	/////////////////////////////////////////////////////////////////////
 
 	function spawnWorker(source) {
-		const w = new Worker(WORKER_URL);
+		const w = window.MISDesktopWorker ? new MISDesktopWorker(WORKER_URL) : new Worker(WORKER_URL);
 		const handle = { w: w, ready: false, busy: false, queue: [], handlers: {}, onReady: null, dead: false };
 		w.onmessage = function (e) {
 			const m = e.data;
@@ -1094,12 +1094,16 @@
 			if (job !== focusJob) return;
 			solving = false;
 			const r = m.type === 'assessed' ? m.result : { status: 'error', error: m.message };
-			r.deep = r.status === 'solved' || r.status === 'unsolvable';
+			r.deep = !r.difficulty_pending && (r.status === 'solved' || r.status === 'unsolvable');
 			app.assessCache.set(key, r);
 			currentResult = r;
 			renderStatus();
 			onCurrentResult();
 			refreshLevelStrip();
+		}, function (m) {
+			if (job !== focusJob || !m.witness || !m.witness.validated_original) return;
+			provisional = m.witness;
+			renderStatus();
 		});
 	}
 
@@ -1151,6 +1155,7 @@
 			dot.className = 'dot busy';
 			const elapsed = ((Date.now() - analyzeStarted) / 1000).toFixed(0) + 's';
 			text.textContent = provisional ? 'Solvable · ≈' + provisional.length + ' moves (refining · ' + elapsed + ')' : 'Solving… ' + elapsed;
+			if (provisional && provisional.solution) $('watch-btn').style.display = '';
 			if (solving) renderStatus.t = setTimeout(renderStatus, 1000);
 			return;
 		}
@@ -1159,6 +1164,7 @@
 			text.textContent = 'Solvable · ' + (r.optimal ? '' : '≈') + r.length + ' moves';
 			eff.innerHTML = 'effort <span class="effort-bar"><i style="width:' + Math.min(100, effortScore(r.effort) / 18 * 100).toFixed(0) + '%"></i></span> <span class="mono">' + effortLabel(r.effort) + '</span>';
 			eff.title = 'States the solver explored (lower of: ' + Object.keys(r.lanes).map(function (k) { return k + ' ' + r.lanes[k]; }).join(', ') + ')' + (r.optimal ? '' : '\nShortest length not proven (BFS ran out of budget).');
+			if (r.difficulty_pending) { eff.textContent = 'effort pending'; eff.title = 'Difficulty assessment is unfinished.'; }
 			$('watch-btn').style.display = '';
 		} else if (r.reason === 'nowin') {
 			dot.className = 'dot bad';
@@ -2618,7 +2624,7 @@
 	$('rank-select').onchange = renderCards;
 	$('clear-cards').onclick = function () { app.cards = []; if (app.gen) app.gen.seen.clear(); renderCards(); updateGenerationIndicators(); checkpointSoon(); };
 	$('peek-btn').onclick = peekSample;
-	$('watch-btn').onclick = function () { if (currentResult && currentResult.solution) watch(app.board, currentResult.solution); };
+	$('watch-btn').onclick = function () { const result = currentResult || provisional; if (result && result.solution) watch(app.board, result.solution); };
 	$('solve-btn').onclick = function () { if (solving) stopCurrentSolve(); else analyzeCurrent(); };
 	$('simplify-btn').onclick = function () { runSimplify('simplify'); };
 	$('tighten-select').onchange = function (e) {

@@ -81,6 +81,7 @@ SolveAttempt runStrategy(
     solveOptions.max_expanded = maxExpanded;
     solveOptions.solver_heuristic = solverHeuristic;
     solveOptions.deterministic = options.deterministic;
+    solveOptions.random_seed = options.randomSeed.empty() ? nullptr : options.randomSeed.c_str();
 
     ps_solve_result* rawResult = nullptr;
     ps_error* rawError = nullptr;
@@ -326,7 +327,8 @@ DifficultyResult assessGeneratedLevelDifficulty(
     }
     if (finishIfStopped()) return result;
 
-    const SolveAttempt bfs = runStrategy(
+    result.bfsDeferred = options.deferBfs;
+    const SolveAttempt bfs = options.deferBfs ? SolveAttempt{} : runStrategy(
         game,
         level.width,
         level.height,

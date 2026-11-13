@@ -26,6 +26,8 @@ struct DifficultyOptions {
     // Negative: no primary deadline (interactive single-level solving).
     int64_t timeoutMs = 250;
     bool runSupplemental = false;
+    // Desktop may finish this exact lane on GPU before publishing the score.
+    bool deferBfs = false;
     std::function<bool(int64_t primaryExpanded)> supplementalGate;
     int64_t supplementalCap = -1;
     int64_t supplementalTimeoutMs = 60000;
@@ -33,6 +35,8 @@ struct DifficultyOptions {
     // decisions: with both, an assessment depends only on the level.
     uint64_t primaryMaxExpanded = 0;
     bool deterministic = false;
+    // Empty retains the generic solver default. MIS uses its gameplay seed.
+    std::string randomSeed;
     // Shared across all lanes; individual lane timeouts are additionally capped
     // by this deadline. Cancellation is cooperative between runtime turns.
     std::optional<std::chrono::steady_clock::time_point> deadline;
@@ -52,6 +56,7 @@ struct DifficultyResult {
     ps_solve_status primaryStatus = PS_SOLVE_STATUS_ERROR;
     std::string primaryError;
     bool supplementalRan = false;
+    bool bfsDeferred = false;
     bool interrupted = false;
     std::vector<ps_input> solution;
     DifficultyBreakdown breakdown;

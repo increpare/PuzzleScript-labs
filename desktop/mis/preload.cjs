@@ -20,3 +20,11 @@ contextBridge.exposeInMainWorld('misDesktop', {
   onClose: callback => ipcRenderer.on('mis:confirm-close', () => callback()),
   onMaximize: callback => ipcRenderer.on('mis:maximized', (_event, on) => callback(on))
 });
+
+contextBridge.exposeInMainWorld('misNativeBackend', {
+  open: data => invoke('mis:backend-open', data),
+  command: data => invoke('mis:backend-command', data),
+  close: id => invoke('mis:backend-close', id),
+  diagnostics: () => invoke('mis:backend-info'),
+  onEvent: callback => { const listener = (_event, data) => callback(data); ipcRenderer.on('mis:backend-event', listener); return () => ipcRenderer.removeListener('mis:backend-event', listener); }
+});

@@ -6,17 +6,53 @@
   "author": "increpare games",
   "private": true,
   "main": "main.cjs",
-  "scripts": { "start": "electron .", "build": "electron-builder --dir" },
-  "devDependencies": { "electron": "44.7.0", "electron-builder": "26.15.3" },
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --dir"
+  },
+  "devDependencies": {
+    "electron": "44.7.0",
+    "electron-builder": "26.15.3"
+  },
   "build": {
     "appId": "com.increpare.mis95",
     "productName": "MIS95",
     "executableName": "mis95",
-    "directories": { "output": "../../release/mis" },
+    "directories": {
+      "output": "../../release/mis"
+    },
     "npmRebuild": false,
-    "files": ["main.cjs", "preload.cjs", "files.cjs", "NOTICE.txt", "web/**", "icons/**", "package.json"],
-    "mac": { "target": "dir", "executableName": "MIS95", "identity": null, "category": "public.app-category.developer-tools", "icon": "icons/app.icns" },
-    "win": { "target": "dir", "signExecutable": false, "icon": "icons/app.ico" },
-    "linux": { "target": "dir", "icon": "icons/app.png" }
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "files.cjs",
+      "NOTICE.txt",
+      "web/**",
+      "icons/**",
+      "package.json",
+      "backend/mis/**",
+      "backend/cuda/*.cjs",
+      "backend/tools/**",
+      "backend/engine/**",
+      "backend/bin/**",
+      "backend/assets-manifest.json"
+    ],
+    "mac": {
+      "target": "dir",
+      "executableName": "MIS95",
+      "identity": null,
+      "category": "public.app-category.developer-tools",
+      "icon": "icons/app.icns"
+    },
+    "win": {
+      "target": "dir",
+      "signExecutable": false,
+      "icon": "icons/app.ico"
+    },
+    "linux": {
+      "target": "dir",
+      "icon": "icons/app.png"
+    },
+    "asar": false
   }
 }

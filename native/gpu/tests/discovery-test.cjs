@@ -1,0 +1,13 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),{DiscoveryCache}=require('../../../desktop/mis/backend/mis/discovery-cache.cjs'),{WorkerClient}=require('../../../desktop/mis/backend/mis/worker-client.cjs'),{loadAsyncGenerator}=require('../../../desktop/mis/backend/tools/async-mis-generator.cjs');
+(async()=>{
+ const cache=new DiscoveryCache();let calls=0;const unknown=()=>{calls++;return {status:'unknown',reason:'work_limit',bounded_unknown:true};};
+ await cache.acquire('board',512,unknown);const reused=await cache.acquire('board',512,unknown);assert.equal(calls,1);assert.equal(reused.status,'unknown');assert(reused.discovery_cache);await cache.acquire('board',1024,unknown);assert.equal(calls,2);
+ let release;const work=()=>{calls++;return new Promise(r=>{release=r;});};const a=cache.acquire('second',512,work),b=cache.acquire('second',512,work);await Promise.resolve();release({status:'candidate_solution',solution:[3],validation_deferred:true,validated_original:false,gpu:{status:'candidate_solution',expanded:2,gpu_receipts:10}});await Promise.all([a,b]);const proof=await cache.acquire('second',512,unknown);assert(!proof.gpu&&proof.discovery_evidence.gpu_receipts===10,'Cached proof must not claim a fresh GPU dispatch');assert.equal(calls,3);
+ const engine=path.join(__dirname,'../../..'),worker=new WorkerClient(path.join(__dirname,'../../../desktop/mis/backend/mis/engine-worker.cjs'),{engine});
+ try{const source=fs.readFileSync(path.join(__dirname,'fixtures/scoring/game0.txt'),'utf8'),p=await worker.request({op:'compile',source}),{model}=await worker.request({op:'generation_model',revision:p.revision}),core=require(path.join(engine,'src/js/mis/mis_core.js')),adapted=loadAsyncGenerator(path.join(engine,'src/js/mis/mis_generator.js'),core,performance,{boundedDiscovery:true}),presets=core.derivePresets(model),program=core.parseTransform(presets[0].text,model);let requests=0;
+  const gen=adapted.generator.create({model,base:{...p.levels[0].board,cells:Int32Array.from(p.levels[0].board.cells)},program,baseEffort:5,seedPrimaryMs:1,seed:42,parents:'elite',backend:{assess:async()=>{requests++;return {status:'unknown',bounded_unknown:true,reason:'work_limit'};}}});
+  for(let i=0;i<100;i++)assert.equal(await gen.step(),null);const stats=gen.stats();assert(requests>0);assert.equal(stats.timeout,0);assert.equal(stats.discoveryUnknown,requests);assert.equal(stats.unsolvable,0);
+ }finally{await worker.close();}
+ console.log('Bounded discovery: reuse, larger grants, shared work, proof provenance and authored-generator unknown feedback passed');
+})().catch(e=>{console.error(e);process.exitCode=1;});

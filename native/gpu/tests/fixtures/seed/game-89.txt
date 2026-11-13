@@ -1,0 +1,601 @@
+noaction
+noundo
+run_rules_on_level_start
+
+========
+OBJECTS
+========
+
+obj_0
+black
+00000
+0...0
+0...0
+0...0
+00000
+
+obj_1
+white
+00000
+...00
+...00
+...00
+00000
+
+obj_2
+gray
+00000
+..00.
+..00.
+..00.
+00000
+
+obj_3
+darkgray
+....0
+0..00
+00000
+0..00
+....0
+
+obj_4
+lightgray
+...0.
+..000
+00000
+..000
+...0.
+
+obj_5
+red
+..0..
+.000.
+00000
+.000.
+..0..
+
+obj_6
+darkred
+...00
+0.0..
+.0...
+0.0..
+...00
+
+obj_7
+lightred
+..00.
+.0..0
+0....
+.0..0
+..00.
+
+obj_8
+brown
+.00..
+0..0.
+....0
+0..0.
+.00..
+
+obj_9
+orange
+00...
+..0.0
+...0.
+..0.0
+00...
+
+obj_10
+yellow
+0...0
+.0.0.
+..0..
+.0.0.
+0...0
+
+obj_11
+green
+...00
+0.0..
+.0...
+0.0..
+...00
+
+obj_12
+darkgreen
+..00.
+.0..0
+0....
+.0..0
+..00.
+
+obj_13
+lightgreen
+.00..
+0..0.
+....0
+0..0.
+.00..
+
+obj_14
+blue
+00...
+..0.0
+...0.
+..0.0
+00...
+
+obj_15
+darkblue
+0...0
+.0.0.
+..0..
+.0.0.
+0...0
+
+obj_16
+lightblue
+...00
+0.0..
+.0...
+0.0..
+...00
+
+obj_17
+purple
+..00.
+.0..0
+0....
+.0..0
+..00.
+
+obj_18
+pink
+.00..
+0..0.
+....0
+0..0.
+.00..
+
+obj_19
+black
+00...
+..0.0
+...0.
+..0.0
+00...
+
+obj_20
+white
+0...0
+.0.0.
+..0..
+.0.0.
+0...0
+
+obj_21
+gray
+...00
+0.0..
+.0...
+0.0..
+...00
+
+obj_22
+darkgray
+..00.
+.0..0
+0....
+.0..0
+..00.
+
+obj_23
+lightgray
+.00..
+0..0.
+....0
+0..0.
+.00..
+
+obj_24
+red
+00...
+..0.0
+...0.
+..0.0
+00...
+
+obj_25
+darkred
+0...0
+.0.0.
+..0..
+.0.0.
+0...0
+
+obj_26
+lightred
+....0
+0....
+.0...
+..0..
+...0.
+
+obj_27
+brown
+...0.
+....0
+0....
+.0...
+..0..
+
+obj_28
+orange
+..0..
+...0.
+....0
+0....
+.0...
+
+obj_29
+yellow
+.0...
+..0..
+...0.
+....0
+0....
+
+obj_30
+green
+00000
+00000
+00000
+00000
+00000
+
+=======
+LEGEND
+=======
+
+set_0 = obj_9 or obj_10 or obj_11 or obj_12 or obj_13
+set_1 = obj_9 or obj_10 or obj_11 or obj_12 or obj_13 or obj_22
+set_2 = obj_9 or obj_10 or obj_11 or obj_12 or obj_13 or obj_16 or obj_17 or obj_18 or obj_19 or obj_22
+set_3 = obj_10 or obj_16
+set_4 = obj_11 or obj_16
+set_5 = obj_12 or obj_16
+set_6 = obj_13 or obj_16
+set_7 = obj_9 or obj_16
+set_8 = obj_16 or obj_22
+set_9 = obj_9 or obj_10 or obj_11 or obj_12 or obj_13 or obj_16 or obj_22
+set_10 = obj_7 or obj_14 or obj_15 or obj_20 or obj_21
+set_11 = obj_6 or obj_9 or obj_10 or obj_11 or obj_12 or obj_13 or obj_16 or obj_17 or obj_18 or obj_19 or obj_22
+set_12 = obj_26 or obj_29
+set_13 = obj_9 or obj_10 or obj_11 or obj_12 or obj_13 or obj_18
+set_14 = obj_9 or obj_10 or obj_11 or obj_12 or obj_13 or obj_17
+set_15 = obj_9 or obj_10 or obj_11 or obj_12 or obj_13 or obj_18 or obj_22
+set_16 = obj_7 or obj_20
+cell_0 = obj_1 and obj_4 and obj_24
+cell_1 = obj_4 and obj_24
+cell_2 = obj_2 and obj_5
+background = obj_30
+player = obj_6
+
+0 = cell_0
+1 = cell_1
+2 = obj_15
+3 = obj_7
+4 = obj_8
+5 = obj_6
+6 = cell_2
+7 = obj_5
+8 = obj_14
+9 = obj_20
+A = obj_21
+
+=======
+SOUNDS
+=======
+
+================
+COLLISIONLAYERS
+================
+
+obj_30
+obj_0, obj_1, obj_2
+obj_3, obj_4, obj_5
+obj_6, obj_7, obj_8, obj_9, obj_10, obj_11, obj_12, obj_13, obj_14, obj_15, obj_16, obj_17, obj_18, obj_19, obj_20, obj_21, obj_22, obj_23, obj_24, obj_25
+obj_26, obj_27, obj_28, obj_29
+
+======
+RULES
+======
+
+down [ obj_7 ] [ obj_8 ] -> [ obj_7 ] [ random set_0 stationary obj_26 ]
+
+down [ obj_14 ] [ obj_8 ] -> [ obj_14 ] [ random set_0 ]
+
+down [ obj_20 ] [ obj_8 ] -> [ obj_20 ] [ random set_0 stationary obj_26 ]
+
+down [ obj_21 ] [ obj_8 ] -> [ obj_21 ] [ random set_1 ]
+
+down [ obj_27 ] -> [ stationary obj_23 ] again
+
+down [ obj_28 ] -> [ obj_27 ] again
+
+down [ obj_10 | up obj_6 ] -> [ obj_6 | stationary obj_3 obj_10 ]
++ down [ obj_11 | up obj_6 ] -> [ obj_6 | stationary obj_3 obj_11 ]
++ down [ obj_12 | up obj_6 ] -> [ obj_6 | stationary obj_3 obj_12 ]
++ down [ obj_13 | up obj_6 ] -> [ obj_6 | stationary obj_3 obj_13 ]
++ down [ obj_9 | up obj_6 ] -> [ obj_6 | stationary obj_3 obj_9 ]
++ down [ obj_22 | up obj_6 ] -> [ obj_6 | stationary obj_3 obj_22 ]
++ down [ obj_16 | up obj_6 ] -> [ obj_6 | stationary obj_3 obj_16 ]
++ down [ obj_17 | up obj_6 ] -> [ obj_6 | stationary obj_3 obj_17 ]
++ down [ obj_18 | up obj_6 ] -> [ obj_6 | stationary obj_3 obj_18 ]
++ down [ obj_19 | up obj_6 ] -> [ obj_6 | stationary obj_3 obj_19 ]
++ down [ down obj_6 | obj_10 ] -> [ stationary obj_3 obj_10 | obj_6 ]
++ down [ down obj_6 | obj_11 ] -> [ stationary obj_3 obj_11 | obj_6 ]
++ down [ down obj_6 | obj_12 ] -> [ stationary obj_3 obj_12 | obj_6 ]
++ down [ down obj_6 | obj_13 ] -> [ stationary obj_3 obj_13 | obj_6 ]
++ down [ down obj_6 | obj_9 ] -> [ stationary obj_3 obj_9 | obj_6 ]
++ down [ down obj_6 | obj_22 ] -> [ stationary obj_3 obj_22 | obj_6 ]
++ down [ down obj_6 | obj_16 ] -> [ stationary obj_3 obj_16 | obj_6 ]
++ down [ down obj_6 | obj_17 ] -> [ stationary obj_3 obj_17 | obj_6 ]
++ down [ down obj_6 | obj_18 ] -> [ stationary obj_3 obj_18 | obj_6 ]
++ down [ down obj_6 | obj_19 ] -> [ stationary obj_3 obj_19 | obj_6 ]
++ right [ obj_10 | left obj_6 ] -> [ obj_6 | stationary obj_3 obj_10 ]
++ right [ obj_11 | left obj_6 ] -> [ obj_6 | stationary obj_3 obj_11 ]
++ right [ obj_12 | left obj_6 ] -> [ obj_6 | stationary obj_3 obj_12 ]
++ right [ obj_13 | left obj_6 ] -> [ obj_6 | stationary obj_3 obj_13 ]
++ right [ obj_9 | left obj_6 ] -> [ obj_6 | stationary obj_3 obj_9 ]
++ right [ obj_22 | left obj_6 ] -> [ obj_6 | stationary obj_3 obj_22 ]
++ right [ obj_16 | left obj_6 ] -> [ obj_6 | stationary obj_3 obj_16 ]
++ right [ obj_17 | left obj_6 ] -> [ obj_6 | stationary obj_3 obj_17 ]
++ right [ obj_18 | left obj_6 ] -> [ obj_6 | stationary obj_3 obj_18 ]
++ right [ obj_19 | left obj_6 ] -> [ obj_6 | stationary obj_3 obj_19 ]
++ right [ right obj_6 | obj_10 ] -> [ stationary obj_3 obj_10 | obj_6 ]
++ right [ right obj_6 | obj_11 ] -> [ stationary obj_3 obj_11 | obj_6 ]
++ right [ right obj_6 | obj_12 ] -> [ stationary obj_3 obj_12 | obj_6 ]
++ right [ right obj_6 | obj_13 ] -> [ stationary obj_3 obj_13 | obj_6 ]
++ right [ right obj_6 | obj_9 ] -> [ stationary obj_3 obj_9 | obj_6 ]
++ right [ right obj_6 | obj_22 ] -> [ stationary obj_3 obj_22 | obj_6 ]
++ right [ right obj_6 | obj_16 ] -> [ stationary obj_3 obj_16 | obj_6 ]
++ right [ right obj_6 | obj_17 ] -> [ stationary obj_3 obj_17 | obj_6 ]
++ right [ right obj_6 | obj_18 ] -> [ stationary obj_3 obj_18 | obj_6 ]
++ right [ right obj_6 | obj_19 ] -> [ stationary obj_3 obj_19 | obj_6 ]
+
+down [ obj_3 | obj_6 obj_26 ] -> [ obj_3 stationary obj_26 | obj_6 ]
++ down [ obj_6 obj_26 | obj_3 ] -> [ obj_6 | obj_3 stationary obj_26 ]
++ right [ obj_3 | obj_6 obj_26 ] -> [ obj_3 stationary obj_26 | obj_6 ]
++ right [ obj_6 obj_26 | obj_3 ] -> [ obj_6 | obj_3 stationary obj_26 ]
+
+down [ no set_2 | up obj_6 ] -> [  | obj_6 ]
++ down [ down obj_6 | no set_2 ] -> [ obj_6 |  ]
++ right [ no set_2 | left obj_6 ] -> [  | obj_6 ]
++ right [ right obj_6 | no set_2 ] -> [ obj_6 |  ]
+
+down [ set_3 | set_3 | set_3 ] -> [ stationary obj_0 set_3 | stationary obj_0 set_3 | stationary obj_0 set_3 ]
++ right [ set_3 | set_3 | set_3 ] -> [ stationary obj_0 set_3 | stationary obj_0 set_3 | stationary obj_0 set_3 ]
+
+down [ set_4 | set_4 | set_4 ] -> [ stationary obj_0 set_4 | stationary obj_0 set_4 | stationary obj_0 set_4 ]
++ right [ set_4 | set_4 | set_4 ] -> [ stationary obj_0 set_4 | stationary obj_0 set_4 | stationary obj_0 set_4 ]
+
+down [ set_5 | set_5 | set_5 ] -> [ stationary obj_0 set_5 | stationary obj_0 set_5 | stationary obj_0 set_5 ]
++ right [ set_5 | set_5 | set_5 ] -> [ stationary obj_0 set_5 | stationary obj_0 set_5 | stationary obj_0 set_5 ]
+
+down [ set_6 | set_6 | set_6 ] -> [ stationary obj_0 set_6 | stationary obj_0 set_6 | stationary obj_0 set_6 ]
++ right [ set_6 | set_6 | set_6 ] -> [ stationary obj_0 set_6 | stationary obj_0 set_6 | stationary obj_0 set_6 ]
+
+down [ set_7 | set_7 | set_7 ] -> [ stationary obj_0 set_7 | stationary obj_0 set_7 | stationary obj_0 set_7 ]
++ right [ set_7 | set_7 | set_7 ] -> [ stationary obj_0 set_7 | stationary obj_0 set_7 | stationary obj_0 set_7 ]
+
+down [ set_8 | set_8 | set_8 ] -> [ stationary obj_0 set_8 | stationary obj_0 set_8 | stationary obj_0 set_8 ]
++ right [ set_8 | set_8 | set_8 ] -> [ stationary obj_0 set_8 | stationary obj_0 set_8 | stationary obj_0 set_8 ]
+
+down [ obj_17 | obj_17 | obj_17 ] -> [ stationary obj_0 obj_17 | stationary obj_0 obj_17 | stationary obj_0 obj_17 ]
++ right [ obj_17 | obj_17 | obj_17 ] -> [ stationary obj_0 obj_17 | stationary obj_0 obj_17 | stationary obj_0 obj_17 ]
+
+down [ set_2 | obj_3 obj_19 ] -> [ up obj_0 set_2 | obj_3 obj_19 ]
+
+right [ obj_3 obj_19 | set_2 ] -> [ obj_3 obj_19 | right obj_0 set_2 ]
+
+down [ obj_3 obj_19 | set_2 ] -> [ obj_3 obj_19 | down obj_0 set_2 ]
+
+right [ set_2 | obj_3 obj_19 ] -> [ left obj_0 set_2 | obj_3 obj_19 ]
+
+down [ obj_3 obj_19 ] -> [ obj_3 obj_23 ]
+
+down [ set_2 | up obj_0 set_2 ] -> [ up obj_0 set_2 | obj_0 set_2 ]
+
+right [ right obj_0 set_2 | set_2 ] -> [ obj_0 set_2 | right obj_0 set_2 ]
+
+down [ down obj_0 set_2 | set_2 ] -> [ obj_0 set_2 | down obj_0 set_2 ]
+
+right [ set_2 | left obj_0 set_2 ] -> [ left obj_0 set_2 | obj_0 set_2 ]
+
+down [ up obj_0 ] -> [ obj_0 ]
++ down [ down obj_0 ] -> [ obj_0 ]
++ right [ left obj_0 ] -> [ obj_0 ]
++ right [ right obj_0 ] -> [ obj_0 ]
+
+down [ obj_0 obj_18 ] -> [ obj_18 ]
+
+right [ obj_0 | obj_0 ] -> [ right obj_0 | right obj_0 ]
+
+down [ obj_0 | obj_0 ] -> [ down obj_0 | down obj_0 ]
+
+down [ right obj_0 | down obj_0 ] [ obj_0 obj_3 ] -> [ obj_0 | obj_0 ] [ obj_3 stationary obj_19 ]
++ down [ down obj_0 | right obj_0 ] [ obj_0 obj_3 ] -> [ obj_0 | obj_0 ] [ obj_3 stationary obj_19 ]
++ right [ right obj_0 | down obj_0 ] [ obj_0 obj_3 ] -> [ obj_0 | obj_0 ] [ obj_3 stationary obj_19 ]
++ right [ down obj_0 | right obj_0 ] [ obj_0 obj_3 ] -> [ obj_0 | obj_0 ] [ obj_3 stationary obj_19 ]
+
+down [ obj_0 set_9 | obj_0 set_9 | obj_0 set_9 | obj_0 set_9 ] [ obj_0 obj_3 ] -> [ obj_0 set_9 | obj_0 set_9 | obj_0 set_9 | obj_0 set_9 ] [ obj_3 stationary obj_16 ]
++ right [ obj_0 set_9 | obj_0 set_9 | obj_0 set_9 | obj_0 set_9 ] [ obj_0 obj_3 ] -> [ obj_0 set_9 | obj_0 set_9 | obj_0 set_9 | obj_0 set_9 ] [ obj_3 stationary obj_16 ]
+
+random right [ obj_3 ] [ obj_24 | no obj_24 ] -> [ obj_3 ] [  |  ]
+
+down [ obj_0 ] [ obj_4 ] -> [ obj_0 ] [ obj_4 stationary obj_24 ]
+
+down [ obj_25 ] -> cancel
+
+down [ obj_1 obj_4 no obj_24 ] [ obj_6 ] -> [ obj_1 obj_4 ] [ obj_25 ]
+
+down [ obj_0 obj_17 | obj_6 ] -> [ obj_17 | obj_25 ]
++ down [ obj_6 | obj_0 obj_17 ] -> [ obj_25 | obj_17 ]
++ right [ obj_0 obj_17 | obj_6 ] -> [ obj_17 | obj_25 ]
++ right [ obj_6 | obj_0 obj_17 ] -> [ obj_25 | obj_17 ]
+
+down [ obj_25 ] [ obj_4 obj_24 ] -> [ obj_25 ] [ obj_4 ]
+
+down [ obj_0 obj_10 ] -> [ stationary obj_28 ] again
+
+down [ obj_0 obj_11 ] -> [ stationary obj_28 ] again
+
+down [ obj_0 obj_12 ] -> [ stationary obj_28 ] again
+
+down [ obj_0 obj_13 ] -> [ stationary obj_28 ] again
+
+down [ obj_0 obj_9 ] -> [ stationary obj_28 ] again
+
+down [ obj_0 obj_22 ] -> [ stationary obj_28 ] again
+
+down [ obj_0 obj_16 ] -> [ stationary obj_28 ] again
+
+down [ obj_6 ] [ obj_0 obj_17 ] -> [ obj_6 ] [ stationary obj_28 ] again
+
+down [ obj_17 | set_10 ] -> [ stationary obj_28 | set_10 ] again
+
+down [ obj_18 | set_10 ] -> [ stationary obj_0 obj_18 | set_10 ]
+
+down [ obj_0 obj_18 ] [ obj_2 no obj_18 ] -> [ stationary obj_28 ] [ obj_2 obj_18 ] again
+
+right [ obj_0 obj_18 ] [ obj_5 obj_18 | obj_5 no obj_18 ] -> [ stationary obj_28 ] [ obj_5 obj_18 | obj_5 obj_18 ] again
+
+down [ set_11 no set_12 ] -> [ set_11 obj_29 ]
+
+down [ obj_10 obj_26 | obj_23 ] -> [ obj_23 | obj_10 stationary obj_26 ]
++ down [ obj_10 obj_29 | obj_23 ] -> [ obj_23 | obj_10 stationary obj_29 ]
++ down [ obj_11 obj_26 | obj_23 ] -> [ obj_23 | obj_11 stationary obj_26 ]
++ down [ obj_11 obj_29 | obj_23 ] -> [ obj_23 | obj_11 stationary obj_29 ]
++ down [ obj_12 obj_26 | obj_23 ] -> [ obj_23 | obj_12 stationary obj_26 ]
++ down [ obj_12 obj_29 | obj_23 ] -> [ obj_23 | obj_12 stationary obj_29 ]
++ down [ obj_13 obj_26 | obj_23 ] -> [ obj_23 | obj_13 stationary obj_26 ]
++ down [ obj_13 obj_29 | obj_23 ] -> [ obj_23 | obj_13 stationary obj_29 ]
++ down [ obj_9 obj_26 | obj_23 ] -> [ obj_23 | obj_9 stationary obj_26 ]
++ down [ obj_9 obj_29 | obj_23 ] -> [ obj_23 | obj_9 stationary obj_29 ]
++ down [ obj_22 obj_26 | obj_23 ] -> [ obj_23 | obj_22 stationary obj_26 ]
++ down [ obj_22 obj_29 | obj_23 ] -> [ obj_23 | obj_22 stationary obj_29 ]
++ down [ obj_16 obj_26 | obj_23 ] -> [ obj_23 | obj_16 stationary obj_26 ]
++ down [ obj_16 obj_29 | obj_23 ] -> [ obj_23 | obj_16 stationary obj_29 ]
++ down [ obj_17 obj_26 | obj_23 ] -> [ obj_23 | obj_17 stationary obj_26 ]
++ down [ obj_17 obj_29 | obj_23 ] -> [ obj_23 | obj_17 stationary obj_29 ]
++ down [ obj_18 obj_26 | obj_23 ] -> [ obj_23 | obj_18 stationary obj_26 ]
++ down [ obj_18 obj_29 | obj_23 ] -> [ obj_23 | obj_18 stationary obj_29 ]
++ down [ obj_19 obj_26 | obj_23 ] -> [ obj_23 | obj_19 stationary obj_26 ]
++ down [ obj_19 obj_29 | obj_23 ] -> [ obj_23 | obj_19 stationary obj_29 ]
++ down [ obj_6 obj_26 | obj_23 ] -> [ obj_23 | obj_6 stationary obj_26 ]
++ down [ obj_6 obj_29 | obj_23 ] -> [ obj_23 | obj_6 stationary obj_29 ]
+
+down [ obj_29 ] -> [  ]
+
+down [ obj_7 | obj_23 ] -> [ obj_7 | random set_0 ] again
+
+down [ obj_14 | obj_23 ] -> [ obj_14 | random set_13 ] again
+
+down [ obj_20 | obj_23 ] -> [ obj_20 | random set_14 ] again
+
+down [ obj_21 | obj_23 ] -> [ obj_21 | random set_15 ] again
+
+right [ obj_5 obj_18 | set_10 ] -> win
+
+down [ obj_3 ] -> [  ]
+
+==============
+WINCONDITIONS
+==============
+
+no obj_26
+some set_16
+
+======
+LEVELS
+======
+
+message
+
+message
+
+message
+
+0111112
+2333332
+2444442
+2444442
+2444442
+2444442
+2445442
+2222222
+
+message
+
+01111112
+23333332
+24444442
+24444442
+24444442
+24444442
+24444442
+24444442
+24445442
+22222222
+
+message
+
+message
+
+677777772
+011111112
+288888882
+244444442
+244444442
+244444442
+244444442
+244444442
+244444442
+244444442
+244454442
+222222222
+
+message
+
+message
+
+message
+
+01111112
+29999992
+24444442
+24444442
+24444442
+24444442
+24444442
+24444442
+24445442
+22222222
+
+message
+
+677777772
+011111112
+2AAAAAAA2
+244444442
+244444442
+244444442
+244444442
+244444442
+244444442
+244444442
+244454442
+222222222
+
+message

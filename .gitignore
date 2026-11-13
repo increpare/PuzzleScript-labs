@@ -102,3 +102,8 @@ hardware/pocket_card/case/.venv/
 .superpowers/
 autocomplete/.env
 autocomplete/.venv/
+
+# Generated native desktop runtime assets
+/desktop/mis/backend/bin/
+/desktop/mis/backend/engine/
+/desktop/mis/backend/assets-manifest.json

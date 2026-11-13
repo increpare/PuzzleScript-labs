@@ -709,10 +709,49 @@ void runCompiledCompactSolverDiscardRegression(const char* sourcePath) {
     ps_free_game(const_cast<ps_game*>(game));
 }
 
+
+void runVanillaAgainDrainRegression() {
+    // Follow the same authored inputs through single-step delivery and Drain.
+    // Both must consume the speculative RNG draw and checkpoint effects.
+    const std::string testDir = std::string(__FILE__).substr(0, std::string(__FILE__).find_last_of("/\\"));
+    for (const char* name : {"again-random.ps", "again-checkpoint.ps"}) {
+        std::ifstream stream(testDir + "/../../src/tests/fixtures/again/" + name);
+        require(stream.good(), "missing authored AGAIN regression source");
+        std::stringstream buffer; buffer << stream.rdbuf();
+        puzzlescript::compiler::DiagnosticSink diagnostics;
+        const auto parsed = puzzlescript::compiler::parseSource(buffer.str(), diagnostics);
+        puzzlescript::LoadedGame loaded;
+        require(!puzzlescript::compiler::lowerToRuntimeGame(parsed, loaded), "AGAIN regression compile failed");
+        auto yield = puzzlescript::createFullStateWithLoadedLevelSeed(loaded, "split-colors-5");
+        auto drain = puzzlescript::createFullStateWithLoadedLevelSeed(loaded, "split-colors-5");
+        const puzzlescript::RuntimeStepOptions yieldOptions{.emitAudio = false, .againPolicy = puzzlescript::AgainPolicy::Yield};
+        const puzzlescript::RuntimeStepOptions drainOptions{.emitAudio = false, .againPolicy = puzzlescript::AgainPolicy::Drain};
+        require(!puzzlescript::loadLevel(*yield, 0, yieldOptions), "AGAIN Yield load failed");
+        require(!puzzlescript::loadLevel(*drain, 0, yieldOptions), "AGAIN Drain load failed");
+        for (int repeat = 0; repeat < 3; ++repeat) {
+            (void)puzzlescript::turn(*yield, PS_INPUT_ACTION, yieldOptions);
+            for (int n = 0; n < 200 && yield->meta.pendingAgain; ++n)
+                (void)puzzlescript::turn(*yield, PS_INPUT_TICK, yieldOptions);
+            (void)puzzlescript::turn(*drain, PS_INPUT_ACTION, drainOptions);
+            require(!yield->meta.pendingAgain && !drain->meta.pendingAgain, "AGAIN did not settle");
+            require(puzzlescript::exportSnapshot(*yield) == puzzlescript::exportSnapshot(*drain),
+                    "Drain diverged from vanilla Yield: board/RNG/checkpoint/history");
+            require(yield->meta.restart.objects == drain->meta.restart.objects, "AGAIN restart target diverged");
+            require(yield->meta.undoStack.size() == drain->meta.undoStack.size(), "AGAIN undo depth diverged");
+            for (size_t i = 0; i < yield->meta.undoStack.size(); ++i)
+                require(yield->meta.undoStack[i].levelState.board.objects == drain->meta.undoStack[i].levelState.board.objects, "AGAIN undo board diverged");
+            (void)puzzlescript::undo(*yield); (void)puzzlescript::undo(*drain);
+            require(puzzlescript::exportSnapshot(*yield) == puzzlescript::exportSnapshot(*drain), "AGAIN undo diverged");
+        }
+    }
+}
+
 } // namespace
 
 int main() {
     runAgainProbeRandomIsolationRegression();
+    runVanillaAgainDrainRegression();
+
     if (const char* compactDiscardSource = std::getenv("PUZZLESCRIPT_COMPILED_COMPACT_DISCARD_SOURCE")) {
         runCompiledCompactSolverDiscardRegression(compactDiscardSource);
     }

@@ -8358,7 +8358,8 @@ ps_step_result interpretedTurnOnceWithSpecializedRulegroups(
         .recordRestartUndo = options.playableUndo,
         .emitAudio = options.emitAudio,
         .solverMode = options.solverMode,
-        .probeAgain = options.againPolicy != AgainPolicy::Drain,
+        // Draining changes delivery, never the speculative vanilla turn.
+        .probeAgain = true,
         .applyEarlyRules = applyEarlyRules,
         .applyLateRules = applyLateRules,
     });
@@ -8421,8 +8422,10 @@ ps_step_result interpretedTickWithSpecializedRulegroups(
         .recordRestartUndo = options.playableUndo,
         .emitAudio = options.emitAudio,
         .solverMode = options.solverMode,
-        .probeAgain = options.againPolicy != AgainPolicy::Drain,
+        // Draining changes delivery, never the speculative vanilla turn.
+        .probeAgain = true,
         .usePrepared = options.againPolicy == AgainPolicy::Yield,
+
         .applyEarlyRules = applyEarlyRules,
         .applyLateRules = applyLateRules,
     });

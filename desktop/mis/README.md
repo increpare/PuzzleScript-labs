@@ -3,8 +3,12 @@
 MIS95, the Win95 mixed-initiative workbench in `src/mis.html`, packaged as a
 GUI95 app. It is a redesign of Kevin De Keyser's PuzzleScript+MIS
 (<https://dekeyser.ch/puzzlescriptmis/>).
-It uses the same engine, Web Workers, native WebAssembly solver and CodeMirror
-editor as the browser version. It runs offline, including its bundled demos.
+Automatic uses native C++ with optional CUDA on Windows x64. CPU work starts
+immediately; generation uses seven CPU producers plus two scorers for GPU
+discoveries, with fair admission and supported exact GPU BFS scoring. Missing CUDA retains native CPU execution; missing native helpers
+use the bundled WASM worker. JavaScript remains selectable. Other platforms
+currently retain WASM. See [backend build/distribution details](backend/README.md).
+It runs offline, including its bundled demos.
 Per-level generation continues when the window is minimized; it does not keep the computer awake. Generated collections
 are checkpointed locally and reopen paused.
 The older openFrameworks application in `tools/puzzlescriptmis-app` is separate.

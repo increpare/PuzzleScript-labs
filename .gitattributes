@@ -31,3 +31,19 @@ tools/linguist/samples/*.puzzlescript linguist-detectable
 # Reproducibly generated CodeMirror runtime bundle.
 src/js/codemirror6/runtime/dist/codemirror6-runtime.js linguist-generated=true
 src/js/codemirror6/runtime/dist/codemirror6-runtime.js.map linguist-generated=true
+
+# Native helper provenance hashes must survive Windows checkout conversion.
+native/**/*.cpp text eol=lf
+native/**/*.hpp text eol=lf
+native/**/*.c text eol=lf
+native/**/*.h text eol=lf
+native/CMakeLists.txt text eol=lf
+# Pinned compiler and GPU inputs are byte-identified snapshots.
+desktop/mis/backend/authority/** -text -whitespace
+native/gpu/** -text
+native/gpu/cuda/** -whitespace
+native/gpu/cpp/** -whitespace
+native/gpu/tests/fixtures/** -whitespace
+# Matplotlib keeps whitespace inside SVG path data.
+docs/benchmarks/assets/**/*.svg -whitespace
+native/gpu/tests/fixtures/** conflict-marker-size=256

@@ -3,6 +3,8 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const { Files } = require('./files.cjs');
 const ORIGIN = 'mis95://app/';
+const { DesktopBackend } = require('./backend/mis/desktop-backend.cjs');
+let backendHost, backendQuit, backendQuitComplete = false;
 app.setName('MIS95');
 if (process.env.MIS95_USER_DATA) app.setPath('userData', path.resolve(process.env.MIS95_USER_DATA));
 app.commandLine.appendSwitch('disable-lcd-text');
@@ -45,6 +47,17 @@ function handle(channel, action) {
 app.whenReady().then(async () => {
   if (!ownsProfile) return;
   files = new Files(app.getPath('userData')); await files.load();
+  backendHost = new DesktopBackend({ engine: path.join(__dirname, 'backend/engine'),
+    gpuOptions: { reference: path.join(__dirname, 'backend/engine/typescript') },
+    directory: path.join(app.getPath('userData'), 'native-sessions', Date.now() + '-' + process.pid),
+    gpu: process.env.MIS95_DISABLE_CUDA !== '1',
+    nativeExe: process.env.MIS95_NATIVE_EXE || undefined,
+    onEvent: event => { if (win && !win.webContents.isDestroyed()) win.webContents.send('mis:backend-event', event); }
+  });
+  handle('mis:backend-open', data => process.env.MIS95_DISABLE_NATIVE === '1' ? { available: false } : backendHost.open(data));
+  handle('mis:backend-command', data => backendHost.command(data));
+  handle('mis:backend-close', id => backendHost.closeView(id));
+  handle('mis:backend-info', () => backendHost.diagnostics());
   Menu.setApplicationMenu(process.platform === 'darwin' ? Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }, { role: 'windowMenu' }]) : null);
   const web = path.join(__dirname, 'web');
   protocol.handle('mis95', async request => {
@@ -105,7 +118,7 @@ app.whenReady().then(async () => {
     return { path: result.filePath, name: path.basename(result.filePath) };
   });
   handle('mis:confirm-save', async () => (await dialog.showMessageBox(win, { type: 'question', message: 'Save changes to this game?', buttons: ['Save', 'Discard', 'Cancel'], defaultId: 0, cancelId: 2 })).response);
-  ipcMain.on('mis:ready', event => { if (trusted(event)) { ready = true; win.show(); dispatchNext(); } });
+  ipcMain.on('mis:ready', event => { if (trusted(event)) { ready = true; if (process.env.MIS95_TEST_HIDDEN !== '1') win.show(); dispatchNext(); } });
   ipcMain.on('mis:opened', event => { if (trusted(event)) { opening = false; dispatchNext(); } });
   ipcMain.on('mis:close-confirmed', event => { if (trusted(event)) { closing = true; win.close(); } });
   ipcMain.on('mis:window', (event, action) => {
@@ -115,8 +128,14 @@ app.whenReady().then(async () => {
     if (action === 'close') win.close();
   });
   win.webContents.on('did-fail-load', (_event, code, message) => { if (code !== -3) { win.show(); dialog.showErrorBox('MIS95 could not start', message); } });
-  const showFallback = setTimeout(() => { if (win && !win.isDestroyed()) win.show(); }, 10000);
+  const showFallback = setTimeout(() => { if (win && !win.isDestroyed() && process.env.MIS95_TEST_HIDDEN !== '1') win.show(); }, 10000);
   showFallback.unref();
   await win.loadURL(ORIGIN + 'mis.html');
 });
 app.on('window-all-closed', () => app.quit());
+
+app.on('before-quit', event => {
+  if (!backendHost || backendQuitComplete) return;
+  event.preventDefault();
+  backendQuit ||= backendHost.close().finally(() => { backendQuitComplete = true; app.quit(); });
+});

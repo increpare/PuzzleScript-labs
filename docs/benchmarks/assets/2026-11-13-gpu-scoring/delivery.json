@@ -1,0 +1,669 @@
+{
+  "scope": "Generator assessment/admission study; installed algorithm unchanged. Source native/WASM RNG correctness repair staged and packaged.",
+  "cohorts": [
+    {
+      "name": "three-arm-r1",
+      "summary_sha256": "93b0ebe2a7519805228b3397bcc56ce9c7891eb15e4c895e3bcce2bf22898b60",
+      "duration_ms": 5000,
+      "reports": [
+        {
+          "mode": "hybrid-fifo",
+          "coverage": [
+            370,
+            385,
+            391
+          ],
+          "median_coverage": 385,
+          "matched": 1146,
+          "matched_best_ratio": 1,
+          "matched_shortlist_mean_ratio": 1,
+          "native_assessments": 7113,
+          "scorer_cancelled_queued": 2836,
+          "broker_cancelled_queued": 0,
+          "scorer_native_ms": 156379.4498000002,
+          "gpu_discovery_compute_ms": 71484.50452502
+        },
+        {
+          "mode": "hybrid-fair",
+          "coverage": [
+            407,
+            420,
+            420
+          ],
+          "median_coverage": 420,
+          "matched": 1072,
+          "matched_best_ratio": 0.9183400095205141,
+          "matched_shortlist_mean_ratio": 0.9301751491267953,
+          "native_assessments": 4310,
+          "scorer_cancelled_queued": 0,
+          "broker_cancelled_queued": 2183,
+          "scorer_native_ms": 142541.09129999977,
+          "gpu_discovery_compute_ms": 70741.86639731002
+        },
+        {
+          "mode": "hybrid-gpu-score",
+          "coverage": [
+            410,
+            415,
+            417
+          ],
+          "median_coverage": 415,
+          "matched": 1072,
+          "matched_best_ratio": 1.0046785267912755,
+          "matched_shortlist_mean_ratio": 0.9977497577118964,
+          "native_assessments": 4951,
+          "scorer_cancelled_queued": 0,
+          "broker_cancelled_queued": 1768,
+          "scorer_native_ms": 135129.38360000052,
+          "gpu_discovery_compute_ms": 140045.7556747
+        }
+      ],
+      "winning_claims": 41359,
+      "distinct_paths": 9923,
+      "scoring_cases_after_cohort_dedupe": 4318
+    },
+    {
+      "name": "three-arm-r2",
+      "summary_sha256": "59593a1ae45fec90808bfae6edda2def6b55034b664a0e384a37e48518d4cee8",
+      "duration_ms": 5000,
+      "reports": [
+        {
+          "mode": "hybrid-fifo",
+          "coverage": [
+            383,
+            388,
+            399
+          ],
+          "median_coverage": 388,
+          "matched": 1170,
+          "matched_best_ratio": 1,
+          "matched_shortlist_mean_ratio": 1,
+          "native_assessments": 7120,
+          "scorer_cancelled_queued": 2771,
+          "broker_cancelled_queued": 0,
+          "scorer_native_ms": 155330.8250999994,
+          "gpu_discovery_compute_ms": 71403.60491981
+        },
+        {
+          "mode": "hybrid-fair",
+          "coverage": [
+            458,
+            467,
+            457
+          ],
+          "median_coverage": 458,
+          "matched": 1149,
+          "matched_best_ratio": 1.0336046542201736,
+          "matched_shortlist_mean_ratio": 1.0017407111480645,
+          "native_assessments": 4481,
+          "scorer_cancelled_queued": 0,
+          "broker_cancelled_queued": 2707,
+          "scorer_native_ms": 154904.7055000001,
+          "gpu_discovery_compute_ms": 72075.20478511999
+        },
+        {
+          "mode": "hybrid-gpu-score",
+          "coverage": [
+            453,
+            458,
+            457
+          ],
+          "median_coverage": 457,
+          "matched": 1143,
+          "matched_best_ratio": 1.0910374630462436,
+          "matched_shortlist_mean_ratio": 1.0280296712466364,
+          "native_assessments": 5833,
+          "scorer_cancelled_queued": 0,
+          "broker_cancelled_queued": 2384,
+          "scorer_native_ms": 146821.3078000006,
+          "gpu_discovery_compute_ms": 143202.29550797
+        }
+      ],
+      "winning_claims": 44617,
+      "distinct_paths": 9898,
+      "scoring_cases_after_cohort_dedupe": 4955
+    },
+    {
+      "name": "three-arm-r3",
+      "summary_sha256": "a2be72b29693e059ec954f50547379bc8c38ae4ac8d1829bce9a5cc14863a548",
+      "duration_ms": 5000,
+      "reports": [
+        {
+          "mode": "hybrid-fifo",
+          "coverage": [
+            382,
+            399,
+            393
+          ],
+          "median_coverage": 393,
+          "matched": 1174,
+          "matched_best_ratio": 1,
+          "matched_shortlist_mean_ratio": 1,
+          "native_assessments": 6985,
+          "scorer_cancelled_queued": 2864,
+          "broker_cancelled_queued": 0,
+          "scorer_native_ms": 154470.52450000116,
+          "gpu_discovery_compute_ms": 72211.76286691999
+        },
+        {
+          "mode": "hybrid-fair",
+          "coverage": [
+            455,
+            466,
+            465
+          ],
+          "median_coverage": 465,
+          "matched": 1154,
+          "matched_best_ratio": 1.0298137232893911,
+          "matched_shortlist_mean_ratio": 0.9965368649729803,
+          "native_assessments": 4674,
+          "scorer_cancelled_queued": 0,
+          "broker_cancelled_queued": 2714,
+          "scorer_native_ms": 154579.05920000188,
+          "gpu_discovery_compute_ms": 72169.47946863
+        },
+        {
+          "mode": "hybrid-gpu-score",
+          "coverage": [
+            458,
+            466,
+            463
+          ],
+          "median_coverage": 463,
+          "matched": 1150,
+          "matched_best_ratio": 1.058665537291536,
+          "matched_shortlist_mean_ratio": 0.9990287112764806,
+          "native_assessments": 5610,
+          "scorer_cancelled_queued": 0,
+          "broker_cancelled_queued": 2438,
+          "scorer_native_ms": 146188.1639000013,
+          "gpu_discovery_compute_ms": 127606.12484757997
+        }
+      ],
+      "winning_claims": 44769,
+      "distinct_paths": 9730,
+      "scoring_cases_after_cohort_dedupe": 4856
+    },
+    {
+      "name": "confirmation-r1",
+      "summary_sha256": "6a47ce332f64d9838dc66c094cff185e5755f86d3dec60ec437f12f89584f9f6",
+      "duration_ms": 10000,
+      "reports": [
+        {
+          "mode": "hybrid-fifo",
+          "coverage": [
+            532,
+            517,
+            529
+          ],
+          "median_coverage": 529,
+          "matched": 1578,
+          "matched_best_ratio": 1,
+          "matched_shortlist_mean_ratio": 1,
+          "native_assessments": 12656,
+          "scorer_cancelled_queued": 4083,
+          "broker_cancelled_queued": 0,
+          "scorer_native_ms": 323553.2236000021,
+          "gpu_discovery_compute_ms": 144333.92282756
+        },
+        {
+          "mode": "hybrid-gpu-score",
+          "coverage": [
+            561,
+            573,
+            576
+          ],
+          "median_coverage": 573,
+          "matched": 1536,
+          "matched_best_ratio": 1.0695628371327417,
+          "matched_shortlist_mean_ratio": 1.0341690466127937,
+          "native_assessments": 11027,
+          "scorer_cancelled_queued": 0,
+          "broker_cancelled_queued": 3747,
+          "scorer_native_ms": 304047.9054999978,
+          "gpu_discovery_compute_ms": 288103.0268745
+        }
+      ],
+      "winning_claims": 54331,
+      "distinct_paths": 16624,
+      "scoring_cases_after_cohort_dedupe": 9341
+    }
+  ],
+  "confirmation": {
+    "coverage_ratio": 1.0831758034026464,
+    "matched": 1536,
+    "matched_best_ratio": 1.0695628371327417,
+    "matched_shortlist_ratio": 1.0341690466127937,
+    "equal_k_ratio": 1.0734199579592685,
+    "mean_fill_ratio": 1.1929811507936507
+  },
+  "phase_scope": "Native and GPU intervals sum three trials/six families. Native wall intervals overlap CPU processes; GPU event intervals overlap streams and include warmup. These sums are not exclusive CPU time or GPU utilization. Single-pool microbench separates warm lane costs without concurrent discovery.",
+  "phases": [
+    {
+      "mode": "hybrid-fifo",
+      "median_cohort_ms": {
+        "setup_ms": 4024.8966000000655,
+        "warm_ms": 508.9059999999597,
+        "elapsed_ms": 60066.19120000004,
+        "total_ms": 64591.96640000005
+      },
+      "summed_native_scoring_wall_ms": 323553.2236000021,
+      "gpu_event_intervals_ms": {
+        "compute": 144333.92282756,
+        "upload_host": 7657.4929,
+        "readback_device": 4447.278612695401,
+        "readback_host": 6131.6139
+      },
+      "cpu_bfs_attempts_omitted": 0,
+      "cpu_bfs_fallbacks": 0,
+      "completed_aux_scores": 8535,
+      "queued_scores_cancelled": 4083
+    },
+    {
+      "mode": "hybrid-gpu-score",
+      "median_cohort_ms": {
+        "setup_ms": 4897.090899999988,
+        "warm_ms": 422.93690000001516,
+        "elapsed_ms": 60103.7264,
+        "total_ms": 65416.93240000001
+      },
+      "summed_native_scoring_wall_ms": 304047.9054999978,
+      "gpu_event_intervals_ms": {
+        "compute": 288103.0268745,
+        "upload_host": 7967.4821,
+        "readback_device": 7239.200384955598,
+        "readback_host": 7657.981899999999
+      },
+      "cpu_bfs_attempts_omitted": 10555,
+      "cpu_bfs_fallbacks": 136,
+      "completed_aux_scores": 10731,
+      "queued_scores_cancelled": 3747
+    }
+  ],
+  "micro": [
+    {
+      "n": 1,
+      "backend": "native-2-workers",
+      "boards": 18,
+      "wall_ms": 48.03030000000177,
+      "gpu_compute_ms": 0,
+      "upload_host_ms": 0,
+      "readback_device_ms": 0,
+      "readback_host_ms": 0
+    },
+    {
+      "n": 1,
+      "backend": "gpu-ordered-1",
+      "boards": 18,
+      "wall_ms": 609.8998999999992,
+      "gpu_compute_ms": 554.1783678077002,
+      "upload_host_ms": 1.2397,
+      "readback_device_ms": 3.6917120847010008,
+      "readback_host_ms": 1.0232999999999999
+    },
+    {
+      "n": 1,
+      "backend": "gpu-ordered-8",
+      "boards": 18,
+      "wall_ms": 199.0320000000038,
+      "gpu_compute_ms": 180.11072030037,
+      "upload_host_ms": 1.1623999999999999,
+      "readback_device_ms": 1.057632017887,
+      "readback_host_ms": 0.7805
+    },
+    {
+      "n": 8,
+      "backend": "native-2-workers",
+      "boards": 144,
+      "wall_ms": 355.6679000000021,
+      "gpu_compute_ms": 0,
+      "upload_host_ms": 0,
+      "readback_device_ms": 0,
+      "readback_host_ms": 0
+    },
+    {
+      "n": 8,
+      "backend": "gpu-ordered-1",
+      "boards": 144,
+      "wall_ms": 3244.6404000000066,
+      "gpu_compute_ms": 3055.2367670092,
+      "upload_host_ms": 6.099800000000001,
+      "readback_device_ms": 13.213184291993999,
+      "readback_host_ms": 5.931199999999999
+    },
+    {
+      "n": 8,
+      "backend": "gpu-ordered-8",
+      "boards": 144,
+      "wall_ms": 805.3974000000057,
+      "gpu_compute_ms": 744.62630296492,
+      "upload_host_ms": 5.6952,
+      "readback_device_ms": 4.116672067432999,
+      "readback_host_ms": 4.7027
+    },
+    {
+      "n": 32,
+      "backend": "native-2-workers",
+      "boards": 576,
+      "wall_ms": 1680.4933000000005,
+      "gpu_compute_ms": 0,
+      "upload_host_ms": 0,
+      "readback_device_ms": 0,
+      "readback_host_ms": 0
+    },
+    {
+      "n": 32,
+      "backend": "gpu-ordered-1",
+      "boards": 576,
+      "wall_ms": 7212.418800000005,
+      "gpu_compute_ms": 6843.932163862499,
+      "upload_host_ms": 23.056900000000002,
+      "readback_device_ms": 25.799008483920005,
+      "readback_host_ms": 22.026600000000002
+    },
+    {
+      "n": 32,
+      "backend": "gpu-ordered-8",
+      "boards": 576,
+      "wall_ms": 2011.486899999998,
+      "gpu_compute_ms": 1866.5267208528996,
+      "upload_host_ms": 19.6033,
+      "readback_device_ms": 10.35276810336,
+      "readback_host_ms": 16.607000000000003
+    }
+  ],
+  "live_profile": {
+    "scope": "Actual live scheduler: one protected generator context per assigned base,512 auxiliary contexts shared across bases;7+2 fixed CPU slots. Two representative authored families,1/2 simultaneous bases, warm pipelines, single3-second observation per cell. Includes live lazy baseline work. Independent JS replay is outside timing. Diagnostic utilization/profile, not a full-suite quality claim.",
+    "rows": [
+      {
+        "family": 0,
+        "jobs": 1,
+        "mode": "fifo",
+        "candidates": 606,
+        "best": [
+          2658
+        ],
+        "cpu_peak_active": 1,
+        "scorer_peak_active": 2,
+        "native_search_ms": 2990.5724,
+        "scorer_search_ms": 5402.877800000001,
+        "private_elite_full_requests": null,
+        "observed_requests": null
+      },
+      {
+        "family": 0,
+        "jobs": 1,
+        "mode": "fair",
+        "candidates": 302,
+        "best": [
+          2658
+        ],
+        "cpu_peak_active": 1,
+        "scorer_peak_active": 2,
+        "native_search_ms": 2913.2729,
+        "scorer_search_ms": 5419.107099999999,
+        "private_elite_full_requests": 0,
+        "observed_requests": 1767
+      },
+      {
+        "family": 0,
+        "jobs": 1,
+        "mode": "gpu1",
+        "candidates": 415,
+        "best": [
+          2658
+        ],
+        "cpu_peak_active": 1,
+        "scorer_peak_active": 2,
+        "native_search_ms": 2927.2581999999984,
+        "scorer_search_ms": 5312.998400000017,
+        "private_elite_full_requests": 0,
+        "observed_requests": 1999
+      },
+      {
+        "family": 0,
+        "jobs": 1,
+        "mode": "gpu8",
+        "candidates": 431,
+        "best": [
+          2658
+        ],
+        "cpu_peak_active": 1,
+        "scorer_peak_active": 2,
+        "native_search_ms": 2918.9714000000004,
+        "scorer_search_ms": 5417.545199999968,
+        "private_elite_full_requests": 0,
+        "observed_requests": 2037
+      },
+      {
+        "family": 0,
+        "jobs": 2,
+        "mode": "fifo",
+        "candidates": 286,
+        "best": [
+          1708,
+          0
+        ],
+        "cpu_peak_active": 2,
+        "scorer_peak_active": 2,
+        "native_search_ms": 5993.8308,
+        "scorer_search_ms": 5530.727500000008,
+        "private_elite_full_requests": null,
+        "observed_requests": null
+      },
+      {
+        "family": 0,
+        "jobs": 2,
+        "mode": "fair",
+        "candidates": 258,
+        "best": [
+          1708,
+          0
+        ],
+        "cpu_peak_active": 2,
+        "scorer_peak_active": 2,
+        "native_search_ms": 5929.752599999996,
+        "scorer_search_ms": 5424.571600000014,
+        "private_elite_full_requests": 0,
+        "observed_requests": 18423
+      },
+      {
+        "family": 0,
+        "jobs": 2,
+        "mode": "gpu1",
+        "candidates": 299,
+        "best": [
+          1168,
+          989
+        ],
+        "cpu_peak_active": 2,
+        "scorer_peak_active": 2,
+        "native_search_ms": 5936.968199999996,
+        "scorer_search_ms": 5297.532099999982,
+        "private_elite_full_requests": 0,
+        "observed_requests": 15259
+      },
+      {
+        "family": 0,
+        "jobs": 2,
+        "mode": "gpu8",
+        "candidates": 328,
+        "best": [
+          1168,
+          0
+        ],
+        "cpu_peak_active": 2,
+        "scorer_peak_active": 2,
+        "native_search_ms": 5925.615700000009,
+        "scorer_search_ms": 5269.62969999999,
+        "private_elite_full_requests": 0,
+        "observed_requests": 16205
+      },
+      {
+        "family": 5,
+        "jobs": 1,
+        "mode": "fifo",
+        "candidates": 659,
+        "best": [
+          1779
+        ],
+        "cpu_peak_active": 1,
+        "scorer_peak_active": 2,
+        "native_search_ms": 2973.8147999999564,
+        "scorer_search_ms": 5601.034599999992,
+        "private_elite_full_requests": null,
+        "observed_requests": null
+      },
+      {
+        "family": 5,
+        "jobs": 1,
+        "mode": "fair",
+        "candidates": 1155,
+        "best": [
+          1782
+        ],
+        "cpu_peak_active": 1,
+        "scorer_peak_active": 2,
+        "native_search_ms": 2914.20739999997,
+        "scorer_search_ms": 5607.8605000000025,
+        "private_elite_full_requests": 0,
+        "observed_requests": 9448
+      },
+      {
+        "family": 5,
+        "jobs": 1,
+        "mode": "gpu1",
+        "candidates": 935,
+        "best": [
+          1782
+        ],
+        "cpu_peak_active": 1,
+        "scorer_peak_active": 2,
+        "native_search_ms": 2899.488900000004,
+        "scorer_search_ms": 5563.7841000000335,
+        "private_elite_full_requests": 0,
+        "observed_requests": 8192
+      },
+      {
+        "family": 5,
+        "jobs": 1,
+        "mode": "gpu8",
+        "candidates": 1105,
+        "best": [
+          1782
+        ],
+        "cpu_peak_active": 1,
+        "scorer_peak_active": 2,
+        "native_search_ms": 2911.6571000000185,
+        "scorer_search_ms": 5556.2825999999695,
+        "private_elite_full_requests": 0,
+        "observed_requests": 9713
+      },
+      {
+        "family": 5,
+        "jobs": 2,
+        "mode": "fifo",
+        "candidates": 641,
+        "best": [
+          1561,
+          987
+        ],
+        "cpu_peak_active": 2,
+        "scorer_peak_active": 2,
+        "native_search_ms": 5529.404600000009,
+        "scorer_search_ms": 5664.432700000027,
+        "private_elite_full_requests": null,
+        "observed_requests": null
+      },
+      {
+        "family": 5,
+        "jobs": 2,
+        "mode": "fair",
+        "candidates": 767,
+        "best": [
+          1860,
+          987
+        ],
+        "cpu_peak_active": 2,
+        "scorer_peak_active": 2,
+        "native_search_ms": 5377.8448999999455,
+        "scorer_search_ms": 5489.00629999995,
+        "private_elite_full_requests": 0,
+        "observed_requests": 27439
+      },
+      {
+        "family": 5,
+        "jobs": 2,
+        "mode": "gpu1",
+        "candidates": 792,
+        "best": [
+          1561,
+          987
+        ],
+        "cpu_peak_active": 2,
+        "scorer_peak_active": 2,
+        "native_search_ms": 5443.142599999948,
+        "scorer_search_ms": 5318.432300000015,
+        "private_elite_full_requests": 0,
+        "observed_requests": 26013
+      },
+      {
+        "family": 5,
+        "jobs": 2,
+        "mode": "gpu8",
+        "candidates": 869,
+        "best": [
+          2507,
+          987
+        ],
+        "cpu_peak_active": 2,
+        "scorer_peak_active": 2,
+        "native_search_ms": 5371.404399999876,
+        "scorer_search_ms": 5279.145400000038,
+        "private_elite_full_requests": 0,
+        "observed_requests": 27824
+      }
+    ]
+  },
+  "idle": {
+    "scope": "Five-second pre-run baseline with normal user applications left open. Quiescent means mean system CPU below25% and GPU below5%; it does not assert an empty desktop.",
+    "cpu": "AMD Ryzen 7 7800X3D 8-Core Processor           ",
+    "logical_cpus": 16,
+    "mean_cpu_percent": 17.187934895521714,
+    "mean_gpu_percent": 1.2,
+    "quiescent": true,
+    "samples": [
+      {
+        "utc": "2026-11-13T11:12:16.377Z",
+        "machine_cpu_percent": 17.85012285012285,
+        "gpu": "NVIDIA GeForce RTX 4080 SUPER, 617.42, 2, 0, 1942, 39.31, 2550, 43"
+      },
+      {
+        "utc": "2026-11-13T11:12:17.446Z",
+        "machine_cpu_percent": 13.843266072266541,
+        "gpu": "NVIDIA GeForce RTX 4080 SUPER, 617.42, 0, 0, 1947, 42.71, 2550, 43"
+      },
+      {
+        "utc": "2026-11-13T11:12:18.509Z",
+        "machine_cpu_percent": 15.244188776708148,
+        "gpu": "NVIDIA GeForce RTX 4080 SUPER, 617.42, 1, 0, 1933, 27.17, 540, 42"
+      },
+      {
+        "utc": "2026-11-13T11:12:19.566Z",
+        "machine_cpu_percent": 14.346732198232989,
+        "gpu": "NVIDIA GeForce RTX 4080 SUPER, 617.42, 1, 0, 1886, 3.55, 270, 42"
+      },
+      {
+        "utc": "2026-11-13T11:12:20.622Z",
+        "machine_cpu_percent": 24.655364580278054,
+        "gpu": "NVIDIA GeForce RTX 4080 SUPER, 617.42, 2, 0, 1886, 2.73, 210, 42"
+      }
+    ]
+  },
+  "identities": {
+    "build-gpu-r1/mis-bfs-service.exe": "b22060d6dbb5c5b56d936ee47cfb507d3217b4d17bd19c87dadfbd1c84ed406b",
+    "build-gpu-r2/mis-bfs-service.exe": "75456c484a53c35e14da859d6effd34603663d14d0e7265b66384bedc2ef22a1",
+    "build-gpu-r3/mis-bfs-service.exe": "5b10d250e5ac662ca28cddd415571c6970dbff3e053a01748f769dacfb406d86",
+    "build-profile-r3/mis-scoring-worker.exe": "5d4518244cd93cc3553f296df7804ff5adc8c454f22f6700bc5e104a954428df"
+  }
+}

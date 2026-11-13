@@ -1,0 +1,62 @@
+{
+  "date": "2026-11-13",
+  "default": "Automatic native C++ + shared CUDA discovery/exact scoring; fair admission, burst2; 7 producers +2 scorers",
+  "installed": true,
+  "headless_scoring": {
+    "passed": true,
+    "cases": 144,
+    "families": 6,
+    "private_gate_cases": 6,
+    "failed_device_native_completion": true,
+    "independent_exact_path_replays": true
+  },
+  "native_contracts": [
+    "single primary",
+    "seed mis forwarding",
+    "deferred BFS retains preceding lanes",
+    "ordinary player API"
+  ],
+  "other_checks": [
+    "fair admission",
+    "bounded discovery cache/feedback",
+    "pruning safety boundaries (pruning disabled)",
+    "blocked GPU startup does not block native assessment",
+    "two-owner live pause/revision/cancellation",
+    "three native/WASM seeded assessment regressions",
+    "make mis_app_tests mis_tests",
+    "make desktop",
+    "original packaged smoke",
+    "packaged native/CUDA generation",
+    "packaged no-GPU native fallback",
+    "packaged missing-native WASM fallback",
+    "installed native/CUDA generation"
+  ],
+  "installed_ui": [
+    {
+      "eligible": 134,
+      "skipped_cpu_bfs": 125,
+      "gpu_solved": 27,
+      "gpu_bounded": 98,
+      "native_full_fallbacks": 0,
+      "cpu_fallbacks": 0,
+      "device": {
+        "adapter": "NVIDIA GeForce RTX 4080 SUPER",
+        "adapter_index": 0,
+        "backend": "CUDA",
+        "compute_capability": "8.9",
+        "driver_api": 13040,
+        "hardware": true,
+        "multiprocessors": 80,
+        "runtime_api": 13040,
+        "vram_bytes": 17170956288
+      },
+      "exe_sha256": "75456c484a53c35e14da859d6effd34603663d14d0e7265b66384bedc2ef22a1"
+    }
+  ],
+  "selected": {
+    "native_sha256": "91ed9c5d61d7a85a422a9f2fa97de84a3b69213a0fc053d764ea043fc2f3dfcc",
+    "cuda_sha256": "75456c484a53c35e14da859d6effd34603663d14d0e7265b66384bedc2ef22a1",
+    "manifest_sha256": "5a101cc30c9b0c410b046d44edbebe5dbaff5c634f934282453d71075fb8d84b"
+  },
+  "performance_evidence": "2026-11-13-gpu-scoring-windows.md; confirmation 529 ->573, matched best +7.0%, shortlist +3.4%; not rerun as a new performance cohort during packaging"
+}

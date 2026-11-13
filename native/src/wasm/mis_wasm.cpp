@@ -30,6 +30,8 @@
 
 namespace {
 
+// Match MISCore.loadBoardIntoEngine for every search and replay lane.
+constexpr const char* kMisGameplaySeed = "mis";
 ps_game* gGame = nullptr;
 ps_game* gOriginalGame = nullptr;
 std::string gError;
@@ -48,6 +50,7 @@ struct LastResult {
     double bfs = -1;
     double difficulty = -1;
     int32_t supplementalRan = 0;
+    bool bfsDeferred = false;
     std::vector<int32_t> solution;
     // Simplify only.
     int32_t optimalLength = -1;
@@ -142,7 +145,7 @@ EMSCRIPTEN_KEEPALIVE int misw_validate_original(int width, int height, int count
         const auto level = puzzlescript::search::levelTemplateFromLayerCellObjectIds(
             *gOriginalGame->impl.information, width, height,
             std::vector<int32_t>(gGrid.begin(), gGrid.begin() + count));
-        auto session = puzzlescript::createFullStateWithLoadedLevelSeed(gOriginalGame->impl, "mis");
+        auto session = puzzlescript::createFullStateWithLoadedLevelSeed(gOriginalGame->impl, kMisGameplaySeed);
         session->meta.suppressRuleMessages = true;
         constexpr puzzlescript::RuntimeStepOptions options{
             .playableUndo = false, .emitAudio = false, .solverMode = false,
@@ -193,6 +196,7 @@ EMSCRIPTEN_KEEPALIVE int misw_solve(int width, int height, int count, int strate
     options.portfolio_jobs = 1;
     options.max_expanded = maxExpanded > 0 ? static_cast<uint64_t>(maxExpanded) : 0;
     options.deterministic = deterministic != 0;
+    options.random_seed = kMisGameplaySeed;
     // Standalone strategies otherwise keep a full runtime state per node
     // (~10 KB on a 7x9 board), exhausting wasm32's heap after ~200k states.
     options.compact_node_storage = true;
@@ -228,7 +232,7 @@ EMSCRIPTEN_KEEPALIVE int misw_solve(int width, int height, int count, int strate
 // the MIS generator's lazy gate and avoids re-running the primary to refine.
 // primaryMaxExpanded > 0 caps the primary search in states; deterministic
 // turns off timing-based search decisions (the generator's work clock).
-EMSCRIPTEN_KEEPALIVE int misw_assess(int width, int height, int count, double primaryTimeoutMs, int runSupplemental, double supplementalTimeoutMs, double gateMinExpanded, double primaryMaxExpanded, int deterministic) {
+static int misw_assess_impl(int width, int height, int count, double primaryTimeoutMs, int runSupplemental, double supplementalTimeoutMs, double gateMinExpanded, double primaryMaxExpanded, int deterministic, bool deferBfs) {
     resetLast();
     if (!haveGame()) return PS_SOLVE_STATUS_ERROR;
     try {
@@ -236,9 +240,11 @@ EMSCRIPTEN_KEEPALIVE int misw_assess(int width, int height, int count, double pr
         puzzlescript::search::DifficultyOptions options;
         options.timeoutMs = static_cast<int64_t>(primaryTimeoutMs);
         options.runSupplemental = runSupplemental != 0;
+        options.deferBfs = deferBfs;
         options.supplementalTimeoutMs = static_cast<int64_t>(supplementalTimeoutMs);
         options.primaryMaxExpanded = primaryMaxExpanded > 0 ? static_cast<uint64_t>(primaryMaxExpanded) : 0;
         options.deterministic = deterministic != 0;
+        options.randomSeed = kMisGameplaySeed;
         if (runSupplemental && gateMinExpanded >= 0) {
             const int64_t gate = static_cast<int64_t>(gateMinExpanded);
             options.supplementalGate = [gate](int64_t primaryExpanded) { return primaryExpanded >= gate; };
@@ -255,6 +261,7 @@ EMSCRIPTEN_KEEPALIVE int misw_assess(int width, int height, int count, double pr
         gLast.bfs = static_cast<double>(assessed.breakdown.expandedBfs);
         gLast.difficulty = static_cast<double>(assessed.breakdown.difficulty);
         gLast.supplementalRan = assessed.supplementalRan ? 1 : 0;
+        gLast.bfsDeferred = assessed.bfsDeferred;
         gLast.solution.assign(assessed.solution.begin(), assessed.solution.end());
         if (!assessed.primaryError.empty()) gError = assessed.primaryError;
         return gLast.status;
@@ -267,6 +274,10 @@ EMSCRIPTEN_KEEPALIVE int misw_assess(int width, int height, int count, double pr
     }
 }
 
+EMSCRIPTEN_KEEPALIVE int misw_assess(int width, int height, int count, double primaryTimeoutMs, int runSupplemental, double supplementalTimeoutMs, double gateMinExpanded, double primaryMaxExpanded, int deterministic) {
+    return misw_assess_impl(width, height, count, primaryTimeoutMs, runSupplemental, supplementalTimeoutMs, gateMinExpanded, primaryMaxExpanded, deterministic, false);
+}
+
 // Native simplifier (native/src/search/simplify.cpp): removes objects while the
 // BFS-optimal solution length stays the same. Needs a reference solution, so
 // it runs a portfolio solve first. Result grid via misw_result_grid().
@@ -276,6 +287,7 @@ EMSCRIPTEN_KEEPALIVE int misw_simplify(int width, int height, int count, double 
     try {
         const puzzlescript::LevelTemplate level = levelFromGrid(width, height, count);
         puzzlescript::search::DifficultyOptions dopts;
+        dopts.randomSeed = kMisGameplaySeed;
         dopts.timeoutMs = static_cast<int64_t>(solveTimeoutMs);
         const auto assessed = puzzlescript::search::assessGeneratedLevelDifficulty(gGame->impl, level, dopts);
         if (!assessed.solved) {

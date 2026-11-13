@@ -12,6 +12,7 @@ size_t calls = 0;
 bool failCall = false;
 bool stop = false;
 std::vector<int64_t> budgets;
+std::vector<std::string> seedContract;
 }
 extern "C" ps_solve_options ps_solve_default_options() { return {}; }
 extern "C" bool ps_solve_level_layer_cell_object_ids(
@@ -19,6 +20,7 @@ extern "C" bool ps_solve_level_layer_cell_object_ids(
     const ps_solve_options* options, ps_solve_result** out, ps_error**) {
     ++calls;
     budgets.push_back(options->timeout_ms);
+    seedContract.emplace_back(options->random_seed ? options->random_seed : "<default>");
     if (failCall) return false;
     assert(calls <= outcomes.size());
     auto* result = new ps_solve_result{};
@@ -57,10 +59,13 @@ int main() {
     failCall = false;
     outcomes.assign(4, PS_SOLVE_STATUS_SOLVED); calls = 0;
     int gates = 0;
+    options.randomSeed = "mis";
+    seedContract.clear();
     options.supplementalGate = [&](int64_t expanded) { ++gates; return expanded > 10; };
     auto solved = puzzlescript::search::assessGeneratedLevelDifficulty(loaded, level, options);
     assert(solved.solved && solved.primaryStatus == PS_SOLVE_STATUS_SOLVED);
     assert(solved.supplementalRan && calls == 4 && gates == 1);
+    assert(seedContract == std::vector<std::string>(4, "mis"));
     assert(solved.primaryExpanded == 100 && solved.breakdown.difficulty == 25);
     calls = 0;
     options.supplementalGate = [](int64_t) { return false; };
@@ -68,10 +73,13 @@ int main() {
     assert(gated.solved && !gated.supplementalRan && calls == 1);
 
     calls = 0; budgets.clear();
+    options.randomSeed.clear();
+    seedContract.clear();
     options.timeoutMs = -1;
     options.supplementalGate = {};
     auto unlimited = puzzlescript::search::assessGeneratedLevelDifficulty(loaded, level, options);
     assert(unlimited.solved && calls == 4);
+    assert(seedContract == std::vector<std::string>(4, "<default>"));
     assert(budgets[0] == -1); // Selected-level primary has no deadline.
     for (size_t i = 1; i < budgets.size(); ++i) assert(budgets[i] == options.supplementalTimeoutMs);
 
@@ -96,4 +104,11 @@ int main() {
     options.deadline = std::chrono::steady_clock::now() - std::chrono::milliseconds(1);
     bounded = puzzlescript::search::assessGeneratedLevelDifficulty(loaded, level, options);
     assert(bounded.interrupted && calls == 0);
+    calls=0;budgets.clear();seedContract.clear();stop=false;failCall=false;
+    outcomes={PS_SOLVE_STATUS_SOLVED,PS_SOLVE_STATUS_SOLVED,PS_SOLVE_STATUS_SOLVED};
+    options.runSupplemental=true;options.deferBfs=true;options.shouldCancel={};options.deadline.reset();options.supplementalGate={};
+    const auto deferred=puzzlescript::search::assessGeneratedLevelDifficulty(loaded,level,options);
+    assert(calls==3 && deferred.bfsDeferred && deferred.supplementalRan);
+    assert(deferred.breakdown.expandedBfs==-1 && deferred.breakdown.expandedGreedy==50 && deferred.breakdown.expandedWeightedAStar==33);
+    return 0;
 }

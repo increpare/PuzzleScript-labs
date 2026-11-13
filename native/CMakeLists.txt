@@ -2742,3 +2742,12 @@ foreach(test_target IN LISTS native_targets)
     endif()
   endforeach()
 endforeach()
+
+# Process-isolated desktop MIS C API; object-grid transport uses 32-bit IDs.
+if(PS_MASK_WORD_BITS STREQUAL "32")
+  add_executable(puzzlescript_mis_worker src/desktop/mis_worker.cpp)
+  set_target_properties(puzzlescript_mis_worker PROPERTIES OUTPUT_NAME mis-native-worker)
+  target_include_directories(puzzlescript_mis_worker PRIVATE src src/wasm third_party/simdjson)
+  target_link_libraries(puzzlescript_mis_worker PRIVATE puzzlescript_native puzzlescript_compiler)
+  target_compile_options(puzzlescript_mis_worker PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/O2;/bigobj>)
+endif()

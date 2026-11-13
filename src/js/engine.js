@@ -3869,12 +3869,16 @@ function simulateInput(dir, randomGen = RandomGen, skipAgainProbe) {
 
 /* returns a bool indicating if anything changed */
 function processInput(dir, dontDoWin, dontModify, skipAgainProbe) {
+	// Preserve ordinary AGAIN decisions/win checks, while keeping solver-owned
+	// level objects stable for incremental hashes and external undo scratch.
+	const solverFastPath = !!skipAgainProbe;
+	skipAgainProbe = false;
 	againing = false;
 	if (textMode || titleScreen || !level || !Number.isInteger(level.n_tiles)) {
 		resetAgain();
 		return false;
 	}
-	const {bak, inputindex, playerPositions} = takeAgainTurn(dir, dontModify, skipAgainProbe);
+	const {bak, inputindex, playerPositions} = takeAgainTurn(dir, dontModify, solverFastPath);
 
 	// Post move stuff
 	if (playerPositions.length > 0 && state.metadata.require_player_movement !== undefined) {

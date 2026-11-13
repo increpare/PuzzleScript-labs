@@ -1,0 +1,788 @@
+noaction
+
+========
+OBJECTS
+========
+
+obj_0
+black
+00000
+0...0
+0...0
+0...0
+00000
+
+obj_1
+white
+.0...
+000..
+00000
+000..
+.0...
+
+obj_2
+gray
+0....
+00..0
+00000
+00..0
+0....
+
+obj_3
+darkgray
+....0
+0..00
+00000
+0..00
+....0
+
+obj_4
+lightgray
+...0.
+..000
+00000
+..000
+...0.
+
+obj_5
+red
+..0..
+.000.
+00000
+.000.
+..0..
+
+obj_6
+darkred
+.0...
+000..
+00000
+000..
+.0...
+
+obj_7
+lightred
+0....
+00..0
+00000
+00..0
+0....
+
+obj_8
+brown
+....0
+0..00
+00000
+0..00
+....0
+
+obj_9
+orange
+...0.
+..000
+00000
+..000
+...0.
+
+obj_10
+yellow
+..0..
+.000.
+00000
+.000.
+..0..
+
+obj_11
+green
+.0...
+000..
+00000
+000..
+.0...
+
+obj_12
+darkgreen
+0....
+00..0
+00000
+00..0
+0....
+
+obj_13
+lightgreen
+....0
+0..00
+00000
+0..00
+....0
+
+obj_14
+blue
+...0.
+..000
+00000
+..000
+...0.
+
+obj_15
+darkblue
+..0..
+.000.
+00000
+.000.
+..0..
+
+obj_16
+lightblue
+.0...
+000..
+00000
+000..
+.0...
+
+obj_17
+purple
+0....
+00..0
+00000
+00..0
+0....
+
+obj_18
+pink
+....0
+0..00
+00000
+0..00
+....0
+
+obj_19
+black
+...0.
+..000
+00000
+..000
+...0.
+
+obj_20
+white
+..0..
+.000.
+00000
+.000.
+..0..
+
+obj_21
+gray
+.0...
+000..
+00000
+000..
+.0...
+
+obj_22
+darkgray
+0....
+00..0
+00000
+00..0
+0....
+
+obj_23
+lightgray
+....0
+0..00
+00000
+0..00
+....0
+
+obj_24
+red
+...0.
+..000
+00000
+..000
+...0.
+
+obj_25
+darkred
+..0..
+.000.
+00000
+.000.
+..0..
+
+obj_26
+lightred
+...00
+0.0..
+.0...
+0.0..
+...00
+
+obj_27
+brown
+..00.
+.0..0
+0....
+.0..0
+..00.
+
+obj_28
+orange
+.00..
+0..0.
+....0
+0..0.
+.00..
+
+obj_29
+yellow
+00...
+..0.0
+...0.
+..0.0
+00...
+
+obj_30
+green
+0...0
+.0.0.
+..0..
+.0.0.
+0...0
+
+obj_31
+darkgreen
+...00
+0.0..
+.0...
+0.0..
+...00
+
+obj_32
+lightgreen
+..00.
+.0..0
+0....
+.0..0
+..00.
+
+obj_33
+blue
+00000
+00000
+00000
+00000
+00000
+
+=======
+LEGEND
+=======
+
+set_0 = obj_1 or obj_26
+set_1 = obj_14 or obj_15 or obj_16 or obj_17 or obj_18 or obj_19 or obj_20 or obj_21 or obj_22
+set_2 = obj_5 or obj_6 or obj_7 or obj_8 or obj_9 or obj_10 or obj_11 or obj_12 or obj_13
+cell_0 = obj_25 and obj_32
+cell_1 = obj_0 and obj_32
+cell_2 = obj_25 and obj_28
+cell_3 = obj_25 and obj_26
+background = obj_33
+player = set_0
+
+0 = obj_25
+. = obj_33
+1 = obj_2
+2 = obj_23
+3 = obj_32
+4 = cell_0
+5 = cell_1
+6 = obj_1
+7 = cell_2
+8 = obj_4
+9 = cell_3
+A = obj_0
+B = obj_27
+C = obj_5
+D = obj_9
+E = obj_10
+F = obj_6
+G = obj_11
+H = obj_12
+I = obj_13
+J = obj_8
+K = obj_7
+
+=======
+SOUNDS
+=======
+
+================
+COLLISIONLAYERS
+================
+
+obj_33
+obj_0
+obj_1, obj_2, obj_3, obj_4, obj_5, obj_6, obj_7, obj_8, obj_9, obj_10, obj_11, obj_12, obj_13, obj_14, obj_15, obj_16, obj_17, obj_18, obj_19, obj_20, obj_21, obj_22, obj_23, obj_24, obj_25
+obj_26, obj_27, obj_28, obj_29, obj_30, obj_31, obj_32
+
+======
+RULES
+======
+
+down [ obj_2 | up obj_1 ] -> [ down obj_3 | up obj_1 ]
++ down [ obj_2 | up obj_26 ] -> [ down obj_3 | up obj_26 ]
++ down [ obj_2 | down obj_1 ] -> [ down obj_3 | down obj_1 ]
++ down [ obj_2 | down obj_26 ] -> [ down obj_3 | down obj_26 ]
++ down [ obj_2 | left obj_1 ] -> [ down obj_3 | left obj_1 ]
++ down [ obj_2 | left obj_26 ] -> [ down obj_3 | left obj_26 ]
++ down [ obj_2 | right obj_1 ] -> [ down obj_3 | right obj_1 ]
++ down [ obj_2 | right obj_26 ] -> [ down obj_3 | right obj_26 ]
++ down [ obj_2 | action obj_1 ] -> [ down obj_3 | action obj_1 ]
++ down [ obj_2 | action obj_26 ] -> [ down obj_3 | action obj_26 ]
++ down [ up obj_1 | obj_2 ] -> [ up obj_1 | up obj_3 ]
++ down [ up obj_26 | obj_2 ] -> [ up obj_26 | up obj_3 ]
++ down [ down obj_1 | obj_2 ] -> [ down obj_1 | up obj_3 ]
++ down [ down obj_26 | obj_2 ] -> [ down obj_26 | up obj_3 ]
++ down [ left obj_1 | obj_2 ] -> [ left obj_1 | up obj_3 ]
++ down [ left obj_26 | obj_2 ] -> [ left obj_26 | up obj_3 ]
++ down [ right obj_1 | obj_2 ] -> [ right obj_1 | up obj_3 ]
++ down [ right obj_26 | obj_2 ] -> [ right obj_26 | up obj_3 ]
++ down [ action obj_1 | obj_2 ] -> [ action obj_1 | up obj_3 ]
++ down [ action obj_26 | obj_2 ] -> [ action obj_26 | up obj_3 ]
++ right [ obj_2 | up obj_1 ] -> [ right obj_3 | up obj_1 ]
++ right [ obj_2 | up obj_26 ] -> [ right obj_3 | up obj_26 ]
++ right [ obj_2 | down obj_1 ] -> [ right obj_3 | down obj_1 ]
++ right [ obj_2 | down obj_26 ] -> [ right obj_3 | down obj_26 ]
++ right [ obj_2 | left obj_1 ] -> [ right obj_3 | left obj_1 ]
++ right [ obj_2 | left obj_26 ] -> [ right obj_3 | left obj_26 ]
++ right [ obj_2 | right obj_1 ] -> [ right obj_3 | right obj_1 ]
++ right [ obj_2 | right obj_26 ] -> [ right obj_3 | right obj_26 ]
++ right [ obj_2 | action obj_1 ] -> [ right obj_3 | action obj_1 ]
++ right [ obj_2 | action obj_26 ] -> [ right obj_3 | action obj_26 ]
++ right [ up obj_1 | obj_2 ] -> [ up obj_1 | left obj_3 ]
++ right [ up obj_26 | obj_2 ] -> [ up obj_26 | left obj_3 ]
++ right [ down obj_1 | obj_2 ] -> [ down obj_1 | left obj_3 ]
++ right [ down obj_26 | obj_2 ] -> [ down obj_26 | left obj_3 ]
++ right [ left obj_1 | obj_2 ] -> [ left obj_1 | left obj_3 ]
++ right [ left obj_26 | obj_2 ] -> [ left obj_26 | left obj_3 ]
++ right [ right obj_1 | obj_2 ] -> [ right obj_1 | left obj_3 ]
++ right [ right obj_26 | obj_2 ] -> [ right obj_26 | left obj_3 ]
++ right [ action obj_1 | obj_2 ] -> [ action obj_1 | left obj_3 ]
++ right [ action obj_26 | obj_2 ] -> [ action obj_26 | left obj_3 ]
+
+down [ obj_23 | up obj_1 ] -> [ down obj_24 | up obj_1 ]
++ down [ obj_23 | up obj_26 ] -> [ down obj_24 | up obj_26 ]
++ down [ obj_23 | down obj_1 ] -> [ down obj_24 | down obj_1 ]
++ down [ obj_23 | down obj_26 ] -> [ down obj_24 | down obj_26 ]
++ down [ obj_23 | left obj_1 ] -> [ down obj_24 | left obj_1 ]
++ down [ obj_23 | left obj_26 ] -> [ down obj_24 | left obj_26 ]
++ down [ obj_23 | right obj_1 ] -> [ down obj_24 | right obj_1 ]
++ down [ obj_23 | right obj_26 ] -> [ down obj_24 | right obj_26 ]
++ down [ obj_23 | action obj_1 ] -> [ down obj_24 | action obj_1 ]
++ down [ obj_23 | action obj_26 ] -> [ down obj_24 | action obj_26 ]
++ down [ up obj_1 | obj_23 ] -> [ up obj_1 | up obj_24 ]
++ down [ up obj_26 | obj_23 ] -> [ up obj_26 | up obj_24 ]
++ down [ down obj_1 | obj_23 ] -> [ down obj_1 | up obj_24 ]
++ down [ down obj_26 | obj_23 ] -> [ down obj_26 | up obj_24 ]
++ down [ left obj_1 | obj_23 ] -> [ left obj_1 | up obj_24 ]
++ down [ left obj_26 | obj_23 ] -> [ left obj_26 | up obj_24 ]
++ down [ right obj_1 | obj_23 ] -> [ right obj_1 | up obj_24 ]
++ down [ right obj_26 | obj_23 ] -> [ right obj_26 | up obj_24 ]
++ down [ action obj_1 | obj_23 ] -> [ action obj_1 | up obj_24 ]
++ down [ action obj_26 | obj_23 ] -> [ action obj_26 | up obj_24 ]
++ right [ obj_23 | up obj_1 ] -> [ right obj_24 | up obj_1 ]
++ right [ obj_23 | up obj_26 ] -> [ right obj_24 | up obj_26 ]
++ right [ obj_23 | down obj_1 ] -> [ right obj_24 | down obj_1 ]
++ right [ obj_23 | down obj_26 ] -> [ right obj_24 | down obj_26 ]
++ right [ obj_23 | left obj_1 ] -> [ right obj_24 | left obj_1 ]
++ right [ obj_23 | left obj_26 ] -> [ right obj_24 | left obj_26 ]
++ right [ obj_23 | right obj_1 ] -> [ right obj_24 | right obj_1 ]
++ right [ obj_23 | right obj_26 ] -> [ right obj_24 | right obj_26 ]
++ right [ obj_23 | action obj_1 ] -> [ right obj_24 | action obj_1 ]
++ right [ obj_23 | action obj_26 ] -> [ right obj_24 | action obj_26 ]
++ right [ up obj_1 | obj_23 ] -> [ up obj_1 | left obj_24 ]
++ right [ up obj_26 | obj_23 ] -> [ up obj_26 | left obj_24 ]
++ right [ down obj_1 | obj_23 ] -> [ down obj_1 | left obj_24 ]
++ right [ down obj_26 | obj_23 ] -> [ down obj_26 | left obj_24 ]
++ right [ left obj_1 | obj_23 ] -> [ left obj_1 | left obj_24 ]
++ right [ left obj_26 | obj_23 ] -> [ left obj_26 | left obj_24 ]
++ right [ right obj_1 | obj_23 ] -> [ right obj_1 | left obj_24 ]
++ right [ right obj_26 | obj_23 ] -> [ right obj_26 | left obj_24 ]
++ right [ action obj_1 | obj_23 ] -> [ action obj_1 | left obj_24 ]
++ right [ action obj_26 | obj_23 ] -> [ action obj_26 | left obj_24 ]
+
+up [ up set_0 | ... | obj_2 ] -> [ up set_0 | ... | up obj_2 ]
++ down [ down set_0 | ... | obj_2 ] -> [ down set_0 | ... | down obj_2 ]
++ left [ left set_0 | ... | obj_2 ] -> [ left set_0 | ... | left obj_2 ]
++ right [ right set_0 | ... | obj_2 ] -> [ right set_0 | ... | right obj_2 ]
+
+up [ up set_0 | ... | obj_23 ] -> [ up set_0 | ... | up obj_23 ]
++ down [ down set_0 | ... | obj_23 ] -> [ down set_0 | ... | down obj_23 ]
++ left [ left set_0 | ... | obj_23 ] -> [ left set_0 | ... | left obj_23 ]
++ right [ right set_0 | ... | obj_23 ] -> [ right set_0 | ... | right obj_23 ]
+
+up [ left set_0 | ... | obj_2 ] -> [ left set_0 | ... | up obj_2 ]
++ down [ right set_0 | ... | obj_2 ] -> [ right set_0 | ... | down obj_2 ]
++ left [ down set_0 | ... | obj_2 ] -> [ down set_0 | ... | left obj_2 ]
++ right [ up set_0 | ... | obj_2 ] -> [ up set_0 | ... | right obj_2 ]
+
+up [ left set_0 | ... | obj_23 ] -> [ left set_0 | ... | up obj_23 ]
++ down [ right set_0 | ... | obj_23 ] -> [ right set_0 | ... | down obj_23 ]
++ left [ down set_0 | ... | obj_23 ] -> [ down set_0 | ... | left obj_23 ]
++ right [ up set_0 | ... | obj_23 ] -> [ up set_0 | ... | right obj_23 ]
+
+up [ right set_0 | ... | obj_2 ] -> [ right set_0 | ... | up obj_2 ]
++ down [ left set_0 | ... | obj_2 ] -> [ left set_0 | ... | down obj_2 ]
++ left [ up set_0 | ... | obj_2 ] -> [ up set_0 | ... | left obj_2 ]
++ right [ down set_0 | ... | obj_2 ] -> [ down set_0 | ... | right obj_2 ]
+
+up [ right set_0 | ... | obj_23 ] -> [ right set_0 | ... | up obj_23 ]
++ down [ left set_0 | ... | obj_23 ] -> [ left set_0 | ... | down obj_23 ]
++ left [ up set_0 | ... | obj_23 ] -> [ up set_0 | ... | left obj_23 ]
++ right [ down set_0 | ... | obj_23 ] -> [ down set_0 | ... | right obj_23 ]
+
+down [ obj_2 |  | down set_0 ] -> [ down obj_2 |  | down set_0 ]
++ down [ up set_0 |  | obj_2 ] -> [ up set_0 |  | up obj_2 ]
++ right [ obj_2 |  | right set_0 ] -> [ right obj_2 |  | right set_0 ]
++ right [ left set_0 |  | obj_2 ] -> [ left set_0 |  | left obj_2 ]
+
+down [ obj_23 |  | down set_0 ] -> [ down obj_23 |  | down set_0 ]
++ down [ up set_0 |  | obj_23 ] -> [ up set_0 |  | up obj_23 ]
++ right [ obj_23 |  | right set_0 ] -> [ right obj_23 |  | right set_0 ]
++ right [ left set_0 |  | obj_23 ] -> [ left set_0 |  | left obj_23 ]
+
+down [ obj_3 | up set_0 ] -> [ down obj_3 | up set_0 ]
++ down [ obj_3 | down set_0 ] -> [ down obj_3 | down set_0 ]
++ down [ obj_3 | left set_0 ] -> [ down obj_3 | left set_0 ]
++ down [ obj_3 | right set_0 ] -> [ down obj_3 | right set_0 ]
++ down [ obj_3 | action set_0 ] -> [ down obj_3 | action set_0 ]
++ down [ up set_0 | obj_3 ] -> [ up set_0 | up obj_3 ]
++ down [ down set_0 | obj_3 ] -> [ down set_0 | up obj_3 ]
++ down [ left set_0 | obj_3 ] -> [ left set_0 | up obj_3 ]
++ down [ right set_0 | obj_3 ] -> [ right set_0 | up obj_3 ]
++ down [ action set_0 | obj_3 ] -> [ action set_0 | up obj_3 ]
++ right [ obj_3 | up set_0 ] -> [ right obj_3 | up set_0 ]
++ right [ obj_3 | down set_0 ] -> [ right obj_3 | down set_0 ]
++ right [ obj_3 | left set_0 ] -> [ right obj_3 | left set_0 ]
++ right [ obj_3 | right set_0 ] -> [ right obj_3 | right set_0 ]
++ right [ obj_3 | action set_0 ] -> [ right obj_3 | action set_0 ]
++ right [ up set_0 | obj_3 ] -> [ up set_0 | left obj_3 ]
++ right [ down set_0 | obj_3 ] -> [ down set_0 | left obj_3 ]
++ right [ left set_0 | obj_3 ] -> [ left set_0 | left obj_3 ]
++ right [ right set_0 | obj_3 ] -> [ right set_0 | left obj_3 ]
++ right [ action set_0 | obj_3 ] -> [ action set_0 | left obj_3 ]
+
+down [ obj_24 | up set_0 ] -> [ down obj_24 | up set_0 ]
++ down [ obj_24 | down set_0 ] -> [ down obj_24 | down set_0 ]
++ down [ obj_24 | left set_0 ] -> [ down obj_24 | left set_0 ]
++ down [ obj_24 | right set_0 ] -> [ down obj_24 | right set_0 ]
++ down [ obj_24 | action set_0 ] -> [ down obj_24 | action set_0 ]
++ down [ up set_0 | obj_24 ] -> [ up set_0 | up obj_24 ]
++ down [ down set_0 | obj_24 ] -> [ down set_0 | up obj_24 ]
++ down [ left set_0 | obj_24 ] -> [ left set_0 | up obj_24 ]
++ down [ right set_0 | obj_24 ] -> [ right set_0 | up obj_24 ]
++ down [ action set_0 | obj_24 ] -> [ action set_0 | up obj_24 ]
++ right [ obj_24 | up set_0 ] -> [ right obj_24 | up set_0 ]
++ right [ obj_24 | down set_0 ] -> [ right obj_24 | down set_0 ]
++ right [ obj_24 | left set_0 ] -> [ right obj_24 | left set_0 ]
++ right [ obj_24 | right set_0 ] -> [ right obj_24 | right set_0 ]
++ right [ obj_24 | action set_0 ] -> [ right obj_24 | action set_0 ]
++ right [ up set_0 | obj_24 ] -> [ up set_0 | left obj_24 ]
++ right [ down set_0 | obj_24 ] -> [ down set_0 | left obj_24 ]
++ right [ left set_0 | obj_24 ] -> [ left set_0 | left obj_24 ]
++ right [ right set_0 | obj_24 ] -> [ right set_0 | left obj_24 ]
++ right [ action set_0 | obj_24 ] -> [ action set_0 | left obj_24 ]
+
+down [ obj_4 | left set_0 ] -> [ down obj_4 | left set_0 ]
++ down [ right set_0 | obj_4 ] -> [ right set_0 | up obj_4 ]
++ right [ obj_4 | down set_0 ] -> [ right obj_4 | down set_0 ]
++ right [ up set_0 | obj_4 ] -> [ up set_0 | left obj_4 ]
+
+down [ obj_4 | right set_0 ] -> [ down obj_4 | right set_0 ]
++ down [ left set_0 | obj_4 ] -> [ left set_0 | up obj_4 ]
++ right [ obj_4 | up set_0 ] -> [ right obj_4 | up set_0 ]
++ right [ down set_0 | obj_4 ] -> [ down set_0 | left obj_4 ]
+
+down [ stationary obj_27 ] -> [ randomdir obj_27 ]
+
+down [ obj_27 | up set_0 ] -> [ down obj_27 | up set_0 ]
++ down [ obj_27 | down set_0 ] -> [ down obj_27 | down set_0 ]
++ down [ obj_27 | left set_0 ] -> [ down obj_27 | left set_0 ]
++ down [ obj_27 | right set_0 ] -> [ down obj_27 | right set_0 ]
++ down [ obj_27 | action set_0 ] -> [ down obj_27 | action set_0 ]
++ down [ up set_0 | obj_27 ] -> [ up set_0 | up obj_27 ]
++ down [ down set_0 | obj_27 ] -> [ down set_0 | up obj_27 ]
++ down [ left set_0 | obj_27 ] -> [ left set_0 | up obj_27 ]
++ down [ right set_0 | obj_27 ] -> [ right set_0 | up obj_27 ]
++ down [ action set_0 | obj_27 ] -> [ action set_0 | up obj_27 ]
++ right [ obj_27 | up set_0 ] -> [ right obj_27 | up set_0 ]
++ right [ obj_27 | down set_0 ] -> [ right obj_27 | down set_0 ]
++ right [ obj_27 | left set_0 ] -> [ right obj_27 | left set_0 ]
++ right [ obj_27 | right set_0 ] -> [ right obj_27 | right set_0 ]
++ right [ obj_27 | action set_0 ] -> [ right obj_27 | action set_0 ]
++ right [ up set_0 | obj_27 ] -> [ up set_0 | left obj_27 ]
++ right [ down set_0 | obj_27 ] -> [ down set_0 | left obj_27 ]
++ right [ left set_0 | obj_27 ] -> [ left set_0 | left obj_27 ]
++ right [ right set_0 | obj_27 ] -> [ right set_0 | left obj_27 ]
++ right [ action set_0 | obj_27 ] -> [ action set_0 | left obj_27 ]
+
+down [ obj_0 | obj_24 ] [ obj_28 ] -> [ obj_0 |  ] [ obj_29 ]
++ down [ obj_24 | obj_0 ] [ obj_28 ] -> [  | obj_0 ] [ obj_29 ]
++ right [ obj_0 | obj_24 ] [ obj_28 ] -> [ obj_0 |  ] [ obj_29 ]
++ right [ obj_24 | obj_0 ] [ obj_28 ] -> [  | obj_0 ] [ obj_29 ]
+
+down [ obj_0 | obj_3 ] [ obj_28 ] -> [ obj_0 |  ] [ obj_29 ]
++ down [ obj_3 | obj_0 ] [ obj_28 ] -> [  | obj_0 ] [ obj_29 ]
++ right [ obj_0 | obj_3 ] [ obj_28 ] -> [ obj_0 |  ] [ obj_29 ]
++ right [ obj_3 | obj_0 ] [ obj_28 ] -> [  | obj_0 ] [ obj_29 ]
+
+down [ obj_0 | obj_24 ] [ obj_29 ] -> [ obj_0 |  ] [ obj_30 ]
++ down [ obj_24 | obj_0 ] [ obj_29 ] -> [  | obj_0 ] [ obj_30 ]
++ right [ obj_0 | obj_24 ] [ obj_29 ] -> [ obj_0 |  ] [ obj_30 ]
++ right [ obj_24 | obj_0 ] [ obj_29 ] -> [  | obj_0 ] [ obj_30 ]
+
+down [ obj_0 | obj_3 ] [ obj_29 ] -> [ obj_0 |  ] [ obj_30 ]
++ down [ obj_3 | obj_0 ] [ obj_29 ] -> [  | obj_0 ] [ obj_30 ]
++ right [ obj_0 | obj_3 ] [ obj_29 ] -> [ obj_0 |  ] [ obj_30 ]
++ right [ obj_3 | obj_0 ] [ obj_29 ] -> [  | obj_0 ] [ obj_30 ]
+
+down [ obj_0 | obj_24 ] [ obj_30 ] -> [ obj_0 |  ] [ obj_31 ]
++ down [ obj_24 | obj_0 ] [ obj_30 ] -> [  | obj_0 ] [ obj_31 ]
++ right [ obj_0 | obj_24 ] [ obj_30 ] -> [ obj_0 |  ] [ obj_31 ]
++ right [ obj_24 | obj_0 ] [ obj_30 ] -> [  | obj_0 ] [ obj_31 ]
+
+down [ obj_0 | obj_3 ] [ obj_30 ] -> [ obj_0 |  ] [ obj_31 ]
++ down [ obj_3 | obj_0 ] [ obj_30 ] -> [  | obj_0 ] [ obj_31 ]
++ right [ obj_0 | obj_3 ] [ obj_30 ] -> [ obj_0 |  ] [ obj_31 ]
++ right [ obj_3 | obj_0 ] [ obj_30 ] -> [  | obj_0 ] [ obj_31 ]
+
+down [ obj_0 | up obj_27 ] -> [ obj_0 |  ]
++ down [ down obj_27 | obj_0 ] -> [  | obj_0 ]
++ right [ obj_0 | left obj_27 ] -> [ obj_0 |  ]
++ right [ right obj_27 | obj_0 ] -> [  | obj_0 ]
+
+down [ stationary obj_5 ] -> [ down obj_5 ]
+
+down [ stationary obj_6 ] -> [ right obj_6 ]
+
+down [ stationary obj_7 ] -> [ left obj_7 ]
+
+down [ obj_8 | up obj_1 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_14 | obj_1 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ down [ obj_8 | up obj_26 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_14 | obj_26 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ down [ obj_8 | down obj_1 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_14 | obj_1 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ down [ obj_8 | down obj_26 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_14 | obj_26 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ down [ obj_8 | left obj_1 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_14 | obj_1 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ down [ obj_8 | left obj_26 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_14 | obj_26 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ down [ obj_8 | right obj_1 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_14 | obj_1 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ down [ obj_8 | right obj_26 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_14 | obj_26 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ down [ obj_8 | action obj_1 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_14 | obj_1 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ down [ obj_8 | action obj_26 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_14 | obj_26 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ down [ up obj_1 | obj_8 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_1 | obj_14 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ down [ up obj_26 | obj_8 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_26 | obj_14 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ down [ down obj_1 | obj_8 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_1 | obj_14 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ down [ down obj_26 | obj_8 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_26 | obj_14 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ down [ left obj_1 | obj_8 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_1 | obj_14 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ down [ left obj_26 | obj_8 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_26 | obj_14 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ down [ right obj_1 | obj_8 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_1 | obj_14 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ down [ right obj_26 | obj_8 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_26 | obj_14 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ down [ action obj_1 | obj_8 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_1 | obj_14 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ down [ action obj_26 | obj_8 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_26 | obj_14 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ right [ obj_8 | up obj_1 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_14 | obj_1 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ right [ obj_8 | up obj_26 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_14 | obj_26 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ right [ obj_8 | down obj_1 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_14 | obj_1 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ right [ obj_8 | down obj_26 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_14 | obj_26 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ right [ obj_8 | left obj_1 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_14 | obj_1 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ right [ obj_8 | left obj_26 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_14 | obj_26 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ right [ obj_8 | right obj_1 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_14 | obj_1 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ right [ obj_8 | right obj_26 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_14 | obj_26 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ right [ obj_8 | action obj_1 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_14 | obj_1 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ right [ obj_8 | action obj_26 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_14 | obj_26 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ right [ up obj_1 | obj_8 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_1 | obj_14 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ right [ up obj_26 | obj_8 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_26 | obj_14 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ right [ down obj_1 | obj_8 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_1 | obj_14 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ right [ down obj_26 | obj_8 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_26 | obj_14 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ right [ left obj_1 | obj_8 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_1 | obj_14 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ right [ left obj_26 | obj_8 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_26 | obj_14 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ right [ right obj_1 | obj_8 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_1 | obj_14 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ right [ right obj_26 | obj_8 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_26 | obj_14 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ right [ action obj_1 | obj_8 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_1 | obj_14 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
++ right [ action obj_26 | obj_8 ] [ obj_9 ] [ obj_5 ] [ obj_10 ] [ obj_6 ] [ obj_11 ] [ obj_12 ] [ obj_13 ] [ obj_7 ] -> [ obj_26 | obj_14 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ]
+
+rigid down [ set_1 | up obj_1 ] -> [ down set_1 | up obj_1 ]
++ rigid down [ set_1 | up obj_26 ] -> [ down set_1 | up obj_26 ]
++ rigid down [ set_1 | down obj_1 ] -> [ down set_1 | down obj_1 ]
++ rigid down [ set_1 | down obj_26 ] -> [ down set_1 | down obj_26 ]
++ rigid down [ set_1 | left obj_1 ] -> [ down set_1 | left obj_1 ]
++ rigid down [ set_1 | left obj_26 ] -> [ down set_1 | left obj_26 ]
++ rigid down [ set_1 | right obj_1 ] -> [ down set_1 | right obj_1 ]
++ rigid down [ set_1 | right obj_26 ] -> [ down set_1 | right obj_26 ]
++ rigid down [ set_1 | action obj_1 ] -> [ down set_1 | action obj_1 ]
++ rigid down [ set_1 | action obj_26 ] -> [ down set_1 | action obj_26 ]
++ rigid down [ up obj_1 | set_1 ] -> [ up obj_1 | up set_1 ]
++ rigid down [ up obj_26 | set_1 ] -> [ up obj_26 | up set_1 ]
++ rigid down [ down obj_1 | set_1 ] -> [ down obj_1 | up set_1 ]
++ rigid down [ down obj_26 | set_1 ] -> [ down obj_26 | up set_1 ]
++ rigid down [ left obj_1 | set_1 ] -> [ left obj_1 | up set_1 ]
++ rigid down [ left obj_26 | set_1 ] -> [ left obj_26 | up set_1 ]
++ rigid down [ right obj_1 | set_1 ] -> [ right obj_1 | up set_1 ]
++ rigid down [ right obj_26 | set_1 ] -> [ right obj_26 | up set_1 ]
++ rigid down [ action obj_1 | set_1 ] -> [ action obj_1 | up set_1 ]
++ rigid down [ action obj_26 | set_1 ] -> [ action obj_26 | up set_1 ]
++ rigid right [ set_1 | up obj_1 ] -> [ right set_1 | up obj_1 ]
++ rigid right [ set_1 | up obj_26 ] -> [ right set_1 | up obj_26 ]
++ rigid right [ set_1 | down obj_1 ] -> [ right set_1 | down obj_1 ]
++ rigid right [ set_1 | down obj_26 ] -> [ right set_1 | down obj_26 ]
++ rigid right [ set_1 | left obj_1 ] -> [ right set_1 | left obj_1 ]
++ rigid right [ set_1 | left obj_26 ] -> [ right set_1 | left obj_26 ]
++ rigid right [ set_1 | right obj_1 ] -> [ right set_1 | right obj_1 ]
++ rigid right [ set_1 | right obj_26 ] -> [ right set_1 | right obj_26 ]
++ rigid right [ set_1 | action obj_1 ] -> [ right set_1 | action obj_1 ]
++ rigid right [ set_1 | action obj_26 ] -> [ right set_1 | action obj_26 ]
++ rigid right [ up obj_1 | set_1 ] -> [ up obj_1 | left set_1 ]
++ rigid right [ up obj_26 | set_1 ] -> [ up obj_26 | left set_1 ]
++ rigid right [ down obj_1 | set_1 ] -> [ down obj_1 | left set_1 ]
++ rigid right [ down obj_26 | set_1 ] -> [ down obj_26 | left set_1 ]
++ rigid right [ left obj_1 | set_1 ] -> [ left obj_1 | left set_1 ]
++ rigid right [ left obj_26 | set_1 ] -> [ left obj_26 | left set_1 ]
++ rigid right [ right obj_1 | set_1 ] -> [ right obj_1 | left set_1 ]
++ rigid right [ right obj_26 | set_1 ] -> [ right obj_26 | left set_1 ]
++ rigid right [ action obj_1 | set_1 ] -> [ action obj_1 | left set_1 ]
++ rigid right [ action obj_26 | set_1 ] -> [ action obj_26 | left set_1 ]
++ rigid down [ set_1 | up set_1 ] -> [ up set_1 | up set_1 ]
++ rigid down [ set_1 | down set_1 ] -> [ down set_1 | down set_1 ]
++ rigid down [ set_1 | left set_1 ] -> [ left set_1 | left set_1 ]
++ rigid down [ set_1 | right set_1 ] -> [ right set_1 | right set_1 ]
++ rigid down [ set_1 | action set_1 ] -> [ action set_1 | action set_1 ]
++ rigid down [ up set_1 | set_1 ] -> [ up set_1 | up set_1 ]
++ rigid down [ down set_1 | set_1 ] -> [ down set_1 | down set_1 ]
++ rigid down [ left set_1 | set_1 ] -> [ left set_1 | left set_1 ]
++ rigid down [ right set_1 | set_1 ] -> [ right set_1 | right set_1 ]
++ rigid down [ action set_1 | set_1 ] -> [ action set_1 | action set_1 ]
++ rigid right [ set_1 | up set_1 ] -> [ up set_1 | up set_1 ]
++ rigid right [ set_1 | down set_1 ] -> [ down set_1 | down set_1 ]
++ rigid right [ set_1 | left set_1 ] -> [ left set_1 | left set_1 ]
++ rigid right [ set_1 | right set_1 ] -> [ right set_1 | right set_1 ]
++ rigid right [ set_1 | action set_1 ] -> [ action set_1 | action set_1 ]
++ rigid right [ up set_1 | set_1 ] -> [ up set_1 | up set_1 ]
++ rigid right [ down set_1 | set_1 ] -> [ down set_1 | down set_1 ]
++ rigid right [ left set_1 | set_1 ] -> [ left set_1 | left set_1 ]
++ rigid right [ right set_1 | set_1 ] -> [ right set_1 | right set_1 ]
++ rigid right [ action set_1 | set_1 ] -> [ action set_1 | action set_1 ]
+
+down [ obj_0 | obj_21 ] [ obj_28 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_14 ] [ obj_22 ] -> [ obj_0 |  ] [ obj_31 ] [  ] [  ] [  ] [  ] [  ] [  ] [  ] [  ]
++ down [ obj_21 | obj_0 ] [ obj_28 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_14 ] [ obj_22 ] -> [  | obj_0 ] [ obj_31 ] [  ] [  ] [  ] [  ] [  ] [  ] [  ] [  ]
++ right [ obj_0 | obj_21 ] [ obj_28 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_14 ] [ obj_22 ] -> [ obj_0 |  ] [ obj_31 ] [  ] [  ] [  ] [  ] [  ] [  ] [  ] [  ]
++ right [ obj_21 | obj_0 ] [ obj_28 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_14 ] [ obj_22 ] -> [  | obj_0 ] [ obj_31 ] [  ] [  ] [  ] [  ] [  ] [  ] [  ] [  ]
+
+down [ obj_0 | obj_14 ] [ obj_28 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ] -> [ obj_0 |  ] [ obj_31 ] [  ] [  ] [  ] [  ] [  ] [  ] [  ] [  ]
++ down [ obj_14 | obj_0 ] [ obj_28 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ] -> [  | obj_0 ] [ obj_31 ] [  ] [  ] [  ] [  ] [  ] [  ] [  ] [  ]
++ right [ obj_0 | obj_14 ] [ obj_28 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ] -> [ obj_0 |  ] [ obj_31 ] [  ] [  ] [  ] [  ] [  ] [  ] [  ] [  ]
++ right [ obj_14 | obj_0 ] [ obj_28 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_22 ] -> [  | obj_0 ] [ obj_31 ] [  ] [  ] [  ] [  ] [  ] [  ] [  ] [  ]
+
+down [ obj_0 | obj_22 ] [ obj_28 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_14 ] -> [ obj_0 |  ] [ obj_31 ] [  ] [  ] [  ] [  ] [  ] [  ] [  ] [  ]
++ down [ obj_22 | obj_0 ] [ obj_28 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_14 ] -> [  | obj_0 ] [ obj_31 ] [  ] [  ] [  ] [  ] [  ] [  ] [  ] [  ]
++ right [ obj_0 | obj_22 ] [ obj_28 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_14 ] -> [ obj_0 |  ] [ obj_31 ] [  ] [  ] [  ] [  ] [  ] [  ] [  ] [  ]
++ right [ obj_22 | obj_0 ] [ obj_28 ] [ obj_15 ] [ obj_16 ] [ obj_17 ] [ obj_18 ] [ obj_19 ] [ obj_20 ] [ obj_21 ] [ obj_14 ] -> [  | obj_0 ] [ obj_31 ] [  ] [  ] [  ] [  ] [  ] [  ] [  ] [  ]
+
+==============
+WINCONDITIONS
+==============
+
+no obj_2
+no obj_23
+no obj_3
+no obj_24
+no obj_27
+no set_2
+no set_1
+
+======
+LEVELS
+======
+
+message
+
+message
+
+0.0000000.0
+00.00..00.0
+...0.0...0.
+...0.0.....
+..........0
+.........00
+...01.....0
+...........
+00.......00
+...2..3.01.
+.....456...
+00007.00000
+...........
+...........
+
+message
+
+message
+
+0..000000.8
+.0000..00..
+0.2..0..00.
+0.00.0.0...
+0.0080....0
+0..........
+80000......
+........001
+.0.....0.8.
+20....40.0.
+0....456...
+00007.00000
+...........
+...........
+
+message
+
+message
+
+000.000..0.
+0.0000....0
+...0.......
+........000
+.........0.
+....0......
+...........
+0.0....0...
+0.....000..
+.....3300..
+33333933330
+00007A00000
+..B........
+...........
+
+message
+
+message
+
+000..C.0008
+00..D.E...0
+0F...GH....
+0...IJ..K..
+0........0.
+........000
+......00.0.
+0..........
+8008.......
+0.....3..0.
+.00..456...
+00007.00000
+...........
+...........
+
+message
+
+message
+
+message
+
+message
+
+message
