@@ -1003,7 +1003,7 @@ bool matchesGameFilter(const std::string& relativeName, const std::optional<std:
 Options parseArgs(int argc, char** argv) {
     Options options;
     options.jobs = 1;
-    constexpr const char* usage = "Usage: puzzlescript_solver <solver_tests_dir> [--timeout-ms N] [--jobs auto|N|1] [--hda-jobs auto|N|1] [--portfolio-jobs auto|N|1] [--strategy portfolio|bfs|weighted-astar|weighted-astar-deep|greedy|hda-weighted-astar] [--solver-heuristic zero|winconditions|auto|all-on-matching|all-on-player|no-player-distance|mis-cost-estimate] [--static-analysis-hints PATH] [--dump-static-analysis] [--timing none|summary|detailed] [--game NAME] [--level N] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--summary-only] [--quiet] [--json] [--profile-runtime-counters] [--require-specialized-full-turn] [--hash-state-keys] [--compact-node-storage] [--full-node-storage] [--compact-turn-oracle] [--solver-hash-projection] [--solver-opt win-relevance|all] [--astar-weight N]";
+    constexpr const char* usage = "Usage: puzzlescript_solver <solver_tests_dir> [--timeout-ms N] [--jobs auto|N|1] [--hda-jobs auto|N|1] [--portfolio-jobs auto|N|1] [--strategy portfolio|bfs|weighted-astar|weighted-astar-deep|greedy|hda-weighted-astar] [--solver-heuristic zero|winconditions|auto|all-on-matching|all-on-player|no-player-distance|mis-cost-estimate|rule-goals] [--static-analysis-hints PATH] [--dump-static-analysis] [--timing none|summary|detailed] [--game NAME] [--level N] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--summary-only] [--quiet] [--json] [--profile-runtime-counters] [--require-specialized-full-turn] [--hash-state-keys] [--compact-node-storage] [--full-node-storage] [--compact-turn-oracle] [--solver-hash-projection] [--solver-opt win-relevance|all] [--astar-weight N]";
     if (argc < 2) {
         throw std::runtime_error(usage);
     }
@@ -1608,6 +1608,18 @@ std::string portfolioProfileName(PortfolioProfile profile) {
         case PortfolioProfile::BreadthFirst: return "breadth-first";
     }
     return "unknown";
+}
+
+puzzlescript::solver::HeuristicKind portfolioHeuristic(
+    PortfolioProfile profile, puzzlescript::solver::HeuristicKind requested) {
+    // The expensive rule-goal signal cannot change breadth-first ordering.
+    // That profile starts with 35,000 BFS expansions, often the entire short
+    // deadline: charging every new node for the new score regressed real solves
+    // without reducing search. Keep Auto for this profile in the opt-in
+    // experiment. Explicit weighted-A*/greedy searches can still use rule-goals.
+    return requested == puzzlescript::solver::HeuristicKind::RuleGoals
+            && profile == PortfolioProfile::BreadthFirst
+        ? puzzlescript::solver::HeuristicKind::Auto : requested;
 }
 
 struct PortfolioLaneConfig {
@@ -2535,7 +2547,9 @@ Result runSearch(
         searchHeight,
         mode == SearchMode::Bfs ? puzzlescript::solver::HeuristicKind::Zero : heuristicKind,
         initialState.board.objects.data(),
-        staticAnalysisHints);
+        staticAnalysisHints,
+        heuristicKind == puzzlescript::solver::HeuristicKind::RuleGoals
+            ? puzzlescript::solver::ruleGoalPlanFor(loadedGame.information) : nullptr);
     if (heuristicContext.staticAnalysisHintsUsed()) {
         result.staticAnalysisHints = "js";
     }
@@ -2814,6 +2828,7 @@ Result runAdaptivePortfolioSearch(
     result.strategy = "portfolio";
     const PortfolioFeatures portfolioFeatures = analyzePortfolioFeatures(*game);
     const PortfolioProfile portfolioProfile = choosePortfolioProfile(portfolioFeatures);
+    heuristicKind = portfolioHeuristic(portfolioProfile, heuristicKind);
     applyPortfolioMetadata(result, portfolioFeatures, portfolioProfile, heuristicKind);
     result.timeoutMs = timeoutMs;
     result.workerId = workerId;
@@ -2874,7 +2889,9 @@ Result runAdaptivePortfolioSearch(
         searchHeight,
         heuristicKind,
         initialState.board.objects.data(),
-        staticAnalysisHints);
+        staticAnalysisHints,
+        heuristicKind == puzzlescript::solver::HeuristicKind::RuleGoals
+            ? puzzlescript::solver::ruleGoalPlanFor(loadedGame.information) : nullptr);
     if (heuristicContext.staticAnalysisHintsUsed()) {
         result.staticAnalysisHints = "js";
     }
@@ -3590,7 +3607,9 @@ Result runHashDistributedWeightedAStarSearch(
         searchHeight,
         heuristicKind,
         initialState.board.objects.data(),
-        staticAnalysisHints);
+        staticAnalysisHints,
+        heuristicKind == puzzlescript::solver::HeuristicKind::RuleGoals
+            ? puzzlescript::solver::ruleGoalPlanFor(loadedGame.information) : nullptr);
     if (setupHeuristicContext.staticAnalysisHintsUsed()) {
         result.staticAnalysisHints = "js";
     }
@@ -3664,7 +3683,9 @@ Result runHashDistributedWeightedAStarSearch(
             searchHeight,
             heuristicKind,
             initialBoardObjects.data(),
-            staticAnalysisHints);
+            staticAnalysisHints,
+            heuristicKind == puzzlescript::solver::HeuristicKind::RuleGoals
+                ? puzzlescript::solver::ruleGoalPlanFor(loadedGame.information) : nullptr);
 
         while (!cancelRequested.load(std::memory_order_acquire)) {
             bool timedOut = false;
