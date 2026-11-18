@@ -3,7 +3,7 @@
 
 .mis-win95 #console { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
 .mis-win95 .console-tabs { display: flex; align-items: flex-end; gap: 2px; padding: 4px 2px 0; border-bottom: 1px solid #fff; flex: none; }
-.mis-win95 .console-tabs [data-ctab] { min-height: 20px; padding: 3px 10px; font-size: 12px; background: #c0c0c0; box-shadow: inset 1px 1px #fff, inset -1px 0 #000; border: 1px solid #808080; border-bottom: 0; position: relative; }
+.mis-win95 .console-tabs [data-ctab] { min-height: 20px; padding: 3px 10px; font-size: 11px; background: #c0c0c0; box-shadow: inset 1px 1px #fff, inset -1px 0 #000; border: 1px solid #808080; border-bottom: 0; position: relative; }
 .mis-win95 .console-tabs [data-ctab].on { top: 1px; padding-top: 2px; border-bottom: 1px solid #c0c0c0; }
 .mis-win95 .console-tabs [data-ctab].bad { color: var(--bad); }
 .mis-win95 .console-tabs [hidden] { display: none !important; }

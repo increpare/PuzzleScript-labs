@@ -43,7 +43,7 @@
 		function extensions() {
 			language = createPuzzleScriptLanguage(codeMirrorFn());
 			return [
-				R.EditorView.editorAttributes.of({ class: 'puzzlescript-editor mis-code-editor sa-editor' }),
+				R.EditorView.editorAttributes.of({ class: 'puzzlescript-editor mis-code-editor sa-editor', 'data-gui95-lint-ignore': 'translucency' }),
 				R.EditorView.contentAttributes.of({ 'aria-label': 'Game source with static analysis tags' }),
 				R.EditorState.readOnly.of(true), R.lineNumbers(), R.highlightActiveLine(), R.drawSelection(),
 				R.EditorState.tabSize.of(4), R.EditorView.lineWrapping,

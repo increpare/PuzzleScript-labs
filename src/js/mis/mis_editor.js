@@ -288,7 +288,7 @@
 			language = createPuzzleScriptLanguage(transform ? transformParser(source) : codeMirrorFn());
 			const completionSource = puzzleScriptCompletionSource({ language, complete: transform ? transformCompletions : PuzzleScriptAutocomplete.complete });
 			return [
-				R.EditorView.editorAttributes.of({ class: 'puzzlescript-editor mis-code-editor' }),
+				R.EditorView.editorAttributes.of({ class: 'puzzlescript-editor mis-code-editor', 'data-gui95-lint-ignore': 'translucency' }),
 				R.EditorView.contentAttributes.of({ 'aria-label': transform ? 'Transform code' : 'Game source code' }),
 				...(ruleGutter ? [breakpoints, pausedLine, breakpointGutter, breakpointKeymap] : []),
 				R.lineNumbers(), ...(ruleGutter ? [rules, ruleGutterExtension] : []),

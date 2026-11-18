@@ -29,9 +29,9 @@
 .mis-win95 button:disabled { opacity: 1; color: #808080; text-shadow: 1px 1px #fff; }
 .mis-win95 :is(button, select, input, [tabindex]):focus-visible { outline: 1px dotted #000; outline-offset: -4px; }
 .mis-win95 :is(select, input[type=text]) { min-height: 23px; background: #fff; color: #000; border: 0; border-radius: 0; box-shadow: var(--sunken); padding: 3px 6px; }
-.mis-win95 input[type=checkbox] { accent-color: #000080; width: 13px; height: 13px; margin: 0 3px 0 0; }
+.mis-win95 input[type=checkbox] { margin: 0 3px 0 0; }
 .mis-win95 kbd { border: 0; padding: 0; color: #000; font: inherit; }
-.app-caption, .dialog-caption { display: flex; align-items: center; gap: 6px; padding: 2px 4px; background: #000080; color: white; font-size: 12px; overflow: hidden; white-space: nowrap; }
+.app-caption, .dialog-caption { display: flex; align-items: center; gap: 6px; padding: 2px 4px; background: #000080; color: white; font-size: 11px; overflow: hidden; white-space: nowrap; }
 #caption-document { overflow: hidden; text-overflow: ellipsis; }
 .app-icon { display: inline-block; flex: none; width: 16px; height: 16px; border: 1px solid #000; background: linear-gradient(#000080 0 4px, #fff 4px); box-shadow: inset 1px 1px #fff; position: relative; }
 .app-icon::after { content: ""; position: absolute; left: 3px; top: 6px; width: 5px; height: 5px; background: #008080; box-shadow: 4px 3px #800080; }
@@ -112,7 +112,8 @@
 .mis-win95 #side { grid-template-rows: 20px auto minmax(0,1fr); }
 .mis-win95 .tabs { gap: 2px; padding: 6px 2px 0; border-bottom: 1px solid #fff; }
 .mis-win95 .tabs button { padding: 5px 10px; background: #c0c0c0; color: #000; box-shadow: inset 1px 1px #fff, inset -1px 0 #000; border: 1px solid #808080; border-bottom: 0; position: relative; }
-.mis-win95 .tabs button.on { top: 1px; background: #c0c0c0; color: #000; box-shadow: inset 1px 1px #fff, inset -1px 0 #000; padding-top: 4px; border-bottom: 1px solid #c0c0c0; }
+/* The selected tab is 2px wider on each side, so a selected first tab is flush with the panel's left edge. */
+.mis-win95 .tabs button.on { margin: 0 -2px; padding-left: 12px; padding-right: 12px; z-index: 1; top: 1px; background: #c0c0c0; color: #000; box-shadow: inset 1px 1px #fff, inset -1px 0 #000; padding-top: 4px; border-bottom: 1px solid #c0c0c0; }
 .mis-win95 .tab > .pane-title { background: #c0c0c0; color: #000; font-weight: normal; padding: 8px 6px 0; }
 .mis-win95 .presets { gap: 4px; padding: 5px 6px; }
 .mis-win95 .presets button { font-size: 11px; padding: 4px 7px; border-radius: 0; }
@@ -172,12 +173,11 @@
 
 /* Workbench sizing: reserve results space so incoming cards cannot move the board. */
 .mis-win95 [hidden] { display: none !important; }
-.mis-win95 { font-size: 12px; --results-height: 220px; }
+.mis-win95 { --results-height: 220px; }
 .mis-win95 main { grid-template-columns: 142px minmax(280px,1fr) 7px minmax(300px,var(--code-width,34%)); gap: 3px; }
 .mis-win95 #levels { grid-column: 1; grid-row: 1; }
 .mis-win95 #stage { grid-column: 2; grid-row: 1; grid-template-columns: minmax(0,1fr); grid-template-rows: 20px auto minmax(120px,1fr) auto 7px var(--results-height); }
 .mis-win95 #side { grid-column: 4; grid-row: 1; }
-.mis-win95 .pane-title { font-size: 12px; }
 .pane-splitter { position: relative; touch-action: none; user-select: none; }
 .pane-splitter::after { content: ""; position: absolute; background: #808080; box-shadow: 1px 1px #fff; }
 #code-splitter { grid-column: 3; grid-row: 1; cursor: col-resize; }
@@ -199,7 +199,7 @@ body.resizing-panes, body.resizing-panes * { cursor: var(--resize-cursor) !impor
 .mis-win95 #lineage { min-width: 0; max-width: 28%; }
 .mis-win95 #suggest { overflow: hidden; border: 0; box-shadow: none; }
 .mis-win95 .suggest-head { flex: none; padding: 4px 3px 6px; gap: 6px 8px; }
-.mis-win95 .suggest-head h2 { font-size: 12px; }
+.mis-win95 .suggest-head h2 { font-size: 11px; }
 .mis-win95 #gen-btn { min-width: 100px; font-weight: bold; }
 .mis-win95 .suggest-head label { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; }
 .mis-win95 #rank-select { max-width: 146px; }
@@ -221,10 +221,10 @@ body.resizing-panes, body.resizing-panes * { cursor: var(--resize-cursor) !impor
 .mis-win95 .side-actions { flex: none; align-items: start; }
 .mis-win95 .diag:empty { display: none; }
 .mis-win95 .tabs { flex: none; }
-.mis-win95 .tabs button { font-size: 12px; }
+.mis-win95 .tabs button { font-size: 11px; }
 .mis-win95 .menu-trigger { padding: 3px 8px; }
 .mis-win95 .menu-popup { max-width: calc(100vw - 12px); overflow-y: auto; }
-.mis-win95 .menu-popup button { font-size: 12px; }
+.mis-win95 .menu-popup button { font-size: 11px; }
 .mis-win95 .menu-popup button:hover:not(:focus):not(:disabled) { color: #000; background: #c0c0c0; }
 .mis-win95 .menu-popup button:focus:not(:disabled) { color: #fff; background: #000080; }
 .mis-win95 #toast { max-width: calc(100% - 24px); text-align: center; }
@@ -377,3 +377,16 @@ body.resizing-panes, body.resizing-panes * { cursor: var(--resize-cursor) !impor
 .new-level-fields p { margin: 8px 6px; }
 #new-level-error { color: #800000; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 12px; }
+
+/* Period pass, 18 November 2026: check boxes and drop-down lists are drawn by the stylesheet
+   (rules from GUI95 kit 1.1.0, gui95.css) instead of the host, controls keep the arrow cursor,
+   and the palette key digit has a hard outline instead of a blurred glow. */
+.mis-win95 input[type="checkbox"]{appearance:none;flex:none;width:13px;height:13px;margin:0 4px 0 0;border:0;border-radius:0;vertical-align:middle;background:#fff center/7px 7px no-repeat;box-shadow:var(--sunken)}
+.mis-win95 input[type="checkbox"]:checked{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 7' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 0h1v1h-1zM5 1h2v1h-2zM0 2h1v1h-1zM4 2h3v1h-3zM0 3h2v1h-2zM3 3h3v1h-3zM0 4h5v1h-5zM1 5h3v1h-3zM2 6h1v1h-1z'/%3E%3C/svg%3E")}
+.mis-win95 input[type="checkbox"]:disabled{background-color:#c0c0c0}
+.mis-win95 input[type="checkbox"]:checked:disabled{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 7' shape-rendering='crispEdges'%3E%3Cpath fill='%23808080' d='M6 0h1v1h-1zM5 1h2v1h-2zM0 2h1v1h-1zM4 2h3v1h-3zM0 3h2v1h-2zM3 3h3v1h-3zM0 4h5v1h-5zM1 5h3v1h-3zM2 6h1v1h-1z'/%3E%3C/svg%3E")}
+.mis-win95 input[type="checkbox"]:indeterminate{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 7' shape-rendering='crispEdges'%3E%3Cpath fill='%23808080' d='M6 0h1v1h-1zM5 1h2v1h-2zM0 2h1v1h-1zM4 2h3v1h-3zM0 3h2v1h-2zM3 3h3v1h-3zM0 4h5v1h-5zM1 5h3v1h-3zM2 6h1v1h-1z'/%3E%3C/svg%3E"),repeating-conic-gradient(#fff 0% 25%,#c0c0c0 0% 50%);background-size:7px 7px,2px 2px;background-repeat:no-repeat,repeat;background-position:center,0 0}
+.mis-win95 select:not([multiple]):not([size]){appearance:none;padding-right:20px;--drop-arrow:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 4' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M0 0h7v1h-7zM1 1h5v1h-5zM2 2h3v1h-3zM3 3h1v1h-1z'/%3E%3C/svg%3E");background-image:var(--drop-arrow),linear-gradient(#fff,#fff),linear-gradient(#fff,#fff),linear-gradient(#000,#000),linear-gradient(#000,#000),linear-gradient(#808080,#808080),linear-gradient(#808080,#808080),linear-gradient(#c0c0c0,#c0c0c0);background-repeat:no-repeat;background-position:right 6px center,right 2px top 2px,right 17px top 2px,right 2px bottom 2px,right 2px top 2px,right 3px bottom 3px,right 3px top 3px,right 2px top 2px;background-size:7px 4px,16px 1px,1px calc(100% - 4px),16px 1px,1px calc(100% - 4px),14px 1px,1px calc(100% - 6px),16px calc(100% - 4px)}
+.mis-win95 select:not([multiple]):not([size]):disabled{--drop-arrow:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 4' shape-rendering='crispEdges'%3E%3Cpath fill='%23808080' d='M0 0h7v1h-7zM1 1h5v1h-5zM2 2h3v1h-3zM3 3h1v1h-1z'/%3E%3C/svg%3E")}
+.mis-win95 :is(.toggle, .level-item, .card, .diag div, #backend-note, .mis-bp-gutter, .mis-rule-mark.toggle), .mis-win95 #lineage .node { cursor: default; }
+.mis-win95 .swatch .k { text-shadow: 1px 0 #000, -1px 0 #000, 0 1px #000, 0 -1px #000; }
